@@ -7,7 +7,13 @@
       "WebSearch",
       "WebFetch(domain:blog.naver.com)",
       "WebFetch(domain:m.blog.naver.com)",
-      "WebFetch(domain:enbt.co.kr)"
+      "WebFetch(domain:enbt.co.kr)",
+      "PowerShell",
+      "Edit",
+      "Write",
+      "Read",
+      "Glob",
+      "Grep"
     ]
   }
 }
