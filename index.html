@@ -492,8 +492,13 @@
 
                 <!-- 선택 전 안내 -->
                 <div id="noEstimateMsg" class="no-estimate-msg">
-                  <span><i data-lucide="calculator" style="width:32px;height:32px;color:var(--gray2)"></i></span>
-                  <p>목적지와 기간을 선택하면<br>예상 견적이 표시됩니다.</p>
+                  <span class="no-est-icon"><i data-lucide="calculator" style="width:28px;height:28px;color:var(--red)"></i></span>
+                  <p class="no-est-lead">목적지와 기간을 선택하면<br>예상 견적이 표시됩니다.</p>
+                  <ul class="no-est-steps">
+                    <li><i data-lucide="check" class="ic-sm"></i>목적지 · 인원 · 기간 입력</li>
+                    <li><i data-lucide="check" class="ic-sm"></i>포함 항목 · 등급 선택</li>
+                    <li><i data-lucide="check" class="ic-sm"></i>30초 안에 예상 총액 확인</li>
+                  </ul>
                 </div>
 
                 <!-- 포함 항목 태그 (항목명만 노출, 단가 비공개) -->
@@ -526,7 +531,7 @@
                 </div>
 
                 <!-- 기업 단체연수 체크리스트 (참고용 · 접이식) -->
-                <details class="group-checklist" open>
+                <details class="group-checklist">
                   <summary class="gcl-head">
                     <span class="gcl-title">기업 단체연수 준비 체크리스트</span>
                   </summary>

@@ -44,7 +44,21 @@ def main():
             page.on("pageerror", lambda exc: errors.append(f"[pageerror] {exc}"))
 
             page.goto(url, wait_until="networkidle", timeout=15000)
-            page.wait_for_timeout(800)
+            page.wait_for_timeout(500)
+
+            # 스크롤 리빌 애니메이션(IntersectionObserver)을 실제로 트리거하기 위해
+            # 페이지 끝까지 단계적으로 스크롤한 뒤 최상단으로 복귀
+            total_height = page.evaluate("document.body.scrollHeight")
+            step = vp["height"]
+            y = 0
+            while y < total_height:
+                page.evaluate(f"window.scrollTo(0, {y})")
+                page.wait_for_timeout(150)
+                y += step
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_timeout(400)
+            page.evaluate("window.scrollTo(0, 0)")
+            page.wait_for_timeout(300)
 
             # 전체 페이지 스크린샷
             page.screenshot(path=str(out_dir / f"{vp_name}_full.png"), full_page=True)

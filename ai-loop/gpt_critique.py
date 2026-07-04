@@ -4,6 +4,7 @@ GPT(OpenAI) 비판/리뷰 호출 헬퍼
 prompt_file 내용을 그대로 GPT에 전달하고, 응답을 stdout(및 output_file)에 출력한다.
 """
 import sys
+sys.stdout.reconfigure(encoding="utf-8")
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
