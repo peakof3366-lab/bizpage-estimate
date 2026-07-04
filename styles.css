@@ -1446,6 +1446,40 @@ p { line-height:1.8; }
   width:400px; /* 첫 번째는 넓게 */
 }
 
+/* 목적지 위치 세계지도 */
+.dest-map-wrap { margin-bottom:36px; }
+.dest-map-frame {
+  position:relative;
+  background:#fff; border:1px solid var(--rule);
+  padding:12px; margin-top:10px;
+}
+.dest-map-img { width:100%; height:auto; display:block; opacity:.92; }
+.dest-map-pin {
+  position:absolute; transform:translate(-50%,-100%);
+  display:flex; flex-direction:column; align-items:center;
+  pointer-events:none;
+}
+.dest-map-pin-dot {
+  width:11px; height:11px; border-radius:50%;
+  background:var(--red); border:2px solid #fff;
+  box-shadow:0 0 0 3px rgba(200,16,46,.25);
+  position:relative;
+}
+.dest-map-pin-dot::after {
+  content:''; position:absolute; inset:-7px; border-radius:50%;
+  border:1.5px solid var(--red); opacity:.5;
+  animation:mapPinPulse 1.8s ease-out infinite;
+}
+@keyframes mapPinPulse {
+  0%   { transform:scale(.6); opacity:.6; }
+  100% { transform:scale(2.2); opacity:0; }
+}
+.dest-map-pin-label {
+  margin-bottom:6px; padding:3px 8px;
+  background:var(--ink); color:#fff;
+  font-size:11px; font-weight:700; white-space:nowrap;
+}
+
 /* 라이트박스 오버레이 */
 .photo-lightbox {
   display:none; position:fixed; inset:0; z-index:9000;
