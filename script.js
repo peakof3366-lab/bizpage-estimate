@@ -2641,10 +2641,12 @@ function toggleFaq(btn) {
   const isOpen = btn.classList.contains('open');
   document.querySelectorAll('.faq-q.open').forEach(function(q) {
     q.classList.remove('open');
+    q.setAttribute('aria-expanded', 'false');
     q.closest('.faq-item').querySelector('.faq-a').classList.remove('open');
   });
   if (!isOpen) {
     btn.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
     ans.classList.add('open');
   }
 }
