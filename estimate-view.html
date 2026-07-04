@@ -146,6 +146,12 @@ a { color: inherit; text-decoration: none; }
   padding: 24px 32px;
 }
 .iti-label { font-size: 10px; font-weight: 700; letter-spacing: .14em; color: rgba(255,255,255,.45); margin-bottom: 6px; }
+.iti-selected-badge {
+  display: inline-block; margin-left: 8px; padding: 2px 8px;
+  background: #CC001A; color: #fff; border-radius: 2px;
+  font-size: 9px; font-weight: 800; letter-spacing: .08em;
+}
+.iti-card-selected { box-shadow: 0 0 0 2px #CC001A, 0 4px 24px rgba(204,0,26,.15); }
 .iti-title { font-size: 17px; font-weight: 800; color: #fff; margin-bottom: 6px; }
 .iti-sub { font-size: 13px; color: rgba(255,255,255,.6); }
 .iti-highlights { padding: 24px 32px; display: flex; flex-wrap: wrap; gap: 8px; }
@@ -339,7 +345,7 @@ function renderPage(d) {
   const incTags = (d.rows || []).map(([name]) => `<span class="inc-tag">${name}</span>`).join('');
 
   /* ── 코스 A/B 하이라이트 + 일자별 상세 일정 ── */
-  function renderCourse(iti, label) {
+  function renderCourse(iti, label, isSelected) {
     if (!iti) return '';
     const hls = (iti.h || []).map(h => `<span class="iti-hl">· ${h}</span>`).join('');
     const days = (iti.d || []).map(day => `
@@ -356,9 +362,9 @@ function renderPage(d) {
         ${day.tip ? `<div class="day-tip">현장 Tip · ${day.tip}</div>` : ''}
       </div>`).join('');
     return `
-    <div class="iti-card">
+    <div class="iti-card${isSelected ? ' iti-card-selected' : ''}">
       <div class="iti-header">
-        <div class="iti-label">${label}</div>
+        <div class="iti-label">${label}${isSelected ? ' <span class="iti-selected-badge">탐색하신 일정</span>' : ''}</div>
         <div class="iti-title">${iti.t}</div>
         <div class="iti-sub">${iti.s}</div>
       </div>
@@ -474,8 +480,8 @@ function renderPage(d) {
       <div style="font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px">맞춤 일정 추천</div>
       <div style="font-size:13px;color:#5A5A5A">${d.dt} · <strong style="color:#CC001A">${d.ptx}</strong> 프로그램 유형에 최적화된 코스입니다.</div>
     </div>
-    ${renderCourse(d.itiA, 'COURSE A · 추천 코스')}
-    ${renderCourse(d.itiB, 'COURSE B · 대안 코스')}
+    ${renderCourse(d.itiA, 'COURSE A · 추천 코스', d.sp === 'a')}
+    ${renderCourse(d.itiB, 'COURSE B · 대안 코스', d.sp === 'b')}
     ` : ''}
 
     <!-- CTA -->

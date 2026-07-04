@@ -411,160 +411,6 @@ function renderLiveBreakdown() {
 
 
 
-function downloadEstimateFile() {
-  const data         = getBreakdownData();
-  const destinationText = destinationSelect.selectedOptions[0]?.textContent || '—';
-  const programText  = document.getElementById('programType').selectedOptions[0].textContent;
-  const orgTypeText  = document.getElementById('organizationType').selectedOptions[0].textContent;
-  const participants = document.getElementById('participants').value;
-  const days         = document.getElementById('days').value;
-  const organization = document.getElementById('organization').value.trim() || '—';
-  const contactName  = document.getElementById('contactName').value.trim() || '—';
-  const requestDetails = document.getElementById('requestDetails').value.trim() || '—';
-  const issueDate    = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-  const fmt          = (n) => '₩ ' + n.toLocaleString('ko-KR');
-  const totalStr     = data ? fmt(data.total) : '—';
-  const perStr       = data ? fmt(data.perPerson) : '—';
-
-  /* PDF용 포함 항목 목록 (단가/마진 비공개) */
-  const incItems = data ? data.rows.filter(function(r){ return !r.muted; }).map(function(r){ return r.name; }) : [];
-  const incListHtml = incItems.map(function(n){ return '<li style="margin:.3rem 0;font-size:12px">' + n + '</li>'; }).join('');
-  const rowsHtml = incListHtml; /* PDF 호환용 변수명 유지 */
-
-
-  /* 한글 PDF: 브라우저 인쇄 대화상자 → "PDF로 저장" 선택 */
-  const factorNote = data && Math.abs(data.combinedFactor - 1.0) > 0.001
-    ? `× 계수 ${data.combinedFactor.toFixed(3)} (${programText} · ${orgTypeText})`
-    : '';
-
-  /* Level 1 조건 요약 */
-  const paxLabel    = data ? data.paxTier.label   : '—';
-  const paxDesc     = data ? data.paxTier.desc     : '';
-  const seasonLabel = data ? data.seasonInfo.label : '—';
-  const hotelLabel  = data ? data.hotelGrade.label : '—';
-  /* v3 조건 요약 */
-  const departureLabel = data ? data.departureCityLabel : '서울 · 인천 (ICN)';
-  const cabinLabel     = data ? data.cabinClassLabel    : '이코노미';
-  const roomLabel      = data ? data.roomConfigLabel    : '2인 1실';
-  const vipLabel       = (data && data.roomConfigVal === 'mixed' && data.vipCount > 0)
-                           ? ` (1인 1실 ${data.vipCount}명 포함)` : '';
-  const startDateLabel = document.getElementById('startDate')?.value
-    ? new Date(document.getElementById('startDate').value)
-        .toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' })
-    : '—';
-  const endDateLabel = document.getElementById('endDate')?.value
-    ? new Date(document.getElementById('endDate').value)
-        .toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' })
-    : '—';
-
-  const html = `<!DOCTYPE html>
-<html lang="ko"><head>
-<meta charset="UTF-8"><title>비즈페이지 해외연수 견적서</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Malgun Gothic','Apple SD Gothic Neo','맑은 고딕',sans-serif;padding:44px;color:#1e2d3d;font-size:13px;line-height:1.7}
-  .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1B4965;padding-bottom:16px;margin-bottom:24px}
-  .top h1{font-size:18px;color:#1B4965;font-weight:800}
-  .meta{font-size:11px;color:#8b96a6;text-align:right;line-height:1.8}
-  .sec{margin-bottom:20px}
-  .sec-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#8b96a6;border-bottom:1px solid #e0deda;padding-bottom:5px;margin-bottom:9px}
-  table{width:100%;border-collapse:collapse}
-  .info-tbl td{padding:7px 9px;border-bottom:1px solid #f3f4f6}
-  .info-tbl td:first-child{font-weight:600;color:#7a8fa6;width:100px;white-space:nowrap}
-  .bdwn-tbl th{padding:7px 9px;text-align:left;font-size:11px;color:#9aabb8;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e0deda}
-  .bdwn-tbl td{padding:7px 9px;border-bottom:1px solid #f3f4f6;font-size:12px}
-  .bdwn-tbl tfoot td{padding:7px 9px;font-weight:700;border-top:2px solid #1B4965;color:#1B4965}
-  .totals{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
-  .tbox{padding:14px 18px;border-left:4px solid #1B4965}
-  .tbox.per{border-left-color:#D4A574;background:#FFF8F0}
-  .tlbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#8b96a6;margin-bottom:4px}
-  .tamt{font-size:22px;font-weight:800;color:#1B4965}
-  .tbox.per .tamt{color:#B8700A}
-  .footer{margin-top:24px;padding-top:12px;border-top:1px solid #e0deda;font-size:10px;color:#aab4bf;line-height:2}
-  .stamp{display:inline-block;border:2px solid #1B4965;color:#1B4965;padding:3px 10px;font-weight:700;font-size:11px;letter-spacing:.1em;margin-top:4px}
-  @media print{body{padding:28px}.no-print{display:none}}
-</style></head><body>
-<div class="top">
-  <div><h1><a href="${base}" style="color:inherit;text-decoration:none;cursor:pointer">비즈페이지</a> 해외연수 견적서</h1><div style="font-size:11px;color:#8b96a6;margin-top:3px">LINKED — 해외 연수 전문 플랫폼</div></div>
-  <div class="meta">발행일: ${issueDate}<br>(주)하나이엔비티<br>02-2088-4253</div>
-</div>
-
-<div class="sec">
-  <div class="sec-title">기관 정보</div>
-  <table class="info-tbl">
-    <tr><td>기관명</td><td>${organization}</td></tr>
-    <tr><td>담당자</td><td>${contactName}</td></tr>
-    <tr><td>기관 유형</td><td>${orgTypeText}</td></tr>
-  </table>
-</div>
-
-<div class="sec">
-  <div class="sec-title">연수 계획</div>
-  <table class="info-tbl">
-    <tr><td>연수 목적지</td><td>${destinationText}</td></tr>
-    <tr><td>프로그램</td><td>${programText}</td></tr>
-    <tr><td>참가 인원</td><td>${participants}명 (${paxLabel})</td></tr>
-    <tr><td>연수 기간</td><td>${data ? data.nights + '박 ' : ''}${days}일 (${startDateLabel} ~ ${endDateLabel})</td></tr>
-    <tr><td>출발 공항</td><td>${departureLabel}</td></tr>
-    <tr><td>항공 좌석</td><td>${cabinLabel}</td></tr>
-    <tr><td>객실 구성</td><td>${roomLabel}${vipLabel}</td></tr>
-    <tr><td>시즌</td><td>${seasonLabel}</td></tr>
-    <tr><td>호텔 등급</td><td>${hotelLabel}</td></tr>
-    <tr><td>요청 사항</td><td style="white-space:pre-wrap">${requestDetails}</td></tr>
-  </table>
-</div>
-<div class="sec">
-  <div class="sec-title">포함 항목</div>
-  <ul style="list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.5rem">
-  ${rowsHtml}
-  </ul>
-</div>
-
-
-
-<div class="totals">
-  <div class="tbox"><div class="tlbl">예상 총액 (부가세 별도)</div><div class="tamt">${totalStr}</div></div>
-  <div class="tbox per"><div class="tlbl">1인당 금액</div><div class="tamt">${perStr}</div></div>
-</div>
-
-<div style="text-align:right"><span class="stamp">LINKED 견적</span></div>
-
-${window._pdfPlanOverride ? `
-<div class="sec" style="border-top:3px solid #CC001A;padding-top:16px;margin-top:12px;page-break-inside:avoid">
-  <div class="sec-title" style="color:#CC001A;border-bottom-color:#CC001A">선택 연수 방식</div>
-  <table class="info-tbl">
-    <tr><td style="width:80px">방식</td><td>
-      <span style="background:${window._pdfPlanOverride.planKey==='a'?'#222':'#CC001A'};color:#fff;padding:2px 8px;font-size:10px;font-weight:800;letter-spacing:.1em">${window._pdfPlanOverride.planKey==='a'?'방식 A · 역량강화형':'방식 B · 동기부여·화합형'}</span>
-    </td></tr>
-    <tr><td>테마</td><td>${window._pdfPlanOverride.desc}</td></tr>
-    <tr><td>핵심 활동</td><td>${(window._pdfPlanOverride.points||[]).join(' · ')}</td></tr>
-    <tr><td>기대 효과</td><td style="font-weight:700;color:#1B4965">${window._pdfPlanOverride.value}</td></tr>
-  </table>
-</div>
-` : ''}
-
-<div class="footer">
-  본 견적서는 빠른 확인용 약식 견적이며, 실제 비용은 상담 후 최종 확정됩니다.<br>
-  요율 기준: ${(function(){ const d=getDestinationByKey(destinationSelect.value); return d&&d.rateDate ? formatRateDate(d.rateDate) : '—'; })()} · 버전 ${typeof RATE_META!=='undefined'?RATE_META.version:'—'} (분기별 갱신)<br>
-  (주)하나이엔비티 | 서울 금천구 시흥대로73길 67, 1012호 | skp1004651@hanatrabiz.com
-</div>
-
-<div class="no-print" style="text-align:center;padding:18px;background:#1B4965;color:#fff;font-size:13px;font-weight:600;cursor:pointer" onclick="window.print()">
-  ▶ 이 버튼을 누르거나, 위 메뉴에서 인쇄 → 프린터를 "PDF로 저장" 으로 선택하세요
-</div>
-</body></html>`;
-
-  const w = window.open('', '_blank', 'width=860,height=720,scrollbars=yes');
-  if (!w) {
-    alert('팝업이 차단됐습니다. 브라우저 주소창 오른쪽에서 팝업 허용 후 다시 시도해 주세요.');
-    return;
-  }
-  w.document.write(html);
-  w.document.close();
-  /* 약간 지연 후 인쇄 대화상자 자동 실행 */
-  setTimeout(() => { w.focus(); w.print(); }, 600);
-}
-
 nextButton.addEventListener('click', () => {
   if (!validateStep(1)) {
     document.querySelector('.estimate-step[data-step="1"] [required]:invalid')?.focus();
@@ -2394,6 +2240,9 @@ function openEstimateWindow() {
   const itiA = itineraries[0];
   const itiB = itineraries[1] || itineraries[0];
 
+  /* STEP3 탐색기에서 이미 플랜을 선택한 경우, 그 선택을 견적서에도 그대로 반영 */
+  const selectedPlan = (typeof _currentPlan !== 'undefined' && _currentPlan) ? _currentPlan : '';
+
   /* 이미지 경로 (절대 경로 변환) */
   const base = new URL('.', location.href).href;
   const images = (DEST_IMAGES[destKey] || []).map(p => base + encodeURI(p));
@@ -2423,6 +2272,7 @@ function openEstimateWindow() {
     itiB: { t: itiB.title, s: itiB.subtitle, h: itiB.highlights, d: (itiB.days || []).slice(0, Math.min(days, 5)) },
     cover: destPhotos ? destPhotos.cover : '',
     strip: destPhotos ? destPhotos.strip.slice(0, 2) : [],
+    sp: selectedPlan,
   };
   const shareEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
   const shareUrl = base + 'estimate-view.html?d=' + shareEncoded;
@@ -2638,7 +2488,7 @@ a{color:inherit;text-decoration:none}
     <div class="quote-hd">
       <div>
         <div class="brand-name"><a href="${base}" style="color:inherit;text-decoration:none;cursor:pointer">비즈페이지</a> 해외연수 견적서</div>
-        <div class="brand-sub">LINKED · (주)하나이엔비티 · 해외 연수 전문</div>
+        <div class="brand-sub">(주)하나이엔비티 · 해외 연수 전문</div>
       </div>
       <div class="meta-blk">
         <div class="issue">${issueDate}</div>
@@ -2681,7 +2531,7 @@ a{color:inherit;text-decoration:none}
 
     <div class="q-disc">
       본 견적은 <strong>참고용 예상 금액</strong>입니다. 실제 비용은 현지 사정·환율·시즌·방문 기관 조건에 따라 달라질 수 있으며, 정확한 견적은 전문 컨설턴트와의 1:1 상담을 통해 확정됩니다.<br>
-      <span class="q-stamp">LINKED 견적</span>&nbsp; 요율 기준: ${rateDate} · Ver.${rateVer}
+      <span class="q-stamp">비즈페이지 견적</span>&nbsp; 요율 기준: ${rateDate} · Ver.${rateVer}
     </div>
 
     <button class="q-print-btn no-print" onclick="window.print()"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>이 견적서 인쇄하기</button>
@@ -2694,11 +2544,11 @@ a{color:inherit;text-decoration:none}
     <p class="sub">${destText} · <strong style="color:#CC001A">${programText}</strong> 프로그램 유형을 기반으로, 실제 견적 입력값에 최적화된 코스 두 가지를 선별하였습니다.</p>
 
     <div class="rec-tabs">
-      <button class="rec-tab active" onclick="showCourse('a',this)">코스 A &nbsp;·&nbsp; ${itiA.title}</button>
-      <button class="rec-tab" onclick="showCourse('b',this)">코스 B &nbsp;·&nbsp; ${itiB.title}</button>
+      <button class="rec-tab${selectedPlan!=='b'?' active':''}" onclick="showCourse('a',this)">코스 A &nbsp;·&nbsp; ${itiA.title}${selectedPlan==='a'?' <span style="color:#CC001A">· 탐색하신 일정</span>':''}</button>
+      <button class="rec-tab${selectedPlan==='b'?' active':''}" onclick="showCourse('b',this)">코스 B &nbsp;·&nbsp; ${itiB.title}${selectedPlan==='b'?' <span style="color:#CC001A">· 탐색하신 일정</span>':''}</button>
     </div>
 
-    <div id="course-a" class="rec-content active">
+    <div id="course-a" class="rec-content${selectedPlan!=='b'?' active':''}">
       ${destPhotos ? `<div class="course-cover-img"><img src="${destPhotos.cover}" alt="${destText}" loading="lazy" onerror="this.parentElement.style.display='none'" /></div>` : ''}
       <div class="course-hd">
         <div class="c-title">${itiA.title}</div>
@@ -2710,7 +2560,7 @@ a{color:inherit;text-decoration:none}
       ${renderGallery(destPhotos?.strip)}
     </div>
 
-    <div id="course-b" class="rec-content">
+    <div id="course-b" class="rec-content${selectedPlan==='b'?' active':''}">
       ${destPhotos ? `<div class="course-cover-img"><img src="${destPhotos.cover}" alt="${destText}" loading="lazy" onerror="this.parentElement.style.display='none'" /></div>` : ''}
       <div class="course-hd">
         <div class="c-title">${itiB.title}</div>
@@ -3459,42 +3309,6 @@ function _renderValueBox(plan) {
 }
 
 /* Step 3 플랜 포함 PDF 다운로드 */
-function downloadEstimateWithPlan() {
-  /* 기존 PDF 다운로드 함수 재활용 + 플랜 정보 주입 */
-  var destKey  = (typeof destinationSelect !== 'undefined') ? destinationSelect.value : '';
-  var plan     = _currentPlan || 'b';
-  var planIdx  = (plan === 'a') ? 0 : 1;
-
-  /* 견적과 동일한 코스(_step3Courses)가 있으면 그것을 우선 사용 — 없으면 DEST_REC 폴백 */
-  var stepCourse = _step3Courses ? (_step3Courses[planIdx] || _step3Courses[0]) : null;
-  var rec      = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
-  var planData = rec ? rec[plan] : null;
-
-  var override = stepCourse ? {
-    planKey:  plan,
-    tag:      (planIdx === 0 ? '역량강화형' : '동기부여·화합형'),
-    desc:     stepCourse.subtitle,
-    points:   (stepCourse.highlights || []).slice(0, 3),
-    items:    (stepCourse.days || []).slice(1, -1).map(function(d) { return d.title; }),
-    value:    stepCourse.subtitle,
-  } : (planData ? {
-    planKey:  plan,
-    tag:      planData.tag,
-    desc:     planData.desc,
-    points:   planData.points,
-    items:    planData.items,
-    value:    planData.value,
-  } : null);
-
-  /* 플랜 정보를 전역 임시 변수에 저장 후 기존 함수 호출 */
-  window._pdfPlanOverride = override;
-
-  downloadEstimateFile();
-
-  /* 오버라이드 정리 */
-  setTimeout(function() { window._pdfPlanOverride = null; }, 1000);
-}
-
 /* ================================================================
    공유 견적서(estimate-view.html)에서 "일정 더 탐색하기"로 진입 시
    ?dest=목적지키&days=기간 파라미터를 읽어 폼에 자동 반영 + STEP3 오픈
