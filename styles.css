@@ -73,6 +73,10 @@
 /* ── 2. Reset ───────────────────────────────────────────────────── */
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
 html { scroll-behavior:smooth; font-size:16px; }
+/* 고정 헤더(64px)에 앵커 이동 시 섹션 상단이 가려지는 문제 보정 */
+#home, #destinations, #estimate, #portfolio, #testimonials, #faq, #about, #contact {
+  scroll-margin-top: 84px;
+}
 body {
   font-family: var(--font);
   font-size: 15px;
@@ -1050,6 +1054,9 @@ p { line-height:1.8; }
   .header-inner { height:56px; }
   .nav-links { display:none; }
   .nav-toggle { display:flex; }
+  #home, #destinations, #estimate, #portfolio, #testimonials, #faq, #about, #contact {
+    scroll-margin-top: 72px;
+  }
   .header-inner .button { padding:8px 12px; font-size:11px; letter-spacing:.03em; }
 
   .nav-mobile-open .nav-links {
