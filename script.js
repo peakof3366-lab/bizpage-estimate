@@ -442,13 +442,10 @@ form.addEventListener('submit', (event) => {
   if (actionsEl)  actionsEl.classList.add('hidden');
   if (confirmEl) {
     confirmEl.classList.remove('hidden');
-    /* estimate-grid 상단으로 스크롤 — 우측 결과 카드(연수 일정 탐색하기 등)와
-       좌측 "견적서 받기" 확인 패널이 동시에 화면에 들어오도록 함.
-       (기존에는 .btn-get-estimate만 중앙 스크롤 → sticky 결과 카드가 스크롤 범위를
-       벗어나 "연수 일정 탐색하기" 버튼이 화면 밖으로 밀려나는 문제가 있었음) */
+    /* "연수 일정 탐색하기"와 "견적서 받기"가 같은 패널에 있으므로 패널 자체를
+       중앙으로 스크롤하면 둘 다 자연스럽게 함께 보임 */
     setTimeout(function () {
-      var grid = document.querySelector('.estimate-grid');
-      if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      confirmEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 120);
     /* lucide 아이콘 재렌더 (동적 삽입된 아이콘) */
     if (typeof lucide !== 'undefined') lucide.createIcons();
