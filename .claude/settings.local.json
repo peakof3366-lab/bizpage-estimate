@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Start-Process \"c:\\\\Users\\\\O2DESIGN_10\\\\Desktop\\\\��Ʈ\\\\index.html\")",
+      "PowerShell(Start-Process \"c:\\\\Users\\\\O2DESIGN_10\\\\Desktop\\\\��Ʈ\\\\admin.html\")",
+      "WebFetch(domain:mice-estimator-app.vercel.app)",
+      "WebSearch",
+      "WebFetch(domain:blog.naver.com)",
+      "WebFetch(domain:m.blog.naver.com)",
+      "WebFetch(domain:enbt.co.kr)"
+    ]
+  }
+}

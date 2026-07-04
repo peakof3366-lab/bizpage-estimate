@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>해외연수 견적서 · 비즈페이지</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Noto Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  background: #F4F4F2;
+  color: #0D0D0D;
+  font-size: 14px;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+
+/* ── TOP BAR ── */
+.top-bar {
+  position: sticky; top: 0; z-index: 200;
+  background: #0A0A0A;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 32px; gap: 16px;
+}
+.top-bar-brand { color: #fff; font-weight: 800; font-size: 15px; letter-spacing: -.02em; }
+.top-bar-validity {
+  font-size: 12px; color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,.07);
+  padding: 5px 14px; border: 1px solid rgba(255,255,255,.12);
+}
+.top-bar-validity strong { color: #fff; }
+.top-bar-btns { display: flex; gap: 10px; }
+.btn-print {
+  background: #CC001A; color: #fff; border: none;
+  padding: 9px 22px; font-weight: 700; cursor: pointer;
+  font-size: 13px; transition: background .2s; display: flex; align-items: center; gap: 6px;
+}
+.btn-print:hover { background: #8F0B20; }
+
+/* ── HERO STRIP ── */
+.hero-strip {
+  position: relative; height: 260px; overflow: hidden;
+  background: #111;
+}
+.hero-strip img {
+  width: 100%; height: 100%; object-fit: cover;
+  opacity: .5; display: block;
+}
+.hero-strip-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+}
+.hero-strip-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .18em;
+  color: rgba(255,255,255,.6); margin-bottom: 10px;
+}
+.hero-strip-title {
+  font-size: clamp(20px, 4vw, 36px);
+  font-weight: 800; color: #fff; letter-spacing: -.03em;
+  text-shadow: 0 2px 16px rgba(0,0,0,.4);
+}
+.hero-strip-sub {
+  font-size: 13px; color: rgba(255,255,255,.7); margin-top: 8px;
+}
+
+/* ── CONTENT WRAP ── */
+.content-wrap { max-width: 820px; margin: 0 auto; padding: 40px 24px 100px; }
+
+/* ── VALIDITY BANNER ── */
+.validity-banner {
+  background: #FEF0F2; border-left: 4px solid #CC001A;
+  padding: 14px 20px; margin-bottom: 32px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.validity-banner svg { flex-shrink: 0; color: #CC001A; }
+.validity-banner-text { font-size: 13px; color: #5A5A5A; line-height: 1.5; }
+.validity-banner-text strong { color: #0D0D0D; }
+.validity-expired { background: #FFF3F0; border-left-color: #FF4444; }
+.validity-expired .validity-badge { background: #FF4444; }
+
+/* ── QUOTE CARD ── */
+.quote-card {
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(0,0,0,.07);
+  margin-bottom: 28px;
+  padding: 44px 48px;
+}
+.quote-hd {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  border-bottom: 3px solid #111; padding-bottom: 20px; margin-bottom: 28px;
+}
+.brand-name { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+.brand-sub { font-size: 11px; color: #9A9A9A; margin-top: 3px; }
+.meta-blk { text-align: right; font-size: 12px; color: #5A5A5A; line-height: 1.8; }
+.meta-blk .issue { font-size: 14px; font-weight: 700; color: #0D0D0D; }
+
+.sec-title {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: #9A9A9A; border-bottom: 1px solid #F0F0F0;
+  padding-bottom: 6px; margin-bottom: 10px; margin-top: 24px;
+}
+.info-tbl { width: 100%; border-collapse: collapse; }
+.info-tbl td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #F6F6F6; }
+.info-tbl td:first-child { width: 120px; font-weight: 600; color: #5A5A5A; white-space: nowrap; }
+
+/* ── PRICE TABLE ── */
+.price-tbl { width: 100%; border-collapse: collapse; margin: 14px 0; }
+.price-tbl th {
+  background: #111; color: #fff; padding: 11px 14px;
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-align: left;
+}
+.price-tbl th:last-child { text-align: right; }
+.price-tbl td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #F0F0F0; }
+.price-tbl td:last-child { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.price-tbl tr:last-child td { border-bottom: none; }
+
+.totals-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+.t-card { padding: 18px 22px; background: #F4F4F4; border-left: 4px solid #111; }
+.t-card.per { background: #FEF0F2; border-left-color: #CC001A; }
+.t-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: #9A9A9A; margin-bottom: 6px; }
+.t-amount { font-size: 22px; font-weight: 800; color: #0D0D0D; letter-spacing: -.02em; }
+.t-card.per .t-amount { color: #CC001A; }
+.t-note { font-size: 11px; color: #9A9A9A; margin-top: 3px; }
+
+.inc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+.inc-tag {
+  background: #FEF0F2; color: #111; padding: 4px 12px;
+  border-radius: 0; font-size: 12px; font-weight: 600;
+}
+
+/* ── ITINERARY ── */
+.iti-card {
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(0,0,0,.07);
+  margin-bottom: 28px;
+}
+.iti-header {
+  background: linear-gradient(135deg, #111, #1E1E1E);
+  border-left: 4px solid #CC001A;
+  padding: 24px 32px;
+}
+.iti-label { font-size: 10px; font-weight: 700; letter-spacing: .14em; color: rgba(255,255,255,.45); margin-bottom: 6px; }
+.iti-title { font-size: 17px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+.iti-sub { font-size: 13px; color: rgba(255,255,255,.6); }
+.iti-highlights { padding: 24px 32px; display: flex; flex-wrap: wrap; gap: 8px; }
+.iti-hl {
+  background: #F4F4F2; border: 1px solid #E5E2DC;
+  padding: 6px 14px; font-size: 12px; font-weight: 600; color: #0D0D0D;
+}
+.photo-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; height: 180px; overflow: hidden; }
+.photo-strip img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-strip.single { grid-template-columns: 1fr; }
+
+/* ── DAY TIMELINE ── */
+.day-timeline { padding: 8px 32px 28px; display: flex; flex-direction: column; gap: 10px; }
+.day-card { background: #F8F7F5; border-left: 3px solid #CC001A; padding: 16px 18px; }
+.day-hd { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.day-num { font-size: 11px; font-weight: 800; letter-spacing: .08em; color: #CC001A; flex-shrink: 0; }
+.day-title { font-size: 14px; font-weight: 700; color: #0D0D0D; }
+.day-sched { display: grid; grid-template-columns: 40px 1fr; gap: 4px 10px; font-size: 12.5px; color: #333; }
+.sched-t { font-weight: 700; color: #9A9A9A; font-size: 11px; }
+.day-tip { margin-top: 10px; padding: 8px 12px; background: #FEF0F2; font-size: 11.5px; color: #8F0B20; }
+
+/* ── CTA SECTION ── */
+.cta-section {
+  background: #0A0A0A;
+  padding: 44px 48px;
+  margin-bottom: 28px;
+  text-align: center;
+}
+.cta-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .14em; color: rgba(255,255,255,.4); margin-bottom: 12px; }
+.cta-headline { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 8px; letter-spacing: -.02em; }
+.cta-sub { font-size: 13px; color: rgba(255,255,255,.5); margin-bottom: 28px; }
+.cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.cta-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 28px; font-weight: 700; font-size: 14px;
+  cursor: pointer; transition: all .2s;
+  text-decoration: none;
+}
+.cta-btn-primary { background: #CC001A; color: #fff; border: none; }
+.cta-btn-primary:hover { background: #8F0B20; }
+.cta-btn-secondary { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.3); }
+.cta-btn-secondary:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.6); }
+
+/* ── FOOTER ── */
+.view-footer {
+  background: #0A0A0A; border-top: 2px solid #CC001A;
+  padding: 28px 32px; text-align: center;
+}
+.view-footer p { font-size: 12px; color: rgba(255,255,255,.4); line-height: 1.8; }
+.view-footer strong { color: rgba(255,255,255,.7); }
+
+/* ── ERROR STATE ── */
+.error-wrap {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 60vh; text-align: center; padding: 40px;
+}
+.error-wrap h2 { font-size: 22px; font-weight: 800; margin-bottom: 12px; }
+.error-wrap p { font-size: 14px; color: #5A5A5A; }
+
+/* ── PRINT CSS ── */
+@media print {
+  .no-print, .top-bar, .validity-banner, .cta-section, .view-footer { display: none !important; }
+  body { background: #fff; font-size: 12px; }
+  .content-wrap { padding: 0; max-width: 100%; }
+  .quote-card, .iti-card { box-shadow: none; page-break-inside: avoid; }
+  .hero-strip { height: 140px; }
+  .iti-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .price-tbl th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .t-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+  .top-bar { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+  .top-bar-validity { display: none; }
+  .quote-card { padding: 28px 20px; }
+  .cta-section { padding: 32px 20px; }
+  .quote-hd { flex-direction: column; gap: 16px; }
+  .meta-blk { text-align: left; }
+  .totals-row { grid-template-columns: 1fr; }
+  .iti-header { padding: 20px 24px; }
+  .iti-highlights { padding: 20px 24px; }
+  .photo-strip { height: 120px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="top-bar no-print">
+  <a href="index.html" class="top-bar-brand" style="text-decoration:none;color:inherit;cursor:pointer">비즈페이지 · 해외연수 전문</a>
+  <div class="top-bar-validity" id="validity-bar">유효기간 확인 중…</div>
+  <div class="top-bar-btns">
+    <button class="btn-print" onclick="window.print()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      인쇄 / PDF
+    </button>
+  </div>
+</header>
+
+<!-- HERO STRIP -->
+<div class="hero-strip" id="hero-strip">
+  <img id="hero-img" src="" alt="" onerror="this.style.display='none'">
+  <div class="hero-strip-overlay">
+    <div class="hero-strip-label">OVERSEAS TRAINING PROGRAM</div>
+    <div class="hero-strip-title" id="hero-title">해외연수 견적서</div>
+    <div class="hero-strip-sub" id="hero-sub"></div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<main class="content-wrap" id="main-content">
+  <!-- 오류 상태 기본 표시 (JS로 교체됨) -->
+  <div class="error-wrap" id="error-wrap">
+    <h2>견적서를 불러오는 중…</h2>
+    <p>잠시만 기다려 주세요.</p>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer class="view-footer">
+  <p>
+    <a href="index.html" style="color:inherit;font-weight:700;text-decoration:none;cursor:pointer">비즈페이지</a> · 해외연수 전문 기업<br>
+    본 견적서는 발급일로부터 30일간 유효합니다. 견적 내용은 환율·항공권 시세에 따라 변동될 수 있습니다.<br>
+    문의: 비즈페이지 고객센터
+  </p>
+</footer>
+
+<script>
+/* ════════════════════════════════════════
+   estimate-view.html 렌더링 스크립트
+   URL ?d= 파라미터에서 견적 데이터를 디코딩 후 렌더링
+   ════════════════════════════════════════ */
+
+const fmt = n => '₩ ' + n.toLocaleString('ko-KR');
+
+function decodeShareData() {
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get('d');
+  if (!raw) return null;
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(raw))));
+  } catch(e) {
+    return null;
+  }
+}
+
+function calcValidity(isoDate) {
+  const issued = new Date(isoDate);
+  const expires = new Date(issued);
+  expires.setDate(expires.getDate() + 30);
+  const now = new Date();
+  const daysLeft = Math.ceil((expires - now) / 86400000);
+  return { expires, daysLeft, expired: daysLeft < 0 };
+}
+
+function renderPage(d) {
+  document.title = `견적서 · ${d.dt} · 비즈페이지`;
+
+  /* ── 히어로 ── */
+  if (d.cover) {
+    document.getElementById('hero-img').src = d.cover;
+    document.getElementById('hero-img').alt = d.dt;
+  } else {
+    document.getElementById('hero-strip').style.background = 'linear-gradient(135deg,#111,#1E1E1E)';
+  }
+  document.getElementById('hero-title').textContent = d.dt + ' 연수 견적서';
+  document.getElementById('hero-sub').textContent = d.ptx + ' · ' + d.n + '명 · ' + (d.ng ? d.ng + '박 ' : '') + d.d + '일';
+
+  /* ── 유효기간 ── */
+  const validity = calcValidity(d.iso || d.id.replace(/[년 월일]/g, m => m === '년' ? '-' : m === '월' ? '-' : ''));
+  const expiresStr = validity.expires.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  const validityBar = document.getElementById('validity-bar');
+  if (validity.expired) {
+    validityBar.innerHTML = `<span style="color:#FF6B6B">유효기간 만료 (${expiresStr})</span>`;
+  } else {
+    validityBar.innerHTML = `유효기간 &nbsp;<strong>${expiresStr}까지</strong> &nbsp;(${validity.daysLeft}일 남음)`;
+  }
+
+  /* ── 날짜 포맷 ── */
+  const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+
+  /* ── 가격 항목 행 ── */
+  const priceRows = (d.rows || []).map(([name, amount]) => `
+    <tr>
+      <td>${name}</td>
+      <td>${fmt(amount)}</td>
+    </tr>`).join('');
+
+  /* ── 포함 태그 ── */
+  const incTags = (d.rows || []).map(([name]) => `<span class="inc-tag">${name}</span>`).join('');
+
+  /* ── 코스 A/B 하이라이트 + 일자별 상세 일정 ── */
+  function renderCourse(iti, label) {
+    if (!iti) return '';
+    const hls = (iti.h || []).map(h => `<span class="iti-hl">· ${h}</span>`).join('');
+    const days = (iti.d || []).map(day => `
+      <div class="day-card">
+        <div class="day-hd">
+          <span class="day-num">DAY ${day.day}</span>
+          <span class="day-title">${day.title || ''}</span>
+        </div>
+        <div class="day-sched">
+          <span class="sched-t">오전</span><span>${day.am || '—'}</span>
+          <span class="sched-t">오후</span><span>${day.pm || '—'}</span>
+          <span class="sched-t">저녁</span><span>${day.eve || '—'}</span>
+        </div>
+        ${day.tip ? `<div class="day-tip">현장 Tip · ${day.tip}</div>` : ''}
+      </div>`).join('');
+    return `
+    <div class="iti-card">
+      <div class="iti-header">
+        <div class="iti-label">${label}</div>
+        <div class="iti-title">${iti.t}</div>
+        <div class="iti-sub">${iti.s}</div>
+      </div>
+      <div class="iti-highlights">${hls}</div>
+      ${days ? `<div class="day-timeline">${days}</div>` : ''}
+    </div>`;
+  }
+
+  /* ── 사진 스트립 ── */
+  const strip = d.strip || [];
+  const photoStripHtml = strip.length >= 2 ? `
+    <div class="photo-strip no-print" style="margin-bottom:28px">
+      <img src="${strip[0]}" alt="${d.dt}" loading="lazy" onerror="this.parentElement.style.display='none'">
+      <img src="${strip[1]}" alt="${d.dt}" loading="lazy" onerror="this.parentElement.style.display='none'">
+    </div>` : strip.length === 1 ? `
+    <div class="photo-strip single no-print" style="margin-bottom:28px">
+      <img src="${strip[0]}" alt="${d.dt}" loading="lazy" onerror="this.parentElement.style.display='none'">
+    </div>` : '';
+
+  /* ── 유효기간 배너 ── */
+  const validityBanner = validity.expired
+    ? `<div class="validity-banner validity-expired">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div class="validity-banner-text">
+          이 견적서는 <strong>유효기간이 만료</strong>되었습니다 (만료일: ${expiresStr}).<br>
+          최신 견적은 비즈페이지 고객센터로 문의 부탁드립니다.
+        </div>
+      </div>`
+    : `<div class="validity-banner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <div class="validity-banner-text">
+          견적 유효기간: <strong>${d.id}</strong> 발급 &nbsp;→&nbsp; <strong>${expiresStr}까지</strong>
+          &nbsp;(<strong>${validity.daysLeft}일</strong> 남음)
+        </div>
+      </div>`;
+
+  /* ── 특이사항 ── */
+  const reqHtml = d.req ? `
+    <div class="sec-title">특이사항 / 요청사항</div>
+    <p style="font-size:13px;color:#5A5A5A;padding:10px 0;line-height:1.8">${d.req.replace(/\n/g, '<br>')}</p>` : '';
+
+  /* ── 전체 HTML ── */
+  document.getElementById('main-content').innerHTML = `
+    ${validityBanner}
+
+    <!-- 견적서 본문 -->
+    <div class="quote-card">
+      <div class="quote-hd">
+        <div>
+          <div class="brand-name"><a href="index.html" style="color:inherit;text-decoration:none;cursor:pointer">비즈페이지</a></div>
+          <div class="brand-sub">해외연수 전문 기업 · 견적서</div>
+        </div>
+        <div class="meta-blk">
+          <div class="issue">${d.id}</div>
+          <div>발급번호 · ${d.rv || '—'}</div>
+          <div>요율 기준 · ${d.rd || '—'}</div>
+        </div>
+      </div>
+
+      <div class="sec-title">수신처 정보</div>
+      <table class="info-tbl">
+        <tr><td>기관명</td><td>${d.org || '—'}</td></tr>
+        <tr><td>담당자</td><td>${d.cn || '—'}</td></tr>
+        <tr><td>기관 유형</td><td>${d.ot || '—'}</td></tr>
+      </table>
+
+      <div class="sec-title">연수 계획</div>
+      <table class="info-tbl">
+        <tr><td>연수 목적지</td><td>${d.dt}</td></tr>
+        <tr><td>프로그램 유형</td><td>${d.ptx}</td></tr>
+        <tr><td>참가 인원</td><td>${d.n}명</td></tr>
+        <tr><td>연수 기간</td><td>${d.ng}박 ${d.d}일 &nbsp;·&nbsp; ${fmtDate(d.sd)} ~ ${fmtDate(d.ed)}</td></tr>
+        <tr><td>호텔 등급</td><td>${d.hgl || '—'}</td></tr>
+        <tr><td>시즌</td><td>${d.sl || '—'}</td></tr>
+      </table>
+
+      <div class="sec-title">견적 금액 내역</div>
+      <table class="price-tbl">
+        <thead><tr><th>항목</th><th>금액</th></tr></thead>
+        <tbody>${priceRows}</tbody>
+      </table>
+
+      <div class="totals-row">
+        <div class="t-card">
+          <div class="t-label">TOTAL</div>
+          <div class="t-amount">${fmt(d.t)}</div>
+          <div class="t-note">VAT 별도 · 부대비용 미포함</div>
+        </div>
+        <div class="t-card per">
+          <div class="t-label">PER PERSON</div>
+          <div class="t-amount">${fmt(d.pp)}</div>
+          <div class="t-note">${d.n}명 기준 1인당 금액</div>
+        </div>
+      </div>
+
+      <div class="sec-title">포함 항목</div>
+      <div class="inc-tags">${incTags}</div>
+
+      ${reqHtml}
+
+      <div style="margin-top:24px;padding:14px 16px;background:#FAFAFA;border:1px solid #F0F0F0;font-size:12px;color:#9A9A9A;line-height:1.8">
+        본 견적서는 견적 요청 기준일의 항공·호텔 요율 기준으로 산출되었습니다.
+        실제 계약 시 환율 변동 및 항공권 시세에 따라 최종 금액이 달라질 수 있습니다.
+      </div>
+    </div><!-- /quote-card -->
+
+    ${photoStripHtml}
+
+    <!-- 추천 일정 -->
+    ${d.itiA || d.itiB ? `
+    <div style="margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.12em;color:#9A9A9A;margin-bottom:6px">RECOMMENDED ITINERARY</div>
+      <div style="font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px">맞춤 일정 추천</div>
+      <div style="font-size:13px;color:#5A5A5A">${d.dt} · <strong style="color:#CC001A">${d.ptx}</strong> 프로그램 유형에 최적화된 코스입니다.</div>
+    </div>
+    ${renderCourse(d.itiA, 'COURSE A · 추천 코스')}
+    ${renderCourse(d.itiB, 'COURSE B · 대안 코스')}
+    ` : ''}
+
+    <!-- CTA -->
+    <div class="cta-section no-print">
+      <div class="cta-eyebrow">CONSULTATION</div>
+      <div class="cta-headline">이 견적서로 바로 상담하세요</div>
+      <div class="cta-sub">전문 컨설턴트가 맞춤 연수 프로그램을 상세히 안내해 드립니다</div>
+      <div class="cta-btns">
+        <a href="tel:+8200000000" class="cta-btn cta-btn-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.63 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 5.55 5.55l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          전화 상담 신청
+        </a>
+        <a href="http://pf.kakao.com/_wxiuiK" target="_blank" rel="noopener" class="cta-btn cta-btn-secondary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          카카오톡 상담
+        </a>
+        <a href="index.html?dest=${encodeURIComponent(d.dk || '')}&days=${encodeURIComponent(d.d || '')}#estimate" class="cta-btn cta-btn-secondary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          연수 일정 더 탐색하기
+        </a>
+        <a href="index.html" class="cta-btn cta-btn-secondary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          홈페이지 방문
+        </a>
+      </div>
+    </div>
+  `;
+}
+
+/* ── 진입점 ── */
+(function init() {
+  const d = decodeShareData();
+  if (!d) {
+    document.getElementById('error-wrap').innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <h2>견적서를 불러올 수 없습니다</h2>
+      <p style="margin-top:10px">링크가 올바르지 않거나 만료되었습니다.<br>담당자에게 새 링크를 요청해 주세요.</p>
+      <a href="index.html" style="margin-top:28px;display:inline-block;background:#CC001A;color:#fff;padding:12px 28px;font-weight:700">홈페이지로 이동</a>
+    `;
+    return;
+  }
+  renderPage(d);
+})();
+</script>
+</body>
+</html>

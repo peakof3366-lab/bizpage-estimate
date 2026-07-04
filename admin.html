@@ -1,0 +1,1763 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>비즈페이지 관리자</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+  <script src="data.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #1B4965; --primary-dark: #0d2e42; --primary-lt: #e8f1f7;
+      --accent: #F4DFC8; --accent-warm: #D4A574;
+      --bg: #f0f2f7; --white: #ffffff;
+      --border: #e0e4ea; --text: #1e2d3d; --muted: #7a8fa6;
+      --r: 4px;
+      --shadow: 0 1px 6px rgba(27,73,101,0.09);
+      --shadow-lg: 0 6px 24px rgba(27,73,101,0.14);
+      --danger: #ef4444; --success: #10b981; --warn: #f59e0b;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+    .hidden { display: none !important; }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; }
+
+    /* ── LOGIN ─────────────────────── */
+    #loginPage {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 60%, #2a7aad 100%);
+    }
+    .login-box {
+      background: var(--white);
+      padding: 3rem 2.5rem;
+      width: min(400px, calc(100% - 2rem));
+      box-shadow: 0 24px 80px rgba(0,0,0,0.22);
+    }
+    .login-logo { font-size: 1.5rem; font-weight: 800; color: var(--primary); text-align: center; letter-spacing: .08em; font-family: Georgia, serif; margin-bottom: .3rem; }
+    .login-sub  { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 2rem; }
+    .field { margin-bottom: 1.1rem; }
+    .field label { display: block; font-weight: 600; font-size: .82rem; margin-bottom: .4rem; }
+    .field input { width: 100%; padding: .75rem 1rem; border: 1.5px solid var(--border); background: var(--white); color: var(--text); font-size: .9rem; border-radius: var(--r); transition: border-color .2s; }
+    .field input:focus { outline: none; border-color: var(--primary); }
+    .err-msg { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: .65rem 1rem; font-size: .82rem; margin-bottom: .75rem; border-radius: var(--r); }
+    .btn-login { width: 100%; padding: .85rem; background: var(--primary); color: #fff; border: none; font-size: .95rem; font-weight: 700; border-radius: var(--r); transition: background .2s; margin-top: .25rem; }
+    .btn-login:hover { background: var(--primary-dark); }
+
+    /* ── DASH HEADER ───────────────── */
+    .dash-header { background: var(--primary); padding: 0 1.5rem; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+    .dash-header-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; max-width: 1300px; margin: 0 auto; }
+    .dash-brand { font-size: .95rem; font-weight: 800; color: #fff; letter-spacing: .03em; }
+    .dash-brand:hover { color: var(--accent); }
+    .dash-right { display: flex; align-items: center; gap: .75rem; }
+    .dash-user { color: rgba(255,255,255,.7); font-size: .82rem; }
+    .btn-sm { padding: .38rem .9rem; font-size: .8rem; font-weight: 600; border-radius: var(--r); border: 1.5px solid transparent; transition: all .2s; }
+    .btn-ghost { background: transparent; color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.35); }
+    .btn-ghost:hover { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.7); }
+
+    /* ── LAYOUT ────────────────────── */
+    .dash-layout { display: flex; min-height: calc(100vh - 56px); }
+    .dash-sidebar {
+      width: 220px; flex-shrink: 0; background: var(--primary-dark);
+      display: flex; flex-direction: column;
+      position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+    }
+    .dash-main { flex: 1; min-width: 0; overflow-x: hidden; }
+
+    /* ── SIDEBAR ───────────────────── */
+    .sidebar-logo { padding: 1.1rem 1.2rem .8rem; color: rgba(255,255,255,.9); font-size: .88rem; font-weight: 700;
+      display: flex; align-items: center; gap: .5rem; border-bottom: 1px solid rgba(255,255,255,.1); letter-spacing: .03em; }
+    .sidebar-nav { padding: .6rem .6rem; flex: 1; display: flex; flex-direction: column; gap: .15rem; }
+    .sidebar-divider { height: 1px; background: rgba(255,255,255,.1); margin: .4rem 0; }
+    .sidebar-item {
+      display: flex; align-items: center; gap: .65rem; padding: .6rem .85rem;
+      width: 100%; border: none; background: transparent; color: rgba(255,255,255,.65);
+      font-size: .82rem; font-weight: 500; cursor: pointer; border-radius: 4px;
+      transition: background .18s, color .18s; text-align: left; position: relative;
+    }
+    .sidebar-item:hover { background: rgba(255,255,255,.1); color: rgba(255,255,255,.9); }
+    .sidebar-item.active { background: rgba(255,255,255,.15); color: #fff; font-weight: 700; }
+    .si-icon  { font-size: 1rem; flex-shrink: 0; }
+    .si-label { flex: 1; }
+    .si-badge { background: var(--danger); color: #fff; font-size: .65rem; font-weight: 700;
+      padding: .1rem .35rem; border-radius: 10px; line-height: 1.4; }
+    .sidebar-footer { padding: .8rem .8rem; border-top: 1px solid rgba(255,255,255,.1); display: flex; gap: .5rem; }
+    .sf-link    { flex: 1; padding: .45rem .75rem; background: rgba(255,255,255,.08); color: rgba(255,255,255,.7);
+      font-size: .76rem; font-weight: 600; text-align: center; border-radius: 3px; transition: background .18s; text-decoration: none; }
+    .sf-link:hover { background: rgba(255,255,255,.15); color: #fff; }
+    .sf-logout  { padding: .45rem .75rem; background: transparent; color: rgba(255,255,255,.6); border: 1px solid rgba(255,255,255,.2);
+      font-size: .76rem; font-weight: 600; cursor: pointer; border-radius: 3px; transition: all .18s; font-family: inherit; }
+    .sf-logout:hover { background: rgba(239,68,68,.2); color: #fff; border-color: rgba(239,68,68,.5); }
+
+    /* 모바일 탭 헤더 */
+    .mobile-tab-header { display: none; padding: .7rem 1.2rem; background: var(--white);
+      border-bottom: 1px solid var(--border); font-weight: 700; font-size: .88rem; color: var(--primary); }
+
+    /* TABS (하위호환용) */
+    .tab-nav { display: none; }
+    .tab-btn { display: none; }
+
+    /* ── CONTENT ───────────────────── */
+    .dash-body { max-width: 1300px; margin: 0 auto; padding: 1.75rem 1.5rem; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .panel-title { font-size: 1.1rem; font-weight: 800; color: var(--primary); margin-bottom: 1.25rem; }
+
+    /* ── CARD ─────────────────────── */
+    .card { background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .card-title { font-size: .88rem; font-weight: 700; color: var(--primary); }
+    .card-body { padding: 1.25rem; }
+
+    /* ── STAT CARDS ───────────────── */
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 1.25rem 1.5rem; border-left: 3px solid var(--primary); }
+    .stat-card.warn { border-left-color: var(--warn); }
+    .stat-card.success { border-left-color: var(--success); }
+    .stat-card.danger { border-left-color: var(--danger); }
+    .stat-num { font-size: 1.9rem; font-weight: 800; color: var(--primary); line-height: 1; margin-bottom: .25rem; }
+    .stat-card.warn .stat-num { color: var(--warn); }
+    .stat-card.success .stat-num { color: var(--success); }
+    .stat-card.danger .stat-num { color: var(--danger); }
+    .stat-lbl { font-size: .78rem; color: var(--muted); font-weight: 500; }
+    .stat-sub { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+
+    /* ── GRID LAYOUTS ─────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+
+    /* ── RECENT INQUIRIES ────────── */
+    .recent-list { display: grid; gap: .5rem; }
+    .recent-item { display: flex; align-items: baseline; gap: .75rem; padding: .7rem .9rem; border: 1px solid var(--border); background: var(--bg); font-size: .82rem; }
+    .recent-item.unread { background: #fffbeb; border-color: #fde68a; }
+    .recent-name { font-weight: 700; min-width: 70px; }
+    .recent-org  { color: var(--muted); min-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-msg  { color: var(--text-light, #5a6d7f); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-time { color: var(--muted); font-size: .74rem; white-space: nowrap; }
+
+    /* ── BAR CHART ────────────────── */
+    .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; padding: .5rem 0 0; }
+    .bar-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+    .bar { width: 100%; background: var(--primary); min-height: 4px; transition: height .4s ease; }
+    .bar-lbl { font-size: .72rem; color: var(--muted); font-weight: 500; }
+    .bar-val  { font-size: .72rem; color: var(--primary); font-weight: 700; }
+
+    /* ── HORIZONTAL BAR ───────────── */
+    .h-bar-list { display: grid; gap: .55rem; }
+    .h-bar-row { display: grid; grid-template-columns: 100px 1fr 40px; align-items: center; gap: .75rem; font-size: .8rem; }
+    .h-bar-label { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .h-bar-track { background: #eef0f4; height: 10px; }
+    .h-bar-fill  { height: 100%; background: var(--primary); min-width: 4px; transition: width .5s ease; }
+    .h-bar-count { text-align: right; font-weight: 700; color: var(--primary); }
+
+    /* ── EVENT TABLE ──────────────── */
+    .event-grid { display: grid; gap: .5rem; }
+    .event-row { display: flex; align-items: center; justify-content: space-between; padding: .65rem .9rem; border: 1px solid var(--border); background: var(--bg); font-size: .82rem; }
+    .event-name { font-weight: 600; }
+    .event-count { font-size: 1.1rem; font-weight: 800; color: var(--primary); }
+
+    /* ── INQUIRY TABLE ───────────── */
+    .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: .75rem; }
+    .toolbar-left { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .search-box { padding: .55rem .9rem; border: 1px solid var(--border); font-size: .82rem; min-width: 200px; border-radius: var(--r); }
+    .search-box:focus { outline: none; border-color: var(--primary); }
+    .filter-btn { padding: .4rem .85rem; border: 1.5px solid var(--border); background: var(--white); font-size: .78rem; font-weight: 600; color: var(--muted); border-radius: var(--r); transition: all .2s; }
+    .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .filter-btn:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
+
+    .btn-act { padding: .4rem .9rem; font-size: .78rem; font-weight: 600; border-radius: var(--r); border: 1.5px solid; transition: all .2s; }
+    .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline-p { background: var(--white); color: var(--primary); border-color: var(--primary); }
+    .btn-outline-p:hover { background: var(--primary-lt); }
+    .btn-danger-sm { background: #fef2f2; color: var(--danger); border-color: #fecaca; }
+    .btn-danger-sm:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .btn-success-sm { background: #f0fdf4; color: var(--success); border-color: #bbf7d0; }
+    .btn-success-sm:hover { background: var(--success); color: #fff; border-color: var(--success); }
+
+    .inq-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    .inq-table thead { background: #f8f9fb; }
+    .inq-table th { padding: .65rem .85rem; text-align: left; font-weight: 700; color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .inq-table td { padding: .75rem .85rem; border-bottom: 1px solid #f1f2f5; vertical-align: top; }
+    .inq-table tbody tr:last-child td { border-bottom: none; }
+    .inq-table tbody tr:hover { background: #fafbfc; }
+    .inq-table tbody tr.unread { background: #fffbeb; }
+    .msg-preview { max-width: 260px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .date-col { white-space: nowrap; color: var(--muted); }
+    .badge { display: inline-block; padding: .2rem .55rem; border-radius: 20px; font-size: .72rem; font-weight: 700; }
+    .badge-new  { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-read { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-pend { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .badge-done { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+    .empty-state { text-align: center; padding: 3.5rem 2rem; color: var(--muted); }
+    .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+    .pager { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; justify-content: flex-end; }
+    .pager-btn { padding: .3rem .65rem; border: 1px solid var(--border); background: var(--white); font-size: .78rem; border-radius: var(--r); transition: all .2s; }
+    .pager-btn:hover, .pager-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .pager-info { font-size: .78rem; color: var(--muted); }
+
+    /* ── MODAL ───────────────────── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 1rem; }
+    .modal-box { background: var(--white); width: min(580px, 100%); box-shadow: 0 20px 60px rgba(0,0,0,.22); max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--primary); color: #fff; position: sticky; top: 0; }
+    .modal-header h3 { font-size: .95rem; font-weight: 700; }
+    .modal-close { background: none; border: none; color: rgba(255,255,255,.8); font-size: 1rem; cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: #fff; }
+    .modal-body { padding: 1.5rem; }
+    .detail-field { margin-bottom: 1rem; }
+    .detail-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: .3rem; }
+    .detail-value { font-size: .9rem; color: var(--text); }
+    .detail-message { background: #f8f9fb; border: 1px solid var(--border); padding: .9rem 1rem; font-size: .9rem; line-height: 1.7; white-space: pre-wrap; color: var(--text); min-height: 80px; }
+    .note-area { width: 100%; padding: .7rem .9rem; border: 1px solid var(--border); font-size: .88rem; min-height: 70px; resize: vertical; border-radius: var(--r); font-family: inherit; margin-top: .4rem; }
+    .note-area:focus { outline: none; border-color: var(--primary); }
+    .modal-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .status-select { padding: .5rem .75rem; border: 1px solid var(--border); font-size: .82rem; border-radius: var(--r); }
+    .status-select:focus { outline: none; border-color: var(--primary); }
+
+    /* ── SETTINGS ────────────────── */
+    .setting-section { margin-bottom: 2rem; }
+    .setting-title { font-size: .88rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
+    .setting-row { display: flex; align-items: center; justify-content: space-between; padding: .9rem 0; border-bottom: 1px solid #f3f4f6; }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-info p { font-size: .82rem; font-weight: 600; margin-bottom: .15rem; }
+    .setting-info span { font-size: .76rem; color: var(--muted); }
+    .info-tag { display: inline-block; background: var(--primary-lt); color: var(--primary); font-size: .74rem; font-weight: 700; padding: .2rem .55rem; border-radius: 3px; margin-left: .4rem; }
+    .pw-form { display: grid; gap: .6rem; max-width: 320px; margin-top: .75rem; }
+    .pw-input { padding: .6rem .85rem; border: 1px solid var(--border); font-size: .85rem; border-radius: var(--r); width: 100%; }
+    .pw-input:focus { outline: none; border-color: var(--primary); }
+
+    /* ── PROGRESS RING ───────────── */
+    .kpi-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .kpi-box { flex: 1; min-width: 120px; background: var(--bg); border: 1px solid var(--border); padding: 1rem; text-align: center; }
+    .kpi-num { font-size: 1.6rem; font-weight: 800; color: var(--primary); }
+    .kpi-lbl { font-size: .76rem; color: var(--muted); margin-top: .2rem; }
+
+    /* ── RATE TABLE ─────────────────────── */
+    .rate-meta-banner { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:1.5rem; }
+    .rate-meta-box { background:var(--white); border:1px solid var(--border); padding:.9rem 1.1rem; border-left:3px solid var(--primary); }
+    .rate-meta-box.warn   { border-left-color:var(--warn);    background:#fffbeb; }
+    .rate-meta-box.danger { border-left-color:var(--danger);  background:#fef2f2; }
+    .rate-meta-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:.3rem; }
+    .rate-meta-value { font-size:.95rem; font-weight:800; color:var(--primary); }
+    .rate-meta-box.warn .rate-meta-value   { color:#92400e; }
+    .rate-meta-box.danger .rate-meta-value { color:var(--danger); }
+    .rate-filter-bar { display:flex; align-items:center; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; }
+    .rate-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    .rate-table thead { background:#f8f9fb; }
+    .rate-table th { padding:.6rem .85rem; text-align:left; font-weight:700; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--border); white-space:nowrap; }
+    .rate-table td { padding:.65rem .85rem; border-bottom:1px solid #f1f2f5; vertical-align:middle; }
+    .rate-table tbody tr:hover { background:#fafbfc; }
+    .rate-badge { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .6rem; border-radius:20px; font-size:.72rem; font-weight:700; }
+    .rate-badge.ok    { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
+    .rate-badge.check { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+    .rate-badge.stale { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
+    .rate-region-row td { background:#f0f4f8; font-weight:700; color:var(--primary); font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; padding:.45rem .85rem; }
+    .rate-notes { font-size:.76rem; color:var(--muted); max-width:280px; }
+    .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; }
+
+    /* ── RESPONSIVE ──────────────── */
+    @media (max-width: 900px) {
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      /* 모바일: 사이드바 → 하단 탭바로 전환 */
+      .dash-layout { flex-direction: column; }
+      .dash-sidebar {
+        width: 100%; height: auto; position: relative; top: 0;
+        flex-direction: row; border-right: none; border-bottom: 1px solid rgba(255,255,255,.15);
+      }
+      .sidebar-logo  { display: none; }
+      .sidebar-nav   { flex-direction: row; padding: .3rem .4rem; overflow-x: auto; flex: 1; gap: .1rem; }
+      .sidebar-item  { flex-direction: column; padding: .4rem .5rem; min-width: 56px; text-align: center; gap: .15rem; }
+      .si-label      { font-size: .62rem; }
+      .si-icon       { font-size: .9rem; }
+      .sidebar-footer { display: none; }
+      .sidebar-divider { width: 1px; height: auto; margin: .2rem 0; }
+      .mobile-tab-header { display: block; }
+    }
+    @media (max-width: 600px) {
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+      .h-bar-row { grid-template-columns: 80px 1fr 36px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ LOGIN ════════════════════════════════════ -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="login-logo">LINKED</div>
+    <div class="login-sub">관리자 로그인</div>
+    <form id="loginForm">
+      <div class="field">
+        <label>아이디</label>
+        <input type="text" id="adminId" placeholder="admin" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label>비밀번호</label>
+        <input type="password" id="adminPw" placeholder="••••••••" autocomplete="current-password" required />
+      </div>
+      <p id="loginErr" class="err-msg hidden">아이디 또는 비밀번호가 올바르지 않습니다.</p>
+      <button type="submit" class="btn-login">로그인</button>
+    </form>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD ════════════════════════════════ -->
+<div id="dashPage" class="hidden">
+
+  <header class="dash-header">
+    <div class="dash-header-inner">
+      <a href="index.html" class="dash-brand">🔗 비즈페이지 Admin</a>
+      <div class="dash-right">
+        <span class="dash-user" id="dashTime"></span>
+        <button id="logoutBtn" class="btn-sm btn-ghost">로그아웃</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ SIDEBAR + MAIN LAYOUT ══ -->
+  <div class="dash-layout">
+
+    <!-- 좌측 사이드바 -->
+    <nav class="dash-sidebar" id="dashSidebar">
+      <div class="sidebar-logo">
+        <span>🔗</span><span>비즈페이지 Admin</span>
+      </div>
+      <div class="sidebar-nav">
+        <button class="sidebar-item active" data-tab="dashboard">
+          <span class="si-icon"><i data-lucide="layout-dashboard"></i></span><span class="si-label">대시보드</span>
+        </button>
+        <button class="sidebar-item" data-tab="inquiries">
+          <span class="si-icon"><i data-lucide="inbox"></i></span><span class="si-label">문의 관리</span>
+          <span class="si-badge" id="sb-unread"></span>
+        </button>
+        <button class="sidebar-item" data-tab="estmgr">
+          <span class="si-icon"><i data-lucide="clipboard-list"></i></span><span class="si-label">견적 관리</span>
+        </button>
+        <button class="sidebar-item" data-tab="stats">
+          <span class="si-icon"><i data-lucide="bar-chart-2"></i></span><span class="si-label">방문 통계</span>
+        </button>
+        <button class="sidebar-item" data-tab="events">
+          <span class="si-icon"><i data-lucide="target"></i></span><span class="si-label">이벤트 분석</span>
+        </button>
+        <button class="sidebar-item" data-tab="estimates">
+          <span class="si-icon"><i data-lucide="trending-up"></i></span><span class="si-label">견적 분석</span>
+        </button>
+        <button class="sidebar-item" data-tab="rates">
+          <span class="si-icon"><i data-lucide="database"></i></span><span class="si-label">요율 관리</span>
+        </button>
+        <div class="sidebar-divider"></div>
+        <button class="sidebar-item" data-tab="settings">
+          <span class="si-icon"><i data-lucide="settings"></i></span><span class="si-label">설정</span>
+        </button>
+      </div>
+      <div class="sidebar-footer">
+        <a href="index.html" class="sf-link">↗ 홈페이지</a>
+        <button id="logoutBtn" class="sf-logout">로그아웃</button>
+      </div>
+    </nav>
+
+    <!-- 메인 콘텐츠 영역 -->
+    <main class="dash-main">
+      <!-- 모바일 탭 헤더 (좁은 화면에서만 표시) -->
+      <div class="mobile-tab-header" id="mobileTabHeader">
+        <span id="mobileTabTitle">대시보드</span>
+      </div>
+  <div class="dash-body">
+
+    <!-- ── 대시보드 ── -->
+    <div class="tab-panel active" id="tab-dashboard">
+      <div class="stat-grid">
+        <div class="stat-card"><div id="d-visits-today" class="stat-num">0</div><div class="stat-lbl">오늘 방문</div><div class="stat-sub" id="d-visits-week">이번 주 0명</div></div>
+        <div class="stat-card warn"><div id="d-inq-unread" class="stat-num">0</div><div class="stat-lbl">미확인 문의</div><div class="stat-sub" id="d-inq-total">전체 0건</div></div>
+        <div class="stat-card success"><div id="d-kakao" class="stat-num">0</div><div class="stat-lbl">카카오 클릭</div><div class="stat-sub">누적</div></div>
+        <div class="stat-card"><div id="d-est-count" class="stat-num">0</div><div class="stat-lbl">견적 완료</div><div class="stat-sub">누적</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">최근 문의 5건</span><button class="btn-act btn-outline-p" onclick="switchTab('inquiries')">전체 보기</button></div>
+          <div class="card-body"><div id="recent-list" class="recent-list"><p style="color:var(--muted);font-size:.82rem">문의 내역이 없습니다.</p></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">최근 7일 방문</span></div>
+          <div class="card-body">
+            <div id="visit-chart" class="bar-chart"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-header"><span class="card-title">인기 연수지 TOP 5</span></div>
+          <div class="card-body"><div id="d-dest-chart" class="h-bar-list"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">주요 이벤트 현황</span></div>
+          <div class="card-body"><div id="d-events" class="event-grid"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">빠른 통계</span></div>
+          <div class="card-body">
+            <div class="kpi-row" id="d-kpi"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 문의 관리 ── -->
+    <div class="tab-panel" id="tab-inquiries">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <input type="search" id="inqSearch" class="search-box" placeholder="이름 · 소속 · 내용 검색..." />
+          <button class="filter-btn active" data-filter="all">전체</button>
+          <button class="filter-btn" data-filter="unread">미확인</button>
+          <button class="filter-btn" data-filter="read">확인</button>
+          <button class="filter-btn" data-filter="pending">처리중</button>
+          <button class="filter-btn" data-filter="done">완료</button>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn-act btn-outline-p" id="markAllReadBtn">전체 읽음</button>
+          <button class="btn-act btn-outline-p" id="exportCsvBtn">CSV 내보내기</button>
+          <button class="btn-act btn-danger-sm" id="clearAllBtn">전체 삭제</button>
+        </div>
+      </div>
+      <div class="card">
+        <div id="inqEmpty" class="empty-state"><div class="empty-icon">📭</div><p>접수된 문의가 없습니다.</p></div>
+        <table id="inqTable" class="inq-table hidden">
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th>이름</th>
+              <th>소속</th>
+              <th>문의 내용</th>
+              <th>접수 일시</th>
+              <th style="width:70px">상태</th>
+              <th style="width:90px">관리</th>
+            </tr>
+          </thead>
+          <tbody id="inqBody"></tbody>
+        </table>
+        <div class="pager" id="inqPager"></div>
+      </div>
+    </div>
+
+    <!-- ══ 견적 관리 (신규) ══ -->
+    <div class="tab-panel" id="tab-estmgr">
+
+      <!-- 통계 카드 -->
+      <div class="stat-grid" style="margin-bottom:1.25rem">
+        <div class="stat-card"><div id="em-total" class="stat-num">0</div><div class="stat-lbl">총 견적 건수</div></div>
+        <div class="stat-card success"><div id="em-today" class="stat-num">0</div><div class="stat-lbl">오늘 견적</div></div>
+        <div class="stat-card warn"><div id="em-revenue" class="stat-num">0</div><div class="stat-lbl">예상 총 매출(만원)</div></div>
+        <div class="stat-card"><div id="em-avgdeal" class="stat-num">0</div><div class="stat-lbl">평균 견적(만원)</div></div>
+      </div>
+
+      <!-- 필터 + 액션 -->
+      <div class="toolbar" style="margin-bottom:1rem">
+        <div class="toolbar-left">
+          <input type="search" id="emSearch" class="search-box" placeholder="목적지·기관명·담당자 검색..." style="min-width:220px"/>
+          <button class="filter-btn active" data-emfilter="all">전체</button>
+          <button class="filter-btn" data-emfilter="new">신규</button>
+          <button class="filter-btn" data-emfilter="consulting">상담중</button>
+          <button class="filter-btn" data-emfilter="contracted">계약완료</button>
+          <button class="filter-btn" data-emfilter="closed">종료</button>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn-act btn-outline-p" onclick="exportEstimatesCsv()">CSV 내보내기</button>
+          <button class="btn-act btn-danger-sm" onclick="clearEstimatesFull()">전체 삭제</button>
+        </div>
+      </div>
+
+      <!-- 테이블 -->
+      <div class="card" style="overflow:hidden">
+        <div id="emEmpty" class="empty-state"><div class="empty-icon">📋</div><p>생성된 견적이 없습니다.</p></div>
+        <table id="emTable" class="inq-table hidden">
+          <thead>
+            <tr>
+              <th style="width:36px">#</th>
+              <th>접수일시</th>
+              <th>목적지</th>
+              <th>기관명</th>
+              <th>인원/기간</th>
+              <th style="text-align:right">청구 금액 ①</th>
+              <th style="text-align:right">원가 합계 ②</th>
+              <th style="text-align:right">수익금 ①-②</th>
+              <th style="text-align:right">1인당</th>
+              <th style="width:80px">상태</th>
+              <th style="width:70px">관리</th>
+            </tr>
+          </thead>
+          <tbody id="emBody"></tbody>
+        </table>
+        <div class="pager" id="emPager"></div>
+      </div>
+    </div>
+
+    <!-- ── 방문 통계 ── -->
+    <div class="tab-panel" id="tab-stats">
+      <div class="stat-grid">
+        <div class="stat-card"><div id="s-all" class="stat-num">0</div><div class="stat-lbl">전체 방문</div></div>
+        <div class="stat-card success"><div id="s-today" class="stat-num">0</div><div class="stat-lbl">오늘 방문</div></div>
+        <div class="stat-card warn"><div id="s-week" class="stat-num">0</div><div class="stat-lbl">이번 주</div></div>
+        <div class="stat-card"><div id="s-avg" class="stat-num">0</div><div class="stat-lbl">일 평균 방문</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">최근 14일 방문 추이</span></div>
+          <div class="card-body"><div id="chart-14d" class="bar-chart" style="height:150px"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">시간대별 방문 분포 (24h)</span></div>
+          <div class="card-body"><div id="chart-hour" class="bar-chart" style="height:150px"></div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">요일별 방문 현황</span></div>
+        <div class="card-body"><div id="chart-dow" class="bar-chart" style="height:100px"></div></div>
+      </div>
+    </div>
+
+    <!-- ── 이벤트 분석 ── -->
+    <div class="tab-panel" id="tab-events">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">버튼 클릭 통계</span></div>
+          <div class="card-body"><div id="ev-buttons" class="event-grid"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">연수지 선택 TOP 10</span></div>
+          <div class="card-body"><div id="ev-dest" class="h-bar-list"></div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">전환율 분석</span></div>
+        <div class="card-body">
+          <div id="ev-funnel" style="display:grid;gap:.5rem"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 견적 분석 ── -->
+    <div class="tab-panel" id="tab-estimates">
+      <div class="stat-grid">
+        <div class="stat-card"><div id="e-total" class="stat-num">0</div><div class="stat-lbl">총 견적 건수</div></div>
+        <div class="stat-card success"><div id="e-avg-p" class="stat-num">0</div><div class="stat-lbl">평균 참가 인원</div></div>
+        <div class="stat-card warn"><div id="e-avg-d" class="stat-num">0</div><div class="stat-lbl">평균 연수 기간</div></div>
+        <div class="stat-card"><div id="e-today" class="stat-num">0</div><div class="stat-lbl">오늘 견적</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">인기 목적지 (견적 기준)</span></div>
+          <div class="card-body"><div id="e-dest" class="h-bar-list"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">프로그램 유형별 분포</span></div>
+          <div class="card-body"><div id="e-program" class="h-bar-list"></div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">기관 유형별 분포</span></div>
+        <div class="card-body"><div id="e-orgtype" class="h-bar-list"></div></div>
+      </div>
+    </div>
+
+    <!-- ── 요율 관리 ── -->
+    <div class="tab-panel" id="tab-rates">
+
+      <!-- 메타 배너 -->
+      <div class="rate-meta-banner" id="rate-meta-banner"></div>
+
+      <!-- 갱신 안내 -->
+      <div class="rate-update-info" id="rate-update-info"></div>
+
+      <!-- 필터 + 내보내기 -->
+      <div class="rate-filter-bar">
+        <button class="filter-btn active" data-rfilter="all">전체</button>
+        <button class="filter-btn" data-rfilter="ok">✅ 최신</button>
+        <button class="filter-btn" data-rfilter="check">⚠️ 확인 권장</button>
+        <button class="filter-btn" data-rfilter="stale">🔴 갱신 필요</button>
+        <button class="btn-act btn-outline-p" style="margin-left:auto" onclick="exportRatesCsv()">CSV 내보내기</button>
+      </div>
+
+      <!-- 요율 테이블 -->
+      <div class="card" style="overflow:hidden">
+        <table class="rate-table">
+          <thead>
+            <tr>
+              <th style="width:90px">지역</th>
+              <th>목적지</th>
+              <th style="width:100px">요율 기준월</th>
+              <th style="width:80px">경과</th>
+              <th style="width:100px">상태</th>
+              <th>비고 / 참고사항</th>
+            </tr>
+          </thead>
+          <tbody id="rate-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- 갱신 방법 안내 -->
+      <div class="card" style="margin-top:1.25rem">
+        <div class="card-header"><span class="card-title">요율 갱신 방법</span></div>
+        <div class="card-body">
+          <ol style="font-size:.84rem;line-height:2;color:var(--text);padding-left:1.2rem">
+            <li><code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:3px">data.js</code> 파일을 텍스트 편집기(메모장·VS Code)로 열기</li>
+            <li>갱신할 도시의 행에서 단가 수치 수정 + <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:3px">"rateDate":"YYYY-MM"</code> 을 현재 월로 변경</li>
+            <li>전체 검토 완료 시 <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:3px">RATE_META</code> 의 <code>updated</code>, <code>version</code>, <code>nextReview</code> 도 업데이트</li>
+            <li>파일 저장 후 브라우저에서 새로고침 → 변경 내용 즉시 반영</li>
+          </ol>
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.75rem">권장 갱신 주기: <strong>분기별 1회</strong> (3개월마다) · 환율 변동 큰 지역은 월별 확인</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── 설정 ── -->
+    <div class="tab-panel" id="tab-settings">
+      <div style="max-width:680px">
+        <div class="setting-section">
+          <div class="setting-title">계정 정보</div>
+          <div class="setting-row">
+            <div class="setting-info"><p>관리자 아이디 <span class="info-tag">고정</span></p><span>admin</span></div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><p>비밀번호 변경</p><span>현재 비밀번호 입력 후 새 비밀번호를 설정합니다.</span></div>
+          </div>
+          <div class="pw-form" id="pwForm">
+            <input type="password" class="pw-input" id="pwCurrent" placeholder="현재 비밀번호" />
+            <input type="password" class="pw-input" id="pwNew" placeholder="새 비밀번호 (6자 이상)" />
+            <input type="password" class="pw-input" id="pwConfirm" placeholder="새 비밀번호 확인" />
+            <p id="pwMsg" style="font-size:.78rem;color:var(--danger)"></p>
+            <button class="btn-act btn-primary" style="width:fit-content" onclick="changePw()">비밀번호 변경</button>
+          </div>
+        </div>
+
+        <div class="setting-section">
+          <div class="setting-title">데이터 관리</div>
+          <div class="setting-row">
+            <div class="setting-info"><p>전체 데이터 내보내기</p><span>문의, 방문, 이벤트, 견적 데이터를 JSON으로 다운로드합니다.</span></div>
+            <button class="btn-act btn-outline-p" onclick="exportAll()">전체 내보내기</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><p>방문 기록 초기화</p><span>방문자 추적 데이터를 삭제합니다.</span></div>
+            <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_visits','방문 기록')">초기화</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><p>이벤트 통계 초기화</p><span>버튼 클릭, 목적지 선택 통계를 삭제합니다.</span></div>
+            <button class="btn-act btn-danger-sm" onclick="clearMulti(['linkedt_events','linkedt_dest_stats'],'이벤트 통계')">초기화</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><p>견적 기록 초기화</p><span>견적 분석 데이터를 삭제합니다.</span></div>
+            <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_estimates','견적 기록')">초기화</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><p>문의 전체 삭제</p><span>모든 문의 내역을 영구 삭제합니다.</span></div>
+            <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_contacts','문의 내역')">전체 삭제</button>
+          </div>
+        </div>
+
+        <div class="setting-section">
+          <div class="setting-title">요율 데이터 정보 <span class="info-tag">Level 2</span></div>
+          <div class="setting-row">
+            <div class="setting-info" id="rate-settings-info">
+              <p>요율 버전 / 최종 갱신</p>
+              <span id="rate-settings-version">data.js 로드 중...</span>
+            </div>
+            <button class="btn-act btn-outline-p" onclick="switchTab('rates')">요율 관리 보기</button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info"><p>요율 CSV 내보내기</p><span>전체 도시 요율·기준일·비고를 CSV로 다운로드합니다.</span></div>
+            <button class="btn-act btn-outline-p" onclick="exportRatesCsv()">CSV 내보내기</button>
+          </div>
+        </div>
+
+        <div class="setting-section">
+          <div class="setting-title">사이트 정보</div>
+          <div class="setting-row">
+            <div class="setting-info"><p>홈페이지 바로가기</p><span>비즈페이지 메인 홈페이지를 새 탭으로 엽니다.</span></div>
+            <a href="index.html" target="_blank" class="btn-act btn-outline-p">홈페이지 열기</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- dash-body -->
+    </main><!-- dash-main -->
+  </div><!-- dash-layout -->
+</div><!-- dashPage -->
+
+<!-- ══ 문의 상세 모달 ════════════════════════════ -->
+<div id="modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modalTitle">문의 상세</h3>
+      <button id="modalClose" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="d-estimate-block" class="hidden"></div>
+      <div class="detail-field"><div class="detail-label">이름</div><div class="detail-value" id="d-name"></div></div>
+      <div class="detail-field"><div class="detail-label">소속</div><div class="detail-value" id="d-org"></div></div>
+      <div class="detail-field"><div class="detail-label">연락처</div><div class="detail-value" id="d-tel"></div></div>
+      <div class="detail-field"><div class="detail-label">접수 일시</div><div class="detail-value" id="d-time"></div></div>
+      <div class="detail-field"><div class="detail-label">문의 내용</div><div class="detail-message" id="d-msg"></div></div>
+      <div class="detail-field">
+        <div class="detail-label">관리자 메모</div>
+        <textarea class="note-area" id="d-note" placeholder="메모를 입력하세요..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <select class="status-select" id="d-status">
+          <option value="unread">신규</option>
+          <option value="read">확인</option>
+          <option value="pending">처리중</option>
+          <option value="done">완료</option>
+        </select>
+        <button class="btn-act btn-primary" onclick="saveDetail()">저장</button>
+        <button class="btn-act btn-danger-sm" onclick="deleteFromModal()">삭제</button>
+        <button class="btn-act btn-ghost-p" onclick="document.getElementById('modal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 견적 상세 모달 ══ -->
+<div id="emModal" class="modal-overlay hidden">
+  <div class="modal-box" style="width:min(720px,100%)">
+    <div class="modal-header">
+      <h3 id="emModalTitle">견적 상세</h3>
+      <button onclick="document.getElementById('emModal').classList.add('hidden')" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+
+      <!-- 상단: 기본 정보 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+        <div style="padding:1.1rem 1.25rem;border-right:1px solid var(--border)">
+          <div class="detail-label">기관 정보</div>
+          <div id="em-orginfo" style="font-size:.88rem;margin-top:.4rem;line-height:1.8"></div>
+        </div>
+        <div style="padding:1.1rem 1.25rem">
+          <div class="detail-label">연수 조건</div>
+          <div id="em-conds" style="font-size:.88rem;margin-top:.4rem;line-height:1.8"></div>
+        </div>
+      </div>
+
+      <!-- 견적 내역 (관리자 전용: 비공개 항목 포함) -->
+      <div style="padding:1.1rem 1.25rem;border-bottom:1px solid var(--border)">
+        <div class="detail-label" style="margin-bottom:.75rem">
+          견적 세부 내역
+          <span style="font-size:.72rem;font-weight:400;color:var(--warn);margin-left:.5rem;background:#fffbeb;border:1px solid #fde68a;padding:.1rem .4rem">🔒 관리자 전용 — 비공개 항목 포함</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+          <thead>
+            <tr style="background:#f8f9fb">
+              <th style="padding:.5rem .7rem;text-align:left;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem;text-transform:uppercase">항목</th>
+              <th style="padding:.5rem .7rem;text-align:right;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem">단가</th>
+              <th style="padding:.5rem .7rem;text-align:center;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem">산출</th>
+              <th style="padding:.5rem .7rem;text-align:right;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem">소계</th>
+            </tr>
+          </thead>
+          <tbody id="em-breakdown"></tbody>
+          <tfoot id="em-tfoot"></tfoot>
+        </table>
+      </div>
+
+      <!-- 총액 비교 박스 (4개) -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--border)">
+        <!-- ① 청구 금액 = 수익 포함 = 홈페이지 고객 표시와 동일 -->
+        <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center">
+          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:.25rem">① 고객 청구 금액</div>
+          <div id="em-custotal" style="font-size:1.2rem;font-weight:800;color:#1d4ed8"></div>
+          <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">수익 포함 · 홈페이지 표시 동일</div>
+        </div>
+        <!-- ② 원가 합계 = 수익 제외 운영비 -->
+        <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center">
+          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem">② 원가 합계</div>
+          <div id="em-fulltotal" style="font-size:1.2rem;font-weight:800;color:var(--text)"></div>
+          <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">수익 제외 운영비 소계</div>
+        </div>
+        <!-- ③ 예상 수익 = ① - ② -->
+        <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center;background:#f0fdf4">
+          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--success);margin-bottom:.25rem">③ 예상 수익 ①-②</div>
+          <div id="em-profit" style="font-size:1.2rem;font-weight:800;color:var(--success)"></div>
+          <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">ENBT + 현지수익 + 보험</div>
+        </div>
+        <!-- 1인당 -->
+        <div style="padding:.9rem 1rem;text-align:center">
+          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem">1인당 금액</div>
+          <div id="em-perperson" style="font-size:1.2rem;font-weight:800;color:var(--primary)"></div>
+        </div>
+      </div>
+
+      <!-- 상태 + 메모 -->
+      <div style="padding:1.1rem 1.25rem">
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:start">
+          <div>
+            <div class="detail-label" style="margin-bottom:.4rem">상태 변경</div>
+            <select id="em-status-sel" class="status-select">
+              <option value="new">신규</option>
+              <option value="consulting">상담중</option>
+              <option value="contracted">계약완료</option>
+              <option value="closed">종료</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <div class="detail-label" style="margin-bottom:.4rem">상담 메모</div>
+            <textarea id="em-note-area" class="note-area" placeholder="상담 내용, 고객 요구사항, 특이사항 등을 기록하세요..." style="min-height:80px"></textarea>
+          </div>
+        </div>
+        <div class="modal-actions" style="margin-top:.75rem">
+          <button class="btn-act btn-primary" onclick="saveEstimateDetail()">저장</button>
+          <button class="btn-act btn-outline-p" onclick="printEstimateAdmin()">관리자용 출력</button>
+          <button class="btn-act btn-danger-sm" onclick="deleteEstimate()">삭제</button>
+          <button class="btn-act" onclick="document.getElementById('emModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ════ CONSTANTS ════ */
+  const KEYS = {
+    contacts:  'linkedt_contacts',
+    visits:    'linkedt_visits',
+    events:    'linkedt_events',
+    dest:      'linkedt_dest_stats',
+    est:       'linkedt_estimates',
+    estFull:   'linkedt_estimates_full',
+    pw:        'linkedt_admin_pw',
+    session:   'linkedt_admin_auth',
+  };
+  const DEFAULT_PW = 'hanaenbt';
+  const PAGE_SIZE  = 15;
+
+  /* ════ STATE ════ */
+  let currentFilter = 'all';
+  let currentPage   = 1;
+  let searchQuery   = '';
+  let currentModalId = null;
+  let currentTab    = 'dashboard';
+
+  /* ════ HELPERS ════ */
+  const get  = (k) => { try { return JSON.parse(localStorage.getItem(k) || (Array.isArray([]) ? '[]' : 'null')) || []; } catch { return []; } };
+  const getO = (k) => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch { return {}; } };
+  const set  = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const esc  = (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const isToday = (ts) => new Date(ts).toDateString() === new Date().toDateString();
+  const isThisWeek = (ts) => { const d=new Date(ts); const now=new Date(); const weekAgo=new Date(now-7*864e5); return d>=weekAgo; };
+  const fmtDate  = (ts) => new Date(ts).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'})+' '+new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const fmtDateS = (ts) => new Date(ts).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'});
+
+  function getPw() { return localStorage.getItem(KEYS.pw) || DEFAULT_PW; }
+
+  /* ════ AUTH ════ */
+  const loginPage = document.getElementById('loginPage');
+  const dashPage  = document.getElementById('dashPage');
+
+  if (sessionStorage.getItem(KEYS.session) === 'true') showDash();
+
+  document.getElementById('loginForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const id = document.getElementById('adminId').value.trim();
+    const pw = document.getElementById('adminPw').value;
+    if (id === 'admin' && pw === getPw()) {
+      sessionStorage.setItem(KEYS.session, 'true');
+      document.getElementById('loginErr').classList.add('hidden');
+      showDash();
+    } else {
+      document.getElementById('loginErr').classList.remove('hidden');
+      document.getElementById('adminPw').value = '';
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem(KEYS.session);
+    dashPage.classList.add('hidden');
+    loginPage.classList.remove('hidden');
+    document.getElementById('adminId').value = '';
+    document.getElementById('adminPw').value = '';
+  });
+
+  function showDash() {
+    loginPage.classList.add('hidden');
+    dashPage.classList.remove('hidden');
+    initClock();
+    renderAll();
+    /* 설정 탭 요율 정보 초기화 */
+    const rvEl = document.getElementById('rate-settings-version');
+    if (rvEl && typeof RATE_META !== 'undefined') {
+      rvEl.textContent = `v${RATE_META.version} · 갱신: ${RATE_META.updated} · 다음검토: ${RATE_META.nextReview}`;
+    }
+  }
+
+  /* ════ CLOCK ════ */
+  function initClock() {
+    const el = document.getElementById('dashTime');
+    function tick() { el.textContent = new Date().toLocaleString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}); }
+    tick(); setInterval(tick, 30000);
+  }
+
+  /* ════ SIDEBAR NAVIGATION ════ */
+  document.querySelectorAll('.sidebar-item').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  const tabTitles = {
+    dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 관리',
+    stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
+    rates:'요율 관리', settings:'설정'
+  };
+
+  function switchTab(name) {
+    currentTab = name;
+    document.querySelectorAll('.sidebar-item').forEach(b => b.classList.toggle('active', b.dataset.tab===name));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id==='tab-'+name));
+    const mtEl = document.getElementById('mobileTabTitle');
+    if (mtEl) mtEl.textContent = tabTitles[name] || name;
+    renderTab(name);
+    /* 모바일: 스크롤 상단 */
+    document.querySelector('.dash-main')?.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  function renderTab(name) {
+    if (name==='dashboard') renderDashboard();
+    else if (name==='inquiries') renderInquiries();
+    else if (name==='estmgr') renderEstMgr();
+    else if (name==='stats') renderStats();
+    else if (name==='events') renderEvents();
+    else if (name==='estimates') renderEstimates();
+    else if (name==='rates') renderRates();
+  }
+
+  function renderAll() { renderDashboard(); }
+
+  /* ════ DASHBOARD ════ */
+  function renderDashboard() {
+    const visits   = get(KEYS.visits);
+    const contacts = get(KEYS.contacts);
+    const events   = getO(KEYS.events);
+    const dests    = getO(KEYS.dest);
+    const ests     = get(KEYS.est);
+
+    const todayV = visits.filter(v=>isToday(v.ts)).length;
+    const weekV  = visits.filter(v=>isThisWeek(v.ts)).length;
+    const unread = contacts.filter(c=>!c.read).length;
+    const kakao  = events['kakao'] || 0;
+    const estC   = ests.filter(e=>isToday(e.ts)).length + (events['estimate_complete']||0);
+
+    document.getElementById('d-visits-today').textContent = todayV;
+    document.getElementById('d-visits-week').textContent  = `이번 주 ${weekV}명`;
+    document.getElementById('d-inq-unread').textContent   = unread;
+    document.getElementById('d-inq-total').textContent    = `전체 ${contacts.length}건`;
+    document.getElementById('d-kakao').textContent        = kakao;
+    document.getElementById('d-est-count').textContent    = events['estimate_complete']||0;
+
+    /* 사이드바 미확인 배지 업데이트 */
+    const badge = document.getElementById('sb-unread');
+    if (badge) { badge.textContent = unread > 0 ? unread : ''; badge.style.display = unread > 0 ? '' : 'none'; }
+
+    /* Recent 5 */
+    const rl = document.getElementById('recent-list');
+    const recent = contacts.slice().reverse().slice(0,5);
+    rl.innerHTML = recent.length ? recent.map(c=>`
+      <div class="recent-item ${c.read?'':'unread'}" onclick="switchTab('inquiries');openDetail('${c.id}')" style="cursor:pointer">
+        <span class="recent-name">${esc(c.name)}</span>
+        <span class="recent-org">${esc(c.org||'—')}</span>
+        <span class="recent-msg">${esc(c.message)}</span>
+        <span class="recent-time">${fmtDateS(c.timestamp)}</span>
+      </div>`).join('') : '<p style="color:var(--muted);font-size:.82rem">문의 내역이 없습니다.</p>';
+
+    /* Visit chart (7 days) */
+    renderBarChart('visit-chart', buildDailyData(visits, 7), 100);
+
+    /* Dest TOP 5 */
+    const destTop5 = Object.entries(dests).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    renderHBar('d-dest-chart', destTop5);
+
+    /* Events */
+    const evNames = { kakao:'카카오톡 상담', estimate_step2:'견적 2단계', estimate_complete:'견적 완료', header_cta:'상단 CTA 클릭' };
+    const evEl = document.getElementById('d-events');
+    evEl.innerHTML = Object.entries(evNames).map(([k,lbl])=>`
+      <div class="event-row">
+        <span class="event-name">${lbl}</span>
+        <span class="event-count">${events[k]||0}</span>
+      </div>`).join('');
+
+    /* KPI */
+    const avgP = ests.length ? Math.round(ests.reduce((s,e)=>s+(e.participants||0),0)/ests.length) : 0;
+    const avgD = ests.length ? Math.round(ests.reduce((s,e)=>s+(e.days||0),0)/ests.length) : 0;
+    document.getElementById('d-kpi').innerHTML = `
+      <div class="kpi-box"><div class="kpi-num">${ests.length}</div><div class="kpi-lbl">견적 건수</div></div>
+      <div class="kpi-box"><div class="kpi-num">${avgP}명</div><div class="kpi-lbl">평균 인원</div></div>
+      <div class="kpi-box"><div class="kpi-num">${avgD}일</div><div class="kpi-lbl">평균 기간</div></div>
+      <div class="kpi-box"><div class="kpi-num">${visits.length}</div><div class="kpi-lbl">총 방문</div></div>
+    `;
+  }
+
+  /* ════ INQUIRIES ════ */
+  document.getElementById('inqSearch').addEventListener('input', (e) => { searchQuery=e.target.value.toLowerCase(); currentPage=1; renderInquiries(); });
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      currentFilter = b.dataset.filter;
+      currentPage = 1;
+      renderInquiries();
+    });
+  });
+  document.getElementById('markAllReadBtn').addEventListener('click', () => {
+    const arr = get(KEYS.contacts); arr.forEach(c=>{ if(!c.read) c.read=true; }); set(KEYS.contacts,arr); renderInquiries(); renderDashboard();
+  });
+  document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
+  document.getElementById('clearAllBtn').addEventListener('click', () => {
+    if(confirm('모든 문의를 삭제하시겠습니까?')) { set(KEYS.contacts,[]); renderInquiries(); renderDashboard(); }
+  });
+
+  function getFilteredContacts() {
+    let arr = get(KEYS.contacts).slice().reverse();
+    if (currentFilter === 'unread')  arr = arr.filter(c=>!c.read);
+    if (currentFilter === 'read')    arr = arr.filter(c=>c.read && c.status !== 'pending' && c.status !== 'done');
+    if (currentFilter === 'pending') arr = arr.filter(c=>c.status==='pending');
+    if (currentFilter === 'done')    arr = arr.filter(c=>c.status==='done');
+    if (searchQuery) arr = arr.filter(c=>(c.name+c.org+c.message).toLowerCase().includes(searchQuery));
+    return arr;
+  }
+
+  function renderInquiries() {
+    const all   = getFilteredContacts();
+    const total = all.length;
+    const pages = Math.ceil(total / PAGE_SIZE) || 1;
+    if (currentPage > pages) currentPage = pages;
+    const slice = all.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+    const empty = document.getElementById('inqEmpty');
+    const tbl   = document.getElementById('inqTable');
+    const body  = document.getElementById('inqBody');
+    const pager = document.getElementById('inqPager');
+    const allContacts = get(KEYS.contacts);
+
+    if (total === 0) { empty.classList.remove('hidden'); tbl.classList.add('hidden'); pager.innerHTML=''; return; }
+    empty.classList.add('hidden'); tbl.classList.remove('hidden');
+
+    body.innerHTML = slice.map((c,i) => {
+      const origIdx = allContacts.findIndex(x=>x.id===c.id)+1;
+      const statusBadge = c.status==='pending' ? 'badge-pend' : c.status==='done' ? 'badge-done' : c.read ? 'badge-read' : 'badge-new';
+      const statusTxt   = c.status==='pending' ? '처리중' : c.status==='done' ? '완료' : c.read ? '확인' : '신규';
+      const isEstimate  = c.type === 'estimate_inquiry';
+      const rawMsg      = (c.message||'').replace(/\[견적 기반 상담 신청\]\n?/,'');
+      const preview     = rawMsg.length>42 ? rawMsg.slice(0,42)+'…' : rawMsg;
+      const estBadge    = isEstimate
+        ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;margin-left:.3rem;font-size:.7rem">견적연계</span>`
+        : '';
+      return `<tr class="${c.read?'':'unread'}" data-id="${c.id}">
+        <td>${origIdx}</td>
+        <td><strong>${esc(c.name)}</strong>${estBadge}</td>
+        <td>${esc(c.tel||c.org||'—')}</td>
+        <td class="msg-preview">${isEstimate && c.estimate ? esc((c.estimate.destLabel||''))+' '+c.estimate.participants+'명/'+c.estimate.days+'일' : esc(preview)}</td>
+        <td class="date-col">${fmtDate(c.timestamp)}</td>
+        <td><span class="badge ${statusBadge}">${statusTxt}</span></td>
+        <td><button class="btn-detail" onclick="openDetail('${c.id}')">상세</button></td>
+      </tr>`;
+    }).join('');
+
+    /* Pager */
+    let pg = '';
+    if (pages > 1) {
+      pg = `<span class="pager-info">${total}건 중 ${(currentPage-1)*PAGE_SIZE+1}-${Math.min(currentPage*PAGE_SIZE,total)}</span>`;
+      if (currentPage>1) pg += `<button class="pager-btn" onclick="gotoPage(${currentPage-1})">‹</button>`;
+      for (let p=1;p<=pages;p++) pg+=`<button class="pager-btn ${p===currentPage?'active':''}" onclick="gotoPage(${p})">${p}</button>`;
+      if (currentPage<pages) pg+=`<button class="pager-btn" onclick="gotoPage(${currentPage+1})">›</button>`;
+    }
+    pager.innerHTML = pg;
+  }
+
+  function gotoPage(p) { currentPage=p; renderInquiries(); }
+
+  /* ════ DETAIL MODAL ════ */
+  function openDetail(id) {
+    const contacts = get(KEYS.contacts);
+    const idx = contacts.findIndex(c=>c.id===id);
+    if (idx===-1) return;
+    const c = contacts[idx];
+    c.read = true;
+    set(KEYS.contacts, contacts);
+
+    currentModalId = id;
+    document.getElementById('modalTitle').textContent = `문의 상세 #${idx+1}`;
+    document.getElementById('d-name').textContent = c.name;
+    document.getElementById('d-org').textContent  = c.org||'—';
+    document.getElementById('d-tel').textContent  = c.tel||'—';
+    document.getElementById('d-time').textContent = fmtDate(c.timestamp);
+
+    /* 견적 연계 문의: 견적 상세 섹션 표시 */
+    let msgText = c.message || '—';
+    const estBlock = document.getElementById('d-estimate-block');
+    if (c.type === 'estimate_inquiry' && c.estimate && estBlock) {
+      const est = c.estimate;
+      const fmt = n => '₩'+n.toLocaleString('ko-KR');
+      estBlock.classList.remove('hidden');
+      estBlock.innerHTML = `
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:.8rem 1rem;margin-bottom:.75rem">
+          <div style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:.6rem">📋 견적 연계 상담 — 고객 선택 내역</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem .8rem;font-size:.82rem">
+            <div><span style="color:#64748b;font-weight:600">목적지</span><br>${esc(est.destLabel||'—')}</div>
+            <div><span style="color:#64748b;font-weight:600">참가 인원</span><br>${est.participants}명 / ${est.days}일 (${est.nights}박)</div>
+            <div><span style="color:#64748b;font-weight:600">프로그램</span><br>${esc(est.programLabel||'—')}</div>
+            <div><span style="color:#64748b;font-weight:600">기관 유형</span><br>${esc(est.orgTypeLabel||'—')}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.75rem">
+            <div style="background:#1d4ed8;color:#fff;padding:.6rem .8rem;text-align:center">
+              <div style="font-size:.7rem;opacity:.8;margin-bottom:.2rem">고객 제시 총액</div>
+              <div style="font-size:1.1rem;font-weight:800">${fmt(est.visibleTotal||est.total||0)}</div>
+            </div>
+            <div style="background:#1e40af;color:#fff;padding:.6rem .8rem;text-align:center">
+              <div style="font-size:.7rem;opacity:.8;margin-bottom:.2rem">1인당 금액</div>
+              <div style="font-size:1.1rem;font-weight:800">${fmt(est.perPerson||0)}</div>
+            </div>
+          </div>
+          ${(est.items||[]).length ? `
+          <div style="margin-top:.6rem;font-size:.76rem;color:#1d4ed8">
+            포함 항목: ${est.items.map(it=>esc(it.name)).join(' · ')}
+          </div>` : ''}
+        </div>`;
+      msgText = (c.message||'').replace('[견적 기반 상담 신청]\n','');
+    } else if (estBlock) {
+      estBlock.classList.add('hidden');
+      estBlock.innerHTML = '';
+    }
+
+    document.getElementById('d-msg').textContent  = msgText;
+    document.getElementById('d-note').value = c.note||'';
+    document.getElementById('d-status').value = c.status||'read';
+    document.getElementById('modal').classList.remove('hidden');
+
+    renderInquiries(); renderDashboard();
+  }
+
+  function saveDetail() {
+    const contacts = get(KEYS.contacts);
+    const idx = contacts.findIndex(c=>c.id===currentModalId);
+    if (idx===-1) return;
+    contacts[idx].note   = document.getElementById('d-note').value;
+    contacts[idx].status = document.getElementById('d-status').value;
+    contacts[idx].read   = contacts[idx].status !== 'unread';
+    set(KEYS.contacts, contacts);
+    document.getElementById('modal').classList.add('hidden');
+    renderInquiries(); renderDashboard();
+  }
+
+  function deleteFromModal() {
+    if (!confirm('이 문의를 삭제하시겠습니까?')) return;
+    set(KEYS.contacts, get(KEYS.contacts).filter(c=>c.id!==currentModalId));
+    document.getElementById('modal').classList.add('hidden');
+    renderInquiries(); renderDashboard();
+  }
+
+  document.getElementById('modalClose').addEventListener('click', ()=>document.getElementById('modal').classList.add('hidden'));
+  document.getElementById('modal').addEventListener('click', e=>{ if(e.target===document.getElementById('modal')) document.getElementById('modal').classList.add('hidden'); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.getElementById('modal').classList.add('hidden'); });
+
+  /* ════ STATS ════ */
+  function renderStats() {
+    const visits = get(KEYS.visits);
+    const todayC = visits.filter(v=>isToday(v.ts)).length;
+    const weekC  = visits.filter(v=>isThisWeek(v.ts)).length;
+    const days   = [...new Set(visits.map(v=>new Date(v.ts).toDateString()))].length || 1;
+    const avg    = Math.round(visits.length / days);
+
+    document.getElementById('s-all').textContent   = visits.length;
+    document.getElementById('s-today').textContent = todayC;
+    document.getElementById('s-week').textContent  = weekC;
+    document.getElementById('s-avg').textContent   = avg;
+
+    renderBarChart('chart-14d', buildDailyData(visits, 14), 110);
+    renderBarChart('chart-hour', buildHourData(visits), 110);
+    renderBarChart('chart-dow', buildDowData(visits), 90);
+  }
+
+  /* ════ EVENTS ════ */
+  function renderEvents() {
+    const events = getO(KEYS.events);
+    const dests  = getO(KEYS.dest);
+    const visits = get(KEYS.visits);
+    const ests   = get(KEYS.est);
+
+    const btnMap = {
+      'header_cta':       '상단 "1분 견적 받기" 버튼',
+      'estimate_step2':   '견적 계산기 → 2단계 이동',
+      'estimate_complete':'견적 확인 완료',
+      'kakao':            '카카오톡 상담 버튼',
+    };
+    const el = document.getElementById('ev-buttons');
+    el.innerHTML = Object.entries(btnMap).map(([k,lbl])=>`
+      <div class="event-row">
+        <span class="event-name">${lbl}</span>
+        <span class="event-count">${events[k]||0}</span>
+      </div>`).join('');
+
+    /* Dest TOP 10 */
+    const destList = Object.entries(dests).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    renderHBar('ev-dest', destList);
+
+    /* Funnel */
+    const vTotal = visits.length;
+    const step2  = events['estimate_step2']||0;
+    const done   = events['estimate_complete']||0;
+    const kakao  = events['kakao']||0;
+    document.getElementById('ev-funnel').innerHTML = [
+      { lbl:'홈페이지 방문', val: vTotal, color: '#1B4965' },
+      { lbl:'견적 계산 시작', val: step2,  color: '#2a7aad' },
+      { lbl:'견적 완료', val: done,   color: '#3a9ad9' },
+      { lbl:'카카오톡 문의', val: kakao,  color: '#FEE500', tc:'#333' },
+    ].map(({lbl,val,color,tc})=>{
+      const pct = vTotal>0 ? Math.round(val/vTotal*100) : 0;
+      return `<div style="background:${color};color:${tc||'#fff'};padding:.6rem 1rem;font-size:.82rem;font-weight:600;display:flex;justify-content:space-between">
+        <span>${lbl}</span><span>${val.toLocaleString()}회 (${pct}%)</span>
+      </div>`;
+    }).join('');
+  }
+
+  /* ════ ESTIMATES ════ */
+  function renderEstimates() {
+    const ests = get(KEYS.est);
+    const total = ests.length;
+    const avgP  = total ? Math.round(ests.reduce((s,e)=>s+(e.participants||0),0)/total) : 0;
+    const avgD  = total ? Math.round(ests.reduce((s,e)=>s+(e.days||0),0)/total) : 0;
+    const todayC= ests.filter(e=>isToday(e.ts)).length;
+
+    document.getElementById('e-total').textContent  = total;
+    document.getElementById('e-avg-p').textContent  = avgP + '명';
+    document.getElementById('e-avg-d').textContent  = avgD + '일';
+    document.getElementById('e-today').textContent  = todayC;
+
+    /* Dest */
+    const destMap = {};
+    ests.forEach(e=>{ destMap[e.destination]=(destMap[e.destination]||0)+1; });
+    renderHBar('e-dest', Object.entries(destMap).sort((a,b)=>b[1]-a[1]).slice(0,8));
+
+    /* Program */
+    const pgLabels = { language:'언어 집중', leadership:'리더십', industry:'산업체 실무', academic:'교육기관 연구' };
+    const pgMap={};
+    ests.forEach(e=>{ pgMap[e.program]=(pgMap[e.program]||0)+1; });
+    renderHBar('e-program', Object.entries(pgMap).map(([k,v])=>[pgLabels[k]||k,v]).sort((a,b)=>b[1]-a[1]));
+
+    /* OrgType */
+    const ogLabels = { company:'기업', public:'공공기관', education:'교육기관' };
+    const ogMap={};
+    ests.forEach(e=>{ ogMap[e.orgType]=(ogMap[e.orgType]||0)+1; });
+    renderHBar('e-orgtype', Object.entries(ogMap).map(([k,v])=>[ogLabels[k]||k,v]).sort((a,b)=>b[1]-a[1]));
+  }
+
+  /* ════ CHART HELPERS ════ */
+  function buildDailyData(visits, n) {
+    const result = [];
+    for (let i=n-1;i>=0;i--) {
+      const d = new Date(); d.setDate(d.getDate()-i);
+      const ds = d.toDateString();
+      result.push({ label: `${d.getMonth()+1}/${d.getDate()}`, value: visits.filter(v=>new Date(v.ts).toDateString()===ds).length });
+    }
+    return result;
+  }
+
+  function buildHourData(visits) {
+    const h = Array.from({length:24},(_,i)=>({ label:i+'시', value:0 }));
+    visits.forEach(v=>{ const hr=new Date(v.ts).getHours(); h[hr].value++; });
+    return h.filter((_,i)=>i%2===0).map(x=>({ label:x.label.replace('시',''), value:x.value }));
+  }
+
+  function buildDowData(visits) {
+    const days=['일','월','화','수','목','금','토'];
+    const d=Array.from({length:7},(_,i)=>({ label:days[i], value:0 }));
+    visits.forEach(v=>{ d[new Date(v.ts).getDay()].value++; });
+    return d;
+  }
+
+  function renderBarChart(elId, data, maxH) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    const max = Math.max(...data.map(d=>d.value), 1);
+    el.innerHTML = data.map(d=>{
+      const h = Math.max(Math.round(d.value/max*maxH), d.value>0?6:2);
+      return `<div class="bar-wrap"><div class="bar-val">${d.value||''}</div><div class="bar" style="height:${h}px"></div><div class="bar-lbl">${d.label}</div></div>`;
+    }).join('');
+  }
+
+  function renderHBar(elId, data) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!data.length) { el.innerHTML='<p style="color:var(--muted);font-size:.8rem">데이터가 없습니다.</p>'; return; }
+    const max = Math.max(...data.map(d=>d[1]), 1);
+    el.innerHTML = data.map(([lbl,cnt])=>`
+      <div class="h-bar-row">
+        <span class="h-bar-label">${esc(String(lbl))}</span>
+        <div class="h-bar-track"><div class="h-bar-fill" style="width:${Math.max(Math.round(cnt/max*100),2)}%"></div></div>
+        <span class="h-bar-count">${cnt}</span>
+      </div>`).join('');
+  }
+
+  /* ════ EXPORT CSV ════ */
+  function exportCsv() {
+    const contacts = get(KEYS.contacts);
+    if (!contacts.length) { alert('내보낼 문의 내역이 없습니다.'); return; }
+    const rows = [['번호','이름','소속','문의 내용','접수 일시','상태','메모']];
+    contacts.forEach((c,i)=>rows.push([i+1, c.name, c.org||'', c.message.replace(/\n/g,' '), fmtDate(c.timestamp), c.status||'read', c.note||'']));
+    const csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const bom = '﻿'; // UTF-8 BOM for Excel
+    const blob = new Blob([bom+csv],{type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `linkedt_inquiries_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  }
+
+  /* ════ EXPORT ALL ════ */
+  function exportAll() {
+    const data = { contacts: get(KEYS.contacts), visits: get(KEYS.visits), events: getO(KEYS.events), dest: getO(KEYS.dest), estimates: get(KEYS.est), exported: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=`linkedt_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+  }
+
+  /* ════ RATES ════════════════════════════════════════════════════════ */
+
+  /* 지역 분류 맵 */
+  const REGION_MAP = {
+    '도쿄':'일본', '오사카':'일본', '후쿠오카':'일본', '나고야':'일본', '삿포로':'일본', '오키나와':'일본',
+    '홍콩':'홍콩·마카오', '마카오':'홍콩·마카오',
+    '상해':'중국', '장가계':'중국', '청도':'중국', '연태':'중국',
+    '몽골':'몽골·대만', '대만':'몽골·대만', '가오슝':'몽골·대만',
+    '라오스':'동남아', '싱가포르':'동남아', '하노이':'동남아', '호치민':'동남아',
+    '다낭':'동남아', '나트랑':'동남아', '푸꾸옥':'동남아', '세부':'동남아',
+    '마닐라':'동남아', '보홀':'동남아', '코타키나발루':'동남아',
+    '캄보디아':'동남아', '방콕':'동남아', '푸켓':'동남아', '치앙마이':'동남아', '발리':'동남아',
+    '괌':'오세아니아·태평양', '사이판':'오세아니아·태평양',
+    '시드니':'오세아니아·태평양', '멜버른':'오세아니아·태평양', '오클랜드':'오세아니아·태평양', '호주':'오세아니아·태평양',
+    '서유럽':'유럽', '로마':'유럽', '파리':'유럽', '영국':'유럽', '스페인':'유럽', '독일':'유럽', '네덜란드':'유럽', '북유럽':'유럽',
+    '로스앤젤레스':'북미', '샌프란시스코':'북미', '워싱턴':'북미', '뉴욕':'북미', '하와이':'북미', '밴쿠버':'북미', '토론토':'북미',
+    '카자흐스탄':'중앙아시아', '우즈베키스탄':'중앙아시아', '동유럽':'중앙아시아',
+  };
+
+  const REGION_ORDER = ['일본','홍콩·마카오','중국','몽골·대만','동남아','오세아니아·태평양','유럽','북미','중앙아시아'];
+
+  let rateFilter = 'all';
+
+  /* 요율 신선도 판정 (admin 자체 함수 — data.js에서 RATE_META, destinationRates 사용) */
+  function adminGetRateStatus(rateDate) {
+    if (!rateDate) return { status:'stale', months:999, label:'미확인', icon:'🔴' };
+    const [y, m] = rateDate.split('-').map(Number);
+    const now    = new Date();
+    const months = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m);
+    if (months <= 3) return { status:'ok',    months, label:'최신',      icon:'✅' };
+    if (months <= 6) return { status:'check', months, label:'확인 권장', icon:'⚠️' };
+    return             { status:'stale', months, label:'갱신 필요',  icon:'🔴' };
+  }
+
+  function fmtRateDate(rd) {
+    if (!rd) return '—';
+    const [y, m] = rd.split('-');
+    return `${y}.${m}`;
+  }
+
+  function renderRates() {
+    if (typeof destinationRates === 'undefined' || typeof RATE_META === 'undefined') {
+      document.getElementById('rate-tbody').innerHTML =
+        '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">data.js를 찾을 수 없습니다.</td></tr>';
+      return;
+    }
+
+    /* 메타 배너 */
+    const allStatus   = destinationRates.map(d => adminGetRateStatus(d.rateDate));
+    const cntOk       = allStatus.filter(s => s.status === 'ok').length;
+    const cntCheck    = allStatus.filter(s => s.status === 'check').length;
+    const cntStale    = allStatus.filter(s => s.status === 'stale').length;
+    const bannerEl    = document.getElementById('rate-meta-banner');
+    if (bannerEl) {
+      bannerEl.innerHTML = `
+        <div class="rate-meta-box"><div class="rate-meta-label">요율 버전</div><div class="rate-meta-value">${esc(RATE_META.version)}</div></div>
+        <div class="rate-meta-box"><div class="rate-meta-label">최종 갱신</div><div class="rate-meta-value">${esc(RATE_META.updated)} · ${esc(RATE_META.updatedBy)}</div></div>
+        <div class="rate-meta-box ${cntCheck+cntStale > 0 ? 'warn' : ''}">
+          <div class="rate-meta-label">다음 검토 예정</div>
+          <div class="rate-meta-value">${esc(RATE_META.nextReview)}</div>
+        </div>
+        <div class="rate-meta-box ${cntStale > 0 ? 'danger' : cntCheck > 0 ? 'warn' : ''}">
+          <div class="rate-meta-label">상태 요약</div>
+          <div class="rate-meta-value">✅ ${cntOk} · ⚠️ ${cntCheck} · 🔴 ${cntStale}</div>
+        </div>`;
+    }
+
+    /* 갱신 안내 */
+    const infoEl = document.getElementById('rate-update-info');
+    if (infoEl) infoEl.textContent = `📌 ${RATE_META.note} 담당자: ${RATE_META.updatedBy}`;
+
+    /* 지역별 그룹화 */
+    const grouped = {};
+    destinationRates.forEach(d => {
+      const region = REGION_MAP[d.label] || '기타';
+      if (!grouped[region]) grouped[region] = [];
+      grouped[region].push(d);
+    });
+
+    /* 테이블 렌더 */
+    const tbody = document.getElementById('rate-tbody');
+    let html = '';
+    REGION_ORDER.forEach(region => {
+      if (!grouped[region]) return;
+      const rows = grouped[region];
+      const filtered = rateFilter === 'all' ? rows : rows.filter(d => adminGetRateStatus(d.rateDate).status === rateFilter);
+      if (!filtered.length) return;
+
+      html += `<tr class="rate-region-row"><td colspan="6">${esc(region)}</td></tr>`;
+      filtered.forEach(d => {
+        const rs = adminGetRateStatus(d.rateDate);
+        html += `<tr>
+          <td style="color:var(--muted);font-size:.76rem"></td>
+          <td><strong>${esc(d.label)}</strong></td>
+          <td>${fmtRateDate(d.rateDate)}</td>
+          <td style="color:var(--muted)">${rs.months <= 999 ? rs.months + '개월' : '—'}</td>
+          <td><span class="rate-badge ${rs.status}">${rs.icon} ${rs.label}</span></td>
+          <td class="rate-notes">${esc(d.notes || '')}</td>
+        </tr>`;
+      });
+    });
+
+    tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">해당 상태의 도시가 없습니다.</td></tr>';
+  }
+
+  /* 필터 이벤트 */
+  document.querySelectorAll('[data-rfilter]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('[data-rfilter]').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      rateFilter = b.dataset.rfilter;
+      renderRates();
+    });
+  });
+
+  /* CSV 내보내기 */
+  function exportRatesCsv() {
+    if (typeof destinationRates === 'undefined') return;
+    const rows = [['지역','목적지','요율기준월','경과(개월)','상태','비고']];
+    destinationRates.forEach(d => {
+      const region = REGION_MAP[d.label] || '기타';
+      const rs     = adminGetRateStatus(d.rateDate);
+      rows.push([region, d.label, d.rateDate||'—', rs.months<=999?rs.months:'—', rs.label, d.notes||'']);
+    });
+    const csv  = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = `rate_status_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  }
+
+  /* ════ SETTINGS ════ */
+  function changePw() {
+    const curr    = document.getElementById('pwCurrent').value;
+    const nw      = document.getElementById('pwNew').value;
+    const confirm = document.getElementById('pwConfirm').value;
+    const msg     = document.getElementById('pwMsg');
+    if (curr !== getPw()) { msg.textContent='현재 비밀번호가 올바르지 않습니다.'; return; }
+    if (nw.length < 6)    { msg.textContent='새 비밀번호는 6자 이상이어야 합니다.'; return; }
+    if (nw !== confirm)   { msg.textContent='새 비밀번호가 일치하지 않습니다.'; return; }
+    localStorage.setItem(KEYS.pw, nw);
+    msg.style.color='var(--success)'; msg.textContent='비밀번호가 변경되었습니다.';
+    document.getElementById('pwCurrent').value=''; document.getElementById('pwNew').value=''; document.getElementById('pwConfirm').value='';
+    setTimeout(()=>{ msg.textContent=''; msg.style.color='var(--danger)'; },3000);
+  }
+
+
+  /* ════════════════════════════════════════
+     견적 관리 탭 (estmgr)
+     ════════════════════════════════════════ */
+  const EM_KEY      = 'linkedt_estimates_full';
+  const EM_PAGE     = 12;
+  let   emFilter    = 'all';
+  let   emPage      = 1;
+  let   emSearch    = '';
+  let   emCurrentId = null;
+
+  function getEstsFull() {
+    try { return JSON.parse(localStorage.getItem(EM_KEY) || '[]'); }
+    catch { return []; }
+  }
+
+  /* 필터 버튼 이벤트 */
+  document.querySelectorAll('[data-emfilter]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('[data-emfilter]').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      emFilter = b.dataset.emfilter; emPage = 1; renderEstMgr();
+    });
+  });
+  document.getElementById('emSearch')?.addEventListener('input', e => {
+    emSearch = e.target.value.toLowerCase(); emPage = 1; renderEstMgr();
+  });
+
+  /* ── 메인 렌더 ── */
+  function renderEstMgr() {
+    const all = getEstsFull();
+    const today = new Date().toDateString();
+
+    /* 통계 */
+    document.getElementById('em-total').textContent   = all.length;
+    document.getElementById('em-today').textContent   = all.filter(e => new Date(e.ts).toDateString()===today).length;
+    const totalRev = all.reduce((s,e) => s+(e.total||0), 0);
+    const avgDeal  = all.length ? Math.round(totalRev/all.length) : 0;
+    document.getElementById('em-revenue').textContent  = Math.round(totalRev/10000).toLocaleString('ko-KR');
+    document.getElementById('em-avgdeal').textContent  = Math.round(avgDeal/10000).toLocaleString('ko-KR');
+
+    /* 필터 */
+    let list = all.slice().reverse();
+    if (emFilter !== 'all') list = list.filter(e => e.status === emFilter);
+    if (emSearch) list = list.filter(e => {
+      return (e.destLabel+e.orgName+e.contact+e.programLabel).toLowerCase().includes(emSearch);
+    });
+
+    const total = list.length;
+    const pages = Math.ceil(total/EM_PAGE) || 1;
+    if (emPage > pages) emPage = pages;
+    const slice = list.slice((emPage-1)*EM_PAGE, emPage*EM_PAGE);
+
+    const emEmpty = document.getElementById('emEmpty');
+    const emTable = document.getElementById('emTable');
+    const emBody  = document.getElementById('emBody');
+    const emPager = document.getElementById('emPager');
+
+    if (!total) { emEmpty.classList.remove('hidden'); emTable.classList.add('hidden'); emPager.innerHTML=''; return; }
+    emEmpty.classList.add('hidden'); emTable.classList.remove('hidden');
+
+    const statusMap = { new:'신규', consulting:'상담중', contracted:'계약완료', closed:'종료' };
+    const statusBadge = { new:'badge-new', consulting:'badge-pend', contracted:'badge-done', closed:'badge-read' };
+
+    emBody.innerHTML = slice.map((e, i) => {
+      /* ① 청구 금액 = data.total = 수익금 포함, 홈페이지 고객 표시와 동일 */
+      const chargeTot  = e.total || 0;
+      /* ② 원가 합계 = visibleTotal = 수익금 제외 순수 운영비 */
+      const costTot    = e.visibleTotal !== undefined ? e.visibleTotal : e.total;
+      /* 예상 수익 = 청구 - 원가 */
+      const profit     = chargeTot - costTot;
+      const per        = e.perPerson || 0;
+      const st         = e.status || 'new';
+      return `<tr>
+        <td>${(emPage-1)*EM_PAGE+i+1}</td>
+        <td class="date-col">${fmtDate(e.ts)}</td>
+        <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong></td>
+        <td>${esc(e.orgName||'-')}</td>
+        <td>${e.participants}명 / ${e.days}일</td>
+        <td style="text-align:right;color:var(--primary);font-weight:700">₩${Math.round(chargeTot/10000).toLocaleString()}만</td>
+        <td style="text-align:right;color:var(--muted)">₩${Math.round(costTot/10000).toLocaleString()}만</td>
+        <td style="text-align:right;color:var(--success);font-weight:700">₩${Math.round(profit/10000).toLocaleString()}만</td>
+        <td style="text-align:right">₩${Math.round(per/10000).toLocaleString()}만</td>
+        <td><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span></td>
+        <td><button class="btn-detail" onclick="openEstDetail('${e.id}')">상세</button></td>
+      </tr>`;
+    }).join('');
+
+    /* 페이저 */
+    let pg = '';
+    if (pages > 1) {
+      pg = `<span class="pager-info">${total}건 중 ${(emPage-1)*EM_PAGE+1}-${Math.min(emPage*EM_PAGE,total)}</span>`;
+      if (emPage>1) pg+=`<button class="pager-btn" onclick="emGoto(${emPage-1})">‹</button>`;
+      for (let p=1;p<=pages;p++) pg+=`<button class="pager-btn ${p===emPage?'active':''}" onclick="emGoto(${p})">${p}</button>`;
+      if (emPage<pages) pg+=`<button class="pager-btn" onclick="emGoto(${emPage+1})">›</button>`;
+    }
+    emPager.innerHTML = pg;
+  }
+
+  function emGoto(p) { emPage = p; renderEstMgr(); }
+
+  /* ── 견적 상세 모달 ── */
+  function openEstDetail(id) {
+    const all = getEstsFull();
+    const e   = all.find(x => x.id === id);
+    if (!e) return;
+    emCurrentId = id;
+
+    document.getElementById('emModalTitle').textContent = `견적 상세 — ${e.destLabel||e.destKey}`;
+
+    /* 기관 정보 */
+    document.getElementById('em-orginfo').innerHTML =
+      `<b>${esc(e.orgName||'—')}</b><br>담당자: ${esc(e.contact||'—')}<br>기관 유형: ${esc(e.orgTypeLabel||'—')}` +
+      (e.request ? `<br><span style="color:var(--muted);font-size:.76rem">${esc(e.request)}</span>` : '');
+
+    /* 연수 조건 */
+    const rateInfo = e.rateDate
+      ? `<br><span style="font-size:.74rem;color:#1d4ed8;background:#eff6ff;padding:.1rem .4rem;border-radius:3px">요율기준: ${e.rateDate} · v${e.rateVersion||'—'}</span>`
+      : '';
+    document.getElementById('em-conds').innerHTML =
+      `목적지: <b>${esc(e.destLabel||e.destKey)}</b>${rateInfo}<br>프로그램: ${esc(e.programLabel||'—')}<br>인원: ${e.participants}명 / 기간: ${e.days}일 (${e.nights}박)<br>` +
+      `식사: ${e.mealCount}식 · 객실: ${e.rooms||Math.ceil(e.participants/2)}실<br>계수: ×${(e.combinedFactor||1).toFixed(3)}`;
+
+    /* 항목 내역 (비공개 포함) */
+    const fmt = n => '₩'+n.toLocaleString('ko-KR');
+    let tbodyHtml = '';
+    (e.items||[]).forEach(item => {
+      const style = item.isHidden
+        ? 'background:#fffbeb;color:#92400e'
+        : '';
+      const badge = item.isHidden ? ' <span style="font-size:.68rem;background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:.1rem .35rem">비공개</span>' : '';
+      tbodyHtml += `<tr style="${style}">
+        <td style="padding:.45rem .6rem">${esc(item.adminLabel||item.name)}${badge}</td>
+        <td style="padding:.45rem .6rem;text-align:right;color:var(--muted)">${fmt(item.unit||0)}</td>
+        <td style="padding:.45rem .6rem;text-align:center;color:var(--muted);font-size:.76rem">${esc(item.qty||'')}</td>
+        <td style="padding:.45rem .6rem;text-align:right;font-weight:700">${fmt(item.amount||0)}</td>
+      </tr>`;
+    });
+    document.getElementById('em-breakdown').innerHTML = tbodyHtml;
+
+    /* 테이블 푸터 */
+    const base = (e.items||[]).reduce((s,it)=>s+(it.amount||0),0);
+    document.getElementById('em-tfoot').innerHTML = `
+      <tr style="border-top:2px solid var(--primary)">
+        <td colspan="3" style="padding:.45rem .6rem;font-weight:700;color:var(--primary)">소계</td>
+        <td style="padding:.45rem .6rem;text-align:right;font-weight:700;color:var(--primary)">${fmt(base)}</td>
+      </tr>
+      ${(e.combinedFactor||1)!==1?`<tr>
+        <td colspan="3" style="padding:.3rem .6rem;color:var(--muted);font-size:.78rem">× 계수 적용 (${(e.combinedFactor||1).toFixed(3)})</td>
+        <td></td>
+      </tr>`:''}`;
+
+    /* 총액 박스
+       ① 청구 금액 = e.total  = 수익 포함 = 홈페이지 고객 표시 금액과 동일
+       ② 원가 합계 = e.visibleTotal = 수익 제외 운영비
+       ③ 예상 수익 = ① - ②                                              */
+    const chargeTot2 = e.total || 0;
+    const costTot2   = e.visibleTotal !== undefined ? e.visibleTotal : e.total;
+    const profit2    = chargeTot2 - costTot2;
+    document.getElementById('em-custotal').textContent  = fmt(chargeTot2);
+    document.getElementById('em-fulltotal').textContent = fmt(costTot2);
+    document.getElementById('em-perperson').textContent = fmt(e.perPerson||0);
+    /* 수익금 박스가 있으면 업데이트 */
+    const profitEl = document.getElementById('em-profit');
+    if (profitEl) profitEl.textContent = fmt(profit2);
+
+    /* 상태 + 메모 */
+    document.getElementById('em-status-sel').value = e.status || 'new';
+    document.getElementById('em-note-area').value   = e.note   || '';
+
+    document.getElementById('emModal').classList.remove('hidden');
+  }
+
+  /* 저장 */
+  function saveEstimateDetail() {
+    const all = getEstsFull();
+    const idx = all.findIndex(x => x.id === emCurrentId);
+    if (idx < 0) return;
+    all[idx].status = document.getElementById('em-status-sel').value;
+    all[idx].note   = document.getElementById('em-note-area').value;
+    localStorage.setItem(EM_KEY, JSON.stringify(all));
+    document.getElementById('emModal').classList.add('hidden');
+    renderEstMgr();
+  }
+
+  /* 삭제 */
+  function deleteEstimate() {
+    if (!confirm('이 견적을 삭제하시겠습니까?')) return;
+    localStorage.setItem(EM_KEY, JSON.stringify(getEstsFull().filter(x=>x.id!==emCurrentId)));
+    document.getElementById('emModal').classList.add('hidden');
+    renderEstMgr();
+  }
+
+  /* 관리자용 출력 */
+  function printEstimateAdmin() {
+    const e = getEstsFull().find(x => x.id === emCurrentId);
+    if (!e) return;
+    const fmt = n => '₩'+n.toLocaleString('ko-KR');
+    const rowsHtml = (e.items||[]).map(item => {
+      const bg = item.isHidden ? '#fffbeb' : '#fff';
+      const badge = item.isHidden ? ' [비공개]' : '';
+      return `<tr style="background:${bg}">
+        <td>${item.adminLabel||item.name}${badge}</td>
+        <td style="text-align:right">${fmt(item.unit||0)}</td>
+        <td style="text-align:center;font-size:11px;color:#aaa">${item.qty||''}</td>
+        <td style="text-align:right;font-weight:700">${fmt(item.amount||0)}</td>
+      </tr>`;
+    }).join('');
+
+    /* ① 청구 금액 = e.total = 수익 포함 = 고객 실제 청구액 */
+    const chargePrint = e.total || 0;
+    /* ② 원가 합계 = e.visibleTotal = 수익 제외 운영비 */
+    const costPrint   = e.visibleTotal !== undefined ? e.visibleTotal : e.total;
+    /* ③ 예상 수익 */
+    const profitPrint = chargePrint - costPrint;
+    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>견적 내부용</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Malgun Gothic',sans-serif;padding:36px;font-size:13px;color:#1e2d3d}
+    h1{font-size:18px;color:#1B4965;font-weight:800;border-bottom:3px solid #1B4965;padding-bottom:14px;margin-bottom:20px}
+    .warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:.5rem .8rem;font-size:.8rem;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{padding:6px 8px;background:#f8f9fb;font-weight:700;text-align:left;border-bottom:2px solid #e0deda;color:#7a8fa6;font-size:11px;text-transform:uppercase}
+    td{padding:6px 8px;border-bottom:1px solid #f3f4f6}
+    .totals{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin:16px 0}
+    .tbox{padding:10px 12px;border-left:4px solid #1B4965}
+    .tbox.cost{border-left-color:#9ca3af;background:#f9fafb}
+    .tbox.profit{border-left-color:#059669;background:#f0fdf4}
+    .tlbl{font-size:10px;text-transform:uppercase;color:#7a8fa6;margin-bottom:3px}
+    .tamt{font-size:16px;font-weight:800;color:#1B4965}
+    .tbox.cost .tamt{color:#374151}.tbox.profit .tamt{color:#059669}
+    @media print{body{padding:20px}.noprint{display:none}}</style></head><body>
+    <div class="warn">⚠️ 내부 관리용 문서입니다. 고객에게 공유하지 마십시오.</div>
+    <h1>비즈페이지 견적서 (관리자용)</h1>
+    <p style="margin-bottom:14px;font-size:12px;color:#7a8fa6">발행: ${fmtDate(e.ts)} | 목적지: ${e.destLabel||e.destKey} | ${e.participants}명 / ${e.days}일</p>
+    <table><thead><tr><th>항목</th><th>단가</th><th>산출</th><th>소계</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+    <div class="totals" style="margin-top:14px">
+      <div class="tbox"><div class="tlbl">① 고객 청구 금액 (수익 포함)</div><div class="tamt">${fmt(chargePrint)}</div></div>
+      <div class="tbox cost"><div class="tlbl">② 원가 합계 (수익 제외)</div><div class="tamt">${fmt(costPrint)}</div></div>
+      <div class="tbox profit"><div class="tlbl">③ 예상 수익 ①-②</div><div class="tamt">${fmt(profitPrint)}</div></div>
+      <div class="tbox"><div class="tlbl">1인당 금액</div><div class="tamt">${fmt(e.perPerson||0)}</div></div>
+    </div>
+    <div class="noprint" style="text-align:center;padding:14px;background:#1B4965;color:#fff;font-size:12px;cursor:pointer;margin-top:12px" onclick="window.print()">
+      ▶ 인쇄 / PDF 저장
+    </div></body></html>`;
+
+    const w = window.open('','_blank','width=820,height=680,scrollbars=yes');
+    if (!w) { alert('팝업 차단 해제 후 다시 시도하세요.'); return; }
+    w.document.write(html); w.document.close();
+    setTimeout(()=>{ w.focus(); w.print(); }, 400);
+  }
+
+  /* CSV 내보내기 */
+  function exportEstimatesCsv() {
+    const all = getEstsFull();
+    if (!all.length) { alert('내보낼 견적이 없습니다.'); return; }
+    const rows = [['#','날짜','목적지','기관명','담당자','인원','기간','고객총액','내부총액','1인당','상태']];
+    all.forEach((e,i) => rows.push([
+      i+1, fmtDate(e.ts), e.destLabel||e.destKey, e.orgName||'', e.contact||'',
+      e.participants, e.days,
+      e.visibleTotal||e.total, e.total, e.perPerson,
+      e.status||'new'
+    ]));
+    const csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const blob = new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=`linkedt_estimates_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  }
+
+  /* 전체 삭제 */
+  function clearEstimatesFull() {
+    if (confirm('모든 견적 데이터를 삭제하시겠습니까?')) {
+      localStorage.removeItem(EM_KEY);
+      renderEstMgr();
+    }
+  }
+
+  /* 모달 닫기 */
+  document.getElementById('emModal')?.addEventListener('click', e => {
+    if (e.target === document.getElementById('emModal')) document.getElementById('emModal').classList.add('hidden');
+  });
+
+  /* 설정 탭에도 견적 삭제 추가 */
+  function clearData(key, label) {
+    if (confirm(`${label}을(를) 삭제하시겠습니까?`)) { localStorage.removeItem(key); renderTab(currentTab); alert('삭제되었습니다.'); }
+  }
+
+  function clearMulti(keys, label) {
+    if (confirm(`${label}을(를) 초기화하시겠습니까?`)) { keys.forEach(k=>localStorage.removeItem(k)); renderTab(currentTab); alert('초기화되었습니다.'); }
+  }
+</script>
+<script>if (typeof lucide !== 'undefined') lucide.createIcons();</script>
+</body>
+</html>
+
