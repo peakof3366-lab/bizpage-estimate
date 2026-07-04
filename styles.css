@@ -780,7 +780,9 @@ p { line-height:1.8; }
   color:rgba(0,0,0,.03); line-height:1;
   letter-spacing:-.06em; pointer-events:none;
   z-index:0; white-space:nowrap;
+  transition:color var(--dur) var(--ease);
 }
+.svc-item:hover::before { color:rgba(200,16,46,.08); }
 .svc-step { display:block; font-size:36px; font-weight:900; color:rgba(0,0,0,.08); line-height:1; letter-spacing:-.05em; margin-bottom:6px; }
 .svc-cat  { font-size:10px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--red); }
 .svc-item-title { font-size:20px; font-weight:800; color:var(--t-head); margin-bottom:12px; letter-spacing:-.02em; }
