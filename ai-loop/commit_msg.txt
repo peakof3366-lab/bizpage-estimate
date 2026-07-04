@@ -1,0 +1,10 @@
+STEP3 탐색기: 로컬 이미지(DEST_IMAGES) 폴백 연결로 사진 노출 목적지 확대 (14 -> 19곳)
+
+- loadStep3Images()가 DEST_PHOTOS(Unsplash)만 확인하고 이미 존재하던 로컬 정적
+  이미지(DEST_IMAGES, 이미지/ 폴더)는 전혀 사용하지 않고 있었음
+- DEST_PHOTOS 다음 우선순위로 DEST_IMAGES를 확인하는 폴백 추가 (_destImagesToImgList) ->
+  오사카, 후쿠오카, 나고야, 삿포로, 마카오 5개 목적지가 외부 네트워크 의존 없이 즉시
+  사진을 갖게 됨
+- 사진이 1장뿐인 목적지도 스트립이 보이도록 _renderPhotoStrip 최소 노출 조건을
+  2장 -> 1장으로 완화
+- Playwright로 오사카(2장)/마카오·후쿠오카(1장) 실제 렌더링 확인

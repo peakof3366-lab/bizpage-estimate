@@ -3020,7 +3020,7 @@ function _renderPhotoStrip(destKey, images) {
   var credit = document.getElementById('destStripCredit');
   if (!wrap || !strip) return;
 
-  if (!images || images.length < 2) {
+  if (!images || images.length < 1) {
     wrap.classList.add('hidden');
     return;
   }
@@ -3096,12 +3096,30 @@ function closeLightbox() {
   document.body.style.overflow = '';
 }
 
+/* 로컬 정적 이미지(이미지/ 폴더, DEST_IMAGES) → 이미지 리스트 변환
+   외부 네트워크 의존이 전혀 없어 가장 안정적 — Unsplash 등록이 없는 목적지의 폴백으로 사용 */
+function _destImagesToImgList(destKey) {
+  var paths = (typeof DEST_IMAGES !== 'undefined') ? DEST_IMAGES[destKey] : null;
+  if (!paths || !paths.length) return null;
+  var base = new URL('.', location.href).href;
+  return paths.map(function(p) {
+    var abs = base + encodeURI(p);
+    return { url: abs, thumb: abs, alt: destKey, src: 'local' };
+  });
+}
+
 /* Step 3 이미지 로드 진입점 */
 function loadStep3Images(destKey) {
   /* 1. DEST_PHOTOS에 기존 Unsplash 이미지가 있으면 즉시 사용 */
   var existing = _destPhotosToImgList(destKey);
   if (existing) {
     _renderPhotoStrip(destKey, existing);
+    return;
+  }
+  /* 1b. DEST_IMAGES(로컬 파일)가 있으면 사용 — 외부 API/네트워크 없이도 항상 동작 */
+  var local = _destImagesToImgList(destKey);
+  if (local) {
+    _renderPhotoStrip(destKey, local);
     return;
   }
   /* 2. localStorage 캐시 확인 */
