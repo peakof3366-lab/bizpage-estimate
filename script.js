@@ -1178,27 +1178,115 @@ const DEST_COORDS = {
 };
 
 /* 세계지도 위에 목적지 핀 위치시키기 */
+/* 대한민국(서울) 기준 위/경도 — 지도 확대 기준점 */
+const KOREA_COORDS = [37.57, 126.98];
+
+/* 위/경도 → 지도 이미지 전체 대비 비율(0~1) 변환 (등장방형 도법 기준) */
+function _latLngToFrac(lat, lng) {
+  return { x: (lng + 180) / 360, y: (90 - lat) / 180 };
+}
+
+/* 대한민국+목적지가 함께 보이도록 지도를 자동 확대/이동시키고 핀 두 개(출발/목적지)를 배치 */
 function _positionDestMapPin(destKey) {
   var wrap  = document.getElementById('destMapWrap');
-  var pin   = document.getElementById('destMapPin');
-  var label = document.getElementById('destMapPinLabel');
-  if (!wrap || !pin) return;
+  var frame = document.getElementById('destMapFrame');
+  var img   = document.getElementById('destMapImg');
+  var pinKorea = document.getElementById('destMapPinKorea');
+  var pinDest  = document.getElementById('destMapPin');
+  var label    = document.getElementById('destMapPinLabel');
+  if (!wrap || !frame || !img || !pinDest) return;
 
   var coords = DEST_COORDS[destKey];
   if (!coords) { wrap.classList.add('hidden'); return; }
 
-  var lat = coords[0], lng = coords[1];
-  var xPct = (lng + 180) / 360 * 100;
-  var yPct = (90 - lat) / 180 * 100;
+  function render() {
+    var korea = _latLngToFrac(KOREA_COORDS[0], KOREA_COORDS[1]);
+    var dest  = _latLngToFrac(coords[0], coords[1]);
 
-  pin.style.left = xPct + '%';
-  pin.style.top  = yPct + '%';
-  pin.classList.remove('hidden');
-  if (label) {
-    var destLabelEl = (typeof destinationSelect !== 'undefined') ? destinationSelect.selectedOptions[0] : null;
-    label.textContent = destLabelEl ? destLabelEl.textContent.split(' (')[0] : destKey;
+    var left = Math.min(korea.x, dest.x), right = Math.max(korea.x, dest.x);
+    var top  = Math.min(korea.y, dest.y), bottom = Math.max(korea.y, dest.y);
+
+    /* 대한민국과 아주 가까운 목적지(예: 일본)도 지나치게 확대되지 않도록 최소 범위 보장 */
+    var minSpan = 0.10;
+    if (right - left < minSpan) {
+      var cx = (left + right) / 2;
+      left = cx - minSpan / 2; right = cx + minSpan / 2;
+    }
+    if (bottom - top < minSpan) {
+      var cy = (top + bottom) / 2;
+      top = cy - minSpan / 2; bottom = cy + minSpan / 2;
+    }
+
+    /* 양쪽 끝점이 프레임 가장자리에 붙지 않도록 여백 비율 추가 */
+    var padRatio = 0.28;
+    var w = right - left, h = bottom - top;
+    left -= w * padRatio; right += w * padRatio;
+    top  -= h * padRatio; bottom += h * padRatio;
+    w = right - left; h = bottom - top;
+
+    var frameW = frame.clientWidth, frameH = frame.clientHeight;
+    var natW = img.naturalWidth  || 939.747;
+    var natH = img.naturalHeight || 476.728;
+    var frameAspect = frameW / frameH;
+
+    /* bbox의 가로세로 비율을 프레임 비율에 맞춰 한쪽만 "확장"해서 맞춘다.
+       (min/max 배율 방식은 두 핀이 잘리거나 프레임에 여백이 남는 문제가 있어,
+       항상 필요한 영역을 포함하는 방향으로만 넓혀서 프레임을 완전히 채우도록 함) */
+    var cx = (left + right) / 2, cy = (top + bottom) / 2;
+    var bboxPxRatio = (w * natW) / (h * natH);
+    if (bboxPxRatio < frameAspect) {
+      var neededWFrac = (h * natH * frameAspect) / natW;
+      left = cx - neededWFrac / 2; right = cx + neededWFrac / 2;
+      w = neededWFrac;
+    } else {
+      var neededHFrac = (w * natW) / frameAspect / natH;
+      top = cy - neededHFrac / 2; bottom = cy + neededHFrac / 2;
+      h = neededHFrac;
+    }
+
+    /* 확장한 범위가 지도 가장자리(0~1) 밖으로 나가면 안쪽으로 밀어서 보정
+       (크기는 그대로 유지 — 목적지가 지도 동쪽 끝(한국·일본 등) 근처라 넓힌 범위가
+       180도 선을 넘어가며 프레임에 빈 여백이 남던 문제) */
+    if (right > 1) { left -= (right - 1); right = 1; }
+    if (left < 0)  { right -= left; left = 0; }
+    if (bottom > 1) { top -= (bottom - 1); bottom = 1; }
+    if (top < 0)    { bottom -= top; top = 0; }
+    w = right - left; h = bottom - top;
+    cx = (left + right) / 2; cy = (top + bottom) / 2;
+
+    var scale = frameW / (w * natW);
+    scale = Math.min(scale, 18); /* 과도한 확대 방지 */
+
+    var bw = natW * scale, bh = natH * scale;
+    var offsetX = frameW / 2 - cx * bw;
+    var offsetY = frameH / 2 - cy * bh;
+
+    img.style.width  = bw + 'px';
+    img.style.height = bh + 'px';
+    img.style.left   = offsetX + 'px';
+    img.style.top    = offsetY + 'px';
+
+    function placePin(pinEl, frac) {
+      if (!pinEl) return;
+      pinEl.style.left = (offsetX + frac.x * bw) + 'px';
+      pinEl.style.top  = (offsetY + frac.y * bh) + 'px';
+      pinEl.classList.remove('hidden');
+    }
+    placePin(pinKorea, korea);
+    placePin(pinDest, dest);
+
+    if (label) {
+      var destLabelEl = (typeof destinationSelect !== 'undefined') ? destinationSelect.selectedOptions[0] : null;
+      label.textContent = destLabelEl ? destLabelEl.textContent.split(' (')[0] : destKey;
+    }
+    wrap.classList.remove('hidden');
   }
-  wrap.classList.remove('hidden');
+
+  if (img.complete && img.naturalWidth) {
+    render();
+  } else {
+    img.onload = render;
+  }
 }
 
 const DEST_IMAGES = {
@@ -2811,6 +2899,10 @@ function scrollToStep3() {
   var sec = document.getElementById('step3Section');
   if (!sec) return;
   sec.classList.remove('hidden');
+  /* 섹션이 숨겨져 있던 동안엔 지도 프레임 크기를 읽을 수 없었으므로(0px) 여기서 재배치 */
+  if (typeof destinationSelect !== 'undefined' && destinationSelect.value) {
+    _positionDestMapPin(destinationSelect.value);
+  }
   setTimeout(function() {
     sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 60);

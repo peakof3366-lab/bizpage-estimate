@@ -1448,15 +1448,16 @@ p { line-height:1.8; }
 /* 목적지 위치 세계지도 */
 .dest-map-wrap { margin-bottom:36px; }
 .dest-map-frame {
-  position:relative;
+  position:relative; overflow:hidden;
   background:#fff; border:1px solid var(--rule);
-  padding:12px; margin-top:10px;
+  padding:0; margin-top:10px;
+  height:340px;
 }
-.dest-map-img { width:100%; height:auto; display:block; opacity:.92; }
+.dest-map-img { position:absolute; display:block; opacity:.92; max-width:none; }
 .dest-map-pin {
   position:absolute; transform:translate(-50%,-100%);
   display:flex; flex-direction:column; align-items:center;
-  pointer-events:none;
+  pointer-events:none; z-index:2;
 }
 .dest-map-pin-dot {
   width:11px; height:11px; border-radius:50%;
@@ -1477,6 +1478,16 @@ p { line-height:1.8; }
   margin-bottom:6px; padding:3px 8px;
   background:var(--ink); color:#fff;
   font-size:11px; font-weight:700; white-space:nowrap;
+}
+.dest-map-pin-origin { z-index:1; }
+.dest-map-pin-origin .dest-map-pin-dot {
+  background:#fff; border:2px solid var(--ink);
+  box-shadow:0 0 0 3px rgba(13,13,13,.15);
+}
+.dest-map-pin-origin .dest-map-pin-dot::after { display:none; }
+.dest-map-pin-origin .dest-map-pin-label { background:var(--t-sub); }
+@media (max-width:768px) {
+  .dest-map-frame { height:260px; }
 }
 
 /* 라이트박스 오버레이 */
