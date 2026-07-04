@@ -596,10 +596,13 @@ form.addEventListener('submit', (event) => {
   if (actionsEl)  actionsEl.classList.add('hidden');
   if (confirmEl) {
     confirmEl.classList.remove('hidden');
-    /* 견적서 받기 버튼이 화면 중앙에 오도록 자동 스크롤 */
+    /* estimate-grid 상단으로 스크롤 — 우측 결과 카드(연수 일정 탐색하기 등)와
+       좌측 "견적서 받기" 확인 패널이 동시에 화면에 들어오도록 함.
+       (기존에는 .btn-get-estimate만 중앙 스크롤 → sticky 결과 카드가 스크롤 범위를
+       벗어나 "연수 일정 탐색하기" 버튼이 화면 밖으로 밀려나는 문제가 있었음) */
     setTimeout(function () {
-      var getBtn = confirmEl.querySelector('.btn-get-estimate');
-      if (getBtn) getBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var grid = document.querySelector('.estimate-grid');
+      if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 120);
     /* lucide 아이콘 재렌더 (동적 삽입된 아이콘) */
     if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -620,7 +623,10 @@ form.addEventListener('submit', (event) => {
 
   /* 3. 상담 신청 버튼 활성화 */
   const consultBtn = document.getElementById('consultBtn');
-  if (consultBtn) consultBtn.classList.add('visible');
+  if (consultBtn) {
+    consultBtn.classList.remove('hidden');
+    consultBtn.classList.add('visible');
+  }
 
   /* 3b. 연수 일정 탐색 버튼 활성화 */
   const exploreBtn = document.getElementById('explorePlanBtn');
@@ -2789,6 +2795,9 @@ function _makeCoursesFromDestRec(destKey, days) {
 /* 현재 선택된 플랜 (a / b) */
 var _currentPlan = null;
 
+/* 견적(itiA/itiB)과 동일한 소스로 선택된 [코스A, 코스B] — null이면 DEST_REC 폴백 사용 */
+var _step3Courses = null;
+
 /* Step 3 섹션으로 스크롤 + 섹션 표시 */
 function scrollToStep3() {
   var sec = document.getElementById('step3Section');
@@ -2809,7 +2818,24 @@ function renderStep3() {
   var titleEl = document.getElementById('step3DestLabel');
   if (titleEl) titleEl.textContent = destLabel + ' 연수 일정';
 
-  /* DEST_REC에 데이터가 있으면 즉시 렌더 */
+  /* 견적(itiA/itiB)과 반드시 동일한 내용이 나오도록, ITINERARY_DB에 직접 등록된
+     목적지는 getItineraries()로 견적과 100% 동일한 코스 쌍을 사용한다.
+     (프로그램 유형별 우선순위까지 그대로 반영 — 견적 확인 후 "일정 탐색" 시
+     내용이 달라 보이던 문제의 근본 원인) */
+  var programType = document.getElementById('programType')?.value || '';
+  var itiPair = (typeof getItineraries === 'function') ? getItineraries(destKey, programType) : null;
+  if (itiPair && itiPair.length) {
+    _step3Courses = itiPair;
+    var recFromIti = _coursesToDestRec(itiPair);
+    _renderPlanCard('a', recFromIti.a);
+    _renderPlanCard('b', recFromIti.b);
+    selectPlan('b');
+    loadStep3Images(destKey);
+    return;
+  }
+  _step3Courses = null;
+
+  /* DEST_REC에 데이터가 있으면 즉시 렌더 (ITINERARY_DB 직접 등록이 없는 목적지용 폴백) */
   var rec = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
   if (rec) {
     _renderPlanCard('a', rec.a);
@@ -2824,6 +2850,7 @@ function renderStep3() {
         .then(function(courses0) {
           if (courses0 && courses0.length >= 1) {
             ITINERARY_DB[destKey] = courses0;
+            _step3Courses = [courses0[0], courses0[1] || courses0[0]];
             _renderTimeline(_currentPlan || 'b');  /* 풍부한 일정으로 타임라인 업데이트 */
           }
         })
@@ -2844,6 +2871,7 @@ function renderStep3() {
       /* ITINERARY_DB에 저장 → _renderTimeline 이 am/pm/eve/tip 풍부하게 표시 */
       if (courses && courses.length >= 1) {
         ITINERARY_DB[destKey] = courses;
+        _step3Courses = [courses[0], courses[1] || courses[0]];
       }
       if (typeof DEST_REC !== 'undefined' && courses && courses.length >= 2) {
         DEST_REC[destKey] = _coursesToDestRec(courses);
@@ -3128,10 +3156,12 @@ function _renderTimeline(plan) {
     if (typeof lucide !== 'undefined') lucide.createIcons({ el: titleEl });
   }
 
-  /* ITINERARY_DB에 am/pm/eve/tip 데이터가 있으면 우선 사용 */
-  var courses  = (typeof ITINERARY_DB !== 'undefined') ? ITINERARY_DB[destKey] : null;
+  /* 견적과 동일한 코스 쌍(_step3Courses)이 있으면 그것을 우선 사용 — 없으면
+     ITINERARY_DB 원본 순서로 폴백 (프로그램 유형 우선순위 미반영 상태) */
   var planIdx  = (plan === 'a') ? 0 : 1;
-  var course   = courses ? (courses[planIdx] || courses[0]) : null;
+  var courses  = (typeof ITINERARY_DB !== 'undefined') ? ITINERARY_DB[destKey] : null;
+  var course   = _step3Courses ? (_step3Courses[planIdx] || _step3Courses[0])
+               : (courses ? (courses[planIdx] || courses[0]) : null);
   var dbDays   = (course && Array.isArray(course.days) && course.days.length > 0) ? course.days : null;
 
   var html = '';
@@ -3235,9 +3265,12 @@ function _renderRichDayCard(dayNum, data, totalDays) {
 /* 결재 기대 효과 박스 */
 function _renderValueBox(plan) {
   var destKey  = (typeof destinationSelect !== 'undefined') ? destinationSelect.value : '';
+  var planIdx  = (plan === 'a') ? 0 : 1;
+  var stepCourse = _step3Courses ? (_step3Courses[planIdx] || _step3Courses[0]) : null;
   var rec      = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
   var planData = rec ? rec[plan] : null;
-  var value    = planData ? planData.value : '연수 목적에 맞는 맞춤 일정으로 팀 역량 강화 및 결속력 향상';
+  var value    = stepCourse ? stepCourse.subtitle
+               : (planData ? planData.value : '연수 목적에 맞는 맞춤 일정으로 팀 역량 강화 및 결속력 향상');
 
   var el = document.getElementById('planValueText');
   if (el) el.textContent = value;
@@ -3247,19 +3280,32 @@ function _renderValueBox(plan) {
 function downloadEstimateWithPlan() {
   /* 기존 PDF 다운로드 함수 재활용 + 플랜 정보 주입 */
   var destKey  = (typeof destinationSelect !== 'undefined') ? destinationSelect.value : '';
-  var rec      = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
   var plan     = _currentPlan || 'b';
+  var planIdx  = (plan === 'a') ? 0 : 1;
+
+  /* 견적과 동일한 코스(_step3Courses)가 있으면 그것을 우선 사용 — 없으면 DEST_REC 폴백 */
+  var stepCourse = _step3Courses ? (_step3Courses[planIdx] || _step3Courses[0]) : null;
+  var rec      = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
   var planData = rec ? rec[plan] : null;
 
-  /* 플랜 정보를 전역 임시 변수에 저장 후 기존 함수 호출 */
-  window._pdfPlanOverride = planData ? {
+  var override = stepCourse ? {
+    planKey:  plan,
+    tag:      (planIdx === 0 ? '역량강화형' : '동기부여·화합형'),
+    desc:     stepCourse.subtitle,
+    points:   (stepCourse.highlights || []).slice(0, 3),
+    items:    (stepCourse.days || []).slice(1, -1).map(function(d) { return d.title; }),
+    value:    stepCourse.subtitle,
+  } : (planData ? {
     planKey:  plan,
     tag:      planData.tag,
     desc:     planData.desc,
     points:   planData.points,
     items:    planData.items,
     value:    planData.value,
-  } : null;
+  } : null);
+
+  /* 플랜 정보를 전역 임시 변수에 저장 후 기존 함수 호출 */
+  window._pdfPlanOverride = override;
 
   downloadEstimateFile();
 
@@ -3288,6 +3334,16 @@ function downloadEstimateWithPlan() {
     if (daysEl) {
       daysEl.value = daysParam;
       daysEl.dispatchEvent(new Event('input'));
+    }
+  }
+
+  /* 견적서에서 사용된 프로그램 유형까지 복원해야 탐색기에서 동일한 코스가 나옴 */
+  var ptParam = params.get('pt');
+  if (ptParam) {
+    var ptEl = document.getElementById('programType');
+    if (ptEl && Array.from(ptEl.options).some(function(o) { return o.value === ptParam; })) {
+      ptEl.value = ptParam;
+      ptEl.dispatchEvent(new Event('change'));
     }
   }
 

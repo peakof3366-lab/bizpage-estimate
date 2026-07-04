@@ -1188,16 +1188,22 @@ p { line-height:1.8; }
 /* ── 탐색 트리거 버튼 (estimate-result 패널 내부) ── */
 .btn-explore-plan {
   display:flex; align-items:center; justify-content:center; gap:8px;
-  width:100%; padding:13px 0;
-  background:transparent;
+  width:100%; padding:15px 0;
+  background:var(--red);
   border:1.5px solid var(--red);
-  color:var(--red);
-  font-size:14px; font-weight:700; letter-spacing:.04em;
-  cursor:pointer; margin-top:10px;
+  color:#fff;
+  font-size:14px; font-weight:800; letter-spacing:.04em;
+  cursor:pointer; margin-bottom:14px;
   border-radius:var(--r);
-  transition:background .18s, color .18s;
+  box-shadow:0 6px 20px rgba(200,16,46,.28);
+  transition:background .18s, border-color .18s, transform .18s, box-shadow .18s;
+  animation:confirmBtnPulse 1.4s ease 2;
 }
-.btn-explore-plan:hover { background:var(--red); color:#fff; }
+.btn-explore-plan:hover {
+  background:var(--red-dk); border-color:var(--red-dk);
+  transform:translateY(-1px);
+  box-shadow:0 8px 24px rgba(200,16,46,.36);
+}
 
 /* ── Step 3 섹션 전체 ── */
 .step3-section {
