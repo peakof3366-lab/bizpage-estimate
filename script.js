@@ -649,6 +649,7 @@ if (rangeSummary) {
   toggle.addEventListener('click', function () {
     const isOpen = header.classList.toggle('nav-mobile-open');
     toggle.setAttribute('aria-expanded', isOpen);
+    toggle.setAttribute('aria-label', isOpen ? '메뉴 닫기' : '메뉴 열기');
   });
 
   /* 메뉴 링크 클릭 시 닫기 */
@@ -656,6 +657,7 @@ if (rangeSummary) {
     a.addEventListener('click', function () {
       header.classList.remove('nav-mobile-open');
       toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', '메뉴 열기');
     });
   });
 
