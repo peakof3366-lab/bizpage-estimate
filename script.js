@@ -291,11 +291,6 @@ function getBreakdownData() {
   };
 }
 
-/* 하위 호환: 기존 코드에서 calculateEstimate() 호출 부분 대응 */
-function calculateEstimate() {
-  return (getBreakdownData() || { total: 0 }).total;
-}
-
 /* == 실시간 견적 렌더링 (고객용: 단가/마진 비공개) == */
 function renderLiveBreakdown() {
   const data   = getBreakdownData();
