@@ -1,10 +1,5 @@
 ﻿const form = document.getElementById('estimateForm');
 const destinationSelect = document.getElementById('destination');
-const criteriaTableContainer = document.getElementById('criteriaTableContainer');
-const destinationRangeTable = document.getElementById('destinationRangeTable');
-const rangeSummary = document.getElementById('rangeSummary');
-const resultValue = document.getElementById('resultValue');
-const resultNote  = document.getElementById('resultNote');
 const nextButton  = document.getElementById('nextStepButton');
 const backButton = document.getElementById('backStepButton');
 const downloadButton = document.getElementById('downloadEstimate');
@@ -622,18 +617,6 @@ form.addEventListener('submit', (event) => {
 });
 
 downloadButton.addEventListener('click', openEstimateWindow);
-
-if (criteriaTableContainer) {
-  renderCriteriaTable();
-}
-
-if (destinationRangeTable) {
-  renderDestinationRangeTable();
-}
-
-if (rangeSummary) {
-  renderRangeSummary();
-}
 
 /* ── 모바일 메뉴 토글 ───────────────────────────────────────────── */
 (function () {
