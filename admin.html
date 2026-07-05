@@ -1310,7 +1310,7 @@
     const bom = '﻿'; // UTF-8 BOM for Excel
     const blob = new Blob([bom+csv],{type:'text/csv;charset=utf-8'});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `linkedt_inquiries_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+    a.download = `bizpage_inquiries_${new Date().toISOString().slice(0,10)}.csv`; a.click();
   }
 
   /* ════ EXPORT ALL ════ */
@@ -1318,7 +1318,7 @@
     const data = { contacts: get(KEYS.contacts), visits: get(KEYS.visits), events: getO(KEYS.events), dest: getO(KEYS.dest), estimates: get(KEYS.est), exported: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download=`linkedt_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+    a.download=`bizpage_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
   }
 
   /* ════ RATES ════════════════════════════════════════════════════════ */
@@ -1732,7 +1732,7 @@
     const csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
     const blob = new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download=`linkedt_estimates_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+    a.download=`bizpage_estimates_${new Date().toISOString().slice(0,10)}.csv`; a.click();
   }
 
   /* 전체 삭제 */
