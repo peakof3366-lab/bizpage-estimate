@@ -435,6 +435,7 @@ function renderPage(d) {
       <table class="info-tbl">
         <tr><td>연수 목적지</td><td>${d.dt}</td></tr>
         <tr><td>프로그램 유형</td><td>${d.ptx}</td></tr>
+        <tr><td>연수 방식</td><td>${d.vm || '—'}</td></tr>
         <tr><td>참가 인원</td><td>${d.n}명</td></tr>
         <tr><td>연수 기간</td><td>${d.ng}박 ${d.d}일 &nbsp;·&nbsp; ${fmtDate(d.sd)} ~ ${fmtDate(d.ed)}</td></tr>
         <tr><td>호텔 등급</td><td>${d.hgl || '—'}</td></tr>

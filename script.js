@@ -408,7 +408,46 @@ function renderLiveBreakdown() {
   renderLiveBreakdown(); /* 초기 렌더 */
 })();
 
+/* ═══ 목적지 갤러리: 지역 필터 + 업종별 추천 목적지 위젯 ═══ */
+(function initDestinationGallery() {
+  const cards      = document.querySelectorAll('.gallery-card');
+  const filterBtns = document.querySelectorAll('.gal-filter-chip');
+  const industrySel = document.getElementById('destIndustry');
+  const resultEl     = document.getElementById('destRecResult');
 
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const region = btn.dataset.filter;
+      cards.forEach(card => {
+        card.classList.toggle('gal-hidden', region !== 'all' && card.dataset.region !== region);
+      });
+    });
+  });
+
+  if (industrySel && resultEl) {
+    industrySel.addEventListener('change', () => {
+      const destKey = industrySel.value;
+      const industryLabel = industrySel.selectedOptions[0].textContent;
+      const card = document.querySelector('.gallery-card[data-key="' + destKey + '"]');
+      if (!card) return;
+
+      /* 추천 목적지가 현재 필터에 가려져 있으면 전체 보기로 전환 */
+      filterBtns.forEach(b => b.classList.remove('active'));
+      document.querySelector('.gal-filter-chip[data-filter="all"]')?.classList.add('active');
+      cards.forEach(c => c.classList.remove('gal-hidden'));
+
+      const destName = card.querySelector('h3')?.textContent || destKey;
+      const tag      = card.querySelector('.gallery-tag')?.textContent || '';
+      resultEl.innerHTML = industryLabel + ' 분야에는 <strong>' + destName + '</strong>을(를) 추천드려요 👍 <span class="dest-rec-tag">' + tag + '</span>';
+
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.add('gal-highlight');
+      setTimeout(() => card.classList.remove('gal-highlight'), 2400);
+    });
+  }
+})();
 
 
 nextButton.addEventListener('click', () => {
@@ -527,6 +566,8 @@ form.addEventListener('submit', (event) => {
       programLabel: prgEl.selectedOptions[0]?.textContent || '',
       orgType:      orgEl.value,
       orgTypeLabel: orgEl.selectedOptions[0]?.textContent || '',
+      visitMode:      document.getElementById('visitMode')?.value || '',
+      visitModeLabel: document.getElementById('visitMode')?.selectedOptions[0]?.textContent || '',
       participants: bd.participants,
       days:         bd.days,
       nights:       bd.nights,
@@ -1150,41 +1191,78 @@ function submitConsult() {
 /* ════════════════════════════════════════════════════════════════════
    목적지 이미지 맵핑
    ════════════════════════════════════════════════════════════════════ */
-/* 목적지별 대략적 위도/경도 (STEP3 세계지도 핀 표시용) */
-const DEST_COORDS = {
-  '도쿄':[35.68,139.69], '오사카':[34.69,135.50], '후쿠오카':[33.59,130.40],
-  '나고야':[35.18,136.91], '삿포로':[43.06,141.35], '오키나와':[26.21,127.68],
-  '상해':[31.23,121.47], '장가계':[29.12,110.48], '청도':[36.07,120.38], '연태':[37.46,121.45],
-  '홍콩':[22.32,114.17], '마카오':[22.20,113.55],
-  '대만':[25.03,121.57], '가오슝':[22.63,120.30],
-  '몽골':[47.92,106.92],
-  '싱가포르':[1.35,103.82],
-  '하노이':[21.03,105.85], '호치민':[10.82,106.63], '다낭':[16.05,108.20],
-  '나트랑':[12.24,109.19], '푸꾸옥':[10.29,103.98],
-  '마닐라':[14.60,120.98], '세부':[10.32,123.90], '보홀':[9.85,124.14],
-  '코타키나발루':[5.98,116.07],
-  '캄보디아':[13.36,103.86],
-  '방콕':[13.76,100.50], '푸켓':[7.88,98.39], '치앙마이':[18.79,98.99],
-  '발리':[-8.65,115.22],
-  '라오스':[17.97,102.60],
-  '우즈베키스탄':[41.30,69.24], '카자흐스탄':[43.24,76.95],
-  '시드니':[-33.87,151.21], '멜버른':[-37.81,144.96], '호주':[-27.47,153.03],
-  '오클랜드':[-36.85,174.76], '괌':[13.44,144.79], '사이판':[15.18,145.75],
-  '영국':[51.51,-0.13], '파리':[48.86,2.35], '로마':[41.90,12.50],
-  '독일':[52.52,13.40], '네덜란드':[52.37,4.90], '스페인':[40.42,-3.70],
-  '동유럽':[50.09,14.42], '북유럽':[59.33,18.07], '서유럽':[50.85,4.35],
-  '로스앤젤레스':[34.05,-118.24], '샌프란시스코':[37.77,-122.42], '뉴욕':[40.71,-74.01],
-  '워싱턴':[38.91,-77.04], '하와이':[21.31,-157.86], '밴쿠버':[49.28,-123.12], '토론토':[43.65,-79.38],
+/* 목적지별 지도 위 위치 (STEP3 세계지도 핀 표시용)
+   ─────────────────────────────────────────────────────────────
+   과거에는 위/경도를 세계지도 SVG 픽셀로 변환하는 공식(선형회귀 보정)을 썼으나,
+   이 world-map.svg 자산은 국가마다 뒤틀림 정도가 달라 전역 공식 하나로는
+   맞지 않는 목적지가 계속 생겼음(예: 파리 선택 시 폴란드 부근에 찍히는 등).
+   근본 해결: 위/경도 변환을 아예 쓰지 않고, 이 SVG 파일 안에 실제로 그려진
+   국가별 도형(getBBox)의 픽셀 좌표를 직접 읽어 각 목적지 도시의 위치를
+   해당 국가(섬) 도형 내부에서 위/경도 비율로 보간해 미리 계산해 둔 값.
+   즉 "공식으로 추정"이 아니라 "실제 지도 그림 기준으로 확정"한 좌표라
+   국가 자체가 잘못 잡히는 일이 없음. (좌표 단위: 지도 이미지 전체 대비 0~1 비율)
+   지도 자산을 교체하지 않는 한 재계산할 필요 없음. */
+const DEST_MAP_FRAC = {
+  '도쿄':[0.8475,0.3122],
+  '오사카':[0.8389,0.3194],
+  '후쿠오카':[0.8240,0.3249],
+  '나고야':[0.8433,0.3169],
+  '삿포로':[0.8542,0.2765],
+  '오키나와':[0.8170,0.3606],
+  '상해':[0.7985,0.3285],
+  '장가계':[0.7688,0.3386],
+  '청도':[0.7958,0.3053],
+  '연태':[0.7986,0.2986],
+  '홍콩':[0.7787,0.3719],
+  '마카오':[0.7767,0.3717],
+  '대만':[0.7989,0.3679],
+  '가오슝':[0.7957,0.3797],
+  '몽골':[0.7500,0.2575],
+  '싱가포르':[0.7503,0.4873],
+  '하노이':[0.7555,0.3880],
+  '호치민':[0.7576,0.4392],
+  '다낭':[0.7619,0.4136],
+  '나트랑':[0.7646,0.4321],
+  '푸꾸옥':[0.7503,0.4418],
+  '마닐라':[0.7971,0.4201],
+  '세부':[0.8021,0.4364],
+  '보홀':[0.8039,0.4396],
+  '코타키나발루':[0.7839,0.4651],
+  '캄보디아':[0.7531,0.4305],
+  '방콕':[0.7408,0.4240],
+  '푸켓':[0.7349,0.4541],
+  '치앙마이':[0.7366,0.3996],
+  '발리':[0.7811,0.5367],
+  '라오스':[0.7500,0.4022],
+  '우즈베키스탄':[0.6408,0.2854],
+  '카자흐스탄':[0.6754,0.2759],
+  '시드니':[0.8815,0.6655],
+  '멜버른':[0.8641,0.6853],
+  '호주':[0.8865,0.6331],
+  '오클랜드':[0.9469,0.6799],
+  '괌':[0.8633,0.4255],
+  '사이판':[0.8650,0.4168],
+  '영국':[0.4624,0.2343],
+  '파리':[0.4681,0.2476],
+  '로마':[0.4962,0.2821],
+  '독일':[0.4991,0.2296],
+  '네덜란드':[0.4763,0.2313],
+  '스페인':[0.4513,0.2903],
+  '동유럽':[0.5062,0.2508],
+  '북유럽':[0.5108,0.1862],
+  '서유럽':[0.4768,0.2413],
+  '로스앤젤레스':[0.1337,0.3203],
+  '샌프란시스코':[0.1222,0.3022],
+  '뉴욕':[0.2559,0.2877],
+  '워싱턴':[0.2476,0.2965],
+  '하와이':[0.0242,0.3901],
+  '밴쿠버':[0.1174,0.2430],
+  '토론토':[0.2349,0.2735],
 };
 
 /* 세계지도 위에 목적지 핀 위치시키기 */
-/* 대한민국(서울) 기준 위/경도 — 지도 확대 기준점 */
-const KOREA_COORDS = [37.57, 126.98];
-
-/* 위/경도 → 지도 이미지 전체 대비 비율(0~1) 변환 (등장방형 도법 기준) */
-function _latLngToFrac(lat, lng) {
-  return { x: (lng + 180) / 360, y: (90 - lat) / 180 };
-}
+/* 대한민국(서울) 위치 — world-map.svg 내 'kr' 도형 기준으로 확정한 값 */
+const KOREA_MAP_FRAC = [0.8159, 0.3034];
 
 /* 대한민국+목적지가 함께 보이도록 지도를 자동 확대/이동시키고 핀 두 개(출발/목적지)를 배치 */
 function _positionDestMapPin(destKey) {
@@ -1196,12 +1274,12 @@ function _positionDestMapPin(destKey) {
   var label    = document.getElementById('destMapPinLabel');
   if (!wrap || !frame || !img || !pinDest) return;
 
-  var coords = DEST_COORDS[destKey];
+  var coords = DEST_MAP_FRAC[destKey];
   if (!coords) { wrap.classList.add('hidden'); return; }
 
   function render() {
-    var korea = _latLngToFrac(KOREA_COORDS[0], KOREA_COORDS[1]);
-    var dest  = _latLngToFrac(coords[0], coords[1]);
+    var korea = { x: KOREA_MAP_FRAC[0], y: KOREA_MAP_FRAC[1] };
+    var dest  = { x: coords[0], y: coords[1] };
 
     var left = Math.min(korea.x, dest.x), right = Math.max(korea.x, dest.x);
     var top  = Math.min(korea.y, dest.y), bottom = Math.max(korea.y, dest.y);
@@ -1225,8 +1303,8 @@ function _positionDestMapPin(destKey) {
     w = right - left; h = bottom - top;
 
     var frameW = frame.clientWidth, frameH = frame.clientHeight;
-    var natW = img.naturalWidth  || 939.747;
-    var natH = img.naturalHeight || 476.728;
+    var natW = img.naturalWidth  || 2752.766;
+    var natH = img.naturalHeight || 1537.631;
     var frameAspect = frameW / frameH;
 
     /* bbox의 가로세로 비율을 프레임 비율에 맞춰 한쪽만 "확장"해서 맞춘다.
@@ -1255,7 +1333,8 @@ function _positionDestMapPin(destKey) {
     cx = (left + right) / 2; cy = (top + bottom) / 2;
 
     var scale = frameW / (w * natW);
-    scale = Math.min(scale, 18); /* 과도한 확대 방지 */
+    scale = Math.min(scale, 7); /* 과도한 확대 방지 — 저해상도 지도 자산 특성상 너무 확대하면
+       좌표 오차(1도 미만)가 시각적으로 크게 보일 수 있어 배율 상한을 보수적으로 설정 */
 
     var bw = natW * scale, bh = natH * scale;
     var offsetX = frameW / 2 - cx * bw;
@@ -2277,6 +2356,7 @@ function openEstimateWindow() {
   const programType  = programEl.value;
   const programText  = programEl.selectedOptions[0].textContent;
   const orgTypeText  = document.getElementById('organizationType').selectedOptions[0].textContent;
+  const visitModeText = document.getElementById('visitMode')?.selectedOptions[0]?.textContent || '';
   const participants = document.getElementById('participants').value;
   const days         = Number(document.getElementById('days').value) || 5;
   const organization = document.getElementById('organization')?.value.trim() || '—';
@@ -2341,7 +2421,7 @@ function openEstimateWindow() {
   const shareData = {
     v: 1,
     dk: destKey, dt: destText,
-    pt: programType, ptx: programText, ot: orgTypeText,
+    pt: programType, ptx: programText, ot: orgTypeText, vm: visitModeText,
     n: +participants, d: days, ng: data.nights,
     org: organization, cn: contactName,
     sd: _sd, ed: _ed,
@@ -2360,7 +2440,7 @@ function openEstimateWindow() {
     sp: selectedPlan,
   };
   const shareEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
-  const shareUrl = base + 'estimate-view.html?d=' + shareEncoded;
+  const shareUrl = base + 'estimate-view.html?d=' + encodeURIComponent(shareEncoded);
 
   const daySlice = Math.min(days, 5);
 
@@ -2593,6 +2673,7 @@ a{color:inherit;text-decoration:none}
     <table class="info-tbl">
       <tr><td>연수 목적지</td><td>${destText}</td></tr>
       <tr><td>프로그램</td><td>${programText}</td></tr>
+      <tr><td>연수 방식</td><td>${visitModeText}</td></tr>
       <tr><td>참가 인원</td><td>${participants}명 · ${data.paxTier.label}</td></tr>
       <tr><td>연수 기간</td><td>${data.nights}박 ${days}일 · ${startDateLabel} ~ ${endDateLabel}</td></tr>
       <tr><td>시즌</td><td>${data.seasonInfo.label}</td></tr>
