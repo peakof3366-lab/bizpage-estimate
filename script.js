@@ -37,7 +37,11 @@ const DEPARTURE_CITIES = [
 
 /* ② 항공 좌석 등급 — 노선 거리별 비즈니스 배율
    유류할증료는 좌석 등급과 무관하므로 airFactor만 적용
-   단거리(일본·동북아) 2.5× / 중거리(동남아·오세아니아 등) 3.2× / 장거리(유럽·미주) 4.0× */
+   단거리(일본·동북아) 2.5× / 중거리(동남아·오세아니아 등) 3.2× / 장거리(유럽·미주) 4.0×
+   ⚠ 이중 관리 주의: 아래 목록은 data.js의 destinationRates[].destination_key,
+   index.html의 <select id="destination"> 옵션 목록과 반드시 1:1로 일치해야 합니다.
+   여기 없는 destKey가 들어오면 getBizFactor()가 조용히 'short'(가장 저렴한 구간)로
+   폴백되어 견적 금액이 틀어집니다 (2026-07-06 야간 점검 시 확인 결과 현재는 정확히 일치함). */
 const BIZ_ZONES = {
   short: ['도쿄','오사카','후쿠오카','나고야','삿포로','오키나와',
           '상해','장가계','청도','연태','홍콩','마카오','대만','가오슝','몽골'],
@@ -109,6 +113,10 @@ function getSeasonInfo(dateStr) {
    check : 4 ~ 6개월     (⚠️ 확인 권장)
    stale : 7개월 이상    (🔴 갱신 필요)
    ─────────────────────────────────────────────────────────────── */
+/* ⚠ 중복 구현 주의: admin.html의 adminGetRateStatus()와 로직(3개월/6개월 임계값)이
+   동일한 별도 구현입니다. 한쪽 임계값만 수정하면 고객용/관리자용 "요율 최신성" 배지가
+   서로 어긋날 수 있으니, 임계값을 바꿀 때는 두 함수를 함께 수정하세요.
+   (2026-07-06 야간 점검 시 확인 결과 현재는 정확히 동일함) */
 function getRateStatus(rateDate) {
   if (!rateDate) return null;
   const [y, m] = rateDate.split('-').map(Number);

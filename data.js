@@ -50,6 +50,14 @@ const RATE_META = {
               → 갱신 시 해당 행의 rateDate만 변경하면 됩니다.
    notes    : 운영 참고사항 (변동성·확인 주의사항 등)
               → 특이사항 없으면 빈 문자열로 유지
+
+   ⚠ 이중 관리 주의: 여기 destination_key 목록은 index.html의
+   <select id="destination"> 옵션 목록, script.js의 BIZ_ZONES(좌석 등급 배율
+   구간 매핑)과 반드시 1:1로 일치해야 합니다. 목적지를 추가/삭제할 때는
+   세 곳을 모두 함께 수정하세요 — 한 곳만 바꾸면 getDestinationByKey()가
+   조용히 undefined를 반환하거나 getBizFactor()가 잘못된 요율 구간(short)으로
+   조용히 폴백되어 견적 금액이 틀어질 수 있습니다 (2026-07-06 야간 점검 시
+   확인 결과 현재는 55개 전부 정확히 일치함).
    ===================================================================== */
 const destinationRates = [
   /* ── 동북아시아 : 일본 ── */

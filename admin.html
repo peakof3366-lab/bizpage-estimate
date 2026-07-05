@@ -1345,6 +1345,10 @@
   let rateFilter = 'all';
 
   /* 요율 신선도 판정 (admin 자체 함수 — data.js에서 RATE_META, destinationRates 사용) */
+  /* ⚠ 중복 구현 주의: script.js의 getRateStatus()와 로직(3개월/6개월 임계값)이
+     동일한 별도 구현입니다. 한쪽 임계값만 수정하면 고객용/관리자용 "요율 최신성"
+     배지가 서로 어긋날 수 있으니, 임계값을 바꿀 때는 두 함수를 함께 수정하세요.
+     (2026-07-06 야간 점검 시 확인 결과 현재는 정확히 동일함) */
   function adminGetRateStatus(rateDate) {
     if (!rateDate) return { status:'stale', months:999, label:'미확인', icon:'🔴' };
     const [y, m] = rateDate.split('-').map(Number);

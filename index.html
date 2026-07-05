@@ -96,6 +96,8 @@
               <div class="estimate-step step-active" data-step="1">
                 <label class="fld">
                   <span class="fld-lbl"><i data-lucide="map-pin" class="ic-sm"></i>연수 목적지 선택</span>
+                  <!-- ⚠ 이중 관리 주의: 아래 option value 목록은 data.js의 destinationRates[].destination_key,
+                       script.js의 BIZ_ZONES 목록과 반드시 1:1로 일치해야 합니다. 목적지 추가/삭제 시 세 곳 모두 함께 수정. -->
                   <select id="destination" required>
                     <option value="" disabled selected>목적지를 선택하세요</option>
 
