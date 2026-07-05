@@ -21,6 +21,17 @@
 - 검증 결과: 통과. verify_render.py 콘솔 에러 없음(베이스라인과 동일, 신규 없음).
 - 커밋: `f40e6c3`
 
+### [STEP3 방식 선택 카드 키보드 접근성] 06:42
+- 변경 내용: `#planCardA`/`#planCardB`(방식 A/B 선택 카드)가 `onclick`만 있고 `tabindex`/
+  `role`이 없어 키보드 사용자가 아예 포커스조차 할 수 없어 선택이 불가능했음.
+  `role="button" tabindex="0"` 추가 + `onkeydown`으로 Enter/Space 시 `selectPlan()` 호출.
+  `selectPlan()` 함수에도 `aria-pressed` 상태 토글 추가.
+- 검증 결과: 통과. verify_render.py 콘솔 에러 없음. Playwright로 카드 포커스 후 Enter 키
+  입력 시 실제로 선택(active 클래스 + aria-pressed="true")되는 것 확인.
+- index.html 전체에서 `onclick` 있는 다른 `<div>` 중 `role="button"` 없는 것이 더 있는지
+  grep으로 재확인 — 추가 발견 없음(이 두 카드가 유일한 사례였음).
+- 커밋: `cbd503e`
+
 ## 추가: 2026-07-06 밤 (새 라운드) — 눈에 안 보이는 오류 헌팅 + 코드 교차검증
 
 ### [admin.html 레거시 텍스트] 00:05
