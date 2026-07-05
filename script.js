@@ -59,6 +59,14 @@ const BIZ_ZONE_FACTORS = { short: 2.5, mid: 3.2, long: 4.0 };
 function getBizFactor(destKey) {
   if (BIZ_ZONES.long.includes(destKey))  return BIZ_ZONE_FACTORS.long;
   if (BIZ_ZONES.mid.includes(destKey))   return BIZ_ZONE_FACTORS.mid;
+  /* 방어코드: BIZ_ZONES는 destinationRates와 별도로 관리되는 하드코딩 목록이라,
+     새 목적지를 destinationRates에 추가하면서 이 목록 갱신을 빠뜨리면 조용히
+     최저 구간(short, 2.5×)으로 폴백되어 비즈니스석 견적이 저평가될 수 있다.
+     개발/운영 중 이런 누락을 빨리 발견할 수 있도록 콘솔 경고만 남긴다
+     (가격 로직 자체는 변경하지 않음). */
+  if (!BIZ_ZONES.short.includes(destKey)) {
+    console.warn(`[견적] "${destKey}"가 BIZ_ZONES(short/mid/long) 어디에도 등록되어 있지 않아 short(2.5×)로 폴백 적용됩니다. BIZ_ZONES 목록 갱신이 필요할 수 있습니다.`);
+  }
   return BIZ_ZONE_FACTORS.short;
 }
 
@@ -71,6 +79,13 @@ const ROOM_CONFIG = {
   single: { label: '1인 1실 (전원)', calcRooms: (n)         => n                },
   mixed:  { label: '혼합 (임원 1인 1실)', calcRooms: (n, vip) => Math.min(vip, n) + Math.ceil(Math.max(n - vip, 0) / 2) },
 };
+
+/* ④ 차량 정원 — 대형/소형 관광버스 통상 좌석수 (가정치)
+   버그④수정: 기존 로직은 인원수와 무관하게 차량을 항상 1대로 고정 계산했음.
+   국내 관광버스 업계에서 통용되는 근사 정원(대형 45인승·소형 25인승)을 기준으로
+   Math.ceil(인원/정원)만큼 대수를 산정한다. 실제 계약 차량의 정원이 다르면
+   이 값만 조정하면 된다. */
+const VEHICLE_CAPACITY = { large: 45, small: 25 };
 
 let currentStep = 1;
 const stepTrackerItems = Array.from(document.querySelectorAll('.step-tracker-item'));
@@ -99,6 +114,23 @@ function getDestinationByKey(key) {
 /* ── Level 1 헬퍼: 인원 구간 티어 ──────────────────────────────── */
 function getPaxTier(n) {
   return PAX_TIERS.find(t => n >= t.min && n <= t.max) || PAX_TIERS[0];
+}
+
+/* ── 버그③수정: 인원 구간 경계 비단조성(총액 역전) 방지 ──────────────
+   기존 방식은 전체 인원이 "그 인원수가 속한 구간"의 할인율을 소급 적용받아,
+   구간 경계를 막 넘는 순간(예: 29명→30명) 오히려 총액이 줄어드는 문제가 있었음.
+   소득세 누진공제처럼 각 구간에 해당하는 인원수만큼만 그 구간의 계수를 적용해
+   합산하면, 인원이 1명 늘 때 추가되는 금액이 항상 0 이상이라 총액이 인원수에
+   대해 항상 non-decreasing함이 보장된다. tiers는 {min,max,factor} 형태이며
+   구간이 서로 겹치지 않고 연속되어야 한다(PAX_TIERS 등). ─────────────── */
+function tieredTotal(unitBase, participants, tiers) {
+  let total = 0;
+  for (const t of tiers) {
+    if (participants < t.min) continue;
+    const countInBracket = Math.min(participants, t.max) - t.min + 1;
+    total += Math.round(unitBase * t.factor) * countInBracket;
+  }
+  return total;
 }
 
 /* ── Level 1 헬퍼: 출발월 → 시즌 정보 ──────────────────────────── */
@@ -179,19 +211,30 @@ function getBreakdownData() {
   /* 조정된 단가 계산
      · 항공: 출발지 계수 × 좌석 등급 계수 (비즈니스는 노선 거리 비례)
      · 유류할증료: 출발지 계수만 적용 (좌석 등급과 무관)
-     · 호텔: 객실 구성은 rooms 계산으로 이미 반영됨 */
-  const airUnit   = Math.round(dest.airfare        * paxTier.factor * seasonInfo.factor * departureFactor * bizFactor);
-  const fuelUnit  = Math.round(dest.fuel_surcharge * paxTier.factor * seasonInfo.factor * departureFactor);
+     · 호텔: 객실 구성은 rooms 계산으로 이미 반영됨
+     · 항공/유류의 인원 구간(PAX_TIERS) 할인은 tieredTotal()로 누진 계산해
+       총액이 인원수에 대해 항상 non-decreasing하도록 보장 (버그③수정) */
+  const airUnitBase  = dest.airfare        * seasonInfo.factor * departureFactor * bizFactor;
+  const fuelUnitBase = dest.fuel_surcharge * seasonInfo.factor * departureFactor;
+  const airTotalTiered  = tieredTotal(airUnitBase,  participants, PAX_TIERS);
+  const fuelTotalTiered = tieredTotal(fuelUnitBase, participants, PAX_TIERS);
+  const airUnit   = participants > 0 ? Math.round(airTotalTiered  / participants) : 0;
+  const fuelUnit  = participants > 0 ? Math.round(fuelTotalTiered / participants) : 0;
   const hotelUnit = Math.round(dest.hotel_per_room * hotelGrade.factor * seasonInfo.factor);
 
   /* 버그②수정: 참고 기준 10인 이상 → 대형버스 (기존 >12 오류) */
   const useLarge    = vehicleTypeVal === 'large' || (vehicleTypeVal === 'auto' && participants >= 10);
-  const vehicleName = useLarge ? '차량 (대형 · 자동적용)' : '차량 (소형 · 자동적용)';
   const vehicleRate = useLarge ? dest.vehicle_large : dest.vehicle_small;
 
+  /* 버그④수정: 차량 대수가 인원수와 무관하게 항상 1대로 고정되어 있던 문제.
+     대형/소형 관광버스의 통상 정원(가정치 — 실제 계약 차량 정원에 따라 조정 필요)을
+     넘는 인원은 추가 차량이 필요하므로 Math.ceil로 필요 대수를 산정한다. */
+  const vehicleCount = Math.max(1, Math.ceil(participants / (useLarge ? VEHICLE_CAPACITY.large : VEHICLE_CAPACITY.small)));
+  const vehicleName  = `차량 (${useLarge ? '대형' : '소형'} · 자동적용)`;
+
   const rows = [
-    { name:'항공',      unit:airUnit,  qty:`${participants}명`, amount:airUnit  * participants, locked:true },
-    { name:'유류할증료', unit:fuelUnit, qty:`${participants}명`, amount:fuelUnit * participants, locked:true },
+    { name:'항공',      unit:airUnit,  qty:`${participants}명`, amount:airTotalTiered,  locked:true },
+    { name:'유류할증료', unit:fuelUnit, qty:`${participants}명`, amount:fuelTotalTiered, locked:true },
   ];
 
   if (incHotel) rows.push({
@@ -209,8 +252,8 @@ function getBreakdownData() {
 
   if (incVehicle) rows.push({
     name:vehicleName, unit:vehicleRate,
-    qty:`${days}일`,
-    amount: vehicleRate * days,
+    qty: vehicleCount > 1 ? `${vehicleCount}대×${days}일` : `${days}일`,
+    amount: vehicleRate * days * vehicleCount,
   });
 
   if (incGuide) rows.push({
@@ -232,16 +275,16 @@ function getBreakdownData() {
   /* ── 마진 구조 (Level 1: 인원 구간별 차등) ────────────────────────
      인원이 많을수록 ENBT 마진 소폭 감소 (대형 그룹 경쟁력 확보)
      현지 수익금은 고정 (현지 파트너 협약 기반)
-     ─────────────────────────────────────────────────────────────── */
-  const enbtMarginTiers = [
-    { max:  9, rate: dest.margin_per_traveler * 1.10 },
-    { max: 29, rate: dest.margin_per_traveler * 1.00 },
-    { max: 49, rate: dest.margin_per_traveler * 0.92 },
-    { max: Infinity, rate: dest.margin_per_traveler * 0.85 },
+     구간 경계 비단조성 방지를 위해 항공/유류와 동일하게 tieredTotal()로
+     누진 계산 (버그③수정, PAX_TIERS와 동일한 구간 경계 재사용) ──────── */
+  const enbtMarginTierFactors = [
+    { min:  1, max:  9, factor: 1.10 },
+    { min: 10, max: 29, factor: 1.00 },
+    { min: 30, max: 49, factor: 0.92 },
+    { min: 50, max: Infinity, factor: 0.85 },
   ];
-  const enbtMarginUnit = Math.round(
-    (enbtMarginTiers.find(t => participants <= t.max) || enbtMarginTiers.at(-1)).rate
-  );
+  const enbtMarginTotalTiered = tieredTotal(dest.margin_per_traveler, participants, enbtMarginTierFactors);
+  const enbtMarginUnit  = participants > 0 ? Math.round(enbtMarginTotalTiered / participants) : 0;
   const localMarginUnit = Math.round(dest.margin_per_traveler * 0.90);
 
   rows.push({
