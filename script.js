@@ -3645,8 +3645,8 @@ function selectPlan(plan) {
   /* 카드 active 토글 */
   var cardA = document.getElementById('planCardA');
   var cardB = document.getElementById('planCardB');
-  if (cardA) cardA.classList.toggle('active', plan === 'a');
-  if (cardB) cardB.classList.toggle('active', plan === 'b');
+  if (cardA) { cardA.classList.toggle('active', plan === 'a'); cardA.setAttribute('aria-pressed', plan === 'a'); }
+  if (cardB) { cardB.classList.toggle('active', plan === 'b'); cardB.setAttribute('aria-pressed', plan === 'b'); }
 
   /* 타임라인 렌더 */
   _renderTimeline(plan);

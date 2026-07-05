@@ -624,7 +624,7 @@
           <!-- 방식 선택 카드 -->
           <div class="plan-cards" id="planCards">
             <!-- A 카드 -->
-            <div class="plan-card" id="planCardA" data-plan="a" onclick="selectPlan('a')">
+            <div class="plan-card" id="planCardA" data-plan="a" onclick="selectPlan('a')" role="button" tabindex="0" aria-pressed="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPlan('a');}">
               <!-- 커버 이미지 슬롯 -->
               <div class="plan-card-img hidden" id="planCardAImg">
                 <img id="planCardACoverImg" src="" alt="" loading="lazy"
@@ -642,7 +642,7 @@
               </div>
             </div>
             <!-- B 카드 -->
-            <div class="plan-card" id="planCardB" data-plan="b" onclick="selectPlan('b')">
+            <div class="plan-card" id="planCardB" data-plan="b" onclick="selectPlan('b')" role="button" tabindex="0" aria-pressed="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPlan('b');}">
               <!-- 커버 이미지 슬롯 -->
               <div class="plan-card-img hidden" id="planCardBImg">
                 <img id="planCardBCoverImg" src="" alt="" loading="lazy"
