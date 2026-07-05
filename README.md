@@ -2,6 +2,10 @@
 
 이 프로젝트는 `https://linked.bz/`의 구조와 UX를 참고하여 제작한 한국어 해외 연수 견적 랜딩 페이지 샘플입니다.
 
+## 배포
+- 공개 사이트: https://bizpage-estimate.vercel.app
+- `master` 브랜치에 push하면 Vercel이 자동으로 재배포합니다.
+
 ## 구성
 - `index.html` — 메인 페이지 구조
 - `styles.css` — 반응형 디자인 스타일
