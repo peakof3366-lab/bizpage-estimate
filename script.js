@@ -1800,6 +1800,305 @@ const DEST_PHOTOS = {
       'https://images.unsplash.com/photo-1546868762-b61266729c8a?auto=format&fit=crop&w=800&q=80',
     ]
   },
+  '오키나와': {
+    cover: 'https://images.unsplash.com/photo-1645610115316-dc38e31a1e9b?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1610971250019-f677bc1300be?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1651422589451-db2ae2140b04?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1611210040662-dcd41b879c8f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1625548894051-8ddd8650c6ab?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1645610307780-3936d382ab1c?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1651395054095-faaf63e8e516?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1513649313539-232ea1cc5d5a?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '장가계': {
+    cover: 'https://images.unsplash.com/photo-1743093263638-845bee7205c0?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1546707640-7ba6e4b2df2e?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1743093263841-37c2edb04ed2?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1569396364521-0fad3682a389?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1521075264020-fe37135bf304?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1630164875646-19bd2b49bae6?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1739049073427-2a074b3692ff?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1632377082403-214778bec07b?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '청도': {
+    cover: 'https://images.unsplash.com/photo-1739436598532-f22747099b6f?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1721794525689-d2bd76190f1e?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1541062880546-661f13176baf?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1689143626749-3c2ab3ebca45?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1710172899520-1db2e7cf6e32?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1659194089115-ebfe7194ef61?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1733626928339-af80bd586b5d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1718442759033-8ea95377e6ef?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '연태': {
+    cover: 'https://images.unsplash.com/photo-1506158669146-619067262a00?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1603384446936-5646a2481a36?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1600623305065-140c9031f631?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1584872589930-e99fe5bf4408?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1543843665-77bc199b4209?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1537228710341-ca26f67b7578?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1578495959700-a617c3600026?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1473938718606-f15cdc613d96?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '가오슝': {
+    cover: 'https://images.unsplash.com/photo-1571555788467-71d9e3add426?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1571555787518-6ac85ee2529e?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1643719713572-691cd0ae06a2?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1571555787323-b3e711e2d8c9?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1686616098894-c69b8963bbd4?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1677012878685-f752fb703f53?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1647438193740-64016bbaf6e5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1521683898775-cf658b5f2cba?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '다낭': {
+    cover: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1603852452378-a4e8d84324a2?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1555979864-7a8f9b4fddf8?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1722526933541-9a9cdfcdb28f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1684784784123-0854fc0eec25?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1505018620898-92616e1849cc?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1670993077545-bfeeea1e0b5f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1720777366540-ca547cbddfa1?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '나트랑': {
+    cover: 'https://images.unsplash.com/photo-1654930453993-bf69bbb3a00d?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1617857995575-d102f16fd3e7?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1689326232193-d55f0b7965eb?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1533002832-1721d16b4bb9?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1676557060416-1418aefb165d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1580140204263-0adff7dc519f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1570366290364-5e76a15ae408?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1689326232616-aea5c86f86bd?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '푸꾸옥': {
+    cover: 'https://images.unsplash.com/photo-1526139334526-f591a54b477c?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1746292448726-9e75b5f1067d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1693294603830-f44c9511d643?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1693282814784-649be45a459b?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1730714103959-5d5a30acf547?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1732243395944-cb3ff9311091?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1698809807960-758cf416e96e?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1693282815546-f7eeb0fa909b?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '보홀': {
+    cover: 'https://images.unsplash.com/photo-1591506557489-e8ca407063e7?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1728042743743-e2a2abf35c47?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1622372408675-b226090fd4fe?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1757949640707-805fc997ae4c?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1592303071869-882ab783e4ef?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1546775349-20a481376a8b?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1558260963-fd8436b4be0a?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1615447865649-317d38246c78?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '코타키나발루': {
+    cover: 'https://images.unsplash.com/photo-1692617993977-eced61646e20?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1681080897896-b524d6850d7c?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1526091202567-544e19815ebc?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1579685849448-9c78a8373aa5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1681081449038-524f4683c6aa?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1697538835982-534445406b39?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1655429818555-057ebe02e988?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '푸켓': {
+    cover: 'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1534008897995-27a23e859048?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1601225612316-b4733315a717?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1494949360228-4e9bde560065?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1589394815804-964ed0be2eb5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1506665531195-3566af2b4dfa?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1483683804023-6ccdb62f86ef?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1504214208698-ea1916a2195a?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '치앙마이': {
+    cover: 'https://images.unsplash.com/photo-1512553353614-82a7370096dc?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1599576838688-8a6c11263108?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1578157695179-d7b7ddeb2f53?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1682826556362-2c06b7ac75c5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1544467187-784a3534a696?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1505471768190-275e2ad7b3f9?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1520962880247-cfaf541c8724?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1569675144094-c3a162c90b7c?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '라오스': {
+    cover: 'https://images.unsplash.com/photo-1610426714962-83caa2244105?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1441632260885-881646a7fd4d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1686120552846-7caf1a345876?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1693039880389-62840065382c?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1707817643213-35009bae9814?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1642085107639-bc9e2f7ee835?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1595486818044-598b89016c5b?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1744593419072-a19dbbf7e0f3?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '카자흐스탄': {
+    cover: 'https://images.unsplash.com/photo-1659651117607-d2b397cf100f?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1530480667809-b655d4dc3aaa?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1677475191981-653bcfcc3cd2?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1548450847-8a9a5cc3968f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1619265180726-6c11823ebf6a?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1716835018054-5b13e5ef53b0?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1716835018087-e618d839eb59?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1659653159038-f68fe4b1fdc0?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '호주': {
+    cover: 'https://images.unsplash.com/photo-1607309843659-f4ad95cf3277?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1591701729564-3b5325d5a4bd?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1661674753163-0f8bca582509?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1582761371078-6509f13666b1?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1599097653069-bf45de660b69?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1626070191915-0ae0d9089132?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1628330565454-aa57f15ef3ee?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1607309844300-0a3f21444b2c?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '사이판': {
+    cover: 'https://images.unsplash.com/photo-1631342412627-50776080025b?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1577951364190-2a0209839dfd?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1584162599819-8c2ba73f957f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1492994170525-601549480c69?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1678017055714-d645b4780b8c?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1584162607168-7cf2a46a57bf?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1586417752757-99069c119f3d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1510574243370-25fe8a740536?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '네덜란드': {
+    cover: 'https://images.unsplash.com/photo-1534351590666-13e3e96b5017?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1584003564911-a7a321c84e1c?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1580996378027-23040f16f157?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1605101100278-5d1deb2b6498?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1583295125721-766a0088cd3f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1576924542622-772281b13aa8?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1536880756060-98a6a140f0a7?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '동유럽': {
+    cover: 'https://images.unsplash.com/photo-1592906209472-a36b1f3782ef?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1458150945447-7fb764c11a92?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1619558846792-1fc47446bbd7?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1596811311317-c948dd4382dd?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1463143296037-46790ff95a7e?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1558717907-366df4bdcac1?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1563913801192-bcefb1bb7651?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1452165598664-87835d28c9d9?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '북유럽': {
+    cover: 'https://images.unsplash.com/photo-1509356843151-3e7d96241e11?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1572225303717-a96db5e8d8b0?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1508189860359-777d945909ef?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1630772063386-f363836989cc?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1588653818221-2651ec1a6423?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1600290601473-3b73e4c531c9?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1580339841933-f06ca55842d0?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1596636478939-59fed7a083f2?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '서유럽': {
+    cover: 'https://images.unsplash.com/photo-1769981639118-e63f99901eeb?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1764214656596-edc7988f3730?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1780859098058-32dc37f3cfda?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1777913829206-3499d5855da7?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1776075509360-1f3a5e550cc5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1782434933294-f51f3a979f30?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1779474653231-f1dbe1726593?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1778944650687-e0ef5733569a?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '샌프란시스코': {
+    cover: 'https://images.unsplash.com/photo-1719858403364-83f7442a197e?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1521747116042-5a810fda9664?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1500111709600-7761aa8216c7?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1541464522988-31b420f688b9?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1514911834724-fbe785fc8a6a?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1509817312789-ad718caba3b2?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1445294812422-0bb9cb94c286?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1475947175089-3a98ee67944b?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '워싱턴': {
+    cover: 'https://images.unsplash.com/photo-1617581629397-a72507c3de9e?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1463839346397-8e9946845e6d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1583176689170-990094dcd953?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1574365379583-54937ea00cb8?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1565571370459-5c78ebb358de?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1641327384123-3f8cc49ebf4f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1625882586497-458c0e7d7e23?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1617293541287-5530026ca9b1?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '하와이': {
+    cover: 'https://images.unsplash.com/photo-1505852679233-d9fd70aff56d?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1598135753163-6167c1a1ad65?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1545251142-f32339076e6d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1462400362591-9ca55235346a?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1586996292898-71f4036c4e07?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1542259009477-d625272157b7?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1566932234191-3bdd9eeca73c?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '밴쿠버': {
+    cover: 'https://images.unsplash.com/photo-1559511260-66a654ae982a?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1560813962-ff3d8fcf59ba?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1660143158587-bddffa026e06?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1560814304-4f05b62af116?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1515884045391-a9e471f4d36f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1553855804-5ccc88ae0a2b?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1592838918087-5d4d31e32204?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1519331582073-283f1a211a3e?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
+  '토론토': {
+    cover: 'https://images.unsplash.com/photo-1517935706615-2717063c2225?auto=format&fit=crop&w=1200&q=80',
+    strip: [
+      'https://images.unsplash.com/photo-1507992781348-310259076fe0?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1559869824-929df9dab35e?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1543962226-818f4301073f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1569982615761-66697da68502?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1586576782138-19304c43d0e1?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1632857997897-9418428d7368?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1610509659326-b35b9b15bf51?auto=format&fit=crop&w=800&q=80',
+    ]
+  },
 };
 
 /* ════════════════════════════════════════════════════════════════════
