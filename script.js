@@ -159,6 +159,20 @@ function getRateStatus(rateDate) {
   return             { status: 'stale', months, label: '갱신 필요',  color: '#ef4444' };
 }
 
+/* 기관명/담당자/요청사항 등 사용자가 직접 입력하는 자유 텍스트 필드를
+   견적서 HTML(팝업 인쇄창)에 삽입하기 전 이스케이프. document.write()로
+   그대로 꽂아넣던 기존 코드는 입력값에 HTML 태그가 들어있으면 그대로
+   실행되는 XSS 위험이 있었다. */
+function _escHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /* ── Level 2 헬퍼: YYYY-MM → YYYY년 MM월 ────────────────────── */
 function formatRateDate(rateDate) {
   if (!rateDate) return '—';
@@ -4146,8 +4160,8 @@ a{color:inherit;text-decoration:none}
 
     <div class="sec-title">기관 정보</div>
     <table class="info-tbl">
-      <tr><td>기관명</td><td>${organization}</td></tr>
-      <tr><td>담당자</td><td>${contactName}</td></tr>
+      <tr><td>기관명</td><td>${_escHtml(organization)}</td></tr>
+      <tr><td>담당자</td><td>${_escHtml(contactName)}</td></tr>
       <tr><td>기관 유형</td><td>${orgTypeText}</td></tr>
     </table>
 
@@ -4160,7 +4174,7 @@ a{color:inherit;text-decoration:none}
       <tr><td>연수 기간</td><td>${data.nights}박 ${days}일 · ${startDateLabel} ~ ${endDateLabel}</td></tr>
       <tr><td>시즌</td><td>${data.seasonInfo.label}</td></tr>
       <tr><td>호텔 등급</td><td>${data.hotelGrade.label}</td></tr>
-      ${requestDetails ? `<tr><td>요청 사항</td><td style="white-space:pre-wrap">${requestDetails}</td></tr>` : ''}
+      ${requestDetails ? `<tr><td>요청 사항</td><td style="white-space:pre-wrap">${_escHtml(requestDetails)}</td></tr>` : ''}
     </table>
 
     <div class="sec-title">포함 항목</div>

@@ -286,7 +286,21 @@ a { color: inherit; text-decoration: none; }
    URL ?d= 파라미터에서 견적 데이터를 디코딩 후 렌더링
    ════════════════════════════════════════ */
 
-const fmt = n => '₩ ' + n.toLocaleString('ko-KR');
+const fmt = n => '₩ ' + (Number(n) || 0).toLocaleString('ko-KR');
+
+/* URL의 ?d= 파라미터는 클라이언트에서 임의로 조작해 만들 수 있으므로(서버 검증 없음),
+   HTML로 삽입되는 모든 값은 반드시 이스케이프해야 XSS를 막을 수 있다.
+   (기관명/담당자/요청사항 등 자유 입력 필드뿐 아니라, 링크를 직접 조작하면
+   목적지명 등 다른 필드도 임의 문자열이 될 수 있어 예외 없이 전부 처리) */
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 function decodeShareData() {
   const params = new URLSearchParams(window.location.search);
@@ -322,7 +336,7 @@ function renderPage(d) {
   document.getElementById('hero-sub').textContent = d.ptx + ' · ' + d.n + '명 · ' + (d.ng ? d.ng + '박 ' : '') + d.d + '일';
 
   /* ── 유효기간 ── */
-  const validity = calcValidity(d.iso || d.id.replace(/[년 월일]/g, m => m === '년' ? '-' : m === '월' ? '-' : ''));
+  const validity = calcValidity(d.iso || (d.id || '').replace(/[년 월일]/g, m => m === '년' ? '-' : m === '월' ? '-' : ''));
   const expiresStr = validity.expires.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
   const validityBar = document.getElementById('validity-bar');
   if (validity.expired) {
@@ -337,36 +351,36 @@ function renderPage(d) {
   /* ── 가격 항목 행 ── */
   const priceRows = (d.rows || []).map(([name, amount]) => `
     <tr>
-      <td>${name}</td>
+      <td>${esc(name)}</td>
       <td>${fmt(amount)}</td>
     </tr>`).join('');
 
   /* ── 포함 태그 ── */
-  const incTags = (d.rows || []).map(([name]) => `<span class="inc-tag">${name}</span>`).join('');
+  const incTags = (d.rows || []).map(([name]) => `<span class="inc-tag">${esc(name)}</span>`).join('');
 
   /* ── 코스 A/B 하이라이트 + 일자별 상세 일정 ── */
   function renderCourse(iti, label, isSelected) {
     if (!iti) return '';
-    const hls = (iti.h || []).map(h => `<span class="iti-hl">· ${h}</span>`).join('');
+    const hls = (iti.h || []).map(h => `<span class="iti-hl">· ${esc(h)}</span>`).join('');
     const days = (iti.d || []).map(day => `
       <div class="day-card">
         <div class="day-hd">
-          <span class="day-num">DAY ${day.day}</span>
-          <span class="day-title">${day.title || ''}</span>
+          <span class="day-num">DAY ${esc(day.day)}</span>
+          <span class="day-title">${esc(day.title) || ''}</span>
         </div>
         <div class="day-sched">
-          <span class="sched-t">오전</span><span>${day.am || '—'}</span>
-          <span class="sched-t">오후</span><span>${day.pm || '—'}</span>
-          <span class="sched-t">저녁</span><span>${day.eve || '—'}</span>
+          <span class="sched-t">오전</span><span>${esc(day.am) || '—'}</span>
+          <span class="sched-t">오후</span><span>${esc(day.pm) || '—'}</span>
+          <span class="sched-t">저녁</span><span>${esc(day.eve) || '—'}</span>
         </div>
-        ${day.tip ? `<div class="day-tip">현장 Tip · ${day.tip}</div>` : ''}
+        ${day.tip ? `<div class="day-tip">현장 Tip · ${esc(day.tip)}</div>` : ''}
       </div>`).join('');
     return `
     <div class="iti-card${isSelected ? ' iti-card-selected' : ''}">
       <div class="iti-header">
-        <div class="iti-label">${label}${isSelected ? ' <span class="iti-selected-badge">탐색하신 일정</span>' : ''}</div>
-        <div class="iti-title">${iti.t}</div>
-        <div class="iti-sub">${iti.s}</div>
+        <div class="iti-label">${esc(label)}${isSelected ? ' <span class="iti-selected-badge">탐색하신 일정</span>' : ''}</div>
+        <div class="iti-title">${esc(iti.t)}</div>
+        <div class="iti-sub">${esc(iti.s)}</div>
       </div>
       <div class="iti-highlights">${hls}</div>
       ${days ? `<div class="day-timeline">${days}</div>` : ''}
@@ -377,11 +391,11 @@ function renderPage(d) {
   const strip = d.strip || [];
   const photoStripHtml = strip.length >= 2 ? `
     <div class="photo-strip no-print" style="margin-bottom:28px">
-      <img src="${strip[0]}" alt="${d.dt}" loading="lazy" onerror="this.parentElement.style.display='none'">
-      <img src="${strip[1]}" alt="${d.dt}" loading="lazy" onerror="this.parentElement.style.display='none'">
+      <img src="${esc(strip[0])}" alt="${esc(d.dt)}" loading="lazy" onerror="this.parentElement.style.display='none'">
+      <img src="${esc(strip[1])}" alt="${esc(d.dt)}" loading="lazy" onerror="this.parentElement.style.display='none'">
     </div>` : strip.length === 1 ? `
     <div class="photo-strip single no-print" style="margin-bottom:28px">
-      <img src="${strip[0]}" alt="${d.dt}" loading="lazy" onerror="this.parentElement.style.display='none'">
+      <img src="${esc(strip[0])}" alt="${esc(d.dt)}" loading="lazy" onerror="this.parentElement.style.display='none'">
     </div>` : '';
 
   /* ── 유효기간 배너 ── */
@@ -396,7 +410,7 @@ function renderPage(d) {
     : `<div class="validity-banner">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <div class="validity-banner-text">
-          견적 유효기간: <strong>${d.id}</strong> 발급 &nbsp;→&nbsp; <strong>${expiresStr}까지</strong>
+          견적 유효기간: <strong>${esc(d.id)}</strong> 발급 &nbsp;→&nbsp; <strong>${expiresStr}까지</strong>
           &nbsp;(<strong>${validity.daysLeft}일</strong> 남음)
         </div>
       </div>`;
@@ -404,7 +418,7 @@ function renderPage(d) {
   /* ── 특이사항 ── */
   const reqHtml = d.req ? `
     <div class="sec-title">특이사항 / 요청사항</div>
-    <p style="font-size:13px;color:#5A5A5A;padding:10px 0;line-height:1.8">${d.req.replace(/\n/g, '<br>')}</p>` : '';
+    <p style="font-size:13px;color:#5A5A5A;padding:10px 0;line-height:1.8">${esc(d.req).replace(/\n/g, '<br>')}</p>` : '';
 
   /* ── 전체 HTML ── */
   document.getElementById('main-content').innerHTML = `
@@ -418,28 +432,28 @@ function renderPage(d) {
           <div class="brand-sub">해외연수 전문 기업 · 견적서</div>
         </div>
         <div class="meta-blk">
-          <div class="issue">${d.id}</div>
-          <div>발급번호 · ${d.rv || '—'}</div>
-          <div>요율 기준 · ${d.rd || '—'}</div>
+          <div class="issue">${esc(d.id)}</div>
+          <div>발급번호 · ${esc(d.rv) || '—'}</div>
+          <div>요율 기준 · ${esc(d.rd) || '—'}</div>
         </div>
       </div>
 
       <div class="sec-title">수신처 정보</div>
       <table class="info-tbl">
-        <tr><td>기관명</td><td>${d.org || '—'}</td></tr>
-        <tr><td>담당자</td><td>${d.cn || '—'}</td></tr>
-        <tr><td>기관 유형</td><td>${d.ot || '—'}</td></tr>
+        <tr><td>기관명</td><td>${esc(d.org) || '—'}</td></tr>
+        <tr><td>담당자</td><td>${esc(d.cn) || '—'}</td></tr>
+        <tr><td>기관 유형</td><td>${esc(d.ot) || '—'}</td></tr>
       </table>
 
       <div class="sec-title">연수 계획</div>
       <table class="info-tbl">
-        <tr><td>연수 목적지</td><td>${d.dt}</td></tr>
-        <tr><td>프로그램 유형</td><td>${d.ptx}</td></tr>
-        <tr><td>연수 방식</td><td>${d.vm || '—'}</td></tr>
-        <tr><td>참가 인원</td><td>${d.n}명</td></tr>
-        <tr><td>연수 기간</td><td>${d.ng}박 ${d.d}일 &nbsp;·&nbsp; ${fmtDate(d.sd)} ~ ${fmtDate(d.ed)}</td></tr>
-        <tr><td>호텔 등급</td><td>${d.hgl || '—'}</td></tr>
-        <tr><td>시즌</td><td>${d.sl || '—'}</td></tr>
+        <tr><td>연수 목적지</td><td>${esc(d.dt)}</td></tr>
+        <tr><td>프로그램 유형</td><td>${esc(d.ptx)}</td></tr>
+        <tr><td>연수 방식</td><td>${esc(d.vm) || '—'}</td></tr>
+        <tr><td>참가 인원</td><td>${Number(d.n) || 0}명</td></tr>
+        <tr><td>연수 기간</td><td>${Number(d.ng) || 0}박 ${Number(d.d) || 0}일 &nbsp;·&nbsp; ${fmtDate(d.sd)} ~ ${fmtDate(d.ed)}</td></tr>
+        <tr><td>호텔 등급</td><td>${esc(d.hgl) || '—'}</td></tr>
+        <tr><td>시즌</td><td>${esc(d.sl) || '—'}</td></tr>
       </table>
 
       <div class="sec-title">견적 금액 내역</div>
@@ -457,7 +471,7 @@ function renderPage(d) {
         <div class="t-card per">
           <div class="t-label">PER PERSON</div>
           <div class="t-amount">${fmt(d.pp)}</div>
-          <div class="t-note">${d.n}명 기준 1인당 금액</div>
+          <div class="t-note">${Number(d.n) || 0}명 기준 1인당 금액</div>
         </div>
       </div>
 
@@ -479,7 +493,7 @@ function renderPage(d) {
     <div style="margin-bottom:12px">
       <div style="font-size:10px;font-weight:700;letter-spacing:.12em;color:#9A9A9A;margin-bottom:6px">RECOMMENDED ITINERARY</div>
       <div style="font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px">맞춤 일정 추천</div>
-      <div style="font-size:13px;color:#5A5A5A">${d.dt} · <strong style="color:#CC001A">${d.ptx}</strong> 프로그램 유형에 최적화된 코스입니다.</div>
+      <div style="font-size:13px;color:#5A5A5A">${esc(d.dt)} · <strong style="color:#CC001A">${esc(d.ptx)}</strong> 프로그램 유형에 최적화된 코스입니다.</div>
     </div>
     ${renderCourse(d.itiA, 'COURSE A · 추천 코스', d.sp === 'a')}
     ${renderCourse(d.itiB, 'COURSE B · 대안 코스', d.sp === 'b')}
