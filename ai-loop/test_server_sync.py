@@ -36,11 +36,10 @@ def main():
         page.select_option("#programType", "industry")
         page.select_option("#organizationType", "company")
         page.fill("#participants", "25")
-        page.fill("#days", "5")
+        # #days는 readonly, 날짜로만 자동 계산
+        page.fill("#startDate", "2026-09-15")
+        page.fill("#endDate", "2026-09-19")
         page.wait_for_timeout(400)
-
-        if page.locator("#startDate").count():
-            page.fill("#startDate", "2026-09-15")
 
         marker_org = "종단테스트기관_E2E"
         next_btn = page.locator("#nextStepButton")

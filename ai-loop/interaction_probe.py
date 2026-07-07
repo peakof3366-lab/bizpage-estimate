@@ -67,7 +67,8 @@ def run_index(page, out_dir, is_mobile=False):
         page.select_option("#programType", "language")
         page.select_option("#organizationType", "company")
         page.fill("#participants", "20")
-        page.fill("#days", "5")
+        page.fill("#startDate", "2027-09-01")  # #days는 readonly, 날짜로만 자동 계산
+        page.fill("#endDate", "2027-09-05")
         page.click("#nextStepButton")
 
     safe(fill_step1_combo_a, "STEP1 입력(도쿄/언어연수/기업/20명/5일) 후 다음단계")
@@ -145,7 +146,8 @@ def run_index(page, out_dir, is_mobile=False):
         page.click("label.inc-chip:has(#incHotel)")
         page.click("label.inc-chip:has(#incHotel)")
         page.fill("#participants", "35")
-        page.fill("#days", "8")
+        page.fill("#startDate", "2027-09-01")  # #days는 readonly, 날짜로만 자동 계산
+        page.fill("#endDate", "2027-09-08")
         page.wait_for_timeout(200)
         page.click("label.grade-pill >> text=비즈니스", force=True)
         page.wait_for_timeout(200)
@@ -253,7 +255,8 @@ def run_estimate_view(page, out_dir):
         page.select_option("#programType", "academic")
         page.select_option("#organizationType", "education")
         page.fill("#participants", "15")
-        page.fill("#days", "6")
+        page.fill("#startDate", "2027-09-01")  # #days는 readonly, 날짜로만 자동 계산
+        page.fill("#endDate", "2027-09-06")
         page.click("#nextStepButton")
         page.wait_for_timeout(300)
         page.fill("#organization", "테스트대학")

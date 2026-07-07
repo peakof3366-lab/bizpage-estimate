@@ -59,7 +59,8 @@ def main():
         # STEP3 화면 렌더까지 실제로 확인
         page.select_option("#destination", dest_key)
         page.fill("#participants", "20")
-        page.fill("#days", "5")
+        page.fill("#startDate", "2027-09-01")  # #days는 readonly, 날짜로만 자동 계산
+        page.fill("#endDate", "2027-09-05")
         page.wait_for_timeout(200)
         page.evaluate("renderStep3()")
         page.evaluate("document.getElementById('step3Section').classList.remove('hidden')")

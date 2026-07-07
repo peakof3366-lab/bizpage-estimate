@@ -396,6 +396,12 @@ p { line-height:1.8; }
   border-color:var(--red); outline:none;
   box-shadow:0 0 0 3px rgba(200,16,46,.12);
 }
+.fld input[readonly] {
+  background:var(--bg-off); color:var(--t-mute); cursor:not-allowed;
+}
+.fld input[readonly]:focus {
+  border-color:rgba(0,0,0,.12); box-shadow:none;
+}
 .estimate-step > label {
   display:flex; flex-direction:column; gap:7px;
   margin-bottom:16px; font-size:11px; font-weight:700;

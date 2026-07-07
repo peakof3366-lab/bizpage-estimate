@@ -14,7 +14,8 @@ url = (PROJECT_DIR / "index.html").resolve().as_uri()
 def fill_and_read(page, participants, destination="방콕"):
     page.select_option("#destination", label_contains_or_value(page, destination))
     page.fill("#participants", str(participants))
-    page.fill("#days", "5")
+    page.fill("#startDate", "2027-09-01")  # #days는 readonly, 날짜로만 자동 계산
+    page.fill("#endDate", "2027-09-05")
     page.wait_for_timeout(300)
     result_text = page.text_content("#resultValue")
     per_person_text = page.text_content("#perPersonValue")
@@ -48,7 +49,9 @@ def main():
         page.select_option("#programType", "industry")
         page.select_option("#organizationType", "company")
         page.fill("#participants", "29")
-        page.fill("#days", "5")
+        # #days는 이제 출발일/귀국일로만 자동 계산되는 readonly 필드(직접 fill 불가)
+        page.fill("#startDate", "2027-09-01")
+        page.fill("#endDate", "2027-09-05")
         page.wait_for_timeout(400)
 
         r29 = page.text_content("#resultValue")

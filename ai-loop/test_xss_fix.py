@@ -72,7 +72,8 @@ def test_main_flow():
 
         page.select_option("#destination", "도쿄")
         page.fill("#participants", "20")
-        page.fill("#days", "5")
+        page.fill("#startDate", "2027-09-01")  # #days는 readonly, 날짜로만 자동 계산
+        page.fill("#endDate", "2027-09-05")
         page.click("#nextStepButton")
         page.wait_for_timeout(200)
         page.fill("#organization", PAYLOAD)
