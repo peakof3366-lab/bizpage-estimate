@@ -510,6 +510,16 @@ function renderLiveBreakdown() {
   }
 })();
 
+/* ═══ 파트너 로고 마퀴: 무한 스크롤용 콘텐츠 복제 + 로고 로드 실패 시 텍스트만 유지 ═══ */
+(function initPartnersMarquee() {
+  document.querySelectorAll('.partners-track').forEach((track) => {
+    const items = Array.from(track.children);
+    items.forEach((item) => track.appendChild(item.cloneNode(true)));
+  });
+})();
+function handlePartnerLogoError(img) {
+  img.remove(); /* 로고 이미지만 제거, 기관명 텍스트는 그대로 남김 */
+}
 
 nextButton.addEventListener('click', () => {
   if (!validateStep(1)) {

@@ -1018,14 +1018,51 @@ p { line-height:1.8; }
 .partners-group { display:grid; grid-template-columns:200px 1fr; gap:32px; padding:26px 0; border-top:1px solid var(--rule); align-items:baseline; }
 .partners-group:last-child { border-bottom:1px solid var(--rule); }
 .partners-cat { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--t-sub); }
-.partners-chips { display:flex; flex-wrap:wrap; gap:9px 10px; }
-.p-chip {
+
+/* 로고 마퀴 — 좌우 페이드 마스크 + 무한 스크롤, hover 시 정지 */
+.partners-marquee {
+  position:relative; overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image:linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+.partners-track {
+  display:flex; align-items:center; gap:10px; width:max-content;
+  animation:partners-scroll 42s linear infinite;
+}
+.partners-marquee:hover .partners-track { animation-play-state:paused; }
+.partners-group:nth-child(even) .partners-track { animation-direction:reverse; }
+@keyframes partners-scroll {
+  from { transform:translateX(0); }
+  to   { transform:translateX(-50%); }
+}
+.partner-logo-item {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:6px; height:64px; width:124px; padding:4px 8px; flex-shrink:0;
+}
+.partner-logo-item img {
+  max-height:26px; max-width:108px; width:auto; height:auto; object-fit:contain;
+  filter:grayscale(1) opacity(.6);
+  transition:filter var(--dur);
+}
+.partner-logo-item:hover img { filter:grayscale(0) opacity(1); }
+.partner-logo-name {
+  font-size:10.5px; font-weight:600; color:var(--t-sub); text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:118px;
+  letter-spacing:-.01em;
+}
+
+/* 로고 없는 기관은 기존 텍스트 칩으로 폴백 */
+.partners-track .p-chip {
   font-size:13.5px; font-weight:500; color:var(--t-body); line-height:1.4;
   padding:7px 14px; border:1px solid var(--rule-md); border-radius:999px;
-  white-space:nowrap; background:var(--bg);
+  white-space:nowrap; background:var(--bg); flex-shrink:0;
   transition:border-color var(--dur), color var(--dur), background var(--dur);
 }
-.p-chip:hover { border-color:var(--red); color:var(--red-dk); background:rgba(200,16,46,.05); }
+.partners-track .p-chip:hover { border-color:var(--red); color:var(--red-dk); background:rgba(200,16,46,.05); }
+
+@media (prefers-reduced-motion: reduce) {
+  .partners-track { animation:none; }
+}
 
 /* ── 16. Contact ────────────────────────────────────────────────── */
 .section-contact { padding:var(--sec-y) 0; background:var(--bg-dk); }
