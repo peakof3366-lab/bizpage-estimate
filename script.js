@@ -499,10 +499,13 @@ function renderLiveBreakdown() {
       const destName = card.querySelector('h3')?.textContent || destKey;
       const tag      = card.querySelector('.gallery-tag')?.textContent || '';
       resultEl.innerHTML = industryLabel + ' 분야에는 <strong>' + destName + '</strong>을(를) 추천드려요 👍 <span class="dest-rec-tag">' + tag + '</span>';
+      resultEl.classList.add('show');
 
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.remove('gal-highlight');
+      void card.offsetWidth; /* 재선택 시 애니메이션 재시작을 위한 강제 리플로우 */
       card.classList.add('gal-highlight');
-      setTimeout(() => card.classList.remove('gal-highlight'), 2400);
+      setTimeout(() => card.classList.remove('gal-highlight'), 3400);
     });
   }
 })();
