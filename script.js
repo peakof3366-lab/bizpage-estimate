@@ -132,12 +132,15 @@ function tieredTotal(unitBase, participants, tiers) {
   return total;
 }
 
-/* ── Level 1 헬퍼: 출발월 → 시즌 정보 ──────────────────────────── */
-function getSeasonInfo(dateStr) {
-  if (!dateStr) return SEASON_CONFIG.find(s => s.id === 'normal');
+/* ── Level 1 헬퍼: 출발월 → 시즌 정보 (남반구 목적지는 현지 계절 기준 별도 적용) ── */
+function getSeasonInfo(dateStr, destKey) {
+  const config = (typeof SOUTHERN_HEMISPHERE_DESTS !== 'undefined' && SOUTHERN_HEMISPHERE_DESTS.includes(destKey))
+    ? SEASON_CONFIG_SOUTHERN
+    : SEASON_CONFIG;
+  if (!dateStr) return config.find(s => s.id === 'normal');
   const month = new Date(dateStr).getMonth() + 1;
-  return SEASON_CONFIG.find(s => s.months.includes(month))
-      || SEASON_CONFIG.find(s => s.id === 'normal');
+  return config.find(s => s.months.includes(month))
+      || config.find(s => s.id === 'normal');
 }
 
 /* ── Level 2 헬퍼: 요율 기준일 신선도 판정 ───────────────────────
@@ -209,7 +212,7 @@ function getBreakdownData() {
   /* ── Level 1: 티어·시즌·호텔 등급 계수 산출 ── */
   const paxTier       = getPaxTier(participants);
   const startDateVal  = document.getElementById('startDate')?.value || '';
-  const seasonInfo    = getSeasonInfo(startDateVal);
+  const seasonInfo    = getSeasonInfo(startDateVal, destKey);
   const hotelGradeKey = document.querySelector('input[name="hotelGrade"]:checked')?.value || 'superior';
   const hotelGrade    = HOTEL_GRADES[hotelGradeKey] || HOTEL_GRADES.superior;
 
@@ -366,7 +369,7 @@ function renderLiveBreakdown() {
   if (seasonBadgeEl) {
     const startVal = document.getElementById('startDate')?.value || '';
     if (startVal) {
-      const info = getSeasonInfo(startVal);
+      const info = getSeasonInfo(startVal, destinationSelect.value);
       seasonBadgeEl.textContent = info.label;
       seasonBadgeEl.className   = `season-badge season-${info.id}`;
     } else {

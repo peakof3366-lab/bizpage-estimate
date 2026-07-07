@@ -13,11 +13,20 @@ const PAX_TIERS = [
   { min: 50, max: Infinity, factor: 0.85, label: '50명 이상', desc: '−15%' },
 ];
 
-/* 출발월 기준 시즌 계수 — 항공·유류·호텔에 적용 */
+/* 출발월 기준 시즌 계수 — 항공·유류·호텔에 적용 (북반구/한국 출발 수요 기준) */
 const SEASON_CONFIG = [
   { id: 'peak',    months: [7, 8, 12, 1], factor: 1.20, label: '성수기', badge: '성수기 +20%' },
   { id: 'offpeak', months: [2, 6],        factor: 0.88, label: '비수기', badge: '비수기 −12%' },
   { id: 'normal',  months: [],            factor: 1.00, label: '평시',   badge: '평시' },
+];
+
+/* 남반구 목적지 전용 — 계절이 북반구와 정반대(12~2월이 현지 여름/성수기,
+   6~8월이 현지 겨울/비수기)이므로 별도 시즌표 사용 */
+const SOUTHERN_HEMISPHERE_DESTS = ['시드니', '멜버른', '호주', '오클랜드'];
+const SEASON_CONFIG_SOUTHERN = [
+  { id: 'peak',    months: [12, 1, 2], factor: 1.20, label: '성수기', badge: '성수기 +20%' },
+  { id: 'offpeak', months: [6, 7, 8],  factor: 0.88, label: '비수기', badge: '비수기 −12%' },
+  { id: 'normal',  months: [],         factor: 1.00, label: '평시',   badge: '평시' },
 ];
 
 /* 호텔 등급별 단가 계수 (4성급 = 기준 1.0) */
