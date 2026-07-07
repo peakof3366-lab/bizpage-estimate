@@ -3870,6 +3870,45 @@ function getItineraries(destKey, programType) {
   return [courses[0], courses[1] || courses[0]];
 }
 
+/* ITINERARY_DB의 코스는 전부 "5일 고정"(마지막 날 = 귀국 콘텐츠)으로 작성되어 있음.
+   실제 선택 일수(totalDays)가 5보다 크거나 작을 때, 마지막 날(귀국) 콘텐츠가 항상
+   실제 마지막 날에만 나오도록 재배치하고, 5일보다 긴 경우 사이 날짜는 DEST_REC/
+   highlights 기반 콘텐츠로 채운다. (기존엔 5일 초과 시 DB의 5일차 "귀국" 콘텐츠가
+   중간 날짜에 그대로 노출되어 "왜 갑자기 공항으로 복귀하냐"는 문제가 있었음) */
+function _buildDisplayDays(course, destKey, plan, totalDays) {
+  const baseDays = (course && Array.isArray(course.days)) ? course.days : [];
+  if (!baseDays.length) return [];
+
+  const regular   = baseDays.slice(0, -1);          /* 도착~액티비티 (귀국일 제외) */
+  const returnDay = baseDays[baseDays.length - 1];  /* 귀국일 템플릿 */
+
+  const rec  = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
+  const pRec = rec ? rec[plan] : null;
+  const pool = (pRec && pRec.items && pRec.items.length) ? pRec.items : (course.highlights || []);
+
+  const out = [];
+  for (let i = 1; i <= totalDays; i++) {
+    if (i === totalDays) {
+      out.push(Object.assign({}, returnDay, { day: i }));
+      continue;
+    }
+    const regIdx = i - 1;
+    if (regIdx < regular.length) {
+      out.push(Object.assign({}, regular[regIdx], { day: i }));
+    } else {
+      const act = pool[(i - regular.length - 1) % Math.max(pool.length, 1)] || '현지 탐방 · 자유 시간';
+      out.push({
+        day: i, title: act,
+        am: act + ' — 오전 코스',
+        pm: '연계 오후 프로그램 · 현장 방문',
+        eve: '팀 석식',
+        tip: '',
+      });
+    }
+  }
+  return out;
+}
+
 /* ════════════════════════════════════════════════════════════════════
    견적서 확인 창 열기 (PDF → 웹 브라우저 창)
    ════════════════════════════════════════════════════════════════════ */
@@ -3932,6 +3971,11 @@ function openEstimateWindow() {
   const itiA = itineraries[0];
   const itiB = itineraries[1] || itineraries[0];
 
+  /* 실제 선택 일수에 맞춰 귀국일 콘텐츠가 마지막 날에만 나오도록 재배치
+     (ITINERARY_DB 코스는 전부 5일 고정으로 작성되어 있음) */
+  const itiADisplayDays = _buildDisplayDays(itiA, destKey, 'a', days);
+  const itiBDisplayDays = _buildDisplayDays(itiB, destKey, 'b', days);
+
   /* STEP3 탐색기에서 이미 플랜을 선택한 경우, 그 선택을 견적서에도 그대로 반영 */
   const selectedPlan = (typeof _currentPlan !== 'undefined' && _currentPlan) ? _currentPlan : '';
 
@@ -3960,16 +4004,14 @@ function openEstimateWindow() {
     rd: rateDate, rv: rateVer,
     rows: data.rows.filter(r => !r.muted).map(r => [r.name, r.amount]),
     req: requestDetails.slice(0, 300),
-    itiA: { t: itiA.title, s: itiA.subtitle, h: itiA.highlights, d: (itiA.days || []).slice(0, Math.min(days, 5)) },
-    itiB: { t: itiB.title, s: itiB.subtitle, h: itiB.highlights, d: (itiB.days || []).slice(0, Math.min(days, 5)) },
+    itiA: { t: itiA.title, s: itiA.subtitle, h: itiA.highlights, d: itiADisplayDays },
+    itiB: { t: itiB.title, s: itiB.subtitle, h: itiB.highlights, d: itiBDisplayDays },
     cover: destPhotos ? destPhotos.cover : '',
     strip: destPhotos ? destPhotos.strip.slice(0, 2) : [],
     sp: selectedPlan,
   };
   const shareEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
   const shareUrl = base + 'estimate-view.html?d=' + encodeURIComponent(shareEncoded);
-
-  const daySlice = Math.min(days, 5);
 
   /* 참여자 가이드 렌더 */
   function renderParticipantGuide() {
@@ -3999,8 +4041,8 @@ function openEstimateWindow() {
     </div>`;
   }
 
-  function renderDays(iti) {
-    return iti.days.slice(0, daySlice).map(d => `
+  function renderDays(displayDays) {
+    return displayDays.map(d => `
       <div class="day-card">
         <div class="day-hd">
           <span class="day-num">DAY ${d.day}</span>
@@ -4248,7 +4290,7 @@ a{color:inherit;text-decoration:none}
         <div class="c-sub">${itiA.subtitle}</div>
         <div class="c-highlights">${itiA.highlights.map(h=>`<span class="c-hl">· ${h}</span>`).join('')}</div>
       </div>
-      <div class="day-timeline">${renderDays(itiA)}</div>
+      <div class="day-timeline">${renderDays(itiADisplayDays)}</div>
       ${renderParticipantGuide()}
       ${renderGallery(destPhotos?.strip)}
     </div>
@@ -4260,7 +4302,7 @@ a{color:inherit;text-decoration:none}
         <div class="c-sub">${itiB.subtitle}</div>
         <div class="c-highlights">${itiB.highlights.map(h=>`<span class="c-hl">· ${h}</span>`).join('')}</div>
       </div>
-      <div class="day-timeline">${renderDays(itiB)}</div>
+      <div class="day-timeline">${renderDays(itiBDisplayDays)}</div>
       ${renderParticipantGuide()}
       ${renderGallery(destPhotos?.strip)}
     </div>
@@ -4896,32 +4938,11 @@ function _renderTimeline(plan) {
   var html = '';
 
   if (dbDays) {
-    /* ── 풍부한 렌더: ITINERARY_DB의 실제 am/pm/eve/tip 사용 ── */
+    /* ── 풍부한 렌더: ITINERARY_DB의 실제 am/pm/eve/tip 사용, 귀국일 콘텐츠는
+       항상 실제 마지막 날에만 배치(_buildDisplayDays) ── */
+    var displayDays = _buildDisplayDays(course, destKey, plan, totalDays);
     for (var i = 1; i <= totalDays; i++) {
-      var dayData = dbDays[i - 1];   /* 0-indexed */
-      if (dayData) {
-        html += _renderRichDayCard(i, dayData, totalDays);
-      } else if (i === totalDays) {
-        /* DB 범위 초과: 귀국일 */
-        html += _renderRichDayCard(i, {
-          title: '귀국', am: '호텔 체크아웃 · 공항 이동',
-          pm: '귀국 탑승', eve: '인천국제공항 도착',
-          tip: '출발 3시간 전 공항 도착 권장'
-        }, totalDays);
-      } else {
-        /* DB 범위 초과 중간일: DEST_REC items 또는 highlights 로 보강 */
-        var rec2   = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
-        var pRec2  = rec2 ? rec2[plan] : null;
-        var pool2  = pRec2 ? pRec2.items : (course.highlights || []);
-        var act2   = pool2[(i - 2) % Math.max(pool2.length, 1)] || '현지 탐방 · 자유 시간';
-        html += _renderRichDayCard(i, {
-          title: act2,
-          am:    act2 + ' — 오전 코스',
-          pm:    '연계 오후 프로그램 · 현장 방문',
-          eve:   '팀 석식',
-          tip:   ''
-        }, totalDays);
-      }
+      html += _renderRichDayCard(i, displayDays[i - 1], totalDays);
     }
   } else {
     /* ── 기본 렌더: DEST_REC items 기반 ── */
