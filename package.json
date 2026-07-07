@@ -1,0 +1,10 @@
+{
+  "name": "bizpage-estimate",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "jose": "^5.9.6",
+    "bcryptjs": "^2.4.3"
+  }
+}

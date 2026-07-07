@@ -1,5 +1,40 @@
 # 오버나이트 작업 로그 (2026-07-04 밤)
 
+## 추가: 2026-07-07 낮 — 견적/문의 서버 저장 + 관리자 인증 서버화 (최우선 구조적 이슈 해결)
+
+이전 세션들에서 반복적으로 "최우선 미해결" 항목으로 기록되던 두 가지를 사용자와
+합의한 계획(EnterPlanMode)에 따라 실제로 구현:
+
+1. **견적/문의가 localStorage에만 저장되던 문제 해결** — Vercel Postgres(Neon 마켓플레이스
+   통합, 무료 티어) 프로비저닝 후 `quotes`/`inquiries`/`admin_auth` 3개 테이블 생성.
+   `/api/quotes`, `/api/quotes/[id]`, `/api/inquiries`, `/api/inquiries/[id]` 서버리스
+   함수 신규 작성(공개 POST 제출 + 관리자 전용 GET/PATCH/DELETE). `script.js`의 3곳
+   (`saveFullEstimate()`, 문의폼 제출, `submitConsult()`)에서 기존 localStorage 저장은
+   그대로 유지한 채 서버 POST를 추가(fire-and-forget, 실패해도 로컬 저장은 살아있음).
+2. **관리자 로그인 클라이언트 사이드 평문 비교 → 서버 인증으로 전환** — `admin_auth`
+   테이블에 bcrypt 해시로 비밀번호 저장(하드코딩된 `hanaenbt` 폐기, 사용자가 새
+   비밀번호 직접 지정). `jose` JWT + httpOnly 쿠키(`SESSION_SECRET` 환경변수 서명,
+   12시간 만료)로 세션 발급. `/api/admin/login`·`logout`·`change-password`·`me` 구현.
+   `admin.html`은 로그인 성공 후 `loadRemoteData()`로 서버 데이터를 기존 localStorage
+   캐시 키(`linkedt_contacts`, `linkedt_estimates_full`)에 채워 넣는 방식으로 연결해
+   기존 렌더링/필터/페이지네이션 코드는 거의 그대로 재사용, 상태/메모 저장·삭제·전체
+   삭제 지점에만 대응 API 호출을 추가.
+
+검증: `vercel dev` 로컬 서버로 모든 API 엔드포인트 curl 테스트(로그인 성공/실패,
+인증 없이 401, PATCH/DELETE, change-password) 통과. Playwright로 **핵심 성공 기준**
+검증(`ai-loop/test_server_sync.py` 신규) — 완전히 분리된 두 브라우저 컨텍스트(쿠키/
+localStorage 전혀 공유 안 함)로 "방문자가 견적+문의 제출 → 전혀 다른 브라우저에서
+관리자 로그인 → 방금 제출한 항목이 보임"을 실제로 확인, PASS. `verify_render.py`로
+index.html 회귀 없음 확인. admin.html은 이제 서버 없이(file://) 열면 `/api/admin/me`
+fetch가 의도적으로 실패하는데(로컬 백엔드 없이 인증 자체가 불가능해졌으므로 당연한
+동작), 이는 회귀가 아니라 설계상 필연적 변화로 확인함 — admin.html은 이제 반드시
+실제 배포(또는 `vercel dev`) 환경에서만 동작함.
+
+### 아직 사용자가 판단할 것
+- 실제 배포(master push)는 아직 하지 않음 — 사용자 확인 후 진행 예정.
+- `ai-loop/itinerary_api.py`(로컬 전용 동적 일정 API)는 이번 작업 범위 밖, 여전히 미해결.
+- `linkedt_estimates`(경량 분석 통계)는 이번에 의도적으로 로컬 전용 유지.
+
 ## 추가: 2026-07-07 새벽(2차) — "견적 부분 오류를 더 잡을 방법?" 요청에 대응
 
 ### A. 견적 계산 로직 대규모 조합 퍼징 (버그 0건)

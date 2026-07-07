@@ -831,10 +831,7 @@
     dest:      'linkedt_dest_stats',
     est:       'linkedt_estimates',
     estFull:   'linkedt_estimates_full',
-    pw:        'linkedt_admin_pw',
-    session:   'linkedt_admin_auth',
   };
-  const DEFAULT_PW = 'hanaenbt';
   const PAGE_SIZE  = 15;
 
   /* ════ STATE ════ */
@@ -854,37 +851,81 @@
   const fmtDate  = (ts) => new Date(ts).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'})+' '+new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});
   const fmtDateS = (ts) => new Date(ts).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'});
 
-  function getPw() { return localStorage.getItem(KEYS.pw) || DEFAULT_PW; }
-
   /* ════ AUTH ════ */
   const loginPage = document.getElementById('loginPage');
   const dashPage  = document.getElementById('dashPage');
 
-  if (sessionStorage.getItem(KEYS.session) === 'true') showDash();
+  /* 서버 세션 쿠키가 실제 인증 근거 — 페이지 로드 시 유효성 재확인(클라이언트 플래그는 신뢰하지 않음) */
+  fetch('/api/admin/me').then(r => { if (r.ok) showDash(); }).catch(() => {});
 
-  document.getElementById('loginForm').addEventListener('submit', (e) => {
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const id = document.getElementById('adminId').value.trim();
     const pw = document.getElementById('adminPw').value;
-    if (id === 'admin' && pw === getPw()) {
-      sessionStorage.setItem(KEYS.session, 'true');
-      document.getElementById('loginErr').classList.add('hidden');
-      showDash();
-    } else {
+    try {
+      const r = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      });
+      if (r.ok) {
+        document.getElementById('loginErr').classList.add('hidden');
+        await showDash();
+      } else {
+        document.getElementById('loginErr').classList.remove('hidden');
+        document.getElementById('adminPw').value = '';
+      }
+    } catch {
       document.getElementById('loginErr').classList.remove('hidden');
-      document.getElementById('adminPw').value = '';
     }
   });
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
-    sessionStorage.removeItem(KEYS.session);
+    fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
     dashPage.classList.add('hidden');
     loginPage.classList.remove('hidden');
     document.getElementById('adminId').value = '';
     document.getElementById('adminPw').value = '';
   });
 
-  function showDash() {
+  /* 서버 DB의 견적/문의를 로컬 캐시(localStorage)로 동기화 — 기존 렌더링 코드는 그대로 재사용 */
+  async function loadRemoteData() {
+    try {
+      const [inqRes, qRes] = await Promise.all([fetch('/api/inquiries'), fetch('/api/quotes')]);
+      if (inqRes.status === 401 || qRes.status === 401) {
+        dashPage.classList.add('hidden');
+        loginPage.classList.remove('hidden');
+        return false;
+      }
+      set(KEYS.contacts, await inqRes.json());
+      localStorage.setItem(EM_KEY, JSON.stringify(await qRes.json()));
+      return true;
+    } catch (err) {
+      console.warn('[admin] 서버 데이터 동기화 실패:', err);
+      return false;
+    }
+  }
+
+  /* ════ 서버 API 쓰기 헬퍼 (실패해도 로컬 캐시는 이미 갱신된 상태 — 콘솔 경고만) ════ */
+  function patchInquiry(id, body) {
+    return fetch(`/api/inquiries/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    }).catch(err => console.warn('[inquiries] 서버 반영 실패:', err));
+  }
+  function deleteInquiry(id) {
+    return fetch(`/api/inquiries/${id}`, { method: 'DELETE' }).catch(err => console.warn('[inquiries] 서버 삭제 실패:', err));
+  }
+  function patchQuote(id, body) {
+    return fetch(`/api/quotes/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    }).catch(err => console.warn('[quotes] 서버 반영 실패:', err));
+  }
+  function deleteQuote(id) {
+    return fetch(`/api/quotes/${id}`, { method: 'DELETE' }).catch(err => console.warn('[quotes] 서버 삭제 실패:', err));
+  }
+
+  async function showDash() {
+    const ok = await loadRemoteData();
+    if (!ok) return;
     loginPage.classList.add('hidden');
     dashPage.classList.remove('hidden');
     initClock();
@@ -1012,11 +1053,18 @@
     });
   });
   document.getElementById('markAllReadBtn').addEventListener('click', () => {
-    const arr = get(KEYS.contacts); arr.forEach(c=>{ if(!c.read) c.read=true; }); set(KEYS.contacts,arr); renderInquiries(); renderDashboard();
+    const arr = get(KEYS.contacts);
+    const toSync = arr.filter(c=>!c.read);
+    arr.forEach(c=>{ if(!c.read) c.read=true; });
+    set(KEYS.contacts,arr); renderInquiries(); renderDashboard();
+    toSync.forEach(c => patchInquiry(c.id, { status: c.status||'new', note: c.note||'', read: true }));
   });
   document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
   document.getElementById('clearAllBtn').addEventListener('click', () => {
-    if(confirm('모든 문의를 삭제하시겠습니까?')) { set(KEYS.contacts,[]); renderInquiries(); renderDashboard(); }
+    if(!confirm('모든 문의를 삭제하시겠습니까?')) return;
+    const ids = get(KEYS.contacts).map(c=>c.id);
+    set(KEYS.contacts,[]); renderInquiries(); renderDashboard();
+    ids.forEach(id => deleteInquiry(id));
   });
 
   function getFilteredContacts() {
@@ -1084,8 +1132,10 @@
     const idx = contacts.findIndex(c=>c.id===id);
     if (idx===-1) return;
     const c = contacts[idx];
+    const wasRead = c.read;
     c.read = true;
     set(KEYS.contacts, contacts);
+    if (!wasRead) patchInquiry(id, { status: c.status||'new', note: c.note||'', read: true });
 
     currentModalId = id;
     document.getElementById('modalTitle').textContent = `문의 상세 #${idx+1}`;
@@ -1147,6 +1197,7 @@
     contacts[idx].status = document.getElementById('d-status').value;
     contacts[idx].read   = contacts[idx].status !== 'unread';
     set(KEYS.contacts, contacts);
+    patchInquiry(currentModalId, { status: contacts[idx].status, note: contacts[idx].note, read: contacts[idx].read });
     document.getElementById('modal').classList.add('hidden');
     renderInquiries(); renderDashboard();
   }
@@ -1154,6 +1205,7 @@
   function deleteFromModal() {
     if (!confirm('이 문의를 삭제하시겠습니까?')) return;
     set(KEYS.contacts, get(KEYS.contacts).filter(c=>c.id!==currentModalId));
+    deleteInquiry(currentModalId);
     document.getElementById('modal').classList.add('hidden');
     renderInquiries(); renderDashboard();
   }
@@ -1458,18 +1510,25 @@
   }
 
   /* ════ SETTINGS ════ */
-  function changePw() {
+  async function changePw() {
     const curr    = document.getElementById('pwCurrent').value;
     const nw      = document.getElementById('pwNew').value;
     const confirm = document.getElementById('pwConfirm').value;
     const msg     = document.getElementById('pwMsg');
-    if (curr !== getPw()) { msg.textContent='현재 비밀번호가 올바르지 않습니다.'; return; }
     if (nw.length < 6)    { msg.textContent='새 비밀번호는 6자 이상이어야 합니다.'; return; }
     if (nw !== confirm)   { msg.textContent='새 비밀번호가 일치하지 않습니다.'; return; }
-    localStorage.setItem(KEYS.pw, nw);
-    msg.style.color='var(--success)'; msg.textContent='비밀번호가 변경되었습니다.';
-    document.getElementById('pwCurrent').value=''; document.getElementById('pwNew').value=''; document.getElementById('pwConfirm').value='';
-    setTimeout(()=>{ msg.textContent=''; msg.style.color='var(--danger)'; },3000);
+    try {
+      const r = await fetch('/api/admin/change-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current: curr, next: nw }),
+      });
+      if (!r.ok) { msg.textContent='현재 비밀번호가 올바르지 않습니다.'; return; }
+      msg.style.color='var(--success)'; msg.textContent='비밀번호가 변경되었습니다.';
+      document.getElementById('pwCurrent').value=''; document.getElementById('pwNew').value=''; document.getElementById('pwConfirm').value='';
+      setTimeout(()=>{ msg.textContent=''; msg.style.color='var(--danger)'; },3000);
+    } catch {
+      msg.textContent='변경 요청에 실패했습니다. 다시 시도해 주세요.';
+    }
   }
 
 
@@ -1653,6 +1712,7 @@
     all[idx].status = document.getElementById('em-status-sel').value;
     all[idx].note   = document.getElementById('em-note-area').value;
     localStorage.setItem(EM_KEY, JSON.stringify(all));
+    patchQuote(emCurrentId, { status: all[idx].status, note: all[idx].note });
     document.getElementById('emModal').classList.add('hidden');
     renderEstMgr();
   }
@@ -1661,6 +1721,7 @@
   function deleteEstimate() {
     if (!confirm('이 견적을 삭제하시겠습니까?')) return;
     localStorage.setItem(EM_KEY, JSON.stringify(getEstsFull().filter(x=>x.id!==emCurrentId)));
+    deleteQuote(emCurrentId);
     document.getElementById('emModal').classList.add('hidden');
     renderEstMgr();
   }
@@ -1741,10 +1802,11 @@
 
   /* 전체 삭제 */
   function clearEstimatesFull() {
-    if (confirm('모든 견적 데이터를 삭제하시겠습니까?')) {
-      localStorage.removeItem(EM_KEY);
-      renderEstMgr();
-    }
+    if (!confirm('모든 견적 데이터를 삭제하시겠습니까?')) return;
+    const ids = getEstsFull().map(e => e.id);
+    localStorage.removeItem(EM_KEY);
+    renderEstMgr();
+    ids.forEach(id => deleteQuote(id));
   }
 
   /* 모달 닫기 */
@@ -1754,7 +1816,14 @@
 
   /* 설정 탭에도 견적 삭제 추가 */
   function clearData(key, label) {
-    if (confirm(`${label}을(를) 삭제하시겠습니까?`)) { localStorage.removeItem(key); renderTab(currentTab); alert('삭제되었습니다.'); }
+    if (!confirm(`${label}을(를) 삭제하시겠습니까?`)) return;
+    if (key === KEYS.contacts) {
+      const ids = get(KEYS.contacts).map(c => c.id);
+      ids.forEach(id => deleteInquiry(id));
+    }
+    localStorage.removeItem(key);
+    renderTab(currentTab);
+    alert('삭제되었습니다.');
   }
 
   function clearMulti(keys, label) {

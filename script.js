@@ -669,6 +669,16 @@ form.addEventListener('submit', (event) => {
     arr.push(estRecord);
     localStorage.setItem(KEY, JSON.stringify(arr.slice(-500)));
 
+    try {
+      fetch('/api/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(estRecord),
+      }).catch((err) => console.warn('[quotes] 서버 저장 실패(로컬에는 저장됨):', err));
+    } catch (err) {
+      console.warn('[quotes] 서버 저장 실패(로컬에는 저장됨):', err);
+    }
+
     if (typeof _trackEvent !== 'undefined') {
       _trackEvent('estimate_complete');
       _saveEstimate({
@@ -1011,14 +1021,25 @@ if (inqForm) {
     }
 
     const STORAGE_KEY = 'linkedt_contacts';
-    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    existing.push({
+    const record = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name, org, tel, message: msg,
       timestamp: new Date().toISOString(),
       read: false,
-    });
+    };
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    existing.push(record);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+
+    try {
+      fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record),
+      }).catch((err) => console.warn('[inquiries] 서버 저장 실패(로컬에는 저장됨):', err));
+    } catch (err) {
+      console.warn('[inquiries] 서버 저장 실패(로컬에는 저장됨):', err);
+    }
 
     inqForm.reset();
     inqSuccess.classList.remove('hidden');
@@ -1104,6 +1125,16 @@ function submitConsult() {
   const arr = JSON.parse(localStorage.getItem(KEY) || '[]');
   arr.push(record);
   localStorage.setItem(KEY, JSON.stringify(arr));
+
+  try {
+    fetch('/api/inquiries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    }).catch((err) => console.warn('[inquiries] 서버 저장 실패(로컬에는 저장됨):', err));
+  } catch (err) {
+    console.warn('[inquiries] 서버 저장 실패(로컬에는 저장됨):', err);
+  }
 
   /* 성공 처리 */
   if (nameEl) nameEl.value = '';
