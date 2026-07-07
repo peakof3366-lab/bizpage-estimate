@@ -1031,8 +1031,8 @@ if (inqForm) {
     const org  = document.getElementById('inqOrg').value.trim();
     const tel  = document.getElementById('inqTel')?.value.trim() || '';
     const msg  = document.getElementById('inqMsg').value.trim();
-    if (!name || !tel || !msg) {
-      alert('이름, 연락처, 문의 내용을 모두 입력해 주세요.');
+    if (!name || !org || !tel || !msg) {
+      alert('이름, 소속, 연락처, 문의 내용을 모두 입력해 주세요.');
       return;
     }
 
