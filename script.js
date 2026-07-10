@@ -3816,61 +3816,8 @@ const _FALLBACK_MAP = {
   '밴쿠버':'뉴욕','토론토':'뉴욕',
 };
 
-/* ── 동적 일정 캐시 (localStorage) ──────────────────────────────────
-   키: itinerary_cache_{destKey}_{days}
-   값: { courses:[...], ts: ISO }  30일 유효
-   ─────────────────────────────────────────────────────────────────── */
-var _ITINERARY_API = 'http://localhost:8765';
-
-function _dynCacheKey(dest, days) {
-  return 'itinerary_cache_' + dest + '_' + days;
-}
-function _dynCacheGet(dest, days) {
-  try {
-    var raw = localStorage.getItem(_dynCacheKey(dest, days));
-    if (!raw) return null;
-    var obj = JSON.parse(raw);
-    var age = Date.now() - new Date(obj.ts).getTime();
-    if (age > 30 * 24 * 3600 * 1000) { localStorage.removeItem(_dynCacheKey(dest, days)); return null; }
-    return obj.courses;
-  } catch (e) { return null; }
-}
-function _dynCacheSet(dest, days, courses) {
-  try {
-    localStorage.setItem(_dynCacheKey(dest, days),
-      JSON.stringify({ courses: courses, ts: new Date().toISOString() }));
-  } catch (e) {}
-}
-
-/* 목적지가 DB에 직접 있는지 확인 (fallback 사용 중이면 false) */
-function _hasDirectEntry(destKey) {
-  return !!ITINERARY_DB[destKey];
-}
-
-/* 동적 일정 fetch (API 서버) → Promise<courses[]> */
-function fetchDynamicItinerary(destKey, days) {
-  var cached = _dynCacheGet(destKey, days);
-  if (cached) return Promise.resolve(cached);
-
-  var url = _ITINERARY_API + '/api/itinerary?dest=' + encodeURIComponent(destKey) + '&days=' + days;
-  return fetch(url, { signal: AbortSignal.timeout(30000) })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.courses && data.courses.length) {
-        _dynCacheSet(destKey, days, data.courses);
-        return data.courses;
-      }
-      throw new Error('no courses');
-    });
-}
-
 /* 동기 버전 — ITINERARY_DB 직접 등록 목적지에만 사용 */
 function getItineraries(destKey, programType) {
-  /* 직접 DB 항목이 있을 때만 사용, 없으면 빈 배열 반환 (async 경로로 처리) */
-  if (!_hasDirectEntry(destKey)) {
-    return null;   /* null → 호출자가 fetchDynamicItinerary 로 분기 */
-  }
-
   const courses = ITINERARY_DB[destKey];
 
   /* 프로그램 유형 기반 우선순위 적용 */
@@ -3944,29 +3891,6 @@ function openEstimateWindow() {
   const organization = document.getElementById('organization')?.value.trim() || '—';
   const contactName  = document.getElementById('contactName')?.value.trim() || '—';
   const requestDetails = document.getElementById('requestDetails')?.value.trim() || '';
-
-  /* 직접 DB 항목이 없으면 → API로 비동기 생성 후 재호출 */
-  if (!_hasDirectEntry(destKey)) {
-    var cached = _dynCacheGet(destKey, days);
-    if (cached) {
-      /* 캐시 있음 → 즉시 DB에 주입하고 계속 */
-      ITINERARY_DB[destKey] = cached;
-    } else {
-      /* 캐시 없음 → 로딩 토스트 표시 후 API 호출 */
-      _showApiToast(destKey + ' 맞춤 일정을 생성 중입니다… (10~20초)');
-      fetchDynamicItinerary(destKey, days).then(function(courses) {
-        ITINERARY_DB[destKey] = courses;
-        _hideApiToast();
-        openEstimateWindow();   /* 재호출 — 이번엔 캐시 히트 */
-      }).catch(function(err) {
-        _hideApiToast();
-        /* API 실패 시: DEST_REC 기반 임시 코스로 대체 */
-        ITINERARY_DB[destKey] = _makeCoursesFromDestRec(destKey, days);
-        openEstimateWindow();
-      });
-      return;   /* 비동기 처리 중이므로 여기서 중단 */
-    }
-  }
 
   const fmt = n => '₩ ' + n.toLocaleString('ko-KR');
   const issueDate = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
@@ -4506,65 +4430,6 @@ function toggleFaq(btn) {
 })();
 
 /* ================================================================
-   API 토스트 UI 헬퍼
-   ================================================================ */
-function _showApiToast(msg) {
-  var el = document.getElementById('_apiToast');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = '_apiToast';
-    el.style.cssText = [
-      'position:fixed;bottom:24px;left:50%;transform:translateX(-50%)',
-      'background:#1A1A1A;color:#fff;padding:14px 24px',
-      'font-size:13px;font-weight:600;z-index:9999',
-      'border-left:4px solid #C8102E;box-shadow:0 4px 20px rgba(0,0,0,.35)',
-      'display:flex;align-items:center;gap:12px;min-width:280px',
-    ].join(';');
-    el.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid #C8102E;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite"></span><span id="_apiToastMsg"></span>';
-    if (!document.getElementById('_spinStyle')) {
-      var st = document.createElement('style');
-      st.id = '_spinStyle';
-      st.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
-      document.head.appendChild(st);
-    }
-    document.body.appendChild(el);
-  }
-  document.getElementById('_apiToastMsg').textContent = msg;
-  el.style.display = 'flex';
-}
-function _hideApiToast() {
-  var el = document.getElementById('_apiToast');
-  if (el) el.style.display = 'none';
-}
-
-/* DEST_REC 데이터로 ITINERARY_DB 호환 코스 생성 (API 오프라인 fallback) */
-function _makeCoursesFromDestRec(destKey, days) {
-  var rec = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
-  function buildDays(planData, planType) {
-    var items = planData ? planData.items : [];
-    var result = [];
-    for (var i = 1; i <= days; i++) {
-      var isFirst = (i === 1), isLast = (i === days);
-      if (isFirst) {
-        result.push({ day:1, title:'도착·오리엔테이션', am:'인천국제공항 출발 → 현지 도착, 호텔 체크인', pm:'도심 탐방, 오리엔테이션 미팅', eve:'환영 만찬', tip:'입국 후 환전·교통카드 준비 권장' });
-      } else if (isLast) {
-        result.push({ day:i, title:'귀국', am:'호텔 체크아웃, 공항 이동', pm:'귀국 탑승', eve:'인천국제공항 도착', tip:'출발 3시간 전 공항 도착 권장' });
-      } else {
-        var activity = items[(i - 2) % Math.max(items.length, 1)] || (planType === 'a' ? '현장 탐방·강의' : '문화 체험·팀 활동');
-        result.push({ day:i, title:activity, am:'오전 프로그램', pm:'오후 프로그램', eve:'팀 석식', tip:'' });
-      }
-    }
-    return result;
-  }
-  var a = rec ? rec.a : null;
-  var b = rec ? rec.b : null;
-  return [
-    { title: (a ? a.tag : '역량강화형') + ' 코스', subtitle: a ? a.desc : destKey + ' 현장 탐방', highlights: a ? a.points : ['현지 산업 현장 탐방','전문가 강의·세미나','네트워킹'], days: buildDays(a, 'a') },
-    { title: (b ? b.tag : '동기부여·화합형') + ' 코스', subtitle: b ? b.desc : destKey + ' 문화·팀 체험', highlights: b ? b.points : ['문화 체험','팀 활동','관광'], days: buildDays(b, 'b') },
-  ];
-}
-
-/* ================================================================
    STEP 3 — 연수 일정 탐색
    ================================================================ */
 
@@ -4616,64 +4481,6 @@ function renderStep3() {
     loadStep3Images(destKey);
     return;
   }
-  _step3Courses = null;
-
-  /* DEST_REC에 데이터가 있으면 즉시 렌더 (ITINERARY_DB 직접 등록이 없는 목적지용 폴백) */
-  var rec = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
-  if (rec) {
-    _renderPlanCard('a', rec.a);
-    _renderPlanCard('b', rec.b);
-    selectPlan('b');
-    loadStep3Images(destKey);  /* 이미지 비동기 로드 */
-    /* ITINERARY_DB 없으면 백그라운드에서 API 일정 가져와 타임라인 자동 업그레이드 */
-    if (typeof ITINERARY_DB !== 'undefined' && !ITINERARY_DB[destKey]) {
-      var bd0 = (typeof getBreakdownData !== 'undefined') ? getBreakdownData() : null;
-      var days0 = bd0 ? parseInt(bd0.days) : 5;
-      fetchDynamicItinerary(destKey, days0)
-        .then(function(courses0) {
-          if (courses0 && courses0.length >= 1) {
-            ITINERARY_DB[destKey] = courses0;
-            _step3Courses = [courses0[0], courses0[1] || courses0[0]];
-            _renderTimeline(_currentPlan || 'b');  /* 풍부한 일정으로 타임라인 업데이트 */
-          }
-        })
-        .catch(function() {});  /* API 미실행 시 조용히 실패 → DEST_REC 폴백 유지 */
-    }
-    return;
-  }
-
-  /* DEST_REC 없음 → API에서 가져와 DEST_REC에 주입 */
-  var bd = (typeof getBreakdownData !== 'undefined') ? getBreakdownData() : null;
-  var days = bd ? parseInt(bd.days) : 5;
-
-  /* 로딩 표시 */
-  _step3ShowLoading(destLabel);
-
-  fetchDynamicItinerary(destKey, days)
-    .then(function(courses) {
-      /* ITINERARY_DB에 저장 → _renderTimeline 이 am/pm/eve/tip 풍부하게 표시 */
-      if (courses && courses.length >= 1) {
-        ITINERARY_DB[destKey] = courses;
-        _step3Courses = [courses[0], courses[1] || courses[0]];
-      }
-      if (typeof DEST_REC !== 'undefined' && courses && courses.length >= 2) {
-        DEST_REC[destKey] = _coursesToDestRec(courses);
-      }
-      _step3HideLoading();
-      var newRec = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
-      _renderPlanCard('a', newRec ? newRec.a : null);
-      _renderPlanCard('b', newRec ? newRec.b : null);
-      selectPlan('b');
-      loadStep3Images(destKey);  /* 이미지 비동기 로드 */
-    })
-    .catch(function() {
-      _step3HideLoading();
-      var fallbackRec = _destRecFromMadeCourses(_makeCoursesFromDestRec(destKey, days));
-      _renderPlanCard('a', fallbackRec.a);
-      _renderPlanCard('b', fallbackRec.b);
-      selectPlan('b');
-      loadStep3Images(destKey);  /* 실패해도 이미지 시도 */
-    });
 }
 
 /* API courses 배열 → DEST_REC {a, b} 형식 변환 */
@@ -4688,25 +4495,6 @@ function _coursesToDestRec(courses) {
     };
   }
   return { a: toRec(courses[0]), b: toRec(courses[1] || courses[0]) };
-}
-
-/* makeCoursesFromDestRec 결과 → DEST_REC 포맷 */
-function _destRecFromMadeCourses(courses) {
-  return _coursesToDestRec(courses);
-}
-
-/* Step 3 로딩 상태 표시/숨김 */
-function _step3ShowLoading(destLabel) {
-  var cardA = document.getElementById('planCardA');
-  var cardB = document.getElementById('planCardB');
-  var loadingHtml = '<div style="padding:20px 0;text-align:center;color:var(--t-sub);font-size:13px">'
-    + '<span style="display:inline-block;width:18px;height:18px;border:2px solid var(--red);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px"></span>'
-    + destLabel + ' 맞춤 일정 생성 중…</div>';
-  if (cardA) cardA.innerHTML = loadingHtml;
-  if (cardB) cardB.innerHTML = '';
-}
-function _step3HideLoading() {
-  /* 카드 HTML은 _renderPlanCard에서 다시 그리므로 별도 처리 불필요 */
 }
 
 /* 플랜 카드 내부 채우기 */
@@ -4746,42 +4534,6 @@ function _renderPlanCard(plan, data) {
 /* ================================================================
    이미지 파이프라인
    ================================================================ */
-
-/* localStorage 이미지 캐시 (7일) */
-var _IMG_CACHE_PREFIX = 'dest_imgs_';
-function _imgCacheGet(dest) {
-  try {
-    var raw = localStorage.getItem(_IMG_CACHE_PREFIX + dest);
-    if (!raw) return null;
-    var obj = JSON.parse(raw);
-    if (Date.now() - new Date(obj.ts).getTime() > 7 * 24 * 3600 * 1000) {
-      localStorage.removeItem(_IMG_CACHE_PREFIX + dest);
-      return null;
-    }
-    return obj.images;
-  } catch (e) { return null; }
-}
-function _imgCacheSet(dest, images) {
-  try {
-    localStorage.setItem(_IMG_CACHE_PREFIX + dest,
-      JSON.stringify({ images: images, ts: new Date().toISOString() }));
-  } catch (e) {}
-}
-
-/* API에서 이미지 가져오기 */
-function fetchDestImages(destKey) {
-  var cached = _imgCacheGet(destKey);
-  if (cached) return Promise.resolve(cached);
-
-  var url = _ITINERARY_API + '/api/images?dest=' + encodeURIComponent(destKey) + '&count=8';
-  return fetch(url, { signal: AbortSignal.timeout(15000) })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      var imgs = data.images || [];
-      if (imgs.length >= 2) _imgCacheSet(destKey, imgs);
-      return imgs;
-    });
-}
 
 /* DEST_PHOTOS의 기존 strip 배열을 API 응답 포맷으로 변환 */
 function _destPhotosToImgList(destKey) {
@@ -4905,22 +4657,6 @@ function loadStep3Images(destKey) {
     _renderPhotoStrip(destKey, local);
     return;
   }
-  /* 2. localStorage 캐시 확인 */
-  var cached = _imgCacheGet(destKey);
-  if (cached) {
-    _renderPhotoStrip(destKey, cached);
-    return;
-  }
-  /* 3. API 호출 (서버 실행 중일 때만) */
-  fetchDestImages(destKey)
-    .then(function(images) {
-      _renderPhotoStrip(destKey, images);
-    })
-    .catch(function() {
-      /* API 없음 → 이미지 미표시 (정책: 관련 없는 사진 없으면 표시 안 함) */
-      var wrap = document.getElementById('destStripWrap');
-      if (wrap) wrap.classList.add('hidden');
-    });
 }
 
 /* 플랜 선택 처리 */
