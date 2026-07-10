@@ -4363,6 +4363,20 @@ function showCourse(id, btn) {
   }
   w.document.write(html);
   w.document.close();
+
+  /* 공유 링크를 서버에 저장하고 짧은 ID 링크로 교체 (실패 시 위에 이미 넣어둔
+     긴 base64 링크(?d=)가 그대로 남아 동작하므로 안전하게 폴백된다) */
+  fetch('/api/quote-shares', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(shareData),
+  }).then(r => r.ok ? r.json() : Promise.reject())
+    .then(({ id }) => {
+      if (w.closed) return;
+      const inp = w.document.getElementById('share-url-inp');
+      if (inp) inp.value = base + 'estimate-view.html?id=' + id;
+    })
+    .catch(() => {});
 }
 
 /* ── Hero Stats 카운트업 ──────────────────────────────────────────── */

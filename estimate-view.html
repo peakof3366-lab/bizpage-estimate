@@ -313,6 +313,20 @@ function decodeShareData() {
   }
 }
 
+/* 짧은 링크(?id=)는 서버에 저장된 데이터를 조회, 없으면 기존 방식(?d=)으로 폴백 */
+async function loadShareData() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) return decodeShareData();
+  try {
+    const res = await fetch('/api/quote-shares/' + encodeURIComponent(id));
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
 function calcValidity(isoDate) {
   const issued = new Date(isoDate);
   const expires = new Date(issued);
@@ -527,8 +541,8 @@ function renderPage(d) {
 }
 
 /* ── 진입점 ── */
-(function init() {
-  const d = decodeShareData();
+(async function init() {
+  const d = await loadShareData();
   if (!d) {
     document.getElementById('error-wrap').innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>

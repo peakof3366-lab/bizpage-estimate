@@ -36,6 +36,14 @@ async function main() {
   `;
 
   await sql`
+    create table if not exists quote_shares (
+      id text primary key,
+      created_at timestamptz not null default now(),
+      payload jsonb not null
+    )
+  `;
+
+  await sql`
     create table if not exists admin_auth (
       id int primary key default 1,
       password_hash text not null,
@@ -44,7 +52,7 @@ async function main() {
     )
   `;
 
-  console.log('Migration complete: quotes, inquiries, admin_auth tables ready.');
+  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth tables ready.');
 }
 
 main().catch((err) => {
