@@ -78,7 +78,6 @@
     font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
     color: var(--primary); margin-bottom: 1.25rem; padding-bottom: .65rem; border-bottom: 2px solid var(--heading);
   }
-  .aq-step2-lbl { font-size: .88rem; font-weight: 700; color: var(--heading); display: block; margin-bottom: .5rem; }
   .aq-field-lbl { font-size: .88rem; font-weight: 700; color: var(--heading); display: flex; align-items: center; gap: .4rem; margin-bottom: .6rem; }
   .aq-field-block { margin-bottom: 1.4rem; }
   .aq-field-block:last-child { margin-bottom: 0; }
@@ -102,25 +101,30 @@
   .aq-shell .date-inp { height: 48px; font-size: .96rem; }
   .aq-shell .date-block-title { font-size: .88rem; }
 
-  /* ── 참가인원/기간/vip 등 숫자 입력 ── */
+  /* ── 참가인원/기간/vip 등 숫자 입력 ──
+     ⚠ .estimate-step 바로 아래(> label)가 아니라 .aq-section으로 한 번 더 감싸여
+     있어서(고객 정보 섹션) 예전에 '>' 직계 선택자를 썼을 때 스타일이 전혀 먹지
+     않는 버그가 있었음 — 후손 선택자로 바꿔 항상 적용되게 함. */
   .aq-shell .fld select,
   .aq-shell .fld input[type="number"],
   .aq-shell .fld input[type="text"],
-  .aq-shell .estimate-step > label > input,
-  .aq-shell .estimate-step > label > textarea,
-  .aq-shell .estimate-step > label > select {
-    height: 50px; font-size: 1rem; padding: 0 1.1rem; border: 1.6px solid var(--border);
-    background: #fff; color: var(--heading);
+  .aq-shell .estimate-step label input,
+  .aq-shell .estimate-step label textarea,
+  .aq-shell .estimate-step label select {
+    height: 54px; font-size: 1.02rem; padding: 0 1.15rem; border: 1.8px solid var(--border);
+    background: #fff; color: var(--heading); width: 100%;
   }
-  .aq-shell .estimate-step > label > textarea { height: auto; min-height: 110px; padding: .9rem 1.1rem; }
+  .aq-shell .estimate-step label textarea { height: auto; min-height: 150px; padding: 1rem 1.15rem; line-height: 1.6; resize: vertical; }
   .aq-shell .fld select:focus, .aq-shell .fld input:focus,
-  .aq-shell .estimate-step > label > input:focus,
-  .aq-shell .estimate-step > label > textarea:focus,
-  .aq-shell .estimate-step > label > select:focus {
+  .aq-shell .estimate-step label input:focus,
+  .aq-shell .estimate-step label textarea:focus,
+  .aq-shell .estimate-step label select:focus {
     outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(200,16,46,.08);
   }
-  .aq-shell .estimate-step > label { margin-bottom: 1.15rem; display: block; }
+  .aq-shell .estimate-step label { margin-bottom: 1.5rem; display: block; }
+  .aq-shell .estimate-step label:last-child { margin-bottom: 0; }
   .aq-shell .fld-row { gap: 1rem; margin-bottom: 0; }
+  .aq-step2-lbl { font-size: .92rem; font-weight: 700; color: var(--heading); display: block; margin-bottom: .6rem; }
 
   /* ── 목적지 아코디언(지역별) ── */
   .aq-dest-master { border: 1.6px solid var(--primary); }
@@ -519,17 +523,19 @@
       <div class="estimate-step" data-step="2">
         <div class="aq-section">
           <div class="aq-section-title">고객 정보</div>
-          <label>
-            <span class="aq-step2-lbl">고객사 / 기관명</span>
-            <input type="text" id="organization" placeholder="고객사 또는 기관명을 입력하세요" required />
-          </label>
-          <label>
-            <span class="aq-step2-lbl">고객 담당자 이름</span>
-            <input type="text" id="contactName" placeholder="고객 측 담당자 이름을 입력하세요" required />
-          </label>
+          <div class="fld-row">
+            <label>
+              <span class="aq-step2-lbl">고객사 / 기관명</span>
+              <input type="text" id="organization" placeholder="고객사 또는 기관명을 입력하세요" required />
+            </label>
+            <label>
+              <span class="aq-step2-lbl">고객 담당자 이름</span>
+              <input type="text" id="contactName" placeholder="고객 측 담당자 이름을 입력하세요" required />
+            </label>
+          </div>
           <label>
             <span class="aq-step2-lbl">요청 사항 / 메모</span>
-            <textarea id="requestDetails" placeholder="문의·상담 내용, 핵심 요구사항 등 메모" required></textarea>
+            <textarea id="requestDetails" placeholder="문의·상담 내용, 핵심 요구사항 등을 자유롭게 메모하세요" required></textarea>
           </label>
         </div>
 
