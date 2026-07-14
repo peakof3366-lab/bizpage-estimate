@@ -91,7 +91,7 @@
     .si-icon  { font-size: 1rem; flex-shrink: 0; }
     .si-label { flex: 1; }
     .si-badge { background: var(--danger); color: #fff; font-size: .65rem; font-weight: 700;
-      padding: .1rem .35rem; border-radius: 10px; line-height: 1.4; }
+      padding: .1rem .35rem; border-radius: 0; line-height: 1.4; }
     .sidebar-footer { padding: .8rem .8rem; border-top: 1px solid rgba(255,255,255,.1); display: flex; gap: .5rem; }
     .sf-link    { flex: 1; padding: .45rem .75rem; background: rgba(255,255,255,.08); color: rgba(255,255,255,.7);
       font-size: .76rem; font-weight: 600; text-align: center; border-radius: 0; transition: background .18s; text-decoration: none; }
@@ -192,13 +192,15 @@
     .inq-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
     .inq-table thead { background: var(--bg); }
     .inq-table th { padding: .65rem .85rem; text-align: left; font-weight: 700; color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    .inq-table td { padding: .75rem .85rem; border-bottom: 1px solid rgba(0,0,0,.05); vertical-align: top; }
+    .inq-table td { padding: .75rem .85rem; border-bottom: 1px solid rgba(0,0,0,.05); vertical-align: middle; }
+    .btn-detail { padding: .35rem .8rem; font-size: .78rem; font-weight: 600; border: 1.5px solid var(--border); background: var(--white); color: var(--muted); border-radius: 0; cursor: pointer; transition: all .2s; white-space: nowrap; }
+    .btn-detail:hover { border-color: var(--primary); color: var(--primary); }
     .inq-table tbody tr:last-child td { border-bottom: none; }
     .inq-table tbody tr:hover { background: rgba(0,0,0,.02); }
     .inq-table tbody tr.unread { background: #fffbeb; }
     .msg-preview { max-width: 260px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .date-col { white-space: nowrap; color: var(--muted); }
-    .badge { display: inline-block; padding: .2rem .55rem; border-radius: 20px; font-size: .72rem; font-weight: 700; }
+    .badge { display: inline-block; padding: .2rem .55rem; border-radius: 0; font-size: .72rem; font-weight: 700; white-space: nowrap; }
     .badge-new  { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
     .badge-read { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
     .badge-pend { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
@@ -265,7 +267,7 @@
     .rate-table th { padding:.6rem .85rem; text-align:left; font-weight:700; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--border); white-space:nowrap; }
     .rate-table td { padding:.65rem .85rem; border-bottom:1px solid rgba(0,0,0,.05); vertical-align:middle; }
     .rate-table tbody tr:hover { background:rgba(0,0,0,.02); }
-    .rate-badge { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .6rem; border-radius:20px; font-size:.72rem; font-weight:700; }
+    .rate-badge { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .6rem; border-radius:0; font-size:.72rem; font-weight:700; }
     .rate-badge.ok    { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
     .rate-badge.check { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
     .rate-badge.stale { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
@@ -680,9 +682,9 @@
         <div class="card-header"><span class="card-title">요율 갱신 방법</span></div>
         <div class="card-body">
           <ol style="font-size:.84rem;line-height:2;color:var(--text);padding-left:1.2rem">
-            <li><code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:3px">data.js</code> 파일을 텍스트 편집기(메모장·VS Code)로 열기</li>
-            <li>갱신할 도시의 행에서 단가 수치 수정 + <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:3px">"rateDate":"YYYY-MM"</code> 을 현재 월로 변경</li>
-            <li>전체 검토 완료 시 <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:3px">RATE_META</code> 의 <code>updated</code>, <code>version</code>, <code>nextReview</code> 도 업데이트</li>
+            <li><code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:0">data.js</code> 파일을 텍스트 편집기(메모장·VS Code)로 열기</li>
+            <li>갱신할 도시의 행에서 단가 수치 수정 + <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:0">"rateDate":"YYYY-MM"</code> 을 현재 월로 변경</li>
+            <li>전체 검토 완료 시 <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:0">RATE_META</code> 의 <code>updated</code>, <code>version</code>, <code>nextReview</code> 도 업데이트</li>
             <li>파일 저장 후 브라우저에서 새로고침 → 변경 내용 즉시 반영</li>
           </ol>
           <p style="font-size:.78rem;color:var(--muted);margin-top:.75rem">권장 갱신 주기: <strong>분기별 1회</strong> (3개월마다) · 환율 변동 큰 지역은 월별 확인</p>
@@ -2006,7 +2008,7 @@
 
     /* 연수 조건 */
     const rateInfo = e.rateDate
-      ? `<br><span style="font-size:.74rem;color:#1d4ed8;background:#eff6ff;padding:.1rem .4rem;border-radius:3px">요율기준: ${e.rateDate} · v${e.rateVersion||'—'}</span>`
+      ? `<br><span style="font-size:.74rem;color:#1d4ed8;background:#eff6ff;padding:.1rem .4rem;border-radius:0">요율기준: ${e.rateDate} · v${e.rateVersion||'—'}</span>`
       : '';
     document.getElementById('em-conds').innerHTML =
       `목적지: <b>${esc(e.destLabel||e.destKey)}</b>${rateInfo}<br>프로그램: ${esc(e.programLabel||'—')}<br>인원: ${e.participants}명 / 기간: ${e.days}일 (${e.nights}박)<br>` +
