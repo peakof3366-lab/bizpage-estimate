@@ -123,12 +123,22 @@
   .aq-shell .fld-row { gap: 1rem; margin-bottom: 0; }
 
   /* ── 목적지 아코디언(지역별) ── */
+  .aq-dest-master { border: 1.6px solid var(--primary); }
+  .aq-dest-master[open] { padding-bottom: 1.1rem; }
   .aq-dest-selected {
     display: flex; align-items: center; gap: .6rem; font-size: .95rem; font-weight: 700;
-    color: var(--heading); background: rgba(200,16,46,.05); border: 1.6px solid var(--primary);
-    padding: .8rem 1.1rem; margin-bottom: 1rem;
+    color: var(--heading); background: rgba(200,16,46,.05);
+    padding: .95rem 1.1rem; cursor: pointer; list-style: none; user-select: none;
   }
+  .aq-dest-selected::-webkit-details-marker { display: none; }
   .aq-dest-selected .aq-dest-empty { color: var(--muted); font-weight: 500; }
+  .aq-dest-master-hint {
+    margin-left: auto; font-size: .78rem; font-weight: 600; color: var(--primary);
+    white-space: nowrap; display: flex; align-items: center; gap: .3rem;
+  }
+  .aq-dest-master-hint::after { content: '▾'; font-size: .7rem; }
+  .aq-dest-master[open] .aq-dest-master-hint::after { content: '▴'; }
+  .aq-dest-master-body { padding: 1rem 1.1rem 0; }
   #destSearch {
     width: 100%; height: 46px; font-size: .92rem; padding: 0 1rem; border: 1.6px solid var(--border);
     background: #fff; color: var(--heading); margin-bottom: .85rem;
@@ -205,16 +215,19 @@
       <div class="estimate-step step-active" data-step="1">
 
         <div class="aq-section">
-          <div class="aq-section-title">여행 목적지 <span style="font-weight:500;text-transform:none;color:var(--muted);letter-spacing:0">— 지역을 펼쳐 목적지를 체크하세요</span></div>
+          <div class="aq-section-title">여행 목적지 <span style="font-weight:500;text-transform:none;color:var(--muted);letter-spacing:0">— 클릭하면 목적지 선택창이 펼쳐집니다</span></div>
 
-          <div class="aq-dest-selected" id="destSelectedBar">
-            <span>선택된 목적지:</span>
-            <strong id="destSelectedLabel" class="aq-dest-empty">아직 선택되지 않음</strong>
-          </div>
-
-          <input type="text" id="destSearch" placeholder="목적지 검색 (예: 도쿄, 방콕, Paris...)" />
-
-          <div id="destAccordion"></div>
+          <details class="aq-dest-master" id="destMaster">
+            <summary class="aq-dest-selected" id="destSelectedBar">
+              <span>선택된 목적지:</span>
+              <strong id="destSelectedLabel" class="aq-dest-empty">아직 선택되지 않음</strong>
+              <span class="aq-dest-master-hint">클릭하여 선택/변경</span>
+            </summary>
+            <div class="aq-dest-master-body">
+              <input type="text" id="destSearch" placeholder="목적지 검색 (예: 도쿄, 방콕, Paris...)" />
+              <div id="destAccordion"></div>
+            </div>
+          </details>
 
           <!-- 계산 엔진(script.js)이 참조하는 진짜 입력값 — 화면에는 위 아코디언 UI로 대체 노출,
                .value/.selectedOptions는 반드시 실제 <select>여야 하므로 삭제하지 않고 숨김 처리만 함 -->
@@ -633,6 +646,9 @@
           select.dispatchEvent(new Event('change', { bubbles: true }));
           selectedLabel.textContent = opt.textContent;
           selectedLabel.classList.remove('aq-dest-empty');
+          /* 선택 즉시 펼침창을 접어 "선택된 목적지: OOO" 한 줄로 정리 */
+          const master = document.getElementById('destMaster');
+          if (master) master.open = false;
         });
         const span = document.createElement('span');
         span.textContent = opt.textContent;
