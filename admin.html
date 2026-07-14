@@ -233,6 +233,7 @@
     .modal-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
     .status-select { padding: .5rem .75rem; border: 1px solid var(--border); font-size: .82rem; border-radius: var(--r); }
     .status-select:focus { outline: none; border-color: var(--primary); }
+    .status-select:disabled { background: var(--bg); color: var(--muted); cursor: not-allowed; }
 
     /* ── SETTINGS ────────────────── */
     .setting-section { margin-bottom: 2rem; }
@@ -790,9 +791,10 @@
           <span id="d-reply-meta" style="font-size:.72rem;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">아직 답변하지 않았습니다.</span>
         </div>
         <textarea class="note-area" id="d-reply-text" placeholder="고객에게 전달한(또는 전달할) 답변 내용을 입력하세요..." style="margin-top:.5rem"></textarea>
-        <div style="display:flex;gap:.4rem;margin-top:.5rem">
+        <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center">
           <select class="status-select" id="d-reply-author" style="flex:0 0 auto"></select>
           <button type="button" class="btn-act btn-primary" onclick="confirmReply('inquiry', currentModalId, 'd-reply-author', 'd-reply-text', 'd-reply-meta')" style="flex:0 0 auto">답변 확정</button>
+          <span id="d-reply-lock-hint" style="font-size:.72rem;color:var(--muted)"></span>
         </div>
       </div>
 
@@ -807,7 +809,7 @@
           <option value="pending">처리중</option>
           <option value="done">완료</option>
         </select>
-        <select class="status-select" id="d-assignee">
+        <select class="status-select" id="d-assignee" onchange="confirmAssigneeSelect(this); onAssigneeSelectChanged('inquiry')">
           <option value="">담당자 미배정</option>
         </select>
         <button class="btn-act btn-primary" onclick="saveDetail()">저장</button>
@@ -819,10 +821,11 @@
       <div class="detail-field" style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
         <div class="detail-label">진행 기록</div>
         <div id="d-log-list" style="margin:.5rem 0"></div>
-        <div style="display:flex;gap:.4rem;margin-top:.5rem">
+        <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center;flex-wrap:wrap">
           <select class="status-select" id="d-log-author" style="flex:0 0 auto"></select>
           <input type="text" id="d-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" />
           <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('inquiry', currentModalId, 'd-log-author', 'd-log-text', 'd-log-list')">추가</button>
+          <span id="d-log-lock-hint" style="font-size:.72rem;color:var(--muted);width:100%"></span>
         </div>
       </div>
     </div>
@@ -913,7 +916,7 @@
           </div>
           <div>
             <div class="detail-label" style="margin-bottom:.4rem">담당자</div>
-            <select id="em-assignee-sel" class="status-select">
+            <select id="em-assignee-sel" class="status-select" onchange="confirmAssigneeSelect(this); onAssigneeSelectChanged('quote')">
               <option value="">미배정</option>
             </select>
           </div>
@@ -933,10 +936,11 @@
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
           <div class="detail-label">진행 기록</div>
           <div id="em-log-list" style="margin:.5rem 0"></div>
-          <div style="display:flex;gap:.4rem;margin-top:.5rem">
+          <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center;flex-wrap:wrap">
             <select class="status-select" id="em-log-author" style="flex:0 0 auto"></select>
             <input type="text" id="em-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" />
             <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('quote', emCurrentId, 'em-log-author', 'em-log-text', 'em-log-list')">추가</button>
+            <span id="em-log-lock-hint" style="font-size:.72rem;color:var(--muted);width:100%"></span>
           </div>
         </div>
       </div>
@@ -962,7 +966,47 @@
   function assigneeSelectHtml(current, extraAttrs) {
     const opts = ['<option value="">미배정</option>']
       .concat(STAFF_LIST.map(n => `<option value="${esc(n)}"${n===current?' selected':''}>${esc(n)}</option>`));
-    return `<select class="status-select" style="font-size:.78rem;padding:.3rem .5rem" ${extraAttrs||''}>${opts.join('')}</select>`;
+    return `<select class="status-select" style="font-size:.78rem;padding:.3rem .5rem" data-prev="${esc(current||'')}" ${extraAttrs||''}>${opts.join('')}</select>`;
+  }
+
+  /* 담당자 변경 시 확인창 — 취소하면 이전 값으로 되돌림 (신규) */
+  function confirmAssigneeSelect(selectEl) {
+    const prev = selectEl.dataset.prev !== undefined ? selectEl.dataset.prev : '';
+    const next = selectEl.value;
+    if (next === prev) return true;
+    const ok = confirm(`담당자를 "${prev || '미배정'}"에서 "${next || '미배정'}"(으)로 변경하시겠습니까?`);
+    if (!ok) { selectEl.value = prev; return false; }
+    selectEl.dataset.prev = next;
+    return true;
+  }
+
+  /* 답변/진행기록 작성자를 담당자로 잠금 (신규) — 담당자가 배정된 문의/견적은
+     그 담당자만 답변·기록을 남길 수 있고, 미배정 상태면 누구나 남길 수 있음 */
+  function renderAuthorLock(selectId, hintId, assignee) {
+    const sel = document.getElementById(selectId);
+    const hint = document.getElementById(hintId);
+    if (!sel) return;
+    sel.innerHTML = STAFF_LIST.map(n => `<option value="${esc(n)}"${n===assignee?' selected':''}>${esc(n)}</option>`).join('');
+    if (assignee) {
+      sel.value = assignee;
+      sel.disabled = true;
+      if (hint) hint.textContent = `담당자(${assignee})만 작성할 수 있습니다. 다른 사람이 작성하려면 담당자를 먼저 변경하세요.`;
+    } else {
+      sel.disabled = false;
+      if (hint) hint.textContent = '담당자 미배정 — 누구나 작성할 수 있습니다.';
+    }
+  }
+
+  /* 모달에서 담당자를 바꾸는 즉시 답변/진행기록 잠금 상태도 함께 갱신 (신규) */
+  function onAssigneeSelectChanged(kind) {
+    if (kind === 'inquiry') {
+      const assignee = document.getElementById('d-assignee').value;
+      renderAuthorLock('d-reply-author', 'd-reply-lock-hint', assignee);
+      renderAuthorLock('d-log-author', 'd-log-lock-hint', assignee);
+    } else {
+      const assignee = document.getElementById('em-assignee-sel').value;
+      renderAuthorLock('em-log-author', 'em-log-lock-hint', assignee);
+    }
   }
 
   function activityLogHtml(log) {
@@ -1097,6 +1141,7 @@
 
   /* 목록에서 담당자 즉시 변경 (신규) */
   function updateAssignee(selectEl, kind) {
+    if (!confirmAssigneeSelect(selectEl)) return;
     const id = selectEl.dataset.id;
     const assignee = selectEl.value;
     if (kind === 'inquiry') {
@@ -1113,12 +1158,29 @@
   }
 
   /* 진행 기록 추가 (신규) — 문의/견적 공용 */
+  /* 담당자가 배정된 건은 그 담당자만 작성 가능 (신규, 방어적 재검증 —
+     select가 잠겨 있어 정상적으로는 항상 일치하지만 만약을 대비).
+     저장 전이라도 모달에 지금 선택돼 있는 담당자를 기준으로 판단해야
+     "방금 담당자를 나로 바꿨는데 답변이 막힌다" 같은 혼란이 없다. */
+  function getAssigneeOf(kind, id) {
+    const liveSel = document.getElementById(kind === 'inquiry' ? 'd-assignee' : 'em-assignee-sel');
+    if (liveSel) return liveSel.value;
+    return kind === 'inquiry'
+      ? (get(KEYS.contacts).find(x => x.id === id)?.assignee || '')
+      : (getEstsFull().find(x => x.id === id)?.assignee || '');
+  }
+
   async function addActivityLog(kind, id, authorSelId, textId, logContainerId) {
     const author = document.getElementById(authorSelId).value;
     const textEl = document.getElementById(textId);
     const text = textEl.value.trim();
     if (!author) { alert('작성자를 선택해 주세요.'); return; }
     if (!text) { alert('내용을 입력해 주세요.'); return; }
+    const assignee = getAssigneeOf(kind, id);
+    if (assignee && author !== assignee) {
+      alert(`이 문의(견적)는 "${assignee}"님이 담당하고 있어 담당자만 기록을 남길 수 있습니다.`);
+      return;
+    }
 
     const patchFn = kind === 'inquiry' ? patchInquiry : patchQuote;
     const res = await patchFn(id, { addLog: { author, text } });
@@ -1150,6 +1212,11 @@
     const text = textEl.value.trim();
     if (!author) { alert('답변 작성자를 선택해 주세요.'); return; }
     if (!text) { alert('답변 내용을 입력해 주세요.'); return; }
+    const assignee = getAssigneeOf(kind, id);
+    if (assignee && author !== assignee) {
+      alert(`이 문의(견적)는 "${assignee}"님이 담당하고 있어 담당자만 답변할 수 있습니다.`);
+      return;
+    }
     if (!confirm('이 내용으로 답변을 확정하시겠습니까?')) return;
 
     const patchFn = kind === 'inquiry' ? patchInquiry : patchQuote;
@@ -1450,12 +1517,13 @@
     document.getElementById('d-note').value = c.note||'';
     document.getElementById('d-status').value = c.status||'read';
     document.getElementById('d-assignee').innerHTML = assigneeSelectHtml(c.assignee);
-    document.getElementById('d-log-author').innerHTML = STAFF_LIST.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
     document.getElementById('d-log-list').innerHTML = activityLogHtml(c.activityLog);
+    /* 담당자가 있으면 답변/진행기록 작성자를 그 담당자로 잠금 (신규) */
+    renderAuthorLock('d-log-author', 'd-log-lock-hint', c.assignee);
+    renderAuthorLock('d-reply-author', 'd-reply-lock-hint', c.assignee);
 
     /* 답변 내용 (신규) */
     document.getElementById('d-reply-text').value = c.reply || '';
-    document.getElementById('d-reply-author').innerHTML = STAFF_LIST.map(n=>`<option value="${esc(n)}"${n===c.repliedBy?' selected':''}>${esc(n)}</option>`).join('');
     document.getElementById('d-reply-meta').textContent = c.repliedAt
       ? `${c.repliedBy||'—'} · ${fmtDate(c.repliedAt)} 답변`
       : '아직 답변하지 않았습니다.';
@@ -2110,7 +2178,7 @@
     document.getElementById('em-status-sel').value = e.status || 'new';
     document.getElementById('em-note-area').value   = e.note   || '';
     document.getElementById('em-assignee-sel').innerHTML = assigneeSelectHtml(e.assignee);
-    document.getElementById('em-log-author').innerHTML = STAFF_LIST.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    renderAuthorLock('em-log-author', 'em-log-lock-hint', e.assignee);
     document.getElementById('em-log-list').innerHTML = activityLogHtml(e.activityLog);
 
     document.getElementById('emModal').classList.remove('hidden');
