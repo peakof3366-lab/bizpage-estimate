@@ -658,35 +658,47 @@
         <button class="filter-btn" data-rfilter="ok">✅ 최신</button>
         <button class="filter-btn" data-rfilter="check">⚠️ 확인 권장</button>
         <button class="filter-btn" data-rfilter="stale">🔴 갱신 필요</button>
-        <button class="btn-act btn-outline-p" style="margin-left:auto" onclick="exportRatesCsv()">CSV 내보내기</button>
+        <button class="btn-act btn-outline-p" style="margin-left:auto" onclick="openRateBulkModal()">📊 일괄 조정</button>
+        <button class="btn-act btn-outline-p" onclick="openRateHistoryModal()">🕘 변경 이력</button>
+        <button class="btn-act btn-outline-p" onclick="exportRatesCsv()">CSV 내보내기</button>
       </div>
 
       <!-- 요율 테이블 -->
       <div class="card" style="overflow:hidden">
+        <div style="overflow-x:auto">
         <table class="rate-table">
           <thead>
             <tr>
               <th style="width:90px">지역</th>
               <th>목적지</th>
+              <th style="text-align:right">항공료</th>
+              <th style="text-align:right">호텔/박</th>
+              <th style="text-align:right">1인 식비</th>
+              <th style="text-align:right">마진/인</th>
               <th style="width:100px">요율 기준월</th>
               <th style="width:80px">경과</th>
               <th style="width:100px">상태</th>
-              <th>비고 / 참고사항</th>
+              <th style="width:80px">관리</th>
             </tr>
           </thead>
           <tbody id="rate-tbody"></tbody>
         </table>
+        </div>
       </div>
 
       <!-- 갱신 방법 안내 -->
       <div class="card" style="margin-top:1.25rem">
         <div class="card-header"><span class="card-title">요율 갱신 방법</span></div>
         <div class="card-body">
-          <ol style="font-size:.84rem;line-height:2;color:var(--text);padding-left:1.2rem">
-            <li><code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:0">data.js</code> 파일을 텍스트 편집기(메모장·VS Code)로 열기</li>
-            <li>갱신할 도시의 행에서 단가 수치 수정 + <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:0">"rateDate":"YYYY-MM"</code> 을 현재 월로 변경</li>
-            <li>전체 검토 완료 시 <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:0">RATE_META</code> 의 <code>updated</code>, <code>version</code>, <code>nextReview</code> 도 업데이트</li>
-            <li>파일 저장 후 브라우저에서 새로고침 → 변경 내용 즉시 반영</li>
+          <p style="font-size:.84rem;color:var(--text);margin-bottom:.6rem">
+            <strong>기본(권장)</strong>: 위 표에서 목적지의 "편집" 버튼을 눌러 단가를 직접 수정하세요.
+            저장하는 즉시 실제 견적 계산에 반영되고, 변경 이력에도 자동으로 남습니다.
+          </p>
+          <ol style="font-size:.8rem;line-height:1.9;color:var(--muted);padding-left:1.2rem">
+            <li>관리자 페이지가 아닌 원본 파일을 직접 고쳐야 하는 특수한 경우에만:
+              <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:0">data.js</code> 파일을 텍스트 편집기로 열어 수정</li>
+            <li>이 경우 위 편집 버튼으로 저장한 값(오버라이드)이 우선 적용되므로,
+              반드시 요율 관리 표에서 해당 목적지의 오버라이드가 없는지 먼저 확인</li>
           </ol>
           <p style="font-size:.78rem;color:var(--muted);margin-top:.75rem">권장 갱신 주기: <strong>분기별 1회</strong> (3개월마다) · 환율 변동 큰 지역은 월별 확인</p>
         </div>
@@ -949,6 +961,83 @@
   </div>
 </div>
 
+<!-- ══ 요율 편집 모달 (신규) ══ -->
+<div id="rateEditModal" class="modal-overlay hidden">
+  <div class="modal-box" style="width:min(600px,100%)">
+    <div class="modal-header">
+      <h3 id="rateEditTitle">단가 편집</h3>
+      <button onclick="document.getElementById('rateEditModal').classList.add('hidden')" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="rate-edit-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem"></div>
+      <div class="detail-field" style="margin-top:1rem">
+        <div class="detail-label">비고 / 참고사항</div>
+        <textarea class="note-area" id="rate-edit-notes" placeholder="변동성·확인 주의사항 등을 입력하세요..." style="min-height:60px"></textarea>
+      </div>
+      <div class="modal-actions">
+        <select class="status-select" id="rate-edit-author"></select>
+        <button class="btn-act btn-primary" onclick="saveRateEdit()">저장</button>
+        <button class="btn-act" onclick="document.getElementById('rateEditModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
+      </div>
+      <p style="font-size:.74rem;color:var(--muted);margin-top:.5rem">저장하면 즉시 실제 견적 계산에 반영되고 변경 이력에 기록됩니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 요율 일괄 조정 모달 (신규) ══ -->
+<div id="rateBulkModal" class="modal-overlay hidden">
+  <div class="modal-box" style="width:min(520px,100%)">
+    <div class="modal-header">
+      <h3>요율 일괄 조정</h3>
+      <button onclick="document.getElementById('rateBulkModal').classList.add('hidden')" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-field">
+        <div class="detail-label">대상 지역</div>
+        <select class="status-select" id="rate-bulk-region" style="width:100%" onchange="updateRateBulkPreview()"></select>
+      </div>
+      <div class="detail-field">
+        <div class="detail-label">조정할 항목</div>
+        <select class="status-select" id="rate-bulk-field" style="width:100%">
+          <option value="airfare">항공료</option>
+          <option value="fuel_surcharge">유류할증료</option>
+          <option value="hotel_per_room">호텔(1박)</option>
+          <option value="meal_per_person">1인 식비</option>
+          <option value="vehicle_large">대형 차량</option>
+          <option value="vehicle_small">소형 차량</option>
+          <option value="guide_fee">가이드비</option>
+          <option value="sightseeing_fee">관광비</option>
+          <option value="margin_per_traveler">1인당 마진</option>
+        </select>
+      </div>
+      <div class="detail-field">
+        <div class="detail-label">조정 비율 (%, 인상은 양수·인하는 음수)</div>
+        <input type="number" id="rate-bulk-pct" class="search-box" style="width:100%" placeholder="예: 5 또는 -5" />
+      </div>
+      <div id="rate-bulk-preview" style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem"></div>
+      <div class="modal-actions">
+        <select class="status-select" id="rate-bulk-author"></select>
+        <button class="btn-act btn-primary" onclick="applyRateBulk(this)">일괄 적용</button>
+        <button class="btn-act" onclick="document.getElementById('rateBulkModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
+      </div>
+      <p style="font-size:.74rem;color:var(--muted);margin-top:.5rem">대상 지역의 모든 목적지에 한 번에 적용되며, 목적지 수만큼 변경 이력이 남습니다. 되돌릴 수 없으니 신중히 적용하세요.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 요율 변경 이력 모달 (신규) ══ -->
+<div id="rateHistoryModal" class="modal-overlay hidden">
+  <div class="modal-box" style="width:min(720px,100%)">
+    <div class="modal-header">
+      <h3>요율 변경 이력</h3>
+      <button onclick="document.getElementById('rateHistoryModal').classList.add('hidden')" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="rate-history-list" style="display:grid;gap:.5rem;max-height:60vh;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
 <script>
   /* ════ CONSTANTS ════ */
   const KEYS = {
@@ -1044,7 +1133,7 @@
   const dashPage  = document.getElementById('dashPage');
 
   /* 서버 세션 쿠키가 실제 인증 근거 — 페이지 로드 시 유효성 재확인(클라이언트 플래그는 신뢰하지 않음) */
-  fetch('/api/admin/me').then(r => { if (r.ok) showDash(); }).catch(() => {});
+  fetch('/api/admin/account?action=me').then(r => { if (r.ok) showDash(); }).catch(() => {});
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1069,7 +1158,7 @@
   });
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
-    fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
+    fetch('/api/admin/account?action=logout', { method: 'POST' }).catch(() => {});
     dashPage.classList.add('hidden');
     loginPage.classList.remove('hidden');
     document.getElementById('adminId').value = '';
@@ -1101,6 +1190,8 @@
       } catch (err) {
         console.warn('[admin] 방문/이벤트 통계 동기화 실패(문의·견적은 정상):', err);
       }
+
+      await loadRateOverrides();
 
       return true;
     } catch (err) {
@@ -1875,10 +1966,34 @@
     return `${y}.${m}`;
   }
 
+  /* ════ 요율 실시간 오버라이드 (신규) ════
+     data.js 정적값은 그대로 두고, 관리자가 수정한 항목만 rate_overrides에 저장 →
+     이 캐시로 화면에서는 "실제 적용 중인 값"(정적+오버라이드 병합)을 보여준다. */
+  let rateOverridesCache = {};
+  const RATE_FIELD_LABELS = {
+    airfare: '항공료', fuel_surcharge: '유류할증료', hotel_per_room: '호텔(1박)',
+    meal_per_person: '1인 식비', vehicle_large: '대형 차량', vehicle_small: '소형 차량',
+    guide_fee: '가이드비', sightseeing_fee: '관광비', margin_per_traveler: '1인당 마진',
+  };
+  const RATE_FIELD_ORDER = Object.keys(RATE_FIELD_LABELS);
+
+  async function loadRateOverrides() {
+    try {
+      const res = await fetch('/api/rates');
+      if (res.ok) { const data = await res.json(); rateOverridesCache = data.overrides || {}; }
+    } catch (err) { console.warn('[admin] 요율 오버라이드 조회 실패:', err); }
+  }
+
+  function effectiveRate(dest) {
+    return { ...dest, ...(rateOverridesCache[dest.destination_key] || {}) };
+  }
+
+  function fmtWon(n) { return '₩' + Math.round(n || 0).toLocaleString('ko-KR'); }
+
   function renderRates() {
     if (typeof destinationRates === 'undefined' || typeof RATE_META === 'undefined') {
       document.getElementById('rate-tbody').innerHTML =
-        '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">data.js를 찾을 수 없습니다.</td></tr>';
+        '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:2rem">data.js를 찾을 수 없습니다.</td></tr>';
       return;
     }
 
@@ -1923,21 +2038,179 @@
       const filtered = rateFilter === 'all' ? rows : rows.filter(d => adminGetRateStatus(d.rateDate).status === rateFilter);
       if (!filtered.length) return;
 
-      html += `<tr class="rate-region-row"><td colspan="6">${esc(region)}</td></tr>`;
+      html += `<tr class="rate-region-row"><td colspan="10">${esc(region)}</td></tr>`;
       filtered.forEach(d => {
-        const rs = adminGetRateStatus(d.rateDate);
+        const eff = effectiveRate(d);
+        const rs = adminGetRateStatus(eff.rateDate);
+        const hasOverride = !!rateOverridesCache[d.destination_key];
         html += `<tr>
           <td style="color:var(--muted);font-size:.76rem"></td>
-          <td><strong>${esc(d.label)}</strong></td>
-          <td>${fmtRateDate(d.rateDate)}</td>
+          <td><strong>${esc(d.label)}</strong>${hasOverride ? ' <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:.65rem">수정됨</span>' : ''}</td>
+          <td style="text-align:right">${fmtWon(eff.airfare)}</td>
+          <td style="text-align:right">${fmtWon(eff.hotel_per_room)}</td>
+          <td style="text-align:right">${fmtWon(eff.meal_per_person)}</td>
+          <td style="text-align:right">${fmtWon(eff.margin_per_traveler)}</td>
+          <td>${fmtRateDate(eff.rateDate)}</td>
           <td style="color:var(--muted)">${rs.months <= 999 ? rs.months + '개월' : '—'}</td>
           <td><span class="rate-badge ${rs.status}">${rs.icon} ${rs.label}</span></td>
-          <td class="rate-notes">${esc(d.notes || '')}</td>
+          <td><button class="btn-detail" onclick="openRateEditModal('${d.destination_key}')">편집</button></td>
         </tr>`;
       });
     });
 
-    tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">해당 상태의 도시가 없습니다.</td></tr>';
+    tbody.innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:2rem">해당 상태의 도시가 없습니다.</td></tr>';
+  }
+
+  /* ── 요율 편집 모달 ── */
+  let rateEditCurrentKey = null;
+
+  function openRateEditModal(destKey) {
+    const dest = destinationRates.find(d => d.destination_key === destKey);
+    if (!dest) return;
+    rateEditCurrentKey = destKey;
+    const eff = effectiveRate(dest);
+    document.getElementById('rateEditTitle').textContent = `단가 편집 — ${dest.label}`;
+    document.getElementById('rate-edit-fields').innerHTML = RATE_FIELD_ORDER.map(f => `
+      <div>
+        <div class="detail-label" style="margin-bottom:.3rem">${RATE_FIELD_LABELS[f]}</div>
+        <input type="number" class="pw-input" data-field="${f}" value="${eff[f] ?? 0}" min="0" />
+      </div>`).join('');
+    document.getElementById('rate-edit-notes').value = eff.notes || '';
+    document.getElementById('rate-edit-author').innerHTML = STAFF_LIST.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    document.getElementById('rateEditModal').classList.remove('hidden');
+  }
+
+  async function saveRateEdit() {
+    const dest = destinationRates.find(d => d.destination_key === rateEditCurrentKey);
+    if (!dest) return;
+    const eff = effectiveRate(dest);
+    const author = document.getElementById('rate-edit-author').value;
+    if (!author) { alert('작성자를 선택해 주세요.'); return; }
+
+    const changes = [];
+    document.querySelectorAll('#rate-edit-fields input[data-field]').forEach(inp => {
+      const field = inp.dataset.field;
+      const newValue = Number(inp.value);
+      if (!isNaN(newValue) && newValue !== Number(eff[field] || 0)) {
+        changes.push({ field, oldValue: eff[field] ?? 0, newValue });
+      }
+    });
+    const newNotes = document.getElementById('rate-edit-notes').value.trim();
+    if (newNotes !== (eff.notes || '')) changes.push({ field: 'notes', oldValue: eff.notes || '', newValue: newNotes });
+
+    if (!changes.length) { alert('변경된 내용이 없습니다.'); return; }
+    if (!confirm(`"${dest.label}" 요율을 수정하시겠습니까? (${changes.length}개 항목 변경)`)) return;
+
+    /* 가격이 실제로 바뀌면 "요율 확인월"도 오늘로 자동 갱신 */
+    const priceChanged = changes.some(c => c.field !== 'notes');
+    if (priceChanged) {
+      const today = new Date();
+      const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      changes.push({ field: 'rateDate', oldValue: eff.rateDate || '', newValue: ym });
+    }
+
+    try {
+      const res = await fetch('/api/rates', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destinationKey: rateEditCurrentKey, author, changes }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert('저장에 실패했습니다: ' + (data.error || '')); return; }
+      rateOverridesCache[rateEditCurrentKey] = data.overrides;
+      document.getElementById('rateEditModal').classList.add('hidden');
+      renderRates();
+    } catch (err) {
+      alert('저장 요청에 실패했습니다. 네트워크를 확인해 주세요.');
+    }
+  }
+
+  /* ── 요율 일괄 조정 모달 ── */
+  function openRateBulkModal() {
+    const regionSel = document.getElementById('rate-bulk-region');
+    regionSel.innerHTML = '<option value="__all__">전체 지역</option>' +
+      REGION_ORDER.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+    document.getElementById('rate-bulk-author').innerHTML = STAFF_LIST.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    document.getElementById('rate-bulk-pct').value = '';
+    updateRateBulkPreview();
+    document.getElementById('rateBulkModal').classList.remove('hidden');
+  }
+
+  function getRateBulkTargets() {
+    const region = document.getElementById('rate-bulk-region').value;
+    return destinationRates.filter(d => region === '__all__' || (REGION_MAP[d.label] || '기타') === region);
+  }
+
+  function updateRateBulkPreview() {
+    const targets = getRateBulkTargets();
+    document.getElementById('rate-bulk-preview').textContent = `대상 목적지: ${targets.length}곳`;
+  }
+
+  async function applyRateBulk(btn) {
+    const region = document.getElementById('rate-bulk-region').value;
+    const field = document.getElementById('rate-bulk-field').value;
+    const pct = Number(document.getElementById('rate-bulk-pct').value);
+    const author = document.getElementById('rate-bulk-author').value;
+    if (!author) { alert('작성자를 선택해 주세요.'); return; }
+    if (!pct || isNaN(pct)) { alert('조정 비율을 입력해 주세요.'); return; }
+
+    const targets = getRateBulkTargets();
+    if (!targets.length) { alert('대상 목적지가 없습니다.'); return; }
+
+    const fieldLabel = RATE_FIELD_LABELS[field] || field;
+    const regionLabel = region === '__all__' ? '전체 지역' : region;
+    if (!confirm(`${regionLabel}의 목적지 ${targets.length}곳 "${fieldLabel}"를 ${pct}% 조정하시겠습니까?\n되돌릴 수 없으니 신중히 확인하세요.`)) return;
+
+    if (btn) { btn.disabled = true; btn.textContent = '적용 중...'; }
+    let successCount = 0;
+    for (const dest of targets) {
+      const eff = effectiveRate(dest);
+      const oldValue = Number(eff[field] || 0);
+      const newValue = Math.round(oldValue * (1 + pct / 100));
+      try {
+        const res = await fetch('/api/rates', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ destinationKey: dest.destination_key, author, changes: [{ field, oldValue, newValue }] }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          rateOverridesCache[dest.destination_key] = data.overrides;
+          successCount++;
+        }
+      } catch {}
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '일괄 적용'; }
+    alert(`${successCount}/${targets.length}개 목적지에 적용되었습니다.`);
+    document.getElementById('rateBulkModal').classList.add('hidden');
+    renderRates();
+  }
+
+  /* ── 요율 변경 이력 모달 ── */
+  async function openRateHistoryModal() {
+    const listEl = document.getElementById('rate-history-list');
+    listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">불러오는 중...</p>';
+    document.getElementById('rateHistoryModal').classList.remove('hidden');
+    try {
+      const res = await fetch('/api/rates?history=1');
+      const rows = await res.json();
+      if (!res.ok || !Array.isArray(rows) || !rows.length) {
+        listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">변경 이력이 없습니다.</p>';
+        return;
+      }
+      listEl.innerHTML = rows.map(r => {
+        const dest = destinationRates.find(d => d.destination_key === r.destination_key);
+        const label = dest ? dest.label : r.destination_key;
+        const fieldLabel = RATE_FIELD_LABELS[r.field] || (r.field === 'notes' ? '비고' : r.field === 'rateDate' ? '요율 기준월' : r.field);
+        return `<div style="padding:.6rem .8rem;border:1px solid var(--border);background:var(--bg)">
+          <div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted);margin-bottom:.25rem">
+            <strong style="color:var(--heading)">${esc(label)} · ${esc(fieldLabel)}</strong>
+            <span>${esc(r.author || '—')} · ${fmtDate(r.created_at)}</span>
+          </div>
+          <div style="font-size:.85rem">${esc(String(r.old_value ?? '—'))} → <strong>${esc(String(r.new_value))}</strong></div>
+        </div>`;
+      }).join('');
+    } catch (err) {
+      listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">조회에 실패했습니다.</p>';
+    }
   }
 
   /* 필터 이벤트 */
@@ -1976,7 +2249,7 @@
     if (nw.length < 6)    { msg.textContent='새 비밀번호는 6자 이상이어야 합니다.'; return; }
     if (nw !== confirm)   { msg.textContent='새 비밀번호가 일치하지 않습니다.'; return; }
     try {
-      const r = await fetch('/api/admin/change-password', {
+      const r = await fetch('/api/admin/account?action=change-password', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ current: curr, next: nw }),
       });

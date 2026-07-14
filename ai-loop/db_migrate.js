@@ -92,7 +92,33 @@ async function main() {
   await sql`alter table inquiries add column if not exists replied_at timestamptz`;
   await sql`alter table inquiries add column if not exists replied_by text not null default ''`;
 
-  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights tables ready.');
+  /* 요율(가격) 실시간 오버라이드 (신규) — data.js의 55개 목적지 단가는 정적 파일로
+     "항상 안전한 기본값"으로 유지하고, 관리자가 수정한 항목만 이 테이블에 저장.
+     script.js가 페이지 로드 시 비동기로 이 값을 받아와 정적값 위에 얕은 병합함
+     (fetch 실패/지연 시에도 정적 기본값으로 항상 정상 동작 — 계산 엔진 자체는
+     건드리지 않는 안전한 구조). */
+  await sql`
+    create table if not exists rate_overrides (
+      destination_key text primary key,
+      overrides jsonb not null default '{}'::jsonb,
+      updated_at timestamptz not null default now(),
+      updated_by text not null default ''
+    )
+  `;
+  await sql`
+    create table if not exists rate_change_log (
+      id bigserial primary key,
+      created_at timestamptz not null default now(),
+      destination_key text not null,
+      field text not null,
+      old_value jsonb,
+      new_value jsonb,
+      author text not null default ''
+    )
+  `;
+  await sql`create index if not exists rate_change_log_created_at_idx on rate_change_log (created_at)`;
+
+  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights, rate_overrides, rate_change_log tables ready.');
 }
 
 main().catch((err) => {

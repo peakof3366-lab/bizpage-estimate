@@ -10,6 +10,24 @@ const stepElements = Array.from(document.querySelectorAll('.estimate-step'));
    SheetJS <script> 태그를 지우면 기능 도입 이전 상태로 완전히 되돌아감 */
 const FEATURE_EXCEL_EXPORT = true;
 
+/* 요율 실시간 오버라이드 (신규) — 관리자 페이지 "요율 관리"에서 수정한 단가를
+   정적 data.js 기본값 위에 얕은 병합한다. 이 fetch가 느리거나 실패해도
+   destinationRates는 data.js의 정적값 그대로 남아있으므로 견적 계산은 항상
+   안전하게 동작한다(폴백). 되돌리려면 이 블록만 지우면 됨. */
+(function applyRateOverrides() {
+  if (typeof destinationRates === 'undefined') return;
+  fetch('/api/rates')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data) => {
+      if (!data || !data.overrides) return;
+      Object.entries(data.overrides).forEach(([key, fields]) => {
+        const dest = destinationRates.find((d) => d.destination_key === key);
+        if (dest && fields && typeof fields === 'object') Object.assign(dest, fields);
+      });
+    })
+    .catch(() => {});
+})();
+
 const estimateCriteria = {
   programFactor: {
     language: 1.0,
