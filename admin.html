@@ -969,7 +969,12 @@
       <button onclick="document.getElementById('rateEditModal').classList.add('hidden')" class="modal-close">✕</button>
     </div>
     <div class="modal-body">
-      <div id="rate-edit-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem"></div>
+      <div class="detail-field" style="background:#eff6ff;border:1px solid #bfdbfe;padding:.7rem .9rem">
+        <div class="detail-label" style="color:#1d4ed8">🌤️ 현지 여행 시즌 (참고용 — 웹 조사 기반)</div>
+        <textarea class="note-area" id="rate-edit-season" placeholder="예: 성수기 3~4월(벚꽃) · 비수기 1~2월..." style="min-height:50px;margin-top:.4rem"></textarea>
+        <p style="font-size:.72rem;color:#1d4ed8;margin-top:.3rem">단가 조정 시 참고용 정보이며, 위 SEASON_CONFIG(한국 출발 수요 기준 성수기 계수)와는 별개입니다.</p>
+      </div>
+      <div id="rate-edit-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:1rem"></div>
       <div class="detail-field" style="margin-top:1rem">
         <div class="detail-label">비고 / 참고사항</div>
         <textarea class="note-area" id="rate-edit-notes" placeholder="변동성·확인 주의사항 등을 입력하세요..." style="min-height:60px"></textarea>
@@ -2045,7 +2050,7 @@
         const hasOverride = !!rateOverridesCache[d.destination_key];
         html += `<tr>
           <td style="color:var(--muted);font-size:.76rem"></td>
-          <td><strong>${esc(d.label)}</strong>${hasOverride ? ' <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:.65rem">수정됨</span>' : ''}</td>
+          <td><strong>${esc(d.label)}</strong>${hasOverride ? ' <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:.65rem">수정됨</span>' : ''}${eff.season_note ? ` <span title="${esc(eff.season_note)}" style="cursor:help;font-size:.8rem" aria-label="현지 시즌 정보">🌤️</span>` : ''}</td>
           <td style="text-align:right">${fmtWon(eff.airfare)}</td>
           <td style="text-align:right">${fmtWon(eff.hotel_per_room)}</td>
           <td style="text-align:right">${fmtWon(eff.meal_per_person)}</td>
@@ -2076,6 +2081,7 @@
         <input type="number" class="pw-input" data-field="${f}" value="${eff[f] ?? 0}" min="0" />
       </div>`).join('');
     document.getElementById('rate-edit-notes').value = eff.notes || '';
+    document.getElementById('rate-edit-season').value = eff.season_note || '';
     document.getElementById('rate-edit-author').innerHTML = STAFF_LIST.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
     document.getElementById('rateEditModal').classList.remove('hidden');
   }
@@ -2097,6 +2103,8 @@
     });
     const newNotes = document.getElementById('rate-edit-notes').value.trim();
     if (newNotes !== (eff.notes || '')) changes.push({ field: 'notes', oldValue: eff.notes || '', newValue: newNotes });
+    const newSeason = document.getElementById('rate-edit-season').value.trim();
+    if (newSeason !== (eff.season_note || '')) changes.push({ field: 'season_note', oldValue: eff.season_note || '', newValue: newSeason });
 
     if (!changes.length) { alert('변경된 내용이 없습니다.'); return; }
     if (!confirm(`"${dest.label}" 요율을 수정하시겠습니까? (${changes.length}개 항목 변경)`)) return;
@@ -2199,7 +2207,7 @@
       listEl.innerHTML = rows.map(r => {
         const dest = destinationRates.find(d => d.destination_key === r.destination_key);
         const label = dest ? dest.label : r.destination_key;
-        const fieldLabel = RATE_FIELD_LABELS[r.field] || (r.field === 'notes' ? '비고' : r.field === 'rateDate' ? '요율 기준월' : r.field);
+        const fieldLabel = RATE_FIELD_LABELS[r.field] || (r.field === 'notes' ? '비고' : r.field === 'rateDate' ? '요율 기준월' : r.field === 'season_note' ? '시즌 정보' : r.field);
         return `<div style="padding:.6rem .8rem;border:1px solid var(--border);background:var(--bg)">
           <div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted);margin-bottom:.25rem">
             <strong style="color:var(--heading)">${esc(label)} · ${esc(fieldLabel)}</strong>

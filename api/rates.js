@@ -15,12 +15,12 @@ const NUMERIC_FIELDS = new Set([
   'airfare', 'fuel_surcharge', 'hotel_per_room', 'meal_per_person',
   'vehicle_large', 'vehicle_small', 'guide_fee', 'sightseeing_fee', 'margin_per_traveler',
 ]);
-const STRING_FIELDS = new Set(['notes', 'rateDate']);
+const STRING_FIELDS = new Set(['notes', 'rateDate', 'season_note']);
 
 function isValidChange(c) {
   if (!c || typeof c.field !== 'string') return false;
   if (NUMERIC_FIELDS.has(c.field)) return typeof c.newValue === 'number' && c.newValue >= 0;
-  if (STRING_FIELDS.has(c.field)) return typeof c.newValue === 'string' && c.newValue.length <= 300;
+  if (STRING_FIELDS.has(c.field)) return typeof c.newValue === 'string' && c.newValue.length <= 500;
   return false;
 }
 
