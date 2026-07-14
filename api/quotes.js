@@ -24,7 +24,10 @@ module.exports = async (req, res) => {
     if (!(await requireAdmin(req, res))) return;
     try {
       const rows = await sql`select * from quotes order by created_at desc limit 1000`;
-      res.status(200).json(rows.map((r) => ({ ...r.payload, id: r.id, status: r.status, note: r.note })));
+      res.status(200).json(rows.map((r) => ({
+        ...r.payload, id: r.id, status: r.status, note: r.note,
+        assignee: r.assignee || '', activityLog: r.activity_log || [],
+      })));
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'query_failed' });

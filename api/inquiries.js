@@ -25,7 +25,10 @@ module.exports = async (req, res) => {
     try {
       const rows = await sql`select * from inquiries order by created_at desc limit 1000`;
       res.status(200).json(
-        rows.map((r) => ({ ...r.payload, id: r.id, status: r.status, note: r.note, read: r.read }))
+        rows.map((r) => ({
+          ...r.payload, id: r.id, status: r.status, note: r.note, read: r.read,
+          assignee: r.assignee || '', activityLog: r.activity_log || [],
+        }))
       );
     } catch (err) {
       console.error(err);

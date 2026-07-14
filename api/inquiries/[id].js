@@ -8,9 +8,24 @@ module.exports = async (req, res) => {
   if (req.method === 'PATCH') {
     const body = req.body || {};
     try {
+      /* 진행 기록 추가 전용 — 담당자 중 누가 어떤 업데이트를 남겼는지 이력으로 누적 */
+      if (body.addLog) {
+        const entry = {
+          ts: new Date().toISOString(),
+          author: String(body.addLog.author || '').slice(0, 40),
+          text: String(body.addLog.text || '').slice(0, 500),
+        };
+        await sql`
+          update inquiries set activity_log = activity_log || ${JSON.stringify([entry])}::jsonb
+          where id = ${id}
+        `;
+        return res.status(200).json({ ok: true, entry });
+      }
+
       await sql`
         update inquiries
-        set status = ${body.status ?? 'unread'}, note = ${body.note ?? ''}, read = ${body.read ?? false}
+        set status = ${body.status ?? 'unread'}, note = ${body.note ?? ''}, read = ${body.read ?? false},
+            assignee = ${body.assignee ?? ''}
         where id = ${id}
       `;
       res.status(200).json({ ok: true });

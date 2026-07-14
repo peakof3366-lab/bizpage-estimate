@@ -8,7 +8,23 @@ module.exports = async (req, res) => {
   if (req.method === 'PATCH') {
     const body = req.body || {};
     try {
-      await sql`update quotes set status = ${body.status ?? 'new'}, note = ${body.note ?? ''} where id = ${id}`;
+      if (body.addLog) {
+        const entry = {
+          ts: new Date().toISOString(),
+          author: String(body.addLog.author || '').slice(0, 40),
+          text: String(body.addLog.text || '').slice(0, 500),
+        };
+        await sql`
+          update quotes set activity_log = activity_log || ${JSON.stringify([entry])}::jsonb
+          where id = ${id}
+        `;
+        return res.status(200).json({ ok: true, entry });
+      }
+
+      await sql`
+        update quotes set status = ${body.status ?? 'new'}, note = ${body.note ?? ''}, assignee = ${body.assignee ?? ''}
+        where id = ${id}
+      `;
       res.status(200).json({ ok: true });
     } catch (err) {
       console.error(err);

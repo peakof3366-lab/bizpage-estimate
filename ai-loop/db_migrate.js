@@ -79,6 +79,13 @@ async function main() {
     )
   `;
 
+  /* 문의/견적 담당자 배정 + 진행 기록 이력 (신규) — 여러 직원이 같은 리드를 보고
+     누가 확인했고 어떻게 진행 중인지 공유할 수 있도록 함 */
+  await sql`alter table inquiries add column if not exists assignee text not null default ''`;
+  await sql`alter table inquiries add column if not exists activity_log jsonb not null default '[]'::jsonb`;
+  await sql`alter table quotes add column if not exists assignee text not null default ''`;
+  await sql`alter table quotes add column if not exists activity_log jsonb not null default '[]'::jsonb`;
+
   console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights tables ready.');
 }
 

@@ -456,6 +456,7 @@
               <th>문의 내용</th>
               <th>접수 일시</th>
               <th style="width:70px">상태</th>
+              <th style="width:100px">담당자</th>
               <th style="width:90px">관리</th>
             </tr>
           </thead>
@@ -508,6 +509,7 @@
               <th style="text-align:right">수익금 ①-②</th>
               <th style="text-align:right">1인당</th>
               <th style="width:80px">상태</th>
+              <th style="width:100px">담당자</th>
               <th style="width:70px">관리</th>
             </tr>
           </thead>
@@ -780,9 +782,23 @@
           <option value="pending">처리중</option>
           <option value="done">완료</option>
         </select>
+        <select class="status-select" id="d-assignee">
+          <option value="">담당자 미배정</option>
+        </select>
         <button class="btn-act btn-primary" onclick="saveDetail()">저장</button>
         <button class="btn-act btn-danger-sm" onclick="deleteFromModal()">삭제</button>
         <button class="btn-act btn-ghost-p" onclick="document.getElementById('modal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
+      </div>
+
+      <!-- 진행 기록 (신규) -->
+      <div class="detail-field" style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <div class="detail-label">진행 기록</div>
+        <div id="d-log-list" style="margin:.5rem 0"></div>
+        <div style="display:flex;gap:.4rem;margin-top:.5rem">
+          <select class="status-select" id="d-log-author" style="flex:0 0 auto"></select>
+          <input type="text" id="d-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" />
+          <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('inquiry', currentModalId, 'd-log-author', 'd-log-text', 'd-log-list')">추가</button>
+        </div>
       </div>
     </div>
   </div>
@@ -858,7 +874,7 @@
 
       <!-- 상태 + 메모 -->
       <div style="padding:1.1rem 1.25rem">
-        <div style="display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:start">
+        <div style="display:grid;grid-template-columns:auto auto 1fr;gap:1rem;align-items:start">
           <div>
             <div class="detail-label" style="margin-bottom:.4rem">상태 변경</div>
             <select id="em-status-sel" class="status-select">
@@ -866,6 +882,12 @@
               <option value="consulting">상담중</option>
               <option value="contracted">계약완료</option>
               <option value="closed">종료</option>
+            </select>
+          </div>
+          <div>
+            <div class="detail-label" style="margin-bottom:.4rem">담당자</div>
+            <select id="em-assignee-sel" class="status-select">
+              <option value="">미배정</option>
             </select>
           </div>
           <div style="flex:1">
@@ -878,6 +900,17 @@
           <button class="btn-act btn-outline-p" onclick="printEstimateAdmin()">관리자용 출력</button>
           <button class="btn-act btn-danger-sm" onclick="deleteEstimate()">삭제</button>
           <button class="btn-act" onclick="document.getElementById('emModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
+        </div>
+
+        <!-- 진행 기록 (신규) -->
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+          <div class="detail-label">진행 기록</div>
+          <div id="em-log-list" style="margin:.5rem 0"></div>
+          <div style="display:flex;gap:.4rem;margin-top:.5rem">
+            <select class="status-select" id="em-log-author" style="flex:0 0 auto"></select>
+            <input type="text" id="em-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" />
+            <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('quote', emCurrentId, 'em-log-author', 'em-log-text', 'em-log-list')">추가</button>
+          </div>
         </div>
       </div>
 
@@ -895,6 +928,27 @@
     est:       'linkedt_estimates',
     estFull:   'linkedt_estimates_full',
   };
+
+  /* 담당자 배정 + 진행기록용 직원 목록 (신규) */
+  const STAFF_LIST = ['송주연 팀장', '정직한 차장', '방민정 대리', '오윤정 대리', '조혜련 사원'];
+
+  function assigneeSelectHtml(current, extraAttrs) {
+    const opts = ['<option value="">미배정</option>']
+      .concat(STAFF_LIST.map(n => `<option value="${esc(n)}"${n===current?' selected':''}>${esc(n)}</option>`));
+    return `<select class="status-select" style="font-size:.78rem;padding:.3rem .5rem" ${extraAttrs||''}>${opts.join('')}</select>`;
+  }
+
+  function activityLogHtml(log) {
+    if (!log || !log.length) return '<p style="color:var(--muted);font-size:.78rem">아직 진행 기록이 없습니다.</p>';
+    return log.slice().reverse().map(e => `
+      <div style="padding:.55rem .7rem;border:1px solid var(--border);background:var(--bg);margin-bottom:.4rem">
+        <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);margin-bottom:.25rem">
+          <strong style="color:var(--heading)">${esc(e.author||'—')}</strong>
+          <span>${fmtDate(e.ts)}</span>
+        </div>
+        <div style="font-size:.82rem;white-space:pre-wrap">${esc(e.text||'')}</div>
+      </div>`).join('');
+  }
   const PAGE_SIZE  = 15;
 
   /* ════ STATE ════ */
@@ -1000,6 +1054,54 @@
   }
   function deleteQuote(id) {
     return fetch(`/api/quotes/${id}`, { method: 'DELETE' }).catch(err => console.warn('[quotes] 서버 삭제 실패:', err));
+  }
+
+  /* 목록에서 담당자 즉시 변경 (신규) */
+  function updateAssignee(selectEl, kind) {
+    const id = selectEl.dataset.id;
+    const assignee = selectEl.value;
+    if (kind === 'inquiry') {
+      const contacts = get(KEYS.contacts);
+      const c = contacts.find(x => x.id === id);
+      if (c) { c.assignee = assignee; set(KEYS.contacts, contacts); }
+      patchInquiry(id, { status: c?.status||'new', note: c?.note||'', read: c?.read ?? true, assignee });
+    } else {
+      const list = getEstsFull();
+      const e = list.find(x => x.id === id);
+      if (e) { e.assignee = assignee; localStorage.setItem(EM_KEY, JSON.stringify(list)); }
+      patchQuote(id, { status: e?.status||'new', note: e?.note||'', assignee });
+    }
+  }
+
+  /* 진행 기록 추가 (신규) — 문의/견적 공용 */
+  async function addActivityLog(kind, id, authorSelId, textId, logContainerId) {
+    const author = document.getElementById(authorSelId).value;
+    const textEl = document.getElementById(textId);
+    const text = textEl.value.trim();
+    if (!author) { alert('작성자를 선택해 주세요.'); return; }
+    if (!text) { alert('내용을 입력해 주세요.'); return; }
+
+    const patchFn = kind === 'inquiry' ? patchInquiry : patchQuote;
+    const res = await patchFn(id, { addLog: { author, text } });
+    let entry = { ts: new Date().toISOString(), author, text };
+    try { const data = await res.json(); if (data?.entry) entry = data.entry; } catch {}
+
+    /* 로컬 캐시에도 반영해 새로고침 없이 바로 보이도록 */
+    if (kind === 'inquiry') {
+      const contacts = get(KEYS.contacts);
+      const c = contacts.find(x => x.id === id);
+      if (c) { c.activityLog = [...(c.activityLog||[]), entry]; set(KEYS.contacts, contacts); }
+    } else {
+      const list = getEstsFull();
+      const e = list.find(x => x.id === id);
+      if (e) { e.activityLog = [...(e.activityLog||[]), entry]; localStorage.setItem(EM_KEY, JSON.stringify(list)); }
+    }
+    textEl.value = '';
+    const logEl = document.getElementById(logContainerId);
+    const updatedLog = kind === 'inquiry'
+      ? (get(KEYS.contacts).find(x=>x.id===id)?.activityLog || [])
+      : (getEstsFull().find(x=>x.id===id)?.activityLog || []);
+    if (logEl) logEl.innerHTML = activityLogHtml(updatedLog);
   }
 
   async function showDash() {
@@ -1189,6 +1291,7 @@
         <td class="msg-preview">${isEstimate && c.estimate ? esc((c.estimate.destLabel||''))+' '+c.estimate.participants+'명/'+c.estimate.days+'일' : esc(preview)}</td>
         <td class="date-col">${fmtDate(c.timestamp)}</td>
         <td><span class="badge ${statusBadge}">${statusTxt}</span></td>
+        <td>${assigneeSelectHtml(c.assignee, `data-id="${c.id}" onchange="updateAssignee(this,'inquiry')"`)}</td>
         <td><button class="btn-detail" onclick="openDetail('${c.id}')">상세</button></td>
       </tr>`;
     }).join('');
@@ -1264,6 +1367,9 @@
     document.getElementById('d-msg').textContent  = msgText;
     document.getElementById('d-note').value = c.note||'';
     document.getElementById('d-status').value = c.status||'read';
+    document.getElementById('d-assignee').innerHTML = assigneeSelectHtml(c.assignee);
+    document.getElementById('d-log-author').innerHTML = STAFF_LIST.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    document.getElementById('d-log-list').innerHTML = activityLogHtml(c.activityLog);
     document.getElementById('modal').classList.remove('hidden');
 
     renderInquiries(); renderDashboard();
@@ -1275,9 +1381,10 @@
     if (idx===-1) return;
     contacts[idx].note   = document.getElementById('d-note').value;
     contacts[idx].status = document.getElementById('d-status').value;
+    contacts[idx].assignee = document.getElementById('d-assignee').value;
     contacts[idx].read   = contacts[idx].status !== 'unread';
     set(KEYS.contacts, contacts);
-    patchInquiry(currentModalId, { status: contacts[idx].status, note: contacts[idx].note, read: contacts[idx].read });
+    patchInquiry(currentModalId, { status: contacts[idx].status, note: contacts[idx].note, read: contacts[idx].read, assignee: contacts[idx].assignee });
     document.getElementById('modal').classList.add('hidden');
     renderInquiries(); renderDashboard();
   }
@@ -1808,6 +1915,7 @@
         <td style="text-align:right;color:var(--success);font-weight:700">₩${Math.round(profit/10000).toLocaleString()}만</td>
         <td style="text-align:right">₩${Math.round(per/10000).toLocaleString()}만</td>
         <td><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span></td>
+        <td>${assigneeSelectHtml(e.assignee, `data-id="${e.id}" onchange="updateAssignee(this,'quote')"`)}</td>
         <td><button class="btn-detail" onclick="openEstDetail('${e.id}')">상세</button></td>
       </tr>`;
     }).join('');
@@ -1893,6 +2001,9 @@
     /* 상태 + 메모 */
     document.getElementById('em-status-sel').value = e.status || 'new';
     document.getElementById('em-note-area').value   = e.note   || '';
+    document.getElementById('em-assignee-sel').innerHTML = assigneeSelectHtml(e.assignee);
+    document.getElementById('em-log-author').innerHTML = STAFF_LIST.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    document.getElementById('em-log-list').innerHTML = activityLogHtml(e.activityLog);
 
     document.getElementById('emModal').classList.remove('hidden');
   }
@@ -1904,8 +2015,9 @@
     if (idx < 0) return;
     all[idx].status = document.getElementById('em-status-sel').value;
     all[idx].note   = document.getElementById('em-note-area').value;
+    all[idx].assignee = document.getElementById('em-assignee-sel').value;
     localStorage.setItem(EM_KEY, JSON.stringify(all));
-    patchQuote(emCurrentId, { status: all[idx].status, note: all[idx].note });
+    patchQuote(emCurrentId, { status: all[idx].status, note: all[idx].note, assignee: all[idx].assignee });
     document.getElementById('emModal').classList.add('hidden');
     renderEstMgr();
   }
