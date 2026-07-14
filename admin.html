@@ -966,7 +966,7 @@
       localStorage.setItem(EM_KEY, JSON.stringify(await qRes.json()));
 
       try {
-        const anRes = await fetch('/api/admin/analytics');
+        const anRes = await fetch('/api/admin/insights?type=analytics');
         if (anRes.ok) {
           const an = await anRes.json();
           set(KEYS.visits, an.visits || []);
@@ -1461,7 +1461,7 @@
 
   async function renderMarketingInsights() {
     try {
-      const res = await fetch('/api/admin/marketing-insights');
+      const res = await fetch('/api/admin/insights?type=marketing');
       if (!res.ok) { renderMarketingInsightsResult(null); return; }
       const data = await res.json();
       renderMarketingInsightsResult(data);
@@ -1478,7 +1478,7 @@
     const prevLabel = btn.textContent;
     btn.textContent = '분석 중… (최대 30초)';
     try {
-      const res = await fetch('/api/admin/marketing-insights', { method: 'POST' });
+      const res = await fetch('/api/admin/insights?type=marketing', { method: 'POST' });
       const data = await res.json();
       if (!res.ok || data.error === 'openai_not_configured') {
         metaEl.textContent = 'GPT 분석 기능이 아직 설정되지 않았습니다.';
