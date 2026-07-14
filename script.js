@@ -698,6 +698,11 @@ form.addEventListener('submit', (event) => {
     arr.push(estRecord);
     localStorage.setItem(KEY, JSON.stringify(arr.slice(-500)));
 
+    /* 이 견적의 id를 기억해뒀다가, 고객이 뒤이어 "상담 신청"을 하면 같은 견적을
+       가리키도록 연결한다(신규) — 견적 관리/문의 관리 두 화면이 서로 다른 테이블에
+       따로 쌓여 관리자가 같은 고객·같은 건인지 알기 어려웠던 문제 보완 */
+    window._lastQuoteId = estRecord.id;
+
     try {
       fetch('/api/quotes', {
         method: 'POST',
@@ -1147,6 +1152,7 @@ function submitConsult() {
     timestamp: new Date().toISOString(),
     read:      false,
     type:      'estimate_inquiry',   /* 관리자 페이지에서 구별하는 플래그 */
+    linkedQuoteId: window._lastQuoteId || null,  /* 같은 견적을 가리키는 quotes 레코드 id (신규) */
     estimate:  bd ? {
       destLabel,
       participants:  bd.participants,

@@ -766,6 +766,7 @@
     </div>
     <div class="modal-body">
       <div id="d-estimate-block" class="hidden"></div>
+      <div id="d-linked-quote" class="hidden"></div>
       <div class="detail-field"><div class="detail-label">이름</div><div class="detail-value" id="d-name"></div></div>
       <div class="detail-field"><div class="detail-label">소속</div><div class="detail-value" id="d-org"></div></div>
       <div class="detail-field"><div class="detail-label">연락처</div><div class="detail-value" id="d-tel"></div></div>
@@ -812,6 +813,8 @@
       <button onclick="document.getElementById('emModal').classList.add('hidden')" class="modal-close">✕</button>
     </div>
     <div class="modal-body" style="padding:0">
+
+      <div id="em-linked-inquiry" class="hidden"></div>
 
       <!-- 상단: 기본 정보 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
@@ -1054,6 +1057,18 @@
   }
   function deleteQuote(id) {
     return fetch(`/api/quotes/${id}`, { method: 'DELETE' }).catch(err => console.warn('[quotes] 서버 삭제 실패:', err));
+  }
+
+  /* 문의 ↔ 견적 상호 이동 (신규) */
+  function jumpToQuote(quoteId) {
+    document.getElementById('modal').classList.add('hidden');
+    switchTab('estmgr');
+    setTimeout(() => openEstDetail(quoteId), 150);
+  }
+  function jumpToInquiry(inquiryId) {
+    document.getElementById('emModal').classList.add('hidden');
+    switchTab('inquiries');
+    setTimeout(() => openDetail(inquiryId), 150);
   }
 
   /* 목록에서 담당자 즉시 변경 (신규) */
@@ -1362,6 +1377,22 @@
     } else if (estBlock) {
       estBlock.classList.add('hidden');
       estBlock.innerHTML = '';
+    }
+
+    /* 이 상담과 연결된 견적 관리 레코드 (신규) */
+    const linkedQuoteEl = document.getElementById('d-linked-quote');
+    if (c.linkedQuoteId) {
+      const linkedQuote = getEstsFull().find(x => x.id === c.linkedQuoteId);
+      linkedQuoteEl.classList.remove('hidden');
+      linkedQuoteEl.innerHTML = linkedQuote ? `
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:.7rem 1rem;margin-bottom:.75rem;display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
+          <span style="font-size:.82rem;color:#166534">🔗 <strong>${esc(linkedQuote.destLabel||linkedQuote.destKey||'')}</strong> 견적(₩${(linkedQuote.total||0).toLocaleString()})과 연결된 상담입니다.</span>
+          <button type="button" class="btn-act btn-outline-p" onclick="jumpToQuote('${c.linkedQuoteId}')">견적 관리에서 보기</button>
+        </div>` : `
+        <div style="background:var(--bg);border:1px solid var(--border);padding:.6rem 1rem;margin-bottom:.75rem;font-size:.8rem;color:var(--muted)">연결된 견적 기록을 찾을 수 없습니다(삭제됐을 수 있습니다).</div>`;
+    } else {
+      linkedQuoteEl.classList.add('hidden');
+      linkedQuoteEl.innerHTML = '';
     }
 
     document.getElementById('d-msg').textContent  = msgText;
@@ -1895,6 +1926,9 @@
     const statusMap = { new:'신규', consulting:'상담중', contracted:'계약완료', closed:'종료' };
     const statusBadge = { new:'badge-new', consulting:'badge-pend', contracted:'badge-done', closed:'badge-read' };
 
+    /* 상담 신청으로 연결된 견적 id 집합 (신규) — 목록에서 바로 표시 */
+    const linkedQuoteIds = new Set(get(KEYS.contacts).map(c => c.linkedQuoteId).filter(Boolean));
+
     emBody.innerHTML = slice.map((e, i) => {
       /* ① 청구 금액 = data.total = 수익금 포함, 홈페이지 고객 표시와 동일 */
       const chargeTot  = e.total || 0;
@@ -1907,7 +1941,7 @@
       return `<tr>
         <td>${(emPage-1)*EM_PAGE+i+1}</td>
         <td class="date-col">${fmtDate(e.ts)}</td>
-        <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong></td>
+        <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong>${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}</td>
         <td>${esc(e.orgName||'-')}</td>
         <td>${e.participants}명 / ${e.days}일</td>
         <td style="text-align:right;color:var(--primary);font-weight:700">₩${Math.round(chargeTot/10000).toLocaleString()}만</td>
@@ -1941,6 +1975,21 @@
     emCurrentId = id;
 
     document.getElementById('emModalTitle').textContent = `견적 상세 — ${e.destLabel||e.destKey}`;
+
+    /* 이 견적으로 상담 신청이 들어왔는지 (신규) */
+    const linkedInq = get(KEYS.contacts).find(c => c.linkedQuoteId === id);
+    const linkedInqEl = document.getElementById('em-linked-inquiry');
+    if (linkedInq) {
+      linkedInqEl.classList.remove('hidden');
+      linkedInqEl.innerHTML = `
+        <div style="background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:.8rem 1.25rem;display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
+          <span style="font-size:.84rem;color:#1d4ed8">☎ <strong>${esc(linkedInq.name||'—')}</strong>님이 이 견적으로 상담을 요청했습니다 — ${esc(linkedInq.tel||'—')}</span>
+          <button type="button" class="btn-act btn-outline-p" onclick="jumpToInquiry('${linkedInq.id}')">문의 관리에서 보기</button>
+        </div>`;
+    } else {
+      linkedInqEl.classList.add('hidden');
+      linkedInqEl.innerHTML = '';
+    }
 
     /* 기관 정보 */
     document.getElementById('em-orginfo').innerHTML =
