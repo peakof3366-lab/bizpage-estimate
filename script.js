@@ -4306,7 +4306,7 @@ a{color:inherit;text-decoration:none}
       <tr><td>연수 목적지</td><td>${destText}</td></tr>
       <tr><td>프로그램</td><td>${programText}</td></tr>
       <tr><td>연수 방식</td><td>${visitModeText}</td></tr>
-      <tr><td>참가 인원</td><td>${participants}명 · ${data.paxTier.label}</td></tr>
+      <tr><td>참가 인원</td><td>${participants}명</td></tr>
       <tr><td>연수 기간</td><td>${data.nights}박 ${days}일 · ${startDateLabel} ~ ${endDateLabel}</td></tr>
       <tr><td>시즌</td><td>${data.seasonInfo.label}</td></tr>
       <tr><td>호텔 등급</td><td>${data.hotelGrade.label}</td></tr>
