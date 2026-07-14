@@ -57,7 +57,7 @@
 
     /* ── DASH HEADER ───────────────── */
     .dash-header { background: var(--heading); padding: 0 1.5rem; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255,255,255,.1); }
-    .dash-header-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; width: 96%; max-width: 1680px; margin: 0 auto; }
+    .dash-header-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; width: 96%; max-width: 1680px; margin: 0 auto 0 1.5rem; }
     .dash-brand { font-size: .82rem; font-weight: 900; color: #fff; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid transparent; padding-bottom: 2px; transition: border-color .18s; }
     .dash-brand:hover { border-color: var(--primary); }
     .dash-right { display: flex; align-items: center; gap: .75rem; }
@@ -109,7 +109,7 @@
     .tab-btn { display: none; }
 
     /* ── CONTENT ───────────────────── */
-    .dash-body { width: 96%; max-width: 1680px; margin: 0 auto; padding: 1.75rem 0; }
+    .dash-body { width: 96%; max-width: 1680px; margin: 0 auto 0 1.5rem; padding: 1.75rem 0; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
     .panel-title {
@@ -279,8 +279,8 @@
          비율 여백이 너무 작아져 내용이 화면 끝에 붙어 보이는 문제 방지).
          header-inner는 부모(.dash-header)가 이미 좌우 패딩 1.5rem을 갖고 있으므로
          너비만 100%로 되돌리고, dash-body는 자체 패딩을 되살린다. */
-      .dash-header-inner { width: 100%; }
-      .dash-body { width: 100%; padding-left: 1.5rem; padding-right: 1.5rem; }
+      .dash-header-inner { width: 100%; margin-left: 0; }
+      .dash-body { width: 100%; margin-left: 0; padding-left: 1.5rem; padding-right: 1.5rem; }
     }
     @media (max-width: 900px) {
       .stat-grid { grid-template-columns: repeat(2, 1fr); }
