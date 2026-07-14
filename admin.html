@@ -380,9 +380,9 @@
         <button class="sidebar-item" data-tab="rates">
           <span class="si-icon"><i data-lucide="database"></i></span><span class="si-label">요율 관리</span>
         </button>
-        <a href="admin-quote.html" class="sidebar-item">
+        <button class="sidebar-item" data-tab="quotetool">
           <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">내부 견적 산출</span>
-        </a>
+        </button>
         <div class="sidebar-divider"></div>
         <button class="sidebar-item" data-tab="settings">
           <span class="si-icon"><i data-lucide="settings"></i></span><span class="si-label">설정</span>
@@ -708,6 +708,19 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- ── 내부 견적 산출 (신규) ──
+         공개 견적 계산기와 100% 동일한 계산 로직(script.js/data.js)을 admin-quote.html이
+         그대로 재사용하도록 하고, 그 페이지를 이 탭 안에 <iframe>으로 임베드한다.
+         이렇게 하면 별도 브라우저 탭으로 이동하지 않고 관리자 페이지 안에서 바로 쓸 수 있고,
+         계산 엔진(DOM 결합도가 높아 손대기 위험한 getBreakdownData 등)은 전혀 건드리지 않아
+         공개 견적 계산기에 회귀 버그가 생길 위험이 없다. -->
+    <div class="tab-panel" id="tab-quotetool">
+      <div class="card" style="padding:0;overflow:hidden">
+        <iframe id="quoteToolFrame" title="내부 견적 산출"
+          style="width:100%;height:calc(100vh - 150px);border:none;display:block;background:#fff"></iframe>
+      </div>
     </div>
 
     <!-- ── 설정 ── -->
@@ -1363,7 +1376,7 @@
   const tabTitles = {
     dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 관리',
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
-    marketing:'마케팅 인사이트', rates:'요율 관리', settings:'설정'
+    marketing:'마케팅 인사이트', rates:'요율 관리', quotetool:'내부 견적 산출', settings:'설정'
   };
 
   function switchTab(name) {
@@ -1386,6 +1399,14 @@
     else if (name==='estimates') renderEstimates();
     else if (name==='marketing') renderMarketingInsights();
     else if (name==='rates') renderRates();
+    else if (name==='quotetool') renderQuoteTool();
+  }
+
+  /* iframe은 처음 탭을 열 때 한 번만 src를 지정해 불필요한 로드를 피한다
+     (되돌리려면 이 함수와 위 renderTab의 분기, 사이드바 버튼, tab-panel만 지우면 됨) */
+  function renderQuoteTool() {
+    const frame = document.getElementById('quoteToolFrame');
+    if (frame && !frame.src) frame.src = 'admin-quote.html';
   }
 
   function renderAll() { renderDashboard(); }
