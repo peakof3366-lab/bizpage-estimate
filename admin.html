@@ -782,6 +782,20 @@
       <div class="detail-field"><div class="detail-label">연락처</div><div class="detail-value" id="d-tel"></div></div>
       <div class="detail-field"><div class="detail-label">접수 일시</div><div class="detail-value" id="d-time"></div></div>
       <div class="detail-field"><div class="detail-label">문의 내용</div><div class="detail-message" id="d-msg"></div></div>
+
+      <!-- 답변 내용 (신규) — 고객에게 실제로 전달한 확정 답변. 진행 기록(내부 이력)과는 별개 -->
+      <div class="detail-field" style="background:#f0fdf4;border:1px solid #bbf7d0;padding:.9rem 1rem">
+        <div class="detail-label" style="display:flex;justify-content:space-between;align-items:center">
+          <span>답변 내용</span>
+          <span id="d-reply-meta" style="font-size:.72rem;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">아직 답변하지 않았습니다.</span>
+        </div>
+        <textarea class="note-area" id="d-reply-text" placeholder="고객에게 전달한(또는 전달할) 답변 내용을 입력하세요..." style="margin-top:.5rem"></textarea>
+        <div style="display:flex;gap:.4rem;margin-top:.5rem">
+          <select class="status-select" id="d-reply-author" style="flex:0 0 auto"></select>
+          <button type="button" class="btn-act btn-primary" onclick="confirmReply('inquiry', currentModalId, 'd-reply-author', 'd-reply-text', 'd-reply-meta')" style="flex:0 0 auto">답변 확정</button>
+        </div>
+      </div>
+
       <div class="detail-field">
         <div class="detail-label">관리자 메모</div>
         <textarea class="note-area" id="d-note" placeholder="메모를 입력하세요..."></textarea>
@@ -1129,6 +1143,30 @@
     if (logEl) logEl.innerHTML = activityLogHtml(updatedLog);
   }
 
+  /* 문의에 대한 공식 답변 확정 (신규) — 진행 기록과 달리 최신 답변 하나만 유지 */
+  async function confirmReply(kind, id, authorSelId, textId, metaElId) {
+    const author = document.getElementById(authorSelId).value;
+    const textEl = document.getElementById(textId);
+    const text = textEl.value.trim();
+    if (!author) { alert('답변 작성자를 선택해 주세요.'); return; }
+    if (!text) { alert('답변 내용을 입력해 주세요.'); return; }
+    if (!confirm('이 내용으로 답변을 확정하시겠습니까?')) return;
+
+    const patchFn = kind === 'inquiry' ? patchInquiry : patchQuote;
+    const res = await patchFn(id, { setReply: { text, author } });
+    let repliedAt = new Date().toISOString();
+    try { const data = await res.json(); if (data?.repliedAt) repliedAt = data.repliedAt; } catch {}
+
+    if (kind === 'inquiry') {
+      const contacts = get(KEYS.contacts);
+      const c = contacts.find(x => x.id === id);
+      if (c) { c.reply = text; c.repliedAt = repliedAt; c.repliedBy = author; set(KEYS.contacts, contacts); }
+    }
+    const metaEl = document.getElementById(metaElId);
+    if (metaEl) metaEl.textContent = `${author} · ${fmtDate(repliedAt)} 답변`;
+    renderInquiries();
+  }
+
   async function showDash() {
     const ok = await loadRemoteData();
     if (!ok) return;
@@ -1309,9 +1347,12 @@
       const estBadge    = isEstimate
         ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;margin-left:.3rem;font-size:.7rem">견적연계</span>`
         : '';
+      const replyBadge  = c.reply
+        ? `<span class="badge" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;margin-left:.3rem;font-size:.7rem">✓ 답변완료</span>`
+        : '';
       return `<tr class="${c.read?'':'unread'}" data-id="${c.id}">
         <td>${origIdx}</td>
-        <td><strong>${esc(c.name)}</strong>${estBadge}</td>
+        <td><strong>${esc(c.name)}</strong>${estBadge}${replyBadge}</td>
         <td>${esc(c.tel||c.org||'—')}</td>
         <td class="msg-preview">${isEstimate && c.estimate ? esc((c.estimate.destLabel||''))+' '+c.estimate.participants+'명/'+c.estimate.days+'일' : esc(preview)}</td>
         <td class="date-col">${fmtDate(c.timestamp)}</td>
@@ -1411,6 +1452,14 @@
     document.getElementById('d-assignee').innerHTML = assigneeSelectHtml(c.assignee);
     document.getElementById('d-log-author').innerHTML = STAFF_LIST.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
     document.getElementById('d-log-list').innerHTML = activityLogHtml(c.activityLog);
+
+    /* 답변 내용 (신규) */
+    document.getElementById('d-reply-text').value = c.reply || '';
+    document.getElementById('d-reply-author').innerHTML = STAFF_LIST.map(n=>`<option value="${esc(n)}"${n===c.repliedBy?' selected':''}>${esc(n)}</option>`).join('');
+    document.getElementById('d-reply-meta').textContent = c.repliedAt
+      ? `${c.repliedBy||'—'} · ${fmtDate(c.repliedAt)} 답변`
+      : '아직 답변하지 않았습니다.';
+
     document.getElementById('modal').classList.remove('hidden');
 
     renderInquiries(); renderDashboard();

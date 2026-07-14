@@ -86,6 +86,12 @@ async function main() {
   await sql`alter table quotes add column if not exists assignee text not null default ''`;
   await sql`alter table quotes add column if not exists activity_log jsonb not null default '[]'::jsonb`;
 
+  /* 문의에 대한 공식 답변 (신규) — 진행 기록(내부 이력)과 별개로, 고객에게
+     실제로 전달한 확정 답변 텍스트를 관리자 내부에서 확인할 수 있게 함 */
+  await sql`alter table inquiries add column if not exists reply text not null default ''`;
+  await sql`alter table inquiries add column if not exists replied_at timestamptz`;
+  await sql`alter table inquiries add column if not exists replied_by text not null default ''`;
+
   console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights tables ready.');
 }
 

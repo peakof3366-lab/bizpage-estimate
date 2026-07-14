@@ -28,6 +28,7 @@ module.exports = async (req, res) => {
         rows.map((r) => ({
           ...r.payload, id: r.id, status: r.status, note: r.note, read: r.read,
           assignee: r.assignee || '', activityLog: r.activity_log || [],
+          reply: r.reply || '', repliedAt: r.replied_at, repliedBy: r.replied_by || '',
         }))
       );
     } catch (err) {

@@ -22,6 +22,19 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true, entry });
       }
 
+      /* 고객 문의에 대한 공식 답변 확정 (신규) — 진행 기록과 달리 최신 답변 하나만 유지 */
+      if (body.setReply) {
+        const repliedAt = new Date().toISOString();
+        const replyText = String(body.setReply.text || '').slice(0, 4000);
+        const repliedBy = String(body.setReply.author || '').slice(0, 40);
+        await sql`
+          update inquiries
+          set reply = ${replyText}, replied_at = ${repliedAt}, replied_by = ${repliedBy}
+          where id = ${id}
+        `;
+        return res.status(200).json({ ok: true, repliedAt, repliedBy });
+      }
+
       await sql`
         update inquiries
         set status = ${body.status ?? 'unread'}, note = ${body.note ?? ''}, read = ${body.read ?? false},
