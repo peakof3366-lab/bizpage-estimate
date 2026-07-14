@@ -7,9 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css" />
 <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
-<!-- 견적 계산 엔진(script.js)이 참조하는 CSS 클래스(.fld, .estimate-grid, .grade-pill 등)를
-     그대로 쓰기 위해 공개 홈페이지와 같은 styles.css를 기반으로 깔고, 그 위에 이 페이지
-     전용의 "실무자용 크고 깔끔한" 오버라이드를 덧씌운다(아래 <style>). -->
+<!-- 견적 계산 엔진(script.js)이 참조하는 <select>/<input>들을 그대로 두고(값 읽기용),
+     화면에는 그 위에 이 페이지 전용의 "리스트형 체크" UI를 덧씌운다. 원본 select/radio는
+     숨겨진 채로 계산 로직의 진짜 입력값 역할만 한다 — script.js는 전혀 건드리지 않는다. -->
 <link rel="stylesheet" href="styles.css" />
 <script src="data.js"></script>
 <style>
@@ -28,16 +28,15 @@
     background: var(--sidebar-bg); color: rgba(255,255,255,.6); font-size: .85rem; letter-spacing: .04em;
   }
 
-  /* ── 상단 바: 관리자 페이지 안에 iframe으로 임베드될 때는 admin.html 자체
-       헤더/사이드바가 이미 있으므로 이 바를 완전히 숨긴다(.aq-embedded).
-       admin-quote.html을 단독 페이지로 직접 열었을 때만 노출. ── */
+  /* ── 상단 바: admin.html 안에 iframe으로 임베드될 때는 자체 헤더/사이드바가
+       이미 있으므로 이 바를 숨긴다(.aq-embedded). 단독 페이지로 직접 열었을 때만 노출. ── */
   .aq-topbar {
     background: var(--heading); border-bottom: 1px solid rgba(255,255,255,.1);
     position: sticky; top: 0; z-index: 100;
   }
   .aq-topbar-inner {
     display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-    height: 56px; max-width: 1560px; margin: 0 auto; padding: 0 1.5rem;
+    height: 56px; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem;
   }
   .aq-brand { display: flex; align-items: center; gap: .6rem; }
   .aq-brand-title { font-size: .84rem; font-weight: 900; color: #fff; letter-spacing: .04em; }
@@ -52,11 +51,10 @@
   .aq-back:hover { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.7); }
   .aq-embedded .aq-topbar { display: none; }
 
-  /* ── 본문 셸 ── */
-  .aq-shell { max-width: 1560px; margin: 0 auto; padding: 1.25rem 1.5rem 3rem; }
+  /* ── 본문 셸: 우측 실시간 결과 패널을 없앴으므로 단일 컬럼, 가독성 위한 적당한 폭 ── */
+  .aq-shell { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1.5rem 3rem; }
   .aq-embedded .aq-shell { padding: 1.1rem 1.25rem 2.5rem; }
 
-  /* 컨트롤 바: 안내문 + 산출 담당자 선택 — 단독/임베드 모드 공통으로 항상 노출 */
   .aq-controlbar {
     display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
     background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--primary);
@@ -72,27 +70,39 @@
   }
   .aq-staff-field select:focus { outline: none; border-color: var(--primary); }
 
-  /* ── 견적 입력 그리드: 좌(입력 폼) : 우(실시간 결과) ── */
-  .aq-shell .estimate-grid { grid-template-columns: 1.1fr .9fr; gap: 1.5rem; align-items: start; }
   .aq-shell .estimate-form { background: transparent; padding: 0; border: none; }
-  .aq-shell .estimate-result { top: 1rem; }
-  .aq-shell .result-card { border: 1px solid var(--border); padding: 1.75rem; }
-  .aq-shell .result-label { font-size: .84rem; }
-  .aq-shell .total-amt { font-size: 1.7rem; }
 
-  /* ── 섹션 카드: 입력 항목을 의미 단위로 묶어서 큼직하고 또렷하게 ── */
+  /* ── 섹션 카드 ── */
   .aq-section { background: #fff; border: 1px solid var(--border); padding: 1.6rem 1.85rem; margin-bottom: 1.25rem; }
   .aq-section-title {
     font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
     color: var(--primary); margin-bottom: 1.25rem; padding-bottom: .65rem; border-bottom: 2px solid var(--heading);
   }
   .aq-step2-lbl { font-size: .88rem; font-weight: 700; color: var(--heading); display: block; margin-bottom: .5rem; }
+  .aq-field-lbl { font-size: .88rem; font-weight: 700; color: var(--heading); display: flex; align-items: center; gap: .4rem; margin-bottom: .6rem; }
+  .aq-field-block { margin-bottom: 1.4rem; }
+  .aq-field-block:last-child { margin-bottom: 0; }
 
-  /* ── 폼 컨트롤 확대: 공개 홈페이지의 조밀한 마케팅 폼보다 훨씬 크고
-       또렷하게 — 실무자가 매일 빠르게 입력해도 실수 없이 알아보도록 ── */
-  .aq-shell .fld { margin-bottom: 1.15rem; gap: .5rem; }
-  .aq-shell .fld-row { margin-bottom: 1.15rem; gap: 1rem; }
-  .aq-shell .fld-lbl { font-size: .88rem; font-weight: 700; color: var(--heading); }
+  /* ── 원본 select/텍스트입력 등 계산 엔진용 입력을 시각적으로 숨김(기능은 그대로 유지) ── */
+  .aq-native-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+
+  /* ── 공통 리스트 체크 로우 ── */
+  .aq-list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .6rem; }
+  .aq-list-row {
+    display: flex; align-items: center; gap: .7rem; padding: .85rem 1.1rem;
+    border: 1.6px solid var(--border); background: #fff; cursor: pointer;
+    font-size: .92rem; font-weight: 600; color: var(--heading); transition: border-color .15s, background .15s;
+  }
+  .aq-list-row:hover { border-color: var(--heading); }
+  .aq-list-row input { width: 18px; height: 18px; accent-color: var(--primary); flex-shrink: 0; cursor: pointer; }
+  .aq-list-row:has(input:checked) { border-color: var(--primary); background: rgba(200,16,46,.05); }
+
+  /* ── 날짜 블록 ── */
+  .aq-shell .date-block { padding: 1.1rem 1.25rem; }
+  .aq-shell .date-inp { height: 48px; font-size: .96rem; }
+  .aq-shell .date-block-title { font-size: .88rem; }
+
+  /* ── 참가인원/기간/vip 등 숫자 입력 ── */
   .aq-shell .fld select,
   .aq-shell .fld input[type="number"],
   .aq-shell .fld input[type="text"],
@@ -103,39 +113,51 @@
     background: #fff; color: var(--heading);
   }
   .aq-shell .estimate-step > label > textarea { height: auto; min-height: 110px; padding: .9rem 1.1rem; }
-  .aq-shell .fld select:focus,
-  .aq-shell .fld input:focus,
+  .aq-shell .fld select:focus, .aq-shell .fld input:focus,
   .aq-shell .estimate-step > label > input:focus,
   .aq-shell .estimate-step > label > textarea:focus,
   .aq-shell .estimate-step > label > select:focus {
     outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(200,16,46,.08);
   }
   .aq-shell .estimate-step > label { margin-bottom: 1.15rem; display: block; }
+  .aq-shell .fld-row { gap: 1rem; margin-bottom: 0; }
 
-  /* 날짜 블록 */
-  .aq-shell .date-block { padding: 1.1rem 1.25rem; }
-  .aq-shell .date-inp { height: 48px; font-size: .96rem; }
-  .aq-shell .date-block-title { font-size: .88rem; }
-
-  /* 좌석등급/호텔등급/객실구성 pill → 더 큰 세그먼트 버튼 */
-  .aq-shell .grade-pills { gap: .6rem; }
-  .aq-shell .grade-pill { padding: .8rem 1.3rem; font-size: .95rem; border-width: 1.6px; }
-  .aq-shell .grade-label { font-size: .84rem; font-weight: 700; }
-
-  /* 포함 항목 체크칩 → 더 큰 토글 카드 */
-  .aq-shell .inc-chips { gap: .6rem; }
-  .aq-shell .inc-chip { padding: .85rem 1.35rem; font-size: .95rem; border-width: 1.6px; }
-  .aq-shell .inc-sec-lbl { font-size: .8rem; font-weight: 700; }
-  .aq-shell .item-selector { padding: 0; border: none; }
+  /* ── 목적지 아코디언(지역별) ── */
+  .aq-dest-selected {
+    display: flex; align-items: center; gap: .6rem; font-size: .95rem; font-weight: 700;
+    color: var(--heading); background: rgba(200,16,46,.05); border: 1.6px solid var(--primary);
+    padding: .8rem 1.1rem; margin-bottom: 1rem;
+  }
+  .aq-dest-selected .aq-dest-empty { color: var(--muted); font-weight: 500; }
+  #destSearch {
+    width: 100%; height: 46px; font-size: .92rem; padding: 0 1rem; border: 1.6px solid var(--border);
+    background: #fff; color: var(--heading); margin-bottom: .85rem;
+  }
+  #destSearch:focus { outline: none; border-color: var(--primary); }
+  .aq-accordion-group {
+    border: 1.6px solid var(--border); margin-bottom: .5rem; background: #fff;
+  }
+  .aq-accordion-group[open] { border-color: var(--heading); }
+  .aq-accordion-header {
+    font-size: .88rem; font-weight: 700; color: var(--heading); padding: .8rem 1.1rem;
+    cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
+    user-select: none;
+  }
+  .aq-accordion-header::-webkit-details-marker { display: none; }
+  .aq-accordion-header::after { content: '+'; color: var(--muted); font-weight: 400; font-size: 1rem; }
+  .aq-accordion-group[open] .aq-accordion-header::after { content: '−'; }
+  .aq-accordion-header .aq-accordion-count { font-size: .74rem; font-weight: 500; color: var(--muted); margin-right: auto; margin-left: .6rem; }
+  .aq-accordion-body { padding: 0 1.1rem 1.1rem; }
+  .aq-accordion-group.aq-group-hidden { display: none; }
+  .aq-list-row.aq-row-hidden { display: none; }
 
   .aq-shell .step-tracker-item { font-size: .82rem; }
   .aq-shell .step-actions .button { height: 52px; font-size: .98rem; }
+  .aq-shell .estimate-confirm { padding: 1.6rem; }
 
-  @media (max-width: 1100px) {
-    .aq-shell .estimate-grid { grid-template-columns: 1fr; }
-    .aq-shell .estimate-result { position: static; }
-    .aq-topbar-inner { flex-wrap: wrap; height: auto; padding: .6rem 1rem; }
+  @media (max-width: 700px) {
     .aq-controlbar { flex-direction: column; align-items: flex-start; }
+    .aq-list-grid { grid-template-columns: 1fr 1fr; }
   }
 </style>
 </head>
@@ -157,7 +179,7 @@
   <div class="aq-shell">
     <div class="aq-controlbar">
       <div class="aq-hint">
-        고객이 직접 입력하지 않아도, 여기서 <strong>직원이 직접 조건을 입력해 바로 견적을 산출</strong>하고
+        고객이 직접 입력하지 않아도, 여기서 <strong>직원이 직접 조건을 체크해 바로 견적을 산출</strong>하고
         견적서(PDF)·엑셀을 내려받을 수 있습니다. 산출 결과는 견적 관리에도 자동 기록됩니다.
       </div>
       <div class="aq-staff-field">
@@ -172,434 +194,366 @@
       </div>
     </div>
 
-    <div class="estimate-grid">
-      <form id="estimateForm" class="estimate-form" aria-label="내부 견적 계산기">
+    <form id="estimateForm" class="estimate-form" aria-label="내부 견적 계산기">
 
-        <div class="step-tracker" aria-hidden="true">
-          <span class="step-tracker-item active" data-step-track="1">STEP 1 · 여행 정보</span>
-          <span class="step-tracker-sep"></span>
-          <span class="step-tracker-item" data-step-track="2">STEP 2 · 고객 정보</span>
+      <div class="step-tracker" aria-hidden="true">
+        <span class="step-tracker-item active" data-step-track="1">STEP 1 · 여행 정보</span>
+        <span class="step-tracker-sep"></span>
+        <span class="step-tracker-item" data-step-track="2">STEP 2 · 고객 정보</span>
+      </div>
+
+      <div class="estimate-step step-active" data-step="1">
+
+        <div class="aq-section">
+          <div class="aq-section-title">여행 목적지 <span style="font-weight:500;text-transform:none;color:var(--muted);letter-spacing:0">— 지역을 펼쳐 목적지를 체크하세요</span></div>
+
+          <div class="aq-dest-selected" id="destSelectedBar">
+            <span>선택된 목적지:</span>
+            <strong id="destSelectedLabel" class="aq-dest-empty">아직 선택되지 않음</strong>
+          </div>
+
+          <input type="text" id="destSearch" placeholder="목적지 검색 (예: 도쿄, 방콕, Paris...)" />
+
+          <div id="destAccordion"></div>
+
+          <!-- 계산 엔진(script.js)이 참조하는 진짜 입력값 — 화면에는 위 아코디언 UI로 대체 노출,
+               .value/.selectedOptions는 반드시 실제 <select>여야 하므로 삭제하지 않고 숨김 처리만 함 -->
+          <select id="destination" class="aq-native-hidden" required tabindex="-1" aria-hidden="true">
+            <option value="" disabled selected>목적지를 선택하세요</option>
+
+            <optgroup label="동북아시아 — 일본">
+              <option value="도쿄">도쿄 (Tokyo)</option>
+              <option value="오사카">오사카 (Osaka)</option>
+              <option value="후쿠오카">후쿠오카 (Fukuoka)</option>
+              <option value="나고야">나고야 (Nagoya)</option>
+              <option value="삿포로">삿포로 (Sapporo)</option>
+              <option value="오키나와">오키나와 (Okinawa)</option>
+            </optgroup>
+
+            <optgroup label="동북아시아 — 중국">
+              <option value="상해">상해 (Shanghai)</option>
+              <option value="장가계">장가계 (Zhangjiajie)</option>
+              <option value="청도">청도 (Qingdao)</option>
+              <option value="연태">연태 (Yantai)</option>
+            </optgroup>
+
+            <optgroup label="동북아시아 — 홍콩 · 마카오">
+              <option value="홍콩">홍콩 (Hong Kong)</option>
+              <option value="마카오">마카오 (Macau)</option>
+            </optgroup>
+
+            <optgroup label="동북아시아 — 대만">
+              <option value="대만">대만 · 타이베이 (Taipei)</option>
+              <option value="가오슝">가오슝 (Kaohsiung)</option>
+            </optgroup>
+
+            <optgroup label="동북아시아 — 몽골">
+              <option value="몽골">몽골 · 울란바토르 (Ulaanbaatar)</option>
+            </optgroup>
+
+            <optgroup label="동남아시아 — 싱가포르">
+              <option value="싱가포르">싱가포르 (Singapore)</option>
+            </optgroup>
+
+            <optgroup label="동남아시아 — 베트남">
+              <option value="하노이">하노이 (Hanoi)</option>
+              <option value="호치민">호치민 (Ho Chi Minh)</option>
+              <option value="다낭">다낭 (Da Nang)</option>
+              <option value="나트랑">나트랑 (Nha Trang)</option>
+              <option value="푸꾸옥">푸꾸옥 (Phu Quoc)</option>
+            </optgroup>
+
+            <optgroup label="동남아시아 — 필리핀">
+              <option value="마닐라">마닐라 (Manila)</option>
+              <option value="세부">세부 (Cebu)</option>
+              <option value="보홀">보홀 (Bohol)</option>
+            </optgroup>
+
+            <optgroup label="동남아시아 — 말레이시아">
+              <option value="코타키나발루">코타키나발루 (Kota Kinabalu)</option>
+            </optgroup>
+
+            <optgroup label="동남아시아 — 캄보디아">
+              <option value="캄보디아">캄보디아 · 씨엠립 (Siem Reap)</option>
+            </optgroup>
+
+            <optgroup label="동남아시아 — 태국">
+              <option value="방콕">방콕 (Bangkok)</option>
+              <option value="푸켓">푸켓 (Phuket)</option>
+              <option value="치앙마이">치앙마이 (Chiang Mai)</option>
+            </optgroup>
+
+            <optgroup label="동남아시아 — 인도네시아">
+              <option value="발리">발리 (Bali)</option>
+            </optgroup>
+
+            <optgroup label="동남아시아 — 라오스">
+              <option value="라오스">라오스 · 비엔티안 (Vientiane)</option>
+            </optgroup>
+
+            <optgroup label="중앙아시아 — 우즈베키스탄">
+              <option value="우즈베키스탄">우즈베키스탄 · 타슈켄트 (Tashkent)</option>
+            </optgroup>
+
+            <optgroup label="중앙아시아 — 카자흐스탄">
+              <option value="카자흐스탄">카자흐스탄 · 알마티 (Almaty)</option>
+            </optgroup>
+
+            <optgroup label="오세아니아 — 호주">
+              <option value="시드니">시드니 (Sydney)</option>
+              <option value="멜버른">멜버른 (Melbourne)</option>
+              <option value="호주">호주 · 브리즈번/골드코스트 (Brisbane)</option>
+            </optgroup>
+
+            <optgroup label="오세아니아 — 뉴질랜드">
+              <option value="오클랜드">오클랜드 (Auckland)</option>
+            </optgroup>
+
+            <optgroup label="태평양 — 미크로네시아">
+              <option value="괌">괌 (Guam)</option>
+              <option value="사이판">사이판 (Saipan)</option>
+            </optgroup>
+
+            <optgroup label="유럽 — 영국">
+              <option value="영국">영국 · 런던 (London)</option>
+            </optgroup>
+
+            <optgroup label="유럽 — 프랑스">
+              <option value="파리">파리 (Paris)</option>
+            </optgroup>
+
+            <optgroup label="유럽 — 이탈리아">
+              <option value="로마">로마 (Rome)</option>
+            </optgroup>
+
+            <optgroup label="유럽 — 독일">
+              <option value="독일">독일 · 베를린/뮌헨 (Berlin / Munich)</option>
+            </optgroup>
+
+            <optgroup label="유럽 — 네덜란드">
+              <option value="네덜란드">네덜란드 · 암스테르담 (Amsterdam)</option>
+            </optgroup>
+
+            <optgroup label="유럽 — 스페인">
+              <option value="스페인">스페인 · 마드리드/바르셀로나 (Madrid / Barcelona)</option>
+            </optgroup>
+
+            <optgroup label="유럽 — 동유럽">
+              <option value="동유럽">동유럽 · 프라하/빈/부다페스트</option>
+            </optgroup>
+
+            <optgroup label="유럽 — 북유럽">
+              <option value="북유럽">북유럽 · 스톡홀름/코펜하겐/헬싱키</option>
+            </optgroup>
+
+            <optgroup label="유럽 — 서유럽 (묶음)">
+              <option value="서유럽">서유럽 (복수 국가 투어)</option>
+            </optgroup>
+
+            <optgroup label="북미 — 미국">
+              <option value="로스앤젤레스">로스앤젤레스 (Los Angeles)</option>
+              <option value="샌프란시스코">샌프란시스코 (San Francisco)</option>
+              <option value="뉴욕">뉴욕 (New York)</option>
+              <option value="워싱턴">워싱턴 D.C. (Washington D.C.)</option>
+              <option value="하와이">하와이 (Hawaii)</option>
+            </optgroup>
+
+            <optgroup label="북미 — 캐나다">
+              <option value="밴쿠버">밴쿠버 (Vancouver)</option>
+              <option value="토론토">토론토 (Toronto)</option>
+            </optgroup>
+          </select>
         </div>
 
-        <div class="estimate-step step-active" data-step="1">
+        <div class="aq-section">
+          <div class="aq-section-title">프로그램 · 기관 · 방식</div>
 
-          <div class="aq-section">
-            <div class="aq-section-title">여행 기본 정보</div>
-
-            <label class="fld">
-              <span class="fld-lbl"><i data-lucide="map-pin" class="ic-sm"></i>연수 목적지 선택</span>
-              <select id="destination" required>
-                <option value="" disabled selected>목적지를 선택하세요</option>
-
-                <optgroup label="동북아시아 — 일본">
-                  <option value="도쿄">도쿄 (Tokyo)</option>
-                  <option value="오사카">오사카 (Osaka)</option>
-                  <option value="후쿠오카">후쿠오카 (Fukuoka)</option>
-                  <option value="나고야">나고야 (Nagoya)</option>
-                  <option value="삿포로">삿포로 (Sapporo)</option>
-                  <option value="오키나와">오키나와 (Okinawa)</option>
-                </optgroup>
-
-                <optgroup label="동북아시아 — 중국">
-                  <option value="상해">상해 (Shanghai)</option>
-                  <option value="장가계">장가계 (Zhangjiajie)</option>
-                  <option value="청도">청도 (Qingdao)</option>
-                  <option value="연태">연태 (Yantai)</option>
-                </optgroup>
-
-                <optgroup label="동북아시아 — 홍콩 · 마카오">
-                  <option value="홍콩">홍콩 (Hong Kong)</option>
-                  <option value="마카오">마카오 (Macau)</option>
-                </optgroup>
-
-                <optgroup label="동북아시아 — 대만">
-                  <option value="대만">대만 · 타이베이 (Taipei)</option>
-                  <option value="가오슝">가오슝 (Kaohsiung)</option>
-                </optgroup>
-
-                <optgroup label="동북아시아 — 몽골">
-                  <option value="몽골">몽골 · 울란바토르 (Ulaanbaatar)</option>
-                </optgroup>
-
-                <optgroup label="동남아시아 — 싱가포르">
-                  <option value="싱가포르">싱가포르 (Singapore)</option>
-                </optgroup>
-
-                <optgroup label="동남아시아 — 베트남">
-                  <option value="하노이">하노이 (Hanoi)</option>
-                  <option value="호치민">호치민 (Ho Chi Minh)</option>
-                  <option value="다낭">다낭 (Da Nang)</option>
-                  <option value="나트랑">나트랑 (Nha Trang)</option>
-                  <option value="푸꾸옥">푸꾸옥 (Phu Quoc)</option>
-                </optgroup>
-
-                <optgroup label="동남아시아 — 필리핀">
-                  <option value="마닐라">마닐라 (Manila)</option>
-                  <option value="세부">세부 (Cebu)</option>
-                  <option value="보홀">보홀 (Bohol)</option>
-                </optgroup>
-
-                <optgroup label="동남아시아 — 말레이시아">
-                  <option value="코타키나발루">코타키나발루 (Kota Kinabalu)</option>
-                </optgroup>
-
-                <optgroup label="동남아시아 — 캄보디아">
-                  <option value="캄보디아">캄보디아 · 씨엠립 (Siem Reap)</option>
-                </optgroup>
-
-                <optgroup label="동남아시아 — 태국">
-                  <option value="방콕">방콕 (Bangkok)</option>
-                  <option value="푸켓">푸켓 (Phuket)</option>
-                  <option value="치앙마이">치앙마이 (Chiang Mai)</option>
-                </optgroup>
-
-                <optgroup label="동남아시아 — 인도네시아">
-                  <option value="발리">발리 (Bali)</option>
-                </optgroup>
-
-                <optgroup label="동남아시아 — 라오스">
-                  <option value="라오스">라오스 · 비엔티안 (Vientiane)</option>
-                </optgroup>
-
-                <optgroup label="중앙아시아 — 우즈베키스탄">
-                  <option value="우즈베키스탄">우즈베키스탄 · 타슈켄트 (Tashkent)</option>
-                </optgroup>
-
-                <optgroup label="중앙아시아 — 카자흐스탄">
-                  <option value="카자흐스탄">카자흐스탄 · 알마티 (Almaty)</option>
-                </optgroup>
-
-                <optgroup label="오세아니아 — 호주">
-                  <option value="시드니">시드니 (Sydney)</option>
-                  <option value="멜버른">멜버른 (Melbourne)</option>
-                  <option value="호주">호주 · 브리즈번/골드코스트 (Brisbane)</option>
-                </optgroup>
-
-                <optgroup label="오세아니아 — 뉴질랜드">
-                  <option value="오클랜드">오클랜드 (Auckland)</option>
-                </optgroup>
-
-                <optgroup label="태평양 — 미크로네시아">
-                  <option value="괌">괌 (Guam)</option>
-                  <option value="사이판">사이판 (Saipan)</option>
-                </optgroup>
-
-                <optgroup label="유럽 — 영국">
-                  <option value="영국">영국 · 런던 (London)</option>
-                </optgroup>
-
-                <optgroup label="유럽 — 프랑스">
-                  <option value="파리">파리 (Paris)</option>
-                </optgroup>
-
-                <optgroup label="유럽 — 이탈리아">
-                  <option value="로마">로마 (Rome)</option>
-                </optgroup>
-
-                <optgroup label="유럽 — 독일">
-                  <option value="독일">독일 · 베를린/뮌헨 (Berlin / Munich)</option>
-                </optgroup>
-
-                <optgroup label="유럽 — 네덜란드">
-                  <option value="네덜란드">네덜란드 · 암스테르담 (Amsterdam)</option>
-                </optgroup>
-
-                <optgroup label="유럽 — 스페인">
-                  <option value="스페인">스페인 · 마드리드/바르셀로나 (Madrid / Barcelona)</option>
-                </optgroup>
-
-                <optgroup label="유럽 — 동유럽">
-                  <option value="동유럽">동유럽 · 프라하/빈/부다페스트</option>
-                </optgroup>
-
-                <optgroup label="유럽 — 북유럽">
-                  <option value="북유럽">북유럽 · 스톡홀름/코펜하겐/헬싱키</option>
-                </optgroup>
-
-                <optgroup label="유럽 — 서유럽 (묶음)">
-                  <option value="서유럽">서유럽 (복수 국가 투어)</option>
-                </optgroup>
-
-                <optgroup label="북미 — 미국">
-                  <option value="로스앤젤레스">로스앤젤레스 (Los Angeles)</option>
-                  <option value="샌프란시스코">샌프란시스코 (San Francisco)</option>
-                  <option value="뉴욕">뉴욕 (New York)</option>
-                  <option value="워싱턴">워싱턴 D.C. (Washington D.C.)</option>
-                  <option value="하와이">하와이 (Hawaii)</option>
-                </optgroup>
-
-                <optgroup label="북미 — 캐나다">
-                  <option value="밴쿠버">밴쿠버 (Vancouver)</option>
-                  <option value="토론토">토론토 (Toronto)</option>
-                </optgroup>
-              </select>
-            </label>
-
-            <div class="fld-row">
-              <label class="fld">
-                <span class="fld-lbl"><i data-lucide="layers" class="ic-sm"></i>프로그램 유형</span>
-                <select id="programType" required>
-                  <option value="language">언어 집중 연수</option>
-                  <option value="leadership">리더십 / 조직문화</option>
-                  <option value="industry">산업체 실무 연수</option>
-                  <option value="academic">교육기관 / 연구 연수</option>
-                </select>
-              </label>
-              <label class="fld">
-                <span class="fld-lbl"><i data-lucide="building-2" class="ic-sm"></i>기관 유형</span>
-                <select id="organizationType" required>
-                  <option value="company">기업</option>
-                  <option value="public">공공기관</option>
-                  <option value="education">교육기관</option>
-                </select>
-              </label>
-            </div>
-
-            <label class="fld">
-              <span class="fld-lbl"><i data-lucide="badge-check" class="ic-sm"></i>연수 방식</span>
-              <select id="visitMode">
-                <option value="official">기관·기업 공식 방문 포함</option>
-                <option value="workshop">워크숍·팀빌딩 중심 (공식 방문 없음)</option>
-              </select>
-            </label>
+          <div class="aq-field-block">
+            <div class="aq-field-lbl"><i data-lucide="layers" class="ic-sm"></i>프로그램 유형</div>
+            <div class="aq-list-grid" id="programTypeList"></div>
+          </div>
+          <div class="aq-field-block">
+            <div class="aq-field-lbl"><i data-lucide="building-2" class="ic-sm"></i>기관 유형</div>
+            <div class="aq-list-grid" id="organizationTypeList"></div>
+          </div>
+          <div class="aq-field-block">
+            <div class="aq-field-lbl"><i data-lucide="badge-check" class="ic-sm"></i>연수 방식</div>
+            <div class="aq-list-grid" id="visitModeList"></div>
           </div>
 
-          <div class="aq-section">
-            <div class="aq-section-title">일정 및 인원</div>
+          <select id="programType" class="aq-native-hidden" required tabindex="-1" aria-hidden="true">
+            <option value="language">언어 집중 연수</option>
+            <option value="leadership">리더십 / 조직문화</option>
+            <option value="industry">산업체 실무 연수</option>
+            <option value="academic">교육기관 / 연구 연수</option>
+          </select>
+          <select id="organizationType" class="aq-native-hidden" required tabindex="-1" aria-hidden="true">
+            <option value="company">기업</option>
+            <option value="public">공공기관</option>
+            <option value="education">교육기관</option>
+          </select>
+          <select id="visitMode" class="aq-native-hidden" tabindex="-1" aria-hidden="true">
+            <option value="official">기관·기업 공식 방문 포함</option>
+            <option value="workshop">워크숍·팀빌딩 중심 (공식 방문 없음)</option>
+          </select>
+        </div>
 
-            <div class="date-block">
-              <div class="date-block-header">
-                <span class="date-block-title">연수 날짜</span>
-                <span class="date-block-hint">선택 시 기간 자동 입력</span>
-              </div>
-              <div class="date-inputs-row">
-                <div class="date-input-wrap">
-                  <span class="date-inp-label">출발일</span>
-                  <input type="date" id="startDate" class="date-inp" />
-                </div>
-                <span class="date-arrow-icon">→</span>
-                <div class="date-input-wrap">
-                  <span class="date-inp-label">귀국일</span>
-                  <input type="date" id="endDate" class="date-inp" />
-                </div>
-              </div>
-              <div class="date-result-bar" id="dateResultBar">날짜를 선택하면 기간이 자동으로 계산됩니다.</div>
-              <div class="season-badge hidden" id="seasonBadge"></div>
-            </div>
+        <div class="aq-section">
+          <div class="aq-section-title">일정 및 인원</div>
 
-            <div class="fld-row" style="margin-top:1.15rem">
-              <label class="fld">
-                <span class="fld-lbl"><i data-lucide="users" class="ic-sm"></i>참가 인원</span>
-                <input type="number" id="participants" min="1" value="10" required />
-              </label>
-              <label class="fld">
-                <span class="fld-lbl"><i data-lucide="calendar-days" class="ic-sm"></i>연수 기간 <small class="fld-hint">수정 불가</small></span>
-                <input type="number" id="days" min="1" value="7" required readonly aria-readonly="true" />
-              </label>
+          <div class="date-block">
+            <div class="date-block-header">
+              <span class="date-block-title">연수 날짜</span>
+              <span class="date-block-hint">선택 시 기간 자동 입력</span>
             </div>
+            <div class="date-inputs-row">
+              <div class="date-input-wrap">
+                <span class="date-inp-label">출발일</span>
+                <input type="date" id="startDate" class="date-inp" />
+              </div>
+              <span class="date-arrow-icon">→</span>
+              <div class="date-input-wrap">
+                <span class="date-inp-label">귀국일</span>
+                <input type="date" id="endDate" class="date-inp" />
+              </div>
+            </div>
+            <div class="date-result-bar" id="dateResultBar">날짜를 선택하면 기간이 자동으로 계산됩니다.</div>
+            <div class="season-badge hidden" id="seasonBadge"></div>
           </div>
 
-          <div class="aq-section">
-            <div class="aq-section-title">항공 · 포함 항목 · 등급</div>
-
+          <div class="fld-row" style="margin-top:1.15rem">
             <label class="fld">
-              <span class="fld-lbl">
-                <i data-lucide="plane-takeoff" class="ic-sm"></i>출발 공항
-                <span class="fld-hint">※ 단가 기준: 인천(ICN) 출발</span>
-              </span>
-              <select id="departureCity">
-                <option value="ICN">서울 · 인천 (ICN)</option>
-                <option value="GMP">서울 · 김포 (GMP)</option>
-                <option value="PUS">부산 · 김해 (PUS)</option>
-                <option value="TAE">대구 (TAE)</option>
-                <option value="KWJ">광주 (KWJ)</option>
-                <option value="CJU">제주 (CJU)</option>
-              </select>
+              <span class="fld-lbl"><i data-lucide="users" class="ic-sm"></i>참가 인원</span>
+              <input type="number" id="participants" min="1" value="10" required />
             </label>
-
-            <div class="item-selector">
-              <span class="inc-sec-lbl">항공</span>
-              <div class="inc-fixed-row">
-                <i data-lucide="lock" class="ic-sm inc-lock"></i>
-                <span class="inc-fixed-text">항공 + 유류할증료</span>
-                <span class="inc-fixed-badge">항상 포함</span>
-              </div>
-              <div class="inc-grade-row" id="cabinClassRow">
-                <span class="grade-label">좌석 등급</span>
-                <div class="grade-pills">
-                  <label class="grade-pill">
-                    <input type="radio" name="cabinClass" value="economy" checked />
-                    <span>이코노미</span>
-                  </label>
-                  <label class="grade-pill">
-                    <input type="radio" name="cabinClass" value="business" />
-                    <span>비즈니스</span>
-                  </label>
-                </div>
-              </div>
-
-              <span class="inc-sec-lbl">추가 선택</span>
-              <div class="inc-chips">
-                <label class="inc-chip">
-                  <input type="checkbox" id="incHotel" checked />
-                  <span>호텔</span>
-                </label>
-                <label class="inc-chip">
-                  <input type="checkbox" id="incMeal" checked />
-                  <span>식사</span>
-                </label>
-                <label class="inc-chip">
-                  <input type="checkbox" id="incVehicle" checked />
-                  <span>차량</span>
-                </label>
-                <label class="inc-chip">
-                  <input type="checkbox" id="incGuide" checked />
-                  <span>가이드</span>
-                </label>
-                <label class="inc-chip">
-                  <input type="checkbox" id="incSightseeing" checked />
-                  <span>관광</span>
-                </label>
-              </div>
-
-              <span class="inc-sec-lbl">숙박</span>
-              <div class="inc-grade-row" id="hotelGradeSub">
-                <span class="grade-label">호텔 등급</span>
-                <div class="grade-pills">
-                  <label class="grade-pill"><input type="radio" name="hotelGrade" value="standard" /><span>3성급</span></label>
-                  <label class="grade-pill"><input type="radio" name="hotelGrade" value="superior" checked /><span>4성급</span></label>
-                  <label class="grade-pill"><input type="radio" name="hotelGrade" value="deluxe" /><span>5성급</span></label>
-                </div>
-              </div>
-              <div class="inc-grade-row" id="roomConfigRow">
-                <span class="grade-label">객실 구성</span>
-                <div class="grade-pills">
-                  <label class="grade-pill">
-                    <input type="radio" name="roomConfig" value="double" checked />
-                    <span>2인 1실</span>
-                  </label>
-                  <label class="grade-pill">
-                    <input type="radio" name="roomConfig" value="single" />
-                    <span>1인 1실</span>
-                  </label>
-                  <label class="grade-pill">
-                    <input type="radio" name="roomConfig" value="mixed" />
-                    <span>혼합</span>
-                  </label>
-                </div>
-              </div>
-              <div class="inc-vip-row hidden" id="vipCountRow">
-                <span class="grade-label">1인 1실 인원</span>
-                <input type="number" id="vipCount" min="0" value="0" class="vip-count-inp" />
-                <span class="vip-count-unit">명 (임원 · 단독)</span>
-              </div>
-
-              <input type="radio" name="vehicleType" value="auto" checked style="display:none" aria-hidden="true" />
-            </div>
-          </div>
-
-          <div class="step-actions">
-            <button type="button" id="nextStepButton" class="button button-primary">다음 단계로 이동</button>
+            <label class="fld">
+              <span class="fld-lbl"><i data-lucide="calendar-days" class="ic-sm"></i>연수 기간 <small class="fld-hint">수정 불가</small></span>
+              <input type="number" id="days" min="1" value="7" required readonly aria-readonly="true" />
+            </label>
           </div>
         </div>
 
-        <div class="estimate-step" data-step="2">
-          <div class="aq-section">
-            <div class="aq-section-title">고객 정보</div>
-            <label>
-              <span class="aq-step2-lbl">고객사 / 기관명</span>
-              <input type="text" id="organization" placeholder="고객사 또는 기관명을 입력하세요" required />
-            </label>
-            <label>
-              <span class="aq-step2-lbl">고객 담당자 이름</span>
-              <input type="text" id="contactName" placeholder="고객 측 담당자 이름을 입력하세요" required />
-            </label>
-            <label>
-              <span class="aq-step2-lbl">요청 사항 / 메모</span>
-              <textarea id="requestDetails" placeholder="문의·상담 내용, 핵심 요구사항 등 메모" required></textarea>
-            </label>
-          </div>
+        <div class="aq-section">
+          <div class="aq-section-title">항공 · 포함 항목 · 등급</div>
 
-          <div class="step-actions" id="step2Actions">
-            <button type="button" id="backStepButton" class="button button-secondary">← 이전</button>
-            <button type="submit" class="button button-primary">견적 산출하기</button>
-          </div>
-
-          <div id="estimateConfirm" class="estimate-confirm hidden">
-            <div class="confirm-icon-wrap">
-              <i data-lucide="check-circle" style="width:36px;height:36px;color:#22c55e"></i>
+          <div class="aq-field-block">
+            <div class="aq-field-lbl">
+              <i data-lucide="plane-takeoff" class="ic-sm"></i>출발 공항
+              <span class="fld-hint">※ 단가 기준: 인천(ICN) 출발</span>
             </div>
-            <p class="confirm-title">견적 산출 완료!</p>
-            <p class="confirm-msg">아래 버튼으로 견적서(PDF)·엑셀을<br>바로 내려받아 고객에게 전달할 수 있습니다.</p>
-
-            <button type="button" class="btn-get-estimate" onclick="openEstimateWindow()">
-              <i data-lucide="file-text" style="width:18px;height:18px"></i>
-              견적서 받기
-            </button>
-            <button type="button" id="resetEstimateBtn" class="btn-reset-est">↩ 새 견적 다시 계산하기</button>
+            <div class="aq-list-grid" id="departureCityList"></div>
+            <select id="departureCity" class="aq-native-hidden" tabindex="-1" aria-hidden="true">
+              <option value="ICN">서울 · 인천 (ICN)</option>
+              <option value="GMP">서울 · 김포 (GMP)</option>
+              <option value="PUS">부산 · 김해 (PUS)</option>
+              <option value="TAE">대구 (TAE)</option>
+              <option value="KWJ">광주 (KWJ)</option>
+              <option value="CJU">제주 (CJU)</option>
+            </select>
           </div>
+
+          <div class="aq-field-block">
+            <div class="aq-field-lbl"><i data-lucide="lock" class="ic-sm"></i>항공 + 유류할증료 <span class="fld-hint">항상 포함</span></div>
+            <div class="aq-field-lbl" style="margin-top:.8rem;margin-bottom:.5rem">좌석 등급</div>
+            <div class="aq-list-grid">
+              <label class="aq-list-row"><input type="radio" name="cabinClass" value="economy" checked /><span>이코노미</span></label>
+              <label class="aq-list-row"><input type="radio" name="cabinClass" value="business" /><span>비즈니스</span></label>
+            </div>
+          </div>
+
+          <div class="aq-field-block">
+            <div class="aq-field-lbl">추가 선택 항목</div>
+            <div class="aq-list-grid">
+              <label class="aq-list-row"><input type="checkbox" id="incHotel" checked /><span>호텔</span></label>
+              <label class="aq-list-row"><input type="checkbox" id="incMeal" checked /><span>식사</span></label>
+              <label class="aq-list-row"><input type="checkbox" id="incVehicle" checked /><span>차량</span></label>
+              <label class="aq-list-row"><input type="checkbox" id="incGuide" checked /><span>가이드</span></label>
+              <label class="aq-list-row"><input type="checkbox" id="incSightseeing" checked /><span>관광</span></label>
+            </div>
+          </div>
+
+          <div class="aq-field-block" id="hotelGradeSub">
+            <div class="aq-field-lbl">호텔 등급</div>
+            <div class="aq-list-grid">
+              <label class="aq-list-row"><input type="radio" name="hotelGrade" value="standard" /><span>3성급</span></label>
+              <label class="aq-list-row"><input type="radio" name="hotelGrade" value="superior" checked /><span>4성급</span></label>
+              <label class="aq-list-row"><input type="radio" name="hotelGrade" value="deluxe" /><span>5성급</span></label>
+            </div>
+          </div>
+
+          <div class="aq-field-block" id="roomConfigRow">
+            <div class="aq-field-lbl">객실 구성</div>
+            <div class="aq-list-grid">
+              <label class="aq-list-row"><input type="radio" name="roomConfig" value="double" checked /><span>2인 1실</span></label>
+              <label class="aq-list-row"><input type="radio" name="roomConfig" value="single" /><span>1인 1실</span></label>
+              <label class="aq-list-row"><input type="radio" name="roomConfig" value="mixed" /><span>혼합</span></label>
+            </div>
+          </div>
+
+          <div class="aq-field-block inc-vip-row hidden" id="vipCountRow">
+            <div class="aq-field-lbl">1인 1실 인원 (임원 · 단독)</div>
+            <input type="number" id="vipCount" min="0" value="0" style="height:48px;font-size:1rem;padding:0 1rem;border:1.6px solid var(--border);width:160px" />
+          </div>
+
+          <input type="radio" name="vehicleType" value="auto" checked style="display:none" aria-hidden="true" />
         </div>
-      </form>
 
-      <div class="estimate-result">
-        <div class="result-card">
-          <div class="result-card-top">
-            <p class="result-label">예상 견적</p>
+        <div class="step-actions">
+          <button type="button" id="nextStepButton" class="button button-primary">다음 단계로 이동</button>
+        </div>
+      </div>
+
+      <div class="estimate-step" data-step="2">
+        <div class="aq-section">
+          <div class="aq-section-title">고객 정보</div>
+          <label>
+            <span class="aq-step2-lbl">고객사 / 기관명</span>
+            <input type="text" id="organization" placeholder="고객사 또는 기관명을 입력하세요" required />
+          </label>
+          <label>
+            <span class="aq-step2-lbl">고객 담당자 이름</span>
+            <input type="text" id="contactName" placeholder="고객 측 담당자 이름을 입력하세요" required />
+          </label>
+          <label>
+            <span class="aq-step2-lbl">요청 사항 / 메모</span>
+            <textarea id="requestDetails" placeholder="문의·상담 내용, 핵심 요구사항 등 메모" required></textarea>
+          </label>
+        </div>
+
+        <div class="step-actions" id="step2Actions">
+          <button type="button" id="backStepButton" class="button button-secondary">← 이전</button>
+          <button type="submit" class="button button-primary">견적 산출하기</button>
+        </div>
+
+        <div id="estimateConfirm" class="estimate-confirm hidden">
+          <div class="confirm-icon-wrap">
+            <i data-lucide="check-circle" style="width:36px;height:36px;color:#22c55e"></i>
           </div>
-          <button type="button" id="downloadEstimate" class="btn-dl-main hidden">
-            견적서 확인하기
+          <p class="confirm-title">견적 산출 완료!</p>
+          <p class="confirm-msg">아래 버튼으로 견적서(PDF)·엑셀을<br>바로 내려받아 고객에게 전달할 수 있습니다.</p>
+
+          <button type="button" id="downloadEstimate" class="btn-get-estimate hidden">
+            <i data-lucide="file-text" style="width:18px;height:18px"></i>
+            견적서 받기
           </button>
-
           <button type="button" id="downloadEstimateExcel" class="btn-dl-excel hidden" onclick="downloadEstimateExcel()">
             <i data-lucide="file-spreadsheet" style="width:15px;height:15px"></i>
             엑셀로 다운로드
           </button>
-
-          <div id="noEstimateMsg" class="no-estimate-msg">
-            <span class="no-est-icon"><i data-lucide="calculator" style="width:28px;height:28px;color:var(--red)"></i></span>
-            <p class="no-est-lead">목적지와 기간을 선택하면<br>예상 견적이 표시됩니다.</p>
-            <ul class="no-est-steps">
-              <li><i data-lucide="check" class="ic-sm"></i>목적지 · 인원 · 기간 입력</li>
-              <li><i data-lucide="check" class="ic-sm"></i>포함 항목 · 등급 선택</li>
-              <li><i data-lucide="check" class="ic-sm"></i>30초 안에 예상 총액 확인</li>
-            </ul>
-          </div>
-
-          <div id="estimateDetail" class="hidden">
-            <p class="inc-label">포함 항목</p>
-            <div class="inc-tags" id="incTagsArea"></div>
-
-            <div class="result-totals">
-              <div class="total-box total-grand">
-                <span class="total-lbl">예상 총액</span>
-                <span class="total-amt" id="resultValue">₩ 0</span>
-              </div>
-              <div class="total-box total-per">
-                <span class="total-lbl">1인당 금액</span>
-                <span class="total-amt" id="perPersonValue">₩ 0</span>
-              </div>
-            </div>
-
-            <div id="rateNoteBadge" class="rate-note-badge hidden"></div>
-            <p class="result-note" id="resultNote"></p>
-          </div>
+          <button type="button" id="resetEstimateBtn" class="btn-reset-est">↩ 새 견적 다시 계산하기</button>
         </div>
       </div>
-    </div>
+    </form>
+
+    <!-- noEstimateMsg/estimateDetail(실시간 예상 견적 패널)은 요청에 따라 완전히 제거.
+         script.js는 이 id들을 매번 getElementById로 조회 후 null 체크하므로
+         DOM에서 빠져도 계산 로직은 정상 동작한다(견적서/엑셀 산출에는 영향 없음). -->
   </div>
 </div>
 
 <script>
-  /* script.js/data.js는 공개 홈페이지와 100% 동일한 파일을 그대로 재사용한다 —
-     견적 계산 로직(getBreakdownData)이 이 페이지에서도 완전히 같은 결과를 내도록
-     보장하기 위함. 이 페이지 전용 동작(방문 통계 제외/작성자 기록)은
-     window.__INTERNAL_TOOL__/__INTERNAL_STAFF__ 두 플래그로만 분기한다. */
   window.__INTERNAL_TOOL__  = true;
   window.__INTERNAL_STAFF__ = document.getElementById('aqStaff')?.value || '';
-
-  /* admin.html 탭 안에 <iframe>으로 임베드된 경우, admin.html 자체 헤더/사이드바가
-     이미 있으므로 이 페이지의 상단 바(브랜드/뒤로가기)는 숨긴다.
-     (admin-quote.html을 주소창에 직접 입력해 단독으로 열었을 때는 그대로 노출) */
   if (window.self !== window.top) document.documentElement.classList.add('aq-embedded');
 </script>
 <script src="company-info.js"></script>
@@ -610,10 +564,122 @@
     window.__INTERNAL_STAFF__ = this.value;
   });
 
+  /* ══════════════════════════════════════════════════════════════════
+     "리스트형 체크" UI 생성기 — 숨겨진 원본 <select>의 <option>들을 그대로
+     읽어서 큼직한 체크 리스트를 만들고, 클릭 시 원본 select.value를 갱신 +
+     change 이벤트를 발생시켜 script.js의 기존 로직(실시간 계산 등)이 평소처럼
+     반응하게 한다. 원본 select는 절대 지우지 않는다(계산 엔진이 .value /
+     .selectedOptions를 직접 읽으므로 진짜 <select>여야 함). ══════════════ */
+  function buildFlatList(selectId, containerId) {
+    const select = document.getElementById(selectId);
+    const container = document.getElementById(containerId);
+    if (!select || !container) return;
+    Array.from(select.options).forEach(function (opt) {
+      if (!opt.value) return;
+      const row = document.createElement('label');
+      row.className = 'aq-list-row';
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = '__mirror_' + selectId;
+      radio.checked = opt.selected;
+      radio.addEventListener('change', function () {
+        select.value = opt.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      const span = document.createElement('span');
+      span.textContent = opt.textContent;
+      row.appendChild(radio);
+      row.appendChild(span);
+      container.appendChild(row);
+    });
+  }
+
+  function buildDestAccordion() {
+    const select = document.getElementById('destination');
+    const container = document.getElementById('destAccordion');
+    const selectedLabel = document.getElementById('destSelectedLabel');
+    if (!select || !container) return;
+
+    Array.from(select.children).forEach(function (node) {
+      if (node.tagName !== 'OPTGROUP') return;
+      const group = document.createElement('details');
+      group.className = 'aq-accordion-group';
+
+      const summary = document.createElement('summary');
+      summary.className = 'aq-accordion-header';
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = node.label;
+      const countSpan = document.createElement('span');
+      countSpan.className = 'aq-accordion-count';
+      countSpan.textContent = node.children.length + '곳';
+      summary.appendChild(titleSpan);
+      summary.appendChild(countSpan);
+
+      const body = document.createElement('div');
+      body.className = 'aq-accordion-body';
+      const grid = document.createElement('div');
+      grid.className = 'aq-list-grid';
+
+      Array.from(node.children).forEach(function (opt) {
+        const row = document.createElement('label');
+        row.className = 'aq-list-row';
+        row.dataset.searchText = (opt.textContent + ' ' + opt.value).toLowerCase();
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = '__mirror_destination';
+        radio.checked = opt.selected;
+        radio.addEventListener('change', function () {
+          select.value = opt.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          selectedLabel.textContent = opt.textContent;
+          selectedLabel.classList.remove('aq-dest-empty');
+        });
+        const span = document.createElement('span');
+        span.textContent = opt.textContent;
+        row.appendChild(radio);
+        row.appendChild(span);
+        grid.appendChild(row);
+      });
+
+      body.appendChild(grid);
+      group.appendChild(summary);
+      group.appendChild(body);
+      container.appendChild(group);
+    });
+
+    /* 목적지 검색: 텍스트가 있으면 매칭되는 항목만 남기고 해당 그룹을 자동으로 펼침 */
+    const searchInput = document.getElementById('destSearch');
+    searchInput?.addEventListener('input', function () {
+      const q = this.value.trim().toLowerCase();
+      container.querySelectorAll('.aq-accordion-group').forEach(function (group) {
+        const rows = Array.from(group.querySelectorAll('.aq-list-row'));
+        if (!q) {
+          rows.forEach(function (r) { r.classList.remove('aq-row-hidden'); });
+          group.classList.remove('aq-group-hidden');
+          group.open = false;
+          return;
+        }
+        let anyMatch = false;
+        rows.forEach(function (r) {
+          const match = r.dataset.searchText.includes(q);
+          r.classList.toggle('aq-row-hidden', !match);
+          if (match) anyMatch = true;
+        });
+        group.classList.toggle('aq-group-hidden', !anyMatch);
+        if (anyMatch) group.open = true;
+      });
+    });
+  }
+
+  buildDestAccordion();
+  buildFlatList('programType', 'programTypeList');
+  buildFlatList('organizationType', 'organizationTypeList');
+  buildFlatList('visitMode', 'visitModeList');
+  buildFlatList('departureCity', 'departureCityList');
+
   (function authGate() {
     fetch('/api/admin/account?action=me').then(function (r) {
       if (!r.ok) {
-        /* iframe 안에서는 iframe만 이동시키지 않고, 전체 브라우저 탭을 admin.html로 보낸다 */
         (window.top || window).location.href = 'admin.html';
         return;
       }
