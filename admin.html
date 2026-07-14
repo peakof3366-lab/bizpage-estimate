@@ -6,22 +6,24 @@
   <title>비즈페이지 관리자</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css" />
   <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
   <script src="data.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --primary: #C8102E; --primary-dark: #8A0B20; --primary-lt: #FBEAEC;
-      --accent: #4A4A4A; --accent-warm: #8A8A8A;
-      --bg: #F2F2F2; --white: #ffffff;
-      --border: #E2E2E2; --text: #1A1A1A; --muted: #767676;
-      --r: 4px;
-      --shadow: 0 1px 6px rgba(0,0,0,0.08);
-      --shadow-lg: 0 6px 24px rgba(0,0,0,0.14);
+      /* 프론트엔드(index.html/styles.css) 에디토리얼 블랙&레드 브랜드와 통일된 토큰 */
+      --primary: #C8102E; --primary-dark: #A20D25; --primary-lt: #FBEAEC;
+      --heading: #0D0D0D; --muted: #787878;
+      --bg: #F4F4F2; --white: #ffffff;
+      --border: rgba(0,0,0,.08); --text: #222222;
+      --r: 0px;
+      --shadow-sm: 0 2px 10px rgba(0,0,0,.10);
+      --shadow-lg: 0 6px 24px rgba(0,0,0,.16);
       --danger: #DC2626; --success: #10b981; --warn: #f59e0b;
-      --sidebar-bg: #1E1E1E;
+      --sidebar-bg: #1A1A1A;
     }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+    body { font-family: 'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
     .hidden { display: none !important; }
     a { color: inherit; text-decoration: none; }
     button { font-family: inherit; cursor: pointer; }
@@ -30,18 +32,23 @@
     #loginPage {
       min-height: 100vh;
       display: flex; align-items: center; justify-content: center;
-      background: linear-gradient(135deg, #2a2a2a 0%, var(--primary-dark) 55%, var(--primary) 100%);
+      background: linear-gradient(160deg, #141414 0%, var(--sidebar-bg) 100%);
     }
     .login-box {
       background: var(--white);
+      border: 1px solid var(--border);
       padding: 3rem 2.5rem;
       width: min(400px, calc(100% - 2rem));
-      box-shadow: 0 24px 80px rgba(0,0,0,0.22);
+      box-shadow: var(--shadow-lg);
     }
-    .login-logo { font-size: 1.5rem; font-weight: 800; color: var(--primary); text-align: center; letter-spacing: .08em; font-family: Georgia, serif; margin-bottom: .3rem; }
-    .login-sub  { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 2rem; }
+    .login-logo {
+      font-size: 1.25rem; font-weight: 900; color: var(--heading); text-align: center;
+      letter-spacing: .06em; text-transform: uppercase; margin-bottom: .6rem;
+      padding-bottom: .6rem; border-bottom: 2px solid var(--primary); display: inline-block; width: 100%;
+    }
+    .login-sub  { text-align: center; color: var(--muted); font-size: .68rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; margin: 1.1rem 0 2rem; }
     .field { margin-bottom: 1.1rem; }
-    .field label { display: block; font-weight: 600; font-size: .82rem; margin-bottom: .4rem; }
+    .field label { display: block; font-weight: 700; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--heading); margin-bottom: .5rem; }
     .field input { width: 100%; padding: .75rem 1rem; border: 1.5px solid var(--border); background: var(--white); color: var(--text); font-size: .9rem; border-radius: var(--r); transition: border-color .2s; }
     .field input:focus { outline: none; border-color: var(--primary); }
     .err-msg { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: .65rem 1rem; font-size: .82rem; margin-bottom: .75rem; border-radius: var(--r); }
@@ -49,12 +56,12 @@
     .btn-login:hover { background: var(--primary-dark); }
 
     /* ── DASH HEADER ───────────────── */
-    .dash-header { background: var(--primary); padding: 0 1.5rem; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+    .dash-header { background: var(--heading); padding: 0 1.5rem; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255,255,255,.1); }
     .dash-header-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; max-width: 1300px; margin: 0 auto; }
-    .dash-brand { font-size: .95rem; font-weight: 800; color: #fff; letter-spacing: .03em; }
-    .dash-brand:hover { color: var(--accent); }
+    .dash-brand { font-size: .82rem; font-weight: 900; color: #fff; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid transparent; padding-bottom: 2px; transition: border-color .18s; }
+    .dash-brand:hover { border-color: var(--primary); }
     .dash-right { display: flex; align-items: center; gap: .75rem; }
-    .dash-user { color: rgba(255,255,255,.7); font-size: .82rem; }
+    .dash-user { color: rgba(255,255,255,.55); font-size: .78rem; }
     .btn-sm { padding: .38rem .9rem; font-size: .8rem; font-weight: 600; border-radius: var(--r); border: 1.5px solid transparent; transition: all .2s; }
     .btn-ghost { background: transparent; color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.35); }
     .btn-ghost:hover { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.7); }
@@ -69,14 +76,14 @@
     .dash-main { flex: 1; min-width: 0; overflow-x: hidden; }
 
     /* ── SIDEBAR ───────────────────── */
-    .sidebar-logo { padding: 1.1rem 1.2rem .8rem; color: rgba(255,255,255,.9); font-size: .88rem; font-weight: 700;
-      display: flex; align-items: center; gap: .5rem; border-bottom: 1px solid rgba(255,255,255,.1); letter-spacing: .03em; }
+    .sidebar-logo { padding: 1.1rem 1.2rem .8rem; color: rgba(255,255,255,.9); font-size: .76rem; font-weight: 900;
+      display: flex; align-items: center; gap: .5rem; border-bottom: 1px solid rgba(255,255,255,.1); letter-spacing: .06em; text-transform: uppercase; }
     .sidebar-nav { padding: .6rem .6rem; flex: 1; display: flex; flex-direction: column; gap: .15rem; }
     .sidebar-divider { height: 1px; background: rgba(255,255,255,.1); margin: .4rem 0; }
     .sidebar-item {
       display: flex; align-items: center; gap: .65rem; padding: .6rem .85rem;
       width: 100%; border: none; background: transparent; color: rgba(255,255,255,.65);
-      font-size: .82rem; font-weight: 500; cursor: pointer; border-radius: 4px;
+      font-size: .82rem; font-weight: 500; cursor: pointer; border-radius: 0;
       transition: background .18s, color .18s; text-align: left; position: relative;
     }
     .sidebar-item:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.9); }
@@ -87,15 +94,15 @@
       padding: .1rem .35rem; border-radius: 10px; line-height: 1.4; }
     .sidebar-footer { padding: .8rem .8rem; border-top: 1px solid rgba(255,255,255,.1); display: flex; gap: .5rem; }
     .sf-link    { flex: 1; padding: .45rem .75rem; background: rgba(255,255,255,.08); color: rgba(255,255,255,.7);
-      font-size: .76rem; font-weight: 600; text-align: center; border-radius: 3px; transition: background .18s; text-decoration: none; }
+      font-size: .76rem; font-weight: 600; text-align: center; border-radius: 0; transition: background .18s; text-decoration: none; }
     .sf-link:hover { background: rgba(255,255,255,.15); color: #fff; }
     .sf-logout  { padding: .45rem .75rem; background: transparent; color: rgba(255,255,255,.6); border: 1px solid rgba(255,255,255,.2);
-      font-size: .76rem; font-weight: 600; cursor: pointer; border-radius: 3px; transition: all .18s; font-family: inherit; }
+      font-size: .76rem; font-weight: 600; cursor: pointer; border-radius: 0; transition: all .18s; font-family: inherit; }
     .sf-logout:hover { background: rgba(239,68,68,.2); color: #fff; border-color: rgba(239,68,68,.5); }
 
     /* 모바일 탭 헤더 */
     .mobile-tab-header { display: none; padding: .7rem 1.2rem; background: var(--white);
-      border-bottom: 1px solid var(--border); font-weight: 700; font-size: .88rem; color: var(--primary); }
+      border-bottom: 1px solid var(--border); font-weight: 700; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--heading); }
 
     /* TABS (하위호환용) */
     .tab-nav { display: none; }
@@ -105,17 +112,20 @@
     .dash-body { max-width: 1300px; margin: 0 auto; padding: 1.75rem 1.5rem; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
-    .panel-title { font-size: 1.1rem; font-weight: 800; color: var(--primary); margin-bottom: 1.25rem; }
+    .panel-title {
+      font-size: 1.05rem; font-weight: 800; color: var(--heading); margin-bottom: 1.25rem;
+      padding-left: .7rem; border-left: 3px solid var(--primary);
+    }
 
     /* ── CARD ─────────────────────── */
-    .card { background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .card { background: var(--white); border: 1px solid var(--border); }
     .card-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
-    .card-title { font-size: .88rem; font-weight: 700; color: var(--primary); }
+    .card-title { font-size: .76rem; font-weight: 800; color: var(--heading); letter-spacing: .04em; text-transform: uppercase; }
     .card-body { padding: 1.25rem; }
 
     /* ── STAT CARDS ───────────────── */
     .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-    .stat-card { background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 1.25rem 1.5rem; border-left: 3px solid var(--primary); }
+    .stat-card { background: var(--white); border: 1px solid var(--border); padding: 1.25rem 1.5rem; border-left: 3px solid var(--primary); }
     .stat-card.warn { border-left-color: var(--warn); }
     .stat-card.success { border-left-color: var(--success); }
     .stat-card.danger { border-left-color: var(--danger); }
@@ -123,8 +133,8 @@
     .stat-card.warn .stat-num { color: var(--warn); }
     .stat-card.success .stat-num { color: var(--success); }
     .stat-card.danger .stat-num { color: var(--danger); }
-    .stat-lbl { font-size: .78rem; color: var(--muted); font-weight: 500; }
-    .stat-sub { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+    .stat-lbl { font-size: .72rem; color: var(--muted); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+    .stat-sub { font-size: .72rem; color: var(--muted); margin-top: .3rem; }
 
     /* ── GRID LAYOUTS ─────────────── */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
@@ -136,7 +146,7 @@
     .recent-item.unread { background: #fffbeb; border-color: #fde68a; }
     .recent-name { font-weight: 700; min-width: 70px; }
     .recent-org  { color: var(--muted); min-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .recent-msg  { color: var(--text-light, #5a6d7f); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-msg  { color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .recent-time { color: var(--muted); font-size: .74rem; white-space: nowrap; }
 
     /* ── BAR CHART ────────────────── */
@@ -150,7 +160,7 @@
     .h-bar-list { display: grid; gap: .55rem; }
     .h-bar-row { display: grid; grid-template-columns: 100px 1fr 40px; align-items: center; gap: .75rem; font-size: .8rem; }
     .h-bar-label { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .h-bar-track { background: #eef0f4; height: 10px; }
+    .h-bar-track { background: rgba(0,0,0,.06); height: 10px; }
     .h-bar-fill  { height: 100%; background: var(--primary); min-width: 4px; transition: width .5s ease; }
     .h-bar-count { text-align: right; font-weight: 700; color: var(--primary); }
 
@@ -180,11 +190,11 @@
     .btn-success-sm:hover { background: var(--success); color: #fff; border-color: var(--success); }
 
     .inq-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
-    .inq-table thead { background: #f8f9fb; }
+    .inq-table thead { background: var(--bg); }
     .inq-table th { padding: .65rem .85rem; text-align: left; font-weight: 700; color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    .inq-table td { padding: .75rem .85rem; border-bottom: 1px solid #f1f2f5; vertical-align: top; }
+    .inq-table td { padding: .75rem .85rem; border-bottom: 1px solid rgba(0,0,0,.05); vertical-align: top; }
     .inq-table tbody tr:last-child td { border-bottom: none; }
-    .inq-table tbody tr:hover { background: #fafbfc; }
+    .inq-table tbody tr:hover { background: rgba(0,0,0,.02); }
     .inq-table tbody tr.unread { background: #fffbeb; }
     .msg-preview { max-width: 260px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .date-col { white-space: nowrap; color: var(--muted); }
@@ -202,16 +212,20 @@
 
     /* ── MODAL ───────────────────── */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 1rem; }
-    .modal-box { background: var(--white); width: min(580px, 100%); box-shadow: 0 20px 60px rgba(0,0,0,.22); max-height: 90vh; overflow-y: auto; }
-    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--primary); color: #fff; position: sticky; top: 0; }
-    .modal-header h3 { font-size: .95rem; font-weight: 700; }
-    .modal-close { background: none; border: none; color: rgba(255,255,255,.8); font-size: 1rem; cursor: pointer; line-height: 1; }
-    .modal-close:hover { color: #fff; }
+    .modal-box { background: var(--white); width: min(580px, 100%); box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem;
+      background: var(--white); color: var(--heading); border-bottom: 1px solid var(--border);
+      border-left: 3px solid var(--primary); position: sticky; top: 0;
+    }
+    .modal-header h3 { font-size: .92rem; font-weight: 800; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: var(--heading); }
     .modal-body { padding: 1.5rem; }
     .detail-field { margin-bottom: 1rem; }
     .detail-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: .3rem; }
     .detail-value { font-size: .9rem; color: var(--text); }
-    .detail-message { background: #f8f9fb; border: 1px solid var(--border); padding: .9rem 1rem; font-size: .9rem; line-height: 1.7; white-space: pre-wrap; color: var(--text); min-height: 80px; }
+    .detail-message { background: var(--bg); border: 1px solid var(--border); padding: .9rem 1rem; font-size: .9rem; line-height: 1.7; white-space: pre-wrap; color: var(--text); min-height: 80px; }
     .note-area { width: 100%; padding: .7rem .9rem; border: 1px solid var(--border); font-size: .88rem; min-height: 70px; resize: vertical; border-radius: var(--r); font-family: inherit; margin-top: .4rem; }
     .note-area:focus { outline: none; border-color: var(--primary); }
     .modal-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
@@ -220,12 +234,12 @@
 
     /* ── SETTINGS ────────────────── */
     .setting-section { margin-bottom: 2rem; }
-    .setting-title { font-size: .88rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
-    .setting-row { display: flex; align-items: center; justify-content: space-between; padding: .9rem 0; border-bottom: 1px solid #f3f4f6; }
+    .setting-title { font-size: .76rem; font-weight: 800; color: var(--heading); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
+    .setting-row { display: flex; align-items: center; justify-content: space-between; padding: .9rem 0; border-bottom: 1px solid rgba(0,0,0,.05); }
     .setting-row:last-child { border-bottom: none; }
     .setting-info p { font-size: .82rem; font-weight: 600; margin-bottom: .15rem; }
     .setting-info span { font-size: .76rem; color: var(--muted); }
-    .info-tag { display: inline-block; background: var(--primary-lt); color: var(--primary); font-size: .74rem; font-weight: 700; padding: .2rem .55rem; border-radius: 3px; margin-left: .4rem; }
+    .info-tag { display: inline-block; background: var(--primary-lt); color: var(--primary); font-size: .74rem; font-weight: 700; padding: .2rem .55rem; border-radius: 0; margin-left: .4rem; }
     .pw-form { display: grid; gap: .6rem; max-width: 320px; margin-top: .75rem; }
     .pw-input { padding: .6rem .85rem; border: 1px solid var(--border); font-size: .85rem; border-radius: var(--r); width: 100%; }
     .pw-input:focus { outline: none; border-color: var(--primary); }
@@ -247,15 +261,15 @@
     .rate-meta-box.danger .rate-meta-value { color:var(--danger); }
     .rate-filter-bar { display:flex; align-items:center; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; }
     .rate-table { width:100%; border-collapse:collapse; font-size:.82rem; }
-    .rate-table thead { background:#f8f9fb; }
+    .rate-table thead { background:var(--bg); }
     .rate-table th { padding:.6rem .85rem; text-align:left; font-weight:700; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--border); white-space:nowrap; }
-    .rate-table td { padding:.65rem .85rem; border-bottom:1px solid #f1f2f5; vertical-align:middle; }
-    .rate-table tbody tr:hover { background:#fafbfc; }
+    .rate-table td { padding:.65rem .85rem; border-bottom:1px solid rgba(0,0,0,.05); vertical-align:middle; }
+    .rate-table tbody tr:hover { background:rgba(0,0,0,.02); }
     .rate-badge { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .6rem; border-radius:20px; font-size:.72rem; font-weight:700; }
     .rate-badge.ok    { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
     .rate-badge.check { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
     .rate-badge.stale { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
-    .rate-region-row td { background:#f0f4f8; font-weight:700; color:var(--primary); font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; padding:.45rem .85rem; }
+    .rate-region-row td { background:var(--bg); font-weight:700; color:var(--heading); font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; padding:.45rem .85rem; }
     .rate-notes { font-size:.76rem; color:var(--muted); max-width:280px; }
     .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; }
 
@@ -348,6 +362,9 @@
         </button>
         <button class="sidebar-item" data-tab="estimates">
           <span class="si-icon"><i data-lucide="trending-up"></i></span><span class="si-label">견적 분석</span>
+        </button>
+        <button class="sidebar-item" data-tab="marketing">
+          <span class="si-icon"><i data-lucide="lightbulb"></i></span><span class="si-label">마케팅 인사이트</span>
         </button>
         <button class="sidebar-item" data-tab="rates">
           <span class="si-icon"><i data-lucide="database"></i></span><span class="si-label">요율 관리</span>
@@ -542,6 +559,12 @@
           <div id="ev-funnel" style="display:grid;gap:.5rem"></div>
         </div>
       </div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">목적지별 전환율 (연수지 선택 → 견적 완료)</span></div>
+        <div class="card-body">
+          <div id="ev-dest-conv" class="h-bar-list"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ── 견적 분석 ── -->
@@ -565,6 +588,45 @@
       <div class="card" style="margin-bottom:1.25rem">
         <div class="card-header"><span class="card-title">기관 유형별 분포</span></div>
         <div class="card-body"><div id="e-orgtype" class="h-bar-list"></div></div>
+      </div>
+    </div>
+
+    <!-- ── 마케팅 인사이트 (신규) ── -->
+    <div class="tab-panel" id="tab-marketing">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <span id="mi-meta" style="font-size:.8rem;color:var(--muted)">아직 분석한 적이 없습니다.</span>
+        </div>
+        <button type="button" id="mi-reanalyze-btn" class="btn-act btn-primary" onclick="reanalyzeMarketingInsights()">
+          다시 분석하기
+        </button>
+      </div>
+
+      <div id="mi-empty" class="empty-state">
+        <div class="empty-icon">💡</div>
+        <p>문의·견적요청에 남겨진 내용을 GPT로 분석해 마케팅에 활용할 키워드와 인사이트를 뽑아드립니다.<br>
+        위 "다시 분석하기" 버튼을 눌러 시작하세요.</p>
+      </div>
+
+      <div id="mi-content" class="hidden">
+        <div class="card" style="margin-bottom:1.25rem">
+          <div class="card-header"><span class="card-title">자주 나오는 키워드</span></div>
+          <div class="card-body">
+            <div id="mi-keywords" style="display:flex;flex-wrap:wrap;gap:.5rem"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:1.25rem">
+          <div class="card-header"><span class="card-title">주제별 인사이트</span></div>
+          <div class="card-body">
+            <div id="mi-topics" style="display:grid;gap:.9rem"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">마케팅 액션 제안</span></div>
+          <div class="card-body">
+            <ul id="mi-actions" style="display:grid;gap:.6rem;padding-left:1.1rem"></ul>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -755,7 +817,7 @@
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:.82rem">
           <thead>
-            <tr style="background:#f8f9fb">
+            <tr style="background:var(--bg)">
               <th style="padding:.5rem .7rem;text-align:left;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem;text-transform:uppercase">항목</th>
               <th style="padding:.5rem .7rem;text-align:right;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem">단가</th>
               <th style="padding:.5rem .7rem;text-align:center;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem">산출</th>
@@ -861,12 +923,13 @@
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const idVal = document.getElementById('adminId').value.trim();
     const pw = document.getElementById('adminPw').value;
     try {
       const r = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pw }),
+        body: JSON.stringify({ username: idVal, password: pw }),
       });
       if (r.ok) {
         document.getElementById('loginErr').classList.add('hidden');
@@ -888,7 +951,9 @@
     document.getElementById('adminPw').value = '';
   });
 
-  /* 서버 DB의 견적/문의를 로컬 캐시(localStorage)로 동기화 — 기존 렌더링 코드는 그대로 재사용 */
+  /* 서버 DB의 견적/문의/방문·이벤트 통계를 로컬 캐시(localStorage)로 동기화 —
+     기존 렌더링 코드(renderStats/renderEvents 등)는 그대로 재사용.
+     analytics(방문/이벤트)는 신규 — 실패해도 문의/견적 동기화는 계속 진행(부분 실패 허용) */
   async function loadRemoteData() {
     try {
       const [inqRes, qRes] = await Promise.all([fetch('/api/inquiries'), fetch('/api/quotes')]);
@@ -899,6 +964,19 @@
       }
       set(KEYS.contacts, await inqRes.json());
       localStorage.setItem(EM_KEY, JSON.stringify(await qRes.json()));
+
+      try {
+        const anRes = await fetch('/api/admin/analytics');
+        if (anRes.ok) {
+          const an = await anRes.json();
+          set(KEYS.visits, an.visits || []);
+          set(KEYS.events, an.events || {});
+          set(KEYS.dest, an.dest || {});
+        }
+      } catch (err) {
+        console.warn('[admin] 방문/이벤트 통계 동기화 실패(문의·견적은 정상):', err);
+      }
+
       return true;
     } catch (err) {
       console.warn('[admin] 서버 데이터 동기화 실패:', err);
@@ -953,7 +1031,7 @@
   const tabTitles = {
     dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 관리',
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
-    rates:'요율 관리', settings:'설정'
+    marketing:'마케팅 인사이트', rates:'요율 관리', settings:'설정'
   };
 
   function switchTab(name) {
@@ -974,6 +1052,7 @@
     else if (name==='stats') renderStats();
     else if (name==='events') renderEvents();
     else if (name==='estimates') renderEstimates();
+    else if (name==='marketing') renderMarketingInsights();
     else if (name==='rates') renderRates();
   }
 
@@ -1238,7 +1317,8 @@
     const events = getO(KEYS.events);
     const dests  = getO(KEYS.dest);
     const visits = get(KEYS.visits);
-    const ests   = get(KEYS.est);
+    const ests   = getEstsFull(); /* 실제 서버 견적 데이터 (기존엔 미사용 변수였음) */
+    const inquiries = get(KEYS.contacts);
 
     const btnMap = {
       'header_cta':       '상단 "1분 견적 받기" 버튼',
@@ -1257,27 +1337,59 @@
     const destList = Object.entries(dests).sort((a,b)=>b[1]-a[1]).slice(0,10);
     renderHBar('ev-dest', destList);
 
-    /* Funnel */
+    /* Funnel — "문의 접수"는 실제 서버에 저장된 문의(inquiries) 건수로,
+       카카오톡 클릭과 달리 실제 리드 전환을 나타냄 */
     const vTotal = visits.length;
     const step2  = events['estimate_step2']||0;
     const done   = events['estimate_complete']||0;
     const kakao  = events['kakao']||0;
+    const inqSubmitted = inquiries.length;
     document.getElementById('ev-funnel').innerHTML = [
       { lbl:'홈페이지 방문', val: vTotal, color: '#4A4A4A' },
       { lbl:'견적 계산 시작', val: step2,  color: '#8A0B20' },
       { lbl:'견적 완료', val: done,   color: '#C8102E' },
       { lbl:'카카오톡 문의', val: kakao,  color: '#FEE500', tc:'#333' },
+      { lbl:'문의 접수(실제 리드)', val: inqSubmitted, color: '#0D0D0D' },
     ].map(({lbl,val,color,tc})=>{
       const pct = vTotal>0 ? Math.round(val/vTotal*100) : 0;
       return `<div style="background:${color};color:${tc||'#fff'};padding:.6rem 1rem;font-size:.82rem;font-weight:600;display:flex;justify-content:space-between">
         <span>${lbl}</span><span>${val.toLocaleString()}회 (${pct}%)</span>
       </div>`;
     }).join('');
+
+    /* 목적지별 전환율 = 목적지 선택 수 대비 실제 견적 완료 수 (신규) */
+    const completedByDest = {};
+    ests.forEach(e => {
+      const k = e.destKey;
+      if (k) completedByDest[k] = (completedByDest[k] || 0) + 1;
+    });
+    const destConvRows = Object.entries(dests)
+      .map(([destKey, selected]) => {
+        const completed = completedByDest[destKey] || 0;
+        const pct = selected > 0 ? Math.round(completed / selected * 100) : 0;
+        const label = (ests.find(e => e.destKey === destKey)?.destLabel) || destKey;
+        return { label, completed, selected, pct };
+      })
+      .sort((a, b) => b.pct - a.pct)
+      .slice(0, 10);
+
+    const destConvEl = document.getElementById('ev-dest-conv');
+    destConvEl.innerHTML = destConvRows.length
+      ? destConvRows.map(({label, completed, selected, pct}) => `
+        <div class="h-bar-row" style="grid-template-columns:140px 1fr 90px">
+          <span class="h-bar-label">${esc(label)}</span>
+          <div class="h-bar-track"><div class="h-bar-fill" style="width:${Math.max(pct,2)}%"></div></div>
+          <span class="h-bar-count">${pct}% (${completed}/${selected})</span>
+        </div>`).join('')
+      : '<p style="color:var(--muted);font-size:.8rem">데이터가 없습니다.</p>';
   }
 
   /* ════ ESTIMATES ════ */
   function renderEstimates() {
-    const ests = get(KEYS.est);
+    /* 예전엔 get(KEYS.est)(브라우저 localStorage 전용, 서버 미동기화)를 썼는데,
+       실제로는 관리자 자신의 방문 기록만 쌓이는 구조였음 — 서버에 실제 저장되는
+       견적(EM_KEY, /api/quotes 동기화 결과)을 그대로 재사용하도록 수정 */
+    const ests = getEstsFull();
     const total = ests.length;
     const avgP  = total ? Math.round(ests.reduce((s,e)=>s+(e.participants||0),0)/total) : 0;
     const avgD  = total ? Math.round(ests.reduce((s,e)=>s+(e.days||0),0)/total) : 0;
@@ -1290,7 +1402,7 @@
 
     /* Dest */
     const destMap = {};
-    ests.forEach(e=>{ destMap[e.destination]=(destMap[e.destination]||0)+1; });
+    ests.forEach(e=>{ const lbl = e.destLabel || e.destKey; destMap[lbl]=(destMap[lbl]||0)+1; });
     renderHBar('e-dest', Object.entries(destMap).sort((a,b)=>b[1]-a[1]).slice(0,8));
 
     /* Program */
@@ -1304,6 +1416,86 @@
     const ogMap={};
     ests.forEach(e=>{ ogMap[e.orgType]=(ogMap[e.orgType]||0)+1; });
     renderHBar('e-orgtype', Object.entries(ogMap).map(([k,v])=>[ogLabels[k]||k,v]).sort((a,b)=>b[1]-a[1]));
+  }
+
+  /* ════ MARKETING INSIGHTS (신규) ════
+     문의/견적요청 자유서술 텍스트를 GPT로 분석한 결과를 보여준다.
+     GET은 캐시 조회라 비용이 없고, "다시 분석하기" 버튼(POST)만 실제 OpenAI 호출 비용 발생. */
+  function renderMarketingInsightsResult(data) {
+    const metaEl = document.getElementById('mi-meta');
+    const emptyEl = document.getElementById('mi-empty');
+    const contentEl = document.getElementById('mi-content');
+
+    if (!data || !data.result) {
+      emptyEl.classList.remove('hidden');
+      contentEl.classList.add('hidden');
+      return;
+    }
+    emptyEl.classList.add('hidden');
+    contentEl.classList.remove('hidden');
+
+    if (data.createdAt) {
+      const d = new Date(data.createdAt);
+      metaEl.textContent = `마지막 분석: ${d.toLocaleString('ko-KR')} · 문의/견적요청 ${data.sourceCount||0}건 기반`;
+    }
+
+    const { keywords = [], topics = [], actions = [] } = data.result;
+
+    document.getElementById('mi-keywords').innerHTML = keywords.length
+      ? keywords.map(k => `<span class="badge badge-pend">${esc(k.word)} <strong>${k.count||''}</strong></span>`).join('')
+      : '<p style="color:var(--muted);font-size:.8rem">추출된 키워드가 없습니다.</p>';
+
+    document.getElementById('mi-topics').innerHTML = topics.length
+      ? topics.map(t => `
+        <div style="border:1px solid var(--border);padding:.9rem 1.1rem">
+          <p style="font-weight:700;font-size:.88rem;margin-bottom:.3rem">${esc(t.title)}</p>
+          <p style="font-size:.82rem;color:var(--text);margin-bottom:.5rem">${esc(t.description)}</p>
+          ${t.example ? `<p style="font-size:.78rem;color:var(--muted);border-left:2px solid var(--border);padding-left:.6rem">"${esc(t.example)}"</p>` : ''}
+        </div>`).join('')
+      : '<p style="color:var(--muted);font-size:.8rem">추출된 주제가 없습니다.</p>';
+
+    document.getElementById('mi-actions').innerHTML = actions.length
+      ? actions.map(a => `<li style="font-size:.85rem;line-height:1.6">${esc(a)}</li>`).join('')
+      : '<li style="color:var(--muted);font-size:.8rem;list-style:none">제안된 액션이 없습니다.</li>';
+  }
+
+  async function renderMarketingInsights() {
+    try {
+      const res = await fetch('/api/admin/marketing-insights');
+      if (!res.ok) { renderMarketingInsightsResult(null); return; }
+      const data = await res.json();
+      renderMarketingInsightsResult(data);
+    } catch (err) {
+      console.warn('[admin] 마케팅 인사이트 조회 실패:', err);
+      renderMarketingInsightsResult(null);
+    }
+  }
+
+  async function reanalyzeMarketingInsights() {
+    const btn = document.getElementById('mi-reanalyze-btn');
+    const metaEl = document.getElementById('mi-meta');
+    btn.disabled = true;
+    const prevLabel = btn.textContent;
+    btn.textContent = '분석 중… (최대 30초)';
+    try {
+      const res = await fetch('/api/admin/marketing-insights', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || data.error === 'openai_not_configured') {
+        metaEl.textContent = 'GPT 분석 기능이 아직 설정되지 않았습니다.';
+      } else if (data.error === 'no_source_data') {
+        metaEl.textContent = '분석할 문의/견적요청 데이터가 아직 없습니다.';
+      } else if (data.error) {
+        metaEl.textContent = '분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+      } else {
+        renderMarketingInsightsResult({ createdAt: new Date().toISOString(), sourceCount: data.sourceCount, result: data.result });
+      }
+    } catch (err) {
+      console.warn('[admin] 마케팅 인사이트 재분석 실패:', err);
+      metaEl.textContent = '분석 요청에 실패했습니다. 네트워크를 확인해 주세요.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevLabel;
+    }
   }
 
   /* ════ CHART HELPERS ════ */

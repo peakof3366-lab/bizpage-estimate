@@ -5,6 +5,11 @@ const backButton = document.getElementById('backStepButton');
 const downloadButton = document.getElementById('downloadEstimate');
 const stepElements = Array.from(document.querySelectorAll('.estimate-step'));
 
+/* 엑셀 견적서 다운로드 기능 플래그 (신규) — false로 바꾸거나 이 줄과 아래
+   downloadEstimateExcel() 함수, index.html의 #downloadEstimateExcel 버튼,
+   SheetJS <script> 태그를 지우면 기능 도입 이전 상태로 완전히 되돌아감 */
+const FEATURE_EXCEL_EXPORT = true;
+
 const estimateCriteria = {
   programFactor: {
     language: 1.0,
@@ -574,6 +579,12 @@ form.addEventListener('submit', (event) => {
     });
   }
 
+  /* 2-1. 엑셀 다운로드 버튼도 PDF 버튼과 함께 노출 (신규) */
+  if (FEATURE_EXCEL_EXPORT) {
+    const xlBtn = document.getElementById('downloadEstimateExcel');
+    if (xlBtn) xlBtn.classList.remove('hidden');
+  }
+
   /* 3. 상담 신청 버튼 활성화 */
   const consultBtn = document.getElementById('consultBtn');
   if (consultBtn) {
@@ -603,6 +614,8 @@ form.addEventListener('submit', (event) => {
         dlBtn.classList.add('hidden');
         dlBtn.classList.remove('visible');
       }
+      const xlBtnReset = document.getElementById('downloadEstimateExcel');
+      if (xlBtnReset) xlBtnReset.classList.add('hidden');
       if (consultBtn) consultBtn.classList.remove('visible');
       /* 연수 일정 탐색 버튼 · Step 3 섹션 숨기기 */
       const exploreBtnReset = document.getElementById('explorePlanBtn');
@@ -849,22 +862,37 @@ downloadButton.addEventListener('click', openEstimateWindow);
   const DEST_KEY   = 'linkedt_dest_stats';
   const EST_KEY    = 'linkedt_estimates';
 
+  /* 실서버 집계용 전송 (신규) — 실패해도 조용히 무시(로컬 기록은 항상 유지되는 안전망).
+     되돌리려면 이 함수와 아래 각 호출 지점의 _postTrack(...) 줄만 지우면 됨. */
+  function _postTrack(name, meta) {
+    try {
+      fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, meta: meta || {} }),
+      }).catch(() => {});
+    } catch {}
+  }
+
   function saveVisit() {
     const arr = JSON.parse(localStorage.getItem(VISIT_KEY) || '[]');
     arr.push({ ts: new Date().toISOString() });
     localStorage.setItem(VISIT_KEY, JSON.stringify(arr.slice(-3000)));
+    _postTrack('pageview');
   }
 
   window._trackEvent = function(name) {
     const obj = JSON.parse(localStorage.getItem(EVENT_KEY) || '{}');
     obj[name] = (obj[name] || 0) + 1;
     localStorage.setItem(EVENT_KEY, JSON.stringify(obj));
+    _postTrack(name);
   };
 
   window._trackDest = function(dest) {
     const obj = JSON.parse(localStorage.getItem(DEST_KEY) || '{}');
     obj[dest] = (obj[dest] || 0) + 1;
     localStorage.setItem(DEST_KEY, JSON.stringify(obj));
+    _postTrack('dest_select', { dest });
   };
 
   window._saveEstimate = function(data) {
@@ -3873,11 +3901,73 @@ function _buildDisplayDays(course, destKey, plan, totalDays) {
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   엑셀 견적서 다운로드 (신규 기능 — FEATURE_EXCEL_EXPORT)
+   되돌리기: 이 함수 전체와 index.html의 #downloadEstimateExcel 버튼,
+   SheetJS <script> 태그, 파일 상단의 FEATURE_EXCEL_EXPORT 선언만 지우면
+   도입 이전 상태로 완전히 복구됨(openEstimateWindow 등 기존 로직은 무관).
+   ════════════════════════════════════════════════════════════════════ */
+function downloadEstimateExcel() {
+  if (!FEATURE_EXCEL_EXPORT) return;
+  if (typeof XLSX === 'undefined') {
+    alert('엑셀 다운로드 기능을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    return;
+  }
+  const data = getBreakdownData();
+  if (!data) { alert('먼저 견적 정보를 입력해 주세요.'); return; }
+
+  const destText     = destinationSelect.selectedOptions[0]?.textContent || '—';
+  const programText  = document.getElementById('programType').selectedOptions[0].textContent;
+  const orgTypeText  = document.getElementById('organizationType').selectedOptions[0].textContent;
+  const participants = document.getElementById('participants').value;
+  const days         = Number(document.getElementById('days').value) || 5;
+  const organization = document.getElementById('organization')?.value.trim() || '—';
+  const contactName  = document.getElementById('contactName')?.value.trim() || '—';
+  const issueDate    = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
+
+  const CI = window.COMPANY_INFO || {};
+  const legalName = CI.legalName || '(주)하나이엔비티';
+  const rows = data.rows.filter(r => !r.muted);
+
+  const aoa = [
+    [legalName + ' 견적서'],
+    ['발행일', issueDate],
+    ['목적지', destText],
+    ['프로그램', programText],
+    ['기관 유형', orgTypeText],
+    ['참가 인원', participants + '명'],
+    ['연수 기간', days + '일'],
+    ['신청 기관', organization],
+    ['담당자', contactName],
+    [],
+    ['항목', '금액(원)'],
+    ...rows.map(r => [r.name, r.amount]),
+    [],
+    ['합계', data.total],
+    ['1인당 금액', data.perPerson],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 28 }, { wch: 18 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '견적서');
+
+  const fileDate = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `비즈페이지_견적서_${destText}_${fileDate}.xlsx`);
+}
+
+/* ════════════════════════════════════════════════════════════════════
    견적서 확인 창 열기 (PDF → 웹 브라우저 창)
    ════════════════════════════════════════════════════════════════════ */
 function openEstimateWindow() {
   const data = getBreakdownData();
   if (!data) { alert('먼저 견적 정보를 입력해 주세요.'); return; }
+
+  /* 회사 정보(company-info.js) — 없으면 기존 하드코딩 값으로 폴백 */
+  const CI = window.COMPANY_INFO || {};
+  const ciLegalName = CI.legalName || '(주)하나이엔비티';
+  const ciTel       = CI.tel       || '02-2088-4253';
+  const ciAddress   = CI.address   || '서울 금천구 시흥대로73길 67, 1012호';
+  const ciEmail     = CI.email     || 'skp1004651@hanatrabiz.com';
 
   const destKey      = destinationSelect.value;
   const destText     = destinationSelect.selectedOptions[0]?.textContent || '—';
@@ -4162,12 +4252,12 @@ a{color:inherit;text-decoration:none}
     <div class="quote-hd">
       <div>
         <div class="brand-name"><a href="${base}" style="color:inherit;text-decoration:none;cursor:pointer">비즈페이지</a> 해외연수 견적서</div>
-        <div class="brand-sub">(주)하나이엔비티 · 해외 연수 전문</div>
+        <div class="brand-sub">${ciLegalName} · 해외 연수 전문</div>
       </div>
       <div class="meta-blk">
         <div class="issue">${issueDate}</div>
-        <div>(주)하나이엔비티</div>
-        <div>02-2088-4253</div>
+        <div>${ciLegalName}</div>
+        <div>${ciTel}</div>
       </div>
     </div>
 
@@ -4251,8 +4341,8 @@ a{color:inherit;text-decoration:none}
 </div><!-- /page-wrap -->
 
 <footer class="win-footer no-print">
-  (주)하나이엔비티 &nbsp;|&nbsp; 서울 금천구 시흥대로73길 67, 1012호 &nbsp;|&nbsp; 02-2088-4253 &nbsp;|&nbsp; skp1004651@hanatrabiz.com<br>
-  Copyright ⓒ 2024 하나이엔비티. All rights reserved.
+  ${ciLegalName} &nbsp;|&nbsp; ${ciAddress} &nbsp;|&nbsp; ${ciTel} &nbsp;|&nbsp; ${ciEmail}<br>
+  Copyright ⓒ ${new Date().getFullYear()} ${ciLegalName.replace(/^\(주\)/, '')}. All rights reserved.
 </footer>
 
 <script>

@@ -6,6 +6,10 @@
 <title>해외연수 견적서 · 비즈페이지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="company-info.js"></script>
+<!-- 엑셀 견적서 다운로드 기능용 (되돌리려면 이 줄과 하단의 downloadEstimateExcelShared() 함수,
+     #downloadExcelBtn 버튼만 삭제하면 됨) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 /* ── RESET ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -249,6 +253,11 @@ a { color: inherit; text-decoration: none; }
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       인쇄 / PDF
     </button>
+    <!-- 엑셀 다운로드 (신규 — 되돌리려면 이 버튼과 downloadEstimateExcelShared() 함수만 삭제) -->
+    <button class="btn-print" id="downloadExcelBtn" onclick="downloadEstimateExcelShared()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      엑셀
+    </button>
   </div>
 </header>
 
@@ -276,7 +285,7 @@ a { color: inherit; text-decoration: none; }
   <p>
     <a href="index.html" style="color:inherit;font-weight:700;text-decoration:none;cursor:pointer">비즈페이지</a> · 해외연수 전문 기업<br>
     본 견적서는 발급일로부터 30일간 유효합니다. 견적 내용은 환율·항공권 시세에 따라 변동될 수 있습니다.<br>
-    문의: 비즈페이지 고객센터
+    <span id="footer-contact">문의: 비즈페이지 고객센터</span>
   </p>
 </footer>
 
@@ -287,6 +296,10 @@ a { color: inherit; text-decoration: none; }
    ════════════════════════════════════════ */
 
 const fmt = n => '₩ ' + (Number(n) || 0).toLocaleString('ko-KR');
+
+/* 엑셀 다운로드에서 쓸 견적 데이터 보관 (신규 — 되돌리려면 이 변수와
+   downloadEstimateExcelShared() 함수만 삭제하면 됨) */
+let _quoteData = null;
 
 /* URL의 ?d= 파라미터는 클라이언트에서 임의로 조작해 만들 수 있으므로(서버 검증 없음),
    HTML로 삽입되는 모든 값은 반드시 이스케이프해야 XSS를 막을 수 있다.
@@ -540,6 +553,13 @@ function renderPage(d) {
   `;
 }
 
+/* 회사 정보(company-info.js)로 푸터 연락처 채우기 — 없으면 기존 문구 그대로 유지 */
+(function fillFooterContact() {
+  const CI = window.COMPANY_INFO;
+  const el = document.getElementById('footer-contact');
+  if (CI && el) el.textContent = `문의: ${CI.tel || ''}${CI.email ? ' · ' + CI.email : ''}`;
+})();
+
 /* ── 진입점 ── */
 (async function init() {
   const d = await loadShareData();
@@ -552,8 +572,49 @@ function renderPage(d) {
     `;
     return;
   }
+  _quoteData = d;
   renderPage(d);
 })();
+
+/* 엑셀 견적서 다운로드 (신규 — 되돌리려면 이 함수와 위 _quoteData 변수,
+   #downloadExcelBtn 버튼, SheetJS <script> 태그만 삭제하면 완전히 원상복귀됨) */
+function downloadEstimateExcelShared() {
+  if (typeof XLSX === 'undefined') {
+    alert('엑셀 다운로드 기능을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    return;
+  }
+  const d = _quoteData;
+  if (!d) return;
+
+  const CI = window.COMPANY_INFO || {};
+  const legalName = CI.legalName || '(주)하나이엔비티';
+
+  const aoa = [
+    [legalName + ' 견적서'],
+    ['발행일', d.id || '—'],
+    ['목적지', d.dt || '—'],
+    ['프로그램', d.ptx || '—'],
+    ['기관 유형', d.ot || '—'],
+    ['참가 인원', (d.n || 0) + '명'],
+    ['연수 기간', (d.d || 0) + '일'],
+    ['신청 기관', d.org || '—'],
+    ['담당자', d.cn || '—'],
+    [],
+    ['항목', '금액(원)'],
+    ...(d.rows || []),
+    [],
+    ['합계', d.t || 0],
+    ['1인당 금액', d.pp || 0],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 28 }, { wch: 18 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '견적서');
+
+  const fileDate = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `비즈페이지_견적서_${d.dt || ''}_${fileDate}.xlsx`);
+}
 </script>
 </body>
 </html>

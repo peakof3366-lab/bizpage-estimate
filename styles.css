@@ -72,7 +72,9 @@
 
 /* ── 2. Reset ───────────────────────────────────────────────────── */
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
-html { scroll-behavior:smooth; font-size:16px; }
+/* 모바일 우측 스와이프 시 브라우저 뒤로가기/고무줄 스크롤 제스처가 페이지 전체를
+   밀어버려 화면이 어긋나고 되돌아오지 않던 문제 방지 (html에도 body와 동일하게 적용) */
+html { scroll-behavior:smooth; font-size:16px; overflow-x:hidden; overscroll-behavior-x:none; }
 /* 고정 헤더(64px)에 앵커 이동 시 섹션 상단이 가려지는 문제 보정 */
 #home, #destinations, #estimate, #portfolio, #testimonials, #faq, #about, #contact {
   scroll-margin-top: 84px;
@@ -85,6 +87,7 @@ body {
   line-height: 1.75;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 img  { display:block; max-width:100%; height:auto; }
 a    { color:inherit; text-decoration:none; }
@@ -619,6 +622,17 @@ p { line-height:1.8; }
   letter-spacing:.05em; text-transform:uppercase;
 }
 .btn-consult:hover { background:var(--red); color:var(--white); border-color:var(--red); }
+
+/* 엑셀 견적서 다운로드 (신규, 되돌리려면 이 블록 삭제) */
+.btn-dl-excel {
+  width:100%; display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:12px; background:transparent; color:var(--t-mute);
+  border:1.5px solid var(--rule-md); border-radius:var(--r);
+  font-size:13px; font-weight:700; cursor:pointer;
+  transition:all var(--dur); margin-bottom:10px;
+  letter-spacing:.05em; text-transform:uppercase;
+}
+.btn-dl-excel:hover { background:var(--ink); color:var(--white); border-color:var(--ink); }
 
 /* 상담 폼 */
 .consult-form-wrap {
@@ -1534,6 +1548,10 @@ p { line-height:1.8; }
   scrollbar-width:none; /* Firefox */
   -webkit-overflow-scrolling:touch;
   padding-bottom:4px;
+  /* 스크롤이 좌우 끝에 닿았을 때 제스처가 상위 페이지로 새어나가 화면 전체가
+     밀렸다가 안 돌아오는 문제 방지 */
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
 }
 .dest-photo-strip::-webkit-scrollbar { display:none; }
 

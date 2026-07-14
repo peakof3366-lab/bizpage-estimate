@@ -471,6 +471,13 @@
                   견적서 확인하기
                 </button>
 
+                <!-- 엑셀 견적서 다운로드 (신규 기능 — 되돌리려면 이 버튼과 script.js의
+                     FEATURE_EXCEL_EXPORT 관련 블록만 삭제하면 됨) -->
+                <button type="button" id="downloadEstimateExcel" class="btn-dl-excel hidden" onclick="downloadEstimateExcel()">
+                  <i data-lucide="file-spreadsheet" style="width:15px;height:15px"></i>
+                  엑셀로 다운로드
+                </button>
+
                 <!-- 견적 기반 상담 신청 버튼 -->
                 <button type="button" id="consultBtn" class="btn-consult hidden" onclick="openConsultForm()">
                   이 견적으로 바로 상담 신청하기
@@ -1564,6 +1571,9 @@
     </a>
 
 <script src="data.js"></script>
+    <script src="company-info.js"></script>
+    <!-- 엑셀 견적서 다운로드 기능용 (되돌리려면 이 줄 삭제 + script.js의 FEATURE_EXCEL_EXPORT를 false로) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="script.js"></script>
     <script>if (typeof lucide !== 'undefined') lucide.createIcons();</script>
   </body>
