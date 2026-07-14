@@ -65,6 +65,13 @@
     .btn-sm { padding: .38rem .9rem; font-size: .8rem; font-weight: 600; border-radius: var(--r); border: 1.5px solid transparent; transition: all .2s; }
     .btn-ghost { background: transparent; color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.35); }
     .btn-ghost:hover { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.7); }
+    .current-staff-widget { display: flex; align-items: center; gap: .4rem; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); padding: .3rem .6rem; }
+    .current-staff-widget.csw-unset { border-color: var(--primary); background: rgba(200,16,46,.15); }
+    .csw-label { font-size: .68rem; font-weight: 700; color: rgba(255,255,255,.5); letter-spacing: .04em; white-space: nowrap; }
+    .csw-select { background: transparent; color: #fff; border: none; font-size: .78rem; font-weight: 700; font-family: inherit; cursor: pointer; }
+    .csw-select option { color: #111; }
+    .rate-author-tag { font-size: .82rem; font-weight: 700; color: var(--heading); background: var(--bg); border: 1.5px solid var(--border); padding: .4rem .8rem; }
+    .rate-author-tag.unset { color: var(--primary); border-color: var(--primary); }
 
     /* ── LAYOUT ────────────────────── */
     .dash-layout { display: flex; min-height: calc(100vh - 56px); }
@@ -341,6 +348,13 @@
       <a href="index.html" class="dash-brand">🔗 비즈페이지 Admin</a>
       <div class="dash-right">
         <span class="dash-user" id="dashTime"></span>
+        <!-- 현재 접속 담당자(신규) — 요율 수정 등 "누가 했는지" 기록의 기준이 되는
+             유일한 출처. 되돌리려면 이 블록과 script의 CURRENT_STAFF 관련 코드만
+             지우면 됨(요율 편집 시 다시 매번 이름을 고르는 예전 방식으로 복귀). -->
+        <div class="current-staff-widget" title="여기서 선택한 이름이 요율 수정 등 작업 기록에 사용됩니다">
+          <span class="csw-label">담당자</span>
+          <select id="currentStaffSelect" class="csw-select"></select>
+        </div>
         <button id="logoutBtn" class="btn-sm btn-ghost">로그아웃</button>
       </div>
     </div>
@@ -997,7 +1011,7 @@
         <textarea class="note-area" id="rate-edit-notes" placeholder="변동성·확인 주의사항 등을 입력하세요..." style="min-height:60px"></textarea>
       </div>
       <div class="modal-actions">
-        <select class="status-select" id="rate-edit-author"></select>
+        <span id="rate-edit-author" class="rate-author-tag"></span>
         <button class="btn-act btn-primary" onclick="saveRateEdit()">저장</button>
         <button class="btn-act" onclick="document.getElementById('rateEditModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
       </div>
@@ -1038,7 +1052,7 @@
       </div>
       <div id="rate-bulk-preview" style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem"></div>
       <div class="modal-actions">
-        <select class="status-select" id="rate-bulk-author"></select>
+        <span id="rate-bulk-author" class="rate-author-tag"></span>
         <button class="btn-act btn-primary" onclick="applyRateBulk(this)">일괄 적용</button>
         <button class="btn-act" onclick="document.getElementById('rateBulkModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
       </div>
@@ -1073,6 +1087,40 @@
 
   /* 담당자 배정 + 진행기록용 직원 목록 (신규) */
   const STAFF_LIST = ['송주연 팀장', '정직한 차장', '방민정 대리', '오윤정 대리', '조혜련 사원'];
+
+  /* ── 현재 접속 담당자(신규) ──────────────────────────────────────────
+     관리자 로그인은 전 직원이 같은 계정(admin)을 공유하기 때문에, 매 작업마다
+     "작성자"를 자유 선택하는 드롭다운만으로는 다른 사람 이름을 잘못 골라도
+     그대로 저장되는 문제가 있었다(요율 수정 작성자 등). 이 브라우저에서
+     "지금 내가 누구인지"를 한 번 정해두고 localStorage에 저장해, 이후
+     요율 수정 등은 이 값을 자동으로 사용하고 매번 새로 고르지 못하게 한다.
+     다른 사람으로 바꿀 때는 확인창을 거치게 해 실수로 바뀌는 것을 방지.
+     되돌리려면 이 블록과 헤더의 .current-staff-widget만 지우면 된다. */
+  const CURRENT_STAFF_KEY = 'linkedt_current_staff';
+  function getCurrentStaff() { return localStorage.getItem(CURRENT_STAFF_KEY) || ''; }
+  function setCurrentStaff(name) { localStorage.setItem(CURRENT_STAFF_KEY, name); }
+
+  function initCurrentStaffWidget() {
+    const sel = document.getElementById('currentStaffSelect');
+    const wrap = document.querySelector('.current-staff-widget');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— 담당자 선택 —</option>' +
+      STAFF_LIST.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    const saved = getCurrentStaff();
+    sel.value = saved;
+    wrap?.classList.toggle('csw-unset', !saved);
+    sel.addEventListener('change', function () {
+      const prev = getCurrentStaff();
+      const next = this.value;
+      if (prev && next && prev !== next &&
+          !confirm(`담당자를 "${prev}"에서 "${next}"(으)로 변경하시겠습니까?\n지금부터의 요율 수정 등은 "${next}"의 작업으로 기록됩니다.`)) {
+        this.value = prev;
+        return;
+      }
+      setCurrentStaff(next);
+      wrap?.classList.toggle('csw-unset', !next);
+    });
+  }
 
   function assigneeSelectHtml(current, extraAttrs) {
     const opts = ['<option value="">미배정</option>']
@@ -1353,6 +1401,7 @@
     loginPage.classList.add('hidden');
     dashPage.classList.remove('hidden');
     initClock();
+    initCurrentStaffWidget();
     renderAll();
     /* 설정 탭 요율 정보 초기화 */
     const rvEl = document.getElementById('rate-settings-version');
@@ -2108,7 +2157,10 @@
       </div>`).join('');
     document.getElementById('rate-edit-notes').value = eff.notes || '';
     document.getElementById('rate-edit-season').value = eff.season_note || '';
-    document.getElementById('rate-edit-author').innerHTML = STAFF_LIST.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    const authorTag = document.getElementById('rate-edit-author');
+    const curStaff = getCurrentStaff();
+    authorTag.textContent = curStaff ? `작성자: ${curStaff}` : '⚠ 상단에서 담당자를 먼저 선택하세요';
+    authorTag.classList.toggle('unset', !curStaff);
     document.getElementById('rateEditModal').classList.remove('hidden');
   }
 
@@ -2116,8 +2168,8 @@
     const dest = destinationRates.find(d => d.destination_key === rateEditCurrentKey);
     if (!dest) return;
     const eff = effectiveRate(dest);
-    const author = document.getElementById('rate-edit-author').value;
-    if (!author) { alert('작성자를 선택해 주세요.'); return; }
+    const author = getCurrentStaff();
+    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
 
     const changes = [];
     document.querySelectorAll('#rate-edit-fields input[data-field]').forEach(inp => {
@@ -2163,7 +2215,10 @@
     const regionSel = document.getElementById('rate-bulk-region');
     regionSel.innerHTML = '<option value="__all__">전체 지역</option>' +
       REGION_ORDER.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
-    document.getElementById('rate-bulk-author').innerHTML = STAFF_LIST.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    const authorTag = document.getElementById('rate-bulk-author');
+    const curStaff = getCurrentStaff();
+    authorTag.textContent = curStaff ? `작성자: ${curStaff}` : '⚠ 상단에서 담당자를 먼저 선택하세요';
+    authorTag.classList.toggle('unset', !curStaff);
     document.getElementById('rate-bulk-pct').value = '';
     updateRateBulkPreview();
     document.getElementById('rateBulkModal').classList.remove('hidden');
@@ -2183,8 +2238,8 @@
     const region = document.getElementById('rate-bulk-region').value;
     const field = document.getElementById('rate-bulk-field').value;
     const pct = Number(document.getElementById('rate-bulk-pct').value);
-    const author = document.getElementById('rate-bulk-author').value;
-    if (!author) { alert('작성자를 선택해 주세요.'); return; }
+    const author = getCurrentStaff();
+    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
     if (!pct || isNaN(pct)) { alert('조정 비율을 입력해 주세요.'); return; }
 
     const targets = getRateBulkTargets();
