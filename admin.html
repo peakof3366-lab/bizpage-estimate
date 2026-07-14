@@ -2050,7 +2050,7 @@
         const hasOverride = !!rateOverridesCache[d.destination_key];
         html += `<tr>
           <td style="color:var(--muted);font-size:.76rem"></td>
-          <td><strong>${esc(d.label)}</strong>${hasOverride ? ' <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:.65rem">수정됨</span>' : ''}${eff.season_note ? ` <span title="${esc(eff.season_note)}" style="cursor:help;font-size:.8rem" aria-label="현지 시즌 정보">🌤️</span>` : ''}</td>
+          <td style="white-space:nowrap"><strong>${esc(d.label)}</strong>${hasOverride ? ' <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:.65rem">수정됨</span>' : ''}${eff.season_note ? ` <button type="button" class="btn-detail" title="${esc(eff.season_note)}" style="font-size:.68rem;padding:.2rem .5rem;vertical-align:middle">🌤️ 시즌 확인하기</button>` : ''}</td>
           <td style="text-align:right">${fmtWon(eff.airfare)}</td>
           <td style="text-align:right">${fmtWon(eff.hotel_per_room)}</td>
           <td style="text-align:right">${fmtWon(eff.meal_per_person)}</td>
