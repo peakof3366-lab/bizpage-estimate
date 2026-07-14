@@ -101,28 +101,34 @@
   .aq-shell .date-inp { height: 48px; font-size: .96rem; }
   .aq-shell .date-block-title { font-size: .88rem; }
 
-  /* ── 참가인원/기간/vip 등 숫자 입력 ──
-     ⚠ .estimate-step 바로 아래(> label)가 아니라 .aq-section으로 한 번 더 감싸여
-     있어서(고객 정보 섹션) 예전에 '>' 직계 선택자를 썼을 때 스타일이 전혀 먹지
-     않는 버그가 있었음 — 후손 선택자로 바꿔 항상 적용되게 함. */
+  /* ── 참가인원/기간/vip 등 숫자 입력 ── */
   .aq-shell .fld select,
   .aq-shell .fld input[type="number"],
-  .aq-shell .fld input[type="text"],
-  .aq-shell .estimate-step label input,
-  .aq-shell .estimate-step label textarea,
-  .aq-shell .estimate-step label select {
-    height: 54px; font-size: 1.02rem; padding: 0 1.15rem; border: 1.8px solid var(--border);
-    background: #fff; color: var(--heading); width: 100%;
+  .aq-shell .fld input[type="text"] {
+    height: 50px; font-size: 1rem; padding: 0 1.1rem; border: 1.6px solid var(--border);
+    background: #fff; color: var(--heading);
   }
-  .aq-shell .estimate-step label textarea { height: auto; min-height: 150px; padding: 1rem 1.15rem; line-height: 1.6; resize: vertical; }
-  .aq-shell .fld select:focus, .aq-shell .fld input:focus,
-  .aq-shell .estimate-step label input:focus,
-  .aq-shell .estimate-step label textarea:focus,
-  .aq-shell .estimate-step label select:focus {
+  .aq-shell .fld select:focus, .aq-shell .fld input:focus {
     outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(200,16,46,.08);
   }
-  .aq-shell .estimate-step label { margin-bottom: 1.5rem; display: block; }
-  .aq-shell .estimate-step label:last-child { margin-bottom: 0; }
+
+  /* ── 고객 정보(STEP2) 텍스트 입력 — id로 정확히 지정해서, 목적지/체크리스트
+     라디오·체크박스(.aq-list-row input)에 절대 번지지 않게 함.
+     ⚠ 과거 ".estimate-step label input" 같은 넓은 후손 선택자를 썼다가
+     .aq-list-row 안의 작은 라디오까지 전부 커져버린 사고가 있었음 — 반드시
+     id 선택자(또는 .aq-list-row와 겹치지 않는 전용 클래스)만 사용할 것. */
+  .aq-shell #organization,
+  .aq-shell #contactName,
+  .aq-shell #requestDetails {
+    width: 100%; height: 54px; font-size: 1.02rem; padding: 0 1.15rem;
+    border: 1.8px solid var(--border); background: #fff; color: var(--heading);
+  }
+  .aq-shell #requestDetails { height: auto; min-height: 150px; padding: 1rem 1.15rem; line-height: 1.6; resize: vertical; }
+  .aq-shell #organization:focus, .aq-shell #contactName:focus, .aq-shell #requestDetails:focus {
+    outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(200,16,46,.08);
+  }
+  .aq-step2-field { margin-bottom: 1.5rem; display: block; }
+  .aq-step2-field:last-child { margin-bottom: 0; }
   .aq-shell .fld-row { gap: 1rem; margin-bottom: 0; }
   .aq-step2-lbl { font-size: .92rem; font-weight: 700; color: var(--heading); display: block; margin-bottom: .6rem; }
 
@@ -524,16 +530,16 @@
         <div class="aq-section">
           <div class="aq-section-title">고객 정보</div>
           <div class="fld-row">
-            <label>
+            <label class="aq-step2-field">
               <span class="aq-step2-lbl">고객사 / 기관명</span>
               <input type="text" id="organization" placeholder="고객사 또는 기관명을 입력하세요" required />
             </label>
-            <label>
+            <label class="aq-step2-field">
               <span class="aq-step2-lbl">고객 담당자 이름</span>
               <input type="text" id="contactName" placeholder="고객 측 담당자 이름을 입력하세요" required />
             </label>
           </div>
-          <label>
+          <label class="aq-step2-field">
             <span class="aq-step2-lbl">요청 사항 / 메모</span>
             <textarea id="requestDetails" placeholder="문의·상담 내용, 핵심 요구사항 등을 자유롭게 메모하세요" required></textarea>
           </label>
