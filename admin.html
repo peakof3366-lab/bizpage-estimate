@@ -380,6 +380,9 @@
         <button class="sidebar-item" data-tab="rates">
           <span class="si-icon"><i data-lucide="database"></i></span><span class="si-label">요율 관리</span>
         </button>
+        <a href="admin-quote.html" class="sidebar-item">
+          <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">내부 견적 산출</span>
+        </a>
         <div class="sidebar-divider"></div>
         <button class="sidebar-item" data-tab="settings">
           <span class="si-icon"><i data-lucide="settings"></i></span><span class="si-label">설정</span>
@@ -2351,7 +2354,7 @@
       return `<tr>
         <td>${(emPage-1)*EM_PAGE+i+1}</td>
         <td class="date-col">${fmtDate(e.ts)}</td>
-        <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong>${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}</td>
+        <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong>${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}</td>
         <td>${esc(e.orgName||'-')}</td>
         <td>${e.participants}명 / ${e.days}일</td>
         <td style="text-align:right;color:var(--primary);font-weight:700">₩${Math.round(chargeTot/10000).toLocaleString()}만</td>
@@ -2404,6 +2407,7 @@
     /* 기관 정보 */
     document.getElementById('em-orginfo').innerHTML =
       `<b>${esc(e.orgName||'—')}</b><br>담당자: ${esc(e.contact||'—')}<br>기관 유형: ${esc(e.orgTypeLabel||'—')}` +
+      (e.channel==='internal' ? `<br><span style="color:var(--primary);font-size:.76rem">🖥 내부 산출 — ${esc(e.createdBy||'담당자 미지정')}</span>` : '') +
       (e.request ? `<br><span style="color:var(--muted);font-size:.76rem">${esc(e.request)}</span>` : '');
 
     /* 연수 조건 */

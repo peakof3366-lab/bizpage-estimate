@@ -709,6 +709,11 @@ form.addEventListener('submit', (event) => {
       destNotes:   (getDestinationByKey(destKey)?.notes) || '',
       status: 'new',  /* new / consulting / contracted / closed */
       note:   '',
+      /* 관리자 내부 견적 산출 도구 구분(신규) — 공개 홈페이지에서는 항상 'public'.
+         admin-quote.html에서만 window.__INTERNAL_TOOL__/__INTERNAL_STAFF__를 미리
+         설정해두고 이 폼을 그대로 재사용한다. 되돌리려면 이 두 줄만 지우면 됨. */
+      channel:   window.__INTERNAL_TOOL__ ? 'internal' : 'public',
+      createdBy: window.__INTERNAL_TOOL__ ? (window.__INTERNAL_STAFF__ || '') : '',
     };
 
     const KEY = 'linkedt_estimates_full';
@@ -879,7 +884,11 @@ downloadButton.addEventListener('click', openEstimateWindow);
 })();
 
 /* ── 방문자 & 이벤트 추적 ── */
+/* 관리자 내부 견적 산출 도구(admin-quote.html)는 직원이 쓰는 페이지라 방문자/
+   이벤트 통계에 섞이면 안 됨 — window.__INTERNAL_TOOL__이 설정된 경우 추적을
+   통째로 건너뛴다. 되돌리려면 이 한 줄만 지우면 됨. */
 (function initTracking() {
+  if (window.__INTERNAL_TOOL__) return;
   const VISIT_KEY  = 'linkedt_visits';
   const EVENT_KEY  = 'linkedt_events';
   const DEST_KEY   = 'linkedt_dest_stats';
