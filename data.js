@@ -47,7 +47,7 @@ const HOTEL_GRADES = {
 const RATE_META = {
   version:    '2026.06.1',
   updated:    '2026-06',
-  updatedBy:  '하나이엔비티 견적팀',
+  updatedBy:  '비즈페이지 견적팀',
   nextReview: '2026-09',
   note:       '초기 버전 관리 체계 구축. 분기별(3개월) 갱신 권장.',
 };
