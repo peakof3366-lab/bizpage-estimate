@@ -118,7 +118,18 @@ async function main() {
   `;
   await sql`create index if not exists rate_change_log_created_at_idx on rate_change_log (created_at)`;
 
-  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights, rate_overrides, rate_change_log tables ready.');
+  /* 정적 페이지(index.html) 콘텐츠 오버라이드 (신규) — 히어로/갤러리/포트폴리오/
+     회사소개/후기/FAQ의 문구·이미지 URL을 관리자 페이지에서 직접 수정할 수 있게 함.
+     행이 없는 key는 index.html에 하드코딩된 기본값을 그대로 사용. */
+  await sql`
+    create table if not exists content_overrides (
+      key text primary key,
+      value text not null,
+      updated_at timestamptz not null default now()
+    )
+  `;
+
+  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides tables ready.');
 }
 
 main().catch((err) => {

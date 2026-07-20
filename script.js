@@ -28,6 +28,25 @@ const FEATURE_EXCEL_EXPORT = true;
     .catch(() => {});
 })();
 
+/* 정적 콘텐츠 오버라이드 (신규) — 관리자 페이지 "콘텐츠 관리"에서 수정한 히어로/갤러리/
+   포트폴리오/회사소개/후기/FAQ 문구·이미지를 [data-cms-key] 요소 위에 덮어쓴다. 이 fetch가
+   느리거나 실패해도 index.html에 하드코딩된 기본값 그대로 남아있으므로 항상 안전하게
+   렌더링된다(폴백). textContent만 사용(innerHTML 금지) — 관리자 입력값이 HTML로 해석되지
+   않도록 하는 기존 XSS 방지 원칙과 동일. */
+(function applyContentOverrides() {
+  fetch('/api/content')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((map) => {
+      if (!map) return;
+      document.querySelectorAll('[data-cms-key]').forEach((el) => {
+        const val = map[el.getAttribute('data-cms-key')];
+        if (!val) return;
+        if (el.tagName === 'IMG') { el.src = val; } else { el.textContent = val; }
+      });
+    })
+    .catch(() => {});
+})();
+
 const estimateCriteria = {
   programFactor: {
     language: 1.0,

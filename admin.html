@@ -283,6 +283,34 @@
     .rate-notes { font-size:.76rem; color:var(--muted); max-width:280px; }
     .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; }
 
+    /* ── CONTENT MANAGEMENT ─────────────── */
+    /* 필드는 항목(목적지/후기/FAQ 등) 단위로 한 줄(row)에 묶인다. 각 필드를 통째로 감싸는
+       래퍼 없이 라벨/안내문/미리보기/입력창/저장버튼을 그 "밴드"별로 평평하게 나열해
+       grid auto-flow가 열(항목)×행(밴드) 순서로 자동 배치하게 한다 — 그 결과 이미지가
+       있는 필드든 없는 필드든 라벨 줄, 입력 줄, 저장 버튼 줄이 전부 같은 높이에서
+       시작해 항목이 몇 개든 항상 가지런하게 정렬된다(열 개수는 JS가 인라인 style로
+       그룹 크기에 맞춰 지정). */
+    .cms-field-row { display:grid; align-items:stretch; gap:.5rem 1.25rem; padding:1rem 0; border-bottom:1px solid rgba(0,0,0,.06); }
+    .cms-field-row:last-child { border-bottom:none; }
+    .cms-field-label { font-size:.76rem; font-weight:700; color:var(--heading); }
+    .cms-field-row input.cms-field-input, .cms-field-row textarea.cms-field-input { padding:.55rem .75rem; border:1px solid var(--border); font-size:.82rem; border-radius:var(--r); width:100%; font-family:inherit; }
+    .cms-field-row input.cms-field-input:focus, .cms-field-row textarea.cms-field-input:focus { outline:none; border-color:var(--primary); }
+    .cms-field-row textarea.cms-field-input { resize:vertical; min-height:4.5rem; }
+    /* 같은 줄에 textarea(예: 회사소개 본문, 후기 내용)가 섞여 있으면 grid의 기본
+       align-items:stretch 때문에 옆의 한 줄짜리 input(예: 이미지 URL)까지 textarea
+       높이만큼 세로로 길게 늘어나 찌그러져 보인다 — input만 원래 높이를 유지하도록
+       고정한다. */
+    .cms-field-row input.cms-field-input { align-self:start; }
+    .cms-img-hint { font-size:.72rem; color:var(--muted); line-height:1.5; margin:0; }
+    .cms-img-hint strong { color:var(--primary); font-weight:700; }
+    .cms-img-preview, .cms-img-preview-slot { width:100%; max-width:220px; }
+    .cms-img-preview { height:110px; object-fit:cover; border:1px solid var(--border); background:var(--bg); }
+    .cms-field-actions { display:flex; align-items:end; gap:.6rem; align-self:end; }
+    .cms-field-msg { font-size:.76rem; font-weight:700; }
+    .cms-pf-item { border:1px solid var(--border); border-radius:var(--r); padding:.75rem 1rem; margin-bottom:.75rem; }
+    .cms-pf-item summary { cursor:pointer; font-size:.84rem; font-weight:700; color:var(--heading); }
+    .cms-pf-item .cms-field-row { margin-top:.9rem; padding-top:0; border-bottom:none; }
+
     /* ── RESPONSIVE ──────────────── */
     @media (max-width: 1100px) {
       /* 좁은 화면에서는 96% 비율 대신 고정 여백으로 (사이드바+본문 합쳐 좁아지면
@@ -311,6 +339,7 @@
       .sidebar-footer { display: none; }
       .sidebar-divider { width: 1px; height: auto; margin: .2rem 0; }
       .mobile-tab-header { display: block; }
+      .cms-field-row { grid-template-columns: 1fr !important; }
     }
     @media (max-width: 600px) {
       .stat-grid { grid-template-columns: 1fr 1fr; }
@@ -396,6 +425,9 @@
         </button>
         <button class="sidebar-item" data-tab="quotetool">
           <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">내부 견적 산출</span>
+        </button>
+        <button class="sidebar-item" data-tab="content">
+          <span class="si-icon"><i data-lucide="edit-3"></i></span><span class="si-label">콘텐츠 관리</span>
         </button>
         <div class="sidebar-divider"></div>
         <button class="sidebar-item" data-tab="settings">
@@ -735,6 +767,22 @@
         <iframe id="quoteToolFrame" title="내부 견적 산출"
           style="width:100%;height:calc(100vh - 150px);border:none;display:block;background:#fff"></iframe>
       </div>
+    </div>
+
+    <!-- ── 콘텐츠 관리 (신규) ── 필드 110개는 CMS_FIELDS 데이터에서 renderContent()가
+         섹션별 카드로 동적 생성한다(요율 관리가 55개 목적지 행을 RATE_META에서 동적으로
+         그리는 것과 동일한 방식) — 유사 블록을 손으로 반복 작성하지 않기 위함. -->
+    <div class="tab-panel" id="tab-content">
+      <div class="rate-update-info">
+        <strong>이미지는 URL만 입력하는 방식입니다</strong> (파일 업로드 아님) — 새 이미지를 쓰려면 먼저
+        어딘가에 업로드해서 바로 접근 가능한 이미지 링크(.jpg/.png/.webp로 끝나는 주소)를 확보한 뒤
+        그 주소를 붙여넣으세요. 각 이미지 항목 아래 표시된 <strong>권장 비율·최소 해상도</strong>는
+        실제 그 자리에 어떻게 잘려서 보이는지를 기준으로 계산된 값이니 최대한 맞춰서 준비하면
+        화질 저하나 어색한 크롭 없이 깔끔하게 노출됩니다. 공통 권장: JPG 또는 WebP 형식,
+        장당 500KB 이하(로딩 속도), 사진 속 주요 피사체(인물·랜드마크)는 가운데에 배치.
+      </div>
+      <div id="content-empty" class="empty-state hidden"><div class="empty-icon">✏️</div><p>콘텐츠를 불러오지 못했습니다. 새로고침해 주세요.</p></div>
+      <div id="content-sections"></div>
     </div>
 
     <!-- ── 설정 ── -->
@@ -1425,7 +1473,8 @@
   const tabTitles = {
     dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 관리',
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
-    marketing:'마케팅 인사이트', rates:'요율 관리', quotetool:'내부 견적 산출', settings:'설정'
+    marketing:'마케팅 인사이트', rates:'요율 관리', quotetool:'내부 견적 산출',
+    content:'콘텐츠 관리', settings:'설정'
   };
 
   function switchTab(name) {
@@ -1449,6 +1498,7 @@
     else if (name==='marketing') renderMarketingInsights();
     else if (name==='rates') renderRates();
     else if (name==='quotetool') renderQuoteTool();
+    else if (name==='content') renderContent();
   }
 
   /* iframe은 처음 탭을 열 때 한 번만 src를 지정해 불필요한 로드를 피한다
@@ -2327,6 +2377,204 @@
     a.href     = URL.createObjectURL(blob);
     a.download = `rate_status_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
+  }
+
+  /* ════ CONTENT MANAGEMENT ════
+     index.html의 히어로/갤러리/포트폴리오/회사소개/후기/FAQ 문구·이미지를 여기서 수정하면
+     [data-cms-key]를 통해 실제 페이지에 반영된다(script.js의 applyContentOverrides 참고).
+     110개 필드를 손으로 반복 작성하지 않도록, 목적지별/카드별 기본값 배열에서 CMS_FIELDS를
+     동적으로 생성한다(요율 관리가 RATE_META에서 55개 행을 그리는 방식과 동일). */
+  const CMS_SECTION_LABELS = {
+    hero: '히어로', gallery: '목적지 갤러리', pf: '포트폴리오',
+    about: '회사소개', testi: '후기', faq: 'FAQ',
+  };
+
+  const CMS_FIELDS = [
+    { key:'hero.headline', section:'hero', label:'헤드라인', type:'text', def:'14년이 증명하는 해외 연수 전문 솔루션' },
+    { key:'hero.subhead',  section:'hero', label:'서브 문구', type:'textarea', def:'검증된 글로벌 네트워크와 현지 노하우로 귀 기관의 연수를 설계합니다.' },
+  ];
+
+  /* 갤러리 카드는 CSS 그리드 배치상 카드마다 실제 렌더 비율이 다르다(styles.css의
+     .gallery-card / :nth-child(1,5) / :nth-child(7,8) 규칙 참고) — 잘못된 비율의 이미지를
+     올리면 object-fit:cover로 인해 인물·랜드마크가 잘려 보일 수 있어 카드별로 안내한다. */
+  const CMS_GALLERY_DEFAULTS = [
+    { img:'이미지/도쿄/1.jpg', tag:'정책 벤치마킹 · 선진 시스템 견학', name:'일본', ratio:'3:2 가로형', minRes:'1200×800px' },
+    { img:'이미지/홍콩/1.jpg', tag:'금융·비즈니스 밸류체인 탐방', name:'중국 · 홍콩', ratio:'3:4 세로형', minRes:'900×1200px' },
+    { img:'이미지/하노이/1.jpg', tag:'신흥시장 산업 시찰', name:'베트남', ratio:'3:4 세로형', minRes:'900×1200px' },
+    { img:'이미지/방콕/1.jpg', tag:'리더십 · 팀빌딩 프로그램', name:'동남아시아', ratio:'3:4 세로형', minRes:'900×1200px' },
+    { img:'이미지/뉴욕/1.jpg', tag:'글로벌 스탠다드 벤치마킹', name:'미국', ratio:'3:2 가로형', minRes:'1200×800px' },
+    { img:'이미지/프랑스/1.jpg', tag:'선진 정책 · 문화교류 연수', name:'유럽', ratio:'3:4 세로형', minRes:'900×1200px' },
+    { img:'이미지/시드니/1..jpg', tag:'워크숍 · 힐링 연수', name:'오세아니아', ratio:'16:9 가로형', minRes:'1600×900px' },
+    { img:'이미지/우즈베키스탄/image%20(1).jpg', tag:'신흥국 협력 네트워크 시찰', name:'중앙아시아', ratio:'16:9 가로형', minRes:'1600×900px' },
+  ];
+  CMS_GALLERY_DEFAULTS.forEach((d, i) => {
+    const n = i + 1;
+    CMS_FIELDS.push({ key:`gallery.${n}.img`,  section:'gallery', label:`${n}. ${d.name} · 이미지 URL`, type:'img',  def:d.img, ratio:d.ratio, minRes:d.minRes });
+    CMS_FIELDS.push({ key:`gallery.${n}.tag`,  section:'gallery', label:`${n}. ${d.name} · 태그`,       type:'text', def:d.tag });
+    CMS_FIELDS.push({ key:`gallery.${n}.name`, section:'gallery', label:`${n}. ${d.name} · 이름`,       type:'text', def:d.name });
+  });
+
+  const CMS_PF_DEFAULTS = [
+    { img:'이미지/몽골/1.jpg', dest:'몽골 · 서울 초청연수', title:'몽골 환경부 공무원 초청 연수' },
+    { img:'이미지/상해/image%20(1).jpg', dest:'중국 · 상해', title:'상해 독립운동 사적지 체험연수' },
+    { img:'이미지/싱가포르/2.jpg', dest:'싱가포르', title:'도시·공공주택개발 선진지 연수' },
+    { img:'이미지/도쿄/5.jpg', dest:'일본 · 도쿄', title:'신용보증 공식방문 해외연수' },
+    { img:'이미지/도쿄/3.jpg', dest:'일본 · 도쿄', title:'도쿄 부동산 선진지 연수' },
+    { img:'이미지/싱가포르/3.jpg', dest:'싱가포르', title:'선진 의료시설 방문 우수직원 연수' },
+    { img:'이미지/독일/1.jpg', dest:'독일 · 베를린', title:'독일 현장 벤치마킹 국외연수' },
+    { img:'이미지/타이베이/1.jpg', dest:'대만 · 타이베이', title:'타이베이 도시재생·친환경 인프라 연수' },
+    { img:'이미지/시드니/10.jpg', dest:'호주 · 시드니', title:'사이버보안 전문기관 방문 연수' },
+    { img:'이미지/싱가포르/1.jpg', dest:'싱가포르', title:'항만공사 도시·물류 연계 국외연수' },
+    { img:'이미지/도쿄/4.jpg', dest:'일본 · 교토 · 오사카', title:'보험사 우수FC 포상연수' },
+    { img:'이미지/상해/image%20(1).jpg', dest:'중국 · 상하이', title:'다문화 가족센터 방문 연수' },
+    { img:'이미지/홍콩/1.jpg', dest:'중국', title:'해외 산업현장 방문 연수' },
+    { img:'이미지/하노이/1.jpg', dest:'베트남 · 하노이 · 하롱베이', title:'우수사원 포상 해외 연수' },
+    { img:'이미지/방콕/1.jpg', dest:'베트남 · 나트랑 · 달랏', title:'나트랑 + 달랏 단체 연수' },
+    { img:'이미지/도쿄/3.jpg', dest:'일본 · 도쿄', title:'해외 세미나 단체 연수' },
+    { img:'이미지/독일/1.jpg', dest:'네덜란드 · 독일', title:'개발공사 첨단산업단지 해외시찰' },
+    { img:'이미지/프랑스/3.jpg', dest:'크로아티아', title:'그린시티 국외 교육연수' },
+  ];
+  CMS_PF_DEFAULTS.forEach((d, i) => {
+    const n = i + 1;
+    CMS_FIELDS.push({ key:`pf.${n}.img`,   section:'pf', label:'이미지 URL', type:'img',  def:d.img, ratio:'4:3 가로형', minRes:'1200×900px' });
+    CMS_FIELDS.push({ key:`pf.${n}.dest`,  section:'pf', label:'지역',      type:'text', def:d.dest });
+    CMS_FIELDS.push({ key:`pf.${n}.title`, section:'pf', label:'제목',      type:'text', def:d.title });
+  });
+
+  CMS_FIELDS.push(
+    { key:'about.eyebrow',  section:'about', label:'상단 라벨',   type:'text',     def:'SINCE 2010 · 하나이엔비티 소개' },
+    { key:'about.headline', section:'about', label:'헤드라인',   type:'text',     def:'기업·공공기관·교육기관의 신뢰할 수 있는 연수 파트너' },
+    { key:'about.body',     section:'about', label:'본문',       type:'textarea', def:'평균 경력 10년 이상의 전문 컨설턴트가 연수 기획부터 현지 운영까지 원스톱으로 책임집니다. 14년간 1,400건 이상의 연수를 성공적으로 진행한 검증된 파트너입니다.' },
+    { key:'about.img',      section:'about', label:'대표 이미지 URL', type:'img',  def:'이미지/발리/1.jpg', ratio:'4:3 가로형', minRes:'1200×900px' },
+  );
+
+  const CMS_TESTI_DEFAULTS = [
+    { text:'처음에는 단순 해외 연수라고 생각했는데, 실제 현지 기업 방문과 전문가 강연이 결합된 프로그램 덕분에 참가자 만족도가 역대 최고를 기록했습니다. 기획 단계부터 귀국까지 모든 과정을 완벽하게 리드해 주셨습니다.', name:'김○○ 인사팀장', org:'중견 제조기업 A사 · 싱가포르 리더십 연수' },
+    { text:'견적 산출부터 현지 운영까지 모든 과정이 체계적으로 진행됐습니다. 40명 단체 연수를 처음 주관했는데 걱정과 달리 단 하나의 차질도 없었습니다. 올해 하반기 연수도 다시 맡겼습니다.', name:'박○○ 교육팀 차장', org:'공공기관 B · 도쿄 산업연수' },
+    { text:'14년의 노하우가 느껴지는 현지 네트워크 덕분에 일반 관광으로는 절대 방문할 수 없는 글로벌 기업 본사를 탐방할 수 있었습니다. 참가자들의 경험이 이후 조직 문화에 긍정적 변화를 가져왔습니다.', name:'이○○ 연수 담당자', org:'대기업 C그룹 · 뉴욕 글로벌 연수' },
+    { text:'비즈페이지 견적 시스템 덕분에 내부 결재 자료 준비 시간이 크게 줄었습니다. 실시간 견적서를 그대로 공문에 첨부했고, 의사결정자가 바로 이해할 수 있어 승인이 빠르게 났습니다.', name:'최○○ 기획실장', org:'지방 공기업 D · 방콕 산업연수' },
+  ];
+  CMS_TESTI_DEFAULTS.forEach((d, i) => {
+    const n = i + 1;
+    CMS_FIELDS.push({ key:`testi.${n}.text`, section:'testi', label:`${n}. ${d.name} · 후기 내용`, type:'textarea', def:d.text });
+    CMS_FIELDS.push({ key:`testi.${n}.name`, section:'testi', label:`${n}. ${d.name} · 이름/직함`, type:'text',     def:d.name });
+    CMS_FIELDS.push({ key:`testi.${n}.org`,  section:'testi', label:`${n}. ${d.name} · 소속`,      type:'text',     def:d.org });
+  });
+
+  const CMS_FAQ_DEFAULTS = [
+    { q:'해외 연수와 일반 단체 여행의 차이가 무엇인가요?', a:'일반 단체 여행이 관광·숙박 중심이라면, 해외 연수는 현지 기업·기관 방문, 전문가 강연, 워크숍 등 교육 목적을 중심으로 설계됩니다. 비즈페이지는 14년간 축적된 현지 네트워크를 통해 일반 여행으로는 불가능한 글로벌 기업·정부기관 탐방을 실현해 드립니다.' },
+    { q:'최소 참여 인원이 있나요?', a:'최소 인원 제한은 없습니다. 다만 10명 이상부터 단체 할인이 적용되며, 30명·50명 이상 구간에서 추가 할인율이 적용됩니다. 인원에 따른 견적은 상단 무료 견적 시스템에서 즉시 확인하실 수 있습니다.' },
+    { q:'온라인 견적은 얼마나 정확한가요?', a:'55개 이상 목적지의 실제 현지 단가(항공, 호텔, 식사, 가이드, 관광비 등)를 기반으로 즉시 산출됩니다. 분기별 요율 갱신으로 최신 환율·항공 시세를 반영하며, 실제 계약 금액과 ±10% 이내로 정확합니다.' },
+    { q:'견적서를 내부 결재 자료로 사용할 수 있나요?', a:'네, 가능합니다. 생성된 견적서는 PDF로 인쇄하거나 고객 공유 링크를 통해 결재권자와 즉시 공유할 수 있습니다. 발행일, 견적 번호, 포함 항목 내역이 공문 수준으로 정리되어 결재 자료로 바로 활용 가능합니다.' },
+    { q:'현지에서의 안전 관리는 어떻게 하나요?', a:'전담 한국인 인솔자가 전 일정을 동행하며 현지 파트너 기관과 24시간 핫라인을 유지합니다. 여행자 보험 가입은 기본 포함되며, 출발 전 안전 브리핑과 비상 연락망이 참여자 전원에게 제공됩니다.' },
+    { q:'계약 후 일정 변경이 가능한가요?', a:'출발 60일 전까지는 일정·인원·목적지 변경이 가능합니다. 변경 내용에 따라 추가 비용이 발생할 수 있으며, 전담 컨설턴트가 변경 조건을 상세히 안내해 드립니다. 태풍·항공 결항 등 돌발 상황에도 대응 프로토콜이 마련되어 있습니다.' },
+    { q:'연수 결과 보고서도 받을 수 있나요?', a:'네, 모든 연수 종료 후 귀국 2주 이내에 사진·일정·현장 스케치가 포함된 결과 보고서를 납품해 드립니다. 기관 내부 성과 보고, 언론 보도자료, 블로그·SNS 활용에 적합한 고품질 자료입니다.' },
+  ];
+  CMS_FAQ_DEFAULTS.forEach((d, i) => {
+    const n = i + 1;
+    CMS_FIELDS.push({ key:`faq.${n}.q`, section:'faq', label:`${n}번 질문`, type:'text',     def:d.q });
+    CMS_FIELDS.push({ key:`faq.${n}.a`, section:'faq', label:`${n}번 답변`, type:'textarea', def:d.a });
+  });
+
+  let contentOverridesCache = {};
+
+  async function renderContent() {
+    const wrap    = document.getElementById('content-sections');
+    const emptyEl = document.getElementById('content-empty');
+    try {
+      const res = await fetch('/api/content');
+      if (!res.ok) throw new Error('fetch_failed');
+      contentOverridesCache = await res.json();
+      emptyEl.classList.add('hidden');
+    } catch (err) {
+      console.warn('[admin] 콘텐츠 조회 실패:', err);
+      contentOverridesCache = {};
+      emptyEl.classList.remove('hidden');
+    }
+    wrap.innerHTML = Object.keys(CMS_SECTION_LABELS).map(renderContentSection).join('');
+  }
+
+  /* 항목(목적지/후기/FAQ 카드)당 필드 개수 — 이 크기로 잘라 한 줄(.cms-field-row)에
+     묶어야 저장 버튼이 항목별로 가지런히 정렬된다(hero/about은 항목 구분이 없어 전체를
+     한 줄로 취급). */
+  const CMS_GROUP_SIZE = { hero: Infinity, gallery: 3, pf: 3, about: Infinity, testi: 3, faq: 2 };
+
+  function renderContentSection(section) {
+    const fields = CMS_FIELDS.filter(f => f.section === section);
+    const size = CMS_GROUP_SIZE[section];
+    const groups = [];
+    for (let i = 0; i < fields.length; i += size) groups.push(fields.slice(i, i + size));
+
+    let body;
+    if (section === 'pf') {
+      body = groups.map((g, idx) => `
+        <details class="cms-pf-item">
+          <summary>${idx + 1}. ${esc(CMS_PF_DEFAULTS[idx].dest)} · ${esc(CMS_PF_DEFAULTS[idx].title)}</summary>
+          ${renderContentRow(g)}
+        </details>`).join('');
+    } else {
+      body = groups.map(renderContentRow).join('');
+    }
+    return `<div class="card" style="margin-bottom:1.25rem"><div class="card-header"><span class="card-title">${esc(CMS_SECTION_LABELS[section])}</span></div><div class="card-body">${body}</div></div>`;
+  }
+
+  /* 필드를 각자 감싼 블록으로 두지 않고, "라벨 전부 → 안내문 전부 → 미리보기 전부 →
+     입력창 전부 → 저장 버튼 전부" 순서로 평평하게 나열한다. grid는 기본적으로 왼쪽→
+     오른쪽, 위→아래 순서로 자동 배치하므로, 이 순서 그대로 두면 밴드별로 줄이 맞는다.
+     이미지가 없는 필드도 빈 안내문/빈 미리보기 자리를 반드시 채워 넣어야 다음 밴드가
+     밀리지 않는다(비어 있어도 grid 셀 자체는 차지해야 함). */
+  function renderContentRow(g) {
+    const parts = g.map(renderContentField);
+    const cols  = `grid-template-columns:repeat(${g.length},1fr)`;
+    return `<div class="cms-field-row" style="${cols}">`
+      + parts.map(p => p.label).join('')
+      + parts.map(p => p.hint).join('')
+      + parts.map(p => p.preview).join('')
+      + parts.map(p => p.input).join('')
+      + parts.map(p => p.actions).join('')
+      + `</div>`;
+  }
+
+  function renderContentField(f) {
+    const val     = contentOverridesCache[f.key] || '';
+    const fieldId = 'cms-' + f.key.replace(/\./g, '-');
+    const label = `<label class="cms-field-label" for="${fieldId}">${esc(f.label)}</label>`;
+    const hint = f.type === 'img'
+      ? `<p class="cms-img-hint">권장 비율 <strong>${esc(f.ratio)}</strong> · 최소 해상도 <strong>${esc(f.minRes)}</strong> (가로×세로 표시, 미달 시 확대되어 흐려 보일 수 있음)</p>`
+      : `<p class="cms-img-hint"></p>`;
+    const preview = f.type === 'img'
+      ? `<img id="${fieldId}-preview" src="${esc(val || f.def)}" alt="" class="cms-img-preview" onerror="this.style.visibility='hidden'" onload="this.style.visibility='visible'" />`
+      : `<div class="cms-img-preview-slot"></div>`;
+    const input = f.type === 'textarea'
+      ? `<textarea class="cms-field-input" id="${fieldId}" rows="3" placeholder="${esc(f.def)}">${esc(val)}</textarea>`
+      : `<input type="text" class="cms-field-input" id="${fieldId}" placeholder="${esc(f.def)}" value="${esc(val)}" />`;
+    const actions = `
+      <div class="cms-field-actions">
+        <button type="button" class="btn-act btn-outline-p" onclick="saveContentField('${f.key}','${fieldId}')">저장</button>
+        <span id="${fieldId}-msg" class="cms-field-msg"></span>
+      </div>`;
+    return { label, hint, preview, input, actions };
+  }
+
+  async function saveContentField(key, fieldId) {
+    const el    = document.getElementById(fieldId);
+    const msg   = document.getElementById(fieldId + '-msg');
+    const value = el.value;
+    try {
+      const r = await fetch('/api/content', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value }),
+      });
+      if (!r.ok) throw new Error('save_failed');
+      contentOverridesCache[key] = value;
+      msg.style.color = 'var(--success)'; msg.textContent = '저장됨';
+      const previewEl = document.getElementById(fieldId + '-preview');
+      if (previewEl) previewEl.src = value || el.placeholder;
+    } catch (err) {
+      console.warn('[admin] 콘텐츠 저장 실패:', err);
+      msg.style.color = 'var(--danger)'; msg.textContent = '저장 실패';
+    }
+    setTimeout(() => { msg.textContent = ''; }, 3000);
   }
 
   /* ════ SETTINGS ════ */
