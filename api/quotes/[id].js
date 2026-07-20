@@ -21,6 +21,16 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true, entry });
       }
 
+      /* 실제 계약 항공료 저장 (신규) — status/note/assignee 일반 저장과 분리된 별도
+         분기(addLog와 동일한 이유): 아래 일반 저장은 매번 세 필드를 무조건 덮어쓰므로
+         같이 묶으면 실수로 이 값을 null로 되돌릴 위험이 있음. */
+      if (body.actualAirfare) {
+        const unit = Number(body.actualAirfare && body.actualAirfare.unit);
+        if (!Number.isFinite(unit) || unit <= 0 || unit > 50000000) return res.status(400).json({ error: 'invalid_unit' });
+        await sql`update quotes set actual_airfare_unit = ${unit} where id = ${id}`;
+        return res.status(200).json({ ok: true });
+      }
+
       await sql`
         update quotes set status = ${body.status ?? 'new'}, note = ${body.note ?? ''}, assignee = ${body.assignee ?? ''}
         where id = ${id}

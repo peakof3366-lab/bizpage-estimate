@@ -9,6 +9,7 @@
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css" />
   <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
   <script src="data.js"></script>
+  <script src="dest_currency.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -187,6 +188,7 @@
     .filter-btn:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
 
     .btn-act { padding: .4rem .9rem; font-size: .78rem; font-weight: 600; border-radius: var(--r); border: 1.5px solid; transition: all .2s; }
+    .btn-act:disabled { opacity: .4; cursor: not-allowed; }
     .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
     .btn-primary:hover { background: var(--primary-dark); }
     .btn-outline-p { background: var(--white); color: var(--primary); border-color: var(--primary); }
@@ -261,7 +263,8 @@
     .kpi-lbl { font-size: .76rem; color: var(--muted); margin-top: .2rem; }
 
     /* ── RATE TABLE ─────────────────────── */
-    .rate-meta-banner { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:1.5rem; }
+    .rate-status-panel { margin-bottom:1.25rem; }
+    .rate-meta-banner { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:0; }
     .rate-meta-box { background:var(--white); border:1px solid var(--border); padding:.9rem 1.1rem; border-left:3px solid var(--primary); }
     .rate-meta-box.warn   { border-left-color:var(--warn);    background:#fffbeb; }
     .rate-meta-box.danger { border-left-color:var(--danger);  background:#fef2f2; }
@@ -269,6 +272,7 @@
     .rate-meta-value { font-size:.95rem; font-weight:800; color:var(--primary); }
     .rate-meta-box.warn .rate-meta-value   { color:#92400e; }
     .rate-meta-box.danger .rate-meta-value { color:var(--danger); }
+    .rate-status-panel .rate-update-info { margin-top:.6rem; margin-bottom:0; }
     .rate-filter-bar { display:flex; align-items:center; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; }
     .rate-table { width:100%; border-collapse:collapse; font-size:.82rem; }
     .rate-table thead { background:var(--bg); }
@@ -282,6 +286,7 @@
     .rate-region-row td { background:var(--bg); font-weight:700; color:var(--heading); font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; padding:.45rem .85rem; }
     .rate-notes { font-size:.76rem; color:var(--muted); max-width:280px; }
     .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; }
+    .rate-undo-banner { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; font-size:.82rem; font-weight:600; background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:.75rem 1rem; margin-bottom:1.25rem; }
 
     /* ── CONTENT MANAGEMENT ─────────────── */
     /* 필드는 항목(목적지/후기/FAQ 등) 단위로 한 줄(row)에 묶인다. 각 필드를 통째로 감싸는
@@ -290,7 +295,7 @@
        있는 필드든 없는 필드든 라벨 줄, 입력 줄, 저장 버튼 줄이 전부 같은 높이에서
        시작해 항목이 몇 개든 항상 가지런하게 정렬된다(열 개수는 JS가 인라인 style로
        그룹 크기에 맞춰 지정). */
-    .cms-field-row { display:grid; align-items:stretch; gap:.5rem 1.25rem; padding:1rem 0; border-bottom:1px solid rgba(0,0,0,.06); }
+    .cms-field-row { display:grid; align-items:stretch; gap:.4rem 1.25rem; padding:.85rem 0; border-bottom:1px solid rgba(0,0,0,.06); }
     .cms-field-row:last-child { border-bottom:none; }
     .cms-field-label { font-size:.76rem; font-weight:700; color:var(--heading); }
     .cms-field-row input.cms-field-input, .cms-field-row textarea.cms-field-input { padding:.55rem .75rem; border:1px solid var(--border); font-size:.82rem; border-radius:var(--r); width:100%; font-family:inherit; }
@@ -303,8 +308,8 @@
     .cms-field-row input.cms-field-input { align-self:start; }
     .cms-img-hint { font-size:.72rem; color:var(--muted); line-height:1.5; margin:0; }
     .cms-img-hint strong { color:var(--primary); font-weight:700; }
-    .cms-img-preview, .cms-img-preview-slot { width:100%; max-width:220px; }
-    .cms-img-preview { height:110px; object-fit:cover; border:1px solid var(--border); background:var(--bg); }
+    .cms-img-preview, .cms-img-preview-slot { width:100%; max-width:150px; }
+    .cms-img-preview { height:64px; object-fit:cover; border:1px solid var(--border); background:var(--bg); }
     .cms-field-actions { display:flex; align-items:end; gap:.6rem; align-self:end; }
     .cms-field-msg { font-size:.76rem; font-weight:700; }
     .cms-pf-item { border:1px solid var(--border); border-radius:var(--r); padding:.75rem 1rem; margin-bottom:.75rem; }
@@ -323,6 +328,7 @@
     @media (max-width: 900px) {
       .stat-grid { grid-template-columns: repeat(2, 1fr); }
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .rate-meta-banner { grid-template-columns: repeat(2, 1fr); }
     }
     @media (max-width: 768px) {
       /* 모바일: 사이드바 → 하단 탭바로 전환 */
@@ -492,7 +498,7 @@
     <div class="tab-panel" id="tab-inquiries">
       <div class="toolbar">
         <div class="toolbar-left">
-          <input type="search" id="inqSearch" class="search-box" placeholder="이름 · 소속 · 내용 검색..." />
+          <input type="search" id="inqSearch" class="search-box" placeholder="이름 · 소속 · 내용 검색..." autocomplete="off" />
           <button class="filter-btn active" data-filter="all">전체</button>
           <button class="filter-btn" data-filter="unread">미확인</button>
           <button class="filter-btn" data-filter="read">확인</button>
@@ -540,7 +546,7 @@
       <!-- 필터 + 액션 -->
       <div class="toolbar" style="margin-bottom:1rem">
         <div class="toolbar-left">
-          <input type="search" id="emSearch" class="search-box" placeholder="목적지·기관명·담당자 검색..." style="min-width:220px"/>
+          <input type="search" id="emSearch" class="search-box" placeholder="목적지·기관명·담당자 검색..." style="min-width:220px" autocomplete="off" />
           <button class="filter-btn active" data-emfilter="all">전체</button>
           <button class="filter-btn" data-emfilter="new">신규</button>
           <button class="filter-btn" data-emfilter="consulting">상담중</button>
@@ -548,6 +554,7 @@
           <button class="filter-btn" data-emfilter="closed">종료</button>
         </div>
         <div style="display:flex;gap:.5rem">
+          <button class="btn-act btn-danger-sm" id="emDeleteSelectedBtn" onclick="deleteSelectedEstimates()" disabled>🗑️ 선택 삭제 (0)</button>
           <button class="btn-act btn-outline-p" onclick="exportEstimatesCsv()">CSV 내보내기</button>
           <button class="btn-act btn-danger-sm" onclick="clearEstimatesFull()">전체 삭제</button>
         </div>
@@ -559,6 +566,7 @@
         <table id="emTable" class="inq-table hidden">
           <thead>
             <tr>
+              <th style="width:32px"><input type="checkbox" id="emSelectAll" onchange="toggleEmSelectAll(this.checked)" /></th>
               <th style="width:36px">#</th>
               <th>접수일시</th>
               <th>목적지</th>
@@ -695,19 +703,112 @@
     <!-- ── 요율 관리 ── -->
     <div class="tab-panel" id="tab-rates">
 
-      <!-- 메타 배너 -->
-      <div class="rate-meta-banner" id="rate-meta-banner"></div>
+      <!-- 실제 계약가 업데이트 (신규) — 요율 관리 맨 위, 로그인한 담당자 누구나 바로 보이는
+           위치. 항공료·호텔·식비는 인원별 협상 견적이라 자동 갱신이 안 되지만, 계약 성사 시
+           실제 단가를 여기 남기면 목적지별로 모여 기준 요율과 비교·제안됨(아래 갱신 제안
+           카드). 호텔명은 요율(가격) 계산에는 전혀 쓰이지 않는 순수 참고 텍스트로,
+           "실제 이용 호텔" 카드에만 표시되고 공개 견적 계산기·고객 화면에는 절대 노출되지
+           않는다(이 데이터를 읽는 API가 requireAdmin으로 막혀 있어 관리자만 조회 가능).
+           PDF 업로드는 AI가 항목들을 찾아 미리 채워줄 뿐 — 절대 자동 제출되지 않고
+           반드시 사람이 값을 확인/수정한 뒤 "제출"을 눌러야 실제로 반영된다. -->
+      <div class="card" id="price-report-card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">📝 실제 계약가 업데이트</span></div>
+        <div class="card-body">
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:.9rem;line-height:1.7">
+            <p style="margin-bottom:.5rem">계약이 성사된 실제 항공료·호텔단가·식비를 남겨주세요(전부 채울 필요 없이 아는 항목만 채우면 됩니다) — 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다.
+              <strong style="color:var(--heading)">PDF 업로드는 선택 사항</strong>이며, 최종적으로 반영되는 건 아래 입력창에 남아있는 값들뿐입니다 — 두 방법 중 <strong style="color:var(--heading)">하나만</strong> 하면 됩니다.</p>
+            <p style="margin-bottom:.25rem">① <strong>PDF 없이 직접 입력</strong>: 아는 항목만 숫자로 입력 → "제출"</p>
+            <p style="margin-bottom:.25rem">② <strong>PDF로 자동 채우기</strong>: PDF 업로드 → "PDF에서 추출" 클릭(AI가 문서에서 찾은 항목만 채워줄 뿐, 파일 자체는 저장되지 않습니다 · 텍스트가 있는 PDF만 가능, 스캔 이미지는 지원 안 함) → 채워진 값을 확인·수정 → "제출"</p>
+            <p style="margin-bottom:0">🔒 <strong>실제 이용 호텔명</strong>은 가격에는 반영되지 않는 관리자 전용 참고 정보입니다 — 고객이 보는 견적서·공개 페이지에는 절대 표시되지 않습니다.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;align-items:end">
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">목적지</div>
+              <select id="pr-dest" class="status-select" style="width:100%"></select>
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">실제 항공료(1인당)</div>
+              <input type="number" id="pr-airfare" class="pw-input" min="0" placeholder="예: 420000" />
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">실제 호텔단가(1박)</div>
+              <input type="number" id="pr-hotel" class="pw-input" min="0" placeholder="예: 130000" />
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">실제 이용 호텔명 🔒<span style="font-weight:400;text-transform:none;letter-spacing:0"> (관리자 전용)</span></div>
+              <input type="text" id="pr-hotel-name" class="pw-input" maxlength="80" placeholder="예: OO 호텔" />
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">실제 식비(1인 1식)</div>
+              <input type="number" id="pr-meal" class="pw-input" min="0" placeholder="예: 20000" />
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">견적서 PDF (선택)</div>
+              <input type="file" id="pr-pdf" accept="application/pdf" style="font-size:.76rem" />
+            </div>
+            <div style="display:flex;gap:.5rem">
+              <button type="button" class="btn-act btn-outline-p" onclick="extractPdfDetails()">PDF에서 추출</button>
+              <button type="button" class="btn-act btn-primary" onclick="submitPriceReport()">제출</button>
+            </div>
+          </div>
+          <p id="pr-msg" style="font-size:.78rem;font-weight:700;margin-top:.6rem"></p>
+        </div>
+      </div>
 
-      <!-- 갱신 안내 -->
-      <div class="rate-update-info" id="rate-update-info"></div>
+      <!-- 실행취소 배너: 방금 한 편집/일괄조정을 즉시 되돌릴 수 있게(신중히 확인하라는
+           안내와 별개로, 실수했을 때 바로 원복 가능하도록) -->
+      <div class="rate-undo-banner hidden" id="rate-undo-banner">
+        <span id="rate-undo-text"></span>
+        <div style="display:flex;gap:.5rem;flex-shrink:0">
+          <button type="button" class="btn-act btn-primary" onclick="undoLastRateAction()">↩️ 방금 작업 되돌리기</button>
+          <button type="button" class="btn-act btn-outline-p" onclick="hideRateUndoBanner()">닫기</button>
+        </div>
+      </div>
 
-      <!-- 필터 + 내보내기 -->
+      <!-- 실제 계약 데이터 기반 갱신 제안 (신규) — 항공료·호텔·식비는 인원별 협상 견적이라
+           공개 API로 자동 갱신할 수 없지만, 계약완료된 견적/실제 계약가 위젯에 담당자가
+           남긴 실제 단가를 목적지×항목별로 모아서 기준 요율과 얼마나 벌어졌는지 보여준다.
+           후보가 없으면(데이터가 아직 부족하면) 카드 자체를 숨김. -->
+      <div class="card hidden" id="airfare-suggestion-card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">📊 실제 계약 데이터 기반 갱신 제안</span></div>
+        <div class="card-body">
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">계약 실데이터가 기준 요율과 10% 이상 벌어진 목적지×항목(항공료·호텔·식비, 최소 2건 이상)만 표시됩니다.</p>
+          <div id="airfare-suggestion-list" style="display:grid;gap:.6rem"></div>
+        </div>
+      </div>
+
+      <!-- 실제 이용 호텔 (신규) — 가격 비교/제안이 아니라 "이 목적지에 실제로 어느
+           호텔을 썼는지" 순수 참고 정보. 요율 계산에는 전혀 반영되지 않고, 이 카드
+           자체가 관리자 전용 탭(admin.html) 안에서만 렌더링되며 데이터도 requireAdmin
+           API로만 조회되므로 공개 견적 계산기·고객에게는 절대 노출되지 않는다. -->
+      <div class="card hidden" id="hotel-reference-card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">🏨 실제 이용 호텔 (관리자 전용 참고 정보)</span></div>
+        <div class="card-body">
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">목적지별 최근 제보 1건만 표시됩니다. 요율(가격)에는 반영되지 않으며, 고객에게는 노출되지 않습니다.</p>
+          <div id="hotel-reference-list" style="display:grid;gap:.4rem"></div>
+        </div>
+      </div>
+
+      <!-- 요율 현황 패널: 메타 배너(버전/최종갱신/다음검토/상태요약) + 갱신 안내를
+           하나로 묶어 "지금 이 탭 전체가 어떤 상태인지"를 한 덩어리로 보여준다
+           (이전엔 별개 색상 띠 2개가 따로 떠 있어 담당자 정보가 중복 표시됐음). -->
+      <div class="rate-status-panel">
+        <div class="rate-meta-banner" id="rate-meta-banner"></div>
+        <div class="rate-update-info" id="rate-update-info"></div>
+      </div>
+
+      <!-- 필터 + 검색 + 정렬 + 내보내기 -->
       <div class="rate-filter-bar">
+        <input type="search" id="rateSearch" class="search-box" placeholder="목적지 · 지역 검색..." style="min-width:180px" autocomplete="off" />
         <button class="filter-btn active" data-rfilter="all">전체</button>
         <button class="filter-btn" data-rfilter="ok">✅ 최신</button>
         <button class="filter-btn" data-rfilter="check">⚠️ 확인 권장</button>
         <button class="filter-btn" data-rfilter="stale">🔴 갱신 필요</button>
-        <button class="btn-act btn-outline-p" style="margin-left:auto" onclick="openRateBulkModal()">📊 일괄 조정</button>
+        <select class="status-select" id="rateSortMode" style="margin-left:auto" onchange="renderRates()">
+          <option value="region">지역순</option>
+          <option value="priority">확인 필요한 순</option>
+        </select>
+        <button class="btn-act btn-outline-p" onclick="openRateBulkModal()">📊 일괄 조정</button>
         <button class="btn-act btn-outline-p" onclick="openRateHistoryModal()">🕘 변경 이력</button>
         <button class="btn-act btn-outline-p" onclick="exportRatesCsv()">CSV 내보내기</button>
       </div>
@@ -728,7 +829,7 @@
               <th style="width:100px">요율 기준월</th>
               <th style="width:80px">경과</th>
               <th style="width:100px">상태</th>
-              <th style="width:80px">관리</th>
+              <th style="width:130px">관리</th>
             </tr>
           </thead>
           <tbody id="rate-tbody"></tbody>
@@ -751,6 +852,7 @@
               반드시 요율 관리 표에서 해당 목적지의 오버라이드가 없는지 먼저 확인</li>
           </ol>
           <p style="font-size:.78rem;color:var(--muted);margin-top:.75rem">권장 갱신 주기: <strong>분기별 1회</strong> (3개월마다) · 환율 변동 큰 지역은 월별 확인</p>
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.4rem">💱 환율은 매일 새벽 자동으로 확인해, 마지막 저장 시점 대비 5% 이상 움직인 목적지는 자동으로 "확인 권장" 상태가 됩니다(항공료는 인원별 협상 견적이라 자동 반영 대상이 아닙니다 — 배지에 표시되는 % 변동은 참고용 시장 환율 기준).</p>
         </div>
       </div>
 
@@ -1016,6 +1118,20 @@
             <textarea id="em-note-area" class="note-area" placeholder="상담 내용, 고객 요구사항, 특이사항 등을 기록하세요..." style="min-height:80px"></textarea>
           </div>
         </div>
+
+        <!-- 실제 계약 항공료 (신규) — 항공료는 인원별 협상 견적이라 자동 갱신이 안 되니,
+             계약완료된 실제 최종 단가를 여기 한 번 입력해 두면 요율 관리 탭에서 목적지별로
+             모아 "요율표와 얼마나 차이 나는지" 갱신 제안에 반영한다. -->
+        <div style="margin-top:.9rem;padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
+          <div class="detail-label" style="margin-bottom:.4rem">실제 계약 항공료 (1인당)</div>
+          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+            <span id="em-est-airfare" style="font-size:.8rem;color:var(--muted)"></span>
+            <input type="number" id="em-actual-airfare" class="pw-input" style="width:160px" min="0" placeholder="예: 410000" />
+            <button type="button" class="btn-act btn-outline-p" onclick="saveActualAirfare()">저장</button>
+            <span id="em-actual-airfare-msg" style="font-size:.76rem;font-weight:700"></span>
+          </div>
+          <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">계약이 완료된 건이라면, 실제 최종 항공료를 입력해 두세요 — 요율 관리 탭에서 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다.</p>
+        </div>
         <div class="modal-actions" style="margin-top:.75rem">
           <button class="btn-act btn-primary" onclick="saveEstimateDetail()">저장</button>
           <button class="btn-act btn-outline-p" onclick="printEstimateAdmin()">관리자용 출력</button>
@@ -1064,6 +1180,13 @@
         <button class="btn-act" onclick="document.getElementById('rateEditModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
       </div>
       <p style="font-size:.74rem;color:var(--muted);margin-top:.5rem">저장하면 즉시 실제 견적 계산에 반영되고 변경 이력에 기록됩니다.</p>
+      <div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:.85rem">
+        <button type="button" class="btn-act btn-outline-p" id="rate-edit-bulk-handoff" style="width:100%" onclick="handoffToRateBulk()">📊 이 목적지가 속한 지역 전체 일괄 조정하기</button>
+      </div>
+      <div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:.85rem">
+        <div class="detail-label" style="margin-bottom:.5rem">🕘 이 목적지의 변경 이력</div>
+        <div id="rate-edit-history" style="display:grid;gap:.5rem;max-height:220px;overflow-y:auto"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1104,7 +1227,7 @@
         <button class="btn-act btn-primary" onclick="applyRateBulk(this)">일괄 적용</button>
         <button class="btn-act" onclick="document.getElementById('rateBulkModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
       </div>
-      <p style="font-size:.74rem;color:var(--muted);margin-top:.5rem">대상 지역의 모든 목적지에 한 번에 적용되며, 목적지 수만큼 변경 이력이 남습니다. 되돌릴 수 없으니 신중히 적용하세요.</p>
+      <p style="font-size:.74rem;color:var(--muted);margin-top:.5rem">대상 지역의 모든 목적지에 한 번에 적용되며, 목적지 수만큼 변경 이력이 남습니다. 적용 직후 화면 상단 배너에서 바로 되돌릴 수 있습니다.</p>
     </div>
   </div>
 </div>
@@ -1279,6 +1402,8 @@
     fetch('/api/admin/account?action=logout', { method: 'POST' }).catch(() => {});
     dashPage.classList.add('hidden');
     loginPage.classList.remove('hidden');
+    document.getElementById('adminId').disabled = false;
+    document.getElementById('adminPw').disabled = false;
     document.getElementById('adminId').value = '';
     document.getElementById('adminPw').value = '';
   });
@@ -1310,6 +1435,7 @@
       }
 
       await loadRateOverrides();
+      await loadPriceReports();
 
       return true;
     } catch (err) {
@@ -1448,6 +1574,15 @@
     if (!ok) return;
     loginPage.classList.add('hidden');
     dashPage.classList.remove('hidden');
+    /* 로그인 폼 입력창을 disabled로 꺼둔다 (신규) — autocomplete="off"만으로는
+       크롬 등이 저장된 로그인 정보(admin)를 대시보드의 다른 빈 텍스트 입력창(요율
+       검색창 등)에 자동으로 채워 넣는 걸 막지 못했음(브라우저가 autocomplete="off"를
+       로그인 계열 필드에서는 의도적으로 무시하는 알려진 동작). disabled 처리된
+       입력창은 브라우저가 자동완성 후보에서 아예 제외하므로 이 문제를 근본적으로
+       차단한다. 로그인 폼 자체는 로그아웃 시 다시 써야 해서 DOM에서 지우지 않고
+       남겨두되, 화면에 없는 동안은 비활성화만 해둔다. */
+    document.getElementById('adminId').disabled = true;
+    document.getElementById('adminPw').disabled = true;
     initClock();
     initCurrentStaffWidget();
     renderAll();
@@ -2089,6 +2224,32 @@
     return             { status:'stale', months, label:'갱신 필요',  icon:'🔴' };
   }
 
+  /* 환율 변동 감시 (신규) — 항공료 자체는 인원 규모별 협상 견적이라 자동 갱신 대상이
+     아니지만, 환율은 객관적 공개값이라 자동 감시가 가능함. 목적지 저장 시점의 환율
+     (rate_fx_baseline, api/rates.js가 PATCH마다 재설정)과 오늘의 환율(fx_rates, 매일
+     cron이 갱신)을 비교해 임계값 이상 움직였으면 시간 기반 판정이 아직 "최신"이어도
+     "확인 권장"으로 승격시킨다. */
+  const FX_DRIFT_THRESHOLD_PCT = 5;
+
+  function adminGetFxDrift(destKey) {
+    const currency = typeof DEST_CURRENCY !== 'undefined' ? DEST_CURRENCY[destKey] : null;
+    if (!currency) return null;
+    const baseline = fxBaselineCache[destKey];
+    const current  = fxRatesCache[currency];
+    if (!baseline || !baseline.rate || typeof current !== 'number') return null;
+    const pct = Math.abs(current - baseline.rate) / baseline.rate * 100;
+    return { pct, drift: pct >= FX_DRIFT_THRESHOLD_PCT };
+  }
+
+  function adminGetCombinedStatus(destKey, rateDate) {
+    const rs = adminGetRateStatus(rateDate);
+    const fx = adminGetFxDrift(destKey);
+    if (fx && fx.drift && rs.status === 'ok') {
+      return { status:'check', months: rs.months, label:'확인 권장', icon:'⚠️', fxPct: fx.pct };
+    }
+    return { ...rs, fxPct: (fx && fx.drift) ? fx.pct : null };
+  }
+
   function fmtRateDate(rd) {
     if (!rd) return '—';
     const [y, m] = rd.split('-');
@@ -2099,6 +2260,81 @@
      data.js 정적값은 그대로 두고, 관리자가 수정한 항목만 rate_overrides에 저장 →
      이 캐시로 화면에서는 "실제 적용 중인 값"(정적+오버라이드 병합)을 보여준다. */
   let rateOverridesCache = {};
+  let fxRatesCache = {};
+  let fxBaselineCache = {};
+
+  /* 방금 한 편집/일괄조정 실행취소 (신규) — saveRateEdit()/applyRateBulk()가 성공할
+     때마다 "지금 막 한 일"을 localStorage에 기록해 두고(CURRENT_STAFF_KEY와 동일한
+     패턴), 상단 배너의 되돌리기 버튼 하나로 즉시 원복할 수 있게 한다. 단순 JS
+     변수로만 두면 페이지를 새로고침하는 순간 사라져 버튼이 안 보이는 문제가 있어서
+     localStorage로 저장 — 같은 브라우저라면 새로고침/탭 이동 후에도 배너가 유지됨.
+     30분이 지난 기록은 오래돼 혼동을 줄 수 있어 자동으로 숨긴다(삭제는 안 하므로
+     그 안에 다시 열면 여전히 되돌리기 가능). 그보다 오래된 변경은 기존 "🕘 변경
+     이력" 모달의 항목별 되돌리기로 복구한다(그쪽은 DB 기반이라 기간 제한 없음). */
+  const LAST_RATE_ACTION_KEY = 'linkedt_last_rate_action';
+  const LAST_RATE_ACTION_TTL_MS = 30 * 60 * 1000;
+
+  function setLastRateAction(action) {
+    localStorage.setItem(LAST_RATE_ACTION_KEY, JSON.stringify({ ...action, at: Date.now() }));
+  }
+
+  function getLastRateAction() {
+    const raw = localStorage.getItem(LAST_RATE_ACTION_KEY);
+    if (!raw) return null;
+    try {
+      const action = JSON.parse(raw);
+      if (!action || !action.at || Date.now() - action.at > LAST_RATE_ACTION_TTL_MS) return null;
+      return action;
+    } catch { return null; }
+  }
+
+  function clearLastRateAction() {
+    localStorage.removeItem(LAST_RATE_ACTION_KEY);
+  }
+
+  /* 요율 관리 탭을 그릴 때마다(최초 진입 포함) 호출 — localStorage에 유효한 최근
+     작업이 남아 있으면 배너를 다시 띄운다. */
+  function refreshRateUndoBanner() {
+    const action = getLastRateAction();
+    if (action) {
+      document.getElementById('rate-undo-text').textContent = action.label;
+      document.getElementById('rate-undo-banner').classList.remove('hidden');
+    } else {
+      document.getElementById('rate-undo-banner').classList.add('hidden');
+    }
+  }
+
+  function hideRateUndoBanner() {
+    clearLastRateAction();
+    document.getElementById('rate-undo-banner').classList.add('hidden');
+  }
+
+  async function undoLastRateAction() {
+    const action = getLastRateAction();
+    if (!action) { refreshRateUndoBanner(); return; }
+    const author = getCurrentStaff();
+    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    if (!confirm(`${action.label} 되돌릴까요?`)) return;
+
+    let successCount = 0;
+    for (const entry of action.entries) {
+      const reversedChanges = entry.changes.map(c => ({ field: c.field, oldValue: c.newValue, newValue: c.oldValue }));
+      try {
+        const res = await fetch('/api/rates', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ destinationKey: entry.destinationKey, author, changes: reversedChanges }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          rateOverridesCache[entry.destinationKey] = data.overrides;
+          successCount++;
+        }
+      } catch { /* 개별 실패는 건너뛰고 계속 */ }
+    }
+    alert(`${successCount}/${action.entries.length}건 되돌렸습니다.`);
+    clearLastRateAction();
+    renderRates();
+  }
   const RATE_FIELD_LABELS = {
     airfare: '항공료', fuel_surcharge: '유류할증료', hotel_per_room: '호텔(1박)',
     meal_per_person: '1인 식비', vehicle_large: '대형 차량', vehicle_small: '소형 차량',
@@ -2109,7 +2345,12 @@
   async function loadRateOverrides() {
     try {
       const res = await fetch('/api/rates');
-      if (res.ok) { const data = await res.json(); rateOverridesCache = data.overrides || {}; }
+      if (res.ok) {
+        const data = await res.json();
+        rateOverridesCache = data.overrides || {};
+        fxRatesCache = data.fxRates || {};
+        fxBaselineCache = data.fxBaseline || {};
+      }
     } catch (err) { console.warn('[admin] 요율 오버라이드 조회 실패:', err); }
   }
 
@@ -2119,7 +2360,276 @@
 
   function fmtWon(n) { return '₩' + Math.round(n || 0).toLocaleString('ko-KR'); }
 
+  /* 실제 계약 데이터 기반 갱신 제안 (신규) — 계약완료 견적에 담당자가 입력한 실제
+     항공료를, 그 견적을 계산할 당시의 추정 항공료(items의 '항공' 항목 unit)와
+     견적 하나하나 비율(실제/추정)로 비교한다. 견적마다 계절·출발지 등 조건이
+     달라도 "그 조건에서 우리가 얼마나 벗어났는지" 비율은 조건과 무관하게 비교
+     가능하므로, 목적지별 평균 비율을 현재 기준가에 곱해 제안값을 만든다.
+     항공료 외에 호텔(hotel_per_room)·식비(meal_per_person)도 같은 방식으로
+     계산하되, 이 둘은 "실제 계약가 업데이트" 위젯의 제보만 소스로 쓴다(견적관리
+     상세 모달은 실제 항공료만 기록하는 기존 필드가 있을 뿐 호텔/식비 실측값을
+     받는 자리가 없어서). 표본이 RATE_SUGGEST_CONFIDENT_COUNT(5건) 미만이면
+     데이터 하나(오타·특가 등)에 공개 견적 계산기 가격이 흔들릴 위험이 있어
+     "요율 편집하기"로 사람이 한 번 더 들여다보게 하고, 그 이상 쌓인 것만 확인
+     1클릭으로 바로 반영 가능한 "지금 바로 적용" 버튼을 보여준다(완전 자동
+     반영은 하지 않음 — 논의 후 절충). */
+  const RATE_SUGGEST_MIN_COUNT = 2;
+  const RATE_SUGGEST_CONFIDENT_COUNT = 5;
+  const RATE_SUGGEST_REPORT_FIELDS = { airfare: 'airfareUnit', hotel_per_room: 'hotelUnit', meal_per_person: 'mealUnit' };
+
+  /* "실제 계약가 업데이트" 위젯이 남긴 목적지 무관 제보 목록(신규) — 견적관리 상세
+     모달의 quotes.actual_airfare_unit과 달리 특정 견적 계산 당시의 "추정가"가 없으므로,
+     아래 computeRateSuggestions()에서는 이 소스의 비율을 "현재 기준가 대비"로
+     계산해 견적 기반 비율과 함께 평균 낸다. */
+  let priceReportsCache = [];
+  async function loadPriceReports() {
+    try {
+      const res = await fetch('/api/quotes?action=priceReports');
+      priceReportsCache = res.ok ? await res.json() : [];
+    } catch (err) { console.warn('[admin] 실제 가격 제보 조회 실패:', err); priceReportsCache = []; }
+  }
+
+  function computeRateSuggestions() {
+    if (typeof destinationRates === 'undefined') return [];
+    const byKey = {}; // `${destKey}|${field}` -> { destKey, field, label, ratios }
+
+    /* 항공료만: 견적관리 상세 모달에 남긴 실제/추정 비율 */
+    const ests = getEstsFull().filter(e => e.status === 'contracted' && e.actualAirfareUnit != null && e.destKey);
+    ests.forEach(e => {
+      const estItem = (e.items || []).find(it => it.name === '항공');
+      if (!estItem || !estItem.unit) return;
+      const key = `${e.destKey}|airfare`;
+      if (!byKey[key]) byKey[key] = { destKey: e.destKey, field: 'airfare', label: e.destLabel || e.destKey, ratios: [] };
+      byKey[key].ratios.push(e.actualAirfareUnit / estItem.unit);
+    });
+
+    /* 항공료·호텔·식비: "실제 계약가 업데이트" 위젯 제보 */
+    priceReportsCache.forEach(r => {
+      const dest = destinationRates.find(d => d.destination_key === r.destinationKey);
+      if (!dest) return;
+      const eff = effectiveRate(dest);
+      Object.entries(RATE_SUGGEST_REPORT_FIELDS).forEach(([field, reportKey]) => {
+        const reported = r[reportKey];
+        if (reported == null) return;
+        const currentBase = eff[field];
+        if (!currentBase) return;
+        const key = `${r.destinationKey}|${field}`;
+        if (!byKey[key]) byKey[key] = { destKey: r.destinationKey, field, label: dest.label, ratios: [] };
+        byKey[key].ratios.push(reported / currentBase);
+      });
+    });
+
+    const suggestions = [];
+    Object.values(byKey).forEach(data => {
+      if (data.ratios.length < RATE_SUGGEST_MIN_COUNT) return;
+      const avgRatio = data.ratios.reduce((a, b) => a + b, 0) / data.ratios.length;
+      const diffPct = (avgRatio - 1) * 100;
+      if (Math.abs(diffPct) < 10) return;
+      const dest = destinationRates.find(d => d.destination_key === data.destKey);
+      if (!dest) return;
+      const currentBase = effectiveRate(dest)[data.field] || 0;
+      suggestions.push({
+        destKey: data.destKey, field: data.field, fieldLabel: RATE_FIELD_LABELS[data.field] || data.field,
+        label: data.label, count: data.ratios.length, diffPct,
+        currentBase, suggestedBase: Math.round(currentBase * avgRatio),
+        confident: data.ratios.length >= RATE_SUGGEST_CONFIDENT_COUNT,
+      });
+    });
+    suggestions.sort((a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct));
+    return suggestions;
+  }
+
+  function renderRateSuggestions() {
+    const card = document.getElementById('airfare-suggestion-card');
+    const list = document.getElementById('airfare-suggestion-list');
+    if (!card || !list) return;
+    const suggestions = computeRateSuggestions();
+    if (!suggestions.length) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    list.innerHTML = suggestions.map(s => `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.6rem .8rem;border:1px solid ${s.confident ? 'var(--danger)' : 'var(--border)'};border-left-width:${s.confident ? '4px' : '1px'};background:${s.confident ? '#fef2f2' : 'var(--bg)'};flex-wrap:wrap">
+        <div style="font-size:.85rem">
+          ${s.confident ? '<span style="font-size:.68rem;font-weight:700;background:var(--danger);color:#fff;padding:.1rem .4rem;margin-right:.4rem">표본 충분</span>' : ''}
+          <strong>${esc(s.label)} · ${esc(s.fieldLabel)}</strong> · 최근 실제 데이터 ${s.count}건 평균이 기준 대비
+          <strong style="color:${s.diffPct > 0 ? 'var(--danger)' : 'var(--success)'}">${s.diffPct > 0 ? '+' : ''}${s.diffPct.toFixed(1)}%</strong>
+          — 기준 ${fmtWon(s.currentBase)} → 제안 ${fmtWon(s.suggestedBase)}
+        </div>
+        <div style="display:flex;gap:.4rem;flex-shrink:0">
+          ${s.confident ? `<button type="button" class="btn-act btn-primary" onclick="applyRateSuggestion('${s.destKey}','${s.field}',${s.suggestedBase},${s.count})">✅ 지금 바로 적용</button>` : ''}
+          <button type="button" class="btn-act btn-outline-p" onclick="openRateEditModal('${s.destKey}')">요율 편집하기</button>
+        </div>
+      </div>`).join('');
+  }
+
+  /* 실제 이용 호텔 참고 카드 (신규) — 가격 비교가 아니라 "최근에 어느 호텔을
+     썼는지" 순수 참고 정보. 요율 계산에는 전혀 반영되지 않으므로 임계값/신뢰도
+     없이 목적지별 최신 제보 1건만 그대로 보여준다. */
+  function renderHotelReference() {
+    const card = document.getElementById('hotel-reference-card');
+    const list = document.getElementById('hotel-reference-list');
+    if (!card || !list || typeof destinationRates === 'undefined') return;
+    const latest = {};
+    priceReportsCache.forEach(r => {
+      if (!r.hotelName) return;
+      const prev = latest[r.destinationKey];
+      if (!prev || new Date(r.createdAt) > new Date(prev.createdAt)) latest[r.destinationKey] = r;
+    });
+    const entries = Object.entries(latest);
+    if (!entries.length) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    list.innerHTML = entries.map(([destKey, r]) => {
+      const dest = destinationRates.find(d => d.destination_key === destKey);
+      const label = dest ? dest.label : destKey;
+      const date = new Date(r.createdAt).toISOString().slice(0, 10);
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.5rem .75rem;border:1px solid var(--border);font-size:.82rem;flex-wrap:wrap">
+        <span><strong>${esc(label)}</strong> — ${esc(r.hotelName)}</span>
+        <span style="color:var(--muted);font-size:.76rem">${esc(r.author || '')} · ${date}</span>
+      </div>`;
+    }).join('');
+  }
+
+  /* 확인 1클릭 적용 (신규) — 완전 자동 반영은 아니고, 표본이 충분히 쌓였을 때
+     "요율 편집하기"로 9개 필드 모달을 열어 값을 다시 옮겨 적을 필요 없이 해당
+     항목 하나만 바로 반영하는 지름길. saveRateEdit()과 동일하게 요율 확인월도
+     함께 갱신되고(→ api/rates.js가 환율 기준점도 재설정), 기존 실행취소 배너로
+     바로 되돌릴 수도 있다. */
+  async function applyRateSuggestion(destKey, field, suggestedBase, count) {
+    const author = getCurrentStaff();
+    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    const dest = destinationRates.find(d => d.destination_key === destKey);
+    if (!dest) return;
+    const fieldLabel = RATE_FIELD_LABELS[field] || field;
+    await loadRateOverrides();
+    const eff = effectiveRate(dest);
+    if (!confirm(`"${dest.label}" ${fieldLabel}를 실제 데이터 ${count}건 평균 기준 ${fmtWon(suggestedBase)}(으)로 바로 적용할까요?\n(현재: ${fmtWon(eff[field] || 0)})`)) return;
+
+    const today = new Date();
+    const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const changes = [
+      { field, oldValue: eff[field] || 0, newValue: suggestedBase },
+      { field: 'rateDate', oldValue: eff.rateDate || '', newValue: ym },
+    ];
+    try {
+      const res = await fetch('/api/rates', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destinationKey: destKey, author, changes }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert('적용에 실패했습니다: ' + (data.error || '')); return; }
+      rateOverridesCache[destKey] = data.overrides;
+      setLastRateAction({ label: `방금 "${dest.label}" ${fieldLabel}를 실제 계약 데이터 기준(${fmtWon(suggestedBase)})으로 적용했습니다.`, entries: [{ destinationKey: destKey, changes }] });
+      renderRates();
+    } catch (err) {
+      alert('적용 요청에 실패했습니다. 네트워크를 확인해 주세요.');
+    }
+  }
+
+  /* ════ 실제 계약가 업데이트 위젯 (신규) ════ */
+  let prDestSelectBuilt = false;
+  function populatePriceReportDestSelect() {
+    const sel = document.getElementById('pr-dest');
+    if (!sel || prDestSelectBuilt || typeof destinationRates === 'undefined') return;
+    sel.innerHTML = destinationRates.map(d => `<option value="${esc(d.destination_key)}">${esc(d.label)}</option>`).join('');
+    prDestSelectBuilt = true;
+  }
+
+  /* PDF에서 항공료·호텔단가·호텔명·식비 추출 시도 — 결과는 찾은 항목만 입력창에
+     채워 넣고 저장은 안 함(사람이 확인 후 "제출"을 눌러야 실제 반영됨). 텍스트
+     없는 스캔 PDF나 AI 미설정 등 실패 사유별로 알아보기 쉬운 안내를 보여준다. */
+  async function extractPdfDetails() {
+    const fileInput = document.getElementById('pr-pdf');
+    const msg = document.getElementById('pr-msg');
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) { msg.style.color = 'var(--danger)'; msg.textContent = 'PDF 파일을 먼저 선택해 주세요.'; return; }
+    if (file.size > 4 * 1024 * 1024) { msg.style.color = 'var(--danger)'; msg.textContent = '파일이 너무 큽니다(4MB 이하만 가능) — 직접 입력해 주세요.'; return; }
+    msg.style.color = 'var(--muted)'; msg.textContent = 'PDF 분석 중... (최대 30초 정도 걸릴 수 있습니다)';
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch('/api/quotes?action=extractPdf', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfBase64: base64 }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        const reasons = {
+          openai_not_configured: 'AI 분석 기능이 아직 설정되지 않았습니다 — 직접 입력해 주세요.',
+          pdf_parse_failed: 'PDF를 읽지 못했습니다(손상되었거나 지원하지 않는 형식) — 직접 입력해 주세요.',
+          no_text_found: '이 PDF에서 텍스트를 찾지 못했습니다(스캔 이미지 PDF는 지원 안 함) — 직접 입력해 주세요.',
+          not_found: '항목을 찾지 못했습니다 — 직접 입력해 주세요.',
+          analysis_failed: '분석 중 오류가 발생했습니다 — 직접 입력해 주세요.',
+        };
+        msg.style.color = 'var(--danger)'; msg.textContent = reasons[data.error] || '추출에 실패했습니다 — 직접 입력해 주세요.';
+        return;
+      }
+      const found = [];
+      if (data.suggestedAirfare != null) { document.getElementById('pr-airfare').value = data.suggestedAirfare; found.push('항공료'); }
+      if (data.suggestedHotel != null) { document.getElementById('pr-hotel').value = data.suggestedHotel; found.push('호텔단가'); }
+      if (data.suggestedHotelName) { document.getElementById('pr-hotel-name').value = data.suggestedHotelName; found.push('호텔명'); }
+      if (data.suggestedMeal != null) { document.getElementById('pr-meal').value = data.suggestedMeal; found.push('식비'); }
+      if (!found.length) { msg.style.color = 'var(--danger)'; msg.textContent = '항목을 찾지 못했습니다 — 직접 입력해 주세요.'; return; }
+      msg.style.color = 'var(--primary)';
+      msg.textContent = `PDF에서 ${found.join('·')} 추출됨(신뢰도: ${data.confidence}) — 값을 확인·수정한 뒤 "제출"을 눌러주세요.${data.note ? ' (' + data.note + ')' : ''}`;
+    } catch (err) {
+      msg.style.color = 'var(--danger)'; msg.textContent = '요청에 실패했습니다. 네트워크를 확인해 주세요.';
+    }
+  }
+
+  /* 최종 제출 — 여기서 실제로 DB(actual_price_reports)에 저장되고 갱신 제안 집계에
+     들어간다. PDF로 채워졌든 직접 입력했든 이 단계에서만 반영됨. 네 필드 모두
+     채울 필요는 없고, 최소 하나(항공료/호텔단가/호텔명/식비)만 있으면 된다. */
+  async function submitPriceReport() {
+    const destKey = document.getElementById('pr-dest').value;
+    const airfareInput = document.getElementById('pr-airfare');
+    const hotelInput = document.getElementById('pr-hotel');
+    const hotelNameInput = document.getElementById('pr-hotel-name');
+    const mealInput = document.getElementById('pr-meal');
+    const pdfInput = document.getElementById('pr-pdf');
+    const msg = document.getElementById('pr-msg');
+    const author = getCurrentStaff();
+    if (!author) { msg.style.color = 'var(--danger)'; msg.textContent = '먼저 상단 헤더에서 담당자를 선택해 주세요.'; return; }
+    if (!destKey) { msg.style.color = 'var(--danger)'; msg.textContent = '목적지를 선택해 주세요.'; return; }
+
+    const parseField = (input, max) => {
+      if (!input.value) return { ok: true, value: null };
+      const n = Number(input.value);
+      return (Number.isFinite(n) && n > 0 && n <= max) ? { ok: true, value: n } : { ok: false, value: null };
+    };
+    const airfare = parseField(airfareInput, 50000000);
+    const hotel = parseField(hotelInput, 10000000);
+    const meal = parseField(mealInput, 1000000);
+    if (!airfare.ok || !hotel.ok || !meal.ok) { msg.style.color = 'var(--danger)'; msg.textContent = '입력값을 확인해 주세요(0보다 큰 올바른 범위의 숫자여야 합니다).'; return; }
+    const hotelName = hotelNameInput.value.trim().slice(0, 80);
+    if (airfare.value == null && hotel.value == null && meal.value == null && !hotelName) {
+      msg.style.color = 'var(--danger)'; msg.textContent = '항공료·호텔단가·호텔명·식비 중 최소 하나는 입력해 주세요.'; return;
+    }
+    const source = pdfInput.files && pdfInput.files.length ? 'pdf' : 'manual';
+    try {
+      const res = await fetch('/api/quotes?action=priceReport', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destinationKey: destKey, airfareUnit: airfare.value, hotelUnit: hotel.value, hotelName, mealUnit: meal.value, author, source }),
+      });
+      const data = await res.json();
+      if (!res.ok) { msg.style.color = 'var(--danger)'; msg.textContent = '제출 실패: ' + (data.error || ''); return; }
+      msg.style.color = 'var(--success)'; msg.textContent = '제출되었습니다 — 갱신 제안에 반영됩니다.';
+      airfareInput.value = ''; hotelInput.value = ''; hotelNameInput.value = ''; mealInput.value = ''; pdfInput.value = '';
+      await loadPriceReports();
+      renderRateSuggestions();
+      renderHotelReference();
+    } catch (err) {
+      msg.style.color = 'var(--danger)'; msg.textContent = '제출 요청에 실패했습니다. 네트워크를 확인해 주세요.';
+    }
+  }
+
   function renderRates() {
+    refreshRateUndoBanner();
+    populatePriceReportDestSelect();
+    renderRateSuggestions();
+    renderHotelReference();
     if (typeof destinationRates === 'undefined' || typeof RATE_META === 'undefined') {
       document.getElementById('rate-tbody').innerHTML =
         '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">data.js를 찾을 수 없습니다.</td></tr>';
@@ -2127,7 +2637,7 @@
     }
 
     /* 메타 배너 */
-    const allStatus   = destinationRates.map(d => adminGetRateStatus(d.rateDate));
+    const allStatus   = destinationRates.map(d => adminGetCombinedStatus(d.destination_key, d.rateDate));
     const cntOk       = allStatus.filter(s => s.status === 'ok').length;
     const cntCheck    = allStatus.filter(s => s.status === 'check').length;
     const cntStale    = allStatus.filter(s => s.status === 'stale').length;
@@ -2146,35 +2656,63 @@
         </div>`;
     }
 
-    /* 갱신 안내 */
+    /* 갱신 안내 — 담당자는 바로 위 메타 배너 "최종 갱신" 박스에 이미 표시되므로 중복 생략 */
     const infoEl = document.getElementById('rate-update-info');
-    if (infoEl) infoEl.textContent = `📌 ${RATE_META.note} 담당자: ${RATE_META.updatedBy}`;
+    if (infoEl) infoEl.textContent = `📌 ${RATE_META.note}`;
 
-    /* 지역별 그룹화 */
-    const grouped = {};
-    destinationRates.forEach(d => {
-      const region = REGION_MAP[d.label] || '기타';
-      if (!grouped[region]) grouped[region] = [];
-      grouped[region].push(d);
-    });
+    /* 검색어 + 상태 필터를 목적지/지역 구분 없이 먼저 공통 적용 (신규) */
+    const q = rateSearchQuery.toLowerCase();
+    const matchesSearch = d => !q || d.label.toLowerCase().includes(q) || (REGION_MAP[d.label] || '기타').toLowerCase().includes(q);
+    const matchesFilter = d => rateFilter === 'all' || adminGetCombinedStatus(d.destination_key, d.rateDate).status === rateFilter;
+    const searched = destinationRates.filter(d => matchesSearch(d) && matchesFilter(d));
 
-    /* 테이블 렌더 */
+    const sortMode = document.getElementById('rateSortMode')?.value || 'region';
     const tbody = document.getElementById('rate-tbody');
     let html = '';
-    REGION_ORDER.forEach(region => {
-      if (!grouped[region]) return;
-      const rows = grouped[region];
-      const filtered = rateFilter === 'all' ? rows : rows.filter(d => adminGetRateStatus(d.rateDate).status === rateFilter);
-      if (!filtered.length) return;
 
-      html += `<tr class="rate-region-row"><td colspan="11">${esc(region)}</td></tr>`;
-      filtered.forEach(d => {
+    if (sortMode === 'priority') {
+      /* 우선순위순 (신규): 지역 구분 없이 갱신 필요 → 확인 권장 → 최신 순으로,
+         같은 상태 안에서는 경과 개월이 큰 것부터. "어디부터 봐야 하지?"에 바로
+         답이 되도록 지역 그룹 헤더 없이 평평하게 나열하고, 대신 각 행에 지역명을
+         표시한다. */
+      const severity = { stale: 2, check: 1, ok: 0 };
+      const sorted = [...searched].sort((a, b) => {
+        const sa = adminGetCombinedStatus(a.destination_key, a.rateDate);
+        const sb = adminGetCombinedStatus(b.destination_key, b.rateDate);
+        if (severity[sb.status] !== severity[sa.status]) return severity[sb.status] - severity[sa.status];
+        return (sb.months <= 999 ? sb.months : 999) - (sa.months <= 999 ? sa.months : 999);
+      });
+      sorted.forEach(d => {
+        const region = REGION_MAP[d.label] || '기타';
+        html += renderRateRow(d, region);
+      });
+      if (!sorted.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">검색/필터 조건에 맞는 목적지가 없습니다.</td></tr>`;
+    } else {
+      /* 지역순 (기존 방식) */
+      const grouped = {};
+      searched.forEach(d => {
+        const region = REGION_MAP[d.label] || '기타';
+        if (!grouped[region]) grouped[region] = [];
+        grouped[region].push(d);
+      });
+      REGION_ORDER.forEach(region => {
+        if (!grouped[region] || !grouped[region].length) return;
+        html += `<tr class="rate-region-row"><td colspan="11">${esc(region)}</td></tr>`;
+        grouped[region].forEach(d => { html += renderRateRow(d, ''); });
+      });
+      if (!searched.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">검색/필터 조건에 맞는 목적지가 없습니다.</td></tr>`;
+    }
+    tbody.innerHTML = html;
+  }
+
+  /* 요율 테이블 한 행 렌더 — 지역순 모드에서는 regionLabel=''(지역 그룹 헤더로 이미
+     표시됨), 우선순위순 모드에서는 regionLabel에 실제 지역명을 넣어 첫 칸에 보여준다. */
+  function renderRateRow(d, regionLabel) {
         const eff = effectiveRate(d);
-        const rs = adminGetRateStatus(eff.rateDate);
-        const hasOverride = !!rateOverridesCache[d.destination_key];
-        html += `<tr>
-          <td style="color:var(--muted);font-size:.76rem"></td>
-          <td style="white-space:nowrap"><strong>${esc(d.label)}</strong>${hasOverride ? ' <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:.65rem">수정됨</span>' : ''}</td>
+        const rs = adminGetCombinedStatus(d.destination_key, eff.rateDate);
+        return `<tr>
+          <td style="color:var(--muted);font-size:.76rem">${esc(regionLabel)}</td>
+          <td style="white-space:nowrap"><strong>${esc(d.label)}</strong></td>
           <td>${eff.season_note ? `<button type="button" class="btn-detail" title="${esc(eff.season_note)}" style="font-size:.68rem;padding:.2rem .5rem;width:100%">🌤️ 시즌 확인하기</button>` : ''}</td>
           <td style="text-align:right">${fmtWon(eff.airfare)}</td>
           <td style="text-align:right">${fmtWon(eff.hotel_per_room)}</td>
@@ -2182,22 +2720,26 @@
           <td style="text-align:right">${fmtWon(eff.margin_per_traveler)}</td>
           <td>${fmtRateDate(eff.rateDate)}</td>
           <td style="color:var(--muted)">${rs.months <= 999 ? rs.months + '개월' : '—'}</td>
-          <td><span class="rate-badge ${rs.status}">${rs.icon} ${rs.label}</span></td>
-          <td><button class="btn-detail" onclick="openRateEditModal('${d.destination_key}')">편집</button></td>
+          <td><span class="rate-badge ${rs.status}"${rs.fxPct != null ? ` title="환율 ${rs.fxPct.toFixed(1)}% 변동"` : ''}>${rs.icon} ${rs.label}${rs.fxPct != null ? ' 💱' : ''}</span></td>
+          <td style="display:flex;gap:.3rem">
+            <button class="btn-detail" onclick="openRateEditModal('${d.destination_key}')">편집</button>
+            <button class="btn-detail" title="가격은 그대로, 오늘 확인했다는 것만 기록" onclick="confirmRateNoChange('${d.destination_key}')">✓ 확인함</button>
+          </td>
         </tr>`;
-      });
-    });
-
-    tbody.innerHTML = html || '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">해당 상태의 도시가 없습니다.</td></tr>';
   }
 
   /* ── 요율 편집 모달 ── */
   let rateEditCurrentKey = null;
 
-  function openRateEditModal(destKey) {
+  async function openRateEditModal(destKey) {
     const dest = destinationRates.find(d => d.destination_key === destKey);
     if (!dest) return;
     rateEditCurrentKey = destKey;
+    /* 편집창을 열기 직전에 서버 최신값으로 다시 맞춘다 — 다른 브라우저/동료가
+       방금 일괄 조정으로 이 목적지 가격을 이미 바꿔놨는데 화면에는 예전 값이 남아
+       있는 상태로 편집·저장하면 그 변경을 모르고 덮어써버릴 수 있어서(편집·일괄
+       조정 두 경로가 충돌할 수 있는 지점), 열 때마다 한 번 새로 받아온다. */
+    await loadRateOverrides();
     const eff = effectiveRate(dest);
     document.getElementById('rateEditTitle').textContent = `단가 편집 — ${dest.label}`;
     document.getElementById('rate-edit-fields').innerHTML = RATE_FIELD_ORDER.map(f => `
@@ -2211,7 +2753,24 @@
     const curStaff = getCurrentStaff();
     authorTag.textContent = curStaff ? `작성자: ${curStaff}` : '⚠ 상단에서 담당자를 먼저 선택하세요';
     authorTag.classList.toggle('unset', !curStaff);
+    const region = REGION_MAP[dest.label] || '기타';
+    document.getElementById('rate-edit-bulk-handoff').textContent = `📊 [${region}] 지역 전체 일괄 조정하기`;
     document.getElementById('rateEditModal').classList.remove('hidden');
+    renderRateEditHistory(destKey);
+  }
+
+  /* 단가 편집 모달 ↔ 일괄 조정 모달 연결 (신규) — 지금 편집 중인 목적지가 속한
+     지역을 미리 선택해 둔 채로 일괄 조정 모달을 열어 준다. "이 목적지 하나만 살짝
+     고치려 했는데 알고 보니 같은 지역 전체가 다 오래됐더라" 같은 상황에서, 일괄
+     조정 모달을 다시 찾아 지역을 처음부터 고르지 않아도 되게 한다. */
+  function handoffToRateBulk() {
+    const dest = destinationRates.find(d => d.destination_key === rateEditCurrentKey);
+    if (!dest) return;
+    const region = REGION_MAP[dest.label] || '기타';
+    document.getElementById('rateEditModal').classList.add('hidden');
+    openRateBulkModal();
+    document.getElementById('rate-bulk-region').value = region;
+    updateRateBulkPreview();
   }
 
   async function saveRateEdit() {
@@ -2253,7 +2812,39 @@
       const data = await res.json();
       if (!res.ok) { alert('저장에 실패했습니다: ' + (data.error || '')); return; }
       rateOverridesCache[rateEditCurrentKey] = data.overrides;
+      setLastRateAction({ label: `방금 "${dest.label}" 요율을 수정했습니다.`, entries: [{ destinationKey: rateEditCurrentKey, changes }] });
       document.getElementById('rateEditModal').classList.add('hidden');
+      renderRates();
+    } catch (err) {
+      alert('저장 요청에 실패했습니다. 네트워크를 확인해 주세요.');
+    }
+  }
+
+  /* "확인함(변경 없음)" (신규) — 편집 모달은 값을 하나라도 바꿔야만 저장이 되게
+     막혀 있어서, "요율을 다시 확인해봤는데 그대로였다"는 아주 흔한 경우를 기록할
+     방법이 없었다. 요율 기준월만 오늘로 갱신하는 최소 PATCH를 보내서, 굳이 9개
+     항목이 있는 편집창을 열지 않고도 "확인 완료"만 빠르게 남길 수 있게 한다. */
+  async function confirmRateNoChange(destKey) {
+    const dest = destinationRates.find(d => d.destination_key === destKey);
+    if (!dest) return;
+    const author = getCurrentStaff();
+    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    await loadRateOverrides();
+    const eff = effectiveRate(dest);
+    if (!confirm(`"${dest.label}" 요율을 확인했다고 기록할까요?\n(가격은 그대로 두고, 요율 기준월만 오늘로 갱신됩니다)`)) return;
+
+    const today = new Date();
+    const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const changes = [{ field: 'rateDate', oldValue: eff.rateDate || '', newValue: ym }];
+    try {
+      const res = await fetch('/api/rates', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destinationKey: destKey, author, changes }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert('저장에 실패했습니다: ' + (data.error || '')); return; }
+      rateOverridesCache[destKey] = data.overrides;
+      setLastRateAction({ label: `방금 "${dest.label}" 요율을 확인함으로 기록했습니다.`, entries: [{ destinationKey: destKey, changes }] });
       renderRates();
     } catch (err) {
       alert('저장 요청에 실패했습니다. 네트워크를 확인해 주세요.');
@@ -2297,22 +2888,36 @@
 
     const fieldLabel = RATE_FIELD_LABELS[field] || field;
     const regionLabel = region === '__all__' ? '전체 지역' : region;
-    if (!confirm(`${regionLabel}의 목적지 ${targets.length}곳 "${fieldLabel}"를 ${pct}% 조정하시겠습니까?\n되돌릴 수 없으니 신중히 확인하세요.`)) return;
+    if (!confirm(`${regionLabel}의 목적지 ${targets.length}곳 "${fieldLabel}"를 ${pct}% 조정하시겠습니까?\n(적용 직후 화면에서 바로 되돌릴 수 있습니다)`)) return;
 
     if (btn) { btn.disabled = true; btn.textContent = '적용 중...'; }
+    /* 실제로 값을 쓰기 직전에 서버 최신값으로 한 번 더 맞춘다 — 모달을 열어둔 사이
+       다른 곳(동료의 개별 편집 등)에서 같은 목적지 가격이 바뀌었을 수 있어서, 그
+       변경 위에 안전하게 %를 적용하기 위함(편집·일괄 조정 두 경로가 서로의 최신
+       값을 무시하고 덮어쓰는 충돌을 줄임). */
+    await loadRateOverrides();
+    /* 개별 편집(saveRateEdit)은 가격이 바뀌면 요율 기준월도 오늘로 자동 갱신하는데
+       일괄 조정은 그동안 이 처리가 빠져 있었음 — 방금 일괄로 가격을 확정했는데도
+       "요율 기준월"이 예전 그대로 남아 갱신 필요 배지가 잘못 뜨는 불일치가 있었어서
+       개별 편집과 동일하게 맞춘다. */
+    const today = new Date();
+    const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     let successCount = 0;
+    const succeededEntries = [];
     for (const dest of targets) {
       const eff = effectiveRate(dest);
       const oldValue = Number(eff[field] || 0);
       const newValue = Math.round(oldValue * (1 + pct / 100));
+      const changes = [{ field, oldValue, newValue }, { field: 'rateDate', oldValue: eff.rateDate || '', newValue: ym }];
       try {
         const res = await fetch('/api/rates', {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ destinationKey: dest.destination_key, author, changes: [{ field, oldValue, newValue }] }),
+          body: JSON.stringify({ destinationKey: dest.destination_key, author, changes }),
         });
         if (res.ok) {
           const data = await res.json();
           rateOverridesCache[dest.destination_key] = data.overrides;
+          succeededEntries.push({ destinationKey: dest.destination_key, changes });
           successCount++;
         }
       } catch {}
@@ -2320,35 +2925,129 @@
     if (btn) { btn.disabled = false; btn.textContent = '일괄 적용'; }
     alert(`${successCount}/${targets.length}개 목적지에 적용되었습니다.`);
     document.getElementById('rateBulkModal').classList.add('hidden');
+    if (succeededEntries.length) {
+      setLastRateAction({ label: `방금 ${regionLabel} ${succeededEntries.length}곳 "${fieldLabel}"를 ${pct}% 일괄 조정했습니다.`, entries: succeededEntries });
+    }
     renderRates();
   }
 
   /* ── 요율 변경 이력 모달 ── */
+  let rateHistoryRowsCache = [];
+
+  function rateFieldLabel(field) {
+    return RATE_FIELD_LABELS[field] || (field === 'notes' ? '비고' : field === 'rateDate' ? '요율 기준월' : field === 'season_note' ? '시즌 정보' : field);
+  }
+
+  /* 변경 이력 한 건의 HTML — 전체 이력 모달과 편집창 하단의 "이 목적지 이력"이
+     공유해서 쓴다. idx는 항상 rateHistoryRowsCache 기준 원본 인덱스라서, 편집창에서
+     필터링해 보여줘도 되돌리기 버튼은 정확한 항목을 가리킨다. showDest=true면
+     목적지 이름도 같이 표시(전체 이력 모달용), false면 필드명만(편집창은 이미 그
+     목적지를 보고 있으므로 반복 표시 안 함). */
+  function renderRateHistoryRow(r, idx, showDest) {
+    const dest = destinationRates.find(d => d.destination_key === r.destination_key);
+    const label = dest ? dest.label : r.destination_key;
+    const fieldLabel = rateFieldLabel(r.field);
+    const title = showDest ? `${esc(label)} · ${esc(fieldLabel)}` : esc(fieldLabel);
+    return `<div style="padding:.6rem .8rem;border:1px solid var(--border);background:var(--bg)">
+      <div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted);margin-bottom:.25rem">
+        <strong style="color:var(--heading)">${title}</strong>
+        <span>${esc(r.author || '—')} · ${fmtDate(r.created_at)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem">
+        <div style="font-size:.85rem">${esc(String(r.old_value ?? '—'))} → <strong>${esc(String(r.new_value))}</strong></div>
+        <button type="button" class="btn-act btn-outline-p" style="font-size:.7rem;padding:.25rem .6rem;flex-shrink:0" onclick="revertRateChange(${idx})">↩️ 되돌리기</button>
+      </div>
+    </div>`;
+  }
+
+  async function fetchRateHistory() {
+    const res = await fetch('/api/rates?history=1');
+    const rows = await res.json();
+    rateHistoryRowsCache = (res.ok && Array.isArray(rows)) ? rows : [];
+    return rateHistoryRowsCache;
+  }
+
   async function openRateHistoryModal() {
     const listEl = document.getElementById('rate-history-list');
     listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">불러오는 중...</p>';
     document.getElementById('rateHistoryModal').classList.remove('hidden');
     try {
-      const res = await fetch('/api/rates?history=1');
-      const rows = await res.json();
-      if (!res.ok || !Array.isArray(rows) || !rows.length) {
+      const rows = await fetchRateHistory();
+      if (!rows.length) {
         listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">변경 이력이 없습니다.</p>';
         return;
       }
-      listEl.innerHTML = rows.map(r => {
-        const dest = destinationRates.find(d => d.destination_key === r.destination_key);
-        const label = dest ? dest.label : r.destination_key;
-        const fieldLabel = RATE_FIELD_LABELS[r.field] || (r.field === 'notes' ? '비고' : r.field === 'rateDate' ? '요율 기준월' : r.field === 'season_note' ? '시즌 정보' : r.field);
-        return `<div style="padding:.6rem .8rem;border:1px solid var(--border);background:var(--bg)">
-          <div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted);margin-bottom:.25rem">
-            <strong style="color:var(--heading)">${esc(label)} · ${esc(fieldLabel)}</strong>
-            <span>${esc(r.author || '—')} · ${fmtDate(r.created_at)}</span>
-          </div>
-          <div style="font-size:.85rem">${esc(String(r.old_value ?? '—'))} → <strong>${esc(String(r.new_value))}</strong></div>
-        </div>`;
-      }).join('');
+      /* 버튼 onclick에는 값을 직접 넣지 않고 인덱스만 넘긴다 — 비고 등 자유서술 필드에
+         따옴표가 섞여도 안전하게 rateHistoryRowsCache[idx]에서 원본 값을 그대로 읽는다. */
+      listEl.innerHTML = rows.map((r, idx) => renderRateHistoryRow(r, idx, true)).join('');
     } catch (err) {
       listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">조회에 실패했습니다.</p>';
+    }
+  }
+
+  /* 편집창 하단의 "이 목적지의 변경 이력" — 전체 300건짜리 목록을 destKey로 걸러
+     보여준다. 목적지 하나당 변경 건수는 많지 않을 것으로 보고 별도 페이지네이션은
+     두지 않았다. */
+  async function renderRateEditHistory(destKey) {
+    const el = document.getElementById('rate-edit-history');
+    if (!el) return;
+    el.innerHTML = '<p style="color:var(--muted);font-size:.8rem">불러오는 중...</p>';
+    try {
+      const rows = await fetchRateHistory();
+      const mine = rows.map((r, idx) => ({ r, idx })).filter(x => x.r.destination_key === destKey);
+      el.innerHTML = mine.length
+        ? mine.map(({ r, idx }) => renderRateHistoryRow(r, idx, false)).join('')
+        : '<p style="color:var(--muted);font-size:.8rem">아직 변경 이력이 없습니다.</p>';
+    } catch (err) {
+      el.innerHTML = '<p style="color:var(--muted);font-size:.8rem">조회에 실패했습니다.</p>';
+    }
+  }
+
+  /* 변경 이력의 특정 항목을 그 시점 이전 값(old_value)으로 되돌린다. 삭제가 아니라
+     saveRateEdit()과 동일한 PATCH 경로로 "복구"라는 새 변경을 한 번 더 남기는
+     방식이라(rate_change_log에 새 행 추가) 되돌리기 자체도 감사 기록에 남고, 잘못
+     되돌렸을 때 다시 되돌리기도 가능하다. */
+  async function revertRateChange(idx) {
+    const r = rateHistoryRowsCache[idx];
+    if (!r) return;
+    const author = getCurrentStaff();
+    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    const dest = destinationRates.find(d => d.destination_key === r.destination_key);
+    const label = dest ? dest.label : r.destination_key;
+    const fieldLabel = rateFieldLabel(r.field);
+    if (!confirm(`"${label}"의 ${fieldLabel}을(를) "${r.old_value ?? '—'}" 값으로 되돌릴까요?\n(현재 값: ${r.new_value})`)) return;
+
+    const changes = [{ field: r.field, oldValue: r.new_value, newValue: r.old_value }];
+    /* 가격 항목을 되돌리는 것도 "방금 이 가격을 확인/확정했다"는 행위이므로
+       saveRateEdit()과 동일하게 요율 확인월을 오늘로 갱신(+ api/rates.js가 환율
+       기준점도 함께 재설정함) */
+    if (RATE_FIELD_LABELS[r.field]) {
+      const dest2 = destinationRates.find(d => d.destination_key === r.destination_key);
+      const eff2 = dest2 ? effectiveRate(dest2) : {};
+      const today = new Date();
+      const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      changes.push({ field: 'rateDate', oldValue: eff2.rateDate || '', newValue: ym });
+    }
+
+    try {
+      const res = await fetch('/api/rates', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destinationKey: r.destination_key, author, changes }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert('되돌리기에 실패했습니다: ' + (data.error || '')); return; }
+      rateOverridesCache[r.destination_key] = data.overrides;
+      renderRates();
+      /* 되돌리기를 어느 화면에서 눌렀는지에 맞춰 그 화면만 새로고침한다 — 편집창
+         안에서 눌렀는데 전체 이력 모달이 따로 튀어나오면 어색하므로. */
+      const historyModalOpen = !document.getElementById('rateHistoryModal').classList.contains('hidden');
+      const editModalOpen = !document.getElementById('rateEditModal').classList.contains('hidden');
+      if (historyModalOpen) await openRateHistoryModal();
+      if (editModalOpen && rateEditCurrentKey === r.destination_key) {
+        await openRateEditModal(rateEditCurrentKey); // 필드값 + 이력을 통째로 최신화
+      }
+    } catch (err) {
+      alert('되돌리기 요청에 실패했습니다. 네트워크를 확인해 주세요.');
     }
   }
 
@@ -2362,14 +3061,21 @@
     });
   });
 
+  /* 목적지 검색 (신규) */
+  let rateSearchQuery = '';
+  document.getElementById('rateSearch')?.addEventListener('input', (e) => {
+    rateSearchQuery = e.target.value.trim();
+    renderRates();
+  });
+
   /* CSV 내보내기 */
   function exportRatesCsv() {
     if (typeof destinationRates === 'undefined') return;
     const rows = [['지역','목적지','요율기준월','경과(개월)','상태','비고']];
     destinationRates.forEach(d => {
       const region = REGION_MAP[d.label] || '기타';
-      const rs     = adminGetRateStatus(d.rateDate);
-      rows.push([region, d.label, d.rateDate||'—', rs.months<=999?rs.months:'—', rs.label, d.notes||'']);
+      const rs     = adminGetCombinedStatus(d.destination_key, d.rateDate);
+      rows.push([region, d.label, d.rateDate||'—', rs.months<=999?rs.months:'—', rs.label + (rs.fxPct != null ? ` (환율 ${rs.fxPct.toFixed(1)}%)` : ''), d.notes||'']);
     });
     const csv  = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
     const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
@@ -2546,8 +3252,8 @@
       ? `<img id="${fieldId}-preview" src="${esc(val || f.def)}" alt="" class="cms-img-preview" onerror="this.style.visibility='hidden'" onload="this.style.visibility='visible'" />`
       : `<div class="cms-img-preview-slot"></div>`;
     const input = f.type === 'textarea'
-      ? `<textarea class="cms-field-input" id="${fieldId}" rows="3" placeholder="${esc(f.def)}">${esc(val)}</textarea>`
-      : `<input type="text" class="cms-field-input" id="${fieldId}" placeholder="${esc(f.def)}" value="${esc(val)}" />`;
+      ? `<textarea class="cms-field-input" id="${fieldId}" rows="3" placeholder="${esc(f.def)}" autocomplete="off">${esc(val)}</textarea>`
+      : `<input type="text" class="cms-field-input" id="${fieldId}" placeholder="${esc(f.def)}" value="${esc(val)}" autocomplete="off" />`;
     const actions = `
       <div class="cms-field-actions">
         <button type="button" class="btn-act btn-outline-p" onclick="saveContentField('${f.key}','${fieldId}')">저장</button>
@@ -2609,6 +3315,7 @@
   let   emPage      = 1;
   let   emSearch    = '';
   let   emCurrentId = null;
+  let   emSelectedIds = new Set(); // 체크박스로 선택한 견적 id (신규 — 선택 삭제용, 필터/페이지 이동해도 유지)
 
   function getEstsFull() {
     try { return JSON.parse(localStorage.getItem(EM_KEY) || '[]'); }
@@ -2676,6 +3383,7 @@
       const per        = e.perPerson || 0;
       const st         = e.status || 'new';
       return `<tr>
+        <td><input type="checkbox" class="em-row-check" data-id="${e.id}" ${emSelectedIds.has(e.id) ? 'checked' : ''} onchange="toggleEmRowSelect('${e.id}', this.checked)" /></td>
         <td>${(emPage-1)*EM_PAGE+i+1}</td>
         <td class="date-col">${fmtDate(e.ts)}</td>
         <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong>${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}</td>
@@ -2700,6 +3408,55 @@
       if (emPage<pages) pg+=`<button class="pager-btn" onclick="emGoto(${emPage+1})">›</button>`;
     }
     emPager.innerHTML = pg;
+
+    /* 체크박스 선택 상태 반영 (신규) — 이미 삭제된 id는 선택 목록에서 정리 */
+    const liveIds = new Set(all.map(e => e.id));
+    emSelectedIds.forEach(id => { if (!liveIds.has(id)) emSelectedIds.delete(id); });
+    updateEmSelectedUI();
+  }
+
+  /* 견적 체크박스 선택 (신규) — 개별 선택, 전체선택, 선택삭제 버튼/헤더 체크박스
+     상태 동기화까지 담당. "전체 선택"은 지금 화면(페이지)에 보이는 행 기준으로만
+     동작한다(다른 페이지 항목은 건드리지 않음) — 헤더 체크박스 상태도 현재 DOM에
+     보이는 행들만 보고 판단하므로 필터/페이지 로직을 따로 다시 구현할 필요가 없다. */
+  function updateEmSelectedUI() {
+    const btn = document.getElementById('emDeleteSelectedBtn');
+    if (btn) {
+      const n = emSelectedIds.size;
+      btn.textContent = `🗑️ 선택 삭제 (${n})`;
+      btn.disabled = n === 0;
+    }
+    const selectAll = document.getElementById('emSelectAll');
+    const rowChecks = document.querySelectorAll('#emBody .em-row-check');
+    if (selectAll) {
+      const visibleChecked = document.querySelectorAll('#emBody .em-row-check:checked').length;
+      selectAll.checked = rowChecks.length > 0 && visibleChecked === rowChecks.length;
+      selectAll.indeterminate = visibleChecked > 0 && visibleChecked < rowChecks.length;
+    }
+  }
+
+  function toggleEmRowSelect(id, checked) {
+    if (checked) emSelectedIds.add(id); else emSelectedIds.delete(id);
+    updateEmSelectedUI();
+  }
+
+  function toggleEmSelectAll(checked) {
+    document.querySelectorAll('#emBody .em-row-check').forEach(cb => {
+      cb.checked = checked;
+      if (checked) emSelectedIds.add(cb.dataset.id); else emSelectedIds.delete(cb.dataset.id);
+    });
+    updateEmSelectedUI();
+  }
+
+  function deleteSelectedEstimates() {
+    const n = emSelectedIds.size;
+    if (!n) return;
+    if (!confirm(`선택한 견적 ${n}건을 삭제하시겠습니까?`)) return;
+    const idsToDelete = [...emSelectedIds];
+    localStorage.setItem(EM_KEY, JSON.stringify(getEstsFull().filter(e => !emSelectedIds.has(e.id))));
+    emSelectedIds.clear();
+    idsToDelete.forEach(id => deleteQuote(id));
+    renderEstMgr();
   }
 
   function emGoto(p) { emPage = p; renderEstMgr(); }
@@ -2792,7 +3549,38 @@
     renderAuthorLock('em-log-author', 'em-log-lock-hint', e.assignee);
     document.getElementById('em-log-list').innerHTML = activityLogHtml(e.activityLog);
 
+    /* 실제 계약 항공료 (신규) — 이 견적 계산 당시의 추정 항공료(1인당)를 items에서
+       찾아 나란히 보여주고, 이미 입력된 실제값이 있으면 채워 넣는다 */
+    const estAirfareItem = (e.items||[]).find(it => it.name === '항공');
+    const estAirfareEl = document.getElementById('em-est-airfare');
+    estAirfareEl.textContent = estAirfareItem ? `추정(이 견적 계산 당시): ${fmt(estAirfareItem.unit||0)}` : '추정 항공료 정보 없음';
+    document.getElementById('em-actual-airfare').value = (e.actualAirfareUnit != null) ? e.actualAirfareUnit : '';
+    document.getElementById('em-actual-airfare-msg').textContent = '';
+
     document.getElementById('emModal').classList.remove('hidden');
+  }
+
+  /* 실제 계약 항공료 저장 (신규) — saveEstimateDetail()과 별개의 독립 저장(상태/메모/
+     담당자 일반 저장이 이 값을 실수로 덮어쓰지 않도록 분리) */
+  async function saveActualAirfare() {
+    const input = document.getElementById('em-actual-airfare');
+    const msg = document.getElementById('em-actual-airfare-msg');
+    const unit = Number(input.value);
+    if (!input.value || !Number.isFinite(unit) || unit <= 0 || unit > 50000000) { msg.style.color='var(--danger)'; msg.textContent='올바른 금액을 입력해 주세요(0보다 크고 5천만원 이하).'; return; }
+    try {
+      const res = await fetch(`/api/quotes/${emCurrentId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actualAirfare: { unit } }),
+      });
+      if (!res.ok) throw new Error('save_failed');
+      const all = getEstsFull();
+      const idx = all.findIndex(x => x.id === emCurrentId);
+      if (idx >= 0) { all[idx].actualAirfareUnit = unit; localStorage.setItem(EM_KEY, JSON.stringify(all)); }
+      msg.style.color='var(--success)'; msg.textContent='저장됨';
+    } catch (err) {
+      msg.style.color='var(--danger)'; msg.textContent='저장 실패';
+    }
+    setTimeout(() => { msg.textContent=''; }, 3000);
   }
 
   /* 저장 */

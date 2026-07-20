@@ -129,7 +129,63 @@ async function main() {
     )
   `;
 
-  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides tables ready.');
+  /* 요율 관리: 환율 변동 감시 (신규) — 항공료 자체는 인원 규모별로 그때그때 협상
+     견적을 받는 구조라 자동 갱신 대상이 아니지만, 환율은 객관적으로 공개된 값이라
+     자동 감시가 가능함. fx_rates는 cron(api/rates.js?cron=1)이 매일 덮어쓰는 "오늘의
+     환율", rate_fx_baseline은 목적지별 "마지막으로 가격을 확인/확정했을 때의 환율"
+     스냅샷(그 이후 환율이 얼마나 움직였는지 재는 기준점) — 관리자가 요율 관리에서
+     가격을 저장할 때마다 그 시점 환율로 재설정됨. */
+  await sql`
+    create table if not exists fx_rates (
+      currency text primary key,
+      rate_to_krw numeric not null,
+      fetched_at timestamptz not null default now()
+    )
+  `;
+  await sql`
+    create table if not exists rate_fx_baseline (
+      destination_key text primary key,
+      currency text not null,
+      baseline_rate numeric not null,
+      baseline_at timestamptz not null default now()
+    )
+  `;
+
+  /* 실제 계약 항공료 (신규) — 항공료는 인원별 협상 견적이라 공개 API로 자동 갱신할
+     수 없지만, 계약완료된 견적의 진짜 최종 항공료를 담당자가 한 번 입력해 두면
+     그게 쌓여서 요율표 갱신 여부를 판단하는 실데이터 근거가 된다(admin.html 요율
+     관리 탭의 "실제 계약 데이터 기반 갱신 제안" 카드가 이 값을 집계함). */
+  await sql`alter table quotes add column if not exists actual_airfare_unit numeric`;
+
+  /* 실제 가격 제보 (신규) — 위 quotes.actual_airfare_unit은 특정 견적 레코드에 종속돼
+     견적관리 상세 모달을 열어야만 입력 가능했음. 이 테이블은 목적지만 고르면 어떤
+     견적 레코드와도 무관하게 요율 관리 탭 맨 위에서 누구나(로그인한 임직원 누구나)
+     바로 남길 수 있는 독립적인 실제 항공료 제보 — 직접 입력 또는 PDF 견적서 업로드
+     후 AI 추출(반드시 사람이 확인 후 제출) 두 경로 모두 여기로 쌓인다. */
+  await sql`
+    create table if not exists actual_price_reports (
+      id bigserial primary key,
+      created_at timestamptz not null default now(),
+      destination_key text not null,
+      airfare_unit numeric not null,
+      author text not null default '',
+      source text not null default 'manual'
+    )
+  `;
+  await sql`create index if not exists actual_price_reports_dest_idx on actual_price_reports (destination_key)`;
+
+  /* 실제 가격 제보 확장 (신규) — 항공료 하나만 받던 것을 호텔·식비까지 넓힌다.
+     한 건의 제보에 모든 항목이 다 채워질 필요는 없으므로(예: 호텔명만 남기는 경우)
+     airfare_unit도 이제 nullable로 바꾸고, hotel_unit/meal_unit도 nullable로 추가한다.
+     hotel_name은 요율 계산에 전혀 쓰이지 않는 순수 참고 텍스트(어떤 호텔을 실제로
+     썼는지) — 공개 견적 계산기(index.html/script.js)는 이 테이블을 아예 조회하지
+     않고 관리자 전용 API(requireAdmin)로만 읽으므로 자동으로 관리자만 볼 수 있다. */
+  await sql`alter table actual_price_reports alter column airfare_unit drop not null`;
+  await sql`alter table actual_price_reports add column if not exists hotel_unit numeric`;
+  await sql`alter table actual_price_reports add column if not exists hotel_name text`;
+  await sql`alter table actual_price_reports add column if not exists meal_unit numeric`;
+
+  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports tables ready. (quotes.actual_airfare_unit column ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name)');
 }
 
 main().catch((err) => {

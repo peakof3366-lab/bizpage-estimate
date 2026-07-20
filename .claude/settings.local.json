@@ -13,7 +13,21 @@
       "Write",
       "Read",
       "Glob",
-      "Grep"
+      "Grep",
+      "Bash",
+      "Bash(git *)",
+      "Bash(python *)",
+      "WebFetch"
+    ],
+    "defaultMode": "bypassPermissions",
+    "deny": [
+      "Bash(iconv *)",
+      "Read(//c/Users/*/AppData/Local/Temp/claude/**)"
     ]
-  }
+  },
+  "skipDangerousModePermissionPrompt": true,
+  "worktree": {
+    "bgIsolation": "none"
+  },
+  "disableAutoMode": "disable"
 }

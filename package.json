@@ -4,8 +4,9 @@
   "private": true,
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
-    "jose": "^5.9.6",
     "bcryptjs": "^2.4.3",
-    "openai": "^4.104.0"
+    "jose": "^5.9.6",
+    "openai": "^4.104.0",
+    "pdf-parse": "^2.4.5"
   }
 }

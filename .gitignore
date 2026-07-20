@@ -7,3 +7,5 @@ ai-loop/tmp_prompt.txt
 .vercel
 .env*
 node_modules/
+
+.env*
