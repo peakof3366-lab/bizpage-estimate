@@ -55,6 +55,34 @@ async function main() {
   /* 기존에 이미 생성된 테이블에는 username 컬럼이 없을 수 있으므로 추가 보강 */
   await sql`alter table admin_auth add column if not exists username text not null default 'admin'`;
 
+  /* 멀티유저 관리자 계정 (신규) — admin_auth는 id=1 싱글톤이라 전 직원이 비밀번호
+     하나를 공유했음(누가 뭘 바꿨는지 추적 불가, "작성자"는 브라우저에서 자유
+     선택하는 localStorage 값이라 위조 가능했음). 이 테이블로 대체하되 admin_auth는
+     삭제하지 않는다(되돌릴 수 없는 작업 지양). role 3단계: owner(전체 권한) /
+     manager(요율 일괄조정·목적지 추가삭제까지) / staff(일상 업무만). failed_attempts/
+     locked_until은 로그인 브루트포스 방지용(5회 실패 시 15분 잠금, api/admin/login.js
+     에서 갱신). */
+  await sql`
+    create table if not exists staff_accounts (
+      id bigserial primary key,
+      username text not null unique,
+      display_name text not null,
+      password_hash text not null,
+      role text not null default 'staff' check (role in ('owner','manager','staff')),
+      active boolean not null default true,
+      failed_attempts int not null default 0,
+      locked_until timestamptz,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    )
+  `;
+  /* 기존 admin_auth 싱글톤 계정을 owner 첫 계정으로 그대로 이관(비밀번호 재설정 불필요) */
+  await sql`
+    insert into staff_accounts (username, display_name, password_hash, role)
+    select username, username, password_hash, 'owner' from admin_auth where id = 1
+    on conflict (username) do nothing
+  `;
+
   /* 방문/이벤트 실서버 수집 (기존엔 브라우저 localStorage에만 쌓여 관리자 페이지 통계가
      실제 방문자 데이터를 반영하지 못했음 — /api/track이 이 테이블에 기록) */
   await sql`
@@ -212,7 +240,7 @@ async function main() {
   await sql`alter table actual_price_reports add column if not exists hotel_name text`;
   await sql`alter table actual_price_reports add column if not exists meal_unit numeric`;
 
-  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name)');
+  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
 }
 
 main().catch((err) => {

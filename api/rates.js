@@ -16,7 +16,7 @@
      바뀌면 "방금 이 가격을 확인/확정했다"는 신호로 보고 그 목적지의 환율 기준점도 함께
      재설정한다(rate_fx_baseline). */
 const { sql } = require('./_lib/db');
-const { requireAdmin } = require('./_lib/auth');
+const { requireAdmin, requireRole } = require('./_lib/auth');
 const DEST_CURRENCY = require('../dest_currency');
 const destinationRates = require('../data');
 
@@ -148,7 +148,9 @@ module.exports = async (req, res) => {
      BUILTIN_DEST_KEYS로 막는다(이후 script.js 클라이언트 병합에서도 같은 이유로
      한 번 더 방어함 — 서버가 뚫려도 클라이언트가 내장값을 우선하도록). */
   if (req.method === 'POST' && req.query && req.query.action === 'createDestination') {
-    if (!(await requireAdmin(req, res))) return;
+    /* 목적지 추가/삭제는 구조적 변경(가격 구조 자체를 바꾸는 일)이라 개별 가격
+       편집(PATCH, 직원도 가능)보다 한 단계 높은 권한(매니저 이상)을 요구한다. */
+    if (!(await requireRole(req, res, ['owner', 'manager']))) return;
     const body = req.body || {};
     const err = isValidNewDestination(body);
     if (err) return res.status(400).json({ error: err });
@@ -168,7 +170,7 @@ module.exports = async (req, res) => {
           ${key}, ${body.label.trim()}, ${body.zone}, ${body.southernHemisphere},
           ${f.airfare}, ${f.fuel_surcharge}, ${f.hotel_per_room}, ${f.meal_per_person},
           ${f.vehicle_large}, ${f.vehicle_small}, ${f.guide_fee}, ${f.sightseeing_fee}, ${f.margin_per_traveler},
-          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${body.author || ''}
+          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${req.user.displayName}
         )
         on conflict (destination_key) do nothing
         returning destination_key
@@ -187,7 +189,7 @@ module.exports = async (req, res) => {
      건드리지 않고, rate_overrides/rate_fx_baseline만 고아 데이터 방지 차원에서
      함께 정리한다. */
   if (req.method === 'DELETE' && req.query && req.query.action === 'deleteDestination') {
-    if (!(await requireAdmin(req, res))) return;
+    if (!(await requireRole(req, res, ['owner', 'manager']))) return;
     const key = String((req.query && req.query.destinationKey) || '').trim();
     if (!key) return res.status(400).json({ error: 'invalid_key' });
     if (BUILTIN_DEST_KEYS.has(key)) return res.status(403).json({ error: 'cannot_delete_builtin' });
@@ -205,7 +207,11 @@ module.exports = async (req, res) => {
 
   if (req.method === 'PATCH') {
     if (!(await requireAdmin(req, res))) return;
-    const { destinationKey, author, changes } = req.body || {};
+    /* author는 더 이상 클라이언트가 보낸 값을 신뢰하지 않는다(예전엔 브라우저
+       localStorage에서 자유 선택한 이름이라 위조 가능했음) — 세션에서 검증된
+       실사용자 표시명을 그대로 쓴다. */
+    const author = req.user.displayName;
+    const { destinationKey, changes } = req.body || {};
     if (!destinationKey || !Array.isArray(changes) || !changes.length) {
       return res.status(400).json({ error: 'invalid_body' });
     }
@@ -219,7 +225,7 @@ module.exports = async (req, res) => {
 
       await sql`
         insert into rate_overrides (destination_key, overrides, updated_at, updated_by)
-        values (${destinationKey}, ${JSON.stringify(merged)}::jsonb, now(), ${author || ''})
+        values (${destinationKey}, ${JSON.stringify(merged)}::jsonb, now(), ${author})
         on conflict (destination_key) do update
           set overrides = excluded.overrides, updated_at = now(), updated_by = excluded.updated_by
       `;
@@ -227,7 +233,7 @@ module.exports = async (req, res) => {
       for (const c of cleanChanges) {
         await sql`
           insert into rate_change_log (destination_key, field, old_value, new_value, author)
-          values (${destinationKey}, ${c.field}, ${JSON.stringify(c.oldValue ?? null)}::jsonb, ${JSON.stringify(c.newValue)}::jsonb, ${author || ''})
+          values (${destinationKey}, ${c.field}, ${JSON.stringify(c.oldValue ?? null)}::jsonb, ${JSON.stringify(c.newValue)}::jsonb, ${author})
         `;
       }
 

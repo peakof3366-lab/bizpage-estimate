@@ -11,7 +11,7 @@
    Vercel Hobby 플랜의 배포당 서버리스 함수 12개 제한 때문(api/admin/insights.js,
    api/admin/account.js와 동일한 이유로 통합). */
 const { sql } = require('./_lib/db');
-const { requireAdmin } = require('./_lib/auth');
+const { requireRole } = require('./_lib/auth');
 
 const KEY_PATTERN = /^[a-z]+\.([0-9]+\.)?[a-z]+$/;
 const MAX_VALUE_LENGTH = 3000;
@@ -30,7 +30,8 @@ module.exports = async (req, res) => {
   }
 
   if (req.method === 'PATCH') {
-    if (!(await requireAdmin(req, res))) return;
+    /* 공개 사이트 문구/브랜딩이라 오탈자·브랜딩 이슈에 민감 — 관리자 전용 */
+    if (!(await requireRole(req, res, ['owner']))) return;
     const { key, value } = req.body || {};
     if (typeof key !== 'string' || !KEY_PATTERN.test(key)) {
       return res.status(400).json({ error: 'invalid_key' });

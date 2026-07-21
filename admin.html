@@ -67,10 +67,8 @@
     .btn-ghost { background: transparent; color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.35); }
     .btn-ghost:hover { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.7); }
     .current-staff-widget { display: flex; align-items: center; gap: .4rem; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); padding: .3rem .6rem; }
-    .current-staff-widget.csw-unset { border-color: var(--primary); background: rgba(200,16,46,.15); }
-    .csw-label { font-size: .68rem; font-weight: 700; color: rgba(255,255,255,.5); letter-spacing: .04em; white-space: nowrap; }
-    .csw-select { background: transparent; color: #fff; border: none; font-size: .78rem; font-weight: 700; font-family: inherit; cursor: pointer; }
-    .csw-select option { color: #111; }
+    .csw-label { font-size: .78rem; font-weight: 700; color: #fff; white-space: nowrap; }
+    .csw-role { font-size: .66rem; font-weight: 700; color: rgba(255,255,255,.6); background: rgba(255,255,255,.1); padding: .1rem .4rem; letter-spacing: .03em; }
     .rate-author-tag { font-size: .82rem; font-weight: 700; color: var(--heading); background: var(--bg); border: 1.5px solid var(--border); padding: .4rem .8rem; }
     .rate-author-tag.unset { color: var(--primary); border-color: var(--primary); }
 
@@ -383,14 +381,15 @@
       <a href="index.html" class="dash-brand">🔗 비즈페이지 Admin</a>
       <div class="dash-right">
         <span class="dash-user" id="dashTime"></span>
-        <!-- 현재 접속 담당자(신규) — 요율 수정 등 "누가 했는지" 기록의 기준이 되는
-             유일한 출처. 되돌리려면 이 블록과 script의 CURRENT_STAFF 관련 코드만
-             지우면 됨(요율 편집 시 다시 매번 이름을 고르는 예전 방식으로 복귀). -->
-        <div class="current-staff-widget" title="여기서 선택한 이름이 요율 수정 등 작업 기록에 사용됩니다">
-          <span class="csw-label">담당자</span>
-          <select id="currentStaffSelect" class="csw-select"></select>
+        <!-- 로그인 계정 표시 (멀티유저 계정 도입으로 자기선택 위젯 대체) — 예전엔
+             전 직원이 같은 로그인을 공유해서 "지금 나는 누구인지"를 브라우저에서
+             자기선택하는 위젯이었으나, 이제 로그인 자체가 개인별이라 서버가 아는
+             실제 계정 정보를 그대로 보여주기만 하면 된다(위조 불가). -->
+        <div class="current-staff-widget" id="currentUserBadge" title="로그인 계정">
+          <span class="csw-label" id="currentUserName"></span>
+          <span class="csw-role" id="currentUserRole"></span>
         </div>
-        <button id="logoutBtn" class="btn-sm btn-ghost">로그아웃</button>
+        <button class="btn-sm btn-ghost js-logout">로그아웃</button>
       </div>
     </div>
   </header>
@@ -432,7 +431,7 @@
         <button class="sidebar-item" data-tab="quotetool">
           <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">내부 견적 산출</span>
         </button>
-        <button class="sidebar-item" data-tab="content">
+        <button class="sidebar-item" data-tab="content" id="navContent">
           <span class="si-icon"><i data-lucide="edit-3"></i></span><span class="si-label">콘텐츠 관리</span>
         </button>
         <div class="sidebar-divider"></div>
@@ -442,7 +441,7 @@
       </div>
       <div class="sidebar-footer">
         <a href="index.html" class="sf-link">↗ 홈페이지</a>
-        <button id="logoutBtn" class="sf-logout">로그아웃</button>
+        <button class="sf-logout js-logout">로그아웃</button>
       </div>
     </nav>
 
@@ -808,10 +807,10 @@
           <option value="region">지역순</option>
           <option value="priority">확인 필요한 순</option>
         </select>
-        <button class="btn-act btn-outline-p" onclick="openRateBulkModal()">📊 일괄 조정</button>
+        <button class="btn-act btn-outline-p" id="btnRateBulk" onclick="openRateBulkModal()">📊 일괄 조정</button>
         <button class="btn-act btn-outline-p" onclick="openRateHistoryModal()">🕘 변경 이력</button>
         <button class="btn-act btn-outline-p" onclick="exportRatesCsv()">CSV 내보내기</button>
-        <button class="btn-act btn-outline-p" onclick="openNewDestModal()">➕ 새 목적지 추가</button>
+        <button class="btn-act btn-outline-p" id="btnNewDest" onclick="openNewDestModal()">➕ 새 목적지 추가</button>
       </div>
 
       <!-- 요율 테이블 -->
@@ -914,22 +913,55 @@
             <div class="setting-info"><p>전체 데이터 내보내기</p><span>문의, 방문, 이벤트, 견적 데이터를 JSON으로 다운로드합니다.</span></div>
             <button class="btn-act btn-outline-p" onclick="exportAll()">전체 내보내기</button>
           </div>
-          <div class="setting-row">
-            <div class="setting-info"><p>방문 기록 초기화</p><span>방문자 추적 데이터를 삭제합니다.</span></div>
-            <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_visits','방문 기록')">초기화</button>
+          <!-- 아래 4개는 되돌릴 수 없는 대량 삭제라 관리자 전용(신규) -->
+          <div id="ownerDataDangerZone">
+            <div class="setting-row">
+              <div class="setting-info"><p>방문 기록 초기화</p><span>방문자 추적 데이터를 삭제합니다.</span></div>
+              <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_visits','방문 기록')">초기화</button>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><p>이벤트 통계 초기화</p><span>버튼 클릭, 목적지 선택 통계를 삭제합니다.</span></div>
+              <button class="btn-act btn-danger-sm" onclick="clearMulti(['linkedt_events','linkedt_dest_stats'],'이벤트 통계')">초기화</button>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><p>견적 기록 초기화</p><span>견적 분석 데이터를 삭제합니다.</span></div>
+              <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_estimates','견적 기록')">초기화</button>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><p>문의 전체 삭제</p><span>모든 문의 내역을 영구 삭제합니다.</span></div>
+              <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_contacts','문의 내역')">전체 삭제</button>
+            </div>
           </div>
-          <div class="setting-row">
-            <div class="setting-info"><p>이벤트 통계 초기화</p><span>버튼 클릭, 목적지 선택 통계를 삭제합니다.</span></div>
-            <button class="btn-act btn-danger-sm" onclick="clearMulti(['linkedt_events','linkedt_dest_stats'],'이벤트 통계')">초기화</button>
+        </div>
+
+        <!-- 직원 계정 관리 (신규, 관리자 전용) — 예전엔 STAFF_LIST 하드코딩 배열이라
+             직원이 바뀌면 코드를 고쳐야 했음. 이제 여기서 계정 생성/역할변경/
+             비활성화/비밀번호 재설정을 전부 처리한다. -->
+        <div class="setting-section" id="staffAdminSection">
+          <div class="setting-title">직원 계정 관리</div>
+          <div class="setting-row" style="align-items:flex-start">
+            <div class="setting-info"><p>계정 목록</p><span>비활성화된 계정은 로그인할 수 없습니다.</span></div>
           </div>
-          <div class="setting-row">
-            <div class="setting-info"><p>견적 기록 초기화</p><span>견적 분석 데이터를 삭제합니다.</span></div>
-            <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_estimates','견적 기록')">초기화</button>
+          <div style="overflow-x:auto">
+            <table class="rate-table" style="margin-top:.5rem">
+              <thead>
+                <tr><th>이름</th><th>아이디</th><th>역할</th><th>상태</th><th style="width:220px">관리</th></tr>
+              </thead>
+              <tbody id="staff-admin-tbody"></tbody>
+            </table>
           </div>
-          <div class="setting-row">
-            <div class="setting-info"><p>문의 전체 삭제</p><span>모든 문의 내역을 영구 삭제합니다.</span></div>
-            <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_contacts','문의 내역')">전체 삭제</button>
+          <div class="setting-row" style="margin-top:1rem;align-items:flex-start;flex-wrap:wrap;gap:.6rem">
+            <input type="text" id="new-staff-username" class="pw-input" placeholder="아이디 (영문/숫자)" style="width:160px" />
+            <input type="text" id="new-staff-name" class="pw-input" placeholder="표시 이름" style="width:140px" />
+            <input type="password" id="new-staff-password" class="pw-input" placeholder="초기 비밀번호 (8자 이상)" style="width:180px" />
+            <select id="new-staff-role" class="status-select">
+              <option value="staff">직원</option>
+              <option value="manager">매니저</option>
+              <option value="owner">관리자</option>
+            </select>
+            <button class="btn-act btn-primary" onclick="submitCreateStaff()">계정 생성</button>
           </div>
+          <p id="staff-admin-msg" style="font-size:.78rem;margin-top:.5rem"></p>
         </div>
 
         <div class="setting-section">
@@ -986,9 +1018,8 @@
         </div>
         <textarea class="note-area" id="d-reply-text" placeholder="고객에게 전달한(또는 전달할) 답변 내용을 입력하세요..." style="margin-top:.5rem"></textarea>
         <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center">
-          <select class="status-select" id="d-reply-author" style="flex:0 0 auto"></select>
-          <button type="button" class="btn-act btn-primary" onclick="confirmReply('inquiry', currentModalId, 'd-reply-author', 'd-reply-text', 'd-reply-meta')" style="flex:0 0 auto">답변 확정</button>
-          <span id="d-reply-lock-hint" style="font-size:.72rem;color:var(--muted)"></span>
+          <span class="rate-author-tag" id="d-reply-author-tag"></span>
+          <button type="button" class="btn-act btn-primary" onclick="confirmReply('inquiry', currentModalId, 'd-reply-text', 'd-reply-meta')" style="flex:0 0 auto">답변 확정</button>
         </div>
       </div>
 
@@ -1003,7 +1034,7 @@
           <option value="pending">처리중</option>
           <option value="done">완료</option>
         </select>
-        <select class="status-select" id="d-assignee" onchange="confirmAssigneeSelect(this); onAssigneeSelectChanged('inquiry')">
+        <select class="status-select" id="d-assignee" onchange="confirmAssigneeSelect(this)">
           <option value="">담당자 미배정</option>
         </select>
         <button class="btn-act btn-primary" onclick="saveDetail()">저장</button>
@@ -1016,10 +1047,9 @@
         <div class="detail-label">진행 기록</div>
         <div id="d-log-list" style="margin:.5rem 0"></div>
         <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center;flex-wrap:wrap">
-          <select class="status-select" id="d-log-author" style="flex:0 0 auto"></select>
+          <span class="rate-author-tag" id="d-log-author-tag"></span>
           <input type="text" id="d-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" />
-          <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('inquiry', currentModalId, 'd-log-author', 'd-log-text', 'd-log-list')">추가</button>
-          <span id="d-log-lock-hint" style="font-size:.72rem;color:var(--muted);width:100%"></span>
+          <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('inquiry', currentModalId, 'd-log-text', 'd-log-list')">추가</button>
         </div>
       </div>
     </div>
@@ -1110,7 +1140,7 @@
           </div>
           <div>
             <div class="detail-label" style="margin-bottom:.4rem">담당자</div>
-            <select id="em-assignee-sel" class="status-select" onchange="confirmAssigneeSelect(this); onAssigneeSelectChanged('quote')">
+            <select id="em-assignee-sel" class="status-select" onchange="confirmAssigneeSelect(this)">
               <option value="">미배정</option>
             </select>
           </div>
@@ -1157,10 +1187,9 @@
           <div class="detail-label">진행 기록</div>
           <div id="em-log-list" style="margin:.5rem 0"></div>
           <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center;flex-wrap:wrap">
-            <select class="status-select" id="em-log-author" style="flex:0 0 auto"></select>
+            <span class="rate-author-tag" id="em-log-author-tag"></span>
             <input type="text" id="em-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" />
-            <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('quote', emCurrentId, 'em-log-author', 'em-log-text', 'em-log-list')">추가</button>
-            <span id="em-log-lock-hint" style="font-size:.72rem;color:var(--muted);width:100%"></span>
+            <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('quote', emCurrentId, 'em-log-text', 'em-log-list')">추가</button>
           </div>
         </div>
       </div>
@@ -1323,50 +1352,163 @@
     estFull:   'linkedt_estimates_full',
   };
 
-  /* 담당자 배정 + 진행기록용 직원 목록 (신규) */
-  const STAFF_LIST = ['송주연 팀장', '정직한 차장', '방민정 대리', '오윤정 대리', '조혜련 사원'];
+  /* ── 로그인 계정(멀티유저) ────────────────────────────────────────────
+     예전엔 전 직원이 같은 관리자 로그인을 공유해서, "지금 이 브라우저를 쓰는
+     사람이 누구인지"를 매번 자기선택하는 위젯(STAFF_LIST + localStorage)으로
+     때웠다 — 클라이언트가 아무 이름이나 자칭할 수 있어 위조 가능했음. 이제는
+     로그인 자체가 개인별 계정이라 서버가 세션에서 검증한 진짜 신원을 그대로
+     쓴다. currentUser는 showDash()에서 /api/admin/account?action=me로,
+     staffListCache는 같은 시점에 ?action=staffList로 채운다(담당자 배정
+     드롭다운용 — 누구에게 배정할지 고르는 것이지 "내가 누구인지"가 아니므로
+     여전히 선택 UI가 필요함). */
+  let currentUser = null;
+  let staffListCache = [];
+  const ROLE_LABELS = { owner: '관리자', manager: '매니저', staff: '직원' };
 
-  /* ── 현재 접속 담당자(신규) ──────────────────────────────────────────
-     관리자 로그인은 전 직원이 같은 계정(admin)을 공유하기 때문에, 매 작업마다
-     "작성자"를 자유 선택하는 드롭다운만으로는 다른 사람 이름을 잘못 골라도
-     그대로 저장되는 문제가 있었다(요율 수정 작성자 등). 이 브라우저에서
-     "지금 내가 누구인지"를 한 번 정해두고 localStorage에 저장해, 이후
-     요율 수정 등은 이 값을 자동으로 사용하고 매번 새로 고르지 못하게 한다.
-     다른 사람으로 바꿀 때는 확인창을 거치게 해 실수로 바뀌는 것을 방지.
-     되돌리려면 이 블록과 헤더의 .current-staff-widget만 지우면 된다. */
-  const CURRENT_STAFF_KEY = 'linkedt_current_staff';
-  function getCurrentStaff() { return localStorage.getItem(CURRENT_STAFF_KEY) || ''; }
-  function setCurrentStaff(name) { localStorage.setItem(CURRENT_STAFF_KEY, name); }
+  async function loadCurrentUser() {
+    try {
+      const res = await fetch('/api/admin/account?action=me');
+      if (!res.ok) return false;
+      currentUser = await res.json();
+      document.getElementById('currentUserName').textContent = currentUser.displayName;
+      document.getElementById('currentUserRole').textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
+      return true;
+    } catch { return false; }
+  }
 
-  function initCurrentStaffWidget() {
-    const sel = document.getElementById('currentStaffSelect');
-    const wrap = document.querySelector('.current-staff-widget');
-    if (!sel) return;
-    sel.innerHTML = '<option value="">— 담당자 선택 —</option>' +
-      STAFF_LIST.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
-    const saved = getCurrentStaff();
-    sel.value = saved;
-    wrap?.classList.toggle('csw-unset', !saved);
-    sel.addEventListener('change', function () {
-      const prev = getCurrentStaff();
-      const next = this.value;
-      if (prev && next && prev !== next &&
-          !confirm(`담당자를 "${prev}"에서 "${next}"(으)로 변경하시겠습니까?\n지금부터의 요율 수정 등은 "${next}"의 작업으로 기록됩니다.`)) {
-        this.value = prev;
+  async function loadStaffList() {
+    try {
+      const res = await fetch('/api/admin/account?action=staffList');
+      staffListCache = res.ok ? await res.json() : [];
+    } catch { staffListCache = []; }
+  }
+
+  /* 역할 기반 UI 숨김 (신규) — 서버가 진짜 방어선(요율 목적지 추가삭제·CMS 편집은
+     requireRole로 강제됨)이고, 여기서는 애초에 못 누르는 버튼을 안 보이게 해
+     혼동을 줄이는 것뿐. 일괄조정/데이터 전체삭제는 "개별 작업 반복과 서버가
+     구분 못 함"이라 UI 숨김이 유일한 방어선인데, 그 개별 작업 자체가 이미 허용돼
+     있어 문제되지 않는다(권한 매트릭스 설계 시 확인된 사항). */
+  function applyRolePermissionsToUI() {
+    if (!currentUser) return;
+    const isOwner = currentUser.role === 'owner';
+    const isManagerUp = isOwner || currentUser.role === 'manager';
+
+    const navContent = document.getElementById('navContent');
+    if (navContent) navContent.classList.toggle('hidden', !isOwner);
+    const staffAdminSection = document.getElementById('staffAdminSection');
+    if (staffAdminSection) staffAdminSection.classList.toggle('hidden', !isOwner);
+    const dangerZone = document.getElementById('ownerDataDangerZone');
+    if (dangerZone) dangerZone.classList.toggle('hidden', !isOwner);
+
+    const btnRateBulk = document.getElementById('btnRateBulk');
+    if (btnRateBulk) btnRateBulk.classList.toggle('hidden', !isManagerUp);
+    const btnNewDest = document.getElementById('btnNewDest');
+    if (btnNewDest) btnNewDest.classList.toggle('hidden', !isManagerUp);
+
+    if (isOwner) renderStaffAdmin();
+  }
+
+  /* ── 직원 계정 관리 (신규, 관리자 전용) ── */
+  function renderStaffAdmin() {
+    const tbody = document.getElementById('staff-admin-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = staffListCache.map(s => `
+      <tr>
+        <td>${esc(s.display_name)}</td>
+        <td style="color:var(--muted)">${esc(s.username)}</td>
+        <td>
+          <select class="status-select" style="font-size:.76rem;padding:.25rem .4rem" onchange="changeStaffRole(${s.id}, this.value)" ${s.id===currentUser.id?'disabled title="본인 역할은 변경할 수 없습니다"':''}>
+            <option value="staff"${s.role==='staff'?' selected':''}>직원</option>
+            <option value="manager"${s.role==='manager'?' selected':''}>매니저</option>
+            <option value="owner"${s.role==='owner'?' selected':''}>관리자</option>
+          </select>
+        </td>
+        <td>${s.active ? '<span class="rate-badge ok">✅ 활성</span>' : '<span class="rate-badge stale">🔴 비활성</span>'}</td>
+        <td style="display:flex;gap:.3rem;flex-wrap:wrap">
+          <button class="btn-detail" onclick="resetStaffPasswordPrompt(${s.id}, '${esc(s.display_name)}')">비번 재설정</button>
+          ${s.id===currentUser.id ? '' : `<button class="btn-detail" onclick="toggleStaffActive(${s.id}, ${!s.active})">${s.active ? '비활성화' : '활성화'}</button>`}
+        </td>
+      </tr>`).join('');
+  }
+
+  async function submitCreateStaff() {
+    const msg = document.getElementById('staff-admin-msg');
+    const username = document.getElementById('new-staff-username').value.trim();
+    const displayName = document.getElementById('new-staff-name').value.trim();
+    const password = document.getElementById('new-staff-password').value;
+    const role = document.getElementById('new-staff-role').value;
+    if (!username || !displayName || !password) {
+      msg.style.color = 'var(--danger)'; msg.textContent = '아이디, 이름, 초기 비밀번호를 모두 입력해 주세요.'; return;
+    }
+    try {
+      const res = await fetch('/api/admin/account?action=createStaff', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, displayName, password, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = data.error === 'username_taken' ? '이미 사용 중인 아이디입니다.' : '계정 생성에 실패했습니다: ' + (data.error || '');
         return;
       }
-      setCurrentStaff(next);
-      wrap?.classList.toggle('csw-unset', !next);
-    });
+      document.getElementById('new-staff-username').value = '';
+      document.getElementById('new-staff-name').value = '';
+      document.getElementById('new-staff-password').value = '';
+      msg.style.color = 'var(--success)'; msg.textContent = `"${displayName}" 계정이 생성되었습니다. 아이디/초기 비밀번호를 전달해 주세요.`;
+      await loadStaffList();
+      renderStaffAdmin();
+    } catch {
+      msg.style.color = 'var(--danger)'; msg.textContent = '계정 생성 요청에 실패했습니다.';
+    }
+  }
+
+  async function changeStaffRole(id, role) {
+    try {
+      const res = await fetch('/api/admin/account?action=updateStaff', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, role }),
+      });
+      if (!res.ok) { alert('역할 변경에 실패했습니다.'); await loadStaffList(); renderStaffAdmin(); return; }
+      await loadStaffList();
+      renderStaffAdmin();
+    } catch { alert('역할 변경 요청에 실패했습니다.'); }
+  }
+
+  async function toggleStaffActive(id, nextActive) {
+    if (!confirm(nextActive ? '이 계정을 다시 활성화할까요?' : '이 계정을 비활성화할까요? 즉시 로그인할 수 없게 됩니다.')) return;
+    try {
+      const res = await fetch('/api/admin/account?action=updateStaff', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, active: nextActive }),
+      });
+      if (!res.ok) { alert('처리에 실패했습니다.'); return; }
+      await loadStaffList();
+      renderStaffAdmin();
+    } catch { alert('요청에 실패했습니다.'); }
+  }
+
+  async function resetStaffPasswordPrompt(id, displayName) {
+    const newPassword = prompt(`"${displayName}"의 새 비밀번호를 입력하세요 (8자 이상):`);
+    if (newPassword === null) return;
+    if (newPassword.length < 8) { alert('비밀번호는 8자 이상이어야 합니다.'); return; }
+    try {
+      const res = await fetch('/api/admin/account?action=resetStaffPassword', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, newPassword }),
+      });
+      if (!res.ok) { alert('비밀번호 재설정에 실패했습니다.'); return; }
+      alert(`"${displayName}"의 비밀번호가 재설정되었습니다. 새 비밀번호를 본인에게 전달해 주세요.`);
+    } catch { alert('요청에 실패했습니다.'); }
   }
 
   function assigneeSelectHtml(current, extraAttrs) {
+    const active = staffListCache.filter(s => s.active);
     const opts = ['<option value="">미배정</option>']
-      .concat(STAFF_LIST.map(n => `<option value="${esc(n)}"${n===current?' selected':''}>${esc(n)}</option>`));
+      .concat(active.map(s => `<option value="${esc(s.display_name)}"${s.display_name===current?' selected':''}>${esc(s.display_name)}</option>`));
     return `<select class="status-select" style="font-size:.78rem;padding:.3rem .5rem" data-prev="${esc(current||'')}" ${extraAttrs||''}>${opts.join('')}</select>`;
   }
 
-  /* 담당자 변경 시 확인창 — 취소하면 이전 값으로 되돌림 (신규) */
+  /* 담당자 변경 시 확인창 — 취소하면 이전 값으로 되돌림 */
   function confirmAssigneeSelect(selectEl) {
     const prev = selectEl.dataset.prev !== undefined ? selectEl.dataset.prev : '';
     const next = selectEl.value;
@@ -1375,35 +1517,6 @@
     if (!ok) { selectEl.value = prev; return false; }
     selectEl.dataset.prev = next;
     return true;
-  }
-
-  /* 답변/진행기록 작성자를 담당자로 잠금 (신규) — 담당자가 배정된 문의/견적은
-     그 담당자만 답변·기록을 남길 수 있고, 미배정 상태면 누구나 남길 수 있음 */
-  function renderAuthorLock(selectId, hintId, assignee) {
-    const sel = document.getElementById(selectId);
-    const hint = document.getElementById(hintId);
-    if (!sel) return;
-    sel.innerHTML = STAFF_LIST.map(n => `<option value="${esc(n)}"${n===assignee?' selected':''}>${esc(n)}</option>`).join('');
-    if (assignee) {
-      sel.value = assignee;
-      sel.disabled = true;
-      if (hint) hint.textContent = `담당자(${assignee})만 작성할 수 있습니다. 다른 사람이 작성하려면 담당자를 먼저 변경하세요.`;
-    } else {
-      sel.disabled = false;
-      if (hint) hint.textContent = '담당자 미배정 — 누구나 작성할 수 있습니다.';
-    }
-  }
-
-  /* 모달에서 담당자를 바꾸는 즉시 답변/진행기록 잠금 상태도 함께 갱신 (신규) */
-  function onAssigneeSelectChanged(kind) {
-    if (kind === 'inquiry') {
-      const assignee = document.getElementById('d-assignee').value;
-      renderAuthorLock('d-reply-author', 'd-reply-lock-hint', assignee);
-      renderAuthorLock('d-log-author', 'd-log-lock-hint', assignee);
-    } else {
-      const assignee = document.getElementById('em-assignee-sel').value;
-      renderAuthorLock('em-log-author', 'em-log-lock-hint', assignee);
-    }
   }
 
   function activityLogHtml(log) {
@@ -1457,7 +1570,11 @@
         document.getElementById('loginErr').classList.add('hidden');
         await showDash();
       } else {
-        document.getElementById('loginErr').classList.remove('hidden');
+        const errEl = document.getElementById('loginErr');
+        errEl.textContent = r.status === 423
+          ? '비밀번호를 5회 이상 틀려 15분간 잠겼습니다. 잠시 후 다시 시도해 주세요.'
+          : '아이디 또는 비밀번호가 올바르지 않습니다.';
+        errEl.classList.remove('hidden');
         document.getElementById('adminPw').value = '';
       }
     } catch {
@@ -1465,7 +1582,9 @@
     }
   });
 
-  document.getElementById('logoutBtn').addEventListener('click', () => {
+  /* 헤더/사이드바 두 곳에 로그아웃 버튼이 있는데 기존엔 id 중복이라 getElementById가
+     하나만 잡고 다른 하나는 죽어있던 버그(신규 발견) — class 기반으로 둘 다 바인딩 */
+  document.querySelectorAll('.js-logout').forEach(btn => btn.addEventListener('click', () => {
     fetch('/api/admin/account?action=logout', { method: 'POST' }).catch(() => {});
     dashPage.classList.add('hidden');
     loginPage.classList.remove('hidden');
@@ -1473,7 +1592,7 @@
     document.getElementById('adminPw').disabled = false;
     document.getElementById('adminId').value = '';
     document.getElementById('adminPw').value = '';
-  });
+  }));
 
   /* 서버 DB의 견적/문의/방문·이벤트 통계를 로컬 캐시(localStorage)로 동기화 —
      기존 렌더링 코드(renderStats/renderEvents 등)는 그대로 재사용.
@@ -1560,29 +1679,14 @@
   }
 
   /* 진행 기록 추가 (신규) — 문의/견적 공용 */
-  /* 담당자가 배정된 건은 그 담당자만 작성 가능 (신규, 방어적 재검증 —
-     select가 잠겨 있어 정상적으로는 항상 일치하지만 만약을 대비).
-     저장 전이라도 모달에 지금 선택돼 있는 담당자를 기준으로 판단해야
-     "방금 담당자를 나로 바꿨는데 답변이 막힌다" 같은 혼란이 없다. */
-  function getAssigneeOf(kind, id) {
-    const liveSel = document.getElementById(kind === 'inquiry' ? 'd-assignee' : 'em-assignee-sel');
-    if (liveSel) return liveSel.value;
-    return kind === 'inquiry'
-      ? (get(KEYS.contacts).find(x => x.id === id)?.assignee || '')
-      : (getEstsFull().find(x => x.id === id)?.assignee || '');
-  }
-
-  async function addActivityLog(kind, id, authorSelId, textId, logContainerId) {
-    const author = document.getElementById(authorSelId).value;
+  async function addActivityLog(kind, id, textId, logContainerId) {
+    /* 작성자는 항상 로그인한 나 자신(세션에서 검증된 신원) — 예전엔 담당자와
+       다른 이름을 선택하면 막았지만, 그건 "아무 이름이나 자칭 가능"했던 시절의
+       임시 방편이었고 서버 검증도 없었다. 실계정 도입으로 더 이상 필요 없음. */
+    const author = currentUser.displayName;
     const textEl = document.getElementById(textId);
     const text = textEl.value.trim();
-    if (!author) { alert('작성자를 선택해 주세요.'); return; }
     if (!text) { alert('내용을 입력해 주세요.'); return; }
-    const assignee = getAssigneeOf(kind, id);
-    if (assignee && author !== assignee) {
-      alert(`이 문의(견적)는 "${assignee}"님이 담당하고 있어 담당자만 기록을 남길 수 있습니다.`);
-      return;
-    }
 
     const patchFn = kind === 'inquiry' ? patchInquiry : patchQuote;
     const res = await patchFn(id, { addLog: { author, text } });
@@ -1608,17 +1712,11 @@
   }
 
   /* 문의에 대한 공식 답변 확정 (신규) — 진행 기록과 달리 최신 답변 하나만 유지 */
-  async function confirmReply(kind, id, authorSelId, textId, metaElId) {
-    const author = document.getElementById(authorSelId).value;
+  async function confirmReply(kind, id, textId, metaElId) {
+    const author = currentUser.displayName;
     const textEl = document.getElementById(textId);
     const text = textEl.value.trim();
-    if (!author) { alert('답변 작성자를 선택해 주세요.'); return; }
     if (!text) { alert('답변 내용을 입력해 주세요.'); return; }
-    const assignee = getAssigneeOf(kind, id);
-    if (assignee && author !== assignee) {
-      alert(`이 문의(견적)는 "${assignee}"님이 담당하고 있어 담당자만 답변할 수 있습니다.`);
-      return;
-    }
     if (!confirm('이 내용으로 답변을 확정하시겠습니까?')) return;
 
     const patchFn = kind === 'inquiry' ? patchInquiry : patchQuote;
@@ -1651,8 +1749,11 @@
     document.getElementById('adminId').disabled = true;
     document.getElementById('adminPw').disabled = true;
     initClock();
-    initCurrentStaffWidget();
+    /* renderAll() 이하 렌더링(역할별 UI 숨김, 담당자 배정 드롭다운)이 currentUser/
+       staffListCache를 전제하므로 먼저 채운다 */
+    await Promise.all([loadCurrentUser(), loadStaffList()]);
     renderAll();
+    applyRolePermissionsToUI();
     /* 설정 탭 요율 정보 초기화 */
     const rvEl = document.getElementById('rate-settings-version');
     if (rvEl && typeof RATE_META !== 'undefined') {
@@ -1940,9 +2041,12 @@
     document.getElementById('d-status').value = c.status||'read';
     document.getElementById('d-assignee').innerHTML = assigneeSelectHtml(c.assignee);
     document.getElementById('d-log-list').innerHTML = activityLogHtml(c.activityLog);
-    /* 담당자가 있으면 답변/진행기록 작성자를 그 담당자로 잠금 (신규) */
-    renderAuthorLock('d-log-author', 'd-log-lock-hint', c.assignee);
-    renderAuthorLock('d-reply-author', 'd-reply-lock-hint', c.assignee);
+    /* 답변/진행기록 작성자는 항상 로그인한 나 자신 — 실계정 도입 전엔 담당자
+       배정과 무관하게 아무 이름이나 자칭할 수 있어 "담당자만 작성 가능"을 UI에서
+       흉내냈지만, 서버 검증이 없는 순수 힌트였음. 이제 신원 자체가 세션에서
+       검증되므로 그 제약을 없애고 작성자 표시만 남긴다. */
+    document.getElementById('d-log-author-tag').textContent = `작성자: ${currentUser.displayName}`;
+    document.getElementById('d-reply-author-tag').textContent = `작성자: ${currentUser.displayName}`;
 
     /* 답변 내용 (신규) */
     document.getElementById('d-reply-text').value = c.reply || '';
@@ -2337,8 +2441,8 @@
   let customDestinationKeys = new Set();
 
   /* 방금 한 편집/일괄조정 실행취소 (신규) — saveRateEdit()/applyRateBulk()가 성공할
-     때마다 "지금 막 한 일"을 localStorage에 기록해 두고(CURRENT_STAFF_KEY와 동일한
-     패턴), 상단 배너의 되돌리기 버튼 하나로 즉시 원복할 수 있게 한다. 단순 JS
+     때마다 "지금 막 한 일"을 localStorage에 기록해 두고, 상단 배너의 되돌리기
+     버튼 하나로 즉시 원복할 수 있게 한다. 단순 JS
      변수로만 두면 페이지를 새로고침하는 순간 사라져 버튼이 안 보이는 문제가 있어서
      localStorage로 저장 — 같은 브라우저라면 새로고침/탭 이동 후에도 배너가 유지됨.
      30분이 지난 기록은 오래돼 혼동을 줄 수 있어 자동으로 숨긴다(삭제는 안 하므로
@@ -2385,8 +2489,7 @@
   async function undoLastRateAction() {
     const action = getLastRateAction();
     if (!action) { refreshRateUndoBanner(); return; }
-    const author = getCurrentStaff();
-    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    const author = currentUser.displayName;
     if (!confirm(`${action.label} 되돌릴까요?`)) return;
 
     let successCount = 0;
@@ -2580,8 +2683,7 @@
      함께 갱신되고(→ api/rates.js가 환율 기준점도 재설정), 기존 실행취소 배너로
      바로 되돌릴 수도 있다. */
   async function applyRateSuggestion(destKey, field, suggestedBase, count) {
-    const author = getCurrentStaff();
-    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    const author = currentUser.displayName;
     const dest = destinationRates.find(d => d.destination_key === destKey);
     if (!dest) return;
     const fieldLabel = RATE_FIELD_LABELS[field] || field;
@@ -2676,8 +2778,7 @@
     const mealInput = document.getElementById('pr-meal');
     const pdfInput = document.getElementById('pr-pdf');
     const msg = document.getElementById('pr-msg');
-    const author = getCurrentStaff();
-    if (!author) { msg.style.color = 'var(--danger)'; msg.textContent = '먼저 상단 헤더에서 담당자를 선택해 주세요.'; return; }
+    const author = currentUser.displayName;
     if (!destKey) { msg.style.color = 'var(--danger)'; msg.textContent = '목적지를 선택해 주세요.'; return; }
 
     const parseField = (input, max) => {
@@ -2844,9 +2945,7 @@
     document.getElementById('rate-edit-notes').value = eff.notes || '';
     document.getElementById('rate-edit-season').value = eff.season_note || '';
     const authorTag = document.getElementById('rate-edit-author');
-    const curStaff = getCurrentStaff();
-    authorTag.textContent = curStaff ? `작성자: ${curStaff}` : '⚠ 상단에서 담당자를 먼저 선택하세요';
-    authorTag.classList.toggle('unset', !curStaff);
+    authorTag.textContent = `작성자: ${currentUser.displayName}`;
     const region = REGION_MAP[dest.label] || '기타';
     document.getElementById('rate-edit-bulk-handoff').textContent = `📊 [${region}] 지역 전체 일괄 조정하기`;
     document.getElementById('rateEditModal').classList.remove('hidden');
@@ -2871,8 +2970,7 @@
     const dest = destinationRates.find(d => d.destination_key === rateEditCurrentKey);
     if (!dest) return;
     const eff = effectiveRate(dest);
-    const author = getCurrentStaff();
-    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    const author = currentUser.displayName;
 
     const changes = [];
     document.querySelectorAll('#rate-edit-fields input[data-field]').forEach(inp => {
@@ -2929,17 +3027,14 @@
         <input type="number" class="pw-input" data-field="${f}" value="0" min="0" />
       </div>`).join('');
     const authorTag = document.getElementById('new-dest-author');
-    const curStaff = getCurrentStaff();
-    authorTag.textContent = curStaff ? `작성자: ${curStaff}` : '⚠ 상단에서 담당자를 먼저 선택하세요';
-    authorTag.classList.toggle('unset', !curStaff);
+    authorTag.textContent = `작성자: ${currentUser.displayName}`;
     document.getElementById('newDestModal').classList.remove('hidden');
   }
 
   async function saveNewDestination() {
     const msg = document.getElementById('new-dest-msg');
     msg.textContent = '';
-    const author = getCurrentStaff();
-    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    const author = currentUser.displayName;
 
     const destinationKey = document.getElementById('new-dest-key').value.trim();
     const label = document.getElementById('new-dest-label').value.trim();
@@ -3009,8 +3104,7 @@
   async function confirmRateNoChange(destKey) {
     const dest = destinationRates.find(d => d.destination_key === destKey);
     if (!dest) return;
-    const author = getCurrentStaff();
-    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    const author = currentUser.displayName;
     await loadRateOverrides();
     const eff = effectiveRate(dest);
     if (!confirm(`"${dest.label}" 요율을 확인했다고 기록할까요?\n(가격은 그대로 두고, 요율 기준월만 오늘로 갱신됩니다)`)) return;
@@ -3039,9 +3133,7 @@
     regionSel.innerHTML = '<option value="__all__">전체 지역</option>' +
       REGION_ORDER.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
     const authorTag = document.getElementById('rate-bulk-author');
-    const curStaff = getCurrentStaff();
-    authorTag.textContent = curStaff ? `작성자: ${curStaff}` : '⚠ 상단에서 담당자를 먼저 선택하세요';
-    authorTag.classList.toggle('unset', !curStaff);
+    authorTag.textContent = `작성자: ${currentUser.displayName}`;
     document.getElementById('rate-bulk-pct').value = '';
     updateRateBulkPreview();
     document.getElementById('rateBulkModal').classList.remove('hidden');
@@ -3061,8 +3153,7 @@
     const region = document.getElementById('rate-bulk-region').value;
     const field = document.getElementById('rate-bulk-field').value;
     const pct = Number(document.getElementById('rate-bulk-pct').value);
-    const author = getCurrentStaff();
-    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    const author = currentUser.displayName;
     if (!pct || isNaN(pct)) { alert('조정 비율을 입력해 주세요.'); return; }
 
     const targets = getRateBulkTargets();
@@ -3192,8 +3283,7 @@
   async function revertRateChange(idx) {
     const r = rateHistoryRowsCache[idx];
     if (!r) return;
-    const author = getCurrentStaff();
-    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+    const author = currentUser.displayName;
     const dest = destinationRates.find(d => d.destination_key === r.destination_key);
     const label = dest ? dest.label : r.destination_key;
     const fieldLabel = rateFieldLabel(r.field);
@@ -3471,7 +3561,7 @@
     const nw      = document.getElementById('pwNew').value;
     const confirm = document.getElementById('pwConfirm').value;
     const msg     = document.getElementById('pwMsg');
-    if (nw.length < 6)    { msg.textContent='새 비밀번호는 6자 이상이어야 합니다.'; return; }
+    if (nw.length < 8)    { msg.textContent='새 비밀번호는 8자 이상이어야 합니다.'; return; }
     if (nw !== confirm)   { msg.textContent='새 비밀번호가 일치하지 않습니다.'; return; }
     try {
       const r = await fetch('/api/admin/account?action=change-password', {
@@ -3728,7 +3818,7 @@
     document.getElementById('em-status-sel').value = e.status || 'new';
     document.getElementById('em-note-area').value   = e.note   || '';
     document.getElementById('em-assignee-sel').innerHTML = assigneeSelectHtml(e.assignee);
-    renderAuthorLock('em-log-author', 'em-log-lock-hint', e.assignee);
+    document.getElementById('em-log-author-tag').textContent = `작성자: ${currentUser.displayName}`;
     document.getElementById('em-log-list').innerHTML = activityLogHtml(e.activityLog);
 
     /* 실제 계약 항공료 (신규) — 이 견적 계산 당시의 추정 항공료(1인당)를 items에서
