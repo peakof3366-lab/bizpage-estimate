@@ -169,6 +169,7 @@ module.exports = async (req, res) => {
         ...r.payload, id: r.id, status: r.status, note: r.note,
         assignee: r.assignee || '', activityLog: r.activity_log || [],
         actualAirfareUnit: r.actual_airfare_unit !== null && r.actual_airfare_unit !== undefined ? Number(r.actual_airfare_unit) : null,
+        actualHotelUnit: r.actual_hotel_unit !== null && r.actual_hotel_unit !== undefined ? Number(r.actual_hotel_unit) : null,
       })));
     } catch (err) {
       console.error(err);

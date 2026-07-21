@@ -31,6 +31,14 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true });
       }
 
+      /* 실제 계약 호텔단가 저장 (신규) — 위 actualAirfare 분기와 대칭 */
+      if (body.actualHotel) {
+        const unit = Number(body.actualHotel && body.actualHotel.unit);
+        if (!Number.isFinite(unit) || unit <= 0 || unit > 50000000) return res.status(400).json({ error: 'invalid_unit' });
+        await sql`update quotes set actual_hotel_unit = ${unit} where id = ${id}`;
+        return res.status(200).json({ ok: true });
+      }
+
       await sql`
         update quotes set status = ${body.status ?? 'new'}, note = ${body.note ?? ''}, assignee = ${body.assignee ?? ''}
         where id = ${id}

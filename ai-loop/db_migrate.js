@@ -157,6 +157,10 @@ async function main() {
      관리 탭의 "실제 계약 데이터 기반 갱신 제안" 카드가 이 값을 집계함). */
   await sql`alter table quotes add column if not exists actual_airfare_unit numeric`;
 
+  /* 실제 계약 호텔단가 (신규) — 위 actual_airfare_unit과 대칭 구조. 항공료만 이중
+     소스(견적관리+실제계약가위젯)이고 호텔은 위젯 하나뿐이던 비대칭을 해소한다. */
+  await sql`alter table quotes add column if not exists actual_hotel_unit numeric`;
+
   /* 실제 가격 제보 (신규) — 위 quotes.actual_airfare_unit은 특정 견적 레코드에 종속돼
      견적관리 상세 모달을 열어야만 입력 가능했음. 이 테이블은 목적지만 고르면 어떤
      견적 레코드와도 무관하게 요율 관리 탭 맨 위에서 누구나(로그인한 임직원 누구나)
@@ -185,7 +189,7 @@ async function main() {
   await sql`alter table actual_price_reports add column if not exists hotel_name text`;
   await sql`alter table actual_price_reports add column if not exists meal_unit numeric`;
 
-  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports tables ready. (quotes.actual_airfare_unit column ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name)');
+  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name)');
 }
 
 main().catch((err) => {
