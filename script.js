@@ -24,9 +24,39 @@ const FEATURE_EXCEL_EXPORT = true;
         const dest = destinationRates.find((d) => d.destination_key === key);
         if (dest && fields && typeof fields === 'object') Object.assign(dest, fields);
       });
+
+      /* 관리자 신규 목적지 (신규) — data.js에 원래 없던 목적지를 destinationRates에
+         추가한다. 이미 선택 가능한 기존 목적지의 값을 patch하는 위 오버라이드와 달리,
+         옵션 자체가 아직 없으므로 고객이 아직 병합 전인 목적지를 선택할 방법이 없다
+         (경합 없음). 서버가 내장 키와의 충돌을 막지만, 혹시 뚫리더라도 내장값을
+         우선하도록 여기서도 한 번 더 방어(dedupe-skip)한다. */
+      if (Array.isArray(data.customDestinations)) {
+        data.customDestinations.forEach((row) => {
+          if (destinationRates.some((d) => d.destination_key === row.destination_key)) return;
+          const { zone, southern_hemisphere, ...destFields } = row;
+          destinationRates.push(destFields);
+          if (BIZ_ZONES[zone] && !BIZ_ZONES[zone].includes(row.destination_key)) BIZ_ZONES[zone].push(row.destination_key);
+          if (southern_hemisphere) SOUTHERN_HEMISPHERE_DESTS.push(row.destination_key);
+          injectDestinationOption(row.destination_key, destFields.label);
+        });
+        if (data.customDestinations.length && typeof buildDestAccordion === 'function') buildDestAccordion();
+      }
     })
     .catch(() => {});
 })();
+
+/* 관리자 신규 목적지 선택 옵션 주입 (신규) — index.html/admin-quote.html 양쪽의
+   <select id="destination"> 끝에 미리 준비된 빈 optgroup(#customDestOptgroup)에
+   실제 <option>을 추가한다. 이 마크업이 없는 페이지에서는 조용히 무시된다. */
+function injectDestinationOption(key, label) {
+  const group = document.getElementById('customDestOptgroup');
+  if (!group) return;
+  group.hidden = false;
+  const opt = document.createElement('option');
+  opt.value = key;
+  opt.textContent = label; // textContent만 사용 — 콘텐츠 오버라이드와 동일한 XSS 방지 원칙
+  group.appendChild(opt);
+}
 
 /* 정적 콘텐츠 오버라이드 (신규) — 관리자 페이지 "콘텐츠 관리"에서 수정한 히어로/갤러리/
    포트폴리오/회사소개/후기/FAQ 문구·이미지를 [data-cms-key] 요소 위에 덮어쓴다. 이 fetch가

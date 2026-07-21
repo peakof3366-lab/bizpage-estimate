@@ -151,6 +151,29 @@ async function main() {
     )
   `;
 
+  /* 관리자 신규 목적지 (신규) — rate_overrides(기존 목적지의 부분 diff)와 달리
+     완전한 한 행을 저장한다. 신규 목적지는 애초에 data.js에 기본값이 없어 병합할
+     대상이 없기 때문. 9개 단가 필드를 모두 not null로 강제해 미완성 상태로 공개
+     견적 계산기에 노출되는 걸 원천 차단한다. zone은 script.js BIZ_ZONES(short/mid/
+     long) 버킷, southern_hemisphere는 SOUTHERN_HEMISPHERE_DESTS 편입 여부에
+     대응하며, 둘 다 클라이언트가 /api/rates 응답을 받아 해당 배열에 push한다
+     (data.js/script.js 원본은 건드리지 않음 — 항상 안전한 정적 기본값 유지). */
+  await sql`
+    create table if not exists custom_destinations (
+      destination_key text primary key,
+      label text not null,
+      zone text not null check (zone in ('short','mid','long')),
+      southern_hemisphere boolean not null default false,
+      airfare numeric not null, fuel_surcharge numeric not null,
+      hotel_per_room numeric not null, meal_per_person numeric not null,
+      vehicle_large numeric not null, vehicle_small numeric not null,
+      guide_fee numeric not null, sightseeing_fee numeric not null,
+      margin_per_traveler numeric not null,
+      rate_date text not null, notes text not null default '', season_note text not null default '',
+      created_at timestamptz not null default now(), created_by text not null default ''
+    )
+  `;
+
   /* 실제 계약 항공료 (신규) — 항공료는 인원별 협상 견적이라 공개 API로 자동 갱신할
      수 없지만, 계약완료된 견적의 진짜 최종 항공료를 담당자가 한 번 입력해 두면
      그게 쌓여서 요율표 갱신 여부를 판단하는 실데이터 근거가 된다(admin.html 요율
@@ -189,7 +212,7 @@ async function main() {
   await sql`alter table actual_price_reports add column if not exists hotel_name text`;
   await sql`alter table actual_price_reports add column if not exists meal_unit numeric`;
 
-  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name)');
+  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name)');
 }
 
 main().catch((err) => {

@@ -18,12 +18,35 @@
 const { sql } = require('./_lib/db');
 const { requireAdmin } = require('./_lib/auth');
 const DEST_CURRENCY = require('../dest_currency');
+const destinationRates = require('../data');
 
 const NUMERIC_FIELDS = new Set([
   'airfare', 'fuel_surcharge', 'hotel_per_room', 'meal_per_person',
   'vehicle_large', 'vehicle_small', 'guide_fee', 'sightseeing_fee', 'margin_per_traveler',
 ]);
 const STRING_FIELDS = new Set(['notes', 'rateDate', 'season_note']);
+
+/* 관리자 신규 목적지 (신규) — 아래 상수·검증 함수는 커스텀 목적지 생성/삭제
+   전용이며, 위 NUMERIC_FIELDS/STRING_FIELDS는 그대로 재사용한다(diff 검증용
+   isValidChange와 달리 전체 행 검증이 필요해 별도 함수로 분리). */
+const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key));
+const CUSTOM_ZONES = new Set(['short', 'mid', 'long']);
+const DEST_KEY_RE = /^[\p{L}\p{N}_\- ·]+$/u;
+
+function isValidNewDestination(body) {
+  if (!body || typeof body.destinationKey !== 'string') return 'invalid_key';
+  const key = body.destinationKey.trim();
+  if (!key || key.length > 40 || !DEST_KEY_RE.test(key)) return 'invalid_key';
+  if (typeof body.label !== 'string' || !body.label.trim() || body.label.length > 80) return 'invalid_label';
+  if (!CUSTOM_ZONES.has(body.zone)) return 'invalid_zone';
+  if (typeof body.southernHemisphere !== 'boolean') return 'invalid_southern_hemisphere';
+  for (const f of NUMERIC_FIELDS) {
+    if (typeof body.fields?.[f] !== 'number' || !(body.fields[f] >= 0)) return `invalid_field_${f}`;
+  }
+  if (body.notes != null && (typeof body.notes !== 'string' || body.notes.length > 500)) return 'invalid_notes';
+  if (body.seasonNote != null && (typeof body.seasonNote !== 'string' || body.seasonNote.length > 500)) return 'invalid_season_note';
+  return null;
+}
 
 async function fetchRateToKrw(currency) {
   const code = currency.toLowerCase();
@@ -89,10 +112,11 @@ module.exports = async (req, res) => {
       }
     }
     try {
-      const [overrideRows, fxRateRows, fxBaselineRows] = await Promise.all([
+      const [overrideRows, fxRateRows, fxBaselineRows, customDestRows] = await Promise.all([
         sql`select destination_key, overrides from rate_overrides`,
         sql`select currency, rate_to_krw from fx_rates`,
         sql`select destination_key, currency, baseline_rate, baseline_at from rate_fx_baseline`,
+        sql`select * from custom_destinations order by created_at`,
       ]);
       const overrides = {};
       for (const r of overrideRows) overrides[r.destination_key] = r.overrides;
@@ -102,10 +126,80 @@ module.exports = async (req, res) => {
       for (const r of fxBaselineRows) {
         fxBaseline[r.destination_key] = { currency: r.currency, rate: Number(r.baseline_rate), at: r.baseline_at };
       }
-      return res.status(200).json({ overrides, fxRates, fxBaseline });
+      const customDestinations = customDestRows.map((r) => ({
+        destination_key: r.destination_key, label: r.label,
+        zone: r.zone, southern_hemisphere: r.southern_hemisphere,
+        airfare: Number(r.airfare), fuel_surcharge: Number(r.fuel_surcharge),
+        hotel_per_room: Number(r.hotel_per_room), meal_per_person: Number(r.meal_per_person),
+        vehicle_large: Number(r.vehicle_large), vehicle_small: Number(r.vehicle_small),
+        guide_fee: Number(r.guide_fee), sightseeing_fee: Number(r.sightseeing_fee),
+        margin_per_traveler: Number(r.margin_per_traveler),
+        rateDate: r.rate_date, notes: r.notes, season_note: r.season_note,
+      }));
+      return res.status(200).json({ overrides, fxRates, fxBaseline, customDestinations });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'query_failed' });
+    }
+  }
+
+  /* 관리자 신규 목적지 생성 (신규) — custom_destinations에 완전한 한 행을 삽입.
+     내장 목적지(data.js)와 destination_key가 겹치면 절대 만들어지지 않도록
+     BUILTIN_DEST_KEYS로 막는다(이후 script.js 클라이언트 병합에서도 같은 이유로
+     한 번 더 방어함 — 서버가 뚫려도 클라이언트가 내장값을 우선하도록). */
+  if (req.method === 'POST' && req.query && req.query.action === 'createDestination') {
+    if (!(await requireAdmin(req, res))) return;
+    const body = req.body || {};
+    const err = isValidNewDestination(body);
+    if (err) return res.status(400).json({ error: err });
+    const key = body.destinationKey.trim();
+    if (BUILTIN_DEST_KEYS.has(key)) return res.status(409).json({ error: 'key_conflicts_with_builtin' });
+
+    const rateDate = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const f = body.fields;
+    try {
+      const inserted = await sql`
+        insert into custom_destinations (
+          destination_key, label, zone, southern_hemisphere,
+          airfare, fuel_surcharge, hotel_per_room, meal_per_person,
+          vehicle_large, vehicle_small, guide_fee, sightseeing_fee, margin_per_traveler,
+          rate_date, notes, season_note, created_by
+        ) values (
+          ${key}, ${body.label.trim()}, ${body.zone}, ${body.southernHemisphere},
+          ${f.airfare}, ${f.fuel_surcharge}, ${f.hotel_per_room}, ${f.meal_per_person},
+          ${f.vehicle_large}, ${f.vehicle_small}, ${f.guide_fee}, ${f.sightseeing_fee}, ${f.margin_per_traveler},
+          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${body.author || ''}
+        )
+        on conflict (destination_key) do nothing
+        returning destination_key
+      `;
+      if (!inserted.length) return res.status(409).json({ error: 'key_already_exists' });
+      return res.status(200).json({ ok: true, destinationKey: key });
+    } catch (err2) {
+      console.error(err2);
+      return res.status(500).json({ error: 'insert_failed' });
+    }
+  }
+
+  /* 관리자 신규 목적지 삭제 (신규) — 내장 목적지는 애초에 custom_destinations에
+     존재할 수 없으므로, BUILTIN_DEST_KEYS 체크가 "내장 목적지는 절대 삭제되지
+     않는다"는 원칙의 실제 집행 지점이다. quotes/rate_change_log는 과거 기록이므로
+     건드리지 않고, rate_overrides/rate_fx_baseline만 고아 데이터 방지 차원에서
+     함께 정리한다. */
+  if (req.method === 'DELETE' && req.query && req.query.action === 'deleteDestination') {
+    if (!(await requireAdmin(req, res))) return;
+    const key = String((req.query && req.query.destinationKey) || '').trim();
+    if (!key) return res.status(400).json({ error: 'invalid_key' });
+    if (BUILTIN_DEST_KEYS.has(key)) return res.status(403).json({ error: 'cannot_delete_builtin' });
+    try {
+      const deleted = await sql`delete from custom_destinations where destination_key = ${key} returning destination_key`;
+      if (!deleted.length) return res.status(404).json({ error: 'not_found' });
+      await sql`delete from rate_overrides where destination_key = ${key}`;
+      await sql`delete from rate_fx_baseline where destination_key = ${key}`;
+      return res.status(200).json({ ok: true });
+    } catch (err2) {
+      console.error(err2);
+      return res.status(500).json({ error: 'delete_failed' });
     }
   }
 

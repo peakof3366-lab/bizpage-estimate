@@ -385,6 +385,9 @@
               <option value="밴쿠버">밴쿠버 (Vancouver)</option>
               <option value="토론토">토론토 (Toronto)</option>
             </optgroup>
+
+            <!-- 관리자가 요율 관리에서 추가한 목적지가 script.js에 의해 여기 채워짐(신규) -->
+            <optgroup id="customDestOptgroup" label="🆕 신규 추가 목적지" hidden></optgroup>
           </select>
         </div>
 
@@ -625,6 +628,10 @@
     const selectedLabel = document.getElementById('destSelectedLabel');
     if (!select || !container) return;
 
+    /* 관리자 신규 목적지가 나중에 script.js에 의해 옵션으로 추가되면 이 함수가
+       다시 호출된다(멱등성 확보) — 매번 새로 그리므로 먼저 비운다. */
+    container.innerHTML = '';
+
     Array.from(select.children).forEach(function (node) {
       if (node.tagName !== 'OPTGROUP') return;
       const group = document.createElement('details');
@@ -675,28 +682,33 @@
       container.appendChild(group);
     });
 
-    /* 목적지 검색: 텍스트가 있으면 매칭되는 항목만 남기고 해당 그룹을 자동으로 펼침 */
+    /* 목적지 검색: 텍스트가 있으면 매칭되는 항목만 남기고 해당 그룹을 자동으로 펼침
+       (신규) container.innerHTML을 비우고 재호출해도 검색 인풋 자체는 그대로 남아
+       있으므로, 리스너가 두 번 붙지 않도록 dataset 플래그로 한 번만 바인딩한다. */
     const searchInput = document.getElementById('destSearch');
-    searchInput?.addEventListener('input', function () {
-      const q = this.value.trim().toLowerCase();
-      container.querySelectorAll('.aq-accordion-group').forEach(function (group) {
-        const rows = Array.from(group.querySelectorAll('.aq-list-row'));
-        if (!q) {
-          rows.forEach(function (r) { r.classList.remove('aq-row-hidden'); });
-          group.classList.remove('aq-group-hidden');
-          group.open = false;
-          return;
-        }
-        let anyMatch = false;
-        rows.forEach(function (r) {
-          const match = r.dataset.searchText.includes(q);
-          r.classList.toggle('aq-row-hidden', !match);
-          if (match) anyMatch = true;
+    if (searchInput && !searchInput.dataset.bound) {
+      searchInput.dataset.bound = '1';
+      searchInput.addEventListener('input', function () {
+        const q = this.value.trim().toLowerCase();
+        container.querySelectorAll('.aq-accordion-group').forEach(function (group) {
+          const rows = Array.from(group.querySelectorAll('.aq-list-row'));
+          if (!q) {
+            rows.forEach(function (r) { r.classList.remove('aq-row-hidden'); });
+            group.classList.remove('aq-group-hidden');
+            group.open = false;
+            return;
+          }
+          let anyMatch = false;
+          rows.forEach(function (r) {
+            const match = r.dataset.searchText.includes(q);
+            r.classList.toggle('aq-row-hidden', !match);
+            if (match) anyMatch = true;
+          });
+          group.classList.toggle('aq-group-hidden', !anyMatch);
+          if (anyMatch) group.open = true;
         });
-        group.classList.toggle('aq-group-hidden', !anyMatch);
-        if (anyMatch) group.open = true;
       });
-    });
+    }
   }
 
   buildDestAccordion();

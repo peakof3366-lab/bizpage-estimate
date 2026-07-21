@@ -811,6 +811,7 @@
         <button class="btn-act btn-outline-p" onclick="openRateBulkModal()">📊 일괄 조정</button>
         <button class="btn-act btn-outline-p" onclick="openRateHistoryModal()">🕘 변경 이력</button>
         <button class="btn-act btn-outline-p" onclick="exportRatesCsv()">CSV 내보내기</button>
+        <button class="btn-act btn-outline-p" onclick="openNewDestModal()">➕ 새 목적지 추가</button>
       </div>
 
       <!-- 요율 테이블 -->
@@ -1199,6 +1200,60 @@
         <div class="detail-label" style="margin-bottom:.5rem">🕘 이 목적지의 변경 이력</div>
         <div id="rate-edit-history" style="display:grid;gap:.5rem;max-height:220px;overflow-y:auto"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 새 목적지 추가 모달 (신규) ══ 내장 56개 목적지가 아닌, 관리자가 직접 등록하는
+     커스텀 목적지 전용. 저장되면 destinationRates에 push되어 위 편집 모달로도
+     똑같이 편집 가능해진다(별도 편집 경로 불필요). -->
+<div id="newDestModal" class="modal-overlay hidden">
+  <div class="modal-box" style="width:min(600px,100%)">
+    <div class="modal-header">
+      <h3>새 목적지 추가</h3>
+      <button onclick="document.getElementById('newDestModal').classList.add('hidden')" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem">
+        <div>
+          <div class="detail-label" style="margin-bottom:.3rem">목적지 키(내부용, 견적서에 그대로 표시됨)</div>
+          <input type="text" id="new-dest-key" class="pw-input" maxlength="40" placeholder="예: 교토" />
+        </div>
+        <div>
+          <div class="detail-label" style="margin-bottom:.3rem">표시명</div>
+          <input type="text" id="new-dest-label" class="pw-input" maxlength="80" placeholder="예: 교토 (Kyoto)" />
+        </div>
+        <div>
+          <div class="detail-label" style="margin-bottom:.3rem">비즈니스석 구간</div>
+          <select id="new-dest-zone" class="status-select">
+            <option value="short">단거리 (×2.5)</option>
+            <option value="mid">중거리 (×3.2)</option>
+            <option value="long">장거리 (×4.0)</option>
+          </select>
+        </div>
+        <div>
+          <div class="detail-label" style="margin-bottom:.3rem">계절</div>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;margin-top:.4rem">
+            <input type="checkbox" id="new-dest-southern" />남반구(계절이 한국과 반대)
+          </label>
+        </div>
+      </div>
+      <div id="new-dest-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:1rem"></div>
+      <div class="detail-field" style="margin-top:1rem">
+        <div class="detail-label">현지 여행 시즌 (참고용)</div>
+        <textarea class="note-area" id="new-dest-season" placeholder="예: 성수기 3~4월(벚꽃) · 비수기 1~2월..." style="min-height:50px"></textarea>
+      </div>
+      <div class="detail-field" style="margin-top:1rem">
+        <div class="detail-label">비고 / 참고사항</div>
+        <textarea class="note-area" id="new-dest-notes" placeholder="변동성·확인 주의사항 등을 입력하세요..." style="min-height:60px"></textarea>
+      </div>
+      <div class="modal-actions">
+        <span id="new-dest-author" class="rate-author-tag"></span>
+        <button class="btn-act btn-primary" onclick="saveNewDestination()">저장</button>
+        <button class="btn-act" onclick="document.getElementById('newDestModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
+      </div>
+      <p id="new-dest-msg" style="font-size:.74rem;margin-top:.5rem"></p>
+      <p style="font-size:.74rem;color:var(--muted);margin-top:.5rem">저장하면 즉시 공개 견적 계산기·내부 견적 산출 도구 드롭다운에 "🆕 신규 추가 목적지"로 나타나며, 요율 편집·삭제도 그때부터 가능합니다.</p>
     </div>
   </div>
 </div>
@@ -2275,6 +2330,12 @@
   let fxRatesCache = {};
   let fxBaselineCache = {};
 
+  /* 관리자 신규 목적지(커스텀 목적지) 키 집합 (신규) — loadRateOverrides()가
+     destinationRates에 push한 커스텀 목적지의 destination_key를 여기 기록해 두고,
+     renderRateRow()에서 이 Set에 있을 때만 🗑 삭제 버튼을 노출한다(내장 56개는
+     절대 삭제 버튼이 뜨지 않음). */
+  let customDestinationKeys = new Set();
+
   /* 방금 한 편집/일괄조정 실행취소 (신규) — saveRateEdit()/applyRateBulk()가 성공할
      때마다 "지금 막 한 일"을 localStorage에 기록해 두고(CURRENT_STAFF_KEY와 동일한
      패턴), 상단 배너의 되돌리기 버튼 하나로 즉시 원복할 수 있게 한다. 단순 JS
@@ -2362,6 +2423,14 @@
         rateOverridesCache = data.overrides || {};
         fxRatesCache = data.fxRates || {};
         fxBaselineCache = data.fxBaseline || {};
+        /* 관리자 신규 목적지 병합 (신규) — 이 함수가 여러 곳에서 호출되므로(편집
+           모달 열기, 일괄조정, 새 목적지 저장 후 등) .some() 중복 체크가 없으면
+           호출할 때마다 같은 커스텀 행이 destinationRates에 계속 쌓인다. */
+        (data.customDestinations || []).forEach(row => {
+          const { zone, southern_hemisphere, ...destFields } = row;
+          if (!destinationRates.some(d => d.destination_key === destFields.destination_key)) destinationRates.push(destFields);
+          customDestinationKeys.add(destFields.destination_key);
+        });
       }
     } catch (err) { console.warn('[admin] 요율 오버라이드 조회 실패:', err); }
   }
@@ -2717,6 +2786,13 @@
         html += `<tr class="rate-region-row"><td colspan="11">${esc(region)}</td></tr>`;
         grouped[region].forEach(d => { html += renderRateRow(d, ''); });
       });
+      /* REGION_ORDER에 없는 나머지 그룹(주로 관리자 신규 목적지의 '기타') — 이게
+         없으면 REGION_ORDER에 명시된 지역만 그려져서 커스텀 목적지가 지역순 보기
+         에서 통째로 사라진다(신규). */
+      Object.keys(grouped).filter(r => !REGION_ORDER.includes(r)).forEach(region => {
+        html += `<tr class="rate-region-row"><td colspan="11">${esc(region)}</td></tr>`;
+        grouped[region].forEach(d => { html += renderRateRow(d, ''); });
+      });
       if (!searched.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">검색/필터 조건에 맞는 목적지가 없습니다.</td></tr>`;
     }
     tbody.innerHTML = html;
@@ -2741,6 +2817,7 @@
           <td style="display:flex;gap:.3rem">
             <button class="btn-detail" onclick="openRateEditModal('${d.destination_key}')">편집</button>
             <button class="btn-detail" title="가격은 그대로, 오늘 확인했다는 것만 기록" onclick="confirmRateNoChange('${d.destination_key}')">✓ 확인함</button>
+            ${customDestinationKeys.has(d.destination_key) ? `<button class="btn-detail" onclick="deleteCustomDestination('${esc(d.destination_key)}')">🗑 삭제</button>` : ''}
           </td>
         </tr>`;
   }
@@ -2834,6 +2911,94 @@
       renderRates();
     } catch (err) {
       alert('저장 요청에 실패했습니다. 네트워크를 확인해 주세요.');
+    }
+  }
+
+  /* ── 새 목적지 추가 모달 (신규) ── */
+  async function openNewDestModal() {
+    document.getElementById('new-dest-key').value = '';
+    document.getElementById('new-dest-label').value = '';
+    document.getElementById('new-dest-zone').value = 'short';
+    document.getElementById('new-dest-southern').checked = false;
+    document.getElementById('new-dest-notes').value = '';
+    document.getElementById('new-dest-season').value = '';
+    document.getElementById('new-dest-msg').textContent = '';
+    document.getElementById('new-dest-fields').innerHTML = RATE_FIELD_ORDER.map(f => `
+      <div>
+        <div class="detail-label" style="margin-bottom:.3rem">${RATE_FIELD_LABELS[f]}</div>
+        <input type="number" class="pw-input" data-field="${f}" value="0" min="0" />
+      </div>`).join('');
+    const authorTag = document.getElementById('new-dest-author');
+    const curStaff = getCurrentStaff();
+    authorTag.textContent = curStaff ? `작성자: ${curStaff}` : '⚠ 상단에서 담당자를 먼저 선택하세요';
+    authorTag.classList.toggle('unset', !curStaff);
+    document.getElementById('newDestModal').classList.remove('hidden');
+  }
+
+  async function saveNewDestination() {
+    const msg = document.getElementById('new-dest-msg');
+    msg.textContent = '';
+    const author = getCurrentStaff();
+    if (!author) { alert('먼저 상단 헤더에서 담당자를 선택해 주세요.'); return; }
+
+    const destinationKey = document.getElementById('new-dest-key').value.trim();
+    const label = document.getElementById('new-dest-label').value.trim();
+    const zone = document.getElementById('new-dest-zone').value;
+    const southernHemisphere = document.getElementById('new-dest-southern').checked;
+    if (!destinationKey || !label) { msg.style.color = 'var(--danger)'; msg.textContent = '목적지 키와 표시명은 필수입니다.'; return; }
+    if (destinationRates.some(d => d.destination_key === destinationKey)) {
+      msg.style.color = 'var(--danger)'; msg.textContent = '이미 존재하는 목적지 키입니다(내장 목적지 포함).'; return;
+    }
+
+    const fields = {};
+    let fieldsValid = true;
+    document.querySelectorAll('#new-dest-fields input[data-field]').forEach(inp => {
+      const v = Number(inp.value);
+      if (!Number.isFinite(v) || v < 0) fieldsValid = false;
+      fields[inp.dataset.field] = v;
+    });
+    if (!fieldsValid) { msg.style.color = 'var(--danger)'; msg.textContent = '모든 단가 필드는 0 이상의 숫자여야 합니다.'; return; }
+
+    if (!confirm(`"${label}"을(를) 새 목적지로 추가하시겠습니까?\n저장 즉시 공개 견적 계산기에서 선택 가능해집니다.`)) return;
+
+    try {
+      const res = await fetch('/api/rates?action=createDestination', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destinationKey, label, zone, southernHemisphere, fields,
+          notes: document.getElementById('new-dest-notes').value.trim(),
+          seasonNote: document.getElementById('new-dest-season').value.trim(),
+          author,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { msg.style.color = 'var(--danger)'; msg.textContent = '저장에 실패했습니다: ' + (data.error || ''); return; }
+      await loadRateOverrides();
+      document.getElementById('newDestModal').classList.add('hidden');
+      renderRates();
+    } catch (err) {
+      msg.style.color = 'var(--danger)'; msg.textContent = '저장 요청에 실패했습니다. 네트워크를 확인해 주세요.';
+    }
+  }
+
+  /* 관리자 신규 목적지 삭제 (신규) — customDestinationKeys에 있는(=내장이 아닌)
+     목적지만 대상. 서버도 내장 목적지 삭제를 403으로 막지만, 여기서도 한 번 더
+     방어한다. destinationRates는 const이므로 반드시 splice로 제거(재할당 금지 —
+     이미 이 배열을 참조 중인 다른 클로저를 깨뜨림). */
+  async function deleteCustomDestination(destKey) {
+    if (!customDestinationKeys.has(destKey)) return;
+    const dest = destinationRates.find(d => d.destination_key === destKey);
+    if (!confirm(`"${dest ? dest.label : destKey}" 목적지를 삭제하시겠습니까?\n공개 견적 계산기에서 더 이상 선택할 수 없게 됩니다(과거 견적 기록은 유지됨).`)) return;
+    try {
+      const res = await fetch(`/api/rates?action=deleteDestination&destinationKey=${encodeURIComponent(destKey)}`, { method: 'DELETE' });
+      if (!res.ok) { alert('삭제에 실패했습니다.'); return; }
+      const idx = destinationRates.findIndex(d => d.destination_key === destKey);
+      if (idx !== -1) destinationRates.splice(idx, 1);
+      delete rateOverridesCache[destKey];
+      customDestinationKeys.delete(destKey);
+      renderRates();
+    } catch (err) {
+      alert('삭제 요청에 실패했습니다. 네트워크를 확인해 주세요.');
     }
   }
 

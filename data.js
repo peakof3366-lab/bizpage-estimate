@@ -137,6 +137,11 @@ const destinationRates = [
   {"destination_key":"동유럽",       "label":"동유럽",       "airfare":1200000,"fuel_surcharge":520000,"hotel_per_room":250000,"meal_per_person":30000, "vehicle_large":1100000,"vehicle_small":825000, "guide_fee":350000,"sightseeing_fee":100000,"margin_per_traveler":200000, "rateDate":"2026-06", "notes":"환율(EUR/PLN) 복합 변동. 분기별 확인.", "season_note":"성수기: 6~8월 · 평시: 4~5월·9~10월 · 준성수기: 12월(크리스마스마켓) · 비수기: 1~2월"}
 ];
 
+/* 서버(Node)에서 관리자 신규 목적지 생성 시 내장 목적지와의 destination_key 충돌을
+   검사할 수 있도록 하는 isomorphic export (dest_currency.js와 동일한 패턴). 브라우저
+   에서는 module이 없어 조건이 거짓이 되므로 아무 영향 없음. */
+if (typeof module !== 'undefined' && module.exports) module.exports = destinationRates;
+
 /* =====================================================================
    DEST_REC — 목적지별 연수 방식 추천 콘텐츠
    방식 A: 역량강화형  |  방식 B: 동기부여·화합형
