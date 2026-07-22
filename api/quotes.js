@@ -122,8 +122,9 @@ async function handlePriceReport(req, res) {
 async function handlePriceReports(req, res) {
   if (!(await requireAdmin(req, res))) return;
   try {
-    const rows = await sql`select destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit, author, source, created_at from actual_price_reports order by created_at desc limit 1000`;
+    const rows = await sql`select id, destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit, author, source, created_at from actual_price_reports order by created_at desc limit 1000`;
     return res.status(200).json(rows.map((r) => ({
+      id: Number(r.id),
       destinationKey: r.destination_key,
       airfareUnit: r.airfare_unit != null ? Number(r.airfare_unit) : null,
       hotelUnit: r.hotel_unit != null ? Number(r.hotel_unit) : null,
@@ -137,11 +138,29 @@ async function handlePriceReports(req, res) {
   }
 }
 
+/* 잘못 입력된 실제 계약가 제보 삭제(신규) — 제출 시 오타 등으로 잘못 들어간 값이
+   갱신제안·검증배지에 계속 악영향을 주므로, 관리자 페이지에서 해당 제보를 지울 수
+   있게 한다. 로그인한 담당자면 삭제 가능(제보 제출과 동일 권한). id 하나만 지운다. */
+async function handleDeletePriceReport(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  const id = Number((req.query && req.query.id) || (req.body && req.body.id));
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'invalid_id' });
+  try {
+    const deleted = await sql`delete from actual_price_reports where id = ${id} returning id`;
+    if (!deleted.length) return res.status(404).json({ error: 'not_found' });
+    return res.status(200).json({ ok: true, id });
+  } catch (err) {
+    console.error('[quotes deletePriceReport] 삭제 실패:', err);
+    return res.status(500).json({ error: 'delete_failed' });
+  }
+}
+
 module.exports = async (req, res) => {
   const action = req.query && req.query.action;
   if (action === 'extractPdf' && req.method === 'POST') return handleExtractPdf(req, res);
   if (action === 'priceReport' && req.method === 'POST') return handlePriceReport(req, res);
   if (action === 'priceReports' && req.method === 'GET') return handlePriceReports(req, res);
+  if (action === 'deletePriceReport' && req.method === 'DELETE') return handleDeletePriceReport(req, res);
 
   if (req.method === 'POST') {
     const payload = req.body || {};

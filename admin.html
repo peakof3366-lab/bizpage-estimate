@@ -760,8 +760,9 @@
             </div>
           </div>
 
-          <div style="margin-top:1rem">
+          <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
             <button type="button" class="btn-act btn-primary" onclick="submitPriceReport()">제출</button>
+            <button type="button" class="btn-act btn-outline-p" onclick="openPriceReportsModal()">📋 제보 내역·삭제</button>
           </div>
           <p id="pr-msg" style="font-size:.78rem;font-weight:700;margin-top:.6rem"></p>
         </div>
@@ -1249,6 +1250,38 @@
 <!-- ══ 새 목적지 추가 모달 (신규) ══ 내장 56개 목적지가 아닌, 관리자가 직접 등록하는
      커스텀 목적지 전용. 저장되면 destinationRates에 push되어 위 편집 모달로도
      똑같이 편집 가능해진다(별도 편집 경로 불필요). -->
+<!-- 실제 계약가 제보 내역·삭제 (신규) — 잘못 입력된 제보를 찾아 지울 수 있게 한다.
+     삭제 즉시 갱신제안·검증배지가 재계산된다. -->
+<div id="priceReportsModal" class="modal-overlay hidden">
+  <div class="modal-box" style="width:min(820px,100%)">
+    <div class="modal-header">
+      <h3>실제 계약가 제보 내역</h3>
+      <button onclick="document.getElementById('priceReportsModal').classList.add('hidden')" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem">
+        <div class="detail-label" style="margin:0">목적지 필터</div>
+        <select id="pr-list-filter" class="status-select" style="min-width:180px" onchange="renderPriceReportsList()"></select>
+        <span style="font-size:.76rem;color:var(--muted)">잘못 입력된 제보는 🗑 삭제하면 갱신제안·검증에서 즉시 빠집니다.</span>
+      </div>
+      <div style="max-height:56vh;overflow:auto;border:1px solid var(--border);border-radius:8px">
+        <table class="rate-table" style="width:100%;font-size:.8rem">
+          <thead>
+            <tr>
+              <th style="text-align:left">일시</th><th style="text-align:left">목적지</th>
+              <th style="text-align:right">항공료</th><th style="text-align:right">호텔단가</th>
+              <th style="text-align:right">식비</th><th style="text-align:left">호텔명</th>
+              <th style="text-align:left">작성자</th><th style="text-align:left">출처</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="pr-list-tbody"></tbody>
+        </table>
+      </div>
+      <p id="pr-list-msg" style="font-size:.78rem;font-weight:700;margin-top:.6rem"></p>
+    </div>
+  </div>
+</div>
+
 <div id="newDestModal" class="modal-overlay hidden">
   <div class="modal-box" style="width:min(600px,100%)">
     <div class="modal-header">
@@ -2590,6 +2623,23 @@
     return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
   }
   const RATE_SUGGEST_REPORT_FIELDS = { airfare: 'airfareUnit', hotel_per_room: 'hotelUnit', meal_per_person: 'mealUnit' };
+  /* 오타 방어(신규) — 제보/편집 시 입력값이 기준가에서 이 배율 밖으로 벗어나면
+     오타(예: 420,000→4,200,000)일 확률이 높으니 확인창을 띄운다. base가 없으면(신규
+     등) 비교 불가 → 통과. 반환 true면 진행해도 됨. */
+  const PLAUSIBLE_HIGH = 3;
+  const PLAUSIBLE_LOW = 1 / 3;
+  function confirmPlausibleValue(fieldLabel, value, base) {
+    if (value == null || !isFinite(value) || !base || base <= 0) return true;
+    const ratio = value / base;
+    if (ratio > PLAUSIBLE_HIGH || ratio < PLAUSIBLE_LOW) {
+      const desc = ratio >= 1 ? `약 ${ratio.toFixed(1)}배` : `약 1/${(1 / ratio).toFixed(1)}`;
+      return confirm(`입력하신 ${fieldLabel} ${fmtWon(value)}은(는) 현재 기준가 ${fmtWon(base)}의 ${desc}입니다.\n오타가 아닌지 확인해 주세요. 이대로 진행할까요?`);
+    }
+    return true;
+  }
+  /* 기준가 이상 경고(신규) — 현재 기준가가 최근 실측 중앙값과 이 비율 이상 벌어지면
+     요율표에 경고 배지를 띄운다(잘못 반영된 기준가가 견적을 계속 망치는 걸 탐지). */
+  const RATE_BASE_DRIFT_WARN = 0.4;
 
   /* "실제 계약가 업데이트" 위젯이 남긴 목적지 무관 제보 목록(신규) — 견적관리 상세
      모달의 quotes.actual_airfare_unit과 달리 특정 견적 계산 당시의 "추정가"가 없으므로,
@@ -2878,6 +2928,14 @@
     if (airfare.value == null && hotel.value == null && meal.value == null && !hotelName) {
       msg.style.color = 'var(--danger)'; msg.textContent = '항공료·호텔단가·호텔명·식비 중 최소 하나는 입력해 주세요.'; return;
     }
+    /* 오타 방어(신규) — 기준가에서 크게 벗어난 값은 제출 전에 한 번 더 확인받는다.
+       cancel하면 제출 중단(모달 유지, 담당자가 값을 고칠 수 있음). */
+    const prDest = destinationRates.find(d => d.destination_key === destKey);
+    const prEff = prDest ? effectiveRate(prDest) : {};
+    if (!confirmPlausibleValue('항공료', airfare.value, prEff.airfare)) return;
+    if (!confirmPlausibleValue('호텔단가', hotel.value, prEff.hotel_per_room)) return;
+    if (!confirmPlausibleValue('식비', meal.value, prEff.meal_per_person)) return;
+
     const source = priceReportMode; // 'manual' | 'pdf' — 선택한 방식 그대로 기록
     try {
       const res = await fetch('/api/quotes?action=priceReport', {
@@ -2896,6 +2954,61 @@
     }
   }
 
+  /* 제보 내역·삭제 모달(신규) — 잘못 입력된 제보를 찾아 지운다. priceReportsCache를
+     최근순 그대로 목록화하고 목적지 필터를 건다. 삭제 후 캐시 재적재 + 요율표(갱신제안·
+     검증배지·참고카드 포함) 재렌더. */
+  function openPriceReportsModal() {
+    const filter = document.getElementById('pr-list-filter');
+    if (filter) {
+      const dests = [...new Set(priceReportsCache.map(r => r.destinationKey))];
+      const optLabel = k => { const d = destinationRates.find(x => x.destination_key === k); return d ? d.label : k; };
+      filter.innerHTML = `<option value="">전체 (${priceReportsCache.length}건)</option>` +
+        dests.map(k => `<option value="${esc(k)}">${esc(optLabel(k))}</option>`).join('');
+      const prDest = document.getElementById('pr-dest');
+      filter.value = (prDest && dests.includes(prDest.value)) ? prDest.value : '';
+    }
+    document.getElementById('pr-list-msg').textContent = '';
+    renderPriceReportsList();
+    document.getElementById('priceReportsModal').classList.remove('hidden');
+  }
+
+  function renderPriceReportsList() {
+    const tbody = document.getElementById('pr-list-tbody');
+    if (!tbody) return;
+    const filterKey = document.getElementById('pr-list-filter')?.value || '';
+    const rows = priceReportsCache.filter(r => !filterKey || r.destinationKey === filterKey);
+    const optLabel = k => { const d = destinationRates.find(x => x.destination_key === k); return d ? d.label : k; };
+    const cell = v => v != null ? fmtWon(v) : '<span style="color:var(--muted)">—</span>';
+    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.5rem">제보가 없습니다.</td></tr>`; return; }
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td style="white-space:nowrap">${r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 10) : '—'}</td>
+        <td style="white-space:nowrap"><strong>${esc(optLabel(r.destinationKey))}</strong></td>
+        <td style="text-align:right">${cell(r.airfareUnit)}</td>
+        <td style="text-align:right">${cell(r.hotelUnit)}</td>
+        <td style="text-align:right">${cell(r.mealUnit)}</td>
+        <td>${r.hotelName ? esc(r.hotelName) : '<span style="color:var(--muted)">—</span>'}</td>
+        <td>${esc(r.author || '—')}</td>
+        <td><span style="font-size:.7rem;color:var(--muted)">${r.source === 'pdf' ? 'PDF' : '직접'}</span></td>
+        <td style="text-align:right"><button class="btn-detail" onclick="deletePriceReportById(${r.id})">🗑 삭제</button></td>
+      </tr>`).join('');
+  }
+
+  async function deletePriceReportById(id) {
+    const msg = document.getElementById('pr-list-msg');
+    if (!confirm('이 제보를 삭제할까요?\n삭제하면 갱신제안·검증에서 즉시 빠지며 되돌릴 수 없습니다.')) return;
+    try {
+      const res = await fetch(`/api/quotes?action=deletePriceReport&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!res.ok) { msg.style.color = 'var(--danger)'; msg.textContent = '삭제에 실패했습니다.'; return; }
+      await loadPriceReports();
+      renderPriceReportsList();
+      renderRates();
+      msg.style.color = 'var(--success)'; msg.textContent = '삭제되었습니다.';
+    } catch (err) {
+      msg.style.color = 'var(--danger)'; msg.textContent = '삭제 요청에 실패했습니다. 네트워크를 확인해 주세요.';
+    }
+  }
+
   /* 실측 검증 현황(신규) — "이 기준가가 실제 계약가와 대조된 적이 있는가"를 목적지×항목
      (항공료/호텔/식비)별로 집계한다. 소스는 갱신제안과 동일하게 (1) 실제 계약가 위젯 제보
      (2) 계약완료 견적의 실제가 필드. 항목별로 가장 최근 실측일(ms)만 남긴다. 식비는 위젯
@@ -2903,22 +3016,26 @@
   const RATE_ACTUAL_FIELDS = ['airfare', 'hotel_per_room', 'meal_per_person'];
   let rateActualValidationMap = {};
   function buildActualValidationMap() {
-    const map = {}; // `${destKey}|${field}` -> 최근 실측 timestamp(ms)
-    const put = (destKey, field, tsMs) => {
+    const map = {}; // `${destKey}|${field}` -> { latestTs, recentVals:[] }
+    const cutoff = RATE_SUGGEST_RECENT_CUTOFF();
+    const put = (destKey, field, tsMs, val) => {
       if (!destKey || !field || !isFinite(tsMs)) return;
       const k = `${destKey}|${field}`;
-      if (!map[k] || tsMs > map[k]) map[k] = tsMs;
+      if (!map[k]) map[k] = { latestTs: 0, recentVals: [] };
+      if (tsMs > map[k].latestTs) map[k].latestTs = tsMs;
+      /* 기준가 이상 경고용 — 최근성 창 이내의 실측값만 모아 중앙값 비교에 쓴다 */
+      if (tsMs >= cutoff && val != null && isFinite(val) && val > 0) map[k].recentVals.push(val);
     };
     (priceReportsCache || []).forEach(r => {
       const ts = new Date(r.createdAt).getTime();
-      if (r.airfareUnit != null) put(r.destinationKey, 'airfare', ts);
-      if (r.hotelUnit != null) put(r.destinationKey, 'hotel_per_room', ts);
-      if (r.mealUnit != null) put(r.destinationKey, 'meal_per_person', ts);
+      if (r.airfareUnit != null) put(r.destinationKey, 'airfare', ts, r.airfareUnit);
+      if (r.hotelUnit != null) put(r.destinationKey, 'hotel_per_room', ts, r.hotelUnit);
+      if (r.mealUnit != null) put(r.destinationKey, 'meal_per_person', ts, r.mealUnit);
     });
     getEstsFull().filter(e => e.status === 'contracted' && e.destKey).forEach(e => {
       const ts = new Date(e.ts).getTime();
-      if (e.actualAirfareUnit != null) put(e.destKey, 'airfare', ts);
-      if (e.actualHotelUnit != null) put(e.destKey, 'hotel_per_room', ts);
+      if (e.actualAirfareUnit != null) put(e.destKey, 'airfare', ts, e.actualAirfareUnit);
+      if (e.actualHotelUnit != null) put(e.destKey, 'hotel_per_room', ts, e.actualHotelUnit);
     });
     return map;
   }
@@ -2926,11 +3043,23 @@
   /* 요율표 셀에 붙는 실측 검증 배지 — ✓실측(최근성 창 이내) / ⚠N개월 전(오래됨) /
      ◽미검증(실측 데이터 없음). "이 기준가는 실제로 확인된 적 없음"이라는 사각지대를
      담당자가 바로 볼 수 있게 한다. */
-  function rateValidationBadge(destKey, field) {
-    const ts = rateActualValidationMap[`${destKey}|${field}`];
+  function rateValidationBadge(destKey, field, base) {
+    const info = rateActualValidationMap[`${destKey}|${field}`];
     const style = 'font-size:.62rem;margin-top:.15rem;white-space:nowrap;font-weight:700';
-    if (!ts) return `<div style="${style};color:var(--muted)" title="실측 계약가 데이터가 아직 없습니다 — 이 기준가는 실제 계약가와 대조된 적이 없어요">◽ 미검증</div>`;
-    const months = Math.floor((Date.now() - ts) / (30 * 24 * 3600 * 1000));
+    if (!info || !info.latestTs) return `<div style="${style};color:var(--muted)" title="실측 계약가 데이터가 아직 없습니다 — 이 기준가는 실제 계약가와 대조된 적이 없어요">◽ 미검증</div>`;
+    /* 기준가 이상 경고(신규) — 최근 실측 중앙값과 크게 벌어지면 최우선 표시. 실측이
+       2건 이상일 때만(오타 1건에 의한 오탐 방지). 잘못 반영된 기준가 탐지용. */
+    if (base && base > 0 && info.recentVals.length >= 2) {
+      const med = ratioMedian(info.recentVals);
+      if (med > 0) {
+        const drift = base / med - 1;
+        if (Math.abs(drift) >= RATE_BASE_DRIFT_WARN) {
+          const pct = Math.round(drift * 100);
+          return `<div style="${style};color:var(--danger)" title="현재 기준가 ${fmtWon(base)}이(가) 최근 실측 중앙값 ${fmtWon(med)}과(와) ${pct > 0 ? '+' : ''}${pct}% 차이 — 기준가가 실제와 어긋났을 수 있어 확인 권장">❗ 실측대비 ${pct > 0 ? '+' : ''}${pct}%</div>`;
+        }
+      }
+    }
+    const months = Math.floor((Date.now() - info.latestTs) / (30 * 24 * 3600 * 1000));
     if (months >= RATE_SUGGEST_RECENT_MONTHS) return `<div style="${style};color:#b45309" title="마지막 실측 약 ${months}개월 전 — 최근 데이터로 확인 권장">⚠ ${months}개월 전</div>`;
     return `<div style="${style};color:var(--success)" title="최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 내 실측 데이터 있음 (약 ${months}개월 전)">✓ 실측</div>`;
   }
@@ -3034,9 +3163,9 @@
           <td style="color:var(--muted);font-size:.76rem">${esc(regionLabel)}</td>
           <td style="white-space:nowrap"><strong>${esc(d.label)}</strong></td>
           <td>${eff.season_note ? `<button type="button" class="btn-detail" title="${esc(eff.season_note)}" style="font-size:.68rem;padding:.2rem .5rem;width:100%">🌤️ 시즌 확인하기</button>` : ''}</td>
-          <td style="text-align:right">${fmtWon(eff.airfare)}${rateValidationBadge(d.destination_key, 'airfare')}</td>
-          <td style="text-align:right">${fmtWon(eff.hotel_per_room)}${rateValidationBadge(d.destination_key, 'hotel_per_room')}</td>
-          <td style="text-align:right">${fmtWon(eff.meal_per_person)}${rateValidationBadge(d.destination_key, 'meal_per_person')}</td>
+          <td style="text-align:right">${fmtWon(eff.airfare)}${rateValidationBadge(d.destination_key, 'airfare', eff.airfare)}</td>
+          <td style="text-align:right">${fmtWon(eff.hotel_per_room)}${rateValidationBadge(d.destination_key, 'hotel_per_room', eff.hotel_per_room)}</td>
+          <td style="text-align:right">${fmtWon(eff.meal_per_person)}${rateValidationBadge(d.destination_key, 'meal_per_person', eff.meal_per_person)}</td>
           <td style="text-align:right">${fmtWon(eff.margin_per_traveler)}</td>
           <td>${fmtRateDate(eff.rateDate)}</td>
           <td style="color:var(--muted)">${rs.months <= 999 ? rs.months + '개월' : '—'}</td>
@@ -3112,6 +3241,12 @@
     if (newSeason !== (eff.season_note || '')) changes.push({ field: 'season_note', oldValue: eff.season_note || '', newValue: newSeason });
 
     if (!changes.length) { alert('변경된 내용이 없습니다.'); return; }
+    /* 오타 방어(신규) — 가격 항목이 기존 값에서 크게 벗어나면 저장 전에 확인.
+       기준 비교값은 "바꾸기 전 값(oldValue)". cancel하면 저장 중단(편집창 유지). */
+    for (const c of changes) {
+      if (c.field === 'notes' || c.field === 'season_note' || c.field === 'rateDate') continue;
+      if (!confirmPlausibleValue(RATE_FIELD_LABELS[c.field] || c.field, c.newValue, Number(c.oldValue) || 0)) return;
+    }
     if (!confirm(`"${dest.label}" 요율을 수정하시겠습니까? (${changes.length}개 항목 변경)`)) return;
 
     /* 가격이 실제로 바뀌면 "요율 확인월"도 오늘로 자동 갱신 */
