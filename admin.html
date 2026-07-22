@@ -2896,6 +2896,45 @@
     }
   }
 
+  /* 실측 검증 현황(신규) — "이 기준가가 실제 계약가와 대조된 적이 있는가"를 목적지×항목
+     (항공료/호텔/식비)별로 집계한다. 소스는 갱신제안과 동일하게 (1) 실제 계약가 위젯 제보
+     (2) 계약완료 견적의 실제가 필드. 항목별로 가장 최근 실측일(ms)만 남긴다. 식비는 위젯
+     제보에만 있어 견적 소스에선 안 잡힘(정상). */
+  const RATE_ACTUAL_FIELDS = ['airfare', 'hotel_per_room', 'meal_per_person'];
+  let rateActualValidationMap = {};
+  function buildActualValidationMap() {
+    const map = {}; // `${destKey}|${field}` -> 최근 실측 timestamp(ms)
+    const put = (destKey, field, tsMs) => {
+      if (!destKey || !field || !isFinite(tsMs)) return;
+      const k = `${destKey}|${field}`;
+      if (!map[k] || tsMs > map[k]) map[k] = tsMs;
+    };
+    (priceReportsCache || []).forEach(r => {
+      const ts = new Date(r.createdAt).getTime();
+      if (r.airfareUnit != null) put(r.destinationKey, 'airfare', ts);
+      if (r.hotelUnit != null) put(r.destinationKey, 'hotel_per_room', ts);
+      if (r.mealUnit != null) put(r.destinationKey, 'meal_per_person', ts);
+    });
+    getEstsFull().filter(e => e.status === 'contracted' && e.destKey).forEach(e => {
+      const ts = new Date(e.ts).getTime();
+      if (e.actualAirfareUnit != null) put(e.destKey, 'airfare', ts);
+      if (e.actualHotelUnit != null) put(e.destKey, 'hotel_per_room', ts);
+    });
+    return map;
+  }
+
+  /* 요율표 셀에 붙는 실측 검증 배지 — ✓실측(최근성 창 이내) / ⚠N개월 전(오래됨) /
+     ◽미검증(실측 데이터 없음). "이 기준가는 실제로 확인된 적 없음"이라는 사각지대를
+     담당자가 바로 볼 수 있게 한다. */
+  function rateValidationBadge(destKey, field) {
+    const ts = rateActualValidationMap[`${destKey}|${field}`];
+    const style = 'font-size:.62rem;margin-top:.15rem;white-space:nowrap;font-weight:700';
+    if (!ts) return `<div style="${style};color:var(--muted)" title="실측 계약가 데이터가 아직 없습니다 — 이 기준가는 실제 계약가와 대조된 적이 없어요">◽ 미검증</div>`;
+    const months = Math.floor((Date.now() - ts) / (30 * 24 * 3600 * 1000));
+    if (months >= RATE_SUGGEST_RECENT_MONTHS) return `<div style="${style};color:#b45309" title="마지막 실측 약 ${months}개월 전 — 최근 데이터로 확인 권장">⚠ ${months}개월 전</div>`;
+    return `<div style="${style};color:var(--success)" title="최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 내 실측 데이터 있음 (약 ${months}개월 전)">✓ 실측</div>`;
+  }
+
   function renderRates() {
     refreshRateUndoBanner();
     populatePriceReportDestSelect();
@@ -2907,6 +2946,8 @@
         '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">data.js를 찾을 수 없습니다.</td></tr>';
       return;
     }
+
+    rateActualValidationMap = buildActualValidationMap();
 
     /* 메타 배너 */
     const allStatus   = destinationRates.map(d => adminGetCombinedStatus(d.destination_key, d.rateDate));
@@ -2993,9 +3034,9 @@
           <td style="color:var(--muted);font-size:.76rem">${esc(regionLabel)}</td>
           <td style="white-space:nowrap"><strong>${esc(d.label)}</strong></td>
           <td>${eff.season_note ? `<button type="button" class="btn-detail" title="${esc(eff.season_note)}" style="font-size:.68rem;padding:.2rem .5rem;width:100%">🌤️ 시즌 확인하기</button>` : ''}</td>
-          <td style="text-align:right">${fmtWon(eff.airfare)}</td>
-          <td style="text-align:right">${fmtWon(eff.hotel_per_room)}</td>
-          <td style="text-align:right">${fmtWon(eff.meal_per_person)}</td>
+          <td style="text-align:right">${fmtWon(eff.airfare)}${rateValidationBadge(d.destination_key, 'airfare')}</td>
+          <td style="text-align:right">${fmtWon(eff.hotel_per_room)}${rateValidationBadge(d.destination_key, 'hotel_per_room')}</td>
+          <td style="text-align:right">${fmtWon(eff.meal_per_person)}${rateValidationBadge(d.destination_key, 'meal_per_person')}</td>
           <td style="text-align:right">${fmtWon(eff.margin_per_traveler)}</td>
           <td>${fmtRateDate(eff.rateDate)}</td>
           <td style="color:var(--muted)">${rs.months <= 999 ? rs.months + '개월' : '—'}</td>
