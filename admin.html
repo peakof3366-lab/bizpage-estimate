@@ -2561,7 +2561,7 @@
      항공료를, 그 견적을 계산할 당시의 추정 항공료(items의 '항공' 항목 unit)와
      견적 하나하나 비율(실제/추정)로 비교한다. 견적마다 계절·출발지 등 조건이
      달라도 "그 조건에서 우리가 얼마나 벗어났는지" 비율은 조건과 무관하게 비교
-     가능하므로, 목적지별 평균 비율을 현재 기준가에 곱해 제안값을 만든다.
+     가능하므로, 목적지별 (이상치 제외 후) 중앙값 비율을 현재 기준가에 곱해 제안값을 만든다.
      항공료 외에 호텔(hotel_per_room)·식비(meal_per_person)도 같은 방식으로
      계산하되, 이 둘은 "실제 계약가 업데이트" 위젯의 제보만 소스로 쓴다(견적관리
      상세 모달은 실제 항공료만 기록하는 기존 필드가 있을 뿐 호텔/식비 실측값을
@@ -2572,6 +2572,23 @@
      반영은 하지 않음 — 논의 후 절충). */
   const RATE_SUGGEST_MIN_COUNT = 2;
   const RATE_SUGGEST_CONFIDENT_COUNT = 5;
+  /* 최근성(신규) — 이 개월 수 이내 데이터만 집계에 쓴다. 오래된 계약가가 계속 평균을
+     붙잡아 최신 시세 반영을 늦추는 문제를 막는다. 요율 검토 주기가 분기라 12개월이면
+     최근 4개 분기치가 남아 표본이 과하게 줄지 않으면서 1년 넘은 건 배제된다. */
+  const RATE_SUGGEST_RECENT_MONTHS = 12;
+  const RATE_SUGGEST_RECENT_CUTOFF = () => Date.now() - RATE_SUGGEST_RECENT_MONTHS * 30 * 24 * 3600 * 1000;
+  /* 이상치 방어(신규) — 기준가 대비 이 배율 범위를 벗어난 제보(예: 420,000을
+     4,200,000으로 오타)는 집계에서 제외하고, 제외 건수는 UI에 알려 사람이 확인하게 한다.
+     남은 값은 평균이 아니라 중앙값(median)으로 대표값을 잡아 한두 건의 이상치에 덜
+     흔들리게 한다. */
+  const RATE_SUGGEST_RATIO_MIN = 0.5;
+  const RATE_SUGGEST_RATIO_MAX = 2.0;
+  function ratioMedian(arr) {
+    const s = arr.slice().sort((a, b) => a - b);
+    const n = s.length;
+    if (!n) return null;
+    return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+  }
   const RATE_SUGGEST_REPORT_FIELDS = { airfare: 'airfareUnit', hotel_per_room: 'hotelUnit', meal_per_person: 'mealUnit' };
 
   /* "실제 계약가 업데이트" 위젯이 남긴 목적지 무관 제보 목록(신규) — 견적관리 상세
@@ -2590,13 +2607,22 @@
     if (typeof destinationRates === 'undefined') return [];
     const byKey = {}; // `${destKey}|${field}` -> { destKey, field, label, ratios }
 
+    /* 최근성 필터(신규) — 최근 RATE_SUGGEST_RECENT_MONTHS개월 이내 데이터만 집계.
+       날짜가 없거나 파싱 안 되는 건 데이터 유실 방지를 위해 배제하지 않는다. */
+    const recentCutoff = RATE_SUGGEST_RECENT_CUTOFF();
+    const isRecent = (dateVal) => {
+      if (dateVal == null || dateVal === '') return true;
+      const t = new Date(dateVal).getTime();
+      return isNaN(t) ? true : t >= recentCutoff;
+    };
+
     /* 항공료·호텔: 견적관리 상세 모달에 남긴 실제/추정 비율 */
     const EM_FIELD_SOURCES = [
       { field: 'airfare', actualKey: 'actualAirfareUnit', match: it => it.name === '항공' },
       { field: 'hotel_per_room', actualKey: 'actualHotelUnit', match: it => (it.name || '').startsWith('호텔') },
     ];
     EM_FIELD_SOURCES.forEach(({ field, actualKey, match }) => {
-      getEstsFull().filter(e => e.status === 'contracted' && e[actualKey] != null && e.destKey).forEach(e => {
+      getEstsFull().filter(e => e.status === 'contracted' && e[actualKey] != null && e.destKey && isRecent(e.ts)).forEach(e => {
         const estItem = (e.items || []).find(match);
         if (!estItem || !estItem.unit) return;
         const key = `${e.destKey}|${field}`;
@@ -2607,6 +2633,7 @@
 
     /* 항공료·호텔·식비: "실제 계약가 업데이트" 위젯 제보 */
     priceReportsCache.forEach(r => {
+      if (!isRecent(r.createdAt)) return;
       const dest = destinationRates.find(d => d.destination_key === r.destinationKey);
       if (!dest) return;
       const eff = effectiveRate(dest);
@@ -2623,18 +2650,22 @@
 
     const suggestions = [];
     Object.values(byKey).forEach(data => {
-      if (data.ratios.length < RATE_SUGGEST_MIN_COUNT) return;
-      const avgRatio = data.ratios.reduce((a, b) => a + b, 0) / data.ratios.length;
-      const diffPct = (avgRatio - 1) * 100;
+      /* 이상치 방어 — 기준 대비 RATE_SUGGEST_RATIO_MIN~MAX 배 밖의 비율(오타·특가 등)은
+         집계에서 빼고(clean), 제외 건수는 UI로 알린다. 대표값은 평균이 아니라 중앙값. */
+      const clean = data.ratios.filter(r => r >= RATE_SUGGEST_RATIO_MIN && r <= RATE_SUGGEST_RATIO_MAX);
+      const outlierCount = data.ratios.length - clean.length;
+      if (clean.length < RATE_SUGGEST_MIN_COUNT) return;
+      const medRatio = ratioMedian(clean);
+      const diffPct = (medRatio - 1) * 100;
       if (Math.abs(diffPct) < 10) return;
       const dest = destinationRates.find(d => d.destination_key === data.destKey);
       if (!dest) return;
       const currentBase = effectiveRate(dest)[data.field] || 0;
       suggestions.push({
         destKey: data.destKey, field: data.field, fieldLabel: RATE_FIELD_LABELS[data.field] || data.field,
-        label: data.label, count: data.ratios.length, diffPct,
-        currentBase, suggestedBase: Math.round(currentBase * avgRatio),
-        confident: data.ratios.length >= RATE_SUGGEST_CONFIDENT_COUNT,
+        label: data.label, count: clean.length, outlierCount, diffPct,
+        currentBase, suggestedBase: Math.round(currentBase * medRatio),
+        confident: clean.length >= RATE_SUGGEST_CONFIDENT_COUNT,
       });
     });
     suggestions.sort((a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct));
@@ -2652,9 +2683,9 @@
       <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.6rem .8rem;border:1px solid ${s.confident ? 'var(--danger)' : 'var(--border)'};border-left-width:${s.confident ? '4px' : '1px'};background:${s.confident ? '#fef2f2' : 'var(--bg)'};flex-wrap:wrap">
         <div style="font-size:.85rem">
           ${s.confident ? '<span style="font-size:.68rem;font-weight:700;background:var(--danger);color:#fff;padding:.1rem .4rem;margin-right:.4rem">표본 충분</span>' : ''}
-          <strong>${esc(s.label)} · ${esc(s.fieldLabel)}</strong> · 최근 실제 데이터 ${s.count}건 평균이 기준 대비
+          <strong>${esc(s.label)} · ${esc(s.fieldLabel)}</strong> · 최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 실제 데이터 ${s.count}건 중앙값이 기준 대비
           <strong style="color:${s.diffPct > 0 ? 'var(--danger)' : 'var(--success)'}">${s.diffPct > 0 ? '+' : ''}${s.diffPct.toFixed(1)}%</strong>
-          — 기준 ${fmtWon(s.currentBase)} → 제안 ${fmtWon(s.suggestedBase)}
+          — 기준 ${fmtWon(s.currentBase)} → 제안 ${fmtWon(s.suggestedBase)}${s.outlierCount ? ` <span style="color:var(--danger);font-weight:700">· 이상치 ${s.outlierCount}건 제외</span>` : ''}
         </div>
         <div style="display:flex;gap:.4rem;flex-shrink:0">
           ${s.confident ? `<button type="button" class="btn-act btn-primary" onclick="applyRateSuggestion('${s.destKey}','${s.field}',${s.suggestedBase},${s.count})">✅ 지금 바로 적용</button>` : ''}
