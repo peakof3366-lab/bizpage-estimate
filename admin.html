@@ -1162,6 +1162,9 @@
         </div>
       </div>
 
+      <!-- P5: 실측 기준 신뢰구간 (내부 전용 · 계약 실적이 쌓이면 표시) -->
+      <div id="em-confidence" class="hidden" style="padding:.85rem 1.25rem;border-bottom:1px solid var(--border);font-size:.82rem;background:#f8fafc"></div>
+
       <!-- 상태 + 메모 -->
       <div style="padding:1.1rem 1.25rem">
         <div style="display:grid;grid-template-columns:auto auto 1fr;gap:1rem;align-items:start">
@@ -3174,6 +3177,26 @@
     return out;
   }
 
+  /* ── P5: 견적 총액의 실측 기준 신뢰구간 ──────────────────────────────
+     computeAccuracyStats()가 이미 내는 목적지별 '종합(total)' 오차 분포(실제
+     총계약가/견적총액 − 1의 p10·중앙·p90)를 이 견적의 총액에 곱해 "실측 기준
+     예상 범위"를 낸다. 견적 계산식은 건드리지 않는 순수 표시(additive)이며 관리자
+     내부 전용이다. 표본이 CONF_MIN_COUNT 미만이면 범위 대신 '데이터 부족' 안내를
+     돌려준다(insufficient). total 오차는 계약완료 견적에 '실제 총 계약가'가
+     입력돼야만 쌓이므로, 실적이 적은 초기에는 대부분 부족 상태가 정상이다. */
+  const CONF_MIN_COUNT = 3;
+  function computeQuoteConfidence(e) {
+    if (!e || !e.total || !e.destKey) return null;
+    const stat = computeAccuracyStats().find(s => s.destKey === e.destKey && s.field === 'total');
+    if (!stat || stat.count < CONF_MIN_COUNT) return { insufficient: true, count: stat ? stat.count : 0 };
+    return {
+      lo: Math.round(e.total * (1 + stat.p10)),
+      hi: Math.round(e.total * (1 + stat.p90)),
+      mid: Math.round(e.total * (1 + stat.medianErr)),
+      medianErr: stat.medianErr, p10: stat.p10, p90: stat.p90, count: stat.count,
+    };
+  }
+
   function renderAccuracyStats() {
     const card = document.getElementById('accuracy-stats-card');
     const tbody = document.getElementById('accuracy-stats-tbody');
@@ -4206,6 +4229,28 @@
     /* 수익금 박스가 있으면 업데이트 */
     const profitEl = document.getElementById('em-profit');
     if (profitEl) profitEl.textContent = fmt(profit2);
+
+    /* P5: 실측 기준 신뢰구간 (내부 전용 · 순수 표시) */
+    const confEl = document.getElementById('em-confidence');
+    if (confEl) {
+      const c = computeQuoteConfidence(e);
+      if (!c) {
+        confEl.classList.add('hidden'); confEl.innerHTML = '';
+      } else if (c.insufficient) {
+        confEl.classList.remove('hidden');
+        confEl.innerHTML = `<span style="color:var(--muted)">📊 <strong>실측 기준 신뢰구간</strong> — 이 목적지의 계약 실적(상세모달의 '실제 총 계약가' 입력)이 ${CONF_MIN_COUNT}건 이상 쌓이면 예상 범위가 표시됩니다. 현재 ${c.count}건.</span>`;
+      } else {
+        const warn = Math.abs(c.medianErr) >= 0.10
+          ? ` <span style="color:${c.medianErr > 0 ? 'var(--danger)' : '#b45309'};font-weight:700">· 견적이 실측 대비 평균 ${c.medianErr > 0 ? '낮음' : '높음'} ${Math.abs(c.medianErr * 100).toFixed(0)}%</span>`
+          : '';
+        confEl.classList.remove('hidden');
+        confEl.innerHTML =
+          `📊 <strong>실측 기준 예상 범위</strong> (계약 ${c.count}건): ` +
+          `<strong style="color:#1d4ed8">${fmt(c.lo)} ~ ${fmt(c.hi)}</strong> ` +
+          `<span style="color:var(--muted)">· 중앙 보정 ${fmt(c.mid)}</span>${warn}` +
+          `<div style="color:var(--muted);font-size:.72rem;margin-top:.2rem">과거 이 목적지 계약의 (실제 총액 ÷ 견적 총액) 분포 p10~p90 기준 · 내부 참고용, 고객 견적서에는 미노출</div>`;
+      }
+    }
 
     /* 상태 + 메모 */
     document.getElementById('em-status-sel').value = e.status || 'new';
