@@ -854,6 +854,19 @@ form.addEventListener('submit', (event) => {
       rateDate:    (getDestinationByKey(destKey)?.rateDate) || '',
       rateVersion: typeof RATE_META !== 'undefined' ? RATE_META.version : '',
       destNotes:   (getDestinationByKey(destKey)?.notes) || '',
+      /* P6: 계수 역검증용 스냅샷 — 이 견적 계산 당시의 출발일과 각 계수를 남겨두면,
+         나중에 실제 계약가(actual*)와 대조해 어떤 계수(시즌·리드타임·피크·환율·인원)가
+         실측과 벌어지는지 역검증해 계수 초안을 자기교정할 수 있다. 요율표·시즌 프로파일은
+         이후 바뀌므로 사후 재계산으로는 복원 불가 → 반드시 생성 시점에 스냅샷으로 저장.
+         payload jsonb에 그대로 실려 서버/DB 스키마 변경은 필요 없다. 견적 계산엔 무영향. */
+      startDate:    document.getElementById('startDate')?.value || '',
+      paxFactor:    bd.paxTier?.factor ?? 1,
+      seasonId:     bd.seasonInfo?.id || '',
+      seasonFactor: bd.seasonInfo?.factor ?? 1,
+      leadFactor:   bd.leadFactor ?? 1,
+      peakFactor:   bd.peakFactor ?? 1,
+      peakLabel:    bd.peakLabel || '',
+      fxAdjust:     bd.fxAdjust ?? 1,
       status: 'new',  /* new / consulting / contracted / closed */
       note:   '',
       /* 관리자 내부 견적 산출 도구 구분(신규) — 공개 홈페이지에서는 항상 'public'.
