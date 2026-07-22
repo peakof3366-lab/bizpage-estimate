@@ -215,6 +215,55 @@ function getSeasonInfo(dateStr, destKey) {
       || config.find(s => s.id === 'normal');
 }
 
+/* ── P2 헬퍼: 항공 예약 리드타임 계수 ────────────────────────────────
+   견적일(오늘)로부터 출발일까지 남은 일수가 짧을수록 항공권이 비싸진다(임박 발권),
+   아주 일찍 잡으면 소폭 저렴. 시즌 계수(월 단위)로는 못 잡는 "예약 시점" 효과.
+   startDate가 없거나 과거면 중립(1.0). 밴드 값은 운영 중 실측(요율관리 정확도)에
+   맞춰 조정 가능. */
+const LEAD_TIME_BANDS = [
+  { maxDays: 14,       factor: 1.25 },  // 2주 미만(임박)
+  { maxDays: 30,       factor: 1.12 },  // 2~4주
+  { maxDays: 60,       factor: 1.00 },  // 1~2개월(기준)
+  { maxDays: 120,      factor: 0.95 },  // 2~4개월
+  { maxDays: Infinity, factor: 0.92 },  // 4개월 이상(조기)
+];
+function getLeadTimeFactor(startDateStr) {
+  if (!startDateStr) return 1.0;
+  const start = new Date(startDateStr);
+  if (isNaN(start.getTime())) return 1.0;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((start - today) / 86400000);
+  if (days < 0) return 1.0;
+  return (LEAD_TIME_BANDS.find(b => days < b.maxDays) || LEAD_TIME_BANDS[LEAD_TIME_BANDS.length - 1]).factor;
+}
+
+/* ── P2 헬퍼: 목적지 피크 날짜 달력 ──────────────────────────────────
+   시즌 계수는 전 목적지 공용 '월 단위' 근사라 목적지 고유 성수기·연휴(골든위크·춘절
+   등)를 못 잡는다. 여기서 날짜 구간별 추가 계수를 목적지별로 정의해 항공/유류에 얹는다.
+   keys='ALL'은 한국 출발 공통 성수기. from/to는 'MM-DD'(매년 반복, from>to면 연말연시처럼
+   해를 넘는 구간). 겹치면 가장 큰 계수 하나만 적용. 설/추석/춘절은 음력이라 근사 구간이며
+   운영 중 그 해 실제 날짜로 조정 권장. 데이터 없으면 1.0(영향 없음). */
+const PEAK_CALENDAR = [
+  { keys: 'ALL', from: '07-15', to: '08-20', factor: 1.20, label: '여름 성수기' },
+  { keys: 'ALL', from: '12-20', to: '01-03', factor: 1.25, label: '연말연시' },
+  { keys: ['도쿄', '오사카', '후쿠오카', '나고야', '삿포로', '오키나와'], from: '04-27', to: '05-06', factor: 1.35, label: '일본 골든위크' },
+  { keys: ['도쿄', '오사카', '후쿠오카', '나고야'], from: '03-25', to: '04-10', factor: 1.20, label: '벚꽃 시즌' },
+  { keys: ['상해', '장가계', '청도', '연태', '홍콩', '마카오', '대만', '가오슝'], from: '02-08', to: '02-17', factor: 1.30, label: '춘절(근사)' },
+];
+function getPeakInfo(startDateStr, destKey) {
+  if (!startDateStr) return { factor: 1.0, label: '' };
+  const d = new Date(startDateStr);
+  if (isNaN(d.getTime())) return { factor: 1.0, label: '' };
+  const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const inRange = (from, to) => (from <= to ? (mmdd >= from && mmdd <= to) : (mmdd >= from || mmdd <= to));
+  let best = { factor: 1.0, label: '' };
+  for (const p of PEAK_CALENDAR) {
+    const applies = p.keys === 'ALL' || (Array.isArray(p.keys) && p.keys.includes(destKey));
+    if (applies && inRange(p.from, p.to) && p.factor > best.factor) best = { factor: p.factor, label: p.label };
+  }
+  return best;
+}
+
 /* ── Level 2 헬퍼: 요율 기준일 신선도 판정 ───────────────────────
    ok    : 0 ~ 3개월 이내 (✅ 최신)
    check : 4 ~ 6개월     (⚠️ 확인 권장)
@@ -306,8 +355,12 @@ function getBreakdownData() {
      · 호텔: 객실 구성은 rooms 계산으로 이미 반영됨
      · 항공/유류의 인원 구간(PAX_TIERS) 할인은 tieredTotal()로 누진 계산해
        총액이 인원수에 대해 항상 non-decreasing하도록 보장 (버그③수정) */
-  const airUnitBase  = dest.airfare        * seasonInfo.factor * departureFactor * bizFactor;
-  const fuelUnitBase = dest.fuel_surcharge * seasonInfo.factor * departureFactor;
+  /* P2: 예약 리드타임 + 목적지 피크 날짜 계수 (항공·유류에 적용 — 항공이 가장 크고
+     가장 변동성 큰 항목이라 여기부터. 호텔에는 아직 적용하지 않음). */
+  const leadFactor = getLeadTimeFactor(startDateVal);
+  const peakInfo   = getPeakInfo(startDateVal, destKey);
+  const airUnitBase  = dest.airfare        * seasonInfo.factor * departureFactor * bizFactor * leadFactor * peakInfo.factor;
+  const fuelUnitBase = dest.fuel_surcharge * seasonInfo.factor * departureFactor * leadFactor * peakInfo.factor;
   const airTotalTiered  = tieredTotal(airUnitBase,  participants, PAX_TIERS);
   const fuelTotalTiered = tieredTotal(fuelUnitBase, participants, PAX_TIERS);
   const airUnit   = participants > 0 ? Math.round(airTotalTiered  / participants) : 0;
@@ -423,6 +476,8 @@ function getBreakdownData() {
     cabinClassVal,    cabinClassLabel:    cabinClassVal === 'business' ? '비즈니스' : '이코노미',
     roomConfigVal,    roomConfigLabel:    roomCfg.label,
     vipCount, bizFactor, rooms,
+    /* P2 신규 필드 — 항공 리드타임/피크 반영 근거(표시·디버깅용) */
+    leadFactor, peakFactor: peakInfo.factor, peakLabel: peakInfo.label,
   };
 }
 
@@ -442,7 +497,8 @@ function renderLiveBreakdown() {
     const startVal = document.getElementById('startDate')?.value || '';
     if (startVal) {
       const info = getSeasonInfo(startVal, destinationSelect.value);
-      seasonBadgeEl.textContent = info.label;
+      const pk   = getPeakInfo(startVal, destinationSelect.value);
+      seasonBadgeEl.textContent = info.label + (pk.label ? ` · ${pk.label}` : '');
       seasonBadgeEl.className   = `season-badge season-${info.id}`;
     } else {
       seasonBadgeEl.className = 'season-badge hidden';
