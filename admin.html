@@ -1361,6 +1361,49 @@
             <input type="checkbox" id="new-dest-southern" />남반구(계절이 한국과 반대)
           </label>
         </div>
+        <div>
+          <div class="detail-label" style="margin-bottom:.3rem">현지 통화(환율 보정용)</div>
+          <select id="new-dest-currency" class="status-select">
+            <option value="">없음 (환율 보정 안 함)</option>
+            <option value="JPY">JPY 일본 엔</option>
+            <option value="USD">USD 미국 달러</option>
+            <option value="EUR">EUR 유로</option>
+            <option value="CNY">CNY 중국 위안</option>
+            <option value="HKD">HKD 홍콩 달러</option>
+            <option value="MOP">MOP 마카오 파타카</option>
+            <option value="TWD">TWD 대만 달러</option>
+            <option value="THB">THB 태국 바트</option>
+            <option value="VND">VND 베트남 동</option>
+            <option value="SGD">SGD 싱가포르 달러</option>
+            <option value="MYR">MYR 말레이시아 링깃</option>
+            <option value="IDR">IDR 인도네시아 루피아</option>
+            <option value="PHP">PHP 필리핀 페소</option>
+            <option value="GBP">GBP 영국 파운드</option>
+            <option value="AUD">AUD 호주 달러</option>
+            <option value="NZD">NZD 뉴질랜드 달러</option>
+            <option value="CAD">CAD 캐나다 달러</option>
+            <option value="MNT">MNT 몽골 투그릭</option>
+            <option value="LAK">LAK 라오스 킵</option>
+            <option value="KHR">KHR 캄보디아 리엘</option>
+            <option value="KZT">KZT 카자흐스탄 텡게</option>
+            <option value="UZS">UZS 우즈베키스탄 숨</option>
+          </select>
+        </div>
+        <div>
+          <div class="detail-label" style="margin-bottom:.3rem">지역(일괄조정 분류)</div>
+          <select id="new-dest-region" class="status-select">
+            <option value="">기타</option>
+            <option value="일본">일본</option>
+            <option value="홍콩·마카오">홍콩·마카오</option>
+            <option value="중국">중국</option>
+            <option value="몽골·대만">몽골·대만</option>
+            <option value="동남아">동남아</option>
+            <option value="오세아니아·태평양">오세아니아·태평양</option>
+            <option value="유럽">유럽</option>
+            <option value="북미">북미</option>
+            <option value="중앙아시아">중앙아시아</option>
+          </select>
+        </div>
       </div>
       <div id="new-dest-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:1rem"></div>
       <div class="detail-field" style="margin-top:1rem">
@@ -1483,6 +1526,10 @@
      혼동을 줄이는 것뿐. 일괄조정/데이터 전체삭제는 "개별 작업 반복과 서버가
      구분 못 함"이라 UI 숨김이 유일한 방어선인데, 그 개별 작업 자체가 이미 허용돼
      있어 문제되지 않는다(권한 매트릭스 설계 시 확인된 사항). */
+  /* 역할 판정 전역 헬퍼 — 매번 재생성되는 요율표 행(renderRateRow) 등에서 노출 여부를
+     결정할 때 쓴다. applyRolePermissionsToUI의 지역 변수와 동일 기준. */
+  function isManagerUpRole() { return !!currentUser && (currentUser.role === 'owner' || currentUser.role === 'manager'); }
+
   function applyRolePermissionsToUI() {
     if (!currentUser) return;
     const isOwner = currentUser.role === 'owner';
@@ -2628,6 +2675,13 @@
           const { zone, southern_hemisphere, ...destFields } = row;
           if (!destinationRates.some(d => d.destination_key === destFields.destination_key)) destinationRates.push(destFields);
           customDestinationKeys.add(destFields.destination_key);
+          /* 지역 분류를 REGION_MAP에 편입 — 안 하면 label이 REGION_MAP에 없어 '기타'로
+             빠지고 요율 일괄조정(지역 단위)에서 조용히 누락된다. region이 비면 종전대로 '기타'. */
+          if (row.region) REGION_MAP[row.label] = row.region;
+          /* 통화를 클라이언트 DEST_CURRENCY에 편입 — adminGetFxDrift가 이 맵을 보므로,
+             안 하면 커스텀 목적지는 환율 변동 감지(💱)가 안 뜬다. 서버는 이미
+             custom_destinations.currency로 rate_fx_baseline을 심어 FX 계산은 동작한다. */
+          if (row.currency && typeof DEST_CURRENCY !== 'undefined') DEST_CURRENCY[destFields.destination_key] = row.currency;
         });
       }
     } catch (err) { console.warn('[admin] 요율 오버라이드 조회 실패:', err); }
@@ -2644,10 +2698,13 @@
      견적 하나하나 비율(실제/추정)로 비교한다. 견적마다 계절·출발지 등 조건이
      달라도 "그 조건에서 우리가 얼마나 벗어났는지" 비율은 조건과 무관하게 비교
      가능하므로, 목적지별 (이상치 제외 후) 중앙값 비율을 현재 기준가에 곱해 제안값을 만든다.
-     항공료 외에 호텔(hotel_per_room)·식비(meal_per_person)도 같은 방식으로
-     계산하되, 이 둘은 "실제 계약가 업데이트" 위젯의 제보만 소스로 쓴다(견적관리
-     상세 모달은 실제 항공료만 기록하는 기존 필드가 있을 뿐 호텔/식비 실측값을
-     받는 자리가 없어서). 표본이 RATE_SUGGEST_CONFIDENT_COUNT(5건) 미만이면
+     항공료 외에 호텔(hotel_per_room)·식비(meal_per_person)도 같은 방식으로 계산한다.
+     세 항목 모두 두 소스를 쓴다: (1) 견적관리 상세 모달의 실제 계약가(actual*Unit —
+     항공료·호텔·식비 필드가 모두 존재) (2) "실제 계약가 업데이트" 위젯 제보. 단 두
+     소스는 비율의 분모가 달라(EM=계수 포함 추정단가 대비, 제보=계수 없는 기준가 대비)
+     절대 섞지 않고 source로 분리 집계하며, 자동적용은 계수 보정된 EM 소스에만 허용한다
+     (제보로 기준가를 올리면 견적에서 시즌·피크가 이중 반영되므로). 표본이
+     RATE_SUGGEST_CONFIDENT_COUNT(5건) 미만이면
      데이터 하나(오타·특가 등)에 공개 견적 계산기 가격이 흔들릴 위험이 있어
      "요율 편집하기"로 사람이 한 번 더 들여다보게 하고, 그 이상 쌓인 것만 확인
      1클릭으로 바로 반영 가능한 "지금 바로 적용" 버튼을 보여준다(완전 자동
@@ -2658,7 +2715,11 @@
      붙잡아 최신 시세 반영을 늦추는 문제를 막는다. 요율 검토 주기가 분기라 12개월이면
      최근 4개 분기치가 남아 표본이 과하게 줄지 않으면서 1년 넘은 건 배제된다. */
   const RATE_SUGGEST_RECENT_MONTHS = 12;
-  const RATE_SUGGEST_RECENT_CUTOFF = () => Date.now() - RATE_SUGGEST_RECENT_MONTHS * 30 * 24 * 3600 * 1000;
+  /* 최근성 컷오프 — 30일×개월 근사(360일) 대신 실제 달력 기준 N개월 전 날짜를 쓴다.
+     아래 rateValidationBadge의 개월 계산(달력 기반)과 경계가 정확히 맞도록 통일. */
+  const RATE_SUGGEST_RECENT_CUTOFF = () => { const d = new Date(); d.setMonth(d.getMonth() - RATE_SUGGEST_RECENT_MONTHS); return d.getTime(); };
+  /* 두 시각(ms) 사이의 달력 개월 수 — getRateStatus/adminGetRateStatus와 동일 공식. */
+  const monthsSince = (tsMs) => { const t = new Date(tsMs), n = new Date(); return (n.getFullYear() - t.getFullYear()) * 12 + (n.getMonth() - t.getMonth()); };
   /* 이상치 방어(신규) — 기준가 대비 이 배율 범위를 벗어난 제보(예: 420,000을
      4,200,000으로 오타)는 집계에서 제외하고, 제외 건수는 UI에 알려 사람이 확인하게 한다.
      남은 값은 평균이 아니라 중앙값(median)으로 대표값을 잡아 한두 건의 이상치에 덜
@@ -2715,22 +2776,34 @@
       return isNaN(t) ? true : t >= recentCutoff;
     };
 
-    /* 항공료·호텔: 견적관리 상세 모달에 남긴 실제/추정 비율 */
+    /* ⚠ 두 소스는 비율의 '분모'가 달라 절대 한 배열에 섞으면 안 된다:
+       · EM(계약완료 견적): 실제가 / estItem.unit — estItem.unit엔 시즌·피크·리드타임·PAX
+         등 계수가 이미 곱해져 있으므로, 이 비율로 기준가를 조정하면 계수가 제거된 순수
+         원가가 나온다(올바른 방향). → 자동적용(confident) 자격 부여.
+       · 제보(위젯): 실제가 / effectiveRate(원본 기준가) — 계수가 하나도 안 들어간 값 대비라
+         성수기·피크 프리미엄이 그대로 비율에 섞인다. 이 비율로 기준가를 올리면 나중에 견적
+         계산에서 시즌·피크 계수가 다시 곱해져 이중 반영된다. 제보엔 출발월/시즌 메타가 없어
+         계수 복원이 불가하므로, 참고용 제안으로만 두고 자동적용은 금지(사람이 편집 판단).
+       그래서 byKey 키에 source를 포함해 EM과 제보를 분리 집계한다. */
+
+    /* 항공료·호텔·식비: 견적관리 상세 모달에 남긴 실제/추정 비율 (계수 보정됨).
+       세 실측 소스(갱신제안·정확도·검증배지)가 같은 필드 집합을 보도록 식비까지 포함. */
     const EM_FIELD_SOURCES = [
       { field: 'airfare', actualKey: 'actualAirfareUnit', match: it => it.name === '항공' },
       { field: 'hotel_per_room', actualKey: 'actualHotelUnit', match: it => (it.name || '').startsWith('호텔') },
+      { field: 'meal_per_person', actualKey: 'actualMealUnit', match: it => it.name === '식사' },
     ];
     EM_FIELD_SOURCES.forEach(({ field, actualKey, match }) => {
       getEstsFull().filter(e => e.status === 'contracted' && e[actualKey] != null && e.destKey && isRecent(e.ts)).forEach(e => {
         const estItem = (e.items || []).find(match);
         if (!estItem || !estItem.unit) return;
-        const key = `${e.destKey}|${field}`;
-        if (!byKey[key]) byKey[key] = { destKey: e.destKey, field, label: e.destLabel || e.destKey, ratios: [] };
+        const key = `${e.destKey}|${field}|em`;
+        if (!byKey[key]) byKey[key] = { destKey: e.destKey, field, label: e.destLabel || e.destKey, source: 'em', ratios: [] };
         byKey[key].ratios.push(e[actualKey] / estItem.unit);
       });
     });
 
-    /* 항공료·호텔·식비: "실제 계약가 업데이트" 위젯 제보 */
+    /* 항공료·호텔·식비: "실제 계약가 업데이트" 위젯 제보 (계수 미보정 — 참고용) */
     priceReportsCache.forEach(r => {
       if (!isRecent(r.createdAt)) return;
       const dest = destinationRates.find(d => d.destination_key === r.destinationKey);
@@ -2741,8 +2814,8 @@
         if (reported == null) return;
         const currentBase = eff[field];
         if (!currentBase) return;
-        const key = `${r.destinationKey}|${field}`;
-        if (!byKey[key]) byKey[key] = { destKey: r.destinationKey, field, label: dest.label, ratios: [] };
+        const key = `${r.destinationKey}|${field}|report`;
+        if (!byKey[key]) byKey[key] = { destKey: r.destinationKey, field, label: dest.label, source: 'report', ratios: [] };
         byKey[key].ratios.push(reported / currentBase);
       });
     });
@@ -2762,9 +2835,11 @@
       const currentBase = effectiveRate(dest)[data.field] || 0;
       suggestions.push({
         destKey: data.destKey, field: data.field, fieldLabel: RATE_FIELD_LABELS[data.field] || data.field,
-        label: data.label, count: clean.length, outlierCount, diffPct,
+        label: data.label, count: clean.length, outlierCount, diffPct, source: data.source,
         currentBase, suggestedBase: Math.round(currentBase * medRatio),
-        confident: clean.length >= RATE_SUGGEST_CONFIDENT_COUNT,
+        /* 자동적용(지금 바로 적용)은 계수 보정된 EM 소스에만 부여. 제보 소스는 계수 미보정
+           이라 기준가를 밀어올리면 견적에서 시즌·피크가 이중 반영되므로 confident 불가. */
+        confident: data.source === 'em' && clean.length >= RATE_SUGGEST_CONFIDENT_COUNT,
       });
     });
     suggestions.sort((a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct));
@@ -2778,19 +2853,33 @@
     const suggestions = computeRateSuggestions();
     if (!suggestions.length) { card.classList.add('hidden'); return; }
     card.classList.remove('hidden');
-    list.innerHTML = suggestions.map(s => `
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.6rem .8rem;border:1px solid ${s.confident ? 'var(--danger)' : 'var(--border)'};border-left-width:${s.confident ? '4px' : '1px'};background:${s.confident ? '#fef2f2' : 'var(--bg)'};flex-wrap:wrap">
+    list.innerHTML = suggestions.map(s => {
+      const isReport = s.source === 'report';
+      /* confident(EM 표본 충분)만 파랑(액션색)으로 강조. 빨강(danger)은 이상치 등 실제
+         경고에만 남긴다. 제보 소스는 참고용이라 강조 없음. */
+      const frameColor = s.confident ? 'var(--primary)' : 'var(--border)';
+      const frameBg    = s.confident ? '#eff6ff' : 'var(--bg)';
+      const srcBadge = isReport
+        ? '<span style="font-size:.66rem;font-weight:700;background:#f1f5f9;color:var(--muted);border:1px solid var(--border);padding:.1rem .4rem;margin-right:.4rem">실측 제보 · 참고용</span>'
+        : '<span style="font-size:.66rem;font-weight:700;background:#eef2ff;color:var(--primary);border:1px solid #c7d2fe;padding:.1rem .4rem;margin-right:.4rem">실제 계약</span>';
+      const confBadge = s.confident
+        ? '<span style="font-size:.68rem;font-weight:700;background:var(--primary);color:#fff;padding:.1rem .4rem;margin-right:.4rem">지금 적용 가능</span>'
+        : '';
+      return `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.6rem .8rem;border:1px solid ${frameColor};border-left-width:${s.confident ? '4px' : '1px'};background:${frameBg};flex-wrap:wrap">
         <div style="font-size:.85rem">
-          ${s.confident ? '<span style="font-size:.68rem;font-weight:700;background:var(--danger);color:#fff;padding:.1rem .4rem;margin-right:.4rem">표본 충분</span>' : ''}
-          <strong>${esc(s.label)} · ${esc(s.fieldLabel)}</strong> · 최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 실제 데이터 ${s.count}건 중앙값이 기준 대비
-          <strong style="color:${s.diffPct > 0 ? 'var(--danger)' : 'var(--success)'}">${s.diffPct > 0 ? '+' : ''}${s.diffPct.toFixed(1)}%</strong>
+          ${confBadge}${srcBadge}
+          <strong>${esc(s.label)} · ${esc(s.fieldLabel)}</strong> · 최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 ${isReport ? '실측 제보' : '실제 계약'} ${s.count}건 중앙값이 기준 대비
+          <strong>${s.diffPct > 0 ? '+' : ''}${s.diffPct.toFixed(1)}%</strong>
           — 기준 ${fmtWon(s.currentBase)} → 제안 ${fmtWon(s.suggestedBase)}${s.outlierCount ? ` <span style="color:var(--danger);font-weight:700">· 이상치 ${s.outlierCount}건 제외</span>` : ''}
+          ${isReport ? '<div style="color:var(--muted);font-size:.72rem;margin-top:.25rem">※ 제보값은 성수기·피크 프리미엄이 섞여 있어 참고용입니다 — 값을 확인하고 <b>요율 편집하기</b>로 판단해 반영하세요(자동 적용 대상 아님).</div>' : ''}
         </div>
         <div style="display:flex;gap:.4rem;flex-shrink:0">
           ${s.confident ? `<button type="button" class="btn-act btn-primary" onclick="applyRateSuggestion('${s.destKey}','${s.field}',${s.suggestedBase},${s.count})">✅ 지금 바로 적용</button>` : ''}
           <button type="button" class="btn-act btn-outline-p" onclick="openRateEditModal('${s.destKey}')">요율 편집하기</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   /* 실제 이용 호텔 참고 카드 (신규) — 가격 비교가 아니라 "최근에 어느 호텔을
@@ -3085,6 +3174,9 @@
       const ts = new Date(e.ts).getTime();
       if (e.actualAirfareUnit != null) put(e.destKey, 'airfare', ts, e.actualAirfareUnit);
       if (e.actualHotelUnit != null) put(e.destKey, 'hotel_per_room', ts, e.actualHotelUnit);
+      /* 식비 실측도 반영 — 안 넣으면 견적모달에 실제 식비를 입력해도 요율표 식비 셀이
+         계속 '◽미검증'으로 남는다(정확도 카드는 이미 이 값을 집계하는데 검증배지만 사각지대). */
+      if (e.actualMealUnit != null) put(e.destKey, 'meal_per_person', ts, e.actualMealUnit);
     });
     return map;
   }
@@ -3108,7 +3200,7 @@
         }
       }
     }
-    const months = Math.floor((Date.now() - info.latestTs) / (30 * 24 * 3600 * 1000));
+    const months = monthsSince(info.latestTs);
     if (months >= RATE_SUGGEST_RECENT_MONTHS) return `<div style="${style};color:#b45309" title="마지막 실측 약 ${months}개월 전 — 최근 데이터로 확인 권장">⚠ ${months}개월 전</div>`;
     return `<div style="${style};color:var(--success)" title="최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 내 실측 데이터 있음 (약 ${months}개월 전)">✓ 실측</div>`;
   }
@@ -3328,7 +3420,7 @@
           <td style="display:flex;gap:.3rem">
             <button class="btn-detail" onclick="openRateEditModal('${d.destination_key}')">편집</button>
             <button class="btn-detail" title="가격은 그대로, 오늘 확인했다는 것만 기록" onclick="confirmRateNoChange('${d.destination_key}')">✓ 확인함</button>
-            ${customDestinationKeys.has(d.destination_key) ? `<button class="btn-detail" onclick="deleteCustomDestination('${esc(d.destination_key)}')">🗑 삭제</button>` : ''}
+            ${(isManagerUpRole() && customDestinationKeys.has(d.destination_key)) ? `<button class="btn-detail" onclick="deleteCustomDestination('${esc(d.destination_key)}')">🗑 삭제</button>` : ''}
           </td>
         </tr>`;
   }
@@ -3434,6 +3526,8 @@
     document.getElementById('new-dest-label').value = '';
     document.getElementById('new-dest-zone').value = 'short';
     document.getElementById('new-dest-southern').checked = false;
+    document.getElementById('new-dest-currency').value = '';
+    document.getElementById('new-dest-region').value = '';
     document.getElementById('new-dest-notes').value = '';
     document.getElementById('new-dest-season').value = '';
     document.getElementById('new-dest-msg').textContent = '';
@@ -3479,6 +3573,8 @@
           destinationKey, label, zone, southernHemisphere, fields,
           notes: document.getElementById('new-dest-notes').value.trim(),
           seasonNote: document.getElementById('new-dest-season').value.trim(),
+          currency: document.getElementById('new-dest-currency').value,
+          region: document.getElementById('new-dest-region').value,
           author,
         }),
       });
@@ -3546,8 +3642,14 @@
   /* ── 요율 일괄 조정 모달 ── */
   function openRateBulkModal() {
     const regionSel = document.getElementById('rate-bulk-region');
+    /* '기타' 옵션 추가 — 지역을 지정하지 않은 커스텀 목적지(REGION_MAP에 없어 '기타'로
+       분류됨)도 일괄조정 대상으로 고를 수 있게 한다(getRateBulkTargets가 '기타'를 매칭). */
     regionSel.innerHTML = '<option value="__all__">전체 지역</option>' +
-      REGION_ORDER.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+      REGION_ORDER.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('') +
+      '<option value="기타">기타 (지역 미지정)</option>';
+    /* 재오픈 시 이전에 고른 '조정 항목'이 남아 엉뚱한 항목에 %가 적용되는 것 방지 */
+    const fieldSel = document.getElementById('rate-bulk-field');
+    if (fieldSel) fieldSel.selectedIndex = 0;
     const authorTag = document.getElementById('rate-bulk-author');
     authorTag.textContent = `작성자: ${currentUser.displayName}`;
     document.getElementById('rate-bulk-pct').value = '';

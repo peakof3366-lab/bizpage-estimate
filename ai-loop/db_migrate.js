@@ -201,6 +201,13 @@ async function main() {
       created_at timestamptz not null default now(), created_by text not null default ''
     )
   `;
+  /* 커스텀 목적지 부가 메타 (신규) — 최초 추가 시 가격 9개만 받고 통화·지역을 안 받아
+     내장 목적지와 동작이 갈리던 문제 보강. currency: 환율 보정(rate_fx_baseline/getFxAdjust)
+     대상 통화(없으면 FX 미적용, 동유럽 등 내장과 동일 폴백). region: REGION_MAP 지역 분류
+     — 없으면 요율 일괄조정(지역 단위)에서 '기타'로 빠져 조용히 누락되던 것을 막는다.
+     둘 다 nullable — 기존 커스텀 목적지 행은 값이 없어도 종전대로 안전하게 동작. */
+  await sql`alter table custom_destinations add column if not exists currency text`;
+  await sql`alter table custom_destinations add column if not exists region text`;
 
   /* 실제 계약 항공료 (신규) — 항공료는 인원별 협상 견적이라 공개 API로 자동 갱신할
      수 없지만, 계약완료된 견적의 진짜 최종 항공료를 담당자가 한 번 입력해 두면

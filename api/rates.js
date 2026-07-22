@@ -45,6 +45,11 @@ function isValidNewDestination(body) {
   }
   if (body.notes != null && (typeof body.notes !== 'string' || body.notes.length > 500)) return 'invalid_notes';
   if (body.seasonNote != null && (typeof body.seasonNote !== 'string' || body.seasonNote.length > 500)) return 'invalid_season_note';
+  /* 통화(선택) — 빈값이면 FX 미적용(내장 '동유럽' 등과 동일). 있으면 ISO 4217 3자 대문자만. */
+  if (body.currency != null && body.currency !== '' &&
+      (typeof body.currency !== 'string' || !/^[A-Z]{3}$/.test(body.currency))) return 'invalid_currency';
+  /* 지역(선택) — REGION_MAP 분류용 자유 문자열(길이만 제한). */
+  if (body.region != null && (typeof body.region !== 'string' || body.region.length > 40)) return 'invalid_region';
   return null;
 }
 
@@ -135,6 +140,7 @@ module.exports = async (req, res) => {
         guide_fee: Number(r.guide_fee), sightseeing_fee: Number(r.sightseeing_fee),
         margin_per_traveler: Number(r.margin_per_traveler),
         rateDate: r.rate_date, notes: r.notes, season_note: r.season_note,
+        currency: r.currency || null, region: r.region || null,
       }));
       return res.status(200).json({ overrides, fxRates, fxBaseline, customDestinations });
     } catch (err) {
@@ -159,23 +165,43 @@ module.exports = async (req, res) => {
 
     const rateDate = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
     const f = body.fields;
+    const currency = (body.currency && body.currency !== '') ? body.currency : null;
+    const region = (body.region && body.region !== '') ? body.region : null;
     try {
       const inserted = await sql`
         insert into custom_destinations (
           destination_key, label, zone, southern_hemisphere,
           airfare, fuel_surcharge, hotel_per_room, meal_per_person,
           vehicle_large, vehicle_small, guide_fee, sightseeing_fee, margin_per_traveler,
-          rate_date, notes, season_note, created_by
+          rate_date, notes, season_note, created_by, currency, region
         ) values (
           ${key}, ${body.label.trim()}, ${body.zone}, ${body.southernHemisphere},
           ${f.airfare}, ${f.fuel_surcharge}, ${f.hotel_per_room}, ${f.meal_per_person},
           ${f.vehicle_large}, ${f.vehicle_small}, ${f.guide_fee}, ${f.sightseeing_fee}, ${f.margin_per_traveler},
-          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${req.user.displayName}
+          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${req.user.displayName}, ${currency}, ${region}
         )
         on conflict (destination_key) do nothing
         returning destination_key
       `;
       if (!inserted.length) return res.status(409).json({ error: 'key_already_exists' });
+      /* 통화가 지정됐으면 환율 기준점(rate_fx_baseline)을 지금 환율로 심어둔다 — 안 하면
+         커스텀 목적지는 baseline이 없어 공개 계산기 getFxAdjust가 영원히 1.0(FX 미적용).
+         PATCH의 baseline 재설정과 동일 로직. 실패해도 목적지 생성 자체는 이미 성공. */
+      if (currency) {
+        try {
+          const fxRows = await sql`select rate_to_krw from fx_rates where currency = ${currency}`;
+          if (fxRows.length) {
+            await sql`
+              insert into rate_fx_baseline (destination_key, currency, baseline_rate, baseline_at)
+              values (${key}, ${currency}, ${Number(fxRows[0].rate_to_krw)}, now())
+              on conflict (destination_key) do update
+                set currency = excluded.currency, baseline_rate = excluded.baseline_rate, baseline_at = now()
+            `;
+          }
+        } catch (fxErr) {
+          console.error('[rates] 신규 목적지 환율 기준점 초기화 실패(목적지 생성은 정상 완료):', fxErr);
+        }
+      }
       return res.status(200).json({ ok: true, destinationKey: key });
     } catch (err2) {
       console.error(err2);
@@ -230,11 +256,18 @@ module.exports = async (req, res) => {
           set overrides = excluded.overrides, updated_at = now(), updated_by = excluded.updated_by
       `;
 
-      for (const c of cleanChanges) {
-        await sql`
-          insert into rate_change_log (destination_key, field, old_value, new_value, author)
-          values (${destinationKey}, ${c.field}, ${JSON.stringify(c.oldValue ?? null)}::jsonb, ${JSON.stringify(c.newValue)}::jsonb, ${author})
-        `;
+      /* 감사 로그는 부가 기록 — 실패해도 이미 커밋된 요율 저장(위 upsert)을 500으로
+         뒤집지 않도록 삼킨다. 안 그러면 클라이언트가 "실패"로 오인해 재시도 → 로그 중복
+         기록되거나 저장 성공을 실패로 오해한다. fx_baseline 재설정도 아래에서 동일 원칙. */
+      try {
+        for (const c of cleanChanges) {
+          await sql`
+            insert into rate_change_log (destination_key, field, old_value, new_value, author)
+            values (${destinationKey}, ${c.field}, ${JSON.stringify(c.oldValue ?? null)}::jsonb, ${JSON.stringify(c.newValue)}::jsonb, ${author})
+          `;
+        }
+      } catch (logErr) {
+        console.error('[rates] 변경 이력 기록 실패(요율 저장은 정상 완료됨):', logErr);
       }
 
       /* "요율 기준월(rateDate)이 오늘로 갱신됐다" = "방금 이 가격을 확인/확정했다"는
@@ -246,7 +279,15 @@ module.exports = async (req, res) => {
          조용히 건너뜀 — 이 부분이 실패해도 가격 저장 자체는 이미 끝났으므로 별도로
          처리한다. */
       if (cleanChanges.some((c) => c.field === 'rateDate')) {
-        const currency = DEST_CURRENCY[destinationKey];
+        /* 통화 소스: 내장은 DEST_CURRENCY, 커스텀 목적지는 custom_destinations.currency.
+           안 그러면 커스텀 목적지는 요율을 저장해도 baseline이 갱신되지 않아 FX가 멈춘다. */
+        let currency = DEST_CURRENCY[destinationKey];
+        if (!currency) {
+          try {
+            const cd = await sql`select currency from custom_destinations where destination_key = ${destinationKey}`;
+            currency = cd.length ? cd[0].currency : null;
+          } catch { currency = null; }
+        }
         if (currency) {
           try {
             const fxRows = await sql`select rate_to_krw from fx_rates where currency = ${currency}`;

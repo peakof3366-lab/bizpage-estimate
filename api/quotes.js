@@ -1,6 +1,10 @@
 const { sql } = require('./_lib/db');
 const { requireAdmin } = require('./_lib/auth');
 const OpenAI = require('openai');
+/* 내장 목적지 키 집합 — 제보(priceReport)의 destinationKey가 실제 목적지인지 검증해
+   존재하지 않는/오타 키로 실측 통계가 오염되는 것을 막는다(커스텀 목적지는 DB 조회로 보강). */
+const destinationRates = require('../data');
+const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key));
 
 /* ?action= 분기 (신규) — "실제 계약가 업데이트" 위젯(요율 관리 탭 맨 위)이 쓰는
    관리자 전용 엔드포인트 3개. action이 없으면 기존 공개 POST(견적 제출)/관리자 GET(견적
@@ -106,7 +110,20 @@ async function handlePriceReport(req, res) {
   if (airfare.value == null && hotel.value == null && meal.value == null && !safeHotelName) {
     return res.status(400).json({ error: 'invalid_body' });
   }
-  const safeAuthor = String(author || '').slice(0, 40);
+  /* destinationKey 유효성 — 내장 목적지가 아니면 커스텀 목적지 존재 확인. 오타/미존재
+     키로 실측 통계(갱신제안·정확도)가 오염되는 것을 막는다. */
+  if (!BUILTIN_DEST_KEYS.has(destinationKey)) {
+    try {
+      const cd = await sql`select 1 from custom_destinations where destination_key = ${destinationKey} limit 1`;
+      if (!cd.length) return res.status(400).json({ error: 'unknown_destination' });
+    } catch (err) {
+      console.error('[quotes priceReport] 목적지 확인 실패:', err);
+      return res.status(500).json({ error: 'insert_failed' });
+    }
+  }
+  /* author는 클라이언트 값이 아니라 세션에서 검증된 실사용자 표시명을 쓴다(위조 방지) —
+     요율 PATCH(api/rates.js)와 동일 원칙. requireAdmin이 req.user를 세팅한다. */
+  const safeAuthor = String((req.user && req.user.displayName) || '').slice(0, 40);
   try {
     await sql`
       insert into actual_price_reports (destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit, author, source)

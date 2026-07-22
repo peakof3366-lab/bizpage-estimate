@@ -26,16 +26,14 @@ const FX_STATE = { rates: {}, baseline: {} };
       if (!data) return;
       if (data.fxRates) FX_STATE.rates = data.fxRates;
       if (data.fxBaseline) FX_STATE.baseline = data.fxBaseline;
-      if (data.overrides) Object.entries(data.overrides).forEach(([key, fields]) => {
-        const dest = destinationRates.find((d) => d.destination_key === key);
-        if (dest && fields && typeof fields === 'object') Object.assign(dest, fields);
-      });
 
       /* 관리자 신규 목적지 (신규) — data.js에 원래 없던 목적지를 destinationRates에
-         추가한다. 이미 선택 가능한 기존 목적지의 값을 patch하는 위 오버라이드와 달리,
+         추가한다. 이미 선택 가능한 기존 목적지의 값을 patch하는 아래 오버라이드와 달리,
          옵션 자체가 아직 없으므로 고객이 아직 병합 전인 목적지를 선택할 방법이 없다
          (경합 없음). 서버가 내장 키와의 충돌을 막지만, 혹시 뚫리더라도 내장값을
-         우선하도록 여기서도 한 번 더 방어(dedupe-skip)한다. */
+         우선하도록 여기서도 한 번 더 방어(dedupe-skip)한다.
+         ⚠ 반드시 오버라이드 적용보다 먼저 push해야 한다 — 안 그러면 커스텀 목적지의
+         요율 편집(override)이 destinationRates에서 대상 행을 못 찾아 조용히 버려진다. */
       if (Array.isArray(data.customDestinations)) {
         data.customDestinations.forEach((row) => {
           if (destinationRates.some((d) => d.destination_key === row.destination_key)) return;
@@ -47,6 +45,14 @@ const FX_STATE = { rates: {}, baseline: {} };
         });
         if (data.customDestinations.length && typeof buildDestAccordion === 'function') buildDestAccordion();
       }
+
+      /* 요율 오버라이드 적용 — 커스텀 목적지가 위에서 이미 destinationRates에 편입된
+         뒤라, 내장·커스텀 목적지 모두 대상 행을 찾아 편집분이 반영된다. */
+      if (data.overrides) Object.entries(data.overrides).forEach(([key, fields]) => {
+        const dest = destinationRates.find((d) => d.destination_key === key);
+        if (dest && fields && typeof fields === 'object') Object.assign(dest, fields);
+      });
+
       /* 오버라이드·FX가 로드되면 현재 견적을 다시 그려 반영(초기 렌더 이후 도착 대비) */
       if (typeof renderLiveBreakdown === 'function') renderLiveBreakdown();
     })
@@ -302,12 +308,15 @@ function getFxAdjust(destKey) {
    check : 4 ~ 6개월     (⚠️ 확인 권장)
    stale : 7개월 이상    (🔴 갱신 필요)
    ─────────────────────────────────────────────────────────────── */
-/* ⚠ 중복 구현 주의: admin.html의 adminGetRateStatus()와 로직(3개월/6개월 임계값)이
-   동일한 별도 구현입니다. 한쪽 임계값만 수정하면 고객용/관리자용 "요율 최신성" 배지가
-   서로 어긋날 수 있으니, 임계값을 바꿀 때는 두 함수를 함께 수정하세요.
-   (2026-07-06 야간 점검 시 확인 결과 현재는 정확히 동일함) */
+/* ⚠ 중복 구현 주의: admin.html의 adminGetRateStatus()와 로직(3개월/6개월 임계값 +
+   rateDate 없을 때 '미확인' 처리)이 동일한 별도 구현입니다. 한쪽만 수정하면 고객용/관리자용
+   "요율 최신성" 배지가 서로 어긋나므로 반드시 두 함수를 함께 수정하세요. 반환 shape만
+   용도가 달라 다릅니다: 여기(고객 배지)는 color, adminGetRateStatus(관리자 표)는 icon.
+   (2026-07-22 검토 시 임계값·months 계산·null('미확인') 케이스 값이 정확히 동일함을 확인) */
 function getRateStatus(rateDate) {
-  if (!rateDate) return null;
+  /* rateDate 미상 → '미확인'(adminGetRateStatus와 값 대칭). 고객 계산기 호출측은 rateDate가
+     있을 때만 이 함수를 부르므로 실무상 도달하지 않지만, 두 구현의 계약을 맞춰 둔다. */
+  if (!rateDate) return { status: 'stale', months: 999, label: '미확인', color: '#ef4444' };
   const [y, m] = rateDate.split('-').map(Number);
   const now    = new Date();
   const months = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m);
