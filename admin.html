@@ -790,6 +790,28 @@
         </div>
       </div>
 
+      <!-- 견적 정확도 (신규 · P1) — "견적이 실제 계약과 얼마나 맞았나"를 목적지×항목별로
+           측정해 보여준다. 견적 계산식은 전혀 바꾸지 않는 순수 측정 레이어. 오차가 큰
+           항목부터(=어디를 고쳐야 하는지) 위로 정렬. 데이터가 없으면 카드 숨김. -->
+      <div class="card hidden" id="accuracy-stats-card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">📏 견적 정확도 (실제 대비)</span></div>
+        <div class="card-body">
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">최근 <span id="accuracy-months">12</span>개월 계약·실측 기준, 목적지×항목별 <strong style="color:var(--heading)">견적 대비 실제 오차</strong>입니다(표본 2건 이상). 오차가 큰 항목이 위에 옵니다 — 우선 손볼 곳을 알려줍니다.</p>
+          <div style="overflow-x:auto">
+            <table class="rate-table" style="width:100%;font-size:.82rem;min-width:520px">
+              <thead>
+                <tr>
+                  <th style="text-align:left">목적지</th><th style="text-align:left">항목</th>
+                  <th style="text-align:right">중앙 오차</th><th style="text-align:right">범위(p10~p90)</th>
+                  <th style="text-align:right">표본</th>
+                </tr>
+              </thead>
+              <tbody id="accuracy-stats-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- 실제 이용 호텔 (신규) — 가격 비교/제안이 아니라 "이 목적지에 실제로 어느
            호텔을 썼는지" 순수 참고 정보. 요율 계산에는 전혀 반영되지 않고, 이 카드
            자체가 관리자 전용 탭(admin.html) 안에서만 렌더링되며 데이터도 requireAdmin
@@ -3064,11 +3086,92 @@
     return `<div style="${style};color:var(--success)" title="최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 내 실측 데이터 있음 (약 ${months}개월 전)">✓ 실측</div>`;
   }
 
+  /* ── 견적 정확도 측정 (신규 · P1) ─────────────────────────────────────
+     "견적이 실제 계약과 얼마나 맞았나"를 목적지×항목별 오차(actual/estimate − 1)로
+     측정한다. 소스는 갱신제안과 동일: (1) 계약완료 견적의 실제가 vs 그 견적의 추정 unit,
+     (2) 실제 계약가 위젯 제보 vs 현재 기준가. 오타 방어와 같은 이상치 밴드로 입력오류는
+     제외한다. 견적 계산식은 전혀 건드리지 않는 순수 측정 레이어. */
+  function pctile(sorted, p) {
+    if (!sorted.length) return null;
+    const idx = Math.min(sorted.length - 1, Math.max(0, Math.round((p / 100) * (sorted.length - 1))));
+    return sorted[idx];
+  }
+  function computeAccuracyStats() {
+    if (typeof destinationRates === 'undefined') return [];
+    const recentCutoff = RATE_SUGGEST_RECENT_CUTOFF();
+    const isRecent = (d) => { if (d == null || d === '') return true; const t = new Date(d).getTime(); return isNaN(t) ? true : t >= recentCutoff; };
+    const inBand = (ratio) => ratio >= RATE_SUGGEST_RATIO_MIN && ratio <= RATE_SUGGEST_RATIO_MAX;
+    const byKey = {};
+    const add = (destKey, field, label, ratio) => {
+      if (!inBand(ratio)) return;
+      const k = `${destKey}|${field}`;
+      if (!byKey[k]) byKey[k] = { destKey, field, label, errs: [] };
+      byKey[k].errs.push(ratio - 1);
+    };
+    /* (1) 계약완료 견적: 실제가 vs 그 견적 계산 당시의 추정 unit */
+    [{ field: 'airfare', actualKey: 'actualAirfareUnit', match: it => it.name === '항공' },
+     { field: 'hotel_per_room', actualKey: 'actualHotelUnit', match: it => (it.name || '').startsWith('호텔') }
+    ].forEach(({ field, actualKey, match }) => {
+      getEstsFull().filter(e => e.status === 'contracted' && e[actualKey] != null && e.destKey && isRecent(e.ts)).forEach(e => {
+        const estItem = (e.items || []).find(match);
+        if (!estItem || !estItem.unit) return;
+        add(e.destKey, field, e.destLabel || e.destKey, e[actualKey] / estItem.unit);
+      });
+    });
+    /* (2) 실제 계약가 위젯 제보: 실측 vs 현재 기준가 */
+    priceReportsCache.forEach(r => {
+      if (!isRecent(r.createdAt)) return;
+      const dest = destinationRates.find(d => d.destination_key === r.destinationKey);
+      if (!dest) return;
+      const eff = effectiveRate(dest);
+      Object.entries(RATE_SUGGEST_REPORT_FIELDS).forEach(([field, reportKey]) => {
+        const reported = r[reportKey];
+        if (reported == null || !eff[field]) return;
+        add(r.destinationKey, field, dest.label, reported / eff[field]);
+      });
+    });
+    const out = [];
+    Object.values(byKey).forEach(d => {
+      if (d.errs.length < RATE_SUGGEST_MIN_COUNT) return;
+      const sorted = d.errs.slice().sort((a, b) => a - b);
+      out.push({
+        destKey: d.destKey, field: d.field, label: d.label,
+        fieldLabel: RATE_FIELD_LABELS[d.field] || d.field,
+        medianErr: ratioMedian(sorted), p10: pctile(sorted, 10), p90: pctile(sorted, 90),
+        count: d.errs.length,
+      });
+    });
+    out.sort((a, b) => Math.abs(b.medianErr) - Math.abs(a.medianErr));
+    return out;
+  }
+
+  function renderAccuracyStats() {
+    const card = document.getElementById('accuracy-stats-card');
+    const tbody = document.getElementById('accuracy-stats-tbody');
+    if (!card || !tbody) return;
+    const monthsEl = document.getElementById('accuracy-months');
+    if (monthsEl) monthsEl.textContent = RATE_SUGGEST_RECENT_MONTHS;
+    const stats = computeAccuracyStats();
+    if (!stats.length) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden');
+    const pct = v => v == null ? '—' : `${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}%`;
+    const color = v => { const a = Math.abs(v); return a <= 0.10 ? 'var(--success)' : a <= 0.25 ? '#b45309' : 'var(--danger)'; };
+    tbody.innerHTML = stats.map(s => `
+      <tr>
+        <td style="white-space:nowrap"><strong>${esc(s.label)}</strong></td>
+        <td>${esc(s.fieldLabel)}</td>
+        <td style="text-align:right;font-weight:700;color:${color(s.medianErr)}">${pct(s.medianErr)}</td>
+        <td style="text-align:right;color:var(--muted)">${pct(s.p10)} ~ ${pct(s.p90)}</td>
+        <td style="text-align:right">${s.count}</td>
+      </tr>`).join('');
+  }
+
   function renderRates() {
     refreshRateUndoBanner();
     populatePriceReportDestSelect();
     applyPriceReportModeUI();
     renderRateSuggestions();
+    renderAccuracyStats();
     renderHotelReference();
     if (typeof destinationRates === 'undefined' || typeof RATE_META === 'undefined') {
       document.getElementById('rate-tbody').innerHTML =
