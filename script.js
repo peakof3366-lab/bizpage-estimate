@@ -14,13 +14,19 @@ const FEATURE_EXCEL_EXPORT = true;
    정적 data.js 기본값 위에 얕은 병합한다. 이 fetch가 느리거나 실패해도
    destinationRates는 data.js의 정적값 그대로 남아있으므로 견적 계산은 항상
    안전하게 동작한다(폴백). 되돌리려면 이 블록만 지우면 됨. */
+/* P3: 환율 반영 상태(공개 계산기) — /api/rates가 주는 현재 환율(fxRates)과 목적지별
+   요율 기준시점 환율(fxBaseline)을 담아둔다. getFxAdjust()가 현지통화 원가 항목을
+   현재/기준 환율 비율로 보정한다. 데이터가 없으면 1.0(영향 없음). */
+const FX_STATE = { rates: {}, baseline: {} };
 (function applyRateOverrides() {
   if (typeof destinationRates === 'undefined') return;
   fetch('/api/rates')
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
-      if (!data || !data.overrides) return;
-      Object.entries(data.overrides).forEach(([key, fields]) => {
+      if (!data) return;
+      if (data.fxRates) FX_STATE.rates = data.fxRates;
+      if (data.fxBaseline) FX_STATE.baseline = data.fxBaseline;
+      if (data.overrides) Object.entries(data.overrides).forEach(([key, fields]) => {
         const dest = destinationRates.find((d) => d.destination_key === key);
         if (dest && fields && typeof fields === 'object') Object.assign(dest, fields);
       });
@@ -41,6 +47,8 @@ const FEATURE_EXCEL_EXPORT = true;
         });
         if (data.customDestinations.length && typeof buildDestAccordion === 'function') buildDestAccordion();
       }
+      /* 오버라이드·FX가 로드되면 현재 견적을 다시 그려 반영(초기 렌더 이후 도착 대비) */
+      if (typeof renderLiveBreakdown === 'function') renderLiveBreakdown();
     })
     .catch(() => {});
 })();
@@ -264,6 +272,22 @@ function getPeakInfo(startDateStr, destKey) {
   return best;
 }
 
+/* ── P3 헬퍼: 환율 보정 계수 ─────────────────────────────────────────
+   현지통화 원가(호텔·식비·가이드·차량·관광)는 정적 KRW로 저장돼 있어, 요율을 정한
+   시점 이후 환율이 변하면 실제 원가와 벌어진다. 목적지 통화의 (현재환율 / 기준시점환율)
+   비율로 그 항목들을 보정한다. 항공·유류는 국제선 성격이라 제외, 마진·보험은 원화라 제외.
+   데이터(기준환율/현재환율)가 없으면 1.0(영향 없음). 데이터 이상으로 인한 견적 폭주를
+   막으려 ±30%로 클램프. */
+function getFxAdjust(destKey) {
+  const base = FX_STATE.baseline[destKey];
+  if (!base || !base.rate) return 1.0;
+  const now = FX_STATE.rates[base.currency];
+  if (!now || !isFinite(now)) return 1.0;
+  const adj = now / base.rate;
+  if (!isFinite(adj) || adj <= 0) return 1.0;
+  return Math.max(0.7, Math.min(1.3, adj));
+}
+
 /* ── Level 2 헬퍼: 요율 기준일 신선도 판정 ───────────────────────
    ok    : 0 ~ 3개월 이내 (✅ 최신)
    check : 4 ~ 6개월     (⚠️ 확인 권장)
@@ -365,11 +389,18 @@ function getBreakdownData() {
   const fuelTotalTiered = tieredTotal(fuelUnitBase, participants, PAX_TIERS);
   const airUnit   = participants > 0 ? Math.round(airTotalTiered  / participants) : 0;
   const fuelUnit  = participants > 0 ? Math.round(fuelTotalTiered / participants) : 0;
-  const hotelUnit = Math.round(dest.hotel_per_room * hotelGrade.factor * seasonInfo.factor);
+  /* P3: 환율 보정 — 현지통화 원가 항목(호텔·식비·가이드·차량·관광)에만 적용
+     (항공·유류는 국제선 성격이라 제외, 마진·보험은 원화라 제외) */
+  const fxAdjust  = getFxAdjust(destKey);
+  const hotelUnit = Math.round(dest.hotel_per_room * hotelGrade.factor * seasonInfo.factor * fxAdjust);
+  const mealUnit  = Math.round(dest.meal_per_person  * fxAdjust);
+  const guideUnit = Math.round(dest.guide_fee        * fxAdjust);
+  const sightUnit = Math.round(dest.sightseeing_fee  * fxAdjust);
 
   /* 버그②수정: 참고 기준 10인 이상 → 대형버스 (기존 >12 오류) */
   const useLarge    = vehicleTypeVal === 'large' || (vehicleTypeVal === 'auto' && participants >= 10);
   const vehicleRate = useLarge ? dest.vehicle_large : dest.vehicle_small;
+  const vehicleUnitAdj = Math.round(vehicleRate * fxAdjust);
 
   /* 버그④수정: 차량 대수가 인원수와 무관하게 항상 1대로 고정되어 있던 문제.
      대형/소형 관광버스의 통상 정원(가정치 — 실제 계약 차량 정원에 따라 조정 필요)을
@@ -390,27 +421,27 @@ function getBreakdownData() {
 
   const mealCount = days * 2 - 1;
   if (incMeal) rows.push({
-    name:'식사', unit:dest.meal_per_person,
+    name:'식사', unit:mealUnit,
     qty:`${participants}명×${mealCount}식`,
-    amount: dest.meal_per_person * participants * mealCount,
+    amount: mealUnit * participants * mealCount,
   });
 
   if (incVehicle) rows.push({
-    name:vehicleName, unit:vehicleRate,
+    name:vehicleName, unit:vehicleUnitAdj,
     qty: vehicleCount > 1 ? `${vehicleCount}대×${days}일` : `${days}일`,
-    amount: vehicleRate * days * vehicleCount,
+    amount: vehicleUnitAdj * days * vehicleCount,
   });
 
   if (incGuide) rows.push({
-    name:'가이드', unit:dest.guide_fee,
+    name:'가이드', unit:guideUnit,
     qty:`${days}일`,
-    amount: dest.guide_fee * days,
+    amount: guideUnit * days,
   });
 
   if (incSightseeing) rows.push({
-    name:'관광', unit:dest.sightseeing_fee,
+    name:'관광', unit:sightUnit,
     qty:`${participants}명`,
-    amount: dest.sightseeing_fee * participants,
+    amount: sightUnit * participants,
   });
 
   /* ─── 비공개 항목 3종 (고객 미노출, 총액에 포함) ─────────────────
@@ -478,6 +509,8 @@ function getBreakdownData() {
     vipCount, bizFactor, rooms,
     /* P2 신규 필드 — 항공 리드타임/피크 반영 근거(표시·디버깅용) */
     leadFactor, peakFactor: peakInfo.factor, peakLabel: peakInfo.label,
+    /* P3 신규 필드 — 환율 보정 계수(현지원가 항목에 적용) */
+    fxAdjust,
   };
 }
 
