@@ -29,6 +29,119 @@ const SEASON_CONFIG_SOUTHERN = [
   { id: 'normal',  months: [],         factor: 1.00, label: '평시',   badge: '평시' },
 ];
 
+/* =====================================================================
+   P4 — 목적지(권역)별 시즌 달력
+   ─────────────────────────────────────────────────────────────────────
+   위 SEASON_CONFIG는 전 목적지 공용 근사라, 실제 성수기가 권역마다 다른
+   문제를 못 잡는다(대표적으로 동남아는 건기 11~3월이 성수기·우기 5~9월이
+   비수기인데 공용표는 여름을 성수기로 잡아 정반대). 여기서 권역별로 시즌표를
+   재정의해 우선 적용한다. getSeasonInfo(script.js)가 목적지가 아래 keys에
+   매칭되면 그 config를, 매칭 안 되면 기존 SEASON_CONFIG(남반구는
+   SEASON_CONFIG_SOUTHERN)로 폴백한다 → 여기 없는 목적지는 동작 100% 불변.
+   남반구 4곳(시드니·멜버른·오클랜드·호주)은 일부러 빼서 SOUTHERN을 그대로 쓴다.
+
+   각 config는 SEASON_CONFIG와 동일 형태({id,months,factor,label,badge})이며
+   반드시 id:'normal'(months:[]) 폴백 항목을 포함해야 한다. P2의 PEAK_CALENDAR
+   (날짜 단위 연휴·이벤트)와 상호보완 관계: 여기는 월 단위 넓은 시즌(항공·유류·
+   호텔에 곱함), PEAK_CALENDAR는 골든위크·춘절 등 짧은 피크를 날짜로 항공·유류에
+   가산한다. ⚠ 아래 성수기/비수기 월과 계수는 도메인 초안입니다 — 실제 운영
+   실측(요율관리 '견적 정확도' 카드)과 담당자 판단으로 조정하세요. 권역으로 묶은
+   탓에 같은 권역 안에서도 예외가 있습니다(예: 삿포로 겨울, 오키나와 여름, 하와이 겨울). */
+const DEST_SEASON_PROFILES = [
+  {
+    /* 동남아 — 건기(11~3월) 성수기 / 우기(5~9월) 비수기. 공용표(여름 성수기)와 정반대 */
+    keys: ['라오스','싱가포르','하노이','호치민','다낭','나트랑','푸꾸옥','세부',
+           '마닐라','보홀','코타키나발루','캄보디아','방콕','푸켓','치앙마이','발리'],
+    config: [
+      { id:'peak',    months:[11,12,1,2,3], factor:1.15, label:'건기 성수기', badge:'건기 성수기 +15%' },
+      { id:'offpeak', months:[5,6,7,8,9],   factor:0.88, label:'우기 비수기', badge:'우기 비수기 −12%' },
+      { id:'normal',  months:[],            factor:1.00, label:'평시',        badge:'평시' },
+    ],
+  },
+  {
+    /* 유럽 — 여름(6~9월) 성수기 / 겨울(11~2월) 비수기. 동유럽도 시즌상 여기 포함 */
+    keys: ['서유럽','로마','파리','영국','스페인','독일','네덜란드','북유럽','동유럽'],
+    config: [
+      { id:'peak',    months:[6,7,8,9],   factor:1.20, label:'여름 성수기', badge:'여름 성수기 +20%' },
+      { id:'offpeak', months:[11,12,1,2], factor:0.88, label:'겨울 비수기', badge:'겨울 비수기 −12%' },
+      { id:'normal',  months:[],          factor:1.00, label:'평시',        badge:'평시' },
+    ],
+  },
+  {
+    /* 일본 — 벚꽃(3~4월)·여름(7~8월)·단풍(10~11월) 성수기 / 겨울초(1월)·장마(6월) 비수기.
+       골든위크·벚꽃 피크는 PEAK_CALENDAR가 날짜로 별도 가산. 삿포로(겨울)·오키나와(여름)는 예외. */
+    keys: ['도쿄','오사카','후쿠오카','나고야','삿포로','오키나와'],
+    config: [
+      { id:'peak',    months:[3,4,7,8,10,11], factor:1.15, label:'벚꽃·단풍·여름 성수기', badge:'성수기 +15%' },
+      { id:'offpeak', months:[1,6],           factor:0.90, label:'비수기',              badge:'비수기 −10%' },
+      { id:'normal',  months:[],              factor:1.00, label:'평시',                badge:'평시' },
+    ],
+  },
+  {
+    /* 홍콩·마카오 — 가을~초겨울(10~12월, 온화·쇼핑) 성수기 / 한여름(6~8월, 무덥고 태풍) 비수기 */
+    keys: ['홍콩','마카오'],
+    config: [
+      { id:'peak',    months:[10,11,12], factor:1.12, label:'가을·연말 성수기', badge:'성수기 +12%' },
+      { id:'offpeak', months:[6,7,8],    factor:0.90, label:'한여름 비수기',   badge:'비수기 −10%' },
+      { id:'normal',  months:[],         factor:1.00, label:'평시',            badge:'평시' },
+    ],
+  },
+  {
+    /* 중국(본토) — 여름(7~8월)·가을(10월 국경절) 성수기 / 한겨울(1~2월) 비수기. 춘절은 PEAK_CALENDAR가 가산 */
+    keys: ['상해','장가계','청도','연태'],
+    config: [
+      { id:'peak',    months:[7,8,10], factor:1.12, label:'여름·국경절 성수기', badge:'성수기 +12%' },
+      { id:'offpeak', months:[1,2],    factor:0.90, label:'한겨울 비수기',     badge:'비수기 −10%' },
+      { id:'normal',  months:[],       factor:1.00, label:'평시',              badge:'평시' },
+    ],
+  },
+  {
+    /* 몽골 — 여름(6~8월, 초원관광 극성수기) / 혹한기(11~3월) 강비수기 */
+    keys: ['몽골'],
+    config: [
+      { id:'peak',    months:[6,7,8],       factor:1.25, label:'여름 극성수기', badge:'여름 성수기 +25%' },
+      { id:'offpeak', months:[11,12,1,2,3], factor:0.82, label:'혹한기 비수기', badge:'비수기 −18%' },
+      { id:'normal',  months:[],            factor:1.00, label:'평시',          badge:'평시' },
+    ],
+  },
+  {
+    /* 대만 — 가을·겨울(10~12월, 온화) 성수기 / 한여름(7~8월, 무덥고 태풍) 비수기. 춘절은 PEAK_CALENDAR가 가산 */
+    keys: ['대만','가오슝'],
+    config: [
+      { id:'peak',    months:[10,11,12], factor:1.12, label:'가을·겨울 성수기', badge:'성수기 +12%' },
+      { id:'offpeak', months:[7,8],      factor:0.90, label:'한여름 비수기',   badge:'비수기 −10%' },
+      { id:'normal',  months:[],         factor:1.00, label:'평시',            badge:'평시' },
+    ],
+  },
+  {
+    /* 괌·사이판 — 건기·방학철(12~3,7~8월) 성수기 / 우기·태풍철(9~10월) 비수기 */
+    keys: ['괌','사이판'],
+    config: [
+      { id:'peak',    months:[12,1,2,3,7,8], factor:1.15, label:'건기·방학 성수기', badge:'성수기 +15%' },
+      { id:'offpeak', months:[9,10],         factor:0.90, label:'우기 비수기',     badge:'비수기 −10%' },
+      { id:'normal',  months:[],             factor:1.00, label:'평시',            badge:'평시' },
+    ],
+  },
+  {
+    /* 북미 — 여름(6~8월)·연말(12월) 성수기 / 늦겨울(2~3월) 비수기. 하와이는 겨울도 강성수기라 예외 */
+    keys: ['로스앤젤레스','샌프란시스코','워싱턴','뉴욕','하와이','밴쿠버','토론토'],
+    config: [
+      { id:'peak',    months:[6,7,8,12], factor:1.15, label:'여름·연말 성수기', badge:'성수기 +15%' },
+      { id:'offpeak', months:[2,3],      factor:0.92, label:'늦겨울 비수기',   badge:'비수기 −8%' },
+      { id:'normal',  months:[],         factor:1.00, label:'평시',            badge:'평시' },
+    ],
+  },
+  {
+    /* 중앙아시아(카자흐스탄·우즈베키스탄) — 봄가을(4~6,9~10월) 쾌적 성수기 / 혹서(7~8월)·혹한(12~2월) 비수기 */
+    keys: ['카자흐스탄','우즈베키스탄'],
+    config: [
+      { id:'peak',    months:[4,5,6,9,10], factor:1.12, label:'봄·가을 성수기',   badge:'성수기 +12%' },
+      { id:'offpeak', months:[7,8,12,1,2], factor:0.90, label:'혹서·혹한 비수기', badge:'비수기 −10%' },
+      { id:'normal',  months:[],           factor:1.00, label:'평시',             badge:'평시' },
+    ],
+  },
+];
+
 /* 호텔 등급별 단가 계수 (4성급 = 기준 1.0) */
 const HOTEL_GRADES = {
   standard: { label: '3성급',   factor: 0.75 },

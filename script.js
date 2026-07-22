@@ -212,11 +212,20 @@ function tieredTotal(unitBase, participants, tiers) {
   return total;
 }
 
-/* ── Level 1 헬퍼: 출발월 → 시즌 정보 (남반구 목적지는 현지 계절 기준 별도 적용) ── */
+/* ── Level 1 헬퍼: 출발월 → 시즌 정보 ──────────────────────────────────
+   P4: 목적지가 DEST_SEASON_PROFILES(권역별 시즌표)에 매칭되면 그 config를
+   우선 사용하고, 없으면 기존 공용표로 폴백한다. 폴백은 남반구 목적지면
+   SEASON_CONFIG_SOUTHERN(현지 계절 반전), 그 외엔 SEASON_CONFIG.
+   → 프로파일에 없는 목적지의 동작은 P4 이전과 100% 동일. */
 function getSeasonInfo(dateStr, destKey) {
-  const config = (typeof SOUTHERN_HEMISPHERE_DESTS !== 'undefined' && SOUTHERN_HEMISPHERE_DESTS.includes(destKey))
-    ? SEASON_CONFIG_SOUTHERN
-    : SEASON_CONFIG;
+  const profile = (typeof DEST_SEASON_PROFILES !== 'undefined')
+    ? DEST_SEASON_PROFILES.find(p => p.keys.includes(destKey))
+    : null;
+  const config = profile
+    ? profile.config
+    : ((typeof SOUTHERN_HEMISPHERE_DESTS !== 'undefined' && SOUTHERN_HEMISPHERE_DESTS.includes(destKey))
+        ? SEASON_CONFIG_SOUTHERN
+        : SEASON_CONFIG);
   if (!dateStr) return config.find(s => s.id === 'normal');
   const month = new Date(dateStr).getMonth() + 1;
   return config.find(s => s.months.includes(month))
