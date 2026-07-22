@@ -39,6 +39,22 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true });
       }
 
+      /* 실제 계약 식비 저장 (신규 · P1b) — 항공/호텔과 대칭 */
+      if (body.actualMeal) {
+        const unit = Number(body.actualMeal && body.actualMeal.unit);
+        if (!Number.isFinite(unit) || unit <= 0 || unit > 50000000) return res.status(400).json({ error: 'invalid_unit' });
+        await sql`update quotes set actual_meal_unit = ${unit} where id = ${id}`;
+        return res.status(200).json({ ok: true });
+      }
+
+      /* 실제 총 계약가 저장 (신규 · P1b) — 종합 정확도 측정용. 총액이라 상한을 크게 둔다. */
+      if (body.actualTotal) {
+        const value = Number(body.actualTotal && body.actualTotal.value);
+        if (!Number.isFinite(value) || value <= 0 || value > 10000000000) return res.status(400).json({ error: 'invalid_total' });
+        await sql`update quotes set actual_total = ${value} where id = ${id}`;
+        return res.status(200).json({ ok: true });
+      }
+
       await sql`
         update quotes set status = ${body.status ?? 'new'}, note = ${body.note ?? ''}, assignee = ${body.assignee ?? ''}
         where id = ${id}

@@ -212,6 +212,12 @@ async function main() {
      소스(견적관리+실제계약가위젯)이고 호텔은 위젯 하나뿐이던 비대칭을 해소한다. */
   await sql`alter table quotes add column if not exists actual_hotel_unit numeric`;
 
+  /* 실제 계약 식비 + 실제 총 계약가 (신규 · P1b, 정확도 측정) — 항목별 실측을 식비까지
+     넓히고, 실제 최종 총 계약가를 남겨 "견적 총액이 실제와 얼마나 맞았나"(종합 오차)를
+     요율 관리 탭 "견적 정확도" 카드에서 집계한다. */
+  await sql`alter table quotes add column if not exists actual_meal_unit numeric`;
+  await sql`alter table quotes add column if not exists actual_total numeric`;
+
   /* 실제 가격 제보 (신규) — 위 quotes.actual_airfare_unit은 특정 견적 레코드에 종속돼
      견적관리 상세 모달을 열어야만 입력 가능했음. 이 테이블은 목적지만 고르면 어떤
      견적 레코드와도 무관하게 요율 관리 탭 맨 위에서 누구나(로그인한 임직원 누구나)

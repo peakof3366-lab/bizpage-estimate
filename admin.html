@@ -1211,6 +1211,30 @@
           </div>
           <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">계약이 완료된 건이라면, 실제 최종 호텔단가(1박 기준)를 입력해 두세요 — 요율 관리 탭에서 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다.</p>
         </div>
+
+        <!-- 실제 계약 식비 (신규 · P1b) — 위 항공/호텔과 대칭 -->
+        <div style="margin-top:.6rem;padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
+          <div class="detail-label" style="margin-bottom:.4rem">실제 계약 식비 (1인 1식)</div>
+          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+            <span id="em-est-meal" style="font-size:.8rem;color:var(--muted)"></span>
+            <input type="number" id="em-actual-meal" class="pw-input" style="width:160px" min="0" placeholder="예: 22000" />
+            <button type="button" class="btn-act btn-outline-p" onclick="saveActualMeal()">저장</button>
+            <span id="em-actual-meal-msg" style="font-size:.76rem;font-weight:700"></span>
+          </div>
+        </div>
+
+        <!-- 실제 총 계약가 (신규 · P1b) — 종합 견적 정확도 측정용. 견적 총액 대비 실제
+             최종 계약가를 남겨 "우리 견적이 전체적으로 몇 % 맞았나"를 측정한다. -->
+        <div style="margin-top:.6rem;padding:.75rem .9rem;background:#f0fdf4;border:1px solid var(--border)">
+          <div class="detail-label" style="margin-bottom:.4rem">실제 총 계약가 (전체 최종 금액)</div>
+          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+            <span id="em-est-total" style="font-size:.8rem;color:var(--muted)"></span>
+            <input type="number" id="em-actual-total" class="pw-input" style="width:180px" min="0" placeholder="예: 42000000" />
+            <button type="button" class="btn-act btn-outline-p" onclick="saveActualTotal()">저장</button>
+            <span id="em-actual-total-msg" style="font-size:.76rem;font-weight:700"></span>
+          </div>
+          <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">계약 완료 건의 실제 최종 총액을 남기면 요율 관리 탭 "견적 정확도"에 <strong style="color:var(--heading)">종합 오차</strong>로 집계됩니다.</p>
+        </div>
         <div class="modal-actions" style="margin-top:.75rem">
           <button class="btn-act btn-primary" onclick="saveEstimateDetail()">저장</button>
           <button class="btn-act btn-outline-p" onclick="printEstimateAdmin()">관리자용 출력</button>
@@ -3108,15 +3132,20 @@
       if (!byKey[k]) byKey[k] = { destKey, field, label, errs: [] };
       byKey[k].errs.push(ratio - 1);
     };
-    /* (1) 계약완료 견적: 실제가 vs 그 견적 계산 당시의 추정 unit */
+    /* (1) 계약완료 견적: 실제가 vs 그 견적 계산 당시의 추정 unit (항목별) */
     [{ field: 'airfare', actualKey: 'actualAirfareUnit', match: it => it.name === '항공' },
-     { field: 'hotel_per_room', actualKey: 'actualHotelUnit', match: it => (it.name || '').startsWith('호텔') }
+     { field: 'hotel_per_room', actualKey: 'actualHotelUnit', match: it => (it.name || '').startsWith('호텔') },
+     { field: 'meal_per_person', actualKey: 'actualMealUnit', match: it => it.name === '식사' }
     ].forEach(({ field, actualKey, match }) => {
       getEstsFull().filter(e => e.status === 'contracted' && e[actualKey] != null && e.destKey && isRecent(e.ts)).forEach(e => {
         const estItem = (e.items || []).find(match);
         if (!estItem || !estItem.unit) return;
         add(e.destKey, field, e.destLabel || e.destKey, e[actualKey] / estItem.unit);
       });
+    });
+    /* (1-종합) 계약완료 견적: 실제 총 계약가 vs 견적 총액 → 목적지별 '종합' 오차 (P1b) */
+    getEstsFull().filter(e => e.status === 'contracted' && e.actualTotal != null && e.total && e.destKey && isRecent(e.ts)).forEach(e => {
+      add(e.destKey, 'total', e.destLabel || e.destKey, e.actualTotal / e.total);
     });
     /* (2) 실제 계약가 위젯 제보: 실측 vs 현재 기준가 */
     priceReportsCache.forEach(r => {
@@ -3136,7 +3165,7 @@
       const sorted = d.errs.slice().sort((a, b) => a - b);
       out.push({
         destKey: d.destKey, field: d.field, label: d.label,
-        fieldLabel: RATE_FIELD_LABELS[d.field] || d.field,
+        fieldLabel: d.field === 'total' ? '종합(총액)' : (RATE_FIELD_LABELS[d.field] || d.field),
         medianErr: ratioMedian(sorted), p10: pctile(sorted, 10), p90: pctile(sorted, 90),
         count: d.errs.length,
       });
@@ -4201,6 +4230,17 @@
     document.getElementById('em-actual-hotel').value = (e.actualHotelUnit != null) ? e.actualHotelUnit : '';
     document.getElementById('em-actual-hotel-msg').textContent = '';
 
+    /* 실제 계약 식비 (신규 · P1b) — 위 항공/호텔과 대칭 */
+    const estMealItem = (e.items||[]).find(it => it.name === '식사');
+    document.getElementById('em-est-meal').textContent = estMealItem ? `추정(이 견적 계산 당시): ${fmt(estMealItem.unit||0)}` : '추정 식비 정보 없음';
+    document.getElementById('em-actual-meal').value = (e.actualMealUnit != null) ? e.actualMealUnit : '';
+    document.getElementById('em-actual-meal-msg').textContent = '';
+
+    /* 실제 총 계약가 (신규 · P1b) — 참조값은 견적 총액 자체 */
+    document.getElementById('em-est-total').textContent = `견적 총액: ${fmt(e.total||0)}`;
+    document.getElementById('em-actual-total').value = (e.actualTotal != null) ? e.actualTotal : '';
+    document.getElementById('em-actual-total-msg').textContent = '';
+
     document.getElementById('emModal').classList.remove('hidden');
   }
 
@@ -4242,6 +4282,50 @@
       const all = getEstsFull();
       const idx = all.findIndex(x => x.id === emCurrentId);
       if (idx >= 0) { all[idx].actualHotelUnit = unit; localStorage.setItem(EM_KEY, JSON.stringify(all)); }
+      msg.style.color='var(--success)'; msg.textContent='저장됨';
+    } catch (err) {
+      msg.style.color='var(--danger)'; msg.textContent='저장 실패';
+    }
+    setTimeout(() => { msg.textContent=''; }, 3000);
+  }
+
+  /* 실제 계약 식비 저장 (신규 · P1b) — saveActualAirfare()와 대칭 */
+  async function saveActualMeal() {
+    const input = document.getElementById('em-actual-meal');
+    const msg = document.getElementById('em-actual-meal-msg');
+    const unit = Number(input.value);
+    if (!input.value || !Number.isFinite(unit) || unit <= 0 || unit > 50000000) { msg.style.color='var(--danger)'; msg.textContent='올바른 금액을 입력해 주세요(0보다 크고 5천만원 이하).'; return; }
+    try {
+      const res = await fetch(`/api/quotes/${emCurrentId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actualMeal: { unit } }),
+      });
+      if (!res.ok) throw new Error('save_failed');
+      const all = getEstsFull();
+      const idx = all.findIndex(x => x.id === emCurrentId);
+      if (idx >= 0) { all[idx].actualMealUnit = unit; localStorage.setItem(EM_KEY, JSON.stringify(all)); }
+      msg.style.color='var(--success)'; msg.textContent='저장됨';
+    } catch (err) {
+      msg.style.color='var(--danger)'; msg.textContent='저장 실패';
+    }
+    setTimeout(() => { msg.textContent=''; }, 3000);
+  }
+
+  /* 실제 총 계약가 저장 (신규 · P1b) — 종합 정확도 측정용. 총액이라 상한을 크게 둔다. */
+  async function saveActualTotal() {
+    const input = document.getElementById('em-actual-total');
+    const msg = document.getElementById('em-actual-total-msg');
+    const val = Number(input.value);
+    if (!input.value || !Number.isFinite(val) || val <= 0 || val > 10000000000) { msg.style.color='var(--danger)'; msg.textContent='올바른 총액을 입력해 주세요(0보다 크고 100억 이하).'; return; }
+    try {
+      const res = await fetch(`/api/quotes/${emCurrentId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actualTotal: { value: val } }),
+      });
+      if (!res.ok) throw new Error('save_failed');
+      const all = getEstsFull();
+      const idx = all.findIndex(x => x.id === emCurrentId);
+      if (idx >= 0) { all[idx].actualTotal = val; localStorage.setItem(EM_KEY, JSON.stringify(all)); }
       msg.style.color='var(--success)'; msg.textContent='저장됨';
     } catch (err) {
       msg.style.color='var(--danger)'; msg.textContent='저장 실패';
