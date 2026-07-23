@@ -31,6 +31,14 @@ const COEF_SPEC = {
   hotelPeakWeight:  { def: 0.8, min: 0.0, max: 1.0 }, // 호텔이 받는 피크 비중
 };
 const COEF_STATE = Object.fromEntries(Object.entries(COEF_SPEC).map(([k, s]) => [k, s.def]));
+
+/* P11: 변동성 총배수 안전 상한 — 항공/유류의 '수요 변동' 계수(시즌×리드×피크)가 곱해질 때의
+   상한. 개별 노브(0.5~2.0)는 이미 제한돼 있으나, 여럿을 동시에 극단으로 올리면 곱이 폭주할 수
+   있어(전부 2.0이면 성수기 구간 ~3.15배) 곱 자체에 상한을 둔다. 기본·중간 튜닝에선 절대 안
+   걸리는 수준(기본 노브 최악 ~1.9배)이라 회귀 없음. 출발지(공항 구조 프리미엄)·좌석등급(비즈니스)·
+   환율은 '수요 변동'이 아니라 상한 대상에서 제외. 초과 시 셋을 비례 축소(상대 비중 보존).
+   (GPT 2라운드 협의로 2.5 확정. 필요 시 이 값만 조정.) */
+const VOL_MULTIPLIER_CAP = 2.5;
 function clampCoef(key, val) {
   const s = COEF_SPEC[key];
   if (!s || typeof val !== 'number' || !isFinite(val)) return s ? s.def : val;
@@ -453,8 +461,12 @@ function getBreakdownData() {
   const leadFactor   = applyStrength(getLeadTimeFactor(startDateVal), COEF_STATE.leadTimeStrength);
   const peakInfo     = getPeakInfo(startDateVal, destKey);
   const peakFactor   = applyStrength(peakInfo.factor, COEF_STATE.peakStrength);
-  const airUnitBase  = dest.airfare        * seasonFactor * departureFactor * bizFactor * leadFactor * peakFactor;
-  const fuelUnitBase = dest.fuel_surcharge * seasonFactor * departureFactor * leadFactor * peakFactor;
+  /* P11: 변동성 곱 상한 — 시즌×리드×피크가 상한을 넘으면 비례 축소(volScale). 기본 노브에선
+     항상 1(무영향). 항공·유류에만 적용(가장 크게 스택되는 항목). 출발지·비즈·환율은 대상 아님. */
+  const volProduct = seasonFactor * leadFactor * peakFactor;
+  const volScale   = volProduct > VOL_MULTIPLIER_CAP ? VOL_MULTIPLIER_CAP / volProduct : 1;
+  const airUnitBase  = dest.airfare        * seasonFactor * departureFactor * bizFactor * leadFactor * peakFactor * volScale;
+  const fuelUnitBase = dest.fuel_surcharge * seasonFactor * departureFactor * leadFactor * peakFactor * volScale;
   const airTotalTiered  = tieredTotal(airUnitBase,  participants, PAX_TIERS);
   const fuelTotalTiered = tieredTotal(fuelUnitBase, participants, PAX_TIERS);
   const airUnit   = participants > 0 ? Math.round(airTotalTiered  / participants) : 0;
@@ -599,6 +611,8 @@ function getBreakdownData() {
     hotelPeakFactor,
     /* P2b 신규 필드 — 이 견적에 실제 반영된 계수 노브 스냅샷(역검증·표시용) */
     coef: { ...COEF_STATE },
+    /* P11 신규 필드 — 변동성 곱(시즌×리드×피크)과 상한 축소계수(1이면 미적용). 진단·역검증용 */
+    volProduct, volScale,
     /* P3 신규 필드 — 환율 보정 계수(현지원가 항목에 적용) */
     fxAdjust,
   };
