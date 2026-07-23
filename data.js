@@ -13,6 +13,28 @@ const PAX_TIERS = [
   { min: 50, max: Infinity, factor: 0.85, label: '50명 이상', desc: '−15%' },
 ];
 
+/* P10: 지상비 볼륨 할인 — 대규모 단체는 식당·관광지에서도 볼륨 협상력이 생긴다. 단 규모
+   협상 여력이 항공 벌크요금보다 작아 PAX_TIERS(−5/−10/−15%)보다 완만하게 둔다. 항공·유류와
+   동일하게 tieredTotal(누진)로 적용해 인원 증가 시 총액 단조성(구간 경계 역전 없음)을 보장.
+   · 식사(1인당): 식당 단체 할인은 상대적으로 여지가 큼
+   · 관광(1인당 입장료): 정찰제가 많아 할인 폭이 더 작음 → 식사보다 완만
+   · 호텔 제외: 목적지 객실단가(hotel_per_room)가 이미 단체 협상가 성격이라 추가 할인은
+     이중할인 위험(GPT 협의 결론). 가이드(일당정액)·차량(ceil(인원/정원))은 이미 규모의
+     경제가 구조적으로 반영돼 대상 아님. 구간 경계는 항공과 동일(10/30/50).
+   계수는 도메인 초안 — P1 정확도·P6 역검증 실측으로 조정 예정. */
+const GROUND_MEAL_TIERS = [
+  { min:  1, max:  9, factor: 1.00 },
+  { min: 10, max: 29, factor: 0.98 },
+  { min: 30, max: 49, factor: 0.95 },
+  { min: 50, max: Infinity, factor: 0.92 },
+];
+const GROUND_SIGHT_TIERS = [
+  { min:  1, max:  9, factor: 1.00 },
+  { min: 10, max: 29, factor: 0.99 },
+  { min: 30, max: 49, factor: 0.97 },
+  { min: 50, max: Infinity, factor: 0.95 },
+];
+
 /* 출발월 기준 시즌 계수 — 항공·유류·호텔에 적용 (북반구/한국 출발 수요 기준) */
 const SEASON_CONFIG = [
   { id: 'peak',    months: [7, 8, 12, 1], factor: 1.20, label: '성수기', badge: '성수기 +20%' },

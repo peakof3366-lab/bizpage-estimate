@@ -497,10 +497,14 @@ function getBreakdownData() {
   });
 
   const mealCount = days * 2 - 1;
+  /* P10: 식사 볼륨 할인(누진). 1인당 식비에 GROUND_MEAL_TIERS를 tieredTotal로 적용해
+     인원 규모 협상력을 반영(항공보다 완만). unit은 할인 반영된 1인 1식 실효단가로 표시. */
+  const mealTotalTiered = tieredTotal(mealUnit, participants, GROUND_MEAL_TIERS) * mealCount;
+  const mealEffUnit = (participants > 0 && mealCount > 0) ? Math.round(mealTotalTiered / (participants * mealCount)) : mealUnit;
   if (incMeal) rows.push({
-    name:'식사', unit:mealUnit,
+    name:'식사', unit:mealEffUnit,
     qty:`${participants}명×${mealCount}식`,
-    amount: mealUnit * participants * mealCount,
+    amount: mealTotalTiered,
   });
 
   if (incVehicle) rows.push({
@@ -515,10 +519,13 @@ function getBreakdownData() {
     amount: guideUnit * days,
   });
 
+  /* P10: 관광 볼륨 할인(누진). 입장료는 정찰제가 많아 식사보다 완만한 GROUND_SIGHT_TIERS 적용. */
+  const sightTotalTiered = tieredTotal(sightUnit, participants, GROUND_SIGHT_TIERS);
+  const sightEffUnit = participants > 0 ? Math.round(sightTotalTiered / participants) : sightUnit;
   if (incSightseeing) rows.push({
-    name:'관광', unit:sightUnit,
+    name:'관광', unit:sightEffUnit,
     qty:`${participants}명`,
-    amount: sightUnit * participants,
+    amount: sightTotalTiered,
   });
 
   /* ─── 비공개 항목 3종 (고객 미노출, 총액에 포함) ─────────────────
