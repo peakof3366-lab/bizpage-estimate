@@ -26,6 +26,16 @@ const NUMERIC_FIELDS = new Set([
 ]);
 const STRING_FIELDS = new Set(['notes', 'rateDate', 'season_note']);
 
+/* P2b: 견적 계수 스칼라 노브 스펙 — script.js의 COEF_SPEC와 반드시 동일하게 유지.
+   한쪽만 바꾸면 서버 검증 범위와 클라 적용 범위가 어긋난다(기본값·min·max 모두 대칭).
+   저장 시 이 스펙으로 타입·범위를 검증하고, 스펙에 없는 키는 버린다. */
+const COEF_SPEC = {
+  seasonStrength:   { def: 1.0, min: 0.5, max: 2.0 },
+  leadTimeStrength: { def: 1.0, min: 0.5, max: 2.0 },
+  peakStrength:     { def: 1.0, min: 0.5, max: 2.0 },
+  hotelPeakWeight:  { def: 0.8, min: 0.0, max: 1.0 },
+};
+
 /* 관리자 신규 목적지 (신규) — 아래 상수·검증 함수는 커스텀 목적지 생성/삭제
    전용이며, 위 NUMERIC_FIELDS/STRING_FIELDS는 그대로 재사용한다(diff 검증용
    isValidChange와 달리 전체 행 검증이 필요해 별도 함수로 분리). */
@@ -142,7 +152,22 @@ module.exports = async (req, res) => {
         rateDate: r.rate_date, notes: r.notes, season_note: r.season_note,
         currency: r.currency || null, region: r.region || null,
       }));
-      return res.status(200).json({ overrides, fxRates, fxBaseline, customDestinations });
+      /* P2b: 계수 노브 전달 — app_settings 'coefficients' 행. 테이블/행이 아직 없으면
+         조용히 {} (클라가 코드 기본값 사용). 이 조회 실패가 위 요율/환율 응답을 깨지
+         않도록 반드시 Promise.all 밖에서 독립 try/catch로 감싼다(배포 순서 무관하게 안전). */
+      let coefficients = {};
+      try {
+        const coefRows = await sql`select value from app_settings where key = 'coefficients'`;
+        if (coefRows.length && coefRows[0].value && typeof coefRows[0].value === 'object') {
+          for (const key of Object.keys(COEF_SPEC)) {
+            const v = coefRows[0].value[key];
+            if (typeof v === 'number' && isFinite(v)) coefficients[key] = v;
+          }
+        }
+      } catch (coefErr) {
+        console.error('[rates] 계수(app_settings) 조회 실패 — 기본값으로 진행:', coefErr.message);
+      }
+      return res.status(200).json({ overrides, fxRates, fxBaseline, customDestinations, coefficients });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'query_failed' });
@@ -206,6 +231,37 @@ module.exports = async (req, res) => {
     } catch (err2) {
       console.error(err2);
       return res.status(500).json({ error: 'insert_failed' });
+    }
+  }
+
+  /* P2b: 견적 계수 스칼라 노브 저장 (신규) — app_settings 'coefficients' 행에 upsert.
+     견적 전 항목·전 목적지의 계산에 전역으로 영향을 주는 사이트 단위 변경이라, 개별 가격
+     편집(PATCH, 직원 가능)보다 높은 권한(매니저 이상)을 요구한다. 스펙(COEF_SPEC)에 있는
+     키만, 숫자·범위 검증 통과분만 저장하고, 누락 키는 기본값으로 채워 항상 완전한 4개 값을
+     저장한다(부분 저장으로 인한 미정의 노브 방지). */
+  if (req.method === 'POST' && req.query && req.query.action === 'saveCoefficients') {
+    if (!(await requireRole(req, res, ['owner', 'manager']))) return;
+    const input = (req.body && req.body.coefficients) || req.body || {};
+    if (typeof input !== 'object') return res.status(400).json({ error: 'invalid_body' });
+    const clean = {};
+    for (const [key, spec] of Object.entries(COEF_SPEC)) {
+      const v = input[key];
+      if (v == null) { clean[key] = spec.def; continue; }  // 누락 → 기본값
+      if (typeof v !== 'number' || !isFinite(v)) return res.status(400).json({ error: `invalid_${key}` });
+      if (v < spec.min || v > spec.max) return res.status(400).json({ error: `out_of_range_${key}` });
+      clean[key] = v;
+    }
+    try {
+      await sql`
+        insert into app_settings (key, value, updated_at, updated_by)
+        values ('coefficients', ${JSON.stringify(clean)}::jsonb, now(), ${req.user.displayName})
+        on conflict (key) do update
+          set value = excluded.value, updated_at = now(), updated_by = excluded.updated_by
+      `;
+      return res.status(200).json({ ok: true, coefficients: clean });
+    } catch (err2) {
+      console.error('[rates] 계수 저장 실패:', err2);
+      return res.status(500).json({ error: 'save_failed' });
     }
   }
 

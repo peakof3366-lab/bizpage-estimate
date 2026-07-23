@@ -18,6 +18,30 @@ const FEATURE_EXCEL_EXPORT = true;
    요율 기준시점 환율(fxBaseline)을 담아둔다. getFxAdjust()가 현지통화 원가 항목을
    현재/기준 환율 비율로 보정한다. 데이터가 없으면 1.0(영향 없음). */
 const FX_STATE = { rates: {}, baseline: {} };
+
+/* P2b: 계수 스칼라 노브 — 관리자 요율관리에서 배포 없이 조정 가능한 전역 보정값.
+   /api/rates가 coefficients로 주면 아래 기본값 위에 덮는다(없거나 fetch 실패 시 기본값=현재 동작).
+   전부 '1 + (baseFactor−1) × strength' 형태라 strength=1이면 무변화(회귀 없음), 0이면 계수 무력화,
+   1 초과면 진폭 확대. hotelPeakWeight만 진폭이 아닌 '호텔이 받는 피크 비중' 자체(0.8=P7 기본).
+   min/max로 서버·클라 양쪽에서 클램프해 이상값 견적 폭주를 막는다(GPT 2라운드 협의 확정). */
+const COEF_SPEC = {
+  seasonStrength:   { def: 1.0, min: 0.5, max: 2.0 }, // 시즌 진폭(항공·유류·호텔 공통)
+  leadTimeStrength: { def: 1.0, min: 0.5, max: 2.0 }, // 항공 리드타임 진폭(항공·유류)
+  peakStrength:     { def: 1.0, min: 0.5, max: 2.0 }, // 날짜 피크 진폭(항공·유류)
+  hotelPeakWeight:  { def: 0.8, min: 0.0, max: 1.0 }, // 호텔이 받는 피크 비중
+};
+const COEF_STATE = Object.fromEntries(Object.entries(COEF_SPEC).map(([k, s]) => [k, s.def]));
+function clampCoef(key, val) {
+  const s = COEF_SPEC[key];
+  if (!s || typeof val !== 'number' || !isFinite(val)) return s ? s.def : val;
+  return Math.max(s.min, Math.min(s.max, val));
+}
+/* baseFactor의 '진폭'만 strength로 완만/과격하게. strength=1 → 그대로. */
+function applyStrength(baseFactor, strength) {
+  const s = (typeof strength === 'number' && isFinite(strength)) ? strength : 1;
+  return 1 + (baseFactor - 1) * s;
+}
+
 (function applyRateOverrides() {
   if (typeof destinationRates === 'undefined') return;
   fetch('/api/rates')
@@ -26,6 +50,14 @@ const FX_STATE = { rates: {}, baseline: {} };
       if (!data) return;
       if (data.fxRates) FX_STATE.rates = data.fxRates;
       if (data.fxBaseline) FX_STATE.baseline = data.fxBaseline;
+
+      /* P2b: 계수 노브 오버라이드 — 서버가 준 값만, 스펙에 있는 키만, 클램프해서 덮는다.
+         알 수 없는 키·비정상값은 무시(기본값 유지)해 견적 안정성 보장. */
+      if (data.coefficients && typeof data.coefficients === 'object') {
+        for (const key of Object.keys(COEF_SPEC)) {
+          if (typeof data.coefficients[key] === 'number') COEF_STATE[key] = clampCoef(key, data.coefficients[key]);
+        }
+      }
 
       /* 관리자 신규 목적지 (신규) — data.js에 원래 없던 목적지를 destinationRates에
          추가한다. 이미 선택 가능한 기존 목적지의 값을 patch하는 아래 오버라이드와 달리,
@@ -273,10 +305,8 @@ const PEAK_CALENDAR = [
   { keys: ['도쿄', '오사카', '후쿠오카', '나고야'], from: '03-25', to: '04-10', factor: 1.20, label: '벚꽃 시즌' },
   { keys: ['상해', '장가계', '청도', '연태', '홍콩', '마카오', '대만', '가오슝'], from: '02-08', to: '02-17', factor: 1.30, label: '춘절(근사)' },
 ];
-/* P7: 호텔 피크 가중치. 피크 계수(PEAK_CALENDAR)는 항공 기준이라 호텔에 그대로 얹으면
-   과보정 위험이 있어, 피크 프리미엄(factor−1)에 이 가중치를 곱해 완만하게 반영한다.
-   0.8 = 호텔은 항공 피크 상승폭의 80%만 얹음(도메인 초안, P1/P6 실측으로 조정 예정). */
-const HOTEL_PEAK_WEIGHT = 0.8;
+/* P7 호텔 피크 가중치(항공 피크 상승폭 중 호텔이 받는 비중)는 P2b에서 관리자 조정 가능한
+   스칼라 노브로 승격됨 → 위쪽 COEF_SPEC.hotelPeakWeight(기본 0.8) 참고. 여기 상수는 제거. */
 function getPeakInfo(startDateStr, destKey) {
   if (!startDateStr) return { factor: 1.0, label: '' };
   const d = new Date(startDateStr);
@@ -403,10 +433,14 @@ function getBreakdownData() {
        총액이 인원수에 대해 항상 non-decreasing하도록 보장 (버그③수정) */
   /* P2: 예약 리드타임 + 목적지 피크 날짜 계수 (항공·유류에 적용 — 항공이 가장 크고
      가장 변동성 큰 항목이라 여기부터. 호텔에는 아직 적용하지 않음). */
-  const leadFactor = getLeadTimeFactor(startDateVal);
-  const peakInfo   = getPeakInfo(startDateVal, destKey);
-  const airUnitBase  = dest.airfare        * seasonInfo.factor * departureFactor * bizFactor * leadFactor * peakInfo.factor;
-  const fuelUnitBase = dest.fuel_surcharge * seasonInfo.factor * departureFactor * leadFactor * peakInfo.factor;
+  /* P2b: 시즌·리드타임·피크 진폭을 관리자 스칼라 노브(COEF_STATE)로 완만/과격하게 보정.
+     strength=1(기본)이면 아래 factor들이 P2b 이전과 완전 동일 → 회귀 없음. */
+  const seasonFactor = applyStrength(seasonInfo.factor, COEF_STATE.seasonStrength);
+  const leadFactor   = applyStrength(getLeadTimeFactor(startDateVal), COEF_STATE.leadTimeStrength);
+  const peakInfo     = getPeakInfo(startDateVal, destKey);
+  const peakFactor   = applyStrength(peakInfo.factor, COEF_STATE.peakStrength);
+  const airUnitBase  = dest.airfare        * seasonFactor * departureFactor * bizFactor * leadFactor * peakFactor;
+  const fuelUnitBase = dest.fuel_surcharge * seasonFactor * departureFactor * leadFactor * peakFactor;
   const airTotalTiered  = tieredTotal(airUnitBase,  participants, PAX_TIERS);
   const fuelTotalTiered = tieredTotal(fuelUnitBase, participants, PAX_TIERS);
   const airUnit   = participants > 0 ? Math.round(airTotalTiered  / participants) : 0;
@@ -416,10 +450,12 @@ function getBreakdownData() {
   const fxAdjust  = getFxAdjust(destKey);
   /* P7: 호텔 피크 계수 — P2에서 항공·유류에만 얹었던 날짜별 피크(골든위크·벚꽃·연말연시)를
      호텔에도 반영. 항공용 계수를 그대로 쓰면 과보정 위험이 있어 프리미엄(factor−1)에
-     HOTEL_PEAK_WEIGHT를 곱해 완만하게 얹는다. 리드타임은 단체 호텔이 블록 계약이라
-     항공만큼 민감하지 않아 호텔엔 적용하지 않음. 비피크면 factor=1.0 → 무영향(additive). */
-  const hotelPeakFactor = 1 + (peakInfo.factor - 1) * HOTEL_PEAK_WEIGHT;
-  const hotelUnit = Math.round(dest.hotel_per_room * hotelGrade.factor * seasonInfo.factor * fxAdjust * hotelPeakFactor);
+     호텔 피크 비중(COEF_STATE.hotelPeakWeight, 기본 0.8=P7)을 곱해 완만하게 얹는다. 리드타임은
+     단체 호텔이 블록 계약이라 항공만큼 민감하지 않아 호텔엔 적용하지 않음. 비피크면 factor=1.0 →
+     무영향(additive). ※ hotelPeakWeight는 항공 peakStrength와 독립: 항공 피크 진폭은 peakStrength가,
+     그 피크를 호텔이 얼마나 받을지는 hotelPeakWeight가 따로 결정한다(원 raw 피크 기준). */
+  const hotelPeakFactor = 1 + (peakInfo.factor - 1) * COEF_STATE.hotelPeakWeight;
+  const hotelUnit = Math.round(dest.hotel_per_room * hotelGrade.factor * seasonFactor * fxAdjust * hotelPeakFactor);
   const mealUnit  = Math.round(dest.meal_per_person  * fxAdjust);
   const guideUnit = Math.round(dest.guide_fee        * fxAdjust);
   const sightUnit = Math.round(dest.sightseeing_fee  * fxAdjust);
@@ -534,10 +570,14 @@ function getBreakdownData() {
     cabinClassVal,    cabinClassLabel:    cabinClassVal === 'business' ? '비즈니스' : '이코노미',
     roomConfigVal,    roomConfigLabel:    roomCfg.label,
     vipCount, bizFactor, rooms,
-    /* P2 신규 필드 — 항공 리드타임/피크 반영 근거(표시·디버깅용) */
-    leadFactor, peakFactor: peakInfo.factor, peakLabel: peakInfo.label,
+    /* P2 신규 필드 — 항공 리드타임/피크 반영 근거(표시·디버깅용).
+       P2b: leadFactor·peakFactor·seasonFactor는 스칼라 노브가 적용된 '실제 반영값'.
+       원 raw 값이 필요하면 seasonInfo.factor/peakInfo.factor로 접근 가능. */
+    seasonFactor, leadFactor, peakFactor, peakLabel: peakInfo.label,
     /* P7 신규 필드 — 호텔에 실제 적용된 피크 계수(항공 피크와 가중치만큼 다름). 역검증용 */
     hotelPeakFactor,
+    /* P2b 신규 필드 — 이 견적에 실제 반영된 계수 노브 스냅샷(역검증·표시용) */
+    coef: { ...COEF_STATE },
     /* P3 신규 필드 — 환율 보정 계수(현지원가 항목에 적용) */
     fxAdjust,
   };
@@ -882,11 +922,14 @@ form.addEventListener('submit', (event) => {
       startDate:    document.getElementById('startDate')?.value || '',
       paxFactor:    bd.paxTier?.factor ?? 1,
       seasonId:     bd.seasonInfo?.id || '',
-      seasonFactor: bd.seasonInfo?.factor ?? 1,
+      /* P2b: seasonFactor·leadFactor·peakFactor는 스칼라 노브가 적용된 '실제 반영값'.
+         raw는 seasonId 등으로, 당시 노브는 coef로 복원 가능(applied=1+(raw−1)×strength). */
+      seasonFactor: bd.seasonFactor ?? 1,
       leadFactor:   bd.leadFactor ?? 1,
       peakFactor:   bd.peakFactor ?? 1,
       peakLabel:    bd.peakLabel || '',
       hotelPeakFactor: bd.hotelPeakFactor ?? 1,  /* P7: 호텔에 실제 적용된 피크 계수 */
+      coef:         bd.coef || null,             /* P2b: 이 견적에 반영된 계수 노브 스냅샷 */
       fxAdjust:     bd.fxAdjust ?? 1,
       status: 'new',  /* new / consulting / contracted / closed */
       note:   '',

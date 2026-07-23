@@ -253,7 +253,20 @@ async function main() {
   await sql`alter table actual_price_reports add column if not exists hotel_name text`;
   await sql`alter table actual_price_reports add column if not exists meal_unit numeric`;
 
-  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
+  /* P2b: 전역 앱 설정 KV (신규) — 견적 계수 스칼라 노브(coefficients) 등 사이트 전역 설정을
+     key→jsonb로 저장. 공개 계산기는 /api/rates GET이 이 중 'coefficients' 행을 코드 기본값 위에
+     폴백-우선 병합한다(행이 없으면 기본값=현재 동작). content_overrides와 같은 KV 형태이되 값이
+     구조적이라 jsonb를 쓴다. */
+  await sql`
+    create table if not exists app_settings (
+      key text primary key,
+      value jsonb not null,
+      updated_at timestamptz not null default now(),
+      updated_by text not null default ''
+    )
+  `;
+
+  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations, app_settings tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
 }
 
 main().catch((err) => {
