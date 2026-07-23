@@ -1186,6 +1186,11 @@
       <!-- P5: 실측 기준 신뢰구간 (내부 전용 · 계약 실적이 쌓이면 표시) -->
       <div id="em-confidence" class="hidden" style="padding:.85rem 1.25rem;border-bottom:1px solid var(--border);font-size:.82rem;background:#f8fafc"></div>
 
+      <!-- P12: 계수 기여도 (내부 전용 · 순수 표시) — 이 견적이 어떤 계수 스택으로
+           산출됐는지 저장된 스냅샷으로 재구성. 실측이 쌓이기 전까지 관리자가 도메인
+           판단으로 계수 타당성을 눈으로 검증하는 용도. 계산식·서버 변경 없음. -->
+      <div id="em-coef-contrib" class="hidden" style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);background:#fafafa"></div>
+
       <!-- 상태 + 메모 -->
       <div style="padding:1.1rem 1.25rem">
         <div style="display:grid;grid-template-columns:auto auto 1fr;gap:1rem;align-items:start">
@@ -4361,6 +4366,101 @@
 
   function emGoto(p) { emPage = p; renderEstMgr(); }
 
+  /* ── P12: 계수 기여도 패널 ──────────────────────────────────────────────
+     저장된 계수 스냅샷(P6/P2b)으로 이 견적의 계산 배수를 재구성해 보여준다. 순수 표시라
+     계산식·서버 변경은 없다. 스냅샷 이전(2026-07 도입 전) 견적은 필드가 없어 '정보 없음'으로
+     처리. 배수 체인은 실제 엔진(script.js getBreakdownData)과 동일하게 맞춘다:
+       항공 = 시즌×출발지×비즈×리드×피크×volScale,  유류 = 시즌×출발지×리드×피크×volScale,
+       호텔 = 시즌×환율×호텔피크(등급은 기본단가 선택이라 계수에서 제외),
+       현지 지상비 = 환율,  전체 = 프로그램×기관(combined) / 인원 tier.
+     volScale은 스냅샷에 없어 시즌×리드×피크로 재계산(P11 상한 2.5, 기본노브에선 항상 1). */
+  const COEF_VOL_CAP = 2.5;  /* script.js VOL_MULTIPLIER_CAP과 동일하게 유지 */
+  const COEF_DEFAULTS = { seasonStrength:1.0, leadTimeStrength:1.0, peakStrength:1.0, hotelPeakWeight:0.8 };
+  function coefContribHtml(e) {
+    const hasSnap = ['seasonFactor','leadFactor','peakFactor'].some(k => typeof e[k] === 'number');
+    if (!hasSnap) {
+      return `<div class="detail-label" style="margin-bottom:.5rem">⚙️ 계수 기여도</div>
+        <div style="color:var(--muted);font-size:.82rem">이 견적은 계수 스냅샷 도입(2026-07) 이전에 생성되어 계수 기여도 정보가 없습니다. 이후 생성된 견적부터 표시됩니다.</div>`;
+    }
+    const num = v => (typeof v === 'number' && isFinite(v)) ? v : 1;
+    const season = num(e.seasonFactor), lead = num(e.leadFactor), peak = num(e.peakFactor),
+          dep = num(e.departureFactor), biz = num(e.bizFactor), fx = num(e.fxAdjust),
+          hotelPeak = num(e.hotelPeakFactor), combined = num(e.combinedFactor), pax = num(e.paxFactor);
+    const volProduct = season * lead * peak;
+    const volScale = volProduct > COEF_VOL_CAP ? COEF_VOL_CAP / volProduct : 1;
+    const airNet   = season * dep * biz * lead * peak * volScale;
+    const fuelNet  = season * dep * lead * peak * volScale;
+    const hotelNet = season * fx * hotelPeak;
+
+    /* 계수 칩 — 1.0이면 흐리게, 오르면 빨강·내리면 파랑, 증감% 표기 */
+    const chip = (label, v, note) => {
+      const on = Math.abs(v - 1) > 1e-6;
+      const col = !on ? 'var(--muted)' : (v > 1 ? 'var(--danger)' : '#1d4ed8');
+      const pct = on ? ` <span style="font-size:.68rem">(${v > 1 ? '+' : ''}${((v - 1) * 100).toFixed(0)}%)</span>` : '';
+      const nt = note ? ` <span style="color:var(--muted);font-size:.68rem">${esc(note)}</span>` : '';
+      return `<span style="display:inline-block;font-size:.76rem;padding:.14rem .45rem;margin:.1rem;border:1px solid var(--border);border-radius:4px;background:#fff;color:${col}">${esc(label)} <b>×${v.toFixed(3)}</b>${pct}${nt}</span>`;
+    };
+    const netBadge = (v) => {
+      const strong = v >= 2.0;
+      const col = strong ? 'var(--danger)' : (v > 1 ? '#b45309' : (v < 1 ? '#1d4ed8' : 'var(--muted)'));
+      return `<b style="color:${col}">×${v.toFixed(3)}</b>` + (strong ? ` <span style="color:var(--danger);font-size:.7rem;font-weight:700">· 높은 변동배수, 확인 권장</span>` : '');
+    };
+    const row = (title, chipsHtml, netHtml) => `
+      <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:.35rem;padding:.5rem 0;border-top:1px solid var(--border)">
+        <div style="flex:0 0 92px;font-size:.78rem;font-weight:700;color:var(--heading)">${title}</div>
+        <div style="flex:1;min-width:200px">${chipsHtml}</div>
+        <div style="flex:0 0 auto;font-size:.82rem;white-space:nowrap">= ${netHtml}</div>
+      </div>`;
+
+    const seasonLabelMap = { peak:'성수기', offpeak:'비수기', normal:'평시' };
+    const seasonNote = seasonLabelMap[e.seasonId] || '';
+    const peakNote = e.peakLabel || '';
+
+    /* 항공·유류: 수요 변동이 가장 크게 스택되는 지점 */
+    const airChips = [
+      chip('시즌', season, seasonNote),
+      chip('출발지', dep),
+      chip('비즈', biz),
+      chip('리드', lead),
+      chip('피크', peak, peakNote),
+      (volScale < 1 ? chip('변동상한', volScale, `P11 ${COEF_VOL_CAP} 초과 축소`) : ''),
+    ].join('');
+    const fuelChips = [
+      chip('시즌', season, seasonNote),
+      chip('출발지', dep),
+      chip('리드', lead),
+      chip('피크', peak, peakNote),
+      (volScale < 1 ? chip('변동상한', volScale, '') : ''),
+    ].join('');
+    const hotelChips = [ chip('시즌', season, seasonNote), chip('환율', fx), chip('호텔피크', hotelPeak) ].join('');
+    const groundChips = chip('환율', fx) + ` <span style="color:var(--muted);font-size:.72rem">· 식사·관광은 인원 볼륨 할인이 단가에 이미 반영됨</span>`;
+    const wholeChips = chip('프로그램×기관', combined) + chip('인원(항공·유류)', pax);
+
+    /* 적용된 노브(coef)가 기본값과 다르면 별도 안내 — 전 견적에 전역 영향을 준 값 */
+    let knobHtml = '';
+    if (e.coef && typeof e.coef === 'object') {
+      const changed = Object.keys(COEF_DEFAULTS).filter(k => typeof e.coef[k] === 'number' && Math.abs(e.coef[k] - COEF_DEFAULTS[k]) > 1e-6);
+      if (changed.length) {
+        const nameMap = { seasonStrength:'시즌강도', leadTimeStrength:'리드강도', peakStrength:'피크강도', hotelPeakWeight:'호텔피크비중' };
+        knobHtml = `<div style="margin-top:.6rem;padding:.5rem .6rem;background:#fff7ed;border:1px solid #fed7aa;border-radius:4px;font-size:.76rem;color:#9a3412">
+          ⚙️ 이 견적에 적용된 계수 노브(기본값과 다름): ${changed.map(k => `${nameMap[k]||k} ${e.coef[k]}`).join(' · ')}
+          <span style="color:var(--muted)">— 관리자 계수 조정이 반영된 견적입니다.</span></div>`;
+      }
+    }
+
+    return `
+      <div class="detail-label" style="margin-bottom:.3rem">⚙️ 계수 기여도
+        <span style="font-size:.7rem;font-weight:400;color:var(--muted);margin-left:.4rem">내부 전용 · 실측 전 계수 타당성 검증용 · 고객 미노출</span>
+      </div>
+      <div style="font-size:.74rem;color:var(--muted);margin-bottom:.35rem">기본단가에 아래 계수가 곱해져 항목 단가가 정해집니다(계산 당시 스냅샷).</div>
+      ${row('항공', airChips, netBadge(airNet))}
+      ${row('유류', fuelChips, netBadge(fuelNet))}
+      ${row('호텔', hotelChips, netBadge(hotelNet))}
+      ${row('현지 지상비', groundChips, `<b style="color:${Math.abs(fx-1)>1e-6?(fx>1?'var(--danger)':'#1d4ed8'):'var(--muted)'}">×${fx.toFixed(3)}</b>`)}
+      ${row('전체', wholeChips, `<span style="color:var(--muted);font-size:.76rem">항목별 별도 적용</span>`)}
+      ${knobHtml}`;
+  }
+
   /* ── 견적 상세 모달 ── */
   function openEstDetail(id) {
     const all = getEstsFull();
@@ -4462,6 +4562,13 @@
           `<span style="color:var(--muted)">· 중앙 보정 ${fmt(c.mid)}</span>${warn}` +
           `<div style="color:var(--muted);font-size:.72rem;margin-top:.2rem">과거 이 목적지 계약의 (실제 총액 ÷ 견적 총액) 분포 p10~p90 기준 · 내부 참고용, 고객 견적서에는 미노출</div>`;
       }
+    }
+
+    /* P12: 계수 기여도 — 저장된 스냅샷으로 배수 체인 표시(내부 전용·순수 표시) */
+    const coefEl = document.getElementById('em-coef-contrib');
+    if (coefEl) {
+      coefEl.classList.remove('hidden');
+      coefEl.innerHTML = coefContribHtml(e);
     }
 
     /* 상태 + 메모 */
