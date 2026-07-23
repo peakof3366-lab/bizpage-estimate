@@ -273,6 +273,10 @@ const PEAK_CALENDAR = [
   { keys: ['도쿄', '오사카', '후쿠오카', '나고야'], from: '03-25', to: '04-10', factor: 1.20, label: '벚꽃 시즌' },
   { keys: ['상해', '장가계', '청도', '연태', '홍콩', '마카오', '대만', '가오슝'], from: '02-08', to: '02-17', factor: 1.30, label: '춘절(근사)' },
 ];
+/* P7: 호텔 피크 가중치. 피크 계수(PEAK_CALENDAR)는 항공 기준이라 호텔에 그대로 얹으면
+   과보정 위험이 있어, 피크 프리미엄(factor−1)에 이 가중치를 곱해 완만하게 반영한다.
+   0.8 = 호텔은 항공 피크 상승폭의 80%만 얹음(도메인 초안, P1/P6 실측으로 조정 예정). */
+const HOTEL_PEAK_WEIGHT = 0.8;
 function getPeakInfo(startDateStr, destKey) {
   if (!startDateStr) return { factor: 1.0, label: '' };
   const d = new Date(startDateStr);
@@ -410,7 +414,12 @@ function getBreakdownData() {
   /* P3: 환율 보정 — 현지통화 원가 항목(호텔·식비·가이드·차량·관광)에만 적용
      (항공·유류는 국제선 성격이라 제외, 마진·보험은 원화라 제외) */
   const fxAdjust  = getFxAdjust(destKey);
-  const hotelUnit = Math.round(dest.hotel_per_room * hotelGrade.factor * seasonInfo.factor * fxAdjust);
+  /* P7: 호텔 피크 계수 — P2에서 항공·유류에만 얹었던 날짜별 피크(골든위크·벚꽃·연말연시)를
+     호텔에도 반영. 항공용 계수를 그대로 쓰면 과보정 위험이 있어 프리미엄(factor−1)에
+     HOTEL_PEAK_WEIGHT를 곱해 완만하게 얹는다. 리드타임은 단체 호텔이 블록 계약이라
+     항공만큼 민감하지 않아 호텔엔 적용하지 않음. 비피크면 factor=1.0 → 무영향(additive). */
+  const hotelPeakFactor = 1 + (peakInfo.factor - 1) * HOTEL_PEAK_WEIGHT;
+  const hotelUnit = Math.round(dest.hotel_per_room * hotelGrade.factor * seasonInfo.factor * fxAdjust * hotelPeakFactor);
   const mealUnit  = Math.round(dest.meal_per_person  * fxAdjust);
   const guideUnit = Math.round(dest.guide_fee        * fxAdjust);
   const sightUnit = Math.round(dest.sightseeing_fee  * fxAdjust);
@@ -527,6 +536,8 @@ function getBreakdownData() {
     vipCount, bizFactor, rooms,
     /* P2 신규 필드 — 항공 리드타임/피크 반영 근거(표시·디버깅용) */
     leadFactor, peakFactor: peakInfo.factor, peakLabel: peakInfo.label,
+    /* P7 신규 필드 — 호텔에 실제 적용된 피크 계수(항공 피크와 가중치만큼 다름). 역검증용 */
+    hotelPeakFactor,
     /* P3 신규 필드 — 환율 보정 계수(현지원가 항목에 적용) */
     fxAdjust,
   };
@@ -875,6 +886,7 @@ form.addEventListener('submit', (event) => {
       leadFactor:   bd.leadFactor ?? 1,
       peakFactor:   bd.peakFactor ?? 1,
       peakLabel:    bd.peakLabel || '',
+      hotelPeakFactor: bd.hotelPeakFactor ?? 1,  /* P7: 호텔에 실제 적용된 피크 계수 */
       fxAdjust:     bd.fxAdjust ?? 1,
       status: 'new',  /* new / consulting / contracted / closed */
       note:   '',
