@@ -525,10 +525,17 @@ function getBreakdownData() {
     amount: vehicleUnitAdj * days * vehicleCount,
   });
 
+  /* P13: 가이드 인원비례 — 가이드는 '버스당 1명'(현지 가이드 관행). 차량 대수
+     (vehicleCount = ceil(인원/정원), 위에서 이미 산정)를 그대로 재사용한다. 기존엔
+     인원과 무관하게 항상 1명분(guide_fee × 일수)만 잡혀 대형 단체를 체계적으로
+     과소추정했다(차량은 bug④에서 대수화됐으나 가이드는 누락). vehicleCount는
+     incVehicle 체크와 무관하게 항상 계산되므로, 차량 라인을 빼도 가이드 수는 그룹
+     규모(필요 버스 수)를 반영한다. 볼륨 할인은 적용 안 함 — 가이드는 실인원 배치비용. */
+  const guideCount = vehicleCount;
   if (incGuide) rows.push({
     name:'가이드', unit:guideUnit,
-    qty:`${days}일`,
-    amount: guideUnit * days,
+    qty: guideCount > 1 ? `${guideCount}명×${days}일` : `${days}일`,
+    amount: guideUnit * days * guideCount,
   });
 
   /* P10: 관광 볼륨 할인(누진). 입장료는 정찰제가 많아 식사보다 완만한 GROUND_SIGHT_TIERS 적용. */
