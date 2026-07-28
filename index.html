@@ -355,7 +355,18 @@
                         <input type="radio" name="cabinClass" value="business" />
                         <span>비즈니스</span>
                       </label>
+                      <label class="grade-pill">
+                        <input type="radio" name="cabinClass" value="mixed" />
+                        <span>혼합</span>
+                      </label>
                     </div>
+                  </div>
+                  <!-- PD: 좌석 '혼합' 선택 시에만 노출. 객실의 vipCount와는 독립된 입력이다
+                       (임원이 1인 1실을 쓰면서 이코노미를 타거나, 그 반대도 가능하므로). -->
+                  <div class="inc-vip-row hidden" id="bizCountRow">
+                    <span class="grade-label">비즈니스 인원</span>
+                    <input type="number" id="bizCount" min="0" value="0" class="vip-count-inp" />
+                    <span class="vip-count-unit">명 (나머지는 이코노미)</span>
                   </div>
 
                   <span class="inc-sec-lbl">추가 선택</span>
