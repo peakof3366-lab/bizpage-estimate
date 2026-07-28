@@ -594,8 +594,18 @@ function getBreakdownData() {
   const sightDuration = getSightDurationInfo(days);
   const sightUnit = Math.round(dest.sightseeing_fee  * fxAdjust * sightDuration.factor);
 
-  /* 버그②수정: 참고 기준 10인 이상 → 대형버스 (기존 >12 오류) */
-  const useLarge    = vehicleTypeVal === 'large' || (vehicleTypeVal === 'auto' && participants >= 10);
+  /* PE: 자동 차량 선택 임계를 소형 정원에 맞춘다 — 소형으로 태울 수 있으면 소형.
+     기존엔 '10명 이상이면 대형'이라는 상수가 박혀 있었는데(버그②수정 당시 >12 → >=10),
+     정작 소형 정원은 VEHICLE_CAPACITY.small = 25명이라 두 상수가 서로 말이 안 맞았다.
+     그래서 10~25명 견적은 소형 한 대로 충분한데도 대형 요금이 잡혀 체계적으로 과대추정됐다
+     (뉴욕 기준 하루 +90만원 · 대형/소형 비 중앙값 1.43배). 사용자 확정으로 정원 기준으로 정렬.
+
+     ⚠ 임계값을 다시 숫자로 박지 말 것 — VEHICLE_CAPACITY에서 파생시켜야 정원을 고칠 때
+     자동으로 따라오고, 같은 어긋남이 재발하지 않는다.
+     선택 결과: ~25명 소형 1대 / 26~45명 대형 1대 / 46명~ 대형 ceil(인원/45)대.
+     (vehicleType은 index.html에서 'auto' 고정이라 실질적으로 항상 이 경로를 탄다.) */
+  const useLarge    = vehicleTypeVal === 'large'
+                   || (vehicleTypeVal === 'auto' && participants > VEHICLE_CAPACITY.small);
   const vehicleRate = useLarge ? dest.vehicle_large : dest.vehicle_small;
   const vehicleUnitAdj = Math.round(vehicleRate * fxAdjust);
 
