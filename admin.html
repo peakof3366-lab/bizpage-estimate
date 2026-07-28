@@ -4526,8 +4526,19 @@
     const rateInfo = e.rateDate
       ? `<br><span style="font-size:.74rem;color:#1d4ed8;background:#eff6ff;padding:.1rem .4rem;border-radius:0">요율기준: ${e.rateDate} · v${e.rateVersion||'—'}</span>`
       : '';
+    /* 출발공항·좌석등급·객실구성은 저장은 되고 있었지만 어디에도 표시되지 않았다.
+       셋 다 금액을 크게 좌우하는 고객 선택값이라(좌석 최대 4배·객실 최대 2배·출발지 16%),
+       관리자가 총액만 보고 "왜 이렇게 비싼가"를 판단할 수 없었다. 계수 기여도 패널(P12)에
+       배수(×4.000)는 있지만 "비즈니스 몇 명"인지는 그 숫자로 읽히지 않는다.
+       구버전 견적에는 필드가 없으므로 있을 때만 줄을 추가한다(없는 값을 지어내지 않음). */
+    const condExtra = [
+      e.departureCityLabel ? `출발: ${esc(e.departureCityLabel)}` : '',
+      e.cabinClassLabel    ? `좌석: <b>${esc(e.cabinClassLabel)}</b>` : '',
+      e.roomConfigLabel    ? `객실구성: ${esc(e.roomConfigLabel)}` : '',
+    ].filter(Boolean).join(' · ');
     document.getElementById('em-conds').innerHTML =
       `목적지: <b>${esc(e.destLabel||e.destKey)}</b>${rateInfo}<br>프로그램: ${esc(e.programLabel||'—')}<br>인원: ${e.participants}명 / 기간: ${e.days}일 (${e.nights}박)<br>` +
+      (condExtra ? condExtra + '<br>' : '') +
       `식사: ${e.mealCount}식 · 객실: ${e.rooms||Math.ceil(e.participants/2)}실<br>계수: ×${(e.combinedFactor||1).toFixed(3)}`;
 
     /* 항목 내역 (비공개 포함) */

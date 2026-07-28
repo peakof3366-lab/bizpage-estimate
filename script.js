@@ -4480,6 +4480,13 @@ function openEstimateWindow() {
     sd: _sd, ed: _ed,
     hgl: data.hotelGrade.label,
     sl: data.seasonInfo.label,
+    /* 좌석 등급·객실 구성·출발 공항 — 항공료·호텔비를 가장 크게 좌우하는 조건인데
+       그동안 공유 견적서에 실리지 않았다. 비즈니스는 이코노미의 2.5~4배(PD 혼합이면
+       그 사이 임의 값)라, 금액이 어느 좌석 기준인지 문서에 남지 않으면 분쟁 소지가 된다.
+       키를 짧게 쓰는 이유: 이 객체는 base64로 URL에 실리므로 길이가 곧 링크 길이다. */
+    ccl: data.cabinClassLabel,
+    rcl: data.roomConfigLabel,
+    dcl: data.departureCityLabel,
     t: data.total, pp: data.perPerson,
     iso: new Date().toISOString().slice(0, 10), /* 유효기간 계산용 */
     id: issueDate,

@@ -544,6 +544,13 @@ function renderPage(d) {
         <div class="field-box"><div class="field-box-label">연수 기간</div><div class="field-box-value">${Number(d.ng) || 0}박 ${Number(d.d) || 0}일<br>${fmtDate(d.sd)} ~ ${fmtDate(d.ed)}</div></div>
         <div class="field-box"><div class="field-box-label">호텔 등급</div><div class="field-box-value">${esc(d.hgl) || '—'}</div></div>
         <div class="field-box"><div class="field-box-label">시즌</div><div class="field-box-value">${esc(d.sl) || '—'}</div></div>
+        ${/* 항공료를 가장 크게 좌우하는 두 조건인데 그동안 견적서에 안 적혔다.
+              비즈니스는 이코노미의 2.5~4배라, 이 금액이 어느 좌석 기준인지 문서에
+              남지 않으면 나중에 분쟁 소지가 된다. 객실 구성도 호텔비가 최대 2배 차이.
+              구버전 공유링크에는 이 필드가 없으므로 있을 때만 렌더한다. */''}
+        ${d.ccl ? `<div class="field-box"><div class="field-box-label">항공 좌석</div><div class="field-box-value">${esc(d.ccl)}</div></div>` : ''}
+        ${d.rcl ? `<div class="field-box"><div class="field-box-label">객실 구성</div><div class="field-box-value">${esc(d.rcl)}</div></div>` : ''}
+        ${d.dcl ? `<div class="field-box"><div class="field-box-label">출발 공항</div><div class="field-box-value">${esc(d.dcl)}</div></div>` : ''}
       </div>
 
       <div class="sec-title">견적 금액 내역</div>
