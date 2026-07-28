@@ -1119,6 +1119,13 @@ form.addEventListener('submit', (event) => {
       hotelPeakFactor: bd.hotelPeakFactor ?? 1,  /* P7: 호텔에 실제 적용된 피크 계수 */
       coef:         bd.coef || null,             /* P2b: 이 견적에 반영된 계수 노브 스냅샷 */
       fxAdjust:     bd.fxAdjust ?? 1,
+      /* PB/PC: 보험 권역·기간 계수와 관광 일수 계수도 같은 이유로 스냅샷에 남긴다.
+         둘 다 코드 상수(INSURANCE_ZONE_FACTORS·SIGHT_DURATION_TIERS)라 나중에 값을
+         조정하면 사후 재계산으로는 '이 견적이 당시 어떤 배율을 썼는지'를 복원할 수 없다.
+         rows에 금액은 남지만 배율 자체는 남지 않아, 역검증 때 어느 계수가 실측과
+         벌어졌는지 분리해 볼 수 없다. */
+      insuranceInfo: bd.insuranceInfo || null,   /* PB: {zone, zoneFactor, durationFactor, rate, 라벨} */
+      sightDuration: bd.sightDuration || null,   /* PC: {factor, label} */
       status: 'new',  /* new / consulting / contracted / closed */
       note:   '',
       /* 관리자 내부 견적 산출 도구 구분(신규) — 공개 홈페이지에서는 항상 'public'.

@@ -4378,8 +4378,13 @@
      처리. 배수 체인은 실제 엔진(script.js getBreakdownData)과 동일하게 맞춘다:
        항공 = 시즌×출발지×비즈×리드×피크×volScale,  유류 = 시즌×출발지×리드×피크×volScale,
        호텔 = 시즌×환율×호텔피크(등급은 기본단가 선택이라 계수에서 제외),
-       현지 지상비 = 환율,  전체 = 프로그램×기관(combined) / 인원 tier.
-     volScale은 스냅샷에 없어 시즌×리드×피크로 재계산(P11 상한 2.5, 기본노브에선 항상 1). */
+       식사·차량·가이드 = 환율,  관광 = 환율×관광일수(PC),  보험 = 권역×기간(PB, 환율 무관·원화),
+       전체 = 프로그램×기관(combined) / 인원 tier.
+     volScale은 스냅샷에 없어 시즌×리드×피크로 재계산(P11 상한 2.5, 기본노브에선 항상 1).
+     ⚠ 엔진에 계수를 추가하면 여기도 같이 늘려야 한다 — 안 그러면 이 패널이 '이 견적의
+     전체 계수'를 보여준다고 해놓고 일부를 빠뜨려, 내부 검토자가 잘못 판단하게 된다.
+     (2026-07-28: PB 보험·PC 관광일수가 빠져 있던 것을 보완. 그 이전 견적은 스냅샷에
+     해당 필드가 없으므로 각 행을 조건부로만 렌더한다.) */
   const COEF_VOL_CAP = 2.5;  /* script.js VOL_MULTIPLIER_CAP과 동일하게 유지 */
   const COEF_DEFAULTS = { seasonStrength:1.0, leadTimeStrength:1.0, peakStrength:1.0, hotelPeakWeight:0.8 };
   function coefContribHtml(e) {
@@ -4439,7 +4444,25 @@
       (volScale < 1 ? chip('변동상한', volScale, '') : ''),
     ].join('');
     const hotelChips = [ chip('시즌', season, seasonNote), chip('환율', fx), chip('호텔피크', hotelPeak) ].join('');
-    const groundChips = chip('환율', fx) + ` <span style="color:var(--muted);font-size:.72rem">· 식사·관광은 인원 볼륨 할인이 단가에 이미 반영됨</span>`;
+    const groundChips = chip('환율', fx) + ` <span style="color:var(--muted);font-size:.72rem">· 식사는 인원 볼륨 할인이 단가에 이미 반영됨</span>`;
+
+    /* PC: 관광은 환율 위에 '여행 일수' 계수가 더 붙는다(sightseeing_fee가 4~5일 기준
+       전체 묶음이라). 스냅샷에 없으면(PC 이전 견적) 이 행 자체를 렌더하지 않는다. */
+    const sightF = (e.sightDuration && typeof e.sightDuration.factor === 'number') ? e.sightDuration.factor : null;
+    const sightRow = sightF === null ? '' : row('관광',
+      chip('환율', fx) + chip('일수', sightF, e.sightDuration.label || '') +
+        ` <span style="color:var(--muted);font-size:.72rem">· 인원 볼륨 할인은 단가에 이미 반영됨</span>`,
+      netBadge(fx * sightF));
+
+    /* PB: 보험은 권역(현지 의료비)×기간. 환율·시즌·노브 대상이 아니라 별도 행으로 둔다
+       — 다른 행과 같은 자리에 섞으면 '보험도 환율을 받는다'고 오해하게 된다. */
+    const ins = e.insuranceInfo;
+    const insRow = (!ins || typeof ins.zoneFactor !== 'number') ? '' : row('보험',
+      chip('권역', ins.zoneFactor, ins.zoneLabel || '') + chip('기간', ins.durationFactor, ins.durationLabel || '') +
+        ` <span style="color:var(--muted);font-size:.72rem">· 원가 기반이라 시즌·리드·피크·환율 무관</span>`,
+      netBadge(ins.zoneFactor * ins.durationFactor) +
+        (typeof ins.rate === 'number' ? ` <span style="color:var(--muted);font-size:.72rem">= ${ins.rate.toLocaleString('ko-KR')}원/인</span>` : ''));
+
     const wholeChips = chip('프로그램×기관', combined) + chip('인원(항공·유류)', pax);
 
     /* 적용된 노브(coef)가 기본값과 다르면 별도 안내 — 전 견적에 전역 영향을 준 값 */
@@ -4463,6 +4486,8 @@
       ${row('유류', fuelChips, netBadge(fuelNet))}
       ${row('호텔', hotelChips, netBadge(hotelNet))}
       ${row('현지 지상비', groundChips, `<b style="color:${Math.abs(fx-1)>1e-6?(fx>1?'var(--danger)':'#1d4ed8'):'var(--muted)'}">×${fx.toFixed(3)}</b>`)}
+      ${sightRow}
+      ${insRow}
       ${row('전체', wholeChips, `<span style="color:var(--muted);font-size:.76rem">항목별 별도 적용</span>`)}
       ${knobHtml}`;
   }
