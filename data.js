@@ -35,6 +35,27 @@ const GROUND_SIGHT_TIERS = [
   { min: 50, max: Infinity, factor: 0.95 },
 ];
 
+/* PC: 관광비 일수 계수 — sightseeing_fee는 '1인당 여행 전체 일정의 관광비 묶음'이며
+   4~5일 일정 기준으로 잡힌 값이다(요율표 소유자 확인). 기존엔 일수가 전혀 반영되지 않아
+   파리 3일과 파리 10일의 관광비가 똑같았다. 여기에 일수 계수를 곱해 일정 길이를 반영한다.
+
+   ⚠ 일수 '정비례'가 아니다. MICE 연수는 기업·기관 방문과 강연이 핵심이고 관광은 부수적이며,
+   장거리 일정에는 이동일(비행·시차적응·국내이동)이 2~3일 끼어 관광비가 안 붙는 날이 섞인다.
+   그래서 탄력성 0.6~0.7 수준의 체감형으로 둔다(일수 2배 → 관광비 1.6배).
+   3일은 4~5일과 관광량 차이가 유의미하지 않아 같은 기준 구간(1.00)으로 묶었다.
+   구간 경계에서 금액이 튀지 않도록 인접 배율 점프는 최대 33%로 제한(1~2일 0.75 → 1.00).
+   일수는 사용자가 고른 출발일·도착일에서 자동 계산되므로, 하루 차이로 2배씩 뛰면
+   같은 고객에게 설명 불가능한 견적 변동이 생긴다.
+   (GPT 2라운드 협의로 확정 — 근거: ai-loop/pC_prompt*.txt, ai-loop/pC_gpt_round*.txt) */
+const SIGHT_DURATION_TIERS = [
+  { max: 2,        factor: 0.75, label: '1~2일'   },
+  { max: 5,        factor: 1.00, label: '3~5일'   },  /* 기준 */
+  { max: 7,        factor: 1.30, label: '6~7일'   },
+  { max: 10,       factor: 1.60, label: '8~10일'  },
+  { max: 15,       factor: 1.95, label: '11~15일' },
+  { max: Infinity, factor: 2.10, label: '16일+'   },  /* 상한 — 초장기 일정에서 무한 증가 방지 */
+];
+
 /* 출발월 기준 시즌 계수 — 항공·유류·호텔에 적용 (북반구/한국 출발 수요 기준) */
 const SEASON_CONFIG = [
   { id: 'peak',    months: [7, 8, 12, 1], factor: 1.20, label: '성수기', badge: '성수기 +20%' },
@@ -215,13 +236,18 @@ const RATE_META = {
    notes    : 운영 참고사항 (변동성·확인 주의사항 등)
               → 특이사항 없으면 빈 문자열로 유지
 
-   ⚠ 이중 관리 주의: 여기 destination_key 목록은 index.html의
-   <select id="destination"> 옵션 목록, script.js의 BIZ_ZONES(좌석 등급 배율
-   구간 매핑)과 반드시 1:1로 일치해야 합니다. 목적지를 추가/삭제할 때는
-   세 곳을 모두 함께 수정하세요 — 한 곳만 바꾸면 getDestinationByKey()가
-   조용히 undefined를 반환하거나 getBizFactor()가 잘못된 요율 구간(short)으로
-   조용히 폴백되어 견적 금액이 틀어질 수 있습니다 (2026-07-06 야간 점검 시
-   확인 결과 현재는 55개 전부 정확히 일치함).
+   ⚠ 이중 관리 주의: 여기 destination_key 목록은 아래 네 곳과 반드시 1:1로
+   일치해야 합니다. 목적지를 추가/삭제할 때는 전부 함께 수정하세요.
+     ① index.html의 <select id="destination"> 옵션 목록
+     ② script.js의 BIZ_ZONES        — 좌석 등급(비즈니스) 배율 구간
+     ③ script.js의 INSURANCE_ZONES  — 여행자보험 권역 (PB에서 신설. BIZ_ZONES와
+        기준이 달라 별도 목록이며, 둘 다 갱신해야 합니다)
+   한 곳만 바꾸면 getDestinationByKey()가 조용히 undefined를 반환하거나,
+   getBizFactor()가 잘못된 요율 구간(short)으로, getInsuranceZone()이 중립값
+   (1.00)으로 조용히 폴백되어 견적 금액이 틀어집니다. 후자 둘은 콘솔 경고를
+   남기지만 금액 자체는 그대로 나가니 주의하세요.
+   커버리지는 `node ai-loop/test_pB_insurance.js`가 전수 검사합니다
+   (2026-07-28 확인 결과 55개 전부 정확히 일치함).
    ===================================================================== */
 const destinationRates = [
   /* ── 동북아시아 : 일본 ── */

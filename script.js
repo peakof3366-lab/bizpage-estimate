@@ -264,6 +264,16 @@ function getInsuranceInfo(destKey, days) {
   };
 }
 
+/* PC: 여행 일수 → 관광비 계수. 구간표는 data.js의 SIGHT_DURATION_TIERS(근거 주석 포함).
+   보험의 일수 계수와는 기울기가 다르다 — 보험은 '리스크 노출 일수'라 거의 선형이지만,
+   관광은 이동일·기업방문일이 섞여 더 완만하다. 그래서 표를 공유하지 않고 따로 둔다. */
+function getSightDurationInfo(days) {
+  const d = Math.max(1, Number(days) || 1);
+  const tier = SIGHT_DURATION_TIERS.find(t => d <= t.max)
+            || SIGHT_DURATION_TIERS[SIGHT_DURATION_TIERS.length - 1];
+  return { factor: tier.factor, label: tier.label };
+}
+
 /* ③ 객실 구성 — rooms 산정 함수
    double: 2인 1실 전원 (기본)
    single: 1인 1실 전원
@@ -512,7 +522,33 @@ function getBreakdownData() {
 
   const deptCityData = DEPARTURE_CITIES.find(c => c.value === departureCityVal) || DEPARTURE_CITIES[0];
   const departureFactor = deptCityData.factor;
-  const bizFactor  = cabinClassVal === 'business' ? getBizFactor(destKey) : 1.0;
+
+  /* ── PD: 좌석 등급 혼합(임원만 비즈니스) ──────────────────────────────────
+     기존엔 좌석 등급이 전원 일괄이라, 임원 2명만 비즈니스인 흔한 구성을 "전원 비즈니스"
+     (과대) 또는 "전원 이코노미"(과소)로밖에 표현할 수 없었다. 실제 기업연수는 대부분
+     혼합이라 항공료 오차가 가장 크게 나던 지점.
+
+     ⚠ 객실 구성의 vipCount를 재사용하지 않고 bizCount를 따로 받는다. vipCount는
+     "1인 1실 임원 인원"이라 좌석과 독립적이다 — 임원이 1인 1실을 쓰면서 이코노미를
+     탈 수도, 2인 1실이면서 비즈니스를 탈 수도 있다. 재사용하면 객실 구성을 '혼합'으로
+     고르지 않은 견적에서 좌석 혼합이 조용히 무시된다.
+
+     계산은 '가중평균 배율'로 접어 넣는다:
+       bizFactor = (bizCount × 노선비즈배율 + 나머지 인원 × 1.0) / 총원
+     이렇게 하면 이후 tieredTotal(인원 볼륨 할인)이 기존 그대로 동작하고, 볼륨 할인은
+     혼합 편성된 총액 위에 걸린다(단체 예약이므로 전체 인원 기준 협상이 맞다).
+     bizCount=0이면 정확히 1.0, bizCount=총원이면 정확히 '전원 비즈니스'와 동일 →
+     양 끝에서 기존 동작과 일치해 회귀가 없다. */
+  const bizCountRaw = Math.max(0, Number(document.getElementById('bizCount')?.value) || 0);
+  const bizCount    = cabinClassVal === 'mixed' ? Math.min(bizCountRaw, participants) : 0;
+  /* getBizFactor는 미등록 목적지에 콘솔 경고를 남기므로 비즈니스가 걸린 경우에만 호출 */
+  const bizSeatFactor = (cabinClassVal === 'business' || cabinClassVal === 'mixed')
+    ? getBizFactor(destKey) : 1.0;
+  const bizFactor =
+      cabinClassVal === 'business' ? bizSeatFactor
+    : cabinClassVal === 'mixed'
+        ? (participants > 0 ? (bizCount * bizSeatFactor + (participants - bizCount)) / participants : 1.0)
+    : 1.0;
   const roomCfg    = ROOM_CONFIG[roomConfigVal] || ROOM_CONFIG.double;
   const rooms      = roomCfg.calcRooms(participants, vipCount);
 
@@ -553,7 +589,10 @@ function getBreakdownData() {
   const hotelUnit = Math.round(dest.hotel_per_room * hotelGrade.factor * seasonFactor * fxAdjust * hotelPeakFactor);
   const mealUnit  = Math.round(dest.meal_per_person  * fxAdjust);
   const guideUnit = Math.round(dest.guide_fee        * fxAdjust);
-  const sightUnit = Math.round(dest.sightseeing_fee  * fxAdjust);
+  /* PC: 관광비에 일수 계수 — sightseeing_fee는 4~5일 기준 '전체 일정 묶음'이라 그대로 쓰면
+     3일과 10일 일정의 관광비가 같아진다. 체감형이며 상세 근거는 data.js SIGHT_DURATION_TIERS. */
+  const sightDuration = getSightDurationInfo(days);
+  const sightUnit = Math.round(dest.sightseeing_fee  * fxAdjust * sightDuration.factor);
 
   /* 버그②수정: 참고 기준 10인 이상 → 대형버스 (기존 >12 오류) */
   const useLarge    = vehicleTypeVal === 'large' || (vehicleTypeVal === 'auto' && participants >= 10);
@@ -680,7 +719,14 @@ function getBreakdownData() {
     paxTier, seasonInfo, hotelGrade, hotelGradeKey,
     /* v3 신규 필드 */
     departureCityVal, departureCityLabel: deptCityData.label, departureFactor,
-    cabinClassVal,    cabinClassLabel:    cabinClassVal === 'business' ? '비즈니스' : '이코노미',
+    cabinClassVal,
+    cabinClassLabel:
+        cabinClassVal === 'business' ? '비즈니스'
+      : cabinClassVal === 'mixed'    ? `혼합 (비즈니스 ${bizCount}명 · 이코노미 ${Math.max(participants - bizCount, 0)}명)`
+      : '이코노미',
+    /* PD 신규 필드 — 혼합 편성 근거(표시·역검증용). bizSeatFactor는 노선 권역별 원 배율,
+       bizFactor는 인원 가중평균이 적용된 '실제 반영 배율'. */
+    bizCount, bizSeatFactor,
     roomConfigVal,    roomConfigLabel:    roomCfg.label,
     vipCount, bizFactor, rooms,
     /* P2 신규 필드 — 항공 리드타임/피크 반영 근거(표시·디버깅용).
@@ -695,6 +741,8 @@ function getBreakdownData() {
     volProduct, volScale,
     /* PB 신규 필드 — 보험 권역·기간 계수와 산출된 1인 요율(근거 표시·역검증용) */
     insuranceInfo,
+    /* PC 신규 필드 — 관광비에 적용된 일수 계수와 구간 라벨(근거 표시·역검증용) */
+    sightDuration,
     /* P3 신규 필드 — 환율 보정 계수(현지원가 항목에 적용) */
     fxAdjust,
   };
@@ -797,7 +845,16 @@ function renderLiveBreakdown() {
   document.getElementById('startDate')?.addEventListener('change', renderLiveBreakdown);
 
   /* v3: 좌석 등급 + 객실 구성 radio */
-  document.querySelectorAll('input[name="cabinClass"]').forEach(r => r.addEventListener('change', renderLiveBreakdown));
+  document.querySelectorAll('input[name="cabinClass"]').forEach(r => {
+    r.addEventListener('change', function () {
+      /* PD: '혼합' 선택 시에만 비즈니스 인원 입력 노출(객실의 vipCountRow와 독립) */
+      const bizRow = document.getElementById('bizCountRow');
+      if (bizRow) bizRow.classList.toggle('hidden', this.value !== 'mixed');
+      renderLiveBreakdown();
+    });
+  });
+  /* PD: 비즈니스 인원 수 변경 */
+  document.getElementById('bizCount')?.addEventListener('input', renderLiveBreakdown);
   document.querySelectorAll('input[name="roomConfig"]').forEach(r => {
     r.addEventListener('change', function () {
       /* 혼합 선택 시 VIP 인원 입력 필드 표시 */
@@ -1024,6 +1081,10 @@ form.addEventListener('submit', (event) => {
       cabinClass:         bd.cabinClassVal,
       cabinClassLabel:    bd.cabinClassLabel,
       bizFactor:          bd.bizFactor,
+      /* PD: 혼합 편성 — bizCount(비즈니스 인원)와 노선 원 배율. bizFactor만 저장하면
+         가중평균된 값이라 "몇 명이 비즈니스였는지"를 나중에 복원할 수 없다. */
+      bizCount:           bd.bizCount,
+      bizSeatFactor:      bd.bizSeatFactor,
       roomConfig:         bd.roomConfigVal,
       roomConfigLabel:    bd.roomConfigLabel,
       vipCount:           bd.vipCount,
