@@ -90,8 +90,14 @@ function tiered(unit, pax, tiers) {
   console.log('[5] 호텔·가이드 — 볼륨 할인 없음(단가 pax 불변)');
   const hotelUnit5 = row(b5, /호텔/).unit, hotelUnit50 = row(b50, /호텔/).unit;
   ok('호텔 단가 pax 5=50 동일(볼륨 할인 제외)', hotelUnit5 === hotelUnit50, `${hotelUnit5} vs ${hotelUnit50}`);
-  const guide5 = row(b5, /가이드/).amount, guide50 = row(b50, /가이드/).amount;
-  ok('가이드 총액 pax 5=50 동일(일당정액)', guide5 === guide50, `${guide5} vs ${guide50}`);
+  /* 가이드는 P10 시점엔 '항상 1명분(일당정액)'이라 pax 무관 동일이 맞았으나, 이후 P13에서
+     '버스당 1명'(guide_fee × 일수 × 차량대수)으로 바뀌어 이 단언이 낡았다. P10이 검증하려던
+     본래 취지는 '가이드에 볼륨 할인(단가 인하)이 없다'이므로, 대수 비례는 인정하되 1대당
+     단가가 pax와 무관하게 동일한지를 본다. pax 50은 대형버스(정원 45) 2대라 총액은 2배. */
+  const guide5 = row(b5, /가이드/), guide50 = row(b50, /가이드/);
+  ok('가이드 단가 pax 5=50 동일(볼륨 할인 없음)', guide5.unit === guide50.unit, `${guide5.unit} vs ${guide50.unit}`);
+  ok('가이드 총액은 버스 대수 비례(P13) — pax 50은 2대라 정확히 2배',
+     guide50.amount === guide5.amount * 2, `${guide5.amount} vs ${guide50.amount}`);
 
   console.log('[6] 30~49구간(30명) 부분 할인 확인');
   const b30 = bdFor(30);

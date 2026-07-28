@@ -195,6 +195,75 @@ function getBizFactor(destKey) {
   return BIZ_ZONE_FACTORS.short;
 }
 
+/* ── 여행자보험 권역·기간 차등 (정확도 개선 PB) ─────────────────────────────
+   기존엔 목적지·기간과 무관하게 1인 15,000원 정액이라, 실제 단체 여행자보험료를
+   좌우하는 두 축(현지 의료비 수준 / 여행 일수)이 전혀 반영되지 않았다.
+     보험료(1인) = INSURANCE_BASE × zoneFactor × durationFactor
+   기준점(1.00 × 1.00)은 '동남아 4~5일'이며, 이 기준 단가는 기존 15,000원이 실거래가
+   대비 과소라는 판단에 따라 18,000원으로 상향했다(사용자 확정). 즉 이번 변경은
+   ① 권역·기간 차등화 + ② 기준 단가 현행화 두 가지를 함께 담고 있다.
+
+   권역은 좌석등급용 BIZ_ZONES를 재사용하지 않고 별도로 둔다. BIZ_ZONES는 '노선 거리'
+   기준이라 보험(현지 의료비·후송 리스크) 기준과 어긋나는 곳이 여럿이기 때문:
+     · 괌·사이판 — 거리는 중거리지만 미국령이라 현지 의료비가 미국 본토 수준
+     · 호주/뉴질랜드 — BIZ_ZONES에선 '호주'만 long이고 시드니·멜버른·오클랜드는 mid로
+       갈려 있음. 보험 기준으론 한 권역이며 미주보다는 낮다(공공의료·상호협정)
+     · 몽골·중앙아 — 거리는 가깝고 현지 의료비도 싸지만, 중증 시 의료후송(medical
+       evacuation) 비용이 큼. 미국식 '고빈도 고단가'와 원인이 달라(저빈도 고심도)
+       미주·유럽보다 낮은 별도 구간으로 둔다
+   (GPT 2라운드 협의로 확정 — 근거: ai-loop/pB_prompt*.txt, ai-loop/pB_gpt_round*.txt)
+   ⚠ 이중 관리 주의: data.js에 목적지를 추가하면 아래 목록에도 반영해야 한다.
+      누락 시 중립값 1.00으로 폴백되고 콘솔 경고만 남는다(금액이 조용히 틀어짐). */
+const INSURANCE_BASE = 18000; /* 기준: 동남아 권역 · 4~5일 · 기업단체 1인 (2026 실거래 기준) */
+const INSURANCE_ZONES = {
+  asiaShort: ['도쿄','오사카','후쿠오카','나고야','삿포로','오키나와',
+              '홍콩','마카오','상해','장가계','청도','연태','대만','가오슝'],
+  asiaMid:   ['라오스','싱가포르','하노이','호치민','다낭','나트랑','푸꾸옥',
+              '세부','마닐라','보홀','코타키나발루','캄보디아',
+              '방콕','푸켓','치앙마이','발리'],
+  evac:      ['몽골','카자흐스탄','우즈베키스탄'],
+  oceania:   ['시드니','멜버른','오클랜드','호주'],
+  highCost:  ['괌','사이판',
+              '서유럽','로마','파리','영국','스페인','독일','네덜란드','북유럽','동유럽',
+              '로스앤젤레스','샌프란시스코','워싱턴','뉴욕','하와이','밴쿠버','토론토'],
+};
+const INSURANCE_ZONE_FACTORS = { asiaShort: 0.85, asiaMid: 1.00, evac: 1.20, oceania: 1.50, highCost: 1.80 };
+const INSURANCE_ZONE_LABELS  = { asiaShort: '아시아 단거리', asiaMid: '동남아', evac: '의료후송 위험권', oceania: '오세아니아', highCost: '미주·유럽' };
+
+/* 일수 구간 — 일수 정비례가 아니라 완만한 체감형(초기 며칠이 고정비 성격이고 이후
+   일당 증분이 작다). 기준 구간은 4~5일 = 1.00. MICE 연수는 3~5일이 압도적이라
+   실사용 대부분이 0.80~1.00 구간에 들어온다. */
+const INSURANCE_DURATION_TIERS = [
+  { max: 3,        factor: 0.80, label: '1~3일'   },
+  { max: 5,        factor: 1.00, label: '4~5일'   },
+  { max: 7,        factor: 1.20, label: '6~7일'   },
+  { max: 10,       factor: 1.40, label: '8~10일'  },
+  { max: 15,       factor: 1.70, label: '11~15일' },
+  { max: Infinity, factor: 2.00, label: '16일+'   },
+];
+
+function getInsuranceZone(destKey) {
+  for (const zone of Object.keys(INSURANCE_ZONES)) {
+    if (INSURANCE_ZONES[zone].includes(destKey)) return zone;
+  }
+  console.warn(`[견적] "${destKey}"가 INSURANCE_ZONES 어디에도 등록되어 있지 않아 보험 권역 계수 1.00(중립)으로 폴백됩니다. 목록 갱신이 필요할 수 있습니다.`);
+  return null;
+}
+
+/* 목적지·일수로 1인당 보험료와 그 근거(권역/구간)를 함께 돌려준다. */
+function getInsuranceInfo(destKey, days) {
+  const zone  = getInsuranceZone(destKey);
+  const zoneF = zone ? INSURANCE_ZONE_FACTORS[zone] : 1.0;
+  const d     = Math.max(1, Number(days) || 1);
+  const tier  = INSURANCE_DURATION_TIERS.find(t => d <= t.max)
+             || INSURANCE_DURATION_TIERS[INSURANCE_DURATION_TIERS.length - 1];
+  return {
+    zone, zoneFactor: zoneF, zoneLabel: zone ? INSURANCE_ZONE_LABELS[zone] : '미분류',
+    durationFactor: tier.factor, durationLabel: tier.label,
+    rate: Math.round(INSURANCE_BASE * zoneF * tier.factor),
+  };
+}
+
 /* ③ 객실 구성 — rooms 산정 함수
    double: 2인 1실 전원 (기본)
    single: 1인 1실 전원
@@ -580,13 +649,17 @@ function getBreakdownData() {
     muted: true, adminLabel:'현지 수익금',
   });
 
-  /* 🛡️ 여행자보험 (₩15,000/인, 고정) */
-  const INSURANCE_RATE = 15000;
+  /* 🛡️ 여행자보험 — 권역(현지 의료비·후송 리스크) × 여행 일수 차등 (PB).
+     보험은 수요 변동이 아니라 보험사 요율표 기반 '원가'라, 시즌·리드타임·피크 노브
+     (COEF_STATE)와 P11 변동성 총배수 상한의 대상이 아니다. 단체계약은 1인당 정률이라
+     식사·관광 같은 인원 볼륨 할인(P10)도 적용하지 않는다. */
+  const insuranceInfo  = getInsuranceInfo(destKey, days);
+  const INSURANCE_RATE = insuranceInfo.rate;
   rows.push({
     name:'🛡️ 여행자보험', unit:INSURANCE_RATE,
     qty:`${participants}명`,
     amount: INSURANCE_RATE * participants,
-    muted: true, adminLabel:'여행자보험',
+    muted: true, adminLabel:`여행자보험 (${insuranceInfo.zoneLabel}·${insuranceInfo.durationLabel})`,
   });
 
   const baseTotal      = rows.reduce((s, r) => s + r.amount, 0);
@@ -620,6 +693,8 @@ function getBreakdownData() {
     coef: { ...COEF_STATE },
     /* P11 신규 필드 — 변동성 곱(시즌×리드×피크)과 상한 축소계수(1이면 미적용). 진단·역검증용 */
     volProduct, volScale,
+    /* PB 신규 필드 — 보험 권역·기간 계수와 산출된 1인 요율(근거 표시·역검증용) */
+    insuranceInfo,
     /* P3 신규 필드 — 환율 보정 계수(현지원가 항목에 적용) */
     fxAdjust,
   };
