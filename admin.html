@@ -1313,6 +1313,7 @@
         <div class="modal-actions" style="margin-top:.75rem">
           <button class="btn-act btn-primary" onclick="saveEstimateDetail()">저장</button>
           <button class="btn-act btn-outline-p" onclick="printEstimateAdmin()">관리자용 출력</button>
+          <button class="btn-act btn-outline-p" onclick="issueShareLink()">🔗 견적서 링크 발급</button>
           <button class="btn-act btn-danger-sm" id="btnDeleteQuote" onclick="deleteEstimate()">삭제</button>
           <button class="btn-act" onclick="document.getElementById('emModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
         </div>
@@ -2054,6 +2055,26 @@
   }
 
   /* 진행 기록 추가 (신규) — 문의/견적 공용 */
+  /* 입력창 없이 진행 기록만 남기는 변형 (신규) — 링크 발급처럼 시스템이 스스로
+     기록을 남겨야 하는 경우에 쓴다. addActivityLog는 DOM 입력값을 읽는 구조라
+     그대로 쓸 수 없어 공통 부분만 떼어냈다. 실패해도 본 작업(발급)은 이미 끝났으므로
+     조용히 넘어간다 — 기록 실패로 "발급 실패"처럼 보이면 담당자가 다시 눌러
+     링크가 두 개 생긴다. */
+  async function addActivityLogSilent(kind, id, text) {
+    try {
+      const author = currentUser.displayName;
+      const patchFn = kind === 'inquiry' ? patchInquiry : patchQuote;
+      const res = await patchFn(id, { addLog: { author, text } });
+      let entry = { ts: new Date().toISOString(), author, text };
+      try { const data = await res.json(); if (data?.entry) entry = data.entry; } catch {}
+      const list = getEstsFull();
+      const e = list.find(x => x.id === id);
+      if (e) { e.activityLog = [...(e.activityLog || []), entry]; localStorage.setItem(EM_KEY, JSON.stringify(list)); }
+    } catch (err) {
+      console.warn('[admin] 진행 기록 추가 실패(본 작업은 완료됨):', err);
+    }
+  }
+
   async function addActivityLog(kind, id, textId, logContainerId) {
     /* 작성자는 항상 로그인한 나 자신(세션에서 검증된 신원) — 예전엔 담당자와
        다른 이름을 선택하면 막았지만, 그건 "아무 이름이나 자칭 가능"했던 시절의
@@ -5039,6 +5060,59 @@
   }
 
   /* 삭제 */
+  /* 담당자 견적서 링크 발급 (신규) — 고객 자동 발급은 서버 검증을 통과해야만 되지만,
+     담당자 발급은 검증에 걸려도 진행할 수 있다. 조건을 조정해 보내는 정상 업무가 있고
+     그 판단은 사람이 하기 때문이다. 대신 검증 결과를 먼저 보여주고 확인을 받는다.
+     발급 이력은 공유 레코드의 _verify.issuedBy에 담당자 이름으로 남는다. */
+  async function issueShareLink() {
+    const rec = getEstsFull().find(x => x.id === emCurrentId);
+    if (!rec) { alert('견적 정보를 찾을 수 없습니다.'); return; }
+
+    const NL = String.fromCharCode(10);
+    const v = rec._verify;
+    if (v && v.verdict !== 'verified') {
+      const failed = (v.steps || []).filter(s => !s.ok)
+        .map(s => '· ' + s.label + ': ' + s.detail).join(NL);
+      if (!confirm('이 견적은 서버 검증에서 걸린 항목이 있습니다.' + NL + NL
+        + failed + NL + NL + '그래도 링크를 발급할까요?')) return;
+    }
+
+    /* 공유 페이로드는 고객 견적서에 실제로 실리는 항목만 담는다.
+       ⚠ 비공개 항목(ENBT 수익·현지 수익금·여행자보험)이 새지 않도록 isHidden을 거른다 —
+       공개 계산기 쪽 shareData와 동일한 방어선이다(script.js rows 필터). */
+    const share = {
+      v: 1, dk: rec.destination, dt: rec.destLabel || rec.destination,
+      n: rec.participants, d: rec.days, ng: rec.nights,
+      org: rec.orgName || '', cn: rec.contact || '',
+      t: rec.total, pp: rec.perPerson,
+      iso: new Date().toISOString().slice(0, 10),
+      id: rec.id, rd: rec.rateDate || '', rv: rec.rateVersion || '',
+      ccl: rec.cabinClassLabel || '', rcl: rec.roomConfigLabel || '', dcl: rec.departureCityLabel || '',
+      rows: (rec.items || []).filter(it => !it.isHidden).map(it => [it.name, it.amount]),
+      req: (rec.request || '').slice(0, 300),
+      sd: rec.startDate || '',
+    };
+
+    try {
+      const res = await fetch('/api/quote-shares?action=issue', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ share, quote: rec }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || !data.id) {
+        alert(rateSaveErrorMessage(data, res.status));
+        return;
+      }
+      const url = location.origin + '/estimate-view.html?id=' + data.id;
+      try { await navigator.clipboard.writeText(url); } catch { /* 복사 실패해도 아래에서 보여준다 */ }
+      await addActivityLogSilent('quote', rec.id,
+        '견적서 링크 발급 (' + (data.verdict === 'verified' ? '검증 통과' : '담당자 판단') + ')');
+      prompt('견적서 링크가 발급되었습니다. 복사해서 고객에게 보내세요.', url);
+    } catch {
+      alert('링크 발급 요청에 실패했습니다. 네트워크를 확인해 주세요.');
+    }
+  }
+
   function deleteEstimate() {
     if (!confirm('이 견적을 삭제하시겠습니까?')) return;
     localStorage.setItem(EM_KEY, JSON.stringify(getEstsFull().filter(x=>x.id!==emCurrentId)));

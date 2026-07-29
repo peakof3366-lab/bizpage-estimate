@@ -1200,6 +1200,9 @@ form.addEventListener('submit', (event) => {
        가리키도록 연결한다(신규) — 견적 관리/문의 관리 두 화면이 서로 다른 테이블에
        따로 쌓여 관리자가 같은 고객·같은 건인지 알기 어려웠던 문제 보완 */
     window._lastQuoteId = estRecord.id;
+    /* 공유 링크 발급 시 서버가 이 스냅샷으로 검증한다(항목별 단가·적용 계수까지).
+       shareData만 보내면 표시용 축약값뿐이라 검증 깊이가 얕아진다. */
+    window._lastQuoteRecord = estRecord;
 
     try {
       fetch('/api/quotes', {
@@ -4555,8 +4558,12 @@ function openEstimateWindow() {
     strip: destPhotos ? destPhotos.strip.slice(0, 2) : [],
     sp: selectedPlan,
   };
-  const shareEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
-  const shareUrl = base + 'estimate-view.html?d=' + encodeURIComponent(shareEncoded);
+  /* ?d= base64 링크 제거 (2026-07-29) — 예전엔 견적 내용을 통째로 URL에 실어
+     estimate-view.html이 그대로 렌더했다. 서버를 안 거치므로 **누구든 우리 도메인에
+     임의 금액의 견적서를 만들 수 있었고**, 발급 기록도 없어 나중에 대조가 불가능했다.
+     이제 링크는 서버가 검증을 통과시킨 뒤에만 발급한다(api/quote-shares).
+     발급 전까지 입력칸은 '검증 중' 상태로 둔다. */
+  const shareUrl = '';
 
   /* 참여자 가이드 렌더 */
   function renderParticipantGuide() {
@@ -4611,6 +4618,22 @@ function openEstimateWindow() {
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
+/* ── 견적 검증 중 표시 ──────────────────────────────────────────
+   서버가 견적을 대조하는 동안 보이는 상태. 스피너 대신 잔잔하게 도는 링과
+   안쪽에서 천천히 숨 쉬는 점으로, '기다리게 만드는 로딩'이 아니라 '뒤에서
+   확인하는 중'으로 읽히게 했다. 브랜드 레드는 점에만 쓰고 링은 옅게 둔다.
+   prefers-reduced-motion이면 움직임을 멈추고 정지 상태로 보여준다. */
+.bp-verify-orb{position:relative;flex-shrink:0;width:34px;height:34px;display:inline-block}
+.bp-verify-orb::before{content:'';position:absolute;inset:0;border-radius:50%;
+  border:2px solid #E5E2DC;border-top-color:#CC001A;animation:bpVerifySpin 1.15s linear infinite}
+.bp-verify-orb::after{content:'';position:absolute;inset:12px;border-radius:50%;
+  background:#CC001A;opacity:.85;animation:bpVerifyPulse 1.9s ease-in-out infinite}
+@keyframes bpVerifySpin{to{transform:rotate(360deg)}}
+@keyframes bpVerifyPulse{0%,100%{transform:scale(.7);opacity:.45}50%{transform:scale(1);opacity:.9}}
+@media (prefers-reduced-motion:reduce){
+  .bp-verify-orb::before{animation:none;border-top-color:#CC001A}
+  .bp-verify-orb::after{animation:none;transform:scale(.85);opacity:.8}
+}
 body{font-family:'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#F8F7F5;color:#0D0D0D;font-size:14px;line-height:1.7;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 /* ── NAV ── */
@@ -4742,9 +4765,24 @@ a{color:inherit;text-decoration:none}
     <div style="font-size:11px;font-weight:700;letter-spacing:.12em;color:#CC001A;margin-bottom:8px">SHARE</div>
     <h3 style="font-size:18px;font-weight:800;margin-bottom:6px">고객 견적서 링크 공유</h3>
     <p style="font-size:13px;color:#5A5A5A;margin-bottom:20px">아래 링크를 고객에게 카카오톡·이메일로 전달하세요.<br>고객은 링크에서 견적 확인·출력·상담 신청을 바로 할 수 있습니다.</p>
-    <div style="display:flex;gap:8px;margin-bottom:16px">
-      <input id="share-url-inp" value="${shareUrl}" readonly style="flex:1;padding:10px 14px;border:1.5px solid #E5E2DC;font-size:12px;outline:none;background:#FAFAFA;color:#0D0D0D">
+    <!-- 검증 중 → 발급 완료 / 담당자 확인 3상태. 초기값은 검증 중이며
+         openEstimateWindow()의 발급 요청 결과에 따라 교체된다. -->
+    <div id="share-verifying" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:12px;padding:16px 18px;background:#FAFAF8;border:1.5px solid #E5E2DC">
+        <span class="bp-verify-orb" aria-hidden="true"></span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:#0D0D0D;margin-bottom:3px">견적 내용을 확인하고 있습니다</div>
+          <div id="share-verify-step" style="font-size:11.5px;color:#7A7A7A">요율표 대조 중…</div>
+        </div>
+      </div>
+    </div>
+    <div id="share-ready" style="display:none;gap:8px;margin-bottom:16px">
+      <input id="share-url-inp" value="" readonly style="flex:1;padding:10px 14px;border:1.5px solid #E5E2DC;font-size:12px;outline:none;background:#FAFAFA;color:#0D0D0D">
       <button id="copy-btn" onclick="(function(){navigator.clipboard.writeText(document.getElementById('share-url-inp').value).then(()=>{var b=document.getElementById('copy-btn');b.textContent='복사됨!';b.style.background='#22c55e';setTimeout(()=>{b.textContent='링크 복사';b.style.background='#CC001A';},2000);})})()" style="background:#CC001A;color:#fff;border:none;padding:10px 20px;font-weight:700;cursor:pointer;white-space:nowrap;font-size:13px">링크 복사</button>
+    </div>
+    <div id="share-review" style="display:none;margin-bottom:16px;padding:16px 18px;background:#FFF8E6;border:1.5px solid #F0D89A">
+      <div style="font-size:13px;font-weight:700;color:#7A5A10;margin-bottom:4px">담당자 확인이 필요한 견적입니다</div>
+      <div style="font-size:12px;color:#7A5A10;line-height:1.7">입력하신 조건은 접수되었습니다. 담당자가 확인 후 정식 견적서를 보내드립니다.<br>급하시면 아래 연락처로 문의해 주세요.</div>
     </div>
     <div style="background:#FEF0F2;padding:14px 16px;font-size:12px;color:#8F0B20;line-height:1.7">
       <strong>유효기간 안내</strong> · 이 견적서는 발급일로부터 <strong>30일</strong>간 유효합니다.<br>
@@ -4893,19 +4931,57 @@ function showCourse(id, btn) {
   w.document.write(html);
   w.document.close();
 
-  /* 공유 링크를 서버에 저장하고 짧은 ID 링크로 교체 (실패 시 위에 이미 넣어둔
-     긴 base64 링크(?d=)가 그대로 남아 동작하므로 안전하게 폴백된다) */
+  /* 서버 검증 → 통과해야 링크 발급 (2026-07-29).
+     예전엔 저장 요청만 보내고 실패해도 base64 링크가 남아 그대로 동작했다. 이제
+     서버가 권위 요율표·계수와 대조해 통과한 견적에만 링크를 만든다. 통과 못 하면
+     링크 대신 담당자 확인 안내로 넘어간다 — 견적 자체는 /api/quotes에 이미
+     저장돼 있으므로 리드는 유실되지 않는다.
+
+     견적 스냅샷(window._lastQuoteRecord)을 함께 보내는 이유: shareData에는 표시용
+     축약값만 있고 적용 계수·항목별 단가가 없어 검증 깊이가 얕다. 스냅샷이 있으면
+     서버가 계수 범위·항목 산술까지 본다. 없으면(견적 제출 전에 버튼을 누른 경우)
+     서버가 확인 가능한 만큼만 본다. */
+  const setStep = (txt) => {
+    if (w.closed) return;
+    const el = w.document.getElementById('share-verify-step');
+    if (el) el.textContent = txt;
+  };
+  /* 진행 문구는 실제 서버 단계와 1:1은 아니다(요청은 한 번에 끝난다). 사람이
+     '무엇을 하는 중인지' 읽을 수 있게 하는 안내이며, 응답이 빨리 오면 곧바로
+     결과로 넘어간다. 없는 절차를 있는 척하지는 않는다 — 문구는 서버가 실제로
+     수행하는 검사 이름과 같다(api/_lib/quote_verify.js). */
+  const stepTimers = [
+    setTimeout(() => setStep('적용 계수 범위 확인 중…'), 700),
+    setTimeout(() => setStep('항목별 금액 대조 중…'), 1500),
+    setTimeout(() => setStep('요율 기준월 확인 중…'), 2300),
+  ];
+  const clearSteps = () => stepTimers.forEach(clearTimeout);
+
+  const showReview = () => {
+    if (w.closed) return;
+    const v = w.document.getElementById('share-verifying');
+    const r = w.document.getElementById('share-review');
+    if (v) v.style.display = 'none';
+    if (r) r.style.display = 'block';
+  };
+
   fetch('/api/quote-shares', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(shareData),
-  }).then(r => r.ok ? r.json() : Promise.reject())
-    .then(({ id }) => {
+    body: JSON.stringify({ share: shareData, quote: window._lastQuoteRecord || null }),
+  }).then(r => r.json().catch(() => null))
+    .then((data) => {
+      clearSteps();
       if (w.closed) return;
+      if (!data || !data.ok || !data.id) { showReview(); return; }
+      const verifying = w.document.getElementById('share-verifying');
+      const ready = w.document.getElementById('share-ready');
       const inp = w.document.getElementById('share-url-inp');
-      if (inp) inp.value = base + 'estimate-view.html?id=' + id;
+      if (inp) inp.value = base + 'estimate-view.html?id=' + data.id;
+      if (verifying) verifying.style.display = 'none';
+      if (ready) ready.style.display = 'flex';
     })
-    .catch(() => {});
+    .catch(() => { clearSteps(); showReview(); });
 }
 
 /* ── Hero Stats 카운트업 ──────────────────────────────────────────── */

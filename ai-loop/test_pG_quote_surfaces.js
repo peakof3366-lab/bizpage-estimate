@@ -46,8 +46,16 @@ const ok = (name, cond, extra = '') => {
   /* ── ① 비공개 항목 유출 방지 — 공유 페이로드 구성 규칙을 소스에서 확인 ── */
   console.log('[1] 🔒 비공개 항목이 고객 공유 견적서로 새지 않는가 (최우선)');
   const scriptSrc = read('script.js');
-  const shareBlock = scriptSrc.slice(scriptSrc.indexOf('const shareData = {'),
-                                     scriptSrc.indexOf('const shareEncoded'));
+  /* 슬라이스 끝을 '뒤따르는 다른 코드'로 잡으면, 그 코드가 사라질 때 조용히 파일
+     끝까지 늘어나 엉뚱한 곳을 검사한다. 실제로 2026-07-29에 const shareEncoded를
+     제거하면서 그렇게 됐고, 이 단언이 파일 뒷부분의 margin을 잡아 "비공개 항목 유출"로
+     거짓 실패를 냈다. 유출 검사가 거짓 경보를 내면 다음엔 아무도 안 믿는다.
+     → shareData 객체 자신의 닫는 줄까지만 자른다. */
+  const shareStart = scriptSrc.indexOf('const shareData = {');
+  const shareEnd = scriptSrc.indexOf('  };', shareStart);
+  ok('shareData 블록을 찾았다', shareStart >= 0 && shareEnd > shareStart,
+     `start=${shareStart} end=${shareEnd}`);
+  const shareBlock = scriptSrc.slice(shareStart, shareEnd);
   ok('공유 rows가 muted를 필터링', /rows:\s*data\.rows\.filter\(r\s*=>\s*!r\.muted\)/.test(shareBlock),
      (shareBlock.match(/rows:.*/) || [''])[0].trim());
   ok('공유 페이로드에 hiddenTotal 없음', !/hiddenTotal/.test(shareBlock));

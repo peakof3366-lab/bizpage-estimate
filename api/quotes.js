@@ -6,6 +6,30 @@ const OpenAI = require('openai');
 const destinationRates = require('../data');
 const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key));
 const { safeId, payloadTooLarge, toNumberOrNull, trimText } = require('./_lib/public_input');
+const { verifyQuote } = require('./_lib/quote_verify');
+
+/* 검증에 필요한 권위 데이터(요율 오버라이드·계수 노브·커스텀 목적지)를 모은다.
+   조회에 실패하면 unavailable로 표시한다 — 빈 값으로 통과시키면 '검증했다'는
+   기록만 남고 실제로는 아무것도 대조하지 않은 게 되기 때문이다. */
+async function loadVerifyContext(destKey) {
+  try {
+    const [ovRows, coefRows, customRows] = await Promise.all([
+      sql`select destination_key, overrides from rate_overrides`,
+      sql`select value from app_settings where key = 'coefficients'`,
+      destKey ? sql`select * from custom_destinations where destination_key = ${destKey}` : Promise.resolve([]),
+    ]);
+    const overrides = {};
+    for (const r of ovRows) overrides[r.destination_key] = r.overrides;
+    return {
+      overrides,
+      coefficients: coefRows.length ? coefRows[0].value : null,
+      customRow: customRows.length ? customRows[0] : null,
+    };
+  } catch (err) {
+    console.error('[quotes] 검증 컨텍스트 조회 실패:', err);
+    return { unavailable: true };
+  }
+}
 
 /* ?action= 분기 (신규) — "실제 계약가 업데이트" 위젯(요율 관리 탭 맨 위)이 쓰는
    관리자 전용 엔드포인트 3개. action이 없으면 기존 공개 POST(견적 제출)/관리자 GET(견적
@@ -191,13 +215,26 @@ module.exports = async (req, res) => {
     const participants = toNumberOrNull(payload.participants);
     const total = toNumberOrNull(payload.total);
     try {
+      /* 저장 시점 검증 (신규) — 계산은 브라우저에서 일어나므로 서버가 받은 금액을
+         그대로 믿을 근거가 없다. 권위 요율표·계수와 대조한 결과를 payload에 함께
+         남겨, 관리자가 견적 상세에서 "이 건은 어느 단계에서 걸렸는지"를 볼 수 있게 한다.
+         걸려도 저장은 한다 — 고객 리드를 버리는 쪽이 훨씬 큰 손해다. 링크 발급
+         (api/quote-shares)에서 한 번 더, 그때는 통과해야만 발급된다. */
+      const vctx = await loadVerifyContext(payload.destination);
+      const verified = verifyQuote(payload, vctx);
+      const stored = { ...payload, id, participants, total, _verify: {
+        verdict: vctx.unavailable ? 'unavailable' : verified.verdict,
+        failedSteps: verified.failedSteps,
+        steps: verified.steps,
+        at: new Date().toISOString(),
+      } };
       await sql`
         insert into quotes (id, status, note, dest_label, org_name, participants, total, payload)
         values (${id}, 'new', '', ${trimText(payload.destLabel, 100)}, ${trimText(payload.orgName, 100)},
-                ${participants}, ${total}, ${JSON.stringify({ ...payload, id, participants, total })}::jsonb)
+                ${participants}, ${total}, ${JSON.stringify(stored)}::jsonb)
         on conflict (id) do nothing
       `;
-      res.status(200).json({ ok: true, id });
+      res.status(200).json({ ok: true, id, verdict: stored._verify.verdict });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'insert_failed' });

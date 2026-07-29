@@ -366,22 +366,24 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
-function decodeShareData() {
-  const params = new URLSearchParams(window.location.search);
-  const raw = params.get('d');
-  if (!raw) return null;
-  try {
-    return JSON.parse(decodeURIComponent(escape(atob(raw))));
-  } catch(e) {
-    return null;
-  }
+/* ?d= base64 경로 제거 (2026-07-29).
+   예전엔 견적 내용을 통째로 URL에 담아 이 페이지가 그대로 렌더했다. 서버를 전혀
+   거치지 않으므로 **누구든 우리 도메인에 임의 금액의 견적서를 만들 수 있었고**,
+   발급 기록이 없어 "이 링크 우리가 발급한 게 맞나"를 확인할 방법조차 없었다.
+   가격 분쟁에서 우리 도메인이 상대 주장의 근거가 되는 구조였다.
+
+   이제 견적서는 서버가 검증을 통과시킨 뒤 발급한 ?id= 링크로만 열린다. 내용은
+   DB에만 존재한다. ⚠ 이 함수를 되살리면 위조 경로가 그대로 다시 열린다.
+
+   구버전 ?d= 링크를 받은 고객이 있을 수 있어, 빈 화면 대신 안내를 띄운다. */
+function legacyLinkUsed() {
+  return new URLSearchParams(window.location.search).has('d');
 }
 
-/* 짧은 링크(?id=)는 서버에 저장된 데이터를 조회, 없으면 기존 방식(?d=)으로 폴백 */
 async function loadShareData() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
-  if (!id) return decodeShareData();
+  if (!id) return null;
   try {
     const res = await fetch('/api/quote-shares/' + encodeURIComponent(id));
     if (!res.ok) return null;
@@ -643,7 +645,9 @@ function renderPage(d) {
     document.getElementById('error-wrap').innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <h2>견적서를 불러올 수 없습니다</h2>
-      <p style="margin-top:10px">링크가 올바르지 않거나 만료되었습니다.<br>담당자에게 새 링크를 요청해 주세요.</p>
+      <p style="margin-top:10px">${legacyLinkUsed()
+        ? '이전 방식으로 만들어진 링크입니다.<br>보안 강화를 위해 지원이 종료되었습니다 — 담당자에게 새 링크를 요청해 주세요.'
+        : '링크가 올바르지 않거나 만료되었습니다.<br>담당자에게 새 링크를 요청해 주세요.'}</p>
       <a href="index.html" style="margin-top:28px;display:inline-block;background:#CC001A;color:#fff;padding:12px 28px;font-weight:700">홈페이지로 이동</a>
     `;
     return;

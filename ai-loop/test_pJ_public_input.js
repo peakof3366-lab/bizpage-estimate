@@ -67,8 +67,13 @@ const shareSrc = read(path.join('api', 'quote-shares.js'));
 ok('inquiries POST가 safeId 사용', /const id = safeId\(payload\.id\)/.test(inqSrc));
 ok('quotes POST가 safeId 사용', /const id = safeId\(payload\.id\)/.test(qSrc));
 ok('quote-shares는 서버 생성 id만', /const id = newId\(\)/.test(shareSrc) && !/payload\.id/.test(shareSrc));
-for (const [n, s] of [['inquiries', inqSrc], ['quotes', qSrc], ['quote-shares', shareSrc]]) {
-  ok(`${n} 크기 상한 적용`, /payloadTooLarge\(payload\)/.test(s));
+/* quote-shares는 { share, quote } 래퍼를 받으므로 본문 전체를 검사한다
+   (2026-07-29 서버 발급 전환). 나머지 둘은 payload 그대로다. */
+for (const [n, s, arg] of [['inquiries', inqSrc, 'payload'], ['quotes', qSrc, 'payload'],
+                           ['quote-shares', shareSrc, 'body']]) {
+  /* 정규식 대신 문자열 포함으로 본다 — 괄호를 이스케이프해야 하는데 템플릿 리터럴을
+     거치면서 한 겹 벗겨져 조용히 아무것도 매칭하지 않는 실수를 하기 쉽다. */
+  ok(`${n} 크기 상한 적용`, s.includes(`payloadTooLarge(${arg})`));
 }
 ok('저장되는 payload의 id도 안전한 값으로 교체', /\{ \.\.\.payload, id/.test(inqSrc) && /\{ \.\.\.payload, id/.test(qSrc));
 ok('quotes 인원·총액을 숫자로 못 박음', /toNumberOrNull\(payload\.participants\)/.test(qSrc) && /toNumberOrNull\(payload\.total\)/.test(qSrc));
