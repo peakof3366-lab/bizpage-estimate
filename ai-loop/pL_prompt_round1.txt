@@ -1,0 +1,336 @@
+당신은 실제 운영 중인 소규모 상용 서비스의 코드를 검토하는 시니어 리뷰어입니다.
+칭찬·요약·일반론은 쓰지 마세요. **구체적인 버그 후보만** 답하세요.
+
+# 서비스 개요
+- MICE(기업 해외연수) 온라인 견적 서비스. 정적 프론트(index.html/script.js/data.js)
+  + Vercel 서버리스 API + Neon Postgres.
+- 고객이 index.html에서 목적지·인원·일수를 고르면 script.js가 **브라우저에서** 금액을
+  계산해 견적서를 보여주고, 그 결과를 /api/quotes로 저장한다.
+- 관리자(admin.html)에서 직원들이 목적지별 단가(요율)를 수정한다. 수정분은 DB에
+  저장되고 다음 로드부터 정적표 위에 얕은 병합으로 덮인다.
+- 다음 주부터 팀원 5명(매니저 1 + 직원 4)이 매일 요율을 갱신하기 시작한다.
+
+# 이미 찾아서 고친 것 (중복 지적 금지)
+1. 공개 POST의 payload.id 미검증 → 관리자 화면 onclick 저장형 XSS. 서버에서 id 형식
+   강제 + 화면에서 영숫자만 남기도록 수정 완료.
+2. 요율 PATCH가 select→JS병합→통째덮어쓰기(read-modify-write)라 동시 편집 시 변경
+   유실. SQL 안 jsonb || 병합으로 수정 완료.
+3. 문의·견적 개별 삭제에 권한 제한 없음 → 매니저 이상으로 제한 완료.
+4. 요율 숫자에 서버 상한 없음(0 하나 더 붙여도 저장) → 현행 최댓값 5배로 상한 설정.
+5. 감사 도구가 DB 오버라이드를 안 보고 정적 data.js만 검사 → 라이브 조회로 전환.
+6. estimate-view.html이 공유 payload의 day.day를 인라인 핸들러에 날것으로 삽입 → 숫자 강제.
+7. 공개 엔드포인트 payload 크기 무제한 → 64KB 상한.
+
+# 이미 자동 검증으로 통과한 것 (여기 해당하면 지적 금지)
+- 견적 엔진 불변식 퍼징 3,080건 통과: NaN/Infinity 없음, 음수 없음, 행합계=총액,
+  1인당×인원≈총액, 일수 단조성, 고객노출총액≤전체총액, 인원 1명 증가 시 1인당 +15% 초과 없음.
+- 회귀 스위트 542건 통과.
+
+# 검토 요청
+아래 코드는 금액을 만드는 핵심 경로입니다. **로직 오류·경계 조건·설계상 취약점**을
+찾아 주세요. 특히 다음 관점을 우선해 주세요.
+
+(a) 계산이 조용히 틀리는 경우: 어떤 입력에서 의도와 다른 값이 나오는가
+(b) 여러 사람이 동시에 쓸 때 깨지는 것
+(c) 클라이언트에서 계산한 금액을 서버가 그대로 믿는 구조의 위험
+(d) 시간·날짜·타임존 관련 오류
+(e) 캐시/상태가 화면과 실제 저장값이 어긋나게 만드는 지점
+
+## 답변 형식 (반드시 지킬 것)
+각 항목을 아래 형식으로. 확신이 낮으면 "추정"이라고 명시하세요.
+추측성 일반론("검증을 추가하는 것이 좋습니다" 같은)은 쓰지 마세요.
+
+[번호] 한 줄 요약
+- 위치: 함수명/줄 특징
+- 재현 조건: 구체적인 입력값
+- 결과: 무엇이 어떻게 틀리는가 (가능하면 숫자로)
+- 확신도: 높음/중간/추정
+
+---
+# 코드 1: 견적 엔진 헬퍼 (인원 구간, 볼륨 할인, 리드타임, 성수기, 환율)
+function getPaxTier(n) {
+  return PAX_TIERS.find(t => n >= t.min && n <= t.max) || PAX_TIERS[0];
+}
+
+/* ── 버그③수정: 인원 구간 경계 비단조성(총액 역전) 방지 ──────────────
+   기존 방식은 전체 인원이 "그 인원수가 속한 구간"의 할인율을 소급 적용받아,
+   구간 경계를 막 넘는 순간(예: 29명→30명) 오히려 총액이 줄어드는 문제가 있었음.
+   소득세 누진공제처럼 각 구간에 해당하는 인원수만큼만 그 구간의 계수를 적용해
+   합산하면, 인원이 1명 늘 때 추가되는 금액이 항상 0 이상이라 총액이 인원수에
+   대해 항상 non-decreasing함이 보장된다. tiers는 {min,max,factor} 형태이며
+   구간이 서로 겹치지 않고 연속되어야 한다(PAX_TIERS 등). ─────────────── */
+function tieredTotal(unitBase, participants, tiers) {
+  let total = 0;
+  for (const t of tiers) {
+    if (participants < t.min) continue;
+    const countInBracket = Math.min(participants, t.max) - t.min + 1;
+    total += Math.round(unitBase * t.factor) * countInBracket;
+  }
+  return total;
+}
+
+/* ── Level 1 헬퍼: 출발월 → 시즌 정보 ──────────────────────────────────
+   P4: 목적지가 DEST_SEASON_PROFILES(권역별 시즌표)에 매칭되면 그 config를
+   우선 사용하고, 없으면 기존 공용표로 폴백한다. 폴백은 남반구 목적지면
+   SEASON_CONFIG_SOUTHERN(현지 계절 반전), 그 외엔 SEASON_CONFIG.
+   → 프로파일에 없는 목적지의 동작은 P4 이전과 100% 동일. */
+function getSeasonInfo(dateStr, destKey) {
+function getLeadTimeFactor(startDateStr) {
+  if (!startDateStr) return 1.0;
+  const start = new Date(startDateStr);
+  if (isNaN(start.getTime())) return 1.0;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((start - today) / 86400000);
+  if (days < 0) return 1.0;
+  return (LEAD_TIME_BANDS.find(b => days < b.maxDays) || LEAD_TIME_BANDS[LEAD_TIME_BANDS.length - 1]).factor;
+}
+
+/* ── P2 헬퍼: 목적지 피크 날짜 달력 ──────────────────────────────────
+   시즌 계수는 전 목적지 공용 '월 단위' 근사라 목적지 고유 성수기·연휴(골든위크·춘절
+   등)를 못 잡는다. 여기서 날짜 구간별 추가 계수를 목적지별로 정의해 항공/유류에 얹는다.
+   keys='ALL'은 한국 출발 공통 성수기. from/to는 'MM-DD'(매년 반복, from>to면 연말연시처럼
+   해를 넘는 구간). 겹치면 가장 큰 계수 하나만 적용. 설/추석/춘절은 음력이라 근사 구간이며
+   운영 중 그 해 실제 날짜로 조정 권장. 데이터 없으면 1.0(영향 없음).
+   ⚠ P9(2026-07): 음력·이동 공휴일 항목은 '2027년' 기준으로 근사한 좁은 구간이다. 매년
+   실제 날짜로 갱신해야 정확하다. 좁은 구간을 쓰는 이유: 어긋난 해에 넓은 구간은 평범한
+   날을 과청구(위험)하지만, 좁은 구간은 피크를 놓칠 뿐(소폭 과소추정, 안전). 계수·날짜는
+   GPT 2라운드 협의로 확정한 도메인 초안(P1/P6 실측으로 조정 예정). */
+const PEAK_CALENDAR = [
+  { keys: 'ALL', from: '07-15', to: '08-20', factor: 1.20, label: '여름 성수기' },
+  { keys: 'ALL', from: '12-20', to: '01-03', factor: 1.25, label: '연말연시' },
+  /* P9: 한국 최대 아웃바운드 연휴(설·추석) — 전 목적지 항공 급등인데 그동안 'ALL' 피크에
+     빠져 있었다(기존 춘절은 중국권에만 적용돼 한국발 설날 수요를 못 잡음). 연휴 전날 출국
+     수요까지 포함해 살짝 앞으로. 2027 근사: 설 2/6·추석 9/15. */
+  { keys: 'ALL', from: '02-04', to: '02-09', factor: 1.25, label: '설 연휴(근사)' },
+  { keys: 'ALL', from: '09-13', to: '09-17', factor: 1.22, label: '추석 연휴(근사)' },
+  /* P9: 5월 초 황금연휴(근로자의날 5/1·어린이날 5/5) — 항공 수요 상승. 일본행은 아래
+     골든위크(1.35)가 최댓값으로 자동 우선하므로 'ALL'이어도 비일본행에만 실질 영향. 보수적. */
+  { keys: 'ALL', from: '05-01', to: '05-06', factor: 1.12, label: '5월 황금연휴(근사)' },
+  { keys: ['도쿄', '오사카', '후쿠오카', '나고야', '삿포로', '오키나와'], from: '04-27', to: '05-06', factor: 1.35, label: '일본 골든위크' },
+  { keys: ['도쿄', '오사카', '후쿠오카', '나고야'], from: '03-25', to: '04-10', factor: 1.20, label: '벚꽃 시즌' },
+  /* P9: 춘절을 2027 기준으로 정합화(기존 02-08~02-17은 2026년 2/17 기준이라 다가오는
+     2027년 2/6엔 어긋남). 중국 춘절 황금연휴는 한국 설보다 길어 구간을 조금 넓게. */
+  { keys: ['상해', '장가계', '청도', '연태', '홍콩', '마카오', '대만', '가오슝'], from: '02-05', to: '02-13', factor: 1.30, label: '춘절(근사)' },
+];
+/* P7 호텔 피크 가중치(항공 피크 상승폭 중 호텔이 받는 비중)는 P2b에서 관리자 조정 가능한
+   스칼라 노브로 승격됨 → 위쪽 COEF_SPEC.hotelPeakWeight(기본 0.8) 참고. 여기 상수는 제거. */
+function getPeakInfo(startDateStr, destKey) {
+  if (!startDateStr) return { factor: 1.0, label: '' };
+  const d = new Date(startDateStr);
+  if (isNaN(d.getTime())) return { factor: 1.0, label: '' };
+  const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const inRange = (from, to) => (from <= to ? (mmdd >= from && mmdd <= to) : (mmdd >= from || mmdd <= to));
+  let best = { factor: 1.0, label: '' };
+  for (const p of PEAK_CALENDAR) {
+    const applies = p.keys === 'ALL' || (Array.isArray(p.keys) && p.keys.includes(destKey));
+    if (applies && inRange(p.from, p.to) && p.factor > best.factor) best = { factor: p.factor, label: p.label };
+  }
+  return best;
+}
+
+/* ── P3 헬퍼: 환율 보정 계수 ─────────────────────────────────────────
+   현지통화 원가(호텔·식비·가이드·차량·관광)는 정적 KRW로 저장돼 있어, 요율을 정한
+   시점 이후 환율이 변하면 실제 원가와 벌어진다. 목적지 통화의 (현재환율 / 기준시점환율)
+   비율로 그 항목들을 보정한다. 항공·유류는 국제선 성격이라 제외, 마진·보험은 원화라 제외.
+   데이터(기준환율/현재환율)가 없으면 1.0(영향 없음). 데이터 이상으로 인한 견적 폭주를
+   막으려 ±30%로 클램프. */
+function getFxAdjust(destKey) {
+  const base = FX_STATE.baseline[destKey];
+  if (!base || !base.rate) return 1.0;
+  const now = FX_STATE.rates[base.currency];
+  if (!now || !isFinite(now)) return 1.0;
+  const adj = now / base.rate;
+  if (!isFinite(adj) || adj <= 0) return 1.0;
+  return Math.max(0.7, Math.min(1.3, adj));
+}
+
+/* ── Level 2 헬퍼: 요율 기준일 신선도 판정 ───────────────────────
+   ok    : 0 ~ 3개월 이내 (✅ 최신)
+   check : 4 ~ 6개월     (⚠️ 확인 권장)
+   stale : 7개월 이상    (🔴 갱신 필요)
+   ─────────────────────────────────────────────────────────────── */
+/* ⚠ 중복 구현 주의: admin.html의 adminGetRateStatus()와 로직(3개월/6개월 임계값 +
+   rateDate 없을 때 '미확인' 처리)이 동일한 별도 구현입니다. 한쪽만 수정하면 고객용/관리자용
+   "요율 최신성" 배지가 서로 어긋나므로 반드시 두 함수를 함께 수정하세요. 반환 shape만
+   용도가 달라 다릅니다: 여기(고객 배지)는 color, adminGetRateStatus(관리자 표)는 icon.
+   (2026-07-22 검토 시 임계값·months 계산·null('미확인') 케이스 값이 정확히 동일함을 확인) */
+
+---
+# 코드 2: getBreakdownData 앞부분 (입력 수집 ~ 단가 산출)
+function getBreakdownData() {
+  const destKey      = destinationSelect.value;
+  const participants = Number(document.getElementById('participants').value) || 0;
+  const days         = Number(document.getElementById('days').value) || 0;
+  const programType  = document.getElementById('programType').value;
+  const orgType      = document.getElementById('organizationType').value;
+
+  if (!destKey || !participants || !days) return null;
+  const dest = getDestinationByKey(destKey);
+  if (!dest) return null;
+
+  const nights = Math.max(days - 1, 0); /* 박수 = 일수 - 1 (당일치기 0박) */
+
+  const incHotel       = document.getElementById('incHotel')?.checked ?? true;
+  const incMeal        = document.getElementById('incMeal')?.checked ?? true;
+  const incVehicle     = document.getElementById('incVehicle')?.checked ?? true;
+  const incGuide       = document.getElementById('incGuide')?.checked ?? true;
+  const incSightseeing = document.getElementById('incSightseeing')?.checked ?? true;
+  const vehicleTypeVal = document.querySelector('input[name="vehicleType"]:checked')?.value || 'auto';
+
+  /* ── Level 1: 티어·시즌·호텔 등급 계수 산출 ── */
+  const paxTier       = getPaxTier(participants);
+  const startDateVal  = document.getElementById('startDate')?.value || '';
+  const seasonInfo    = getSeasonInfo(startDateVal, destKey);
+  const hotelGradeKey = document.querySelector('input[name="hotelGrade"]:checked')?.value || 'superior';
+  const hotelGrade    = HOTEL_GRADES[hotelGradeKey] || HOTEL_GRADES.superior;
+
+  /* ── v3 신규: 출발 공항 · 좌석 등급 · 객실 구성 ── */
+  const departureCityVal = document.getElementById('departureCity')?.value || 'ICN';
+  const cabinClassVal    = document.querySelector('input[name="cabinClass"]:checked')?.value || 'economy';
+  const roomConfigVal    = document.querySelector('input[name="roomConfig"]:checked')?.value || 'double';
+  const vipCount         = Math.max(0, Number(document.getElementById('vipCount')?.value) || 0);
+
+  const deptCityData = DEPARTURE_CITIES.find(c => c.value === departureCityVal) || DEPARTURE_CITIES[0];
+  const departureFactor = deptCityData.factor;
+
+  /* ── PD: 좌석 등급 혼합(임원만 비즈니스) ──────────────────────────────────
+     기존엔 좌석 등급이 전원 일괄이라, 임원 2명만 비즈니스인 흔한 구성을 "전원 비즈니스"
+     (과대) 또는 "전원 이코노미"(과소)로밖에 표현할 수 없었다. 실제 기업연수는 대부분
+     혼합이라 항공료 오차가 가장 크게 나던 지점.
+
+     ⚠ 객실 구성의 vipCount를 재사용하지 않고 bizCount를 따로 받는다. vipCount는
+     "1인 1실 임원 인원"이라 좌석과 독립적이다 — 임원이 1인 1실을 쓰면서 이코노미를
+     탈 수도, 2인 1실이면서 비즈니스를 탈 수도 있다. 재사용하면 객실 구성을 '혼합'으로
+     고르지 않은 견적에서 좌석 혼합이 조용히 무시된다.
+
+     계산은 '가중평균 배율'로 접어 넣는다:
+       bizFactor = (bizCount × 노선비즈배율 + 나머지 인원 × 1.0) / 총원
+     이렇게 하면 이후 tieredTotal(인원 볼륨 할인)이 기존 그대로 동작하고, 볼륨 할인은
+     혼합 편성된 총액 위에 걸린다(단체 예약이므로 전체 인원 기준 협상이 맞다).
+     bizCount=0이면 정확히 1.0, bizCount=총원이면 정확히 '전원 비즈니스'와 동일 →
+     양 끝에서 기존 동작과 일치해 회귀가 없다. */
+  const bizCountRaw = Math.max(0, Number(document.getElementById('bizCount')?.value) || 0);
+  const bizCount    = cabinClassVal === 'mixed' ? Math.min(bizCountRaw, participants) : 0;
+  /* getBizFactor는 미등록 목적지에 콘솔 경고를 남기므로 비즈니스가 걸린 경우에만 호출 */
+  const bizSeatFactor = (cabinClassVal === 'business' || cabinClassVal === 'mixed')
+    ? getBizFactor(destKey) : 1.0;
+  const bizFactor =
+      cabinClassVal === 'business' ? bizSeatFactor
+    : cabinClassVal === 'mixed'
+        ? (participants > 0 ? (bizCount * bizSeatFactor + (participants - bizCount)) / participants : 1.0)
+    : 1.0;
+  const roomCfg    = ROOM_CONFIG[roomConfigVal] || ROOM_CONFIG.double;
+  const rooms      = roomCfg.calcRooms(participants, vipCount);
+
+  /* 조정된 단가 계산
+     · 항공: 출발지 계수 × 좌석 등급 계수 (비즈니스는 노선 거리 비례)
+     · 유류할증료: 출발지 계수만 적용 (좌석 등급과 무관)
+     · 호텔: 객실 구성은 rooms 계산으로 이미 반영됨
+     · 항공/유류의 인원 구간(PAX_TIERS) 할인은 tieredTotal()로 누진 계산해
+       총액이 인원수에 대해 항상 non-decreasing하도록 보장 (버그③수정) */
+
+---
+# 코드 3: getBreakdownData 뒷부분 (비공개 항목·마진·총액)
+  const sightTotalTiered = tieredTotal(sightUnit, participants, GROUND_SIGHT_TIERS);
+  const sightEffUnit = participants > 0 ? Math.round(sightTotalTiered / participants) : sightUnit;
+  if (incSightseeing) rows.push({
+    name:'관광', unit:sightEffUnit,
+    qty:`${participants}명`,
+    amount: sightTotalTiered,
+  });
+
+  /* ─── 비공개 항목 3종 (고객 미노출, 총액에 포함) ─────────────────
+     참고 기준 ENBT Revenue + Local Revenue + Travel Insurance
+     ──────────────────────────────────────────────────────────── */
+
+  /* ── 마진 구조 (Level 1: 인원 구간별 차등) ────────────────────────
+     인원이 많을수록 ENBT 마진 소폭 감소 (대형 그룹 경쟁력 확보)
+     현지 수익금은 고정 (현지 파트너 협약 기반)
+     구간 경계 비단조성 방지를 위해 항공/유류와 동일하게 tieredTotal()로
+     누진 계산 (버그③수정, PAX_TIERS와 동일한 구간 경계 재사용) ──────── */
+  const enbtMarginTierFactors = [
+    { min:  1, max:  9, factor: 1.10 },
+    { min: 10, max: 29, factor: 1.00 },
+    { min: 30, max: 49, factor: 0.92 },
+    { min: 50, max: Infinity, factor: 0.85 },
+  ];
+  const enbtMarginTotalTiered = tieredTotal(dest.margin_per_traveler, participants, enbtMarginTierFactors);
+  const enbtMarginUnit  = participants > 0 ? Math.round(enbtMarginTotalTiered / participants) : 0;
+  const localMarginUnit = Math.round(dest.margin_per_traveler * 0.90);
+
+  rows.push({
+    name:'💼 ENBT 수익', unit: enbtMarginUnit,
+    qty:`${participants}명`,
+    amount: enbtMarginUnit * participants,
+    muted: true, adminLabel:'ENBT 수익금',
+  });
+
+  rows.push({
+    name:'🏷️ 현지 수익금', unit: localMarginUnit,
+    qty:`${participants}명`,
+    amount: localMarginUnit * participants,
+    muted: true, adminLabel:'현지 수익금',
+  });
+
+  /* 🛡️ 여행자보험 — 권역(현지 의료비·후송 리스크) × 여행 일수 차등 (PB).
+     보험은 수요 변동이 아니라 보험사 요율표 기반 '원가'라, 시즌·리드타임·피크 노브
+     (COEF_STATE)와 P11 변동성 총배수 상한의 대상이 아니다. 단체계약은 1인당 정률이라
+     식사·관광 같은 인원 볼륨 할인(P10)도 적용하지 않는다. */
+  const insuranceInfo  = getInsuranceInfo(destKey, days);
+  const INSURANCE_RATE = insuranceInfo.rate;
+  rows.push({
+    name:'🛡️ 여행자보험', unit:INSURANCE_RATE,
+    qty:`${participants}명`,
+    amount: INSURANCE_RATE * participants,
+    muted: true, adminLabel:`여행자보험 (${insuranceInfo.zoneLabel}·${insuranceInfo.durationLabel})`,
+  });
+
+  const baseTotal      = rows.reduce((s, r) => s + r.amount, 0);
+  const programFactor  = estimateCriteria.programFactor[programType]  || 1.0;
+  const orgFactor      = estimateCriteria.organizationFactor[orgType] || 1.0;
+  const combinedFactor = programFactor * orgFactor;
+  const total          = Math.round(baseTotal * combinedFactor);
+  const perPerson      = participants > 0 ? Math.round(total / participants) : 0;
+
+  /* 관리자용: 비공개 항목만의 합계 */
+  const hiddenTotal  = rows.filter(r => r.muted).reduce((s, r) => s + r.amount, 0);
+  const visibleTotal = total - Math.round(hiddenTotal * combinedFactor);
+
+  return {
+    rows, baseTotal, programFactor, orgFactor, combinedFactor, total, perPerson,
+    hiddenTotal, visibleTotal, participants, days, nights, mealCount,
+    /* Level 1 메타 */
+    paxTier, seasonInfo, hotelGrade, hotelGradeKey,
+    /* v3 신규 필드 */
+    departureCityVal, departureCityLabel: deptCityData.label, departureFactor,
+    cabinClassVal,
+    cabinClassLabel:
+        cabinClassVal === 'business' ? '비즈니스'
+      : cabinClassVal === 'mixed'    ? `혼합 (비즈니스 ${bizCount}명 · 이코노미 ${Math.max(participants - bizCount, 0)}명)`
+      : '이코노미',
+    /* PD 신규 필드 — 혼합 편성 근거(표시·역검증용). bizSeatFactor는 노선 권역별 원 배율,
+       bizFactor는 인원 가중평균이 적용된 '실제 반영 배율'. */
+    bizCount, bizSeatFactor,
+    roomConfigVal,    roomConfigLabel:    roomCfg.label,
+    vipCount, bizFactor, rooms,
+    /* P2 신규 필드 — 항공 리드타임/피크 반영 근거(표시·디버깅용).
+       P2b: leadFactor·peakFactor·seasonFactor는 스칼라 노브가 적용된 '실제 반영값'.
+       원 raw 값이 필요하면 seasonInfo.factor/peakInfo.factor로 접근 가능. */
+    seasonFactor, leadFactor, peakFactor, peakLabel: peakInfo.label,
+    /* P7 신규 필드 — 호텔에 실제 적용된 피크 계수(항공 피크와 가중치만큼 다름). 역검증용 */
+    hotelPeakFactor,
+    /* P2b 신규 필드 — 이 견적에 실제 반영된 계수 노브 스냅샷(역검증·표시용) */
+    coef: { ...COEF_STATE },
+    /* P11 신규 필드 — 변동성 곱(시즌×리드×피크)과 상한 축소계수(1이면 미적용). 진단·역검증용 */
+    volProduct, volScale,
+    /* PB 신규 필드 — 보험 권역·기간 계수와 산출된 1인 요율(근거 표시·역검증용) */
+    insuranceInfo,
+    /* PC 신규 필드 — 관광비에 적용된 일수 계수와 구간 라벨(근거 표시·역검증용) */
+    sightDuration,
+    /* P3 신규 필드 — 환율 보정 계수(현지원가 항목에 적용) */
+    fxAdjust,
+  };
+}
+
+/* == 실시간 견적 렌더링 (고객용: 단가/마진 비공개) == */
+function renderLiveBreakdown() {

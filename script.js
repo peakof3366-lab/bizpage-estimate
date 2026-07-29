@@ -383,28 +383,59 @@ function getLeadTimeFactor(startDateStr) {
    시즌 계수는 전 목적지 공용 '월 단위' 근사라 목적지 고유 성수기·연휴(골든위크·춘절
    등)를 못 잡는다. 여기서 날짜 구간별 추가 계수를 목적지별로 정의해 항공/유류에 얹는다.
    keys='ALL'은 한국 출발 공통 성수기. from/to는 'MM-DD'(매년 반복, from>to면 연말연시처럼
-   해를 넘는 구간). 겹치면 가장 큰 계수 하나만 적용. 설/추석/춘절은 음력이라 근사 구간이며
-   운영 중 그 해 실제 날짜로 조정 권장. 데이터 없으면 1.0(영향 없음).
-   ⚠ P9(2026-07): 음력·이동 공휴일 항목은 '2027년' 기준으로 근사한 좁은 구간이다. 매년
-   실제 날짜로 갱신해야 정확하다. 좁은 구간을 쓰는 이유: 어긋난 해에 넓은 구간은 평범한
-   날을 과청구(위험)하지만, 좁은 구간은 피크를 놓칠 뿐(소폭 과소추정, 안전). 계수·날짜는
-   GPT 2라운드 협의로 확정한 도메인 초안(P1/P6 실측으로 조정 예정). */
+   해를 넘는 구간). 겹치면 가장 큰 계수 하나만 적용. 데이터 없으면 1.0(영향 없음).
+
+   ⚠ 여기에는 **양력으로 매년 같은 날인 피크만** 둔다. 음력 연휴(설·추석·춘절)는
+   아래 LUNAR_PEAKS에 연도별 실제 날짜로 따로 있다. — PM(2026-07-29):
+   예전엔 음력 연휴도 이 표에 'MM-DD'로 들어가 매년 반복됐다. 값은 2027년 기준이라
+   다른 해에는 **엉뚱한 날짜에 얹혔다.** 실측으로 확인한 결과:
+     2026-09-15(평범한 날)      → ×1.22 "추석 연휴"  ← 근거 없는 과청구
+     2026-09-25(2026 실제 추석) → ×1.00              ← 진짜 피크를 놓침
+   당시 주석은 "좁은 구간은 피크를 놓칠 뿐(소폭 과소추정, 안전)"이라고 적혀 있었는데
+   **틀린 논리였다.** 좁아도 어긋난 해에는 평범한 날 위에 그대로 얹힌다.
+   같은 실수를 반복하지 않으려면: 매년 날짜가 바뀌는 항목을 'MM-DD'로 두지 말 것. */
 const PEAK_CALENDAR = [
   { keys: 'ALL', from: '07-15', to: '08-20', factor: 1.20, label: '여름 성수기' },
   { keys: 'ALL', from: '12-20', to: '01-03', factor: 1.25, label: '연말연시' },
-  /* P9: 한국 최대 아웃바운드 연휴(설·추석) — 전 목적지 항공 급등인데 그동안 'ALL' 피크에
-     빠져 있었다(기존 춘절은 중국권에만 적용돼 한국발 설날 수요를 못 잡음). 연휴 전날 출국
-     수요까지 포함해 살짝 앞으로. 2027 근사: 설 2/6·추석 9/15. */
-  { keys: 'ALL', from: '02-04', to: '02-09', factor: 1.25, label: '설 연휴(근사)' },
-  { keys: 'ALL', from: '09-13', to: '09-17', factor: 1.22, label: '추석 연휴(근사)' },
   /* P9: 5월 초 황금연휴(근로자의날 5/1·어린이날 5/5) — 항공 수요 상승. 일본행은 아래
      골든위크(1.35)가 최댓값으로 자동 우선하므로 'ALL'이어도 비일본행에만 실질 영향. 보수적. */
-  { keys: 'ALL', from: '05-01', to: '05-06', factor: 1.12, label: '5월 황금연휴(근사)' },
+  { keys: 'ALL', from: '05-01', to: '05-06', factor: 1.12, label: '5월 황금연휴' },
   { keys: ['도쿄', '오사카', '후쿠오카', '나고야', '삿포로', '오키나와'], from: '04-27', to: '05-06', factor: 1.35, label: '일본 골든위크' },
   { keys: ['도쿄', '오사카', '후쿠오카', '나고야'], from: '03-25', to: '04-10', factor: 1.20, label: '벚꽃 시즌' },
-  /* P9: 춘절을 2027 기준으로 정합화(기존 02-08~02-17은 2026년 2/17 기준이라 다가오는
-     2027년 2/6엔 어긋남). 중국 춘절 황금연휴는 한국 설보다 길어 구간을 조금 넓게. */
-  { keys: ['상해', '장가계', '청도', '연태', '홍콩', '마카오', '대만', '가오슝'], from: '02-05', to: '02-13', factor: 1.30, label: '춘절(근사)' },
+];
+
+/* ── 음력 연휴 피크 (PM, 2026-07-29 신설) ────────────────────────────
+   설·추석·춘절은 매년 양력 날짜가 달라서 'MM-DD' 반복 구간으로 두면 반드시 어긋난다.
+   그래서 **연도별 절대 날짜**로 둔다. from/to는 'YYYY-MM-DD'(양 끝 포함).
+
+   ⚠ **등록되지 않은 연도는 계수 1.0(피크 없음)이다.** 근사로 때우지 않는다 —
+   근사는 평범한 날을 과청구할 수 있고, 견적서에 "설 연휴"라고 적힌 근거 없는
+   할증이 붙는 건 고객 신뢰 문제로 직결된다. 못 잡아서 조금 낮게 나가는 쪽이 안전하다
+   (GPT 2라운드 협의에서도 같은 결론).
+
+   ⚠ **커버리지가 끊기면 조용히 피크가 사라진다.** 그걸 막으려고
+   `ai-loop/test_pM_lunar_peaks.js`가 "오늘부터 12개월 안에 커버리지가 끝나면 실패"하도록
+   검사한다. 그 테스트가 빨간불이면 아래에 다음 해 3줄을 추가하면 된다.
+
+   구간 폭은 기존과 동일한 상대 폭을 실제 연휴일에 앵커한 것이다:
+     설   = 설날 -2일 ~ +3일   (연휴 전 출국 수요 + 연휴 중)
+     추석 = 추석 -2일 ~ +2일
+     춘절 = 설날 -1일 ~ +7일   (중국 황금연휴가 한국 설보다 길다)
+   음력→양력 날짜는 사장님 확인 필요(공식 관공서 달력 기준). */
+const LUNAR_PEAK_DEST_CN = ['상해', '장가계', '청도', '연태', '홍콩', '마카오', '대만', '가오슝'];
+const LUNAR_PEAKS = [
+  /* 2026: 설 2/17(화) · 추석 9/25(금) */
+  { keys: 'ALL', from: '2026-02-15', to: '2026-02-20', factor: 1.25, label: '설 연휴' },
+  { keys: 'ALL', from: '2026-09-23', to: '2026-09-27', factor: 1.22, label: '추석 연휴' },
+  { keys: LUNAR_PEAK_DEST_CN, from: '2026-02-16', to: '2026-02-24', factor: 1.30, label: '춘절' },
+  /* 2027: 설 2/6(토) · 추석 9/15(수) */
+  { keys: 'ALL', from: '2027-02-04', to: '2027-02-09', factor: 1.25, label: '설 연휴' },
+  { keys: 'ALL', from: '2027-09-13', to: '2027-09-17', factor: 1.22, label: '추석 연휴' },
+  { keys: LUNAR_PEAK_DEST_CN, from: '2027-02-05', to: '2027-02-13', factor: 1.30, label: '춘절' },
+  /* 2028: 설 1/26(수) · 추석 10/3(화, 개천절과 겹침) */
+  { keys: 'ALL', from: '2028-01-24', to: '2028-01-29', factor: 1.25, label: '설 연휴' },
+  { keys: 'ALL', from: '2028-10-01', to: '2028-10-05', factor: 1.22, label: '추석 연휴' },
+  { keys: LUNAR_PEAK_DEST_CN, from: '2028-01-25', to: '2028-02-02', factor: 1.30, label: '춘절' },
 ];
 /* P7 호텔 피크 가중치(항공 피크 상승폭 중 호텔이 받는 비중)는 P2b에서 관리자 조정 가능한
    스칼라 노브로 승격됨 → 위쪽 COEF_SPEC.hotelPeakWeight(기본 0.8) 참고. 여기 상수는 제거. */
@@ -413,11 +444,17 @@ function getPeakInfo(startDateStr, destKey) {
   const d = new Date(startDateStr);
   if (isNaN(d.getTime())) return { factor: 1.0, label: '' };
   const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const ymd = `${d.getFullYear()}-${mmdd}`;
   const inRange = (from, to) => (from <= to ? (mmdd >= from && mmdd <= to) : (mmdd >= from || mmdd <= to));
+  const applies = (p) => p.keys === 'ALL' || (Array.isArray(p.keys) && p.keys.includes(destKey));
   let best = { factor: 1.0, label: '' };
   for (const p of PEAK_CALENDAR) {
-    const applies = p.keys === 'ALL' || (Array.isArray(p.keys) && p.keys.includes(destKey));
-    if (applies && inRange(p.from, p.to) && p.factor > best.factor) best = { factor: p.factor, label: p.label };
+    if (applies(p) && inRange(p.from, p.to) && p.factor > best.factor) best = { factor: p.factor, label: p.label };
+  }
+  /* 음력 연휴는 연도별 절대 날짜라 문자열 비교만으로 끝난다(YYYY-MM-DD는 사전순=시간순).
+     등록 안 된 연도는 어떤 구간에도 안 걸려 자연히 1.0이 된다 — 의도된 동작이다. */
+  for (const p of LUNAR_PEAKS) {
+    if (applies(p) && ymd >= p.from && ymd <= p.to && p.factor > best.factor) best = { factor: p.factor, label: p.label };
   }
   return best;
 }
@@ -539,7 +576,10 @@ function getBreakdownData() {
      혼합 편성된 총액 위에 걸린다(단체 예약이므로 전체 인원 기준 협상이 맞다).
      bizCount=0이면 정확히 1.0, bizCount=총원이면 정확히 '전원 비즈니스'와 동일 →
      양 끝에서 기존 동작과 일치해 회귀가 없다. */
-  const bizCountRaw = Math.max(0, Number(document.getElementById('bizCount')?.value) || 0);
+  /* 정수로 내림 — <input type="number" min="0">에 step이 없어 "2.5" 입력이 통과한다.
+     그러면 가중평균에 2.5명이 들어가 "비즈니스 2.5명"짜리 견적이 나간다(금액이
+     폭주하진 않지만 견적서 문구와 금액이 둘 다 말이 안 되는 값이 된다). */
+  const bizCountRaw = Math.max(0, Math.floor(Number(document.getElementById('bizCount')?.value) || 0));
   const bizCount    = cabinClassVal === 'mixed' ? Math.min(bizCountRaw, participants) : 0;
   /* getBizFactor는 미등록 목적지에 콘솔 경고를 남기므로 비즈니스가 걸린 경우에만 호출 */
   const bizSeatFactor = (cabinClassVal === 'business' || cabinClassVal === 'mixed')
