@@ -17,7 +17,12 @@ const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
    감사 자체가 거짓말이 된다). script.js는 DOM에 의존하는 부분이 많아 필요한 상수만 정규식으로. */
 const sandbox = {};
 new Function('g', read('data.js') + '\n;g.DR=destinationRates;g.META=RATE_META;')(sandbox);
-const DR = sandbox.DR;
+
+/* 검사 대상은 '고객이 실제로 받는 값'이어야 한다 — 관리자 화면에서 수정한 단가는
+   data.js가 아니라 DB에 저장되므로, 기본으로 운영 요율을 덮어쓴 표를 감사한다.
+   네트워크가 없거나 --static이면 정적값으로 내려가되 그 사실을 화면에 찍는다. */
+const { loadRatesForAudit } = require('./live_rates');
+const DR = loadRatesForAudit(sandbox.DR).rates;
 
 const regionSrc = read('admin.html').match(/const REGION_MAP = \{[\s\S]*?\n  \};/)[0];
 const REGION_MAP = new Function('return ' + regionSrc.replace(/^const REGION_MAP = /, '').replace(/;$/, ''))();
