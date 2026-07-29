@@ -1169,6 +1169,7 @@
     <div class="modal-body" style="padding:0">
 
       <div id="em-linked-inquiry" class="hidden"></div>
+      <div id="em-verify-block" style="padding:0 1.25rem"></div>
 
       <!-- 상단: 기본 정보 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
@@ -1426,6 +1427,18 @@
             <option value="short">단거리 (×2.5)</option>
             <option value="mid">중거리 (×3.2)</option>
             <option value="long">장거리 (×4.0)</option>
+          </select>
+        </div>
+        <div>
+          <!-- 보험 권역 (신규) — 이 값이 없으면 견적 엔진이 보험 권역 계수를
+               1.00(중립)으로 조용히 폴백한다. 권역별로 0.85~1.80이라 최대 80% 어긋난다. -->
+          <div class="detail-label" style="margin-bottom:.3rem">보험 권역</div>
+          <select id="new-dest-insurance" class="status-select">
+            <option value="asiaShort">아시아 단거리 (×0.85)</option>
+            <option value="asiaMid" selected>동남아 (×1.00 기준)</option>
+            <option value="evac">의료후송 위험권 (×1.20)</option>
+            <option value="oceania">오세아니아 (×1.50)</option>
+            <option value="highCost">미주·유럽 (×1.80)</option>
           </select>
         </div>
         <div>
@@ -3966,6 +3979,7 @@
           seasonNote: document.getElementById('new-dest-season').value.trim(),
           currency: document.getElementById('new-dest-currency').value,
           region: document.getElementById('new-dest-region').value,
+          insuranceZone: document.getElementById('new-dest-insurance').value,
           author,
         }),
       });
@@ -4599,7 +4613,7 @@
         <td style="text-align:right;color:var(--muted)">₩${Math.round(costTot/10000).toLocaleString()}만</td>
         <td style="text-align:right;color:var(--success);font-weight:700">₩${Math.round(profit/10000).toLocaleString()}만</td>
         <td style="text-align:right">₩${Math.round(per/10000).toLocaleString()}만</td>
-        <td><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span></td>
+        <td><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span>${verifyBadgeHtml(e)}</td>
         <td>${assigneeSelectHtml(e.assignee, `data-id="${safeId(e.id)}" onchange="updateAssignee(this,'quote')"`)}</td>
         <td><button class="btn-detail" onclick="openEstDetail('${safeId(e.id)}')">상세</button></td>
       </tr>`;
@@ -4788,6 +4802,43 @@
   }
 
   /* ── 견적 상세 모달 ── */
+  /* 서버 검증 결과 표시 (신규) — /api/quotes가 저장할 때 권위 요율표·계수와 대조한
+     결과를 payload._verify에 남긴다. 그런데 그 기록을 화면에 안 띄우면 아무도 못 보는
+     기록이 되고, 그건 "검증한다"고 말만 하는 것과 같다(이 프로젝트에서 반복해서
+     문제가 됐던 유형이라 목록·상세 양쪽에 붙인다).
+     verified면 아무것도 안 띄운다 — 정상이 대부분이라 배지를 달면 소음이 된다. */
+  function verifyBadgeHtml(rec) {
+    const v = rec && rec._verify;
+    if (!v || v.verdict === 'verified') return '';
+    const label = v.verdict === 'unavailable' ? '검증 못함' : '확인 필요';
+    const title = (v.failedSteps || []).length
+      ? `검증에서 걸린 항목: ${(v.failedSteps || []).join(', ')}`
+      : '서버 검증을 수행하지 못했습니다';
+    return ` <span class="badge badge-pend" title="${esc(title)}" style="margin-left:.25rem">⚠ ${label}</span>`;
+  }
+
+  /* 상세 모달용 — 걸린 단계를 사람 말로 풀어 보여준다. 어느 단계에서 왜 걸렸는지
+     알아야 담당자가 "조작인가 낡음인가"를 판단할 수 있다. */
+  function verifyDetailHtml(rec) {
+    const v = rec && rec._verify;
+    if (!v) return '';
+    if (v.verdict === 'verified') {
+      return `<div style="font-size:.78rem;color:var(--success);margin:.4rem 0 .2rem">✓ 서버 검증 통과 (${String(v.at || '').slice(0, 10)})</div>`;
+    }
+    const failed = (v.steps || []).filter(x => !x.ok);
+    const rows = failed.length
+      ? failed.map(x => `<li><strong>${esc(x.label)}</strong> — ${esc(x.detail || '')}</li>`).join('')
+      : '<li>서버 검증을 수행하지 못했습니다(권위 데이터 조회 실패).</li>';
+    return `
+      <div style="margin:.5rem 0 .2rem;padding:.7rem .85rem;background:#FFF8E6;border-left:3px solid #E0A800">
+        <div style="font-size:.8rem;font-weight:700;color:#7A5A10;margin-bottom:.35rem">⚠ 서버 검증에서 걸린 항목</div>
+        <ul style="font-size:.76rem;color:#7A5A10;line-height:1.75;padding-left:1.1rem;margin:0">${rows}</ul>
+        <div style="font-size:.72rem;color:#8A6A20;margin-top:.45rem">
+          금액 조작일 수도, 요율이 그 사이 바뀐 것일 수도 있습니다. 확인 후 필요하면 재산출해 주세요.
+        </div>
+      </div>`;
+  }
+
   function openEstDetail(id) {
     const all = getEstsFull();
     const e   = all.find(x => x.id === id);
@@ -4810,6 +4861,10 @@
       linkedInqEl.classList.add('hidden');
       linkedInqEl.innerHTML = '';
     }
+
+    /* 서버 검증 결과 (신규) — 걸린 게 있으면 상단에 바로 보이게 한다. */
+    const verifyEl = document.getElementById('em-verify-block');
+    if (verifyEl) verifyEl.innerHTML = verifyDetailHtml(e);
 
     /* 기관 정보 */
     document.getElementById('em-orginfo').innerHTML =

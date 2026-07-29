@@ -73,6 +73,9 @@ const COEF_SPEC = {
    isValidChange와 달리 전체 행 검증이 필요해 별도 함수로 분리). */
 const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key));
 const CUSTOM_ZONES = new Set(['short', 'mid', 'long']);
+/* script.js INSURANCE_ZONES의 키와 동일해야 한다 — 한쪽만 늘리면 저장은 되는데
+   엔진이 못 찾아 중립값으로 폴백한다(ai-loop/test_pP가 두 목록을 대조한다). */
+const INSURANCE_ZONE_KEYS = new Set(['asiaShort', 'asiaMid', 'evac', 'oceania', 'highCost']);
 const DEST_KEY_RE = /^[\p{L}\p{N}_\- ·]+$/u;
 
 function isValidNewDestination(body) {
@@ -92,6 +95,10 @@ function isValidNewDestination(body) {
       (typeof body.currency !== 'string' || !/^[A-Z]{3}$/.test(body.currency))) return 'invalid_currency';
   /* 지역(선택) — REGION_MAP 분류용 자유 문자열(길이만 제한). */
   if (body.region != null && (typeof body.region !== 'string' || body.region.length > 40)) return 'invalid_region';
+  /* 보험 권역 — 없으면 견적 엔진이 계수 1.00(중립)으로 조용히 폴백한다. 권역별
+     0.85~1.80이라 최대 80% 어긋나는데 콘솔 경고만 남았다. 빈 값은 기준 권역으로 본다. */
+  if (body.insuranceZone != null && body.insuranceZone !== ''
+      && !INSURANCE_ZONE_KEYS.has(body.insuranceZone)) return 'invalid_insurance_zone';
   return null;
 }
 
@@ -194,6 +201,9 @@ module.exports = async (req, res) => {
         margin_per_traveler: Number(r.margin_per_traveler),
         rateDate: r.rate_date, notes: r.notes, season_note: r.season_note,
         currency: r.currency || null, region: r.region || null,
+        /* 보험 권역 — script.js가 INSURANCE_ZONES에 편입해야 계수가 제대로 붙는다.
+           안 내려보내면 엔진이 중립값 1.00으로 조용히 폴백한다. */
+        insurance_zone: r.insurance_zone || 'asiaMid',
       }));
       /* P2b: 계수 노브 전달 — app_settings 'coefficients' 행. 테이블/행이 아직 없으면
          조용히 {} (클라가 코드 기본값 사용). 이 조회 실패가 위 요율/환율 응답을 깨지
@@ -241,12 +251,12 @@ module.exports = async (req, res) => {
           destination_key, label, zone, southern_hemisphere,
           airfare, fuel_surcharge, hotel_per_room, meal_per_person,
           vehicle_large, vehicle_small, guide_fee, sightseeing_fee, margin_per_traveler,
-          rate_date, notes, season_note, created_by, currency, region
+          rate_date, notes, season_note, created_by, currency, region, insurance_zone
         ) values (
           ${key}, ${body.label.trim()}, ${body.zone}, ${body.southernHemisphere},
           ${f.airfare}, ${f.fuel_surcharge}, ${f.hotel_per_room}, ${f.meal_per_person},
           ${f.vehicle_large}, ${f.vehicle_small}, ${f.guide_fee}, ${f.sightseeing_fee}, ${f.margin_per_traveler},
-          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${req.user.displayName}, ${currency}, ${region}
+          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${req.user.displayName}, ${currency}, ${region}, ${body.insuranceZone || 'asiaMid'}
         )
         on conflict (destination_key) do nothing
         returning destination_key

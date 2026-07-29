@@ -77,10 +77,19 @@ function applyStrength(baseFactor, strength) {
       if (Array.isArray(data.customDestinations)) {
         data.customDestinations.forEach((row) => {
           if (destinationRates.some((d) => d.destination_key === row.destination_key)) return;
-          const { zone, southern_hemisphere, ...destFields } = row;
+          const { zone, southern_hemisphere, insurance_zone, ...destFields } = row;
           destinationRates.push(destFields);
           if (BIZ_ZONES[zone] && !BIZ_ZONES[zone].includes(row.destination_key)) BIZ_ZONES[zone].push(row.destination_key);
           if (southern_hemisphere) SOUTHERN_HEMISPHERE_DESTS.push(row.destination_key);
+          /* 보험 권역 편입 (신규) — 빠뜨리면 getInsuranceZone이 어디에도 못 찾아
+             권역 계수 1.00(중립)으로 조용히 폴백한다. 권역별 0.85~1.80이라 최대 80%
+             어긋나는데 콘솔 경고만 남고 화면엔 아무 표시가 없었다.
+             값이 없거나 모르는 키면 기준 권역(asiaMid=1.00)으로 — 옛 폴백과 같은 동작이라
+             데이터가 덜 채워진 목적지가 있어도 금액이 갑자기 튀지 않는다. */
+          const insZone = INSURANCE_ZONES[insurance_zone] ? insurance_zone : 'asiaMid';
+          if (!INSURANCE_ZONES[insZone].includes(row.destination_key)) {
+            INSURANCE_ZONES[insZone].push(row.destination_key);
+          }
           injectDestinationOption(row.destination_key, destFields.label);
         });
         if (data.customDestinations.length && typeof buildDestAccordion === 'function') buildDestAccordion();

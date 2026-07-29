@@ -107,6 +107,13 @@ async function main() {
     )
   `;
 
+  /* 커스텀 목적지 보험 권역 (신규) — 없으면 getInsuranceZone이 어디에도 못 찾아
+     보험 권역 계수 1.00(중립)으로 조용히 폴백한다. 권역별 계수가 0.85~1.80이라
+     최대 80% 어긋나는데 콘솔 경고만 남고 화면에는 아무 표시가 없었다.
+     기본값 asiaMid는 '기준 권역'(계수 1.00)이라 기존 폴백과 동작이 같다 —
+     즉 이 마이그레이션만으로는 금액이 변하지 않고, 담당자가 값을 고르면 그때 반영된다. */
+  await sql`alter table custom_destinations add column if not exists insurance_zone text not null default 'asiaMid'`;
+
   /* 직원 자가 가입 (신규) — 가입 신청으로 만들어진 계정인지 표시한다.
      staff_accounts.active만으로는 "가입하고 승인을 기다리는 사람"과 "관리자가
      일부러 꺼둔 사람"이 똑같이 비활성으로 보여, 관리자가 대기자를 놓치거나
