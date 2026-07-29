@@ -107,6 +107,13 @@ async function main() {
     )
   `;
 
+  /* 직원 자가 가입 (신규) — 가입 신청으로 만들어진 계정인지 표시한다.
+     staff_accounts.active만으로는 "가입하고 승인을 기다리는 사람"과 "관리자가
+     일부러 꺼둔 사람"이 똑같이 비활성으로 보여, 관리자가 대기자를 놓치거나
+     내보낸 계정을 되살릴 수 있다. 승인(활성화)하면 false로 되돌려 대기 목록에서
+     빠진다 — 이후로는 평범한 직원 계정과 구분할 이유가 없기 때문. */
+  await sql`alter table staff_accounts add column if not exists self_signup boolean not null default false`;
+
   /* 문의/견적 담당자 배정 + 진행 기록 이력 (신규) — 여러 직원이 같은 리드를 보고
      누가 확인했고 어떻게 진행 중인지 공유할 수 있도록 함 */
   await sql`alter table inquiries add column if not exists assignee text not null default ''`;

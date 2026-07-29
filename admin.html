@@ -370,6 +370,37 @@
       <p id="loginErr" class="err-msg hidden">아이디 또는 비밀번호가 올바르지 않습니다.</p>
       <button type="submit" class="btn-login">로그인</button>
     </form>
+
+    <!-- 직원 자가 가입 (신규) — 계정은 '승인 대기'로만 만들어지고, 관리자가
+         활성화해야 로그인된다. 가입코드가 설정돼 있지 않으면 서버가 403을 주므로
+         이 폼은 그때 안내만 띄운다. -->
+    <div style="margin-top:1.1rem;padding-top:1.1rem;border-top:1px solid rgba(255,255,255,.15);text-align:center">
+      <button type="button" id="signupToggle" onclick="toggleSignupForm()"
+        style="background:none;border:none;color:inherit;opacity:.75;font-size:.82rem;cursor:pointer;text-decoration:underline;text-underline-offset:3px">
+        직원 가입 신청
+      </button>
+    </div>
+
+    <form id="signupForm" class="hidden" style="margin-top:1rem">
+      <div class="field">
+        <label>가입코드</label>
+        <input type="text" id="signupCode" placeholder="관리자에게 받은 코드" autocomplete="off" required />
+      </div>
+      <div class="field">
+        <label>아이디</label>
+        <input type="text" id="signupUsername" placeholder="영문·숫자 2~30자" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label>이름 (실명)</label>
+        <input type="text" id="signupName" placeholder="요율 변경 이력에 남습니다" autocomplete="name" required />
+      </div>
+      <div class="field">
+        <label>비밀번호</label>
+        <input type="password" id="signupPw" placeholder="8자 이상" autocomplete="new-password" required />
+      </div>
+      <p id="signupMsg" class="err-msg hidden"></p>
+      <button type="submit" class="btn-login">가입 신청</button>
+    </form>
   </div>
 </div>
 
@@ -996,9 +1027,24 @@
              비활성화/비밀번호 재설정을 전부 처리한다. -->
         <div class="setting-section" id="staffAdminSection">
           <div class="setting-title">직원 계정 관리</div>
+
+          <!-- 가입코드 (신규) — 직원이 로그인 화면에서 직접 신청하게 하는 열쇠.
+               비워두면 가입 기능 자체가 꺼진다(서버가 403). -->
+          <div class="setting-row" style="align-items:flex-start;flex-wrap:wrap;gap:.6rem">
+            <div class="setting-info" style="flex-basis:100%">
+              <p>직원 가입코드</p>
+              <span>이 코드를 아는 사람만 로그인 화면에서 가입 신청을 할 수 있습니다. 신청은 항상 <strong>승인 대기</strong> 상태로 들어오고, 아래 목록에서 승인해야 로그인됩니다. 비워두면 가입 신청을 받지 않습니다.</span>
+            </div>
+            <input type="text" id="signup-code-input" class="pw-input" placeholder="영문·숫자 6~40자" style="width:220px" autocomplete="off" />
+            <button class="btn-act btn-primary" onclick="saveSignupCode()">코드 저장</button>
+            <button class="btn-act btn-outline-p" onclick="clearSignupCode()">가입 받지 않기</button>
+            <span id="signup-code-msg" style="font-size:.8rem;color:var(--muted)"></span>
+          </div>
+
           <div class="setting-row" style="align-items:flex-start">
             <div class="setting-info"><p>계정 목록</p><span>비활성화된 계정은 로그인할 수 없습니다.</span></div>
           </div>
+          <p id="staff-pending-banner" class="hidden" style="font-size:.84rem;color:var(--warn,#8F5D0C);margin:.2rem 0 .4rem;font-weight:600"></p>
           <div style="overflow-x:auto">
             <table class="rate-table" style="margin-top:.5rem">
               <thead>
@@ -1573,15 +1619,18 @@
     const btnNewDest = document.getElementById('btnNewDest');
     if (btnNewDest) btnNewDest.classList.toggle('hidden', !isManagerUp);
 
-    if (isOwner) renderStaffAdmin();
+    if (isOwner) { renderStaffAdmin(); loadSignupCode(); }
   }
 
   /* ── 직원 계정 관리 (신규, 관리자 전용) ── */
   function renderStaffAdmin() {
     const tbody = document.getElementById('staff-admin-tbody');
     if (!tbody) return;
+    /* 상태 칸은 세 가지를 구분한다 — 승인 대기(가입 신청), 활성, 비활성.
+       self_signup이 없으면 대기자와 "내가 꺼둔 계정"이 똑같이 보여서, 기다리는
+       사람을 놓치거나 내보낸 계정을 되살리게 된다. */
     tbody.innerHTML = staffListCache.map(s => `
-      <tr>
+      <tr${s.self_signup ? ' style="background:var(--warn-bg,rgba(255,193,7,.08))"' : ''}>
         <td>${esc(s.display_name)}</td>
         <td style="color:var(--muted)">${esc(s.username)}</td>
         <td>
@@ -1591,12 +1640,97 @@
             <option value="owner"${s.role==='owner'?' selected':''}>관리자</option>
           </select>
         </td>
-        <td>${s.active ? '<span class="rate-badge ok">✅ 활성</span>' : '<span class="rate-badge stale">🔴 비활성</span>'}</td>
+        <td>${s.self_signup ? '<span class="rate-badge check">⏳ 승인 대기</span>'
+              : s.active ? '<span class="rate-badge ok">✅ 활성</span>'
+              : '<span class="rate-badge stale">🔴 비활성</span>'}</td>
         <td style="display:flex;gap:.3rem;flex-wrap:wrap">
-          <button class="btn-detail" onclick="resetStaffPasswordPrompt(${s.id}, '${esc(s.display_name)}')">비번 재설정</button>
-          ${s.id===currentUser.id ? '' : `<button class="btn-detail" onclick="toggleStaffActive(${s.id}, ${!s.active})">${s.active ? '비활성화' : '활성화'}</button>`}
+          ${s.self_signup
+            ? `<button class="btn-detail" style="border-color:var(--success);color:var(--success)" onclick="approveStaff(${s.id}, '${esc(s.display_name)}')">승인</button>
+               <button class="btn-detail" onclick="rejectStaff(${s.id}, '${esc(s.display_name)}')">거절</button>`
+            : `<button class="btn-detail" onclick="resetStaffPasswordPrompt(${s.id}, '${esc(s.display_name)}')">비번 재설정</button>
+               ${s.id===currentUser.id ? '' : `<button class="btn-detail" onclick="toggleStaffActive(${s.id}, ${!s.active})">${s.active ? '비활성화' : '활성화'}</button>`}`}
         </td>
       </tr>`).join('');
+
+    const waiting = staffListCache.filter(s => s.self_signup).length;
+    const banner = document.getElementById('staff-pending-banner');
+    if (banner) {
+      banner.textContent = waiting
+        ? `승인을 기다리는 가입 신청이 ${waiting}건 있습니다. 본인이 맞는지 확인하고 승인해 주세요.`
+        : '';
+      banner.classList.toggle('hidden', !waiting);
+    }
+  }
+
+  /* ── 가입코드 관리 (신규, 관리자 전용) ── */
+  async function loadSignupCode() {
+    const input = document.getElementById('signup-code-input');
+    const msg = document.getElementById('signup-code-msg');
+    if (!input) return;
+    try {
+      const res = await fetch('/api/admin/account?action=signupSettings');
+      if (!res.ok) return;
+      const data = await res.json();
+      input.value = data.code || '';
+      msg.style.color = 'var(--muted)';
+      msg.textContent = data.enabled ? '가입 신청을 받는 중입니다.' : '지금은 가입 신청을 받지 않습니다.';
+    } catch { /* 조회 실패는 조용히 — 코드 관리는 부가 기능이라 화면 전체를 막지 않는다 */ }
+  }
+
+  async function submitSignupCode(code) {
+    const msg = document.getElementById('signup-code-msg');
+    try {
+      const res = await fetch('/api/admin/account?action=setSignupCode', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = data.error === 'invalid_signup_code_format'
+          ? '가입코드는 영문·숫자·(_ -) 조합 6~40자여야 합니다.'
+          : '저장에 실패했습니다.';
+        return;
+      }
+      document.getElementById('signup-code-input').value = code;
+      msg.style.color = 'var(--success)';
+      msg.textContent = code
+        ? '저장했습니다. 이 코드를 직원에게 알려 주세요.'
+        : '가입 신청을 받지 않도록 변경했습니다.';
+    } catch {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = '저장 요청에 실패했습니다.';
+    }
+  }
+
+  function saveSignupCode() {
+    submitSignupCode(document.getElementById('signup-code-input').value.trim());
+  }
+
+  function clearSignupCode() {
+    if (!confirm('가입 신청을 받지 않도록 할까요?\n이미 만들어진 계정은 그대로 유지됩니다.')) return;
+    submitSignupCode('');
+  }
+
+  /* 승인 = 활성화. 서버가 활성화 시 self_signup을 내려 대기 목록에서 빼준다. */
+  async function approveStaff(id, name) {
+    if (!confirm(`"${name}" 가입을 승인할까요?\n승인하면 직원 권한으로 바로 로그인할 수 있습니다.`)) return;
+    await toggleStaffActive(id, true);
+  }
+
+  /* 거절 = 비활성 확정. 계정 행은 남긴다 — 같은 아이디로 재신청이 반복되는 걸 막고,
+     나중에 생각이 바뀌면 활성화만 하면 된다. */
+  async function rejectStaff(id, name) {
+    if (!confirm(`"${name}" 가입 신청을 거절할까요?\n계정은 비활성 상태로 남고 로그인할 수 없습니다.`)) return;
+    try {
+      const res = await fetch('/api/admin/account?action=rejectSignup', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) { alert('거절 처리에 실패했습니다.'); return; }
+      await loadStaffList();
+      renderStaffAdmin();
+    } catch { alert('거절 요청에 실패했습니다.'); }
   }
 
   async function submitCreateStaff() {
@@ -1747,6 +1881,58 @@
       }
     } catch {
       document.getElementById('loginErr').classList.remove('hidden');
+    }
+  });
+
+  /* ── 직원 자가 가입 (신규) ── */
+  function toggleSignupForm() {
+    const form = document.getElementById('signupForm');
+    const btn = document.getElementById('signupToggle');
+    const opening = form.classList.contains('hidden');
+    form.classList.toggle('hidden', !opening);
+    btn.textContent = opening ? '가입 신청 닫기' : '직원 가입 신청';
+    if (opening) document.getElementById('signupCode').focus();
+  }
+
+  document.getElementById('signupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('signupMsg');
+    const body = {
+      code: document.getElementById('signupCode').value.trim(),
+      username: document.getElementById('signupUsername').value.trim(),
+      displayName: document.getElementById('signupName').value.trim(),
+      password: document.getElementById('signupPw').value,
+    };
+    /* 실패 사유를 코드째 보여주면 신청자가 뭘 고쳐야 할지 모른다 — 항목별로 풀어 준다.
+       가입코드가 틀린 경우와 아이디 중복은 구분해야 재시도 방향이 달라진다. */
+    const REASONS = {
+      signup_disabled: '지금은 가입 신청을 받고 있지 않습니다. 관리자에게 문의해 주세요.',
+      invalid_signup_code: '가입코드가 올바르지 않습니다.',
+      invalid_username: '아이디는 영문·숫자·(_ . -) 조합 2~30자여야 합니다.',
+      invalid_display_name: '이름은 40자 이내로, 특수문자 없이 입력해 주세요.',
+      password_too_short: '비밀번호는 8자 이상이어야 합니다.',
+      username_taken: '이미 사용 중인 아이디입니다. 다른 아이디를 써 주세요.',
+      too_many_pending: '승인 대기 중인 신청이 많습니다. 관리자에게 문의해 주세요.',
+    };
+    try {
+      const res = await fetch('/api/admin/account?action=signup', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      msg.classList.remove('hidden');
+      if (!res.ok) {
+        msg.style.color = '';
+        msg.textContent = REASONS[data.error] || '가입 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+        return;
+      }
+      document.getElementById('signupForm').reset();
+      msg.style.color = 'var(--success)';
+      msg.textContent = '신청되었습니다. 관리자가 승인하면 로그인할 수 있습니다.';
+    } catch {
+      msg.classList.remove('hidden');
+      msg.style.color = '';
+      msg.textContent = '가입 신청 요청에 실패했습니다. 네트워크를 확인해 주세요.';
     }
   });
 
