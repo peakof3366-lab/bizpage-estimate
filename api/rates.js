@@ -350,16 +350,29 @@ module.exports = async (req, res) => {
     if (!cleanChanges.length) return res.status(400).json({ error: 'no_valid_fields' });
 
     try {
-      const existing = await sql`select overrides from rate_overrides where destination_key = ${destinationKey}`;
-      const merged = { ...(existing.length ? existing[0].overrides : {}) };
-      for (const c of cleanChanges) merged[c.field] = c.newValue;
+      /* 병합을 DB 안에서 한다 — 예전엔 select로 현재값을 읽고 JS에서 합친 뒤 통째로
+         덮어썼다(read-modify-write). 두 사람이 같은 목적지를 동시에 저장하면 나중 사람이
+         '자기가 읽은 시점의 낡은 전체 값'으로 덮어써서 먼저 저장한 사람의 변경이
+         조용히 사라진다. 예: A가 도쿄 항공료를, B가 도쿄 호텔비를 같이 고치면 둘 다
+         "저장됐습니다"를 받고 변경 이력에도 두 건 다 남지만 실제 요율은 하나만 반영된다.
+         팀원이 여러 명이 되면 반드시 밟게 되는 종류의 문제다.
 
-      await sql`
+         `rate_overrides.overrides || excluded.overrides`는 이번에 바뀐 필드만 얹으므로
+         UPDATE 한 문장 안에서 원자적으로 끝난다. 보내지 않은 필드는 건드리지 않는다.
+         returning으로 실제 저장된 결과를 받아 응답한다 — JS가 짐작한 값이 아니라
+         DB가 확정한 값이라야 화면 캐시가 진실과 어긋나지 않는다. */
+      const patch = {};
+      for (const c of cleanChanges) patch[c.field] = c.newValue;
+
+      const saved = await sql`
         insert into rate_overrides (destination_key, overrides, updated_at, updated_by)
-        values (${destinationKey}, ${JSON.stringify(merged)}::jsonb, now(), ${author})
+        values (${destinationKey}, ${JSON.stringify(patch)}::jsonb, now(), ${author})
         on conflict (destination_key) do update
-          set overrides = excluded.overrides, updated_at = now(), updated_by = excluded.updated_by
+          set overrides = coalesce(rate_overrides.overrides, '{}'::jsonb) || excluded.overrides,
+              updated_at = now(), updated_by = excluded.updated_by
+        returning overrides
       `;
+      const merged = saved.length ? saved[0].overrides : patch;
 
       /* 감사 로그는 부가 기록 — 실패해도 이미 커밋된 요율 저장(위 upsert)을 500으로
          뒤집지 않도록 삼킨다. 안 그러면 클라이언트가 "실패"로 오인해 재시도 → 로그 중복

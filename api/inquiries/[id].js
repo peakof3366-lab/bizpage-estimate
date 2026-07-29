@@ -1,5 +1,5 @@
 const { sql } = require('../_lib/db');
-const { requireAdmin } = require('../_lib/auth');
+const { requireAdmin, requireRole } = require('../_lib/auth');
 
 module.exports = async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
@@ -50,6 +50,12 @@ module.exports = async (req, res) => {
   }
 
   if (req.method === 'DELETE') {
+    /* 삭제는 매니저 이상 (신규) — 예전엔 로그인만 하면 누구나 문의 레코드를
+       영구 삭제할 수 있었다. 되돌릴 방법도, 누가 지웠는지 남는 기록도 없다.
+       고객 리드는 매출로 직결되는 데이터이고 팀원이 여러 명이 되면 실수 한 번의
+       대가가 크다. 관리자 화면 권한 매트릭스(데이터 삭제는 상위 권한)와도 어긋나
+       있었다 — 목적지 삭제·계수 저장은 이미 매니저 이상으로 잠겨 있다. */
+    if (!(await requireRole(req, res, ['owner', 'manager']))) return;
     try {
       await sql`delete from inquiries where id = ${id}`;
       res.status(200).json({ ok: true });
