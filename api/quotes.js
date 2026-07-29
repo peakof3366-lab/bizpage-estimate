@@ -5,6 +5,7 @@ const OpenAI = require('openai');
    존재하지 않는/오타 키로 실측 통계가 오염되는 것을 막는다(커스텀 목적지는 DB 조회로 보강). */
 const destinationRates = require('../data');
 const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key));
+const { safeId, payloadTooLarge, toNumberOrNull, trimText } = require('./_lib/public_input');
 
 /* ?action= 분기 (신규) — "실제 계약가 업데이트" 위젯(요율 관리 탭 맨 위)이 쓰는
    관리자 전용 엔드포인트 3개. action이 없으면 기존 공개 POST(견적 제출)/관리자 GET(견적
@@ -181,12 +182,19 @@ module.exports = async (req, res) => {
 
   if (req.method === 'POST') {
     const payload = req.body || {};
-    const id = payload.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    if (payloadTooLarge(payload)) return res.status(413).json({ error: 'payload_too_large' });
+    /* id는 관리자 화면에서 onclick 안에 들어가므로 형태를 강제한다 — 자세한 이유는
+       api/_lib/public_input.js 주석. 형식을 벗어나면 견적을 버리지 않고 id만 교체한다. */
+    const id = safeId(payload.id);
+    /* 인원·총액은 관리자 화면이 숫자로 다루는 값이라 저장 시점에 숫자로 못 박는다
+       (문자열이 들어오면 화면 포맷터가 원문을 그대로 출력한다). */
+    const participants = toNumberOrNull(payload.participants);
+    const total = toNumberOrNull(payload.total);
     try {
       await sql`
         insert into quotes (id, status, note, dest_label, org_name, participants, total, payload)
-        values (${id}, 'new', '', ${payload.destLabel || null}, ${payload.orgName || null},
-                ${payload.participants ?? null}, ${payload.total ?? null}, ${JSON.stringify(payload)}::jsonb)
+        values (${id}, 'new', '', ${trimText(payload.destLabel, 100)}, ${trimText(payload.orgName, 100)},
+                ${participants}, ${total}, ${JSON.stringify({ ...payload, id, participants, total })}::jsonb)
         on conflict (id) do nothing
       `;
       res.status(200).json({ ok: true, id });

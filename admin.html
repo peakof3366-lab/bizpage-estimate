@@ -1141,7 +1141,7 @@
           <option value="">담당자 미배정</option>
         </select>
         <button class="btn-act btn-primary" onclick="saveDetail()">저장</button>
-        <button class="btn-act btn-danger-sm" onclick="deleteFromModal()">삭제</button>
+        <button class="btn-act btn-danger-sm" id="btnDeleteInquiry" onclick="deleteFromModal()">삭제</button>
         <button class="btn-act btn-ghost-p" onclick="document.getElementById('modal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
       </div>
 
@@ -1313,7 +1313,7 @@
         <div class="modal-actions" style="margin-top:.75rem">
           <button class="btn-act btn-primary" onclick="saveEstimateDetail()">저장</button>
           <button class="btn-act btn-outline-p" onclick="printEstimateAdmin()">관리자용 출력</button>
-          <button class="btn-act btn-danger-sm" onclick="deleteEstimate()">삭제</button>
+          <button class="btn-act btn-danger-sm" id="btnDeleteQuote" onclick="deleteEstimate()">삭제</button>
           <button class="btn-act" onclick="document.getElementById('emModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
         </div>
 
@@ -1619,6 +1619,14 @@
     const btnNewDest = document.getElementById('btnNewDest');
     if (btnNewDest) btnNewDest.classList.toggle('hidden', !isManagerUp);
 
+    /* 문의·견적 개별 삭제도 매니저 이상 (신규) — 서버에서 403으로 막고 있으므로
+       여기서 숨기는 건 "눌렀는데 안 되는" 경험을 없애기 위한 것이다. 화면만 숨기고
+       서버를 안 막으면 방어가 아니다(반대도 마찬가지라 양쪽 다 한다). */
+    for (const id of ['btnDeleteInquiry', 'btnDeleteQuote']) {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('hidden', !isManagerUp);
+    }
+
     if (isOwner) { renderStaffAdmin(); loadSignupCode(); }
   }
 
@@ -1846,6 +1854,19 @@
   const getO = (k) => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch { return {}; } };
   const set  = (k, v) => localStorage.setItem(k, JSON.stringify(v));
   const esc  = (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  /* 레코드 id 전용 살균 (신규) — 문의·견적 id는 onclick="openDetail('${id}')" 같은
+     인라인 핸들러 안으로 들어간다. 이 자리는 esc()로 못 막는다: esc()는 홑따옴표를
+     안 바꾸고, 설령 &#39;로 바꿔도 HTML 파서가 다시 '로 되돌린 뒤 JS가 해석하므로
+     문자열을 그대로 탈출한다. 그래서 이스케이프가 아니라 '안전한 문자만 남기기'로
+     간다 — id는 원래 영숫자뿐이라 정상 값은 아무 영향이 없다.
+
+     왜 필요했나: /api/quotes·/api/inquiries POST는 인증 없이 누구나 호출할 수 있고
+     예전엔 payload.id를 검증 없이 저장했다. 즉 익명 제출자가 넣은 문자열이 로그인한
+     관리자의 세션에서 실행됐다(2026-07-29 jsdom 재현 확인). 서버에서도 막았지만
+     (api/_lib/public_input.js), 화면은 앞으로도 이 값을 여기저기 쓰게 되므로
+     양쪽 다 건다. ⚠ id를 템플릿에 넣을 때는 반드시 이 함수를 거칠 것. */
+  const safeId = (s) => String(s == null ? '' : s).replace(/[^A-Za-z0-9_-]/g, '');
   const isToday = (ts) => new Date(ts).toDateString() === new Date().toDateString();
   const isThisWeek = (ts) => { const d=new Date(ts); const now=new Date(); const weekAgo=new Date(now-7*864e5); return d>=weekAgo; };
   const fmtDate  = (ts) => new Date(ts).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'})+' '+new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});
@@ -2196,7 +2217,7 @@
     const rl = document.getElementById('recent-list');
     const recent = contacts.slice().reverse().slice(0,5);
     rl.innerHTML = recent.length ? recent.map(c=>`
-      <div class="recent-item ${c.read?'':'unread'}" onclick="switchTab('inquiries');openDetail('${c.id}')" style="cursor:pointer">
+      <div class="recent-item ${c.read?'':'unread'}" onclick="switchTab('inquiries');openDetail('${safeId(c.id)}')" style="cursor:pointer">
         <span class="recent-name">${esc(c.name)}</span>
         <span class="recent-org">${esc(c.org||'—')}</span>
         <span class="recent-msg">${esc(c.message)}</span>
@@ -2294,15 +2315,15 @@
       const replyBadge  = c.reply
         ? `<span class="badge" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;margin-left:.3rem;font-size:.7rem">✓ 답변완료</span>`
         : '';
-      return `<tr class="${c.read?'':'unread'}" data-id="${c.id}">
+      return `<tr class="${c.read?'':'unread'}" data-id="${safeId(c.id)}">
         <td>${origIdx}</td>
         <td><strong>${esc(c.name)}</strong>${estBadge}${replyBadge}</td>
         <td>${esc(c.tel||c.org||'—')}</td>
-        <td class="msg-preview">${isEstimate && c.estimate ? esc((c.estimate.destLabel||''))+' '+c.estimate.participants+'명/'+c.estimate.days+'일' : esc(preview)}</td>
+        <td class="msg-preview">${isEstimate && c.estimate ? esc((c.estimate.destLabel||''))+' '+(Number(c.estimate.participants)||0)+'명/'+(Number(c.estimate.days)||0)+'일' : esc(preview)}</td>
         <td class="date-col">${fmtDate(c.timestamp)}</td>
         <td><span class="badge ${statusBadge}">${statusTxt}</span></td>
-        <td>${assigneeSelectHtml(c.assignee, `data-id="${c.id}" onchange="updateAssignee(this,'inquiry')"`)}</td>
-        <td><button class="btn-detail" onclick="openDetail('${c.id}')">상세</button></td>
+        <td>${assigneeSelectHtml(c.assignee, `data-id="${safeId(c.id)}" onchange="updateAssignee(this,'inquiry')"`)}</td>
+        <td><button class="btn-detail" onclick="openDetail('${safeId(c.id)}')">상세</button></td>
       </tr>`;
     }).join('');
 
@@ -2342,14 +2363,16 @@
     const estBlock = document.getElementById('d-estimate-block');
     if (c.type === 'estimate_inquiry' && c.estimate && estBlock) {
       const est = c.estimate;
-      const fmt = n => '₩'+n.toLocaleString('ko-KR');
+      /* 공개 제출 payload에서 온 값이라 문자열일 수 있다. String.toLocaleString은
+         문자열을 그대로 돌려주므로 숫자로 못 박지 않으면 원문이 화면에 출력된다. */
+      const fmt = n => '₩'+(Number(n)||0).toLocaleString('ko-KR');
       estBlock.classList.remove('hidden');
       estBlock.innerHTML = `
         <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:.8rem 1rem;margin-bottom:.75rem">
           <div style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:.6rem">📋 견적 연계 상담 — 고객 선택 내역</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem .8rem;font-size:.82rem">
             <div><span style="color:#64748b;font-weight:600">목적지</span><br>${esc(est.destLabel||'—')}</div>
-            <div><span style="color:#64748b;font-weight:600">참가 인원</span><br>${est.participants}명 / ${est.days}일 (${est.nights}박)</div>
+            <div><span style="color:#64748b;font-weight:600">참가 인원</span><br>${Number(est.participants)||0}명 / ${Number(est.days)||0}일 (${Number(est.nights)||0}박)</div>
             <div><span style="color:#64748b;font-weight:600">프로그램</span><br>${esc(est.programLabel||'—')}</div>
             <div><span style="color:#64748b;font-weight:600">기관 유형</span><br>${esc(est.orgTypeLabel||'—')}</div>
           </div>
@@ -4520,7 +4543,7 @@
       const per        = e.perPerson || 0;
       const st         = e.status || 'new';
       return `<tr>
-        <td><input type="checkbox" class="em-row-check" data-id="${e.id}" ${emSelectedIds.has(e.id) ? 'checked' : ''} onchange="toggleEmRowSelect('${e.id}', this.checked)" /></td>
+        <td><input type="checkbox" class="em-row-check" data-id="${safeId(e.id)}" ${emSelectedIds.has(e.id) ? 'checked' : ''} onchange="toggleEmRowSelect('${safeId(e.id)}', this.checked)" /></td>
         <td>${(emPage-1)*EM_PAGE+i+1}</td>
         <td class="date-col">${fmtDate(e.ts)}</td>
         <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong>${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}</td>
@@ -4531,8 +4554,8 @@
         <td style="text-align:right;color:var(--success);font-weight:700">₩${Math.round(profit/10000).toLocaleString()}만</td>
         <td style="text-align:right">₩${Math.round(per/10000).toLocaleString()}만</td>
         <td><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span></td>
-        <td>${assigneeSelectHtml(e.assignee, `data-id="${e.id}" onchange="updateAssignee(this,'quote')"`)}</td>
-        <td><button class="btn-detail" onclick="openEstDetail('${e.id}')">상세</button></td>
+        <td>${assigneeSelectHtml(e.assignee, `data-id="${safeId(e.id)}" onchange="updateAssignee(this,'quote')"`)}</td>
+        <td><button class="btn-detail" onclick="openEstDetail('${safeId(e.id)}')">상세</button></td>
       </tr>`;
     }).join('');
 
@@ -4735,7 +4758,7 @@
       linkedInqEl.innerHTML = `
         <div style="background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:.8rem 1.25rem;display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
           <span style="font-size:.84rem;color:#1d4ed8">☎ <strong>${esc(linkedInq.name||'—')}</strong>님이 이 견적으로 상담을 요청했습니다 — ${esc(linkedInq.tel||'—')}</span>
-          <button type="button" class="btn-act btn-outline-p" onclick="jumpToInquiry('${linkedInq.id}')">문의 관리에서 보기</button>
+          <button type="button" class="btn-act btn-outline-p" onclick="jumpToInquiry('${safeId(linkedInq.id)}')">문의 관리에서 보기</button>
         </div>`;
     } else {
       linkedInqEl.classList.add('hidden');
@@ -4768,7 +4791,9 @@
       `식사: ${e.mealCount}식 · 객실: ${e.rooms||Math.ceil(e.participants/2)}실<br>계수: ×${(e.combinedFactor||1).toFixed(3)}`;
 
     /* 항목 내역 (비공개 포함) */
-    const fmt = n => '₩'+n.toLocaleString('ko-KR');
+    /* 공개 제출 payload에서 온 값이라 문자열일 수 있다. String.toLocaleString은
+         문자열을 그대로 돌려주므로 숫자로 못 박지 않으면 원문이 화면에 출력된다. */
+      const fmt = n => '₩'+(Number(n)||0).toLocaleString('ko-KR');
     let tbodyHtml = '';
     (e.items||[]).forEach(item => {
       const style = item.isHidden
@@ -5001,7 +5026,9 @@
   function printEstimateAdmin() {
     const e = getEstsFull().find(x => x.id === emCurrentId);
     if (!e) return;
-    const fmt = n => '₩'+n.toLocaleString('ko-KR');
+    /* 공개 제출 payload에서 온 값이라 문자열일 수 있다. String.toLocaleString은
+         문자열을 그대로 돌려주므로 숫자로 못 박지 않으면 원문이 화면에 출력된다. */
+      const fmt = n => '₩'+(Number(n)||0).toLocaleString('ko-KR');
     const rowsHtml = (e.items||[]).map(item => {
       const bg = item.isHidden ? '#fffbeb' : '#fff';
       const badge = item.isHidden ? ' [비공개]' : '';

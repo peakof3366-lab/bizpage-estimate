@@ -1,15 +1,20 @@
 const { sql } = require('./_lib/db');
 const { requireAdmin } = require('./_lib/auth');
+const { safeId, payloadTooLarge, trimText } = require('./_lib/public_input');
 
 module.exports = async (req, res) => {
   if (req.method === 'POST') {
     const payload = req.body || {};
-    const id = payload.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    if (payloadTooLarge(payload)) return res.status(413).json({ error: 'payload_too_large' });
+    /* id는 관리자 화면에서 onclick 안에 들어가므로 형태를 강제한다 — 자세한 이유는
+       api/_lib/public_input.js 주석. 형식을 벗어나면 리드를 버리지 않고 id만 교체한다. */
+    const id = safeId(payload.id);
     try {
       await sql`
         insert into inquiries (id, name, org, tel, message, type, payload)
-        values (${id}, ${payload.name || null}, ${payload.org || null}, ${payload.tel || null},
-                ${payload.message || null}, ${payload.type || 'contact'}, ${JSON.stringify(payload)}::jsonb)
+        values (${id}, ${trimText(payload.name, 100)}, ${trimText(payload.org, 100)}, ${trimText(payload.tel, 40)},
+                ${trimText(payload.message, 5000)}, ${trimText(payload.type, 40) || 'contact'},
+                ${JSON.stringify({ ...payload, id })}::jsonb)
         on conflict (id) do nothing
       `;
       res.status(200).json({ ok: true, id });
