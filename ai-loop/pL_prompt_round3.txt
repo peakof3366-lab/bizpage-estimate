@@ -1,0 +1,165 @@
+같은 서비스의 3라운드 리뷰입니다. 1·2라운드에서 당신이 낸 6건 중 5건은 코드/실측으로
+기각되거나 경미했고, [6] 음력 연휴만 진짜였습니다. **이번엔 추측을 줄이고, 코드에
+실제로 적혀 있는 것만 근거로** 답해 주세요. 일반적 권고("모니터링을 추가하세요" 등)는
+쓰지 마세요 — 그런 답은 도움이 안 됩니다.
+
+# 이번 검토 대상: 환율 보정 (팀원 5명이 매일 만지는 경로)
+
+## 동작 요약
+- 요율표는 KRW 정적값이다. 현지통화 원가(호텔·식비·가이드·차량·관광)는 요율을 정한
+  시점 이후 환율이 변하면 실제 원가와 벌어진다.
+- 그래서 목적지별로 '기준환율'(rate_fx_baseline)을 두고, 견적 계산 시
+  (오늘환율 / 기준환율) 비율을 그 항목들에 곱한다. ±30% 클램프.
+- 오늘환율(fx_rates)은 매일 새벽 Vercel cron이 외부 API에서 받아 저장한다.
+- **기준환율은 담당자가 그 목적지 요율을 저장할 때마다 '오늘 환율'로 재설정된다.**
+  요율 저장 경로는 세 가지고 전부 rateDate를 오늘로 갱신한다:
+    (a) 개별 편집(가격 변경)  (b) 권역 일괄 조정(%)  (c) "확인함" 버튼
+        — (c)는 랜드사에 물어봤더니 가격 변동이 없더라, 는 경우에 누른다.
+          가격은 그대로 두고 요율 기준월만 오늘로 갱신한다.
+
+## 특히 봐 주셨으면 하는 점
+- (c) "확인함"이 기준환율까지 재설정하는 게 맞습니까? 담당자 의도는 "가격 그대로"인데
+  기준환율이 오늘로 리셋되면 그동안 쌓인 환율 보정이 사라집니다. 맞는 동작입니까,
+  아니면 조용히 금액이 틀어지는 겁니까? **KRW 요율표라는 점을 감안해서** 판단해 주세요.
+- 팀원 5명이 매주 여러 목적지를 갱신하기 시작하면 이 구조에서 무엇이 깨집니까?
+- 클램프(±30%)에 걸린 상태가 지속되면 어떻게 됩니까? 걸린 사실이 어디에도 안 보입니다.
+
+## 답변 형식
+[번호] 한 줄 요약 / 위치 / 재현 조건(구체적 숫자) / 결과 / 확신도(높음·중간·추정)
+확신이 없으면 "추정"이라고 반드시 표시하세요. 코드에 근거가 없으면 그렇게 말하세요.
+
+---
+# 코드 A: script.js getFxAdjust (견적 계산 시 적용)
+  /* 2027: 설 2/6(토) · 추석 9/15(수) */
+  { keys: 'ALL', from: '2027-02-04', to: '2027-02-09', factor: 1.25, label: '설 연휴' },
+  { keys: 'ALL', from: '2027-09-13', to: '2027-09-17', factor: 1.22, label: '추석 연휴' },
+  { keys: LUNAR_PEAK_DEST_CN, from: '2027-02-05', to: '2027-02-13', factor: 1.30, label: '춘절' },
+  /* 2028: 설 1/26(수) · 추석 10/3(화, 개천절과 겹침) */
+  { keys: 'ALL', from: '2028-01-24', to: '2028-01-29', factor: 1.25, label: '설 연휴' },
+  { keys: 'ALL', from: '2028-10-01', to: '2028-10-05', factor: 1.22, label: '추석 연휴' },
+  { keys: LUNAR_PEAK_DEST_CN, from: '2028-01-25', to: '2028-02-02', factor: 1.30, label: '춘절' },
+];
+/* P7 호텔 피크 가중치(항공 피크 상승폭 중 호텔이 받는 비중)는 P2b에서 관리자 조정 가능한
+   스칼라 노브로 승격됨 → 위쪽 COEF_SPEC.hotelPeakWeight(기본 0.8) 참고. 여기 상수는 제거. */
+function getPeakInfo(startDateStr, destKey) {
+  if (!startDateStr) return { factor: 1.0, label: '' };
+  const d = new Date(startDateStr);
+  if (isNaN(d.getTime())) return { factor: 1.0, label: '' };
+  const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const ymd = `${d.getFullYear()}-${mmdd}`;
+  const inRange = (from, to) => (from <= to ? (mmdd >= from && mmdd <= to) : (mmdd >= from || mmdd <= to));
+  const applies = (p) => p.keys === 'ALL' || (Array.isArray(p.keys) && p.keys.includes(destKey));
+  let best = { factor: 1.0, label: '' };
+  for (const p of PEAK_CALENDAR) {
+    if (applies(p) && inRange(p.from, p.to) && p.factor > best.factor) best = { factor: p.factor, label: p.label };
+  }
+  /* 음력 연휴는 연도별 절대 날짜라 문자열 비교만으로 끝난다(YYYY-MM-DD는 사전순=시간순).
+     등록 안 된 연도는 어떤 구간에도 안 걸려 자연히 1.0이 된다 — 의도된 동작이다. */
+  for (const p of LUNAR_PEAKS) {
+    if (applies(p) && ymd >= p.from && ymd <= p.to && p.factor > best.factor) best = { factor: p.factor, label: p.label };
+  }
+  return best;
+}
+
+/* ── P3 헬퍼: 환율 보정 계수 ─────────────────────────────────────────
+   현지통화 원가(호텔·식비·가이드·차량·관광)는 정적 KRW로 저장돼 있어, 요율을 정한
+   시점 이후 환율이 변하면 실제 원가와 벌어진다. 목적지 통화의 (현재환율 / 기준시점환율)
+   비율로 그 항목들을 보정한다. 항공·유류는 국제선 성격이라 제외, 마진·보험은 원화라 제외.
+   데이터(기준환율/현재환율)가 없으면 1.0(영향 없음). 데이터 이상으로 인한 견적 폭주를
+   막으려 ±30%로 클램프. */
+function getFxAdjust(destKey) {
+  const base = FX_STATE.baseline[destKey];
+  if (!base || !base.rate) return 1.0;
+
+---
+# 코드 B: api/rates.js — 요율 PATCH 시 기준환율 재설정
+         '자기가 읽은 시점의 낡은 전체 값'으로 덮어써서 먼저 저장한 사람의 변경이
+         조용히 사라진다. 예: A가 도쿄 항공료를, B가 도쿄 호텔비를 같이 고치면 둘 다
+         "저장됐습니다"를 받고 변경 이력에도 두 건 다 남지만 실제 요율은 하나만 반영된다.
+         팀원이 여러 명이 되면 반드시 밟게 되는 종류의 문제다.
+
+         `rate_overrides.overrides || excluded.overrides`는 이번에 바뀐 필드만 얹으므로
+         UPDATE 한 문장 안에서 원자적으로 끝난다. 보내지 않은 필드는 건드리지 않는다.
+         returning으로 실제 저장된 결과를 받아 응답한다 — JS가 짐작한 값이 아니라
+         DB가 확정한 값이라야 화면 캐시가 진실과 어긋나지 않는다. */
+      const patch = {};
+      for (const c of cleanChanges) patch[c.field] = c.newValue;
+
+      const saved = await sql`
+        insert into rate_overrides (destination_key, overrides, updated_at, updated_by)
+        values (${destinationKey}, ${JSON.stringify(patch)}::jsonb, now(), ${author})
+        on conflict (destination_key) do update
+          set overrides = coalesce(rate_overrides.overrides, '{}'::jsonb) || excluded.overrides,
+              updated_at = now(), updated_by = excluded.updated_by
+        returning overrides
+      `;
+      const merged = saved.length ? saved[0].overrides : patch;
+
+      /* 감사 로그는 부가 기록 — 실패해도 이미 커밋된 요율 저장(위 upsert)을 500으로
+         뒤집지 않도록 삼킨다. 안 그러면 클라이언트가 "실패"로 오인해 재시도 → 로그 중복
+         기록되거나 저장 성공을 실패로 오해한다. fx_baseline 재설정도 아래에서 동일 원칙. */
+      try {
+        for (const c of cleanChanges) {
+          await sql`
+            insert into rate_change_log (destination_key, field, old_value, new_value, author)
+            values (${destinationKey}, ${c.field}, ${JSON.stringify(c.oldValue ?? null)}::jsonb, ${JSON.stringify(c.newValue)}::jsonb, ${author})
+          `;
+        }
+      } catch (logErr) {
+        console.error('[rates] 변경 이력 기록 실패(요율 저장은 정상 완료됨):', logErr);
+      }
+
+      /* "요율 기준월(rateDate)이 오늘로 갱신됐다" = "방금 이 가격을 확인/확정했다"는
+         신호이므로 환율 기준점도 함께 재설정한다. 개별 편집(가격 변경), 일괄 조정,
+         "확인함(변경 없음)" 버튼까지 세 경로 모두 가격을 실제로 바꿨든 안 바꿨든
+         rateDate를 오늘로 갱신하므로, NUMERIC_FIELDS 대신 rateDate 변경 여부 하나로
+         통일해서 판단한다(비고만 바뀐 경우는 rateDate가 안 바뀌므로 자동으로 제외됨).
+         통화 매핑이 없거나(동유럽 등) 오늘 환율이 아직 한 번도 조회되지 않았으면
+         조용히 건너뜀 — 이 부분이 실패해도 가격 저장 자체는 이미 끝났으므로 별도로
+         처리한다. */
+      if (cleanChanges.some((c) => c.field === 'rateDate')) {
+        /* 통화 소스: 내장은 DEST_CURRENCY, 커스텀 목적지는 custom_destinations.currency.
+           안 그러면 커스텀 목적지는 요율을 저장해도 baseline이 갱신되지 않아 FX가 멈춘다. */
+        let currency = DEST_CURRENCY[destinationKey];
+        if (!currency) {
+          try {
+            const cd = await sql`select currency from custom_destinations where destination_key = ${destinationKey}`;
+            currency = cd.length ? cd[0].currency : null;
+          } catch { currency = null; }
+        }
+        if (currency) {
+          try {
+
+---
+# 코드 C: admin.html — 관리자 화면 환율 변동 배지
+  function adminGetFxDrift(destKey) {
+    const currency = typeof DEST_CURRENCY !== 'undefined' ? DEST_CURRENCY[destKey] : null;
+    if (!currency) return null;
+    const baseline = fxBaselineCache[destKey];
+    const current  = fxRatesCache[currency];
+    if (!baseline || !baseline.rate || typeof current !== 'number') return null;
+    const pct = Math.abs(current - baseline.rate) / baseline.rate * 100;
+    return { pct, drift: pct >= FX_DRIFT_THRESHOLD_PCT };
+  }
+
+  function adminGetCombinedStatus(destKey, rateDate) {
+    const rs = adminGetRateStatus(rateDate);
+    const fx = adminGetFxDrift(destKey);
+    if (fx && fx.drift && rs.status === 'ok') {
+      return { status:'check', months: rs.months, label:'확인 권장', icon:'⚠️', fxPct: fx.pct };
+    }
+    return { ...rs, fxPct: (fx && fx.drift) ? fx.pct : null };
+  }
+
+  function fmtRateDate(rd) {
+    if (!rd) return '—';
+    const [y, m] = rd.split('-');
+    return `${y}.${m}`;
+  }
+
+  /* ════ 요율 실시간 오버라이드 (신규) ════
+     data.js 정적값은 그대로 두고, 관리자가 수정한 항목만 rate_overrides에 저장 →
+     이 캐시로 화면에서는 "실제 적용 중인 값"(정적+오버라이드 병합)을 보여준다. */
+  let rateOverridesCache = {};
+  let fxRatesCache = {};
+  let fxBaselineCache = {};

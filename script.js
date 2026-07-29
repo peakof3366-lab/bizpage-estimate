@@ -464,7 +464,13 @@ function getPeakInfo(startDateStr, destKey) {
    시점 이후 환율이 변하면 실제 원가와 벌어진다. 목적지 통화의 (현재환율 / 기준시점환율)
    비율로 그 항목들을 보정한다. 항공·유류는 국제선 성격이라 제외, 마진·보험은 원화라 제외.
    데이터(기준환율/현재환율)가 없으면 1.0(영향 없음). 데이터 이상으로 인한 견적 폭주를
-   막으려 ±30%로 클램프. */
+   막으려 ±30%로 클램프.
+
+   ⚠ 클램프는 '안전장치'지만 걸린 채로 두면 그 자체가 문제다 — 실제 환율이 30% 넘게
+   움직였다는 뜻이고, 그만큼 견적이 원가를 못 따라간다. 걸린 목적지를 FX_CLAMPED에
+   기록해 관리자 화면이 알아챌 수 있게 한다(2026-07-29 GPT 3라운드 지적). */
+const FX_CLAMP_MIN = 0.7, FX_CLAMP_MAX = 1.3;
+const FX_CLAMPED = {};
 function getFxAdjust(destKey) {
   const base = FX_STATE.baseline[destKey];
   if (!base || !base.rate) return 1.0;
@@ -472,7 +478,17 @@ function getFxAdjust(destKey) {
   if (!now || !isFinite(now)) return 1.0;
   const adj = now / base.rate;
   if (!isFinite(adj) || adj <= 0) return 1.0;
-  return Math.max(0.7, Math.min(1.3, adj));
+  const clamped = Math.max(FX_CLAMP_MIN, Math.min(FX_CLAMP_MAX, adj));
+  /* 클램프에 걸린 사실을 남긴다 (신규) — 걸리면 실제 환율 변동이 견적에 덜 반영되는데
+     예전엔 그 사실이 어디에도 안 보여서, 원가와 견적이 벌어지는 상태가 조용히 지속됐다.
+     통화가 30% 넘게 움직였다면 요율 자체를 다시 잡아야 하는 상황이라 사람이 알아야 한다.
+     계산 결과는 그대로 두고 기록만 남기므로 금액에는 영향이 없다. */
+  if (clamped !== adj) {
+    FX_CLAMPED[destKey] = { currency: base.currency, raw: adj, applied: clamped };
+  } else if (FX_CLAMPED[destKey]) {
+    delete FX_CLAMPED[destKey];
+  }
+  return clamped;
 }
 
 /* ── Level 2 헬퍼: 요율 기준일 신선도 판정 ───────────────────────
