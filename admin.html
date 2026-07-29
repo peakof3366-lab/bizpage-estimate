@@ -2681,6 +2681,7 @@
     if (!confirm(`${action.label} 되돌릴까요?`)) return;
 
     let successCount = 0;
+    const undoFailures = [];
     for (const entry of action.entries) {
       const reversedChanges = entry.changes.map(c => ({ field: c.field, oldValue: c.newValue, newValue: c.oldValue }));
       try {
@@ -2692,10 +2693,16 @@
           const data = await res.json();
           rateOverridesCache[entry.destinationKey] = data.overrides;
           successCount++;
+        } else {
+          const data = await res.json().catch(() => null);
+          undoFailures.push(`· ${entry.destinationKey}: ${rateSaveErrorMessage(data, res.status).split('\n')[0]}`);
         }
-      } catch { /* 개별 실패는 건너뛰고 계속 */ }
+      } catch { undoFailures.push(`· ${entry.destinationKey}: 네트워크 오류`); }
     }
-    alert(`${successCount}/${action.entries.length}건 되돌렸습니다.`);
+    /* 되돌리기가 일부만 성공하면 '실수를 물렀다'고 믿은 채 원래 값과 바뀐 값이
+       섞여 남는다 — 되돌리기야말로 실패를 숨기면 안 되는 경로라 사유까지 띄운다. */
+    alert(`${successCount}/${action.entries.length}건 되돌렸습니다.`
+      + (undoFailures.length ? `\n\n되돌리지 못한 ${undoFailures.length}건:\n${undoFailures.join('\n')}\n\n요율 변경 이력에서 개별로 되돌릴 수 있습니다.` : ''));
     clearLastRateAction();
     renderRates();
   }
@@ -2866,6 +2873,29 @@
       return confirm(`입력하신 ${fieldLabel} ${fmtWon(value)}은(는) 현재 기준가 ${fmtWon(base)}의 ${desc}입니다.\n오타가 아닌지 확인해 주세요. 이대로 진행할까요?`);
     }
     return true;
+  }
+
+  /* 요율 저장 실패 사유를 사람 말로 (신규) — 서버가 오타 상한(value_out_of_range)을
+     새로 막기 시작했는데, 기존 실패 처리는 에러 코드를 그대로 노출해서
+     "저장에 실패했습니다: value_out_of_range"가 뜬다. 팀원이 보고 무엇을 어떻게
+     고쳐야 할지 알 수 없으므로 어느 항목이 얼마나 넘었는지까지 풀어서 보여준다.
+     위 confirm 경고(3배)를 무시하고 진행했을 때 마지막으로 만나는 안내문이다. */
+  function rateSaveErrorMessage(data, status) {
+    if (data && data.error === 'value_out_of_range' && Array.isArray(data.fields)) {
+      const lines = data.fields.map(f =>
+        `· ${RATE_FIELD_LABELS[f.field] || f.field}: 입력 ${fmtWon(f.value)} (허용 상한 ${fmtWon(f.max)})`);
+      return '입력값이 너무 큽니다. 0을 하나 더 붙이지 않았는지 확인해 주세요.\n\n'
+        + lines.join('\n') + '\n\n저장된 값은 없습니다. 수정 후 다시 저장해 주세요.';
+    }
+    /* 새 목적지 생성 경로는 항목별로 invalid_field_<필드>를 돌려준다 — 같은 상한에
+       걸린 것이므로 여기서 함께 사람 말로 바꾼다. */
+    if (data && typeof data.error === 'string' && data.error.startsWith('invalid_field_')) {
+      const f = data.error.slice('invalid_field_'.length);
+      return `"${RATE_FIELD_LABELS[f] || f}" 값을 확인해 주세요.\n숫자가 아니거나, 음수이거나, 허용 범위를 넘었습니다(0을 하나 더 붙이지 않았는지 확인).`;
+    }
+    if (data && data.error === 'forbidden') return '이 작업은 권한이 없습니다. 관리자에게 문의해 주세요.';
+    if (status === 401) return '로그인이 만료되었습니다. 새로고침 후 다시 로그인해 주세요.';
+    return '저장에 실패했습니다: ' + ((data && data.error) || status || '');
   }
   /* 기준가 이상 경고(신규) — 현재 기준가가 최근 실측 중앙값과 이 비율 이상 벌어지면
      요율표에 경고 배지를 띄운다(잘못 반영된 기준가가 견적을 계속 망치는 걸 탐지). */
@@ -3055,7 +3085,7 @@
         body: JSON.stringify({ destinationKey: destKey, author, changes }),
       });
       const data = await res.json();
-      if (!res.ok) { alert('적용에 실패했습니다: ' + (data.error || '')); return; }
+      if (!res.ok) { alert(rateSaveErrorMessage(data, res.status)); return; }
       rateOverridesCache[destKey] = data.overrides;
       setLastRateAction({ label: `방금 "${dest.label}" ${fieldLabel}를 실제 계약 데이터 기준(${fmtWon(suggestedBase)})으로 적용했습니다.`, entries: [{ destinationKey: destKey, changes }] });
       renderRates();
@@ -3631,7 +3661,7 @@
         body: JSON.stringify({ destinationKey: rateEditCurrentKey, author, changes }),
       });
       const data = await res.json();
-      if (!res.ok) { alert('저장에 실패했습니다: ' + (data.error || '')); return; }
+      if (!res.ok) { alert(rateSaveErrorMessage(data, res.status)); return; }
       rateOverridesCache[rateEditCurrentKey] = data.overrides;
       setLastRateAction({ label: `방금 "${dest.label}" 요율을 수정했습니다.`, entries: [{ destinationKey: rateEditCurrentKey, changes }] });
       document.getElementById('rateEditModal').classList.add('hidden');
@@ -3700,7 +3730,7 @@
         }),
       });
       const data = await res.json();
-      if (!res.ok) { msg.style.color = 'var(--danger)'; msg.textContent = '저장에 실패했습니다: ' + (data.error || ''); return; }
+      if (!res.ok) { msg.style.color = 'var(--danger)'; msg.textContent = rateSaveErrorMessage(data, res.status).replace(/\n+/g, ' '); return; }
       await loadRateOverrides();
       document.getElementById('newDestModal').classList.add('hidden');
       renderRates();
@@ -3751,7 +3781,7 @@
         body: JSON.stringify({ destinationKey: destKey, author, changes }),
       });
       const data = await res.json();
-      if (!res.ok) { alert('저장에 실패했습니다: ' + (data.error || '')); return; }
+      if (!res.ok) { alert(rateSaveErrorMessage(data, res.status)); return; }
       rateOverridesCache[destKey] = data.overrides;
       setLastRateAction({ label: `방금 "${dest.label}" 요율을 확인함으로 기록했습니다.`, entries: [{ destinationKey: destKey, changes }] });
       renderRates();
@@ -3816,6 +3846,10 @@
     const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     let successCount = 0;
     const succeededEntries = [];
+    /* 실패 사유 수집(신규) — 예전엔 실패를 조용히 삼키고 "3/16 적용" 같은 숫자만
+       띄웠다. 일부만 적용된 상태는 권역 안에서 가격이 어긋난 채 남는다는 뜻인데
+       어디가 왜 빠졌는지 알 방법이 없었다. 목적지별 사유를 모아 함께 보여준다. */
+    const failures = [];
     for (const dest of targets) {
       const eff = effectiveRate(dest);
       const oldValue = Number(eff[field] || 0);
@@ -3831,11 +3865,17 @@
           rateOverridesCache[dest.destination_key] = data.overrides;
           succeededEntries.push({ destinationKey: dest.destination_key, changes });
           successCount++;
+        } else {
+          const data = await res.json().catch(() => null);
+          failures.push(`· ${dest.label}: ${rateSaveErrorMessage(data, res.status).split('\n')[0]}`);
         }
-      } catch {}
+      } catch {
+        failures.push(`· ${dest.label}: 네트워크 오류`);
+      }
     }
     if (btn) { btn.disabled = false; btn.textContent = '일괄 적용'; }
-    alert(`${successCount}/${targets.length}개 목적지에 적용되었습니다.`);
+    alert(`${successCount}/${targets.length}개 목적지에 적용되었습니다.`
+      + (failures.length ? `\n\n적용되지 않은 ${failures.length}곳:\n${failures.join('\n')}` : ''));
     document.getElementById('rateBulkModal').classList.add('hidden');
     if (succeededEntries.length) {
       setLastRateAction({ label: `방금 ${regionLabel} ${succeededEntries.length}곳 "${fieldLabel}"를 ${pct}% 일괄 조정했습니다.`, entries: succeededEntries });
@@ -3946,7 +3986,7 @@
         body: JSON.stringify({ destinationKey: r.destination_key, author, changes }),
       });
       const data = await res.json();
-      if (!res.ok) { alert('되돌리기에 실패했습니다: ' + (data.error || '')); return; }
+      if (!res.ok) { alert('되돌리기에 실패했습니다.\n\n' + rateSaveErrorMessage(data, res.status)); return; }
       rateOverridesCache[r.destination_key] = data.overrides;
       renderRates();
       /* 되돌리기를 어느 화면에서 눌렀는지에 맞춰 그 화면만 새로고침한다 — 편집창

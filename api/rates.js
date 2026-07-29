@@ -24,6 +24,38 @@ const NUMERIC_FIELDS = new Set([
   'airfare', 'fuel_surcharge', 'hotel_per_room', 'meal_per_person',
   'vehicle_large', 'vehicle_small', 'guide_fee', 'sightseeing_fee', 'margin_per_traveler',
 ]);
+
+/* 오타 상한 (신규) — 지금까지 서버 검증은 "숫자이고 0 이상"이 전부였다. 즉 호텔
+   단가에 0을 하나 더 붙여도 그대로 저장되고, 저장 즉시 고객 견적서 금액이 바뀐다.
+   관리자 화면에 3배 초과 시 confirm 경고가 있지만 그건 브라우저 쪽 안내라
+   "예"를 누르면 그만이고, 화면을 거치지 않는 요청은 아예 안 거친다.
+   여러 명이 매주 단가를 갱신하기 시작하면 이 구멍은 언젠가 반드시 밟힌다.
+
+   기준은 **현재 요율표 최댓값의 약 5배**로 통일했다. 이 배율이 아니면 안 되는
+   이유가 있다 — 상한을 넉넉하게 10배 이상으로 잡으면 정작 막아야 할 '0 하나 더'
+   (=10배) 오타가 그대로 통과한다. 처음에 필드별로 눈대중 7~10배를 넣었다가
+   test_pH_rate_guard.js의 [2]에서 식비·관광비·마진 3개가 뚫리는 걸 잡았다.
+   5배면 정상 인상 여유(현행 최댓값 기준 4.6~5.8배)는 남기고 10배 오타는 끊는다.
+
+   ⚠ 요율이 실제로 상한에 근접하면 올려도 되지만, 그때도 **현행 최댓값의 5배**를
+   유지할 것. 같이 고칠 곳은 ai-loop/test_pH_rate_guard.js — [1]이 현행 값 통과를,
+   [2]가 10배 오타 차단을 양쪽에서 검사하므로 한쪽으로만 치우치면 테스트가 잡는다. */
+const FIELD_MAX = {
+  airfare: 8000000, fuel_surcharge: 4000000, hotel_per_room: 3000000,
+  meal_per_person: 400000, vehicle_large: 20000000, vehicle_small: 15000000,
+  guide_fee: 3000000, sightseeing_fee: 1500000, margin_per_traveler: 2000000,
+};
+
+/* 숫자 요율 한 칸의 유효성. NUMERIC_FIELDS 검증이 필요한 모든 경로(개별 수정
+   isValidChange, 새 목적지 isValidNewDestination)가 이 함수 하나를 쓴다 —
+   한쪽에만 상한을 걸면 다른 쪽이 우회로가 된다.
+   isFinite를 명시하는 이유: typeof Infinity === 'number'이고 Infinity >= 0도 참이라
+   기존 조건만으로는 통과한다(JSON으로는 안 들어오지만 조건 자체가 허술했다). */
+function isValidRateNumber(field, v) {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return false;
+  const max = FIELD_MAX[field];
+  return max === undefined || v <= max;
+}
 const STRING_FIELDS = new Set(['notes', 'rateDate', 'season_note']);
 
 /* P2b: 견적 계수 스칼라 노브 스펙 — script.js의 COEF_SPEC와 반드시 동일하게 유지.
@@ -51,7 +83,7 @@ function isValidNewDestination(body) {
   if (!CUSTOM_ZONES.has(body.zone)) return 'invalid_zone';
   if (typeof body.southernHemisphere !== 'boolean') return 'invalid_southern_hemisphere';
   for (const f of NUMERIC_FIELDS) {
-    if (typeof body.fields?.[f] !== 'number' || !(body.fields[f] >= 0)) return `invalid_field_${f}`;
+    if (!isValidRateNumber(f, body.fields?.[f])) return `invalid_field_${f}`;
   }
   if (body.notes != null && (typeof body.notes !== 'string' || body.notes.length > 500)) return 'invalid_notes';
   if (body.seasonNote != null && (typeof body.seasonNote !== 'string' || body.seasonNote.length > 500)) return 'invalid_season_note';
@@ -85,9 +117,20 @@ async function fetchRateToKrw(currency) {
 
 function isValidChange(c) {
   if (!c || typeof c.field !== 'string') return false;
-  if (NUMERIC_FIELDS.has(c.field)) return typeof c.newValue === 'number' && c.newValue >= 0;
+  if (NUMERIC_FIELDS.has(c.field)) return isValidRateNumber(c.field, c.newValue);
   if (STRING_FIELDS.has(c.field)) return typeof c.newValue === 'string' && c.newValue.length <= 500;
   return false;
+}
+
+/* 상한에 걸린 항목만 따로 골라낸다 — 기존엔 유효하지 않은 변경을 전부 조용히
+   버리고 남은 것만 저장했다(cleanChanges). 오타로 상한을 넘긴 경우에 그 동작이면
+   "저장됐다"는 응답을 받고도 그 칸만 안 바뀌어, 팀원은 반영된 줄 안다.
+   상한 위반은 조용히 버리지 말고 400으로 되돌려 무엇이 왜 막혔는지 알려준다. */
+function findOutOfRange(changes) {
+  return changes
+    .filter((c) => c && NUMERIC_FIELDS.has(c.field) && typeof c.newValue === 'number'
+      && Number.isFinite(c.newValue) && c.newValue >= 0 && c.newValue > FIELD_MAX[c.field])
+    .map((c) => ({ field: c.field, value: c.newValue, max: FIELD_MAX[c.field] }));
 }
 
 module.exports = async (req, res) => {
@@ -297,6 +340,12 @@ module.exports = async (req, res) => {
     if (!destinationKey || !Array.isArray(changes) || !changes.length) {
       return res.status(400).json({ error: 'invalid_body' });
     }
+    /* 상한 위반은 '무효 입력'과 달리 조용히 버리면 안 된다 — 저장 성공 응답을
+       받고도 그 칸만 반영이 안 돼 팀원이 바뀐 줄 알고 넘어간다. 먼저 걸러 400. */
+    const outOfRange = findOutOfRange(changes);
+    if (outOfRange.length) {
+      return res.status(400).json({ error: 'value_out_of_range', fields: outOfRange });
+    }
     const cleanChanges = changes.filter(isValidChange);
     if (!cleanChanges.length) return res.status(400).json({ error: 'no_valid_fields' });
 
@@ -370,3 +419,8 @@ module.exports = async (req, res) => {
 
   res.status(405).json({ error: 'method_not_allowed' });
 };
+
+/* 검증 로직 단위 테스트용 노출 (신규) — Vercel은 기본 export(핸들러 함수)만 보므로
+   프로퍼티를 덧붙여도 배포 동작에 영향이 없다. 핸들러를 호출하려면 DB가 필요해
+   상한 검증만 따로 꺼내 ai-loop/test_pH_rate_guard.js가 직접 검사한다. */
+module.exports.__test = { isValidChange, isValidRateNumber, findOutOfRange, isValidNewDestination, FIELD_MAX, NUMERIC_FIELDS };
