@@ -124,7 +124,25 @@ if (nonRound.length) {
   const isRound = n => Math.abs(n - Math.round(n)) < 1e-6 && Math.round(n) % 500 === 0;
   const hits = CANDIDATES.filter(c => nonRound.every(x => isRound(x.v / c)));
   const list = nonRound.map(x => `${x.k}·${LBL[x.f]}=${won(x.v)}`).join(', ');
-  if (hits.length) {
+
+  /* 배율 추측보다 먼저 볼 것: 외화 환산 흔적.
+     현지 지상비를 USD 등으로 받아 고정 환율로 환산해 넣으면 원화 값이 라운드를 벗어난다.
+     이때 값들의 최대공약수가 곧 그 환율이고, 각 값을 그 수로 나누면 깔끔한 외화 단가가 나온다.
+     2026-07-29 확인: 이 10건의 gcd가 정확히 1,350이고 몫이 $150·$160·$35·$15·$274·$30 —
+     '일괄조정 잔재'가 아니라 USD×1,350 환산이었다. 배율 추측(×1.35)은 1,350의 다른 표현일
+     뿐이라 같은 숫자를 설명하며, 이쪽이 몫까지 말이 되므로 먼저 제시한다.
+     ⚠ 환산 흔적이면 '고칠 오류'가 아니다. 대신 DEST_CURRENCY가 그 외화를 가리키는지 봐야
+     한다 — 원가가 USD 고정인데 매핑이 현지통화면 환율 보정이 엉뚱한 통화를 따라간다. */
+  const gcd2 = (a, b) => b ? gcd2(b, a % b) : a;
+  const g = nonRound.reduce((a, x) => gcd2(a, x.v), 0);
+  if (g >= 800 && g <= 2500) {
+    const quots = nonRound.map(x => `${x.k}·${LBL[x.f]}=${x.v / g}`).join(', ');
+    add('MED', '라운드이탈',
+      `${nonRound.length}건의 최대공약수가 ${won(g)} — 외화를 ${won(g)}에 환산해 넣은 흔적으로 보임`
+      + `(오류가 아닐 수 있음). 환산 단가: ${quots}. 확인할 것은 값이 아니라 `
+      + `dest_currency.js의 통화 매핑이 그 외화와 맞는지다.`);
+    console.log(`  → 환산 환율 추정: ${won(g)} (몫이 전부 정수)`);
+  } else if (hits.length) {
     const desc = hits.map(c => `×${c}(${c > 1 ? '+' : ''}${((c - 1) * 100).toFixed(0)}%)`).join(' 또는 ');
     add('MED', '라운드이탈',
       `${nonRound.length}건이 모두 ${desc} 배율의 흔적을 보임 — 과거 일괄조정이 이 항목들에만 적용되고 `
