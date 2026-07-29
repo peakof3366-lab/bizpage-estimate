@@ -84,7 +84,16 @@ ok('템플릿에 날 id를 쓰는 곳 없음', rawIdSites.length === 0,
 ok('fmt가 숫자로 강제 변환', !/const fmt = n => '₩'\+n\.toLocaleString/.test(adminSrc));
 ok('상세 모달 인원·일수를 숫자로 강제', /\$\{Number\(est\.participants\)\|\|0\}/.test(adminSrc));
 
-console.log('\n[6] 화면 — 실제 렌더로 인라인 핸들러 탈출 확인 (jsdom)');
+console.log('\n[6] 고객 견적서 화면(estimate-view.html) — 공유 payload도 신뢰하지 않는다');
+/* 공유 payload는 /api/quote-shares POST로 누구나 만들 수 있고, 담당자가 고객
+   공유 링크를 열어보는 건 일상적인 동작이라 그 세션에서 코드가 도는 경로가 된다. */
+const viewSrc = read('estimate-view.html');
+ok('일차 번호를 숫자로 못 박는다', /const dayNo = \(day\) => Number\(day && day\.day\) \|\| 0/.test(viewSrc));
+ok('인라인 핸들러에 날 day.day를 넣지 않는다',
+  !/switchDayTab\('\$\{courseKey\}', \$\{day\.day\}\)/.test(viewSrc));
+ok('data-day 속성에도 날 day.day를 넣지 않는다', !/data-day="\$\{day\.day\}"/.test(viewSrc));
+
+console.log('\n[7] 화면 — 실제 렌더로 인라인 핸들러 탈출 확인 (jsdom)');
 (async () => {
   const dom = new JSDOM(read('admin.html'), {
     runScripts: 'dangerously', url: 'http://localhost/admin.html',
