@@ -114,6 +114,14 @@ async function main() {
      즉 이 마이그레이션만으로는 금액이 변하지 않고, 담당자가 값을 고르면 그때 반영된다. */
   await sql`alter table custom_destinations add column if not exists insurance_zone text not null default 'asiaMid'`;
 
+  /* 커스텀 목적지 시즌 프로파일 (PQ) — 없으면 getSeasonInfo가 DEST_SEASON_PROFILES에서
+     그 목적지를 못 찾아 공용표(SEASON_CONFIG)로 폴백한다. 보험 권역과 달리 폴백이
+     '중립값'이 아니라 **다른 계절**이다: 동남아를 추가하고 7월 출발이면 공용표는
+     성수기 1.20, 실제 동남아는 우기 비수기 0.88 — 항공·유류·호텔이 36% 어긋난다.
+     nullable이고 null이면 종전 폴백과 100% 동일 동작이라, 이 마이그레이션만으로는
+     금액이 변하지 않는다(담당자가 프로파일을 고르면 그때부터 반영). */
+  await sql`alter table custom_destinations add column if not exists season_profile text`;
+
   /* 직원 자가 가입 (신규) — 가입 신청으로 만들어진 계정인지 표시한다.
      staff_accounts.active만으로는 "가입하고 승인을 기다리는 사람"과 "관리자가
      일부러 꺼둔 사람"이 똑같이 비활성으로 보여, 관리자가 대기자를 놓치거나

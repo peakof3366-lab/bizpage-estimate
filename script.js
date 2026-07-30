@@ -77,7 +77,7 @@ function applyStrength(baseFactor, strength) {
       if (Array.isArray(data.customDestinations)) {
         data.customDestinations.forEach((row) => {
           if (destinationRates.some((d) => d.destination_key === row.destination_key)) return;
-          const { zone, southern_hemisphere, insurance_zone, ...destFields } = row;
+          const { zone, southern_hemisphere, insurance_zone, season_profile, ...destFields } = row;
           destinationRates.push(destFields);
           if (BIZ_ZONES[zone] && !BIZ_ZONES[zone].includes(row.destination_key)) BIZ_ZONES[zone].push(row.destination_key);
           if (southern_hemisphere) SOUTHERN_HEMISPHERE_DESTS.push(row.destination_key);
@@ -89,6 +89,17 @@ function applyStrength(baseFactor, strength) {
           const insZone = INSURANCE_ZONES[insurance_zone] ? insurance_zone : 'asiaMid';
           if (!INSURANCE_ZONES[insZone].includes(row.destination_key)) {
             INSURANCE_ZONES[insZone].push(row.destination_key);
+          }
+          /* 시즌 프로파일 편입 (PQ) — 빠뜨리면 getSeasonInfo가 권역 프로파일을 못 찾아
+             공용표(SEASON_CONFIG)로 폴백한다. 보험 권역의 중립값 폴백과 달리 이쪽은
+             '중립'이 아니라 **다른 계절**로 계산된다: 동남아 목적지를 추가하고 7월에
+             출발하면 공용표는 성수기 1.20인데 실제 동남아는 우기 비수기 0.88이라
+             항공·유류·호텔이 36% 어긋난다(부호까지 반대라 과청구 방향).
+             값이 없거나 모르는 id면 폴백(공용표, 남반구 체크 시 남반구표) = 이 코드
+             이전과 100% 동일 동작이라, 프로파일을 못 고른 목적지가 있어도 금액이 튀지 않는다. */
+          if (typeof DEST_SEASON_PROFILES !== 'undefined' && season_profile) {
+            const prof = DEST_SEASON_PROFILES.find((p) => p.id === season_profile);
+            if (prof && !prof.keys.includes(row.destination_key)) prof.keys.push(row.destination_key);
           }
           injectDestinationOption(row.destination_key, destFields.label);
         });

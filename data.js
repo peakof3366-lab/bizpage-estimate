@@ -95,10 +95,18 @@ const SEASON_CONFIG_SOUTHERN = [
    탓에 같은 권역 안에서도 예외가 있습니다(예: 삿포로 겨울, 오키나와 여름, 하와이 겨울).
    P8: 남반구 4곳(시드니·멜버른·호주·오클랜드)도 아래에 전용 프로파일을 추가함
    (기존엔 공용 SEASON_CONFIG_SOUTHERN만 썼음). 이제 SEASON_CONFIG_SOUTHERN은
-   프로파일 없는 '향후' 남반구 목적지의 폴백으로만 쓰인다. */
+   프로파일 없는 '향후' 남반구 목적지의 폴백으로만 쓰인다.
+
+   PQ: 각 프로파일에 `id`·`name`을 붙였다(내장 목적지 매칭은 그대로 keys 기반이라 동작 불변).
+   관리자가 추가한 커스텀 목적지는 label이 여기 keys에 없으므로 어느 프로파일도 못 만나
+   공용표로 폴백했는데, 이제 custom_destinations.season_profile에 이 `id`를 저장해
+   script.js가 런타임에 해당 프로파일의 keys로 편입한다. `name`은 관리자 폼 선택지
+   문구로 그대로 쓰이므로(admin.html이 이 배열로 select를 만든다) 프로파일을 추가하면
+   폼에도 자동으로 나타난다 — 목록을 두 번 적지 않기 위한 것. */
 const DEST_SEASON_PROFILES = [
   {
     /* 동남아 — 건기(11~3월) 성수기 / 우기(5~9월) 비수기. 공용표(여름 성수기)와 정반대 */
+    id: 'seasia', name: '동남아 (건기 11~3월 성수기 / 우기 5~9월 비수기)',
     keys: ['라오스','싱가포르','하노이','호치민','다낭','나트랑','푸꾸옥','세부',
            '마닐라','보홀','코타키나발루','캄보디아','방콕','푸켓','치앙마이','발리'],
     config: [
@@ -109,6 +117,7 @@ const DEST_SEASON_PROFILES = [
   },
   {
     /* 유럽 — 여름(6~9월) 성수기 / 겨울(11~2월) 비수기. 동유럽도 시즌상 여기 포함 */
+    id: 'europe', name: '유럽 (여름 6~9월 성수기 / 겨울 11~2월 비수기)',
     keys: ['서유럽','로마','파리','영국','스페인','독일','네덜란드','북유럽','동유럽'],
     config: [
       { id:'peak',    months:[6,7,8,9],   factor:1.20, label:'여름 성수기', badge:'여름 성수기 +20%' },
@@ -119,6 +128,7 @@ const DEST_SEASON_PROFILES = [
   {
     /* 일본 — 벚꽃(3~4월)·여름(7~8월)·단풍(10~11월) 성수기 / 겨울초(1월)·장마(6월) 비수기.
        골든위크·벚꽃 피크는 PEAK_CALENDAR가 날짜로 별도 가산. 삿포로(겨울)·오키나와(여름)는 예외. */
+    id: 'japan', name: '일본 (벚꽃 3~4월·여름 7~8월·단풍 10~11월 성수기)',
     keys: ['도쿄','오사카','후쿠오카','나고야','삿포로','오키나와'],
     config: [
       { id:'peak',    months:[3,4,7,8,10,11], factor:1.15, label:'벚꽃·단풍·여름 성수기', badge:'성수기 +15%' },
@@ -128,6 +138,7 @@ const DEST_SEASON_PROFILES = [
   },
   {
     /* 홍콩·마카오 — 가을~초겨울(10~12월, 온화·쇼핑) 성수기 / 한여름(6~8월, 무덥고 태풍) 비수기 */
+    id: 'hkmo', name: '홍콩·마카오 (가을·연말 10~12월 성수기 / 한여름 비수기)',
     keys: ['홍콩','마카오'],
     config: [
       { id:'peak',    months:[10,11,12], factor:1.12, label:'가을·연말 성수기', badge:'성수기 +12%' },
@@ -137,6 +148,7 @@ const DEST_SEASON_PROFILES = [
   },
   {
     /* 중국(본토) — 여름(7~8월)·가을(10월 국경절) 성수기 / 한겨울(1~2월) 비수기. 춘절은 PEAK_CALENDAR가 가산 */
+    id: 'china', name: '중국 본토 (여름·국경절 성수기 / 한겨울 비수기)',
     keys: ['상해','장가계','청도','연태'],
     config: [
       { id:'peak',    months:[7,8,10], factor:1.12, label:'여름·국경절 성수기', badge:'성수기 +12%' },
@@ -146,6 +158,7 @@ const DEST_SEASON_PROFILES = [
   },
   {
     /* 몽골 — 여름(6~8월, 초원관광 극성수기) / 혹한기(11~3월) 강비수기 */
+    id: 'mongolia', name: '몽골 (여름 6~8월 극성수기 / 혹한기 11~3월 강비수기)',
     keys: ['몽골'],
     config: [
       { id:'peak',    months:[6,7,8],       factor:1.25, label:'여름 극성수기', badge:'여름 성수기 +25%' },
@@ -155,6 +168,7 @@ const DEST_SEASON_PROFILES = [
   },
   {
     /* 대만 — 가을·겨울(10~12월, 온화) 성수기 / 한여름(7~8월, 무덥고 태풍) 비수기. 춘절은 PEAK_CALENDAR가 가산 */
+    id: 'taiwan', name: '대만 (가을·겨울 10~12월 성수기 / 한여름 비수기)',
     keys: ['대만','가오슝'],
     config: [
       { id:'peak',    months:[10,11,12], factor:1.12, label:'가을·겨울 성수기', badge:'성수기 +12%' },
@@ -164,6 +178,7 @@ const DEST_SEASON_PROFILES = [
   },
   {
     /* 괌·사이판 — 건기·방학철(12~3,7~8월) 성수기 / 우기·태풍철(9~10월) 비수기 */
+    id: 'guamSaipan', name: '괌·사이판 (건기·방학 12~3·7~8월 성수기 / 태풍철 비수기)',
     keys: ['괌','사이판'],
     config: [
       { id:'peak',    months:[12,1,2,3,7,8], factor:1.15, label:'건기·방학 성수기', badge:'성수기 +15%' },
@@ -173,6 +188,7 @@ const DEST_SEASON_PROFILES = [
   },
   {
     /* 북미 — 여름(6~8월)·연말(12월) 성수기 / 늦겨울(2~3월) 비수기. 하와이는 겨울도 강성수기라 예외 */
+    id: 'northAmerica', name: '북미 (여름 6~8월·연말 성수기 / 늦겨울 비수기)',
     keys: ['로스앤젤레스','샌프란시스코','워싱턴','뉴욕','하와이','밴쿠버','토론토'],
     config: [
       { id:'peak',    months:[6,7,8,12], factor:1.15, label:'여름·연말 성수기', badge:'성수기 +15%' },
@@ -182,6 +198,7 @@ const DEST_SEASON_PROFILES = [
   },
   {
     /* 중앙아시아(카자흐스탄·우즈베키스탄) — 봄가을(4~6,9~10월) 쾌적 성수기 / 혹서(7~8월)·혹한(12~2월) 비수기 */
+    id: 'centralAsia', name: '중앙아시아 (봄·가을 성수기 / 혹서·혹한 비수기)',
     keys: ['카자흐스탄','우즈베키스탄'],
     config: [
       { id:'peak',    months:[4,5,6,9,10], factor:1.12, label:'봄·가을 성수기',   badge:'성수기 +12%' },
@@ -196,6 +213,7 @@ const DEST_SEASON_PROFILES = [
        월 전체를 성수기로 잡으면 과대추정(날짜단위 피크 소관) → 평시로 둠. 시드니(온난)·
        멜버른(서늘)의 기후차는 월 단위 원가에 큰 영향이 없고, 호주·뉴질랜드 시즌 패턴도 사실상
        동일해 한 config로 통합. (성수기/비수기 월·계수는 도메인 초안, 실측으로 조정 예정.) */
+    id: 'southern', name: '남반구 호주·뉴질랜드 (현지 여름 12~2월 성수기)',
     keys: ['시드니','멜버른','호주','오클랜드'],
     config: [
       { id:'peak',    months:[12,1,2], factor:1.20, label:'현지 여름·연말 성수기', badge:'성수기 +20%' },
@@ -321,7 +339,15 @@ const destinationRates = [
 /* 서버(Node)에서 관리자 신규 목적지 생성 시 내장 목적지와의 destination_key 충돌을
    검사할 수 있도록 하는 isomorphic export (dest_currency.js와 동일한 패턴). 브라우저
    에서는 module이 없어 조건이 거짓이 되므로 아무 영향 없음. */
-if (typeof module !== 'undefined' && module.exports) module.exports = destinationRates;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = destinationRates;
+  /* PQ: 시즌 프로파일 id 목록을 서버 검증(api/rates.js)이 재사용하도록 함께 내보낸다.
+     배열에 프로퍼티를 얹는 형태인 이유는 기존 `require('../data')`가 곧 요율 배열이고
+     세 곳(quotes.js·rates.js·quote_verify.js)이 모두 .map()으로만 쓰기 때문 —
+     export 형태를 객체로 바꾸면 그 세 곳을 다 고쳐야 한다.
+     서버가 허용 키를 따로 적지 않고 여기를 보므로 목록이 어긋날 수가 없다. */
+  module.exports.DEST_SEASON_PROFILES = DEST_SEASON_PROFILES;
+}
 
 /* =====================================================================
    DEST_REC — 목적지별 연수 방식 추천 콘텐츠

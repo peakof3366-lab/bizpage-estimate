@@ -1448,6 +1448,16 @@
           </label>
         </div>
         <div>
+          <!-- 시즌 프로파일 (PQ) — 이 값이 없으면 견적 엔진이 권역 시즌표를 못 찾아
+               공용표(한국 출발 수요 기준: 7·8·12·1월 성수기)로 계산한다. 권역에 따라
+               성수기가 정반대인 곳이 있어(동남아는 7~8월이 우기 비수기) 항공·유류·호텔이
+               최대 36% 어긋난다. 선택지는 data.js DEST_SEASON_PROFILES에서 만든다. -->
+          <div class="detail-label" style="margin-bottom:.3rem">시즌 프로파일(성수기 달력)</div>
+          <select id="new-dest-season-profile" class="status-select">
+            <option value="">공용 시즌표 (권역 프로파일 없음)</option>
+          </select>
+        </div>
+        <div>
           <div class="detail-label" style="margin-bottom:.3rem">현지 통화(환율 보정용)</div>
           <select id="new-dest-currency" class="status-select">
             <option value="">없음 (환율 보정 안 함)</option>
@@ -3147,6 +3157,19 @@
       return `"${RATE_FIELD_LABELS[f] || f}" 값을 확인해 주세요.\n숫자가 아니거나, 음수이거나, 허용 범위를 넘었습니다(0을 하나 더 붙이지 않았는지 확인).`;
     }
     if (data && data.error === 'forbidden') return '이 작업은 권한이 없습니다. 관리자에게 문의해 주세요.';
+    /* 새 목적지의 분류값(권역·통화·시즌) 거절 — 여기까지 오면 화면 선택지와 서버 허용
+       목록이 어긋난 것이므로, 담당자에게 "다시 입력"이 아니라 "고칠 수 없다"를 알려야 한다. */
+    const CLASSIFY_ERRORS = {
+      invalid_season_profile: '시즌 프로파일',
+      invalid_insurance_zone: '보험 권역',
+      invalid_currency: '현지 통화',
+      invalid_region: '지역 분류',
+      invalid_zone: '비즈니스석 구간',
+    };
+    if (data && CLASSIFY_ERRORS[data.error]) {
+      return `"${CLASSIFY_ERRORS[data.error]}" 선택값이 서버에서 허용되지 않았습니다.\n`
+        + '화면의 선택지와 서버 설정이 어긋난 상태이므로, 값을 바꿔 다시 시도하기보다 개발 담당자에게 알려주세요.';
+    }
     if (status === 401) return '로그인이 만료되었습니다. 새로고침 후 다시 로그인해 주세요.';
     return '저장에 실패했습니다: ' + ((data && data.error) || status || '');
   }
@@ -3934,6 +3957,17 @@
     document.getElementById('new-dest-region').value = '';
     document.getElementById('new-dest-notes').value = '';
     document.getElementById('new-dest-season').value = '';
+    /* 시즌 프로파일 선택지 (PQ) — data.js의 DEST_SEASON_PROFILES로 매번 다시 만든다.
+       하드코딩하면 프로파일을 추가했을 때 폼에만 없어서 담당자가 고를 수 없고,
+       그 목적지는 조용히 공용표로 계산된다. 첫 항목(공용표)은 HTML에 두고 뒤에 붙인다. */
+    const spSel = document.getElementById('new-dest-season-profile');
+    spSel.length = 1;
+    if (typeof DEST_SEASON_PROFILES !== 'undefined') {
+      DEST_SEASON_PROFILES.filter(p => p.id).forEach(p => {
+        spSel.add(new Option(p.name || p.id, p.id));
+      });
+    }
+    spSel.value = '';
     document.getElementById('new-dest-msg').textContent = '';
     document.getElementById('new-dest-fields').innerHTML = RATE_FIELD_ORDER.map(f => `
       <div>
@@ -3968,7 +4002,14 @@
     });
     if (!fieldsValid) { msg.style.color = 'var(--danger)'; msg.textContent = '모든 단가 필드는 0 이상의 숫자여야 합니다.'; return; }
 
-    if (!confirm(`"${label}"을(를) 새 목적지로 추가하시겠습니까?\n저장 즉시 공개 견적 계산기에서 선택 가능해집니다.`)) return;
+    /* 시즌 프로파일을 안 고르면 공용표(7·8·12·1월 성수기)로 계산된다는 사실을 저장 직전에
+       한 번 알린다 — 권역에 따라 성수기가 정반대라(동남아 7~8월은 우기 비수기) 빈 값이
+       '중립'이 아니다. 막지는 않는다: 맞는 프로파일이 없는 목적지도 실제로 있다. */
+    const seasonProfile = document.getElementById('new-dest-season-profile').value;
+    const seasonLine = seasonProfile
+      ? `시즌: ${document.getElementById('new-dest-season-profile').selectedOptions[0].textContent}`
+      : '시즌: 공용표(7·8·12·1월 성수기) — 권역 프로파일 없음';
+    if (!confirm(`"${label}"을(를) 새 목적지로 추가하시겠습니까?\n${seasonLine}\n저장 즉시 공개 견적 계산기에서 선택 가능해집니다.`)) return;
 
     try {
       const res = await fetch('/api/rates?action=createDestination', {
@@ -3980,6 +4021,7 @@
           currency: document.getElementById('new-dest-currency').value,
           region: document.getElementById('new-dest-region').value,
           insuranceZone: document.getElementById('new-dest-insurance').value,
+          seasonProfile,
           author,
         }),
       });

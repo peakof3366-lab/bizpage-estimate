@@ -76,6 +76,12 @@ const CUSTOM_ZONES = new Set(['short', 'mid', 'long']);
 /* script.js INSURANCE_ZONES의 키와 동일해야 한다 — 한쪽만 늘리면 저장은 되는데
    엔진이 못 찾아 중립값으로 폴백한다(ai-loop/test_pP가 두 목록을 대조한다). */
 const INSURANCE_ZONE_KEYS = new Set(['asiaShort', 'asiaMid', 'evac', 'oceania', 'highCost']);
+/* 시즌 프로파일 허용 id (PQ) — 보험 권역처럼 여기 손으로 적지 않고 data.js가 내보낸
+   DEST_SEASON_PROFILES에서 뽑는다. 목록을 두 번 적으면 프로파일을 새로 추가했을 때
+   서버만 모르는 상태가 되어 저장이 400으로 막히거나(또는 그 반대로) 조용히 폴백한다. */
+const SEASON_PROFILE_KEYS = new Set(
+  (destinationRates.DEST_SEASON_PROFILES || []).map((p) => p.id).filter(Boolean)
+);
 const DEST_KEY_RE = /^[\p{L}\p{N}_\- ·]+$/u;
 
 function isValidNewDestination(body) {
@@ -99,6 +105,11 @@ function isValidNewDestination(body) {
      0.85~1.80이라 최대 80% 어긋나는데 콘솔 경고만 남았다. 빈 값은 기준 권역으로 본다. */
   if (body.insuranceZone != null && body.insuranceZone !== ''
       && !INSURANCE_ZONE_KEYS.has(body.insuranceZone)) return 'invalid_insurance_zone';
+  /* 시즌 프로파일(선택) — 빈 값이면 공용 시즌표로 폴백(내장 남반구 4곳과 동일한 취급).
+     모르는 id를 통과시키면 저장은 되는데 엔진이 프로파일을 못 찾아 조용히 공용표로
+     떨어지므로, 알 수 없는 값은 여기서 거절해 "저장됐지만 반영 안 됨"을 만들지 않는다. */
+  if (body.seasonProfile != null && body.seasonProfile !== ''
+      && !SEASON_PROFILE_KEYS.has(body.seasonProfile)) return 'invalid_season_profile';
   return null;
 }
 
@@ -204,6 +215,10 @@ module.exports = async (req, res) => {
         /* 보험 권역 — script.js가 INSURANCE_ZONES에 편입해야 계수가 제대로 붙는다.
            안 내려보내면 엔진이 중립값 1.00으로 조용히 폴백한다. */
         insurance_zone: r.insurance_zone || 'asiaMid',
+        /* 시즌 프로파일 (PQ) — script.js가 DEST_SEASON_PROFILES의 해당 프로파일 keys에
+           편입해야 권역 시즌표가 붙는다. 안 내려보내면 공용표로 폴백해 동남아 7월
+           출발이 성수기 1.20으로 계산된다(실제는 우기 비수기 0.88). null이면 종전 폴백. */
+        season_profile: r.season_profile || null,
       }));
       /* P2b: 계수 노브 전달 — app_settings 'coefficients' 행. 테이블/행이 아직 없으면
          조용히 {} (클라가 코드 기본값 사용). 이 조회 실패가 위 요율/환율 응답을 깨지
@@ -245,18 +260,21 @@ module.exports = async (req, res) => {
     const f = body.fields;
     const currency = (body.currency && body.currency !== '') ? body.currency : null;
     const region = (body.region && body.region !== '') ? body.region : null;
+    /* 빈 문자열이 아니라 null로 저장한다 — GET이 `|| null`로 내려보내므로 어느 쪽이든
+       엔진 동작은 같지만, DB에서 '안 고름'과 ''이 섞이면 나중에 집계·감사가 갈린다. */
+    const seasonProfile = (body.seasonProfile && body.seasonProfile !== '') ? body.seasonProfile : null;
     try {
       const inserted = await sql`
         insert into custom_destinations (
           destination_key, label, zone, southern_hemisphere,
           airfare, fuel_surcharge, hotel_per_room, meal_per_person,
           vehicle_large, vehicle_small, guide_fee, sightseeing_fee, margin_per_traveler,
-          rate_date, notes, season_note, created_by, currency, region, insurance_zone
+          rate_date, notes, season_note, created_by, currency, region, insurance_zone, season_profile
         ) values (
           ${key}, ${body.label.trim()}, ${body.zone}, ${body.southernHemisphere},
           ${f.airfare}, ${f.fuel_surcharge}, ${f.hotel_per_room}, ${f.meal_per_person},
           ${f.vehicle_large}, ${f.vehicle_small}, ${f.guide_fee}, ${f.sightseeing_fee}, ${f.margin_per_traveler},
-          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${req.user.displayName}, ${currency}, ${region}, ${body.insuranceZone || 'asiaMid'}
+          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${req.user.displayName}, ${currency}, ${region}, ${body.insuranceZone || 'asiaMid'}, ${seasonProfile}
         )
         on conflict (destination_key) do nothing
         returning destination_key

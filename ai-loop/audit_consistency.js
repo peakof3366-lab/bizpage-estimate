@@ -12,7 +12,14 @@
      script.js INSURANCE_ZONES       (여행자보험 권역)
      admin.html REGION_MAP           (관리자 그룹핑·지역별 일괄조정 기준)
      dest_currency.js DEST_CURRENCY  (환율 보정 통화)
-     data.js DEST_SEASON_PROFILES    (권역별 시즌 달력) */
+     data.js DEST_SEASON_PROFILES    (권역별 시즌 달력)
+
+   PQ: 관리자가 추가한 목적지(custom_destinations)도 검사 대상에 넣었다. 전에는 정적값만
+   봤기 때문에, 매니저가 목적지를 하나 추가하면 그 목적지는 감사기 시야 밖에 있었다.
+   ⚠ 커스텀 목적지를 위 정적 목록들과 대조하면 안 된다 — 정적 목록에 없는 것이 정상이고
+   (런타임에 script.js·admin.html이 DB 값으로 편입한다) 그렇게 짜면 목적지를 추가하는
+   순간 '오류 6건'이 뜬다. 그래서 커스텀 목적지는 **DB 행의 분류값이 채워져 있는가**를
+   따로 본다: 값이 비면 편입할 것이 없어 엔진이 조용히 폴백하기 때문. */
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
@@ -31,7 +38,15 @@ const dataSrc = read('data.js'), scriptSrc = read('script.js'),
 const s = {};
 new Function('g', dataSrc + '\n;g.DR=destinationRates;'
   + 'g.SP=(typeof DEST_SEASON_PROFILES!=="undefined")?DEST_SEASON_PROFILES:null;')(s);
+/* KEYS는 '정적 목록끼리의 대조' 기준이라 반드시 정적값만 담는다(커스텀 목적지를 넣으면
+   모든 정적 목록에서 누락으로 잡힌다 — 위 ⚠ 참고). 커스텀 목적지는 아래 전용 절에서 본다. */
 const KEYS = s.DR.map(d => d.destination_key);
+
+/* 운영 실판매가·커스텀 목적지 로드 (PQ). 기본이 라이브이고 --static으로 정적 강제.
+   실패 시 정적으로 내려가되 그 사실을 화면에 찍는다(live_rates.js가 처리). */
+const { loadRatesForAudit } = require('./live_rates');
+const { rates: LIVE_RATES, live: IS_LIVE } = loadRatesForAudit(s.DR);
+const CUSTOM = LIVE_RATES.filter(d => d.__custom);
 
 const BIZ_ZONES  = evalObj(grab(scriptSrc, /const BIZ_ZONES = \{[\s\S]*?\n\};/, 'BIZ_ZONES'), /^const BIZ_ZONES = /);
 const INS_ZONES  = evalObj(grab(scriptSrc, /const INSURANCE_ZONES = \{[\s\S]*?\n\};/, 'INSURANCE_ZONES'), /^const INSURANCE_ZONES = /);
@@ -58,7 +73,8 @@ const cmp = (name, listKeys) => {
   if (extra.length)   err(name, `${name}에 있으나 요율표에 없음: ${extra.join(', ')}`);
 };
 
-console.log(`■ 목록 간 커버리지 (요율표 기준 ${KEYS.length}개)`);
+console.log(`■ 목록 간 커버리지 (정적 요율표 기준 ${KEYS.length}개`
+  + (CUSTOM.length ? ` · 커스텀 ${CUSTOM.length}개는 아래 전용 절에서 검사` : '') + ')');
 cmp('index.html select', SELECT_KEYS);
 cmp('BIZ_ZONES', Object.values(BIZ_ZONES).flat());
 cmp('INSURANCE_ZONES', Object.values(INS_ZONES).flat());
@@ -124,17 +140,74 @@ if (s.SP) {
   if (dupSeason.length) err('시즌프로파일', `여러 프로파일에 중복 등록(먼저 매칭되는 쪽이 이김): ${[...new Set(dupSeason)].join(', ')}`);
 }
 
-/* 요율 값 자체의 형식 오류 — 음수·0·누락 */
+/* ── 커스텀 목적지 런타임 분류값 (PQ) ────────────────────────────────
+   내장 목적지는 분류가 코드에 박혀 있어 위 대조로 잡히지만, 커스텀 목적지의 분류는
+   DB 행에 들어 있고 런타임에 편입된다. 값이 비면 편입할 게 없어 엔진이 폴백하는데
+   화면에는 아무 표시가 없다 — 여기가 그 유일한 감시 지점이다. */
+console.log('\n■ 커스텀 목적지 런타임 분류값');
+const SEASON_IDS = (s.SP || []).map(p => p.id).filter(Boolean);
+/* REGION_MAP 그룹 → 그 그룹이 써야 할 시즌 프로파일. 그룹 하나에 프로파일이 둘인 곳은
+   둘 다 허용한다('몽골·대만'은 계절이 정반대라 한 프로파일로 묶을 수 없고,
+   '오세아니아·태평양'은 괌·사이판과 남반구가 섞여 있다). */
+const REGION_SEASON_EXPECT = {
+  '일본': ['japan'], '홍콩·마카오': ['hkmo'], '중국': ['china'], '동남아': ['seasia'],
+  '유럽': ['europe'], '북미': ['northAmerica'], '중앙아시아': ['centralAsia'],
+  '몽골·대만': ['mongolia', 'taiwan'], '오세아니아·태평양': ['guamSaipan', 'southern'],
+};
+if (!IS_LIVE) {
+  console.log('  건너뜀 — 정적 모드에서는 커스텀 목적지를 알 수 없습니다(라이브로 다시 돌리세요).');
+} else if (!CUSTOM.length) {
+  console.log('  커스텀 목적지 0건 (검사할 것 없음)');
+} else {
+  console.log(`  커스텀 목적지 ${CUSTOM.length}건 — 정적 목록 대조에서는 제외됨(런타임 편입 대상)`);
+  for (const d of CUSTOM) {
+    const k = d.destination_key;
+    /* 좌석 구간 — 없으면 BIZ_ZONES에 편입되지 않아 비즈니스석 배율이 안 붙는다. */
+    if (!Object.keys(BIZ_ZONES).includes(d.__zone)) {
+      err('커스텀목적지', `${k}: 좌석 구간(zone)이 '${d.__zone}' — BIZ_ZONES 키(${Object.keys(BIZ_ZONES).join('/')})가 아니라 편입되지 않음`);
+    }
+    /* 보험 권역 — 모르는 키면 엔진이 asiaMid(1.00)로 폴백해 저장값이 무의미해진다. */
+    if (!Object.keys(INS_ZONES).includes(d.insurance_zone)) {
+      err('커스텀목적지', `${k}: 보험 권역이 '${d.insurance_zone}' — INSURANCE_ZONES에 없어 계수 1.00(중립)으로 폴백됨`);
+    }
+    /* 시즌 프로파일 — 폴백이 '중립'이 아니라 '다른 계절'이라 부호까지 반대일 수 있다. */
+    if (!d.season_profile) {
+      const expect = REGION_SEASON_EXPECT[d.region];
+      const msg = `${k}: 시즌 프로파일 미지정 — 공용표(7·8·12·1월 성수기)로 계산됨`;
+      if (expect) err('커스텀목적지', `${msg}. 지역이 '${d.region}'이므로 '${expect.join(' 또는 ')}'가 맞습니다`);
+      else note('커스텀목적지', `${msg}. 지역 분류도 없어 어느 프로파일이 맞는지 판단 불가 — 담당자 확인 필요`);
+    } else if (!SEASON_IDS.includes(d.season_profile)) {
+      err('커스텀목적지', `${k}: 시즌 프로파일 '${d.season_profile}'이 DEST_SEASON_PROFILES에 없어 공용표로 폴백됨`);
+    } else {
+      const expect = REGION_SEASON_EXPECT[d.region];
+      if (expect && !expect.includes(d.season_profile)) {
+        err('커스텀목적지', `${k}: 지역은 '${d.region}'인데 시즌 프로파일은 '${d.season_profile}'(기대 '${expect.join(' 또는 ')}') — 성수기 달력이 어긋남`);
+      }
+    }
+    /* 지역·통화는 비어도 '의도적으로 안 씀'이 가능하므로 참고로만 (내장 동유럽도 한때 통화가 없었다). */
+    if (!d.region) note('커스텀목적지', `${k}: 지역 분류 없음 — 요율 일괄조정에서 '기타'로 빠져 조용히 누락됨`);
+    if (!d.currency) note('커스텀목적지', `${k}: 현지 통화 없음 — 환율 보정이 항상 1.0(내장 목적지와 동작이 갈림)`);
+    const insExpect = REGION_EXPECT[d.region];
+    if (insExpect && d.insurance_zone && insExpect !== d.insurance_zone) {
+      err('커스텀목적지', `${k}: 지역은 '${d.region}'인데 보험 권역은 '${d.insurance_zone}'(기대 '${insExpect}')`);
+    }
+    console.log(`  · ${k} — zone ${d.__zone} · 보험 ${d.insurance_zone} · 시즌 ${d.season_profile || '(없음)'} · 지역 ${d.region || '(없음)'} · 통화 ${d.currency || '(없음)'}`);
+  }
+}
+
+/* 요율 값 자체의 형식 오류 — 음수·0·누락.
+   PQ: 정적값이 아니라 라이브 병합값을 본다 — 오타로 0을 저장한 오버라이드나 커스텀
+   목적지의 잘못된 값은 정적표에 안 나타나므로 예전엔 통과했다. */
 console.log('\n■ 요율 값 형식');
 const NUM = ['airfare','fuel_surcharge','hotel_per_room','meal_per_person',
              'vehicle_large','vehicle_small','guide_fee','sightseeing_fee','margin_per_traveler'];
 let bad = 0;
-for (const d of s.DR) for (const f of NUM) {
+for (const d of LIVE_RATES) for (const f of NUM) {
   const v = d[f];
   if (typeof v !== 'number' || !isFinite(v)) { err('값형식', `${d.destination_key}·${f} = ${v} (숫자 아님)`); bad++; }
   else if (v <= 0) { err('값형식', `${d.destination_key}·${f} = ${v} (0 이하)`); bad++; }
 }
-for (const d of s.DR) if (d.vehicle_small > d.vehicle_large) {
+for (const d of LIVE_RATES) if (d.vehicle_small > d.vehicle_large) {
   err('값형식', `${d.destination_key}: 소형 차량비(${d.vehicle_small})가 대형(${d.vehicle_large})보다 비쌈`);
   bad++;
 }
