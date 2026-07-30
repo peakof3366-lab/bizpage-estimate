@@ -75,10 +75,12 @@ ok('keep(false) === false (읽음 해제가 반영된다)', keep(false) === fals
 ok('keep(0) === 0', keep(0) === 0);
 
 console.log('\n[3] 화면 — stale 값을 함께 보내던 세 경로가 고쳐졌는가');
-ok('담당자 지정은 assignee만 보낸다', /patchInquiry\(id, \{ assignee \}\)/.test(adminSrc));
-ok('견적 담당자 지정도 assignee만 보낸다', /patchQuote\(id, \{ assignee \}\)/.test(adminSrc));
-ok('상세 열기는 read만 보낸다', /if \(!wasRead\) patchInquiry\(id, \{ read: true \}\)/.test(adminSrc));
-ok('전체 읽음도 read만 보낸다', /patchInquiry\(c\.id, \{ read: true \}\)/.test(adminSrc));
+/* PV에서 세 번째 인자(실패 처리 옵션)가 붙었다 — 본문이 그대로인지만 본다.
+   본문 뒤에 `, { ... }`가 올 수 있으므로 닫는 괄호를 강제하지 않는다. */
+ok('담당자 지정은 assignee만 보낸다', /patchInquiry\(id, \{ assignee \}[,)]/.test(adminSrc));
+ok('견적 담당자 지정도 assignee만 보낸다', /patchQuote\(id, \{ assignee \}[,)]/.test(adminSrc));
+ok('상세 열기는 read만 보낸다', /if \(!wasRead\) patchInquiry\(id, \{ read: true \}[,)]/.test(adminSrc));
+ok('전체 읽음도 read만 보낸다', /patchInquiry\(c\.id, \{ read: true \}[,)]/.test(adminSrc));
 /* stale 조합이 어디서든 되살아나면 잡는다. */
 ok('localStorage 사본의 status를 실어 보내는 코드가 없다',
   !/patch(Inquiry|Quote)\([^)]*status: [ce]\?\?\.status\s*\|\|/.test(adminSrc));
@@ -88,10 +90,12 @@ ok('`status: c.status||\'new\'` 형태가 남아 있지 않다',
 console.log('\n[4] 모달 저장은 네 필드를 함께 보내야 한다 (사용자가 실제로 편집한 것)');
 /* 여기까지 부분 전송으로 바꾸면, 모달에서 메모를 지우거나 담당자를 비운 것이
    "안 보냄"과 구별되지 않아 반영되지 않는다. 의도적으로 전체를 보낸다. */
+/* PV에서 호출이 여러 줄로 나뉘고 실패 처리 옵션이 붙었다 — 네 필드가 **함께** 실려
+   가는지만 본다(그것이 PU가 지키려는 성질이다). 줄바꿈을 허용해 대조한다. */
 ok('문의 모달은 status·note·read·assignee를 함께 보낸다',
-  /patchInquiry\(currentModalId, \{ status: contacts\[idx\]\.status, note: contacts\[idx\]\.note, read: contacts\[idx\]\.read, assignee: contacts\[idx\]\.assignee \}\)/.test(adminSrc));
+  /patchInquiry\(currentModalId, \{\s*status: contacts\[idx\]\.status, note: contacts\[idx\]\.note,\s*read: contacts\[idx\]\.read, assignee: contacts\[idx\]\.assignee,?\s*\}/.test(adminSrc));
 ok('견적 모달은 status·note·assignee를 함께 보낸다',
-  /patchQuote\(emCurrentId, \{ status: all\[idx\]\.status, note: all\[idx\]\.note, assignee: all\[idx\]\.assignee \}\)/.test(adminSrc));
+  /patchQuote\(emCurrentId, \{\s*status: all\[idx\]\.status, note: all\[idx\]\.note, assignee: all\[idx\]\.assignee,?\s*\}/.test(adminSrc));
 
 console.log('\n[5] 별도 분기(진행기록·답변·실측단가)는 건드리지 않았는가 (회귀)');
 ok('진행 기록은 여전히 SQL 이어붙이기', /activity_log = activity_log \|\|/.test(inqSrc));

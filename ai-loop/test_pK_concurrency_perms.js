@@ -67,8 +67,13 @@ for (const [label, src] of [['문의', inqIdSrc], ['견적', qIdSrc]]) {
 console.log('\n[4] 화면도 같은 기준으로 가려지는가');
 const adminSrc = read('admin.html');
 ok('삭제 버튼에 id가 붙어 있다', /id="btnDeleteInquiry"/.test(adminSrc) && /id="btnDeleteQuote"/.test(adminSrc));
+/* PV에서 목록에 일괄 삭제 버튼 셋이 추가됐다(문의 전체·견적 선택·견적 전체 — 서버는
+   매니저 이상으로 막는데 화면에서 빠져 있었다). 여기서는 개별 삭제 두 개가 여전히
+   그 목록에 있고 !isManagerUp 기준으로 가려지는지만 본다. */
+const roleHideBlock = (adminSrc.match(/for \(const id of \[[\s\S]{0,240}?\]\)[\s\S]{0,240}?!isManagerUp/) || [''])[0];
 ok('역할에 따라 삭제 버튼을 숨긴다',
-  /for \(const id of \['btnDeleteInquiry', 'btnDeleteQuote'\]\)[\s\S]{0,200}!isManagerUp/.test(adminSrc));
+  roleHideBlock.includes("'btnDeleteInquiry'") && roleHideBlock.includes("'btnDeleteQuote'"),
+  roleHideBlock.slice(0, 120));
 
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);
