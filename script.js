@@ -1224,15 +1224,12 @@ form.addEventListener('submit', (event) => {
        shareData만 보내면 표시용 축약값뿐이라 검증 깊이가 얕아진다. */
     window._lastQuoteRecord = estRecord;
 
-    try {
-      fetch('/api/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(estRecord),
-      }).catch((err) => console.warn('[quotes] 서버 저장 실패(로컬에는 저장됨):', err));
-    } catch (err) {
-      console.warn('[quotes] 서버 저장 실패(로컬에는 저장됨):', err);
-    }
+    /* PR: 견적 저장도 같은 경로를 쓴다 — 실패하면 대기열에 남아 다음 방문에 재전송된다.
+       ⚠ 여기서는 고객에게 실패를 알리지 않는다. 고객이 요청한 건 '견적 계산'이고 그건
+       화면에 이미 나와 있으므로, 서버 저장 실패를 오류로 띄우면 멀쩡한 견적을 못 믿게
+       만든다. 상담 신청(리드)과 달리 고객이 답을 기다리는 건이 아니다.
+       담당자 쪽 손실은 대기열 재전송과 상담 신청 시 선행 전송으로 메운다. */
+    submitLead('/api/quotes', estRecord);
 
     if (typeof _trackEvent !== 'undefined') {
       _trackEvent('estimate_complete');
@@ -1578,6 +1575,164 @@ function expandPortfolio() {
   btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 })();
 
+/* ══════════════════════════════════════════════════════════════════
+   PR — 리드 유실 방지
+   ──────────────────────────────────────────────────────────────────
+   원래 세 제출 경로(문의 폼·견적 기반 상담 신청·견적 저장)가 모두 이랬다:
+
+     localStorage에 저장
+     fetch(...).catch(err => console.warn('서버 저장 실패(로컬에는 저장됨)'))
+     화면에 "접수 완료" 표시
+
+   여기에 문제가 세 개 겹쳐 있었다.
+
+   ① **`fetch`는 500에 reject하지 않는다.** `.catch`는 네트워크 단절만 잡는다.
+      DB 오류·payload 초과·함수 타임아웃(=`res.ok === false`)은 성공으로 처리됐고
+      콘솔 경고조차 남지 않았다. Neon은 유휴 시 슬립하는 서버리스 DB라 콜드스타트
+      실패가 실제로 일어날 수 있는 조건이다.
+   ② **"로컬에는 저장됨"은 회사 입장에서 위안이 아니다.** localStorage는 *고객의*
+      브라우저에 있어 담당자는 영원히 볼 수 없다. 안전망처럼 읽히는 주석이지만
+      회사 쪽 데이터 복구 수단이 전혀 아니다.
+   ③ **고객에게는 항상 "접수 완료"가 떴다.** 그래서 실패한 리드는 고객이 연락을
+      기다리고, 회사는 존재조차 모르는 상태로 조용히 사라진다. 유실 중에서
+      최악의 형태다 — 고객은 우리가 무시했다고 느낀다.
+
+   그래서 ㉠ `res.ok`를 확인하고 ㉡ 일시 장애는 백오프 재시도하고 ㉢ 끝내 실패하면
+   대기열에 남겨 다음 방문·온라인 복귀 때 자동 재전송하고 ㉣ 그래도 안 되면
+   거짓 성공 대신 직접 연락 안내를 띄운다. 전화할 줄 아는 리드는 유실이 아니다.
+
+   ⚠ 재시도가 안전한 근거: `/api/inquiries`·`/api/quotes` 둘 다 클라이언트가 만든
+   `id`로 `insert ... on conflict (id) do nothing`을 한다. 같은 레코드를 몇 번
+   보내도 중복 리드가 생기지 않는다. **이 성질이 깨지면 재시도가 리드를 복제한다**
+   (`ai-loop/test_pR_lead_retry.js`가 두 API의 on-conflict를 회귀로 검사한다).
+   ══════════════════════════════════════════════════════════════════ */
+const LEAD_QUEUE_KEY = 'linkedt_pending_submits';
+const LEAD_QUEUE_MAX = 20;          /* 건수 상한 — 큐가 localStorage를 잡아먹지 않게 */
+const LEAD_QUEUE_MAX_BYTES = 512 * 1024;
+const LEAD_KEEPALIVE_MAX = 60 * 1024;  /* keepalive 요청 본문 상한(브라우저 규격 64KB) */
+const LEAD_MAX_QUEUE_TRIES = 10;
+
+function _leadQueueRead() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(LEAD_QUEUE_KEY) || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+function _leadQueueWrite(list) {
+  try {
+    const out = list.slice(-LEAD_QUEUE_MAX);
+    /* 용량 초과 시 오래된 것부터 버린다 — 큐 저장이 실패해 본 흐름까지 깨지면 안 된다. */
+    while (out.length > 1 && JSON.stringify(out).length > LEAD_QUEUE_MAX_BYTES) out.shift();
+    localStorage.setItem(LEAD_QUEUE_KEY, JSON.stringify(out));
+  } catch (err) {
+    console.warn('[lead] 대기열 저장 실패(제출 흐름은 계속):', err);
+  }
+}
+function _leadQueuePush(endpoint, record) {
+  /* 같은 id는 한 번만 — 고객이 재시도 버튼을 여러 번 눌러도 큐가 부풀지 않는다. */
+  const list = _leadQueueRead().filter((x) => x && x.id !== record.id);
+  list.push({ endpoint, id: record.id, body: record, at: Date.now(), tries: 0 });
+  _leadQueueWrite(list);
+}
+function _leadQueueDrop(id) {
+  _leadQueueWrite(_leadQueueRead().filter((x) => x && x.id !== id));
+}
+
+/* 한 번 POST. 실패는 예외로 올리고, 재시도해도 소용없는 실패인지(`permanent`)를 표시한다. */
+async function _leadPostOnce(endpoint, record) {
+  const body = JSON.stringify(record);
+  const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body };
+  /* 고객이 제출 직후 탭을 닫으면 진행 중 요청이 취소된다 — keepalive면 살아남는다.
+     본문이 규격 상한을 넘으면 브라우저가 거부하므로 작은 것만 붙인다. */
+  if (body.length < LEAD_KEEPALIVE_MAX) opts.keepalive = true;
+  const res = await fetch(endpoint, opts);
+  if (!res.ok) {
+    const err = new Error('http_' + res.status);
+    /* 4xx는 우리 요청이 잘못된 것이라 재시도해도 같은 답이 온다(429는 예외 — 잠깐 기다리면 된다).
+       구분하지 않으면 payload 초과 한 건에 매번 3번씩 요청을 낭비한다. */
+    err.permanent = res.status >= 400 && res.status < 500 && res.status !== 429;
+    err.status = res.status;
+    throw err;
+  }
+  return true;
+}
+
+/* 제출 본체. 성공하면 true. 실패하면 대기열에 남기고 false — 호출부가 화면 문구를 정한다. */
+async function submitLead(endpoint, record, opts) {
+  const retries = (opts && opts.retries != null) ? opts.retries : 2;
+  const backoff = (opts && opts.backoff != null) ? opts.backoff : 600;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await _leadPostOnce(endpoint, record);
+      _leadQueueDrop(record.id);   /* 이전 실패로 큐에 있었다면 정리 */
+      return true;
+    } catch (err) {
+      const last = attempt === retries || err.permanent;
+      if (last) {
+        _leadQueuePush(endpoint, record);
+        console.warn('[lead] 전송 실패 — 대기열에 보관하고 다음 방문에 재전송합니다:', err.message);
+        return false;
+      }
+      await new Promise((r) => setTimeout(r, backoff * Math.pow(2, attempt)));
+    }
+  }
+  return false;
+}
+
+/* 대기열 재전송 — 페이지 로드 시 한 번, 온라인 복귀 시. 같은 id를 보내므로 중복이 없다.
+   오래 실패한 건은 시도 횟수만 올리고 큐에 남긴다(지우면 그 리드는 완전히 사라진다). */
+async function flushLeadQueue() {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  const list = _leadQueueRead();
+  if (!list.length) return;
+  for (const item of list) {
+    if (!item || !item.endpoint || !item.body) { _leadQueueDrop(item && item.id); continue; }
+    if (item.tries >= LEAD_MAX_QUEUE_TRIES) continue;
+    try {
+      await _leadPostOnce(item.endpoint, item.body);
+      _leadQueueDrop(item.id);
+      console.info('[lead] 대기 중이던 제출을 재전송했습니다:', item.id);
+    } catch (err) {
+      const cur = _leadQueueRead();
+      const target = cur.find((x) => x && x.id === item.id);
+      if (target) { target.tries = (target.tries || 0) + 1; _leadQueueWrite(cur); }
+      if (!err.permanent) break;  /* 서버가 여전히 아프면 나머지도 실패한다 — 다음 기회로 */
+    }
+  }
+}
+
+/* 최종 실패 시 고객에게 보여줄 안내. 거짓 성공을 띄우지 않는 것이 핵심이고,
+   전화·이메일을 같이 줘서 리드가 스스로 살아남을 길을 남긴다. */
+function leadFailureHtml() {
+  const info = window.COMPANY_INFO || {};
+  const tel = info.tel || '02-2088-4253';
+  const email = info.email || 'skp1004651@hanatrabiz.com';
+  return '접수 중 오류가 발생했습니다. 잠시 후 자동으로 다시 시도하지만, '
+    + '빠른 상담을 원하시면 <strong>' + tel + '</strong> 또는 '
+    + '<a href="mailto:' + email + '" style="text-decoration:underline">' + email + '</a>'
+    + '로 직접 연락 주세요.';
+}
+
+/* 성공/실패 문구를 같은 자리에 표시한다. 실패는 자동으로 사라지지 않게 둔다 —
+   고객이 못 보고 지나가면 안내한 의미가 없다. */
+function showLeadResult(okEl, ok) {
+  if (!okEl) return;
+  if (ok) {
+    okEl.innerHTML = okEl.dataset.successHtml || okEl.innerHTML;
+    okEl.style.color = '';
+    okEl.classList.remove('hidden');
+    return;
+  }
+  if (!okEl.dataset.successHtml) okEl.dataset.successHtml = okEl.innerHTML;
+  okEl.innerHTML = leadFailureHtml();
+  okEl.style.color = 'var(--danger, #dc2626)';
+  okEl.classList.remove('hidden');
+}
+
+window.addEventListener('online', () => { flushLeadQueue(); });
+/* 로드 직후가 아니라 살짝 미뤄서 첫 화면 렌더와 경쟁하지 않게 한다. */
+setTimeout(() => { flushLeadQueue(); }, 3000);
+
 /* ── 문의 폼 저장 핸들러 ── */
 const inqForm = document.getElementById('inqForm');
 const inqSuccess = document.getElementById('inqSuccess');
@@ -1605,19 +1760,14 @@ if (inqForm) {
     existing.push(record);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
 
-    try {
-      fetch('/api/inquiries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(record),
-      }).catch((err) => console.warn('[inquiries] 서버 저장 실패(로컬에는 저장됨):', err));
-    } catch (err) {
-      console.warn('[inquiries] 서버 저장 실패(로컬에는 저장됨):', err);
-    }
-
+    /* 폼은 즉시 비운다 — 전송 결과를 기다리는 동안 고객이 다시 누르는 것을 막고,
+       실패해도 내용은 위의 localStorage와 대기열에 남아 있어 잃지 않는다. */
     inqForm.reset();
-    inqSuccess.classList.remove('hidden');
-    setTimeout(() => inqSuccess.classList.add('hidden'), 5000);
+    submitLead('/api/inquiries', record).then((ok) => {
+      showLeadResult(inqSuccess, ok);
+      /* 성공만 자동으로 숨긴다. 실패 안내는 고객이 읽고 조치할 수 있게 남겨둔다. */
+      if (ok) setTimeout(() => inqSuccess.classList.add('hidden'), 5000);
+    });
   });
 }
 
@@ -1701,27 +1851,24 @@ function submitConsult() {
   arr.push(record);
   localStorage.setItem(KEY, JSON.stringify(arr));
 
-  try {
-    fetch('/api/inquiries', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(record),
-    }).catch((err) => console.warn('[inquiries] 서버 저장 실패(로컬에는 저장됨):', err));
-  } catch (err) {
-    console.warn('[inquiries] 서버 저장 실패(로컬에는 저장됨):', err);
-  }
-
-  /* 성공 처리 */
   if (nameEl) nameEl.value = '';
   if (telEl)  telEl.value  = '';
-  if (okEl)   okEl.classList.remove('hidden');
 
   if (typeof _trackEvent !== 'undefined') _trackEvent('consult_request');
 
-  setTimeout(() => {
-    if (okEl) okEl.classList.add('hidden');
-    closeConsultForm();
-  }, 3500);
+  /* 이 문의는 `linkedQuoteId`로 견적 레코드를 가리킨다. 그 견적 저장이 실패해 대기열에
+     남아 있으면 관리자 화면에서 존재하지 않는 견적을 가리키게 되므로, 리드를 보내기
+     전에 대기열을 먼저 비운다(한 건당 1회 시도라 오래 걸리지 않는다). */
+  flushLeadQueue().then(() => submitLead('/api/inquiries', record)).then((ok) => {
+    showLeadResult(okEl, ok);
+    /* 실패했으면 폼을 닫지 않는다 — 닫아버리면 안내 문구가 같이 사라져서
+       고객은 접수된 줄 알고 기다리게 된다(원래 결함과 같은 결과가 된다). */
+    if (!ok) return;
+    setTimeout(() => {
+      if (okEl) okEl.classList.add('hidden');
+      closeConsultForm();
+    }, 3500);
+  });
 }
 
 /* ── Hero Canvas: 세계 네트워크 지도 (정적 렌더 — 티커와 모션 충돌 방지) ── */
