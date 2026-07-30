@@ -2001,7 +2001,12 @@
   /* 서버 DB의 견적/문의/방문·이벤트 통계를 로컬 캐시(localStorage)로 동기화 —
      기존 렌더링 코드(renderStats/renderEvents 등)는 그대로 재사용.
      analytics(방문/이벤트)는 신규 — 실패해도 문의/견적 동기화는 계속 진행(부분 실패 허용) */
+  /* 마지막 동기화 실패 상태 (PW) — showDash가 이걸 보고 로그인 화면에 이유를 띄운다.
+     로그인은 성공했는데 데이터 동기화가 실패하면 대시보드가 안 열리는데, 예전 구조라면
+     아무 안내도 없이 로그인 폼만 남아 "비밀번호가 틀렸나?"로 오해하게 된다. */
+  let lastSyncFailure = null;
   async function loadRemoteData() {
+    lastSyncFailure = null;
     try {
       const [inqRes, qRes] = await Promise.all([fetch('/api/inquiries'), fetch('/api/quotes')]);
       if (inqRes.status === 401 || qRes.status === 401) {
@@ -2009,8 +2014,24 @@
         loginPage.classList.remove('hidden');
         return false;
       }
-      set(KEYS.contacts, await inqRes.json());
-      localStorage.setItem(EM_KEY, JSON.stringify(await qRes.json()));
+      /* ⚠ 예전엔 401만 보고 **res.ok를 확인하지 않았다** (PW에서 발견). 500·503이면
+         `{error:'...'}` 객체가 그대로 `set(KEYS.contacts, ...)`로 들어가, 목록이
+         배열이 아니게 되어 렌더가 터진다(캐시까지 오염돼 새로고침해도 안 낫는다).
+         PW가 세션 확인 실패에 503을 새로 쓰기 시작하므로 실제로 닿는 경로가 됐다.
+         실패하면 **캐시를 건드리지 않고** 물러난다 — 낡은 값이라도 오류 객체보다 낫다. */
+      if (!inqRes.ok || !qRes.ok) {
+        console.warn('[admin] 서버 데이터 동기화 실패 — 캐시를 유지한다:', inqRes.status, qRes.status);
+        lastSyncFailure = { inq: inqRes.status, quote: qRes.status };
+        return false;
+      }
+      const [inqRows, qRows] = await Promise.all([inqRes.json(), qRes.json()]);
+      /* 형식까지 확인한다 — 응답이 200이어도 배열이 아니면 넣지 않는다. */
+      if (!Array.isArray(inqRows) || !Array.isArray(qRows)) {
+        console.warn('[admin] 서버 응답 형식이 목록이 아니다 — 캐시를 유지한다');
+        return false;
+      }
+      set(KEYS.contacts, inqRows);
+      localStorage.setItem(EM_KEY, JSON.stringify(qRows));
 
       try {
         const anRes = await fetch('/api/admin/insights?type=analytics');
@@ -2030,8 +2051,22 @@
       return true;
     } catch (err) {
       console.warn('[admin] 서버 데이터 동기화 실패:', err);
+      lastSyncFailure = { network: true };
       return false;
     }
+  }
+
+  /* 동기화 실패 이유를 로그인 화면에 사람 말로 (PW) */
+  function showSyncFailureOnLogin() {
+    const errEl = document.getElementById('loginErr');
+    if (!errEl || !lastSyncFailure) return;
+    const codes = [lastSyncFailure.inq, lastSyncFailure.quote].filter(Boolean);
+    errEl.textContent = lastSyncFailure.network
+      ? '로그인은 되었지만 서버에서 데이터를 받아오지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.'
+      : (codes.includes(503)
+        ? '로그인은 되었지만 서버가 계정 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+        : `로그인은 되었지만 데이터를 받아오지 못했습니다(오류 ${codes.join('/') || '알 수 없음'}). 잠시 후 다시 시도해 주세요.`);
+    errEl.classList.remove('hidden');
   }
 
   /* ════ 서버 API 쓰기 헬퍼 (PV) ════
@@ -2093,6 +2128,12 @@
     if (!r.status) {
       return `서버에 연결하지 못해 저장되지 않았습니다 — ${desc}\n\n`
         + '인터넷 연결을 확인하고 다시 시도해 주세요.\n화면을 서버 값으로 되돌립니다.';
+    }
+    /* 세션 확인 실패(PW) — 로그인이 풀린 게 아니라 서버가 계정 상태를 못 읽은 것이다.
+       '만료'로 안내하면 담당자가 재로그인을 반복한다. leadWrite가 이미 재시도한 뒤다. */
+    if (r.error === 'session_check_failed') {
+      return `서버가 계정 상태를 확인하지 못해 저장되지 않았습니다 — ${desc}\n\n`
+        + '로그인이 풀린 것은 아닙니다. 잠시 후 다시 시도해 주세요.\n화면을 서버 값으로 되돌립니다.';
     }
     return `서버에 저장되지 않았습니다 — ${desc}\n\n`
       + `(오류 ${r.status}${r.error ? ' ' + r.error : ''})\n다시 시도해 주세요. 화면을 서버 값으로 되돌립니다.`;
@@ -2314,7 +2355,9 @@
 
   async function showDash() {
     const ok = await loadRemoteData();
-    if (!ok) return;
+    /* 401이면 loadRemoteData가 이미 로그인 화면으로 보냈다. 그 외 실패는 여기서
+       이유를 띄운다 (PW) — 조용히 return하면 로그인 폼만 남아 오해를 만든다. */
+    if (!ok) { showSyncFailureOnLogin(); return; }
     loginPage.classList.add('hidden');
     dashPage.classList.remove('hidden');
     /* 로그인 폼 입력창을 disabled로 꺼둔다 (신규) — autocomplete="off"만으로는
@@ -3380,6 +3423,12 @@
         + '화면의 선택지와 서버 설정이 어긋난 상태이므로, 값을 바꿔 다시 시도하기보다 개발 담당자에게 알려주세요.';
     }
     if (status === 401) return '로그인이 만료되었습니다. 새로고침 후 다시 로그인해 주세요.';
+    /* 세션 확인 자체가 실패한 경우 (PW) — 계정이 만료된 게 아니라 서버가 계정 상태를
+       못 읽은 것이다. '만료'로 안내하면 담당자가 재로그인을 반복하게 된다. */
+    if (data && data.error === 'session_check_failed') {
+      return '서버가 계정 상태를 확인하지 못해 저장되지 않았습니다.\n'
+        + '로그인이 풀린 것은 아니니 잠시 후 다시 시도해 주세요.';
+    }
     return '저장에 실패했습니다: ' + ((data && data.error) || status || '');
   }
   /* 기준가 이상 경고(신규) — 현재 기준가가 최근 실측 중앙값과 이 비율 이상 벌어지면
