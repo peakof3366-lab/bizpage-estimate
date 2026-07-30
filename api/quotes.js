@@ -204,42 +204,24 @@ module.exports = async (req, res) => {
   if (action === 'priceReports' && req.method === 'GET') return handlePriceReports(req, res);
   if (action === 'deletePriceReport' && req.method === 'DELETE') return handleDeletePriceReport(req, res);
 
+  /* 내부 산출 저장 (PX) — 담당자 신원을 **서버가** 찍는다.
+     예전에는 공개 POST 하나뿐이었고 `channel:'internal'`·`createdBy`를 클라이언트가
+     그대로 보냈다. 그런데 이 엔드포인트는 인증이 없다:
+     ① 익명 제출자가 `channel:'internal', createdBy:'송주연 팀장'`을 보내면 관리자
+        화면에 **"🖥 내부 산출 — 송주연 팀장"** 배지가 그대로 붙는다(위조된 출처).
+     ② admin-quote.html은 담당자를 하드코딩 목록에서 **자기가 골랐다** — 요율 author와
+        진행 기록에서 이미 없앤 '자칭 신원'이 이 도구에만 남아 있었다.
+     그래서 내부 저장은 인증이 필요한 별도 action으로 분리하고, 공개 POST는 두 필드를
+     **강제로 덮어쓴다**(아래 saveQuote 호출부). 삽입 로직은 한 함수를 공유한다 —
+     복사하면 두 벌이 어긋난다(이 저장소가 여러 번 겪은 유형). */
+  if (action === 'internal' && req.method === 'POST') {
+    if (!(await requireAdmin(req, res))) return;
+    return saveQuote(req, res, { channel: 'internal', createdBy: req.user.displayName || '' });
+  }
+
   if (req.method === 'POST') {
-    const payload = req.body || {};
-    if (payloadTooLarge(payload)) return res.status(413).json({ error: 'payload_too_large' });
-    /* id는 관리자 화면에서 onclick 안에 들어가므로 형태를 강제한다 — 자세한 이유는
-       api/_lib/public_input.js 주석. 형식을 벗어나면 견적을 버리지 않고 id만 교체한다. */
-    const id = safeId(payload.id);
-    /* 인원·총액은 관리자 화면이 숫자로 다루는 값이라 저장 시점에 숫자로 못 박는다
-       (문자열이 들어오면 화면 포맷터가 원문을 그대로 출력한다). */
-    const participants = toNumberOrNull(payload.participants);
-    const total = toNumberOrNull(payload.total);
-    try {
-      /* 저장 시점 검증 (신규) — 계산은 브라우저에서 일어나므로 서버가 받은 금액을
-         그대로 믿을 근거가 없다. 권위 요율표·계수와 대조한 결과를 payload에 함께
-         남겨, 관리자가 견적 상세에서 "이 건은 어느 단계에서 걸렸는지"를 볼 수 있게 한다.
-         걸려도 저장은 한다 — 고객 리드를 버리는 쪽이 훨씬 큰 손해다. 링크 발급
-         (api/quote-shares)에서 한 번 더, 그때는 통과해야만 발급된다. */
-      const vctx = await loadVerifyContext(payload.destination);
-      const verified = verifyQuote(payload, vctx);
-      const stored = { ...payload, id, participants, total, _verify: {
-        verdict: vctx.unavailable ? 'unavailable' : verified.verdict,
-        failedSteps: verified.failedSteps,
-        steps: verified.steps,
-        at: new Date().toISOString(),
-      } };
-      await sql`
-        insert into quotes (id, status, note, dest_label, org_name, participants, total, payload)
-        values (${id}, 'new', '', ${trimText(payload.destLabel, 100)}, ${trimText(payload.orgName, 100)},
-                ${participants}, ${total}, ${JSON.stringify(stored)}::jsonb)
-        on conflict (id) do nothing
-      `;
-      res.status(200).json({ ok: true, id, verdict: stored._verify.verdict });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'insert_failed' });
-    }
-    return;
+    /* 공개 제출은 내부 산출을 자칭할 수 없다 — 값을 지우지 않고 'public'으로 못 박는다. */
+    return saveQuote(req, res, { channel: 'public', createdBy: '' });
   }
 
   if (req.method === 'GET') {
@@ -263,3 +245,47 @@ module.exports = async (req, res) => {
 
   res.status(405).json({ error: 'method_not_allowed' });
 };
+
+/* 공개 제출과 내부 산출이 **같은 삽입 경로**를 쓴다 — 검증(_verify)·id 강제·숫자 강제·
+   on-conflict 멱등성이 한 벌만 존재해야 두 경로가 어긋나지 않는다. 차이는 `origin`
+   하나뿐이고, 그 값은 호출부(=인증 여부)가 정한다. */
+async function saveQuote(req, res, origin) {
+  const payload = req.body || {};
+  if (payloadTooLarge(payload)) return res.status(413).json({ error: 'payload_too_large' });
+  /* id는 관리자 화면에서 onclick 안에 들어가므로 형태를 강제한다 — 자세한 이유는
+     api/_lib/public_input.js 주석. 형식을 벗어나면 견적을 버리지 않고 id만 교체한다. */
+  const id = safeId(payload.id);
+  /* 인원·총액은 관리자 화면이 숫자로 다루는 값이라 저장 시점에 숫자로 못 박는다
+     (문자열이 들어오면 화면 포맷터가 원문을 그대로 출력한다). */
+  const participants = toNumberOrNull(payload.participants);
+  const total = toNumberOrNull(payload.total);
+  try {
+    /* 저장 시점 검증 (신규) — 계산은 브라우저에서 일어나므로 서버가 받은 금액을
+       그대로 믿을 근거가 없다. 권위 요율표·계수와 대조한 결과를 payload에 함께
+       남겨, 관리자가 견적 상세에서 "이 건은 어느 단계에서 걸렸는지"를 볼 수 있게 한다.
+       걸려도 저장은 한다 — 고객 리드를 버리는 쪽이 훨씬 큰 손해다. 링크 발급
+       (api/quote-shares)에서 한 번 더, 그때는 통과해야만 발급된다. */
+    const vctx = await loadVerifyContext(payload.destination);
+    const verified = verifyQuote(payload, vctx);
+    /* ⚠ channel·createdBy는 **payload 뒤에** 넣어야 클라이언트가 보낸 값을 덮는다.
+       순서가 뒤바뀌면 익명 제출자가 다시 '내부 산출'을 자칭할 수 있다 (PX). */
+    const stored = { ...payload, id, participants, total,
+      channel: origin.channel, createdBy: origin.createdBy,
+      _verify: {
+        verdict: vctx.unavailable ? 'unavailable' : verified.verdict,
+        failedSteps: verified.failedSteps,
+        steps: verified.steps,
+        at: new Date().toISOString(),
+      } };
+    await sql`
+      insert into quotes (id, status, note, dest_label, org_name, participants, total, payload)
+      values (${id}, 'new', '', ${trimText(payload.destLabel, 100)}, ${trimText(payload.orgName, 100)},
+              ${participants}, ${total}, ${JSON.stringify(stored)}::jsonb)
+      on conflict (id) do nothing
+    `;
+    res.status(200).json({ ok: true, id, verdict: stored._verify.verdict });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'insert_failed' });
+  }
+}

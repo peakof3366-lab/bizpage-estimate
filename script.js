@@ -1228,8 +1228,18 @@ form.addEventListener('submit', (event) => {
        ⚠ 여기서는 고객에게 실패를 알리지 않는다. 고객이 요청한 건 '견적 계산'이고 그건
        화면에 이미 나와 있으므로, 서버 저장 실패를 오류로 띄우면 멀쩡한 견적을 못 믿게
        만든다. 상담 신청(리드)과 달리 고객이 답을 기다리는 건이 아니다.
-       담당자 쪽 손실은 대기열 재전송과 상담 신청 시 선행 전송으로 메운다. */
-    submitLead('/api/quotes', estRecord);
+       담당자 쪽 손실은 대기열 재전송과 상담 신청 시 선행 전송으로 메운다.
+
+       ⚠⚠ **그 판단은 고객에게만 맞다** (PX). admin-quote.html은 같은 폼을 재사용하는
+       내부 도구라 이 코드가 그대로 도는데, 담당자의 목적은 '견적 계산'이 아니라
+       **이 견적을 회사 기록에 남기고 고객에게 보내는 것**이다. 저장이 실패하면 견적
+       관리 목록에 나타나지 않고, 나중에 견적서 링크도 발급할 수 없다(링크 발급은 서버에
+       저장된 건을 대조한다). 그런데 화면에는 "견적 산출 완료!"만 떴다.
+       → 내부 도구에서만 실패를 알린다. */
+    const quoteEndpoint = window.__INTERNAL_TOOL__ ? '/api/quotes?action=internal' : '/api/quotes';
+    submitLead(quoteEndpoint, estRecord).then(function (saved) {
+      if (!saved && window.__INTERNAL_TOOL__) showInternalSaveWarning();
+    });
 
     if (typeof _trackEvent !== 'undefined') {
       _trackEvent('estimate_complete');
@@ -1693,12 +1703,42 @@ async function flushLeadQueue() {
       _leadQueueDrop(item.id);
       console.info('[lead] 대기 중이던 제출을 재전송했습니다:', item.id);
     } catch (err) {
-      const cur = _leadQueueRead();
-      const target = cur.find((x) => x && x.id === item.id);
-      if (target) { target.tries = (target.tries || 0) + 1; _leadQueueWrite(cur); }
+      /* ⚠ 401은 시도 횟수를 올리지 않는다 (PX) — "지금 세션이 없다"는 뜻이고 로그인한
+         뒤에는 성공한다. 내부 산출 견적은 인증이 필요한 `?action=internal`로 가는데,
+         담당자가 같은 브라우저로 공개 페이지를 몇 번 열기만 해도 여기서 401이 쌓여
+         상한(10회)을 소진하고 **그 견적을 영구히 포기**하게 된다. 그러면 고친 것이
+         아니라 유실 경로를 하나 새로 만든 셈이다. */
+      if (err.status !== 401) {
+        const cur = _leadQueueRead();
+        const target = cur.find((x) => x && x.id === item.id);
+        if (target) { target.tries = (target.tries || 0) + 1; _leadQueueWrite(cur); }
+      }
       if (!err.permanent) break;  /* 서버가 여전히 아프면 나머지도 실패한다 — 다음 기회로 */
     }
   }
+}
+
+/* 내부 견적 산출 도구에서 서버 저장이 실패했을 때 담당자에게 보이는 경고 (PX).
+   고객용 안내와 문구가 다른 이유: 담당자가 알아야 하는 것은 "연락처"가 아니라
+   **지금 이 견적이 회사 기록에 없다는 사실과 그래서 무엇이 안 되는지**다.
+   자동으로 사라지지 않게 두고, 요소가 없으면 alert로라도 알린다 — 조용히 넘어가면
+   고치기 전과 같아진다. */
+function showInternalSaveWarning() {
+  const msgLines = [
+    '⚠ 이 견적이 서버에 저장되지 않았습니다.',
+    '· 견적 관리 목록에 아직 나타나지 않고, 견적서 링크 발급도 할 수 없습니다.',
+    '· 화면의 견적·PDF·엑셀은 정상입니다(계산은 이 브라우저에서 끝났습니다).',
+    '· 이 브라우저로 다시 접속하면 자동으로 재전송됩니다. 그때까지 브라우저 데이터를 지우지 마세요.',
+    '· 급하면 관리자 → 견적 관리에서 목록에 올라왔는지 확인해 주세요.',
+  ];
+  const el = typeof document !== 'undefined' ? document.getElementById('aqSaveWarn') : null;
+  if (!el) { if (typeof alert === 'function') alert(msgLines.join('\n')); return; }
+  el.textContent = '';
+  msgLines.forEach(function (line, i) {
+    if (i) el.appendChild(document.createElement('br'));
+    el.appendChild(document.createTextNode(line));
+  });
+  el.classList.remove('hidden');
 }
 
 /* 최종 실패 시 고객에게 보여줄 안내. 거짓 성공을 띄우지 않는 것이 핵심이고,

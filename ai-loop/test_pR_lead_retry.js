@@ -33,9 +33,12 @@ const rawInquiryPost = /fetch\('\/api\/inquiries',\s*\{[\s\S]{0,200}?\}\)\s*\.ca
 const rawQuotePost = /fetch\('\/api\/quotes',\s*\{[\s\S]{0,200}?\}\)\s*\.catch/.test(scriptSrc);
 ok('문의 POST가 raw fetch().catch()를 쓰지 않는다', !rawInquiryPost);
 ok('견적 POST가 raw fetch().catch()를 쓰지 않는다', !rawQuotePost);
-ok('세 경로가 submitLead를 경유한다',
-  (scriptSrc.match(/submitLead\('\/api\/(inquiries|quotes)'/g) || []).length >= 3,
-  String((scriptSrc.match(/submitLead\('\/api\/(inquiries|quotes)'/g) || []).length));
+/* PX에서 견적 저장 경로가 내부(인증)·공개로 갈려 엔드포인트가 변수가 됐다.
+   지켜야 할 성질은 그대로다 — 세 제출 경로가 전부 submitLead를 경유해야 한다. */
+const submitCalls = scriptSrc.match(/submitLead\((?:'\/api\/(?:inquiries|quotes)'|quoteEndpoint)/g) || [];
+ok('세 경로가 submitLead를 경유한다', submitCalls.length >= 3, String(submitCalls.length));
+ok('견적 경로는 내부/공개 엔드포인트를 변수로 고른다 (PX)',
+  /const quoteEndpoint = window\.__INTERNAL_TOOL__ \? '\/api\/quotes\?action=internal' : '\/api\/quotes';/.test(scriptSrc));
 ok('res.ok를 확인한다 (fetch는 500에 reject하지 않는다)', /if \(!res\.ok\)/.test(scriptSrc));
 ok('4xx는 영구 실패로 구분한다(무의미한 재시도 방지)',
   /err\.permanent = res\.status >= 400 && res\.status < 500 && res\.status !== 429/.test(scriptSrc));
