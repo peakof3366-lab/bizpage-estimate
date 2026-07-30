@@ -55,8 +55,16 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true });
       }
 
+      /* 부분 수정 (PU) — 문의(api/inquiries/[id].js)와 같은 이유. 예전에는 안 보낸
+         필드를 기본값으로 초기화해서, 담당자만 바꿔도 그 브라우저의 stale한 상태·메모가
+         서버 값을 덮었다. 여기는 견적 파이프라인이라 '상담중'이 '신규'로 되돌아가면
+         응대 순서 자체가 틀어진다. 보낸 것만 바꾼다(빈 문자열은 유효한 값). */
+      const keep = (v) => (v === undefined ? null : v);
       await sql`
-        update quotes set status = ${body.status ?? 'new'}, note = ${body.note ?? ''}, assignee = ${body.assignee ?? ''}
+        update quotes set
+          status   = coalesce(${keep(body.status)}::text,   status),
+          note     = coalesce(${keep(body.note)}::text,     note),
+          assignee = coalesce(${keep(body.assignee)}::text, assignee)
         where id = ${id}
       `;
       res.status(200).json({ ok: true });

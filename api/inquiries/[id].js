@@ -35,10 +35,26 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true, repliedAt, repliedBy });
       }
 
+      /* 부분 수정 (PU) — 예전에는 네 필드를 한꺼번에 덮어쓰고, 클라이언트가 빠뜨린
+         필드를 기본값('unread'·''·false·'')으로 **초기화**했다. 그런데 화면은 나머지
+         값을 서버가 아니라 **자기 브라우저 localStorage 사본**에서 읽어 함께 보낸다
+         (updateAssignee 등). 그래서 담당자만 바꿔도 그 브라우저가 마지막으로 본
+         상태·메모가 서버 값을 덮었다 — 5명이 같은 리드를 만지면 남의 상태 변경과
+         메모가 조용히 사라진다. 요율에서 고친 동시 편집 유실과 같은 유형인데, 당시
+         점검이 콘텐츠 upsert와 activity_log만 보고 이 경로를 놓쳤다.
+
+         coalesce로 "보낸 것만" 바꾼다. 빈 문자열은 유효한 값이라 그대로 반영하고
+         (메모 지우기가 되어야 한다), **아예 안 보낸 필드만** 유지한다 —
+         그래서 `?? null`이 아니라 undefined만 null로 바꾼다.
+         타입 캐스팅을 명시하는 이유: coalesce(NULL, col)에서 파라미터 타입을 추론하지
+         못하면 boolean 칼럼(read)에서 실패한다. */
+      const keep = (v) => (v === undefined ? null : v);
       await sql`
-        update inquiries
-        set status = ${body.status ?? 'unread'}, note = ${body.note ?? ''}, read = ${body.read ?? false},
-            assignee = ${body.assignee ?? ''}
+        update inquiries set
+          status   = coalesce(${keep(body.status)}::text,    status),
+          note     = coalesce(${keep(body.note)}::text,      note),
+          read     = coalesce(${keep(body.read)}::boolean,   read),
+          assignee = coalesce(${keep(body.assignee)}::text,  assignee)
         where id = ${id}
       `;
       res.status(200).json({ ok: true });
