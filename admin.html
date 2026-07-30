@@ -4219,18 +4219,24 @@
   }
 
   /* ── 요율 변경 이력 모달 ── */
-  let rateHistoryRowsCache = [];
+  let rateHistoryRowsCache = [];      /* 전체 이력 모달이 받아온 행 */
+  let rateEditHistoryCache = [];      /* 편집창의 "이 목적지 이력"이 받아온 행 (PT) */
+  /* api/rates.js의 HISTORY_LIMIT과 같아야 한다 — 잘렸는지 판단 기준이라 어긋나면
+     잘렸는데 안 알리거나 안 잘렸는데 알린다(test_pT가 두 값을 대조한다). */
+  const RATE_HISTORY_LIMIT = 300;
 
   function rateFieldLabel(field) {
     return RATE_FIELD_LABELS[field] || (field === 'notes' ? '비고' : field === 'rateDate' ? '요율 기준월' : field === 'season_note' ? '시즌 정보' : field);
   }
 
-  /* 변경 이력 한 건의 HTML — 전체 이력 모달과 편집창 하단의 "이 목적지 이력"이
-     공유해서 쓴다. idx는 항상 rateHistoryRowsCache 기준 원본 인덱스라서, 편집창에서
-     필터링해 보여줘도 되돌리기 버튼은 정확한 항목을 가리킨다. showDest=true면
-     목적지 이름도 같이 표시(전체 이력 모달용), false면 필드명만(편집창은 이미 그
-     목적지를 보고 있으므로 반복 표시 안 함). */
-  function renderRateHistoryRow(r, idx, showDest) {
+  /* 변경 이력 한 건의 HTML — 전체 이력 모달과 편집창 하단의 "이 목적지 이력"이 공유한다.
+     ⚠ 되돌리기 버튼은 **위치(idx)가 아니라 행 id**를 넘긴다 (PT에서 변경).
+     예전에는 두 화면이 같은 배열(rateHistoryRowsCache)을 보고 idx를 넘겼는데, 목적지별
+     조회를 따로 하게 되면서 배열이 둘로 나뉘었다. 그 상태로 idx를 넘기면 두 화면이 동시에
+     열렸을 때 **엉뚱한 항목을 되돌린다** — 되돌리기에서 그건 원래 결함보다 더 나쁘다.
+     id는 DB serial이라 어느 배열에 있든 같은 행을 정확히 가리킨다.
+     showDest=true면 목적지 이름도 표시(전체 이력 모달용), false면 필드명만. */
+  function renderRateHistoryRow(r, showDest) {
     const dest = destinationRates.find(d => d.destination_key === r.destination_key);
     const label = dest ? dest.label : r.destination_key;
     const fieldLabel = rateFieldLabel(r.field);
@@ -4242,16 +4248,27 @@
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem">
         <div style="font-size:.85rem">${esc(String(r.old_value ?? '—'))} → <strong>${esc(String(r.new_value))}</strong></div>
-        <button type="button" class="btn-act btn-outline-p" style="font-size:.7rem;padding:.25rem .6rem;flex-shrink:0" onclick="revertRateChange(${idx})">↩️ 되돌리기</button>
+        <button type="button" class="btn-act btn-outline-p" style="font-size:.7rem;padding:.25rem .6rem;flex-shrink:0" onclick="revertRateChange('${safeId(String(r.id))}')">↩️ 되돌리기</button>
       </div>
     </div>`;
   }
 
-  async function fetchRateHistory() {
-    const res = await fetch('/api/rates?history=1');
+  /* destKey를 주면 그 목적지만 조회한다 (PT) — 캐시에 넣지 않고 행을 돌려주므로
+     호출부가 어느 캐시에 담을지 정한다(전체 모달과 편집창이 서로 덮어쓰지 않게). */
+  async function fetchRateHistory(destKey) {
+    const url = '/api/rates?history=1'
+      + (destKey ? '&destinationKey=' + encodeURIComponent(destKey) : '');
+    const res = await fetch(url);
     const rows = await res.json();
-    rateHistoryRowsCache = (res.ok && Array.isArray(rows)) ? rows : [];
-    return rateHistoryRowsCache;
+    return (res.ok && Array.isArray(rows)) ? rows : [];
+  }
+
+  /* 목록이 상한에 닿았으면 그 사실을 알린다 — 잘린 걸 모르면 "이력이 없다"를
+     "변경이 없었다"로 오해하고, 되돌릴 수 있는 항목을 못 찾은 채 포기한다. */
+  function rateHistoryTruncatedHtml(rows, scope) {
+    if (rows.length < RATE_HISTORY_LIMIT) return '';
+    return `<p style="color:var(--warn,#8F5D0C);font-size:.78rem;margin-bottom:.5rem">`
+      + `⚠ ${scope} 최근 ${RATE_HISTORY_LIMIT}건까지만 표시됩니다. 더 오래된 변경은 여기 없습니다.</p>`;
   }
 
   async function openRateHistoryModal() {
@@ -4259,31 +4276,37 @@
     listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">불러오는 중...</p>';
     document.getElementById('rateHistoryModal').classList.remove('hidden');
     try {
-      const rows = await fetchRateHistory();
+      rateHistoryRowsCache = await fetchRateHistory();
+      const rows = rateHistoryRowsCache;
       if (!rows.length) {
         listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">변경 이력이 없습니다.</p>';
         return;
       }
-      /* 버튼 onclick에는 값을 직접 넣지 않고 인덱스만 넘긴다 — 비고 등 자유서술 필드에
-         따옴표가 섞여도 안전하게 rateHistoryRowsCache[idx]에서 원본 값을 그대로 읽는다. */
-      listEl.innerHTML = rows.map((r, idx) => renderRateHistoryRow(r, idx, true)).join('');
+      /* 버튼 onclick에는 값을 직접 넣지 않고 행 id만 넘긴다 — 비고 등 자유서술 필드에
+         따옴표가 섞여도 안전하게 캐시에서 원본 값을 그대로 읽는다. */
+      listEl.innerHTML = rateHistoryTruncatedHtml(rows, '전체 목적지 기준')
+        + rows.map((r) => renderRateHistoryRow(r, true)).join('');
     } catch (err) {
       listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">조회에 실패했습니다.</p>';
     }
   }
 
-  /* 편집창 하단의 "이 목적지의 변경 이력" — 전체 300건짜리 목록을 destKey로 걸러
-     보여준다. 목적지 하나당 변경 건수는 많지 않을 것으로 보고 별도 페이지네이션은
-     두지 않았다. */
+  /* 편집창 하단의 "이 목적지의 변경 이력" — 서버에 목적지를 지정해 조회한다 (PT).
+     ⚠ 예전에는 전역 최근 300건을 받아 destKey로 걸렀다. 그리고 주석은 "목적지 하나당
+     변경 건수는 많지 않을 것"이라고 안심시켰는데, **상한이 목적지별이 아니라 전역이라
+     그 추론 자체가 대상을 잘못 짚었다.** 로그가 300건을 넘으면 오래 편집된 목적지는
+     이력이 통째로 사라지고 "아직 변경 이력이 없습니다"가 뜬다 — 변경이 없었던 것과
+     구별되지 않고, 되돌리기는 이력에서만 되므로 안전망이 조용히 닫힌다.
+     이런 주석이 다음 사람을 멈춰 세우므로 반례를 남겨 둔다. */
   async function renderRateEditHistory(destKey) {
     const el = document.getElementById('rate-edit-history');
     if (!el) return;
     el.innerHTML = '<p style="color:var(--muted);font-size:.8rem">불러오는 중...</p>';
     try {
-      const rows = await fetchRateHistory();
-      const mine = rows.map((r, idx) => ({ r, idx })).filter(x => x.r.destination_key === destKey);
-      el.innerHTML = mine.length
-        ? mine.map(({ r, idx }) => renderRateHistoryRow(r, idx, false)).join('')
+      rateEditHistoryCache = await fetchRateHistory(destKey);
+      el.innerHTML = rateEditHistoryCache.length
+        ? rateHistoryTruncatedHtml(rateEditHistoryCache, '이 목적지 기준')
+          + rateEditHistoryCache.map((r) => renderRateHistoryRow(r, false)).join('')
         : '<p style="color:var(--muted);font-size:.8rem">아직 변경 이력이 없습니다.</p>';
     } catch (err) {
       el.innerHTML = '<p style="color:var(--muted);font-size:.8rem">조회에 실패했습니다.</p>';
@@ -4312,8 +4335,12 @@
     return same ? null : { current, expected: expectedValue };
   }
 
-  async function revertRateChange(idx) {
-    const r = rateHistoryRowsCache[idx];
+  async function revertRateChange(rowId) {
+    /* 두 캐시(전체 이력 모달·편집창 목적지별)에서 id로 찾는다 — 어느 화면에서 눌렀든
+       같은 행을 정확히 가리킨다. 위치(idx)로 찾던 예전 방식은 배열이 둘로 나뉘면서
+       두 화면이 동시에 열렸을 때 엉뚱한 항목을 되돌릴 수 있는 구조가 됐다. */
+    const r = [...rateHistoryRowsCache, ...rateEditHistoryCache]
+      .find((x) => x && String(x.id) === String(rowId));
     if (!r) return;
     const author = currentUser.displayName;
     /* 대조 전에 서버 값을 다시 받아온다 — 화면 캐시로 대조하면 방금 남이 바꾼 것을

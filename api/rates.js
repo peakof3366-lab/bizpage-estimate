@@ -58,6 +58,11 @@ function isValidRateNumber(field, v) {
 }
 const STRING_FIELDS = new Set(['notes', 'rateDate', 'season_note']);
 
+/* 변경 이력 한 번에 돌려주는 최대 건수. admin.html의 RATE_HISTORY_LIMIT와 같아야 한다 —
+   화면이 "잘렸다"고 안내할지 판단하는 기준이라, 두 값이 어긋나면 잘렸는데 안 알리거나
+   안 잘렸는데 알린다(ai-loop/test_pT_history_scope.js가 두 값을 대조한다). */
+const HISTORY_LIMIT = 300;
+
 /* P2b: 견적 계수 스칼라 노브 스펙 — script.js의 COEF_SPEC와 반드시 동일하게 유지.
    한쪽만 바꾸면 서버 검증 범위와 클라 적용 범위가 어긋난다(기본값·min·max 모두 대칭).
    저장 시 이 스펙으로 타입·범위를 검증하고, 스펙에 없는 키는 버린다. */
@@ -179,8 +184,18 @@ module.exports = async (req, res) => {
 
     if (req.query && req.query.history) {
       if (!(await requireAdmin(req, res))) return;
+      /* 목적지별 조회 (PT 신규) — 전역 최근 300건만 돌려주면, 로그가 300건을 넘은 뒤부터
+         오래 편집된 목적지는 이력이 통째로 안 보이고 화면에 "이력이 없습니다"가 뜬다.
+         되돌리기는 이력에서만 할 수 있으므로 **팀이 의지하는 안전망이 조용히 닫힌다.**
+         팀원 5명이 매일 갱신하면 한 번 저장에 (바꾼 항목 수 + rateDate) 행이 쌓이고
+         권역 일괄조정 한 번에 목적지×2행이 들어가므로 300건은 몇 주면 도달한다.
+         destinationKey를 주면 그 목적지 안에서 최근 300건을 준다. */
+      const historyDest = String((req.query.destinationKey || '')).trim();
       try {
-        const rows = await sql`select * from rate_change_log order by created_at desc limit 300`;
+        const rows = historyDest
+          ? await sql`select * from rate_change_log where destination_key = ${historyDest}
+                      order by created_at desc limit ${HISTORY_LIMIT}`
+          : await sql`select * from rate_change_log order by created_at desc limit ${HISTORY_LIMIT}`;
         return res.status(200).json(rows);
       } catch (err) {
         console.error(err);
