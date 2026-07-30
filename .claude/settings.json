@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/ai-loop/hooks/verify_on_stop.js\"",
+            "timeout": 180,
+            "statusMessage": "견적 회귀·정합성 자동 검증 중..."
+          }
+        ]
+      }
+    ]
+  }
+}
