@@ -38,8 +38,11 @@ ok('폼이 값을 실어 보낸다', /insuranceZone: document\.getElementById\('
 console.log('\n[2] 서버 허용 키와 엔진 권역 키가 일치하는가');
 const serverKeys = (ratesSrc.match(/const INSURANCE_ZONE_KEYS = new Set\(\[([^\]]+)\]\)/) || [])[1] || '';
 const serverSet = serverKeys.split(',').map((x) => x.trim().replace(/['"]/g, '')).filter(Boolean).sort();
-const engineBlock = (scriptSrc.match(/const INSURANCE_ZONES = \{[\s\S]*?\n\};/) || [''])[0];
-const engineSet = [...engineBlock.matchAll(/^\s{2}(\w+):\s*\[/gm)].map((m) => m[1]).sort();
+/* PY: 엔진의 권역 목록은 더 이상 리터럴이 아니라 destGroupsBy에 넘기는 구간명 배열이다
+   (목적지 소속은 data.js DEST_CLASSIFY에서 파생). 구간명 자체는 여전히 서버 허용 키·
+   관리자 폼 선택지와 맞아야 하므로 이 세 곳 대조는 그대로 의미가 있다. */
+const engineCall = (scriptSrc.match(/destGroupsBy\('ins',\s*\[([^\]]*)\]\)/) || [])[1] || '';
+const engineSet = engineCall.split(',').map((x) => x.trim().replace(/['"]/g, '')).filter(Boolean).sort();
 ok('서버 키 목록을 읽었다', serverSet.length > 0, serverSet.join(','));
 ok('엔진 권역 목록을 읽었다', engineSet.length > 0, engineSet.join(','));
 ok('두 목록이 정확히 일치', JSON.stringify(serverSet) === JSON.stringify(engineSet),

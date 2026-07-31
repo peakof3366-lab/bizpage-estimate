@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const { htmlWithDeps } = require('./_jsdom_deps');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -65,10 +66,8 @@ ok('두 캐시에서 id로 찾는다',
 /* ── jsdom 실동작 ───────────────────────────────────────────────────── */
 function buildHtml() {
   /* admin.html은 data.js를 <script src>로 불러오고 jsdom은 로컬 파일을 안 가져온다 —
-     인라인으로 치환하지 않으면 요율표가 빈 채로 돌아 검사가 무의미해진다. */
-  let html = read('admin.html')
-    .replace('<script src="data.js"></script>', '<script>' + read('data.js') + '</script>')
-    .replace('<script src="dest_currency.js"></script>', '<script>' + read('dest_currency.js') + '</script>');
+     인라인으로 치환하지 않으면 요율표가 빈 채로 돌아 검사가 무의미해진다(_jsdom_deps.js). */
+  let html = htmlWithDeps('admin.html');
   const EXPOSE = '\n;try{window.__setUser=u=>{currentUser=u};'
     + 'window.__renderRow=renderRateHistoryRow;'
     + 'window.__trunc=rateHistoryTruncatedHtml;'

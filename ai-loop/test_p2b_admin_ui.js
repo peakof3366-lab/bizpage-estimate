@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const { htmlWithDeps } = require('./_jsdom_deps');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -17,7 +18,7 @@ const approx = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
 /* admin.html의 인라인 스크립트 중 currentUser를 선언한 블록 끝에 상태 주입기를 붙인다
    (currentUser·coefficientsCache는 let이라 window에 없으므로, 같은 스코프에서 노출해야 접근 가능). */
 function buildHtml() {
-  const html = read('admin.html');
+  const html = htmlWithDeps('admin.html');
   const EXPOSE = '\n;try{window.__setUser=u=>{currentUser=u};window.__setCoefCache=c=>{coefficientsCache=c};window.__getPosted=()=>window.__posted;}catch(e){}\n';
   let injected = false;
   return html.replace(/(<script(?![^>]*\bsrc=)[^>]*>)([\s\S]*?)(<\/script>)/gi, (m, open, code, close) => {

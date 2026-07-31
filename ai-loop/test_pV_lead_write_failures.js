@@ -25,6 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const { htmlWithDeps } = require('./_jsdom_deps');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -99,10 +100,9 @@ ok('견적 전체 삭제 버튼에 id가 붙었다', /id="emClearAllBtn"/.test(a
 /* ── jsdom 실동작 ───────────────────────────────────────────────────── */
 function buildHtml() {
   /* admin.html은 data.js를 <script src>로 불러오고 jsdom은 로컬 파일을 안 가져온다 —
-     인라인으로 치환하지 않으면 스크립트가 도중에 죽어 검사가 무의미해진다(PS에서 겪음). */
-  let html = read('admin.html')
-    .replace('<script src="data.js"></script>', '<script>' + read('data.js') + '</script>')
-    .replace('<script src="dest_currency.js"></script>', '<script>' + read('dest_currency.js') + '</script>');
+     인라인으로 치환하지 않으면 스크립트가 도중에 죽어 검사가 무의미해진다(PS에서 겪음).
+     PY: 치환 로직은 _jsdom_deps.js 한 곳에 있다. */
+  let html = htmlWithDeps('admin.html');
   const EXPOSE = '\n;try{window.__setUser=u=>{currentUser=u};'
     + 'window.__leadWrite=leadWrite;'
     + 'window.__errMsg=leadWriteErrorMessage;'

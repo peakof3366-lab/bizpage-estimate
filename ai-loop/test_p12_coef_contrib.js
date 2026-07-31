@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const { htmlWithDeps } = require('./_jsdom_deps');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -14,7 +15,7 @@ const ok = (name, cond, extra = '') => {
 };
 
 (async () => {
-  const dom = new JSDOM(read('admin.html'), {
+  const dom = new JSDOM(htmlWithDeps('admin.html'), {
     runScripts: 'dangerously', url: 'http://localhost/',
     beforeParse(window) {
       window.fetch = () => new Promise(() => {}); // 모든 fetch 무시

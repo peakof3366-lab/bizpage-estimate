@@ -184,21 +184,14 @@ const DEPARTURE_CITIES = [
 /* ② 항공 좌석 등급 — 노선 거리별 비즈니스 배율
    유류할증료는 좌석 등급과 무관하므로 airFactor만 적용
    단거리(일본·동북아) 2.5× / 중거리(동남아·오세아니아 등) 3.2× / 장거리(유럽·미주) 4.0×
-   ⚠ 이중 관리 주의: 아래 목록은 data.js의 destinationRates[].destination_key,
-   index.html의 <select id="destination"> 옵션 목록과 반드시 1:1로 일치해야 합니다.
+   PY: 목록을 여기 직접 적지 않고 data.js의 DEST_CLASSIFY(zone)에서 파생한다.
+   예전엔 목적지 목록이 파일 넷에 흩어져 있어 하나를 빠뜨리는 사고가 반복됐다.
+   이제 목적지의 좌석 구간은 DEST_CLASSIFY 한 줄에서 정한다 — 여기는 손대지 않는다.
    여기 없는 destKey가 들어오면 getBizFactor()가 조용히 'short'(가장 저렴한 구간)로
-   폴백되어 견적 금액이 틀어집니다 (2026-07-06 야간 점검 시 확인 결과 현재는 정확히 일치함). */
-const BIZ_ZONES = {
-  short: ['도쿄','오사카','후쿠오카','나고야','삿포로','오키나와',
-          '상해','장가계','청도','연태','홍콩','마카오','대만','가오슝','몽골'],
-  mid:   ['싱가포르','하노이','호치민','다낭','나트랑','푸꾸옥',
-          '마닐라','세부','보홀','코타키나발루','캄보디아',
-          '방콕','푸켓','치앙마이','발리','라오스',
-          '우즈베키스탄','카자흐스탄',
-          '시드니','멜버른','오클랜드','괌','사이판'],
-  long:  ['영국','파리','로마','독일','네덜란드','스페인','동유럽','북유럽','서유럽',
-          '로스앤젤레스','샌프란시스코','뉴욕','워싱턴','하와이','밴쿠버','토론토','호주'],
-};
+   폴백되는 성질은 그대로이며, 그 상황은 DEST_CLASSIFY_ISSUES와 아래 콘솔 경고로 드러난다.
+   ⚠ 런타임에 커스텀 목적지가 push되므로 각 구간은 반드시 배열이어야 한다
+   (destGroupsBy가 선언된 세 구간을 항상 빈 배열로 만들어 두므로 보장된다). */
+const BIZ_ZONES = destGroupsBy('zone', ['short', 'mid', 'long']);
 const BIZ_ZONE_FACTORS = { short: 2.5, mid: 3.2, long: 4.0 };
 
 function getBizFactor(destKey) {
@@ -232,21 +225,13 @@ function getBizFactor(destKey) {
        evacuation) 비용이 큼. 미국식 '고빈도 고단가'와 원인이 달라(저빈도 고심도)
        미주·유럽보다 낮은 별도 구간으로 둔다
    (GPT 2라운드 협의로 확정 — 근거: ai-loop/pB_prompt*.txt, ai-loop/pB_gpt_round*.txt)
-   ⚠ 이중 관리 주의: data.js에 목적지를 추가하면 아래 목록에도 반영해야 한다.
-      누락 시 중립값 1.00으로 폴백되고 콘솔 경고만 남는다(금액이 조용히 틀어짐). */
+   PY: 권역 소속은 data.js의 DEST_CLASSIFY(ins)에서 파생한다 — BIZ_ZONES와 기준이
+      다르다는 사실(위 세 문단)은 그대로이고, '어느 목적지가 어느 권역인가'만 한곳에
+      모았다. 목적지를 추가할 때 여기를 손댈 일은 없다.
+      아래 구간명 목록은 INSURANCE_ZONE_FACTORS·INSURANCE_ZONE_LABELS와 짝이므로
+      권역을 새로 만들 때만 세 곳을 함께 늘린다(계수·라벨 없는 권역은 존재할 수 없다). */
 const INSURANCE_BASE = 18000; /* 기준: 동남아 권역 · 4~5일 · 기업단체 1인 (2026 실거래 기준) */
-const INSURANCE_ZONES = {
-  asiaShort: ['도쿄','오사카','후쿠오카','나고야','삿포로','오키나와',
-              '홍콩','마카오','상해','장가계','청도','연태','대만','가오슝'],
-  asiaMid:   ['라오스','싱가포르','하노이','호치민','다낭','나트랑','푸꾸옥',
-              '세부','마닐라','보홀','코타키나발루','캄보디아',
-              '방콕','푸켓','치앙마이','발리'],
-  evac:      ['몽골','카자흐스탄','우즈베키스탄'],
-  oceania:   ['시드니','멜버른','오클랜드','호주'],
-  highCost:  ['괌','사이판',
-              '서유럽','로마','파리','영국','스페인','독일','네덜란드','북유럽','동유럽',
-              '로스앤젤레스','샌프란시스코','워싱턴','뉴욕','하와이','밴쿠버','토론토'],
-};
+const INSURANCE_ZONES = destGroupsBy('ins', ['asiaShort', 'asiaMid', 'evac', 'oceania', 'highCost']);
 const INSURANCE_ZONE_FACTORS = { asiaShort: 0.85, asiaMid: 1.00, evac: 1.20, oceania: 1.50, highCost: 1.80 };
 const INSURANCE_ZONE_LABELS  = { asiaShort: '아시아 단거리', asiaMid: '동남아', evac: '의료후송 위험권', oceania: '오세아니아', highCost: '미주·유럽' };
 

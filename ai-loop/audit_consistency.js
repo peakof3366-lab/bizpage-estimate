@@ -7,7 +7,10 @@
 
    검사 대상 목록:
      data.js  destinationRates       (요율 원본 — 기준)
-     index.html <select id=destination>  (고객이 고를 수 있는 목록)
+     data.js  DEST_CLASSIFY          (분류의 단일 진실 — 좌석·보험·지역·통화·시즌·반구)
+     index.html <select id=destination>  (고객이 고를 수 있는 목록 — 아직 별도 관리)
+     ↓ 아래 넷은 PY부터 DEST_CLASSIFY에서 '파생'된다. 그래도 파생 결과를 실제로 만들어
+       대조한다 — 파생 호출 자체가 사라지거나 구간명이 어긋나면 여기서 잡혀야 한다.
      script.js BIZ_ZONES             (비즈니스 좌석 배율 구간)
      script.js INSURANCE_ZONES       (여행자보험 권역)
      admin.html REGION_MAP           (관리자 그룹핑·지역별 일괄조정 기준)
@@ -29,15 +32,14 @@ const grab = (src, re, name) => {
   if (!m) throw new Error(`${name} 파싱 실패 — 원본 형태가 바뀐 것 같습니다. 감사기를 고치세요.`);
   return m[0];
 };
-const evalObj = (literal, prefix) =>
-  new Function('return ' + literal.replace(prefix, '').replace(/;$/, ''))();
 
-const dataSrc = read('data.js'), scriptSrc = read('script.js'),
-      adminSrc = read('admin.html'), idxSrc = read('index.html'), curSrc = read('dest_currency.js');
+const scriptSrc = read('script.js'), adminSrc = read('admin.html'), idxSrc = read('index.html');
 
-const s = {};
-new Function('g', dataSrc + '\n;g.DR=destinationRates;'
-  + 'g.SP=(typeof DEST_SEASON_PROFILES!=="undefined")?DEST_SEASON_PROFILES:null;')(s);
+/* PY: data.js를 실제 모듈로 불러 파생 결과를 그대로 본다(예전엔 소스에서 리터럴을
+   정규식으로 긁었는데, 이제 목록이 리터럴이 아니라 분류표에서 파생되므로 그 방식은
+   맞지도 않고 파생 과정에서 생긴 문제를 못 본다). */
+const DATA = require('../data');
+const s = { DR: DATA, SP: DATA.DEST_SEASON_PROFILES || null };
 /* KEYS는 '정적 목록끼리의 대조' 기준이라 반드시 정적값만 담는다(커스텀 목적지를 넣으면
    모든 정적 목록에서 누락으로 잡힌다 — 위 ⚠ 참고). 커스텀 목적지는 아래 전용 절에서 본다. */
 const KEYS = s.DR.map(d => d.destination_key);
@@ -48,10 +50,19 @@ const { loadRatesForAudit } = require('./live_rates');
 const { rates: LIVE_RATES, live: IS_LIVE } = loadRatesForAudit(s.DR);
 const CUSTOM = LIVE_RATES.filter(d => d.__custom);
 
-const BIZ_ZONES  = evalObj(grab(scriptSrc, /const BIZ_ZONES = \{[\s\S]*?\n\};/, 'BIZ_ZONES'), /^const BIZ_ZONES = /);
-const INS_ZONES  = evalObj(grab(scriptSrc, /const INSURANCE_ZONES = \{[\s\S]*?\n\};/, 'INSURANCE_ZONES'), /^const INSURANCE_ZONES = /);
-const REGION_MAP = evalObj(grab(adminSrc, /const REGION_MAP = \{[\s\S]*?\n  \};/, 'REGION_MAP'), /^const REGION_MAP = /);
-const DEST_CURRENCY = evalObj(grab(curSrc, /const DEST_CURRENCY = \{[\s\S]*?\n\};/, 'DEST_CURRENCY'), /^const DEST_CURRENCY = /);
+/* 좌석·보험 구간 목록은 script.js가 destGroupsBy에 넘기는 '구간명 배열'로 정해진다.
+   그 배열을 소스에서 그대로 떼어내 같은 함수에 먹인다 — 여기에 구간명을 다시 적으면
+   그것 자체가 이 리팩터가 없애려는 이중 관리가 된다. 구간명이 script.js에서 빠지면
+   (예: 'evac'를 지우면) 그 권역 목적지들이 편입되지 않고 아래 검사에 잡힌다. */
+const deriveGroups = (re, name) =>
+  new Function('destGroupsBy', 'return ' + grab(scriptSrc, re, name))(DATA.destGroupsBy);
+const BIZ_ZONES = deriveGroups(/destGroupsBy\('zone',\s*\[[^\]]*\]\)/, 'BIZ_ZONES 파생 호출');
+const INS_ZONES = deriveGroups(/destGroupsBy\('ins',\s*\[[^\]]*\]\)/, 'INSURANCE_ZONES 파생 호출');
+/* admin.html·dest_currency.js도 같은 분류표에서 파생한다. 통화는 실제 모듈을 그대로
+   불러 파생 경로(브라우저/Node 분기 포함)가 살아 있는지까지 확인한다. */
+grab(adminSrc, /const REGION_MAP = destFieldMap\('region'\);/, 'REGION_MAP 파생 호출');
+const REGION_MAP = DATA.destFieldMap('region');
+const DEST_CURRENCY = require('../dest_currency');
 
 /* index.html의 목적지 select 옵션 값 */
 const selBlock = grab(idxSrc, /<select id="destination"[\s\S]*?<\/select>/, 'destination select');
@@ -75,19 +86,31 @@ const cmp = (name, listKeys) => {
 
 console.log(`■ 목록 간 커버리지 (정적 요율표 기준 ${KEYS.length}개`
   + (CUSTOM.length ? ` · 커스텀 ${CUSTOM.length}개는 아래 전용 절에서 검사` : '') + ')');
+/* PY 이전에는 네 목록을 따로 대조했다. 이제 넷 다 DEST_CLASSIFY에서 파생되므로
+   "요율표에 있는데 어느 목록에 없다"는 사태는 **분류표에 행이 없다** 하나로 수렴한다.
+   그래서 네 줄을 늘어놓는 대신 분류표 커버리지 한 줄로 본다 — 넷을 그대로 두면
+   같은 원인으로 항상 함께 실패해 '검사 4개'라는 착시만 준다.
+   반대로 index.html select는 여전히 손으로 적는 별도 목록이라 따로 대조한다. */
 cmp('index.html select', SELECT_KEYS);
-cmp('BIZ_ZONES', Object.values(BIZ_ZONES).flat());
-cmp('INSURANCE_ZONES', Object.values(INS_ZONES).flat());
-cmp('REGION_MAP', Object.keys(REGION_MAP));
-cmp('DEST_CURRENCY', Object.keys(DEST_CURRENCY));
+cmp('DEST_CLASSIFY', Object.keys(DATA.DEST_CLASSIFY));
+/* 파생 결과도 실제로 확인한다 — 분류표에 행은 있는데 구간명이 오타면 커버리지는
+   통과하고 파생 목록에서만 빠진다(그 경우 아래 DEST_CLASSIFY_ISSUES에도 잡힌다). */
+cmp('BIZ_ZONES(파생)', Object.values(BIZ_ZONES).flat());
+cmp('INSURANCE_ZONES(파생)', Object.values(INS_ZONES).flat());
+cmp('REGION_MAP(파생)', Object.keys(REGION_MAP));
+cmp('DEST_CURRENCY(파생)', Object.keys(DEST_CURRENCY));
 
-/* 중복 등록 — 한 목적지가 두 구간에 들어가면 먼저 걸리는 쪽이 조용히 이긴다 */
-console.log('\n■ 구간 목록 내부 중복');
-for (const [name, obj] of [['BIZ_ZONES', BIZ_ZONES], ['INSURANCE_ZONES', INS_ZONES]]) {
-  const all = Object.values(obj).flat();
-  const dup = all.filter((k, i) => all.indexOf(k) !== i);
-  console.log(`  ${name.padEnd(22)} ${dup.length ? '중복 ' + dup.join(', ') : '없음'}`);
-  if (dup.length) err(name, `구간 간 중복 등록(먼저 매칭되는 구간이 조용히 이김): ${[...new Set(dup)].join(', ')}`);
+/* 분류표 파생 중 버려진 값 — 구간명 오타, 빈 값, 존재하지 않는 시즌 프로파일.
+   ⚠ 여기가 비어 있지 않다는 건 '어떤 목적지가 조용히 폴백 중'이라는 뜻이다.
+   중복 등록 검사는 없앴다 — 목적지 하나가 축마다 값을 하나씩만 가지므로 두 구간에
+   동시에 들어가는 것 자체가 불가능해졌고, 절대 실패할 수 없는 검사는 '통과'라는
+   말로 사람을 안심시키기만 한다(이 저장소가 여러 번 당한 유형). */
+console.log('\n■ 분류표 파생 이상 (DEST_CLASSIFY_ISSUES)');
+if (DATA.DEST_CLASSIFY_ISSUES.length) {
+  DATA.DEST_CLASSIFY_ISSUES.forEach(m => err('분류표', m));
+  console.log(`  ${DATA.DEST_CLASSIFY_ISSUES.length}건`);
+} else {
+  console.log('  없음');
 }
 
 /* 지리 분류가 서로 모순되는지 — REGION_MAP(관리자 그룹) vs 보험/좌석 권역.

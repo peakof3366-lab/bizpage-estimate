@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const { htmlWithDeps } = require('./_jsdom_deps');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -49,10 +50,10 @@ ok('막지 않고 알린다 (confirm으로 사람이 판단)', /if \(!confirm\(m
 function buildHtml() {
   /* ⚠ admin.html은 data.js를 <script src>로 불러온다. jsdom은 로컬 파일을 가져오지 않으므로
      그대로 두면 destinationRates가 없는 채로 돌아 "요율표가 빈 상태"를 검사하게 된다
-     (처음 이 테스트를 그렇게 짜서 통과하는 것처럼 보였다). 소스를 인라인으로 바꿔 넣는다. */
-  let html = read('admin.html')
-    .replace('<script src="data.js"></script>', '<script>' + read('data.js') + '</script>')
-    .replace('<script src="dest_currency.js"></script>', '<script>' + read('dest_currency.js') + '</script>');
+     (처음 이 테스트를 그렇게 짜서 통과하는 것처럼 보였다). 소스를 인라인으로 바꿔 넣는다.
+     PY: 같은 치환을 테스트마다 적던 것을 _jsdom_deps.js 한 곳으로 모았다 — 실제로
+     p12·p2b·pJ 세 파일은 이 치환이 빠진 채였고 admin.html이 절반만 돌고 있었다. */
+  let html = htmlWithDeps('admin.html');
 
   const EXPOSE = '\n;try{window.__setUser=u=>{currentUser=u};'
     + 'window.__conflict=rateRevertConflict;'

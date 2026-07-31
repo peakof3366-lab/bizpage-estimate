@@ -24,12 +24,14 @@ new Function('g', read('data.js') + '\n;g.DR=destinationRates;g.META=RATE_META;'
 const { loadRatesForAudit } = require('./live_rates');
 const DR = loadRatesForAudit(sandbox.DR).rates;
 
-const regionSrc = read('admin.html').match(/const REGION_MAP = \{[\s\S]*?\n  \};/)[0];
-const REGION_MAP = new Function('return ' + regionSrc.replace(/^const REGION_MAP = /, '').replace(/;$/, ''))();
-
-const zonesSrc = read('script.js').match(/const BIZ_ZONES = \{[\s\S]*?\n\};/)[0];
-const BIZ_ZONES = new Function('return ' + zonesSrc.replace(/^const BIZ_ZONES = /, '').replace(/;$/, ''))();
-const zoneOf = k => BIZ_ZONES.long.includes(k) ? 'long' : BIZ_ZONES.mid.includes(k) ? 'mid' : 'short';
+/* PY: 지역·좌석 구간은 data.js의 DEST_CLASSIFY에서 파생한다(예전엔 admin.html·script.js의
+   리터럴을 정규식으로 긁었다 — 그 리터럴들이 이제 없다). 커스텀 목적지는 분류표에 없고
+   DB 행이 값을 들고 오므로, 라이브 병합값의 __zone·region을 먼저 쓰고 없으면 분류표를 본다. */
+const DATA_MOD = require('../data');
+const REGION_MAP = DATA_MOD.destFieldMap('region');
+const zoneOf = k => (DATA_MOD.DEST_CLASSIFY[k] || {}).zone
+  || (DR.find(d => d.destination_key === k) || {}).__zone
+  || 'short';
 
 const FIELDS = ['airfare','fuel_surcharge','hotel_per_room','meal_per_person',
                 'vehicle_large','vehicle_small','guide_fee','sightseeing_fee','margin_per_traveler'];

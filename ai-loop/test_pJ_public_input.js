@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const { htmlWithDeps } = require('./_jsdom_deps');
 const { safeId, payloadTooLarge, toNumberOrNull, trimText, SAFE_ID_RE, MAX_PAYLOAD_BYTES } =
   require(path.join(ROOT, 'api', '_lib', 'public_input.js'));
 
@@ -100,7 +101,7 @@ ok('data-day 속성에도 날 day.day를 넣지 않는다', !/data-day="\$\{day\
 
 console.log('\n[7] 화면 — 실제 렌더로 인라인 핸들러 탈출 확인 (jsdom)');
 (async () => {
-  const dom = new JSDOM(read('admin.html'), {
+  const dom = new JSDOM(htmlWithDeps('admin.html'), {
     runScripts: 'dangerously', url: 'http://localhost/admin.html',
     beforeParse(window) {
       window.fetch = () => new Promise(() => {});

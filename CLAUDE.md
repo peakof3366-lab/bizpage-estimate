@@ -40,12 +40,22 @@ node ai-loop/audit_rates.js         # 요율 '값' 점검 — ⚠ 결과는 '확
 이 저장소에서 나온 결함은 거의 전부 아래 넷 중 하나다. 새 코드를 쓸 때마다 확인한다.
 
 1. **목록이 여러 곳에 흩어져 하나를 빠뜨린다.**
-   목적지·계수를 추가하면 반영해야 할 곳이 여러 군데다(요율표·select·BIZ_ZONES·
-   INSURANCE_ZONES·DEST_SEASON_PROFILES·REGION_MAP·DEST_CURRENCY·시즌 프로파일).
    실제로 6번 터졌다(동유럽 통화·지역, PF 스냅샷/패널, PG 견적서 표시, PP 보험권역, PQ 시즌).
-   → **목록을 두 번 적지 말 것.** `data.js`를 진실로 두고 서버 검증·관리자 폼이 거기서
-   파생되게 한다(PQ의 `DEST_SEASON_PROFILES` 방식). 불가피하게 나뉘면 테스트로 대조한다.
-   계수를 새로 추가하면 **엔진 + P6 스냅샷 + admin.html `coefContribHtml` 세 곳**을 함께 늘린다.
+   → **목록을 두 번 적지 말 것.** `data.js`를 진실로 두고 서버 검증·관리자 폼·엔진이
+   거기서 파생되게 한다. 불가피하게 나뉘면 테스트로 대조한다.
+
+   **목적지 분류는 PY에서 구조적으로 정리됐다** — 좌석 구간·보험 권역·관리자 지역·
+   정산 통화·시즌 달력·반구를 `data.js`의 **`DEST_CLASSIFY` 한 표**에 모았고
+   `BIZ_ZONES`·`INSURANCE_ZONES`·`REGION_MAP`·`DEST_CURRENCY`·시즌 프로파일 `keys`·
+   `SOUTHERN_HEMISPHERE_DESTS`가 전부 여기서 파생된다(`destGroupsBy`/`destFieldMap`/
+   `destKeysWhere`). **목적지를 추가할 때 손댈 곳은 `destinationRates` 행 + `DEST_CLASSIFY`
+   한 줄 + `index.html`의 select 세 곳뿐**이다. 분류표에 값이 비거나 모르는 구간명이면
+   `DEST_CLASSIFY_ISSUES`에 기록되고 `audit_consistency.js`가 오류로 잡는다.
+   `ai-loop/test_pY_single_source.js`가 55개 목적지의 6축 분류를 스냅샷으로 고정한다.
+
+   아직 남은 이중 관리 두 가지는 의식할 것:
+   - `index.html`의 `<select id="destination">` — optgroup·표기가 화면 구성이라 미파생.
+   - 계수를 새로 추가하면 **엔진 + P6 스냅샷 + admin.html `coefContribHtml` 세 곳**을 함께 늘린다.
 
 2. **폴백이 조용하다.**
    못 찾으면 중립값으로 떨어지고 콘솔 경고만 남는 코드가 반복해서 틀린 금액을 냈다.

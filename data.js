@@ -63,12 +63,144 @@ const SEASON_CONFIG = [
   { id: 'normal',  months: [],            factor: 1.00, label: '평시',   badge: '평시' },
 ];
 
+/* =====================================================================
+   DEST_CLASSIFY — 목적지 분류의 단일 진실 (PY)
+   ─────────────────────────────────────────────────────────────────────
+   목적지 하나가 어느 좌석 구간·보험 권역·관리자 지역·정산 통화·시즌 달력·반구에
+   속하는지를 **여기 한 줄**에 적는다. 아래 목록들은 전부 이 표에서 파생된다:
+     script.js  BIZ_ZONES                 ← zone
+     script.js  INSURANCE_ZONES           ← ins
+     admin.html REGION_MAP                ← region
+     dest_currency.js DEST_CURRENCY       ← currency
+     data.js    DEST_SEASON_PROFILES[].keys ← season
+     data.js    SOUTHERN_HEMISPHERE_DESTS ← hemi:'S'
+
+   ⚠ 이 표가 생긴 이유 — 예전엔 같은 목적지 목록이 파일 넷에 따로 적혀 있었고,
+   목적지를 추가하며 한 곳을 빠뜨리는 사고가 **여섯 번** 났다(동유럽 통화·지역,
+   PF 스냅샷/패널, PG 견적서 표시, PP 보험권역, PQ 시즌). 빠뜨린 쪽은 예외를
+   던지지 않고 **중립값이나 다른 계절로 조용히 폴백**해 틀린 금액이 그대로 나갔다.
+   이제 목적지를 추가할 때 채울 곳은 destinationRates 행과 이 표 한 줄뿐이다.
+   (한 곳이라도 값을 빠뜨리면 아래 파생 함수가 DEST_CLASSIFY_ISSUES에 기록하고
+   audit_consistency.js가 오류로 잡는다 — 조용히 넘어가지 않는다.)
+
+   ⚠ 관리자가 화면에서 추가하는 커스텀 목적지는 여기 없고 DB(custom_destinations)의
+   같은 이름 컬럼들이 이 역할을 한다. script.js가 런타임에 파생 목록으로 편입한다.
+   ===================================================================== */
+const DEST_CLASSIFY = {
+  '도쿄':     { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
+  '오사카':    { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
+  '후쿠오카':   { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
+  '나고야':    { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
+  '삿포로':    { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
+  '오키나와':   { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
+  '홍콩':     { zone:'short', ins:'asiaShort', region:'홍콩·마카오',    currency:'HKD', season:'hkmo'          },
+  '마카오':    { zone:'short', ins:'asiaShort', region:'홍콩·마카오',    currency:'MOP', season:'hkmo'          },
+  '상해':     { zone:'short', ins:'asiaShort', region:'중국',        currency:'CNY', season:'china'         },
+  '장가계':    { zone:'short', ins:'asiaShort', region:'중국',        currency:'CNY', season:'china'         },
+  '청도':     { zone:'short', ins:'asiaShort', region:'중국',        currency:'CNY', season:'china'         },
+  '연태':     { zone:'short', ins:'asiaShort', region:'중국',        currency:'CNY', season:'china'         },
+  '몽골':     { zone:'short', ins:'evac'     , region:'몽골·대만',     currency:'MNT', season:'mongolia'      },
+  '대만':     { zone:'short', ins:'asiaShort', region:'몽골·대만',     currency:'TWD', season:'taiwan'        },
+  '가오슝':    { zone:'short', ins:'asiaShort', region:'몽골·대만',     currency:'TWD', season:'taiwan'        },
+  '라오스':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'LAK', season:'seasia'        },
+  '싱가포르':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'SGD', season:'seasia'        },
+  '하노이':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'VND', season:'seasia'        },
+  '호치민':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'VND', season:'seasia'        },
+  '다낭':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'VND', season:'seasia'        },
+  '나트랑':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'VND', season:'seasia'        },
+  '푸꾸옥':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'VND', season:'seasia'        },
+  '세부':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'PHP', season:'seasia'        },
+  '마닐라':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'PHP', season:'seasia'        },
+  '보홀':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'PHP', season:'seasia'        },
+  '코타키나발루': { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'MYR', season:'seasia'        },
+  '캄보디아':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'KHR', season:'seasia'        },
+  '방콕':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'THB', season:'seasia'        },
+  '푸켓':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'THB', season:'seasia'        },
+  '치앙마이':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'THB', season:'seasia'        },
+  '발리':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'IDR', season:'seasia'        },
+  '괌':      { zone:'mid'  , ins:'highCost' , region:'오세아니아·태평양', currency:'USD', season:'guamSaipan'    },
+  '사이판':    { zone:'mid'  , ins:'highCost' , region:'오세아니아·태평양', currency:'USD', season:'guamSaipan'    },
+  '시드니':    { zone:'mid'  , ins:'oceania'  , region:'오세아니아·태평양', currency:'AUD', season:'southern',     hemi:'S' },
+  '멜버른':    { zone:'mid'  , ins:'oceania'  , region:'오세아니아·태평양', currency:'AUD', season:'southern',     hemi:'S' },
+  '오클랜드':   { zone:'mid'  , ins:'oceania'  , region:'오세아니아·태평양', currency:'NZD', season:'southern',     hemi:'S' },
+  '서유럽':    { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
+  '로마':     { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
+  '파리':     { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
+  '영국':     { zone:'long' , ins:'highCost' , region:'유럽',        currency:'GBP', season:'europe'        },
+  '스페인':    { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
+  '독일':     { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
+  '네덜란드':   { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
+  '북유럽':    { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
+  '로스앤젤레스': { zone:'long' , ins:'highCost' , region:'북미',        currency:'USD', season:'northAmerica'  },
+  '샌프란시스코': { zone:'long' , ins:'highCost' , region:'북미',        currency:'USD', season:'northAmerica'  },
+  '워싱턴':    { zone:'long' , ins:'highCost' , region:'북미',        currency:'USD', season:'northAmerica'  },
+  '뉴욕':     { zone:'long' , ins:'highCost' , region:'북미',        currency:'USD', season:'northAmerica'  },
+  '하와이':    { zone:'long' , ins:'highCost' , region:'북미',        currency:'USD', season:'northAmerica'  },
+  '밴쿠버':    { zone:'long' , ins:'highCost' , region:'북미',        currency:'CAD', season:'northAmerica'  },
+  '토론토':    { zone:'long' , ins:'highCost' , region:'북미',        currency:'CAD', season:'northAmerica'  },
+  '호주':     { zone:'long' , ins:'oceania'  , region:'오세아니아·태평양', currency:'AUD', season:'southern',     hemi:'S' },
+  '카자흐스탄':  { zone:'mid'  , ins:'evac'     , region:'중앙아시아',     currency:'KZT', season:'centralAsia'   },
+  '우즈베키스탄': { zone:'mid'  , ins:'evac'     , region:'중앙아시아',     currency:'UZS', season:'centralAsia'   },
+  /* '동유럽' region은 2026-07-28까지 '중앙아시아'였다. 요율은 명백히 유럽 티어인데
+     (항공 120만·대형차량 110만 — 로마와 같은 수준, 카자흐스탄 80만과는 딴판) 그룹만
+     중앙아시아라 지역별 일괄조정에서 유럽에는 빠지고 중앙아시아에 잘못 딸려갔다.
+     zone(long)·ins(highCost)는 원래부터 유럽 취급이라 region만 어긋나 있던 것 —
+     축이 파일마다 흩어져 있으면 한 축만 낡는다는 증거라 이 표를 만든 이유이기도 하다.
+     currency는 EUR 근사(실제는 PLN/CZK/HUF지만 EUR과 함께 움직인다. 2026-07-28까지는
+     아예 비어 있어 '동유럽만 환율 보정을 못 받는' 가격 불일치였다). */
+  '동유럽':    { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
+};
+
+/* 파생 실패 기록 — 분류표에 값이 비었거나 아무도 모르는 구간명이면 여기 쌓인다.
+   ⚠ 조용히 버리지 않는 것이 요점이다. 값이 빠진 목적지는 어차피 엔진에서 중립값으로
+   폴백되는데(그게 여섯 번 사고의 정체다), 그 사실이 어디에도 안 남으면 아무도 모른다.
+   audit_consistency.js가 이 배열이 비어 있는지 검사하고, 비어 있지 않으면 오류다. */
+const DEST_CLASSIFY_ISSUES = [];
+function noteClassifyIssue(msg) {
+  DEST_CLASSIFY_ISSUES.push(msg);
+  if (typeof console !== 'undefined' && console.warn) console.warn('[분류표] ' + msg);
+}
+
+/* 분류표 → { 구간명: [목적지…] } 형태의 목록.
+   groupIds에 없는 구간명은 **그룹을 새로 만들지 않는다** — INSURANCE_ZONES에 모르는
+   구간이 생기면 getInsuranceZone이 그걸 찾아버리고 INSURANCE_ZONE_FACTORS엔 없어
+   보험료가 NaN이 된다(폴백보다 나쁘다). 대신 편입하지 않고 기록만 남겨,
+   기존의 '미등록 → 중립값 폴백 + 콘솔 경고' 동작을 그대로 유지한다. */
+function destGroupsBy(field, groupIds) {
+  const out = {};
+  groupIds.forEach((g) => { out[g] = []; });
+  Object.keys(DEST_CLASSIFY).forEach((k) => {
+    const g = DEST_CLASSIFY[k][field];
+    if (out[g]) out[g].push(k);
+    else noteClassifyIssue(`${k}: ${field}가 '${g}'인데 알려진 구간(${groupIds.join('/')})이 아니라 편입되지 않음`);
+  });
+  return out;
+}
+
+/* 분류표 → { 목적지: 값 } 형태의 맵 (지역·통화처럼 구간이 열려 있는 축) */
+function destFieldMap(field) {
+  const out = {};
+  Object.keys(DEST_CLASSIFY).forEach((k) => {
+    const v = DEST_CLASSIFY[k][field];
+    if (v === undefined || v === null || v === '') noteClassifyIssue(`${k}: ${field} 값이 비어 있음`);
+    else out[k] = v;
+  });
+  return out;
+}
+
+/* 분류표 → 특정 값을 가진 목적지 키 목록 */
+function destKeysWhere(field, value) {
+  return Object.keys(DEST_CLASSIFY).filter((k) => DEST_CLASSIFY[k][field] === value);
+}
+
 /* 남반구 폴백 시즌표 — 계절이 북반구와 정반대(12~2월 현지 여름/성수기, 6~8월 현지 겨울/비수기).
    ※ 알려진 남반구 4곳(시드니·멜버른·호주·오클랜드)은 아래 DEST_SEASON_PROFILES에 전용 프로파일이
    생겨(P8) 그쪽이 우선 적용되므로, 이 표는 '프로파일이 아직 없는 향후 남반구 목적지'(예: 브리즈번·
    퀸스타운 등 신규 추가 시)의 안전 폴백 용도로 남겨둔다. SOUTHERN_HEMISPHERE_DESTS에만 있고
-   프로파일이 없는 목적지가 이 표를 쓴다. */
-const SOUTHERN_HEMISPHERE_DESTS = ['시드니', '멜버른', '호주', '오클랜드'];
+   프로파일이 없는 목적지가 이 표를 쓴다.
+   PY: 목록을 따로 적지 않고 DEST_CLASSIFY의 hemi:'S'에서 파생한다(내용은 종전과 동일한 4곳).
+   ⚠ 런타임에 커스텀 목적지가 push되므로 반드시 배열이어야 한다(script.js applyRateOverrides). */
+const SOUTHERN_HEMISPHERE_DESTS = destKeysWhere('hemi', 'S');
 const SEASON_CONFIG_SOUTHERN = [
   { id: 'peak',    months: [12, 1, 2], factor: 1.20, label: '성수기', badge: '성수기 +20%' },
   { id: 'offpeak', months: [6, 7, 8],  factor: 0.88, label: '비수기', badge: '비수기 −12%' },
@@ -107,8 +239,6 @@ const DEST_SEASON_PROFILES = [
   {
     /* 동남아 — 건기(11~3월) 성수기 / 우기(5~9월) 비수기. 공용표(여름 성수기)와 정반대 */
     id: 'seasia', name: '동남아 (건기 11~3월 성수기 / 우기 5~9월 비수기)',
-    keys: ['라오스','싱가포르','하노이','호치민','다낭','나트랑','푸꾸옥','세부',
-           '마닐라','보홀','코타키나발루','캄보디아','방콕','푸켓','치앙마이','발리'],
     config: [
       { id:'peak',    months:[11,12,1,2,3], factor:1.15, label:'건기 성수기', badge:'건기 성수기 +15%' },
       { id:'offpeak', months:[5,6,7,8,9],   factor:0.88, label:'우기 비수기', badge:'우기 비수기 −12%' },
@@ -118,7 +248,6 @@ const DEST_SEASON_PROFILES = [
   {
     /* 유럽 — 여름(6~9월) 성수기 / 겨울(11~2월) 비수기. 동유럽도 시즌상 여기 포함 */
     id: 'europe', name: '유럽 (여름 6~9월 성수기 / 겨울 11~2월 비수기)',
-    keys: ['서유럽','로마','파리','영국','스페인','독일','네덜란드','북유럽','동유럽'],
     config: [
       { id:'peak',    months:[6,7,8,9],   factor:1.20, label:'여름 성수기', badge:'여름 성수기 +20%' },
       { id:'offpeak', months:[11,12,1,2], factor:0.88, label:'겨울 비수기', badge:'겨울 비수기 −12%' },
@@ -129,7 +258,6 @@ const DEST_SEASON_PROFILES = [
     /* 일본 — 벚꽃(3~4월)·여름(7~8월)·단풍(10~11월) 성수기 / 겨울초(1월)·장마(6월) 비수기.
        골든위크·벚꽃 피크는 PEAK_CALENDAR가 날짜로 별도 가산. 삿포로(겨울)·오키나와(여름)는 예외. */
     id: 'japan', name: '일본 (벚꽃 3~4월·여름 7~8월·단풍 10~11월 성수기)',
-    keys: ['도쿄','오사카','후쿠오카','나고야','삿포로','오키나와'],
     config: [
       { id:'peak',    months:[3,4,7,8,10,11], factor:1.15, label:'벚꽃·단풍·여름 성수기', badge:'성수기 +15%' },
       { id:'offpeak', months:[1,6],           factor:0.90, label:'비수기',              badge:'비수기 −10%' },
@@ -139,7 +267,6 @@ const DEST_SEASON_PROFILES = [
   {
     /* 홍콩·마카오 — 가을~초겨울(10~12월, 온화·쇼핑) 성수기 / 한여름(6~8월, 무덥고 태풍) 비수기 */
     id: 'hkmo', name: '홍콩·마카오 (가을·연말 10~12월 성수기 / 한여름 비수기)',
-    keys: ['홍콩','마카오'],
     config: [
       { id:'peak',    months:[10,11,12], factor:1.12, label:'가을·연말 성수기', badge:'성수기 +12%' },
       { id:'offpeak', months:[6,7,8],    factor:0.90, label:'한여름 비수기',   badge:'비수기 −10%' },
@@ -149,7 +276,6 @@ const DEST_SEASON_PROFILES = [
   {
     /* 중국(본토) — 여름(7~8월)·가을(10월 국경절) 성수기 / 한겨울(1~2월) 비수기. 춘절은 PEAK_CALENDAR가 가산 */
     id: 'china', name: '중국 본토 (여름·국경절 성수기 / 한겨울 비수기)',
-    keys: ['상해','장가계','청도','연태'],
     config: [
       { id:'peak',    months:[7,8,10], factor:1.12, label:'여름·국경절 성수기', badge:'성수기 +12%' },
       { id:'offpeak', months:[1,2],    factor:0.90, label:'한겨울 비수기',     badge:'비수기 −10%' },
@@ -159,7 +285,6 @@ const DEST_SEASON_PROFILES = [
   {
     /* 몽골 — 여름(6~8월, 초원관광 극성수기) / 혹한기(11~3월) 강비수기 */
     id: 'mongolia', name: '몽골 (여름 6~8월 극성수기 / 혹한기 11~3월 강비수기)',
-    keys: ['몽골'],
     config: [
       { id:'peak',    months:[6,7,8],       factor:1.25, label:'여름 극성수기', badge:'여름 성수기 +25%' },
       { id:'offpeak', months:[11,12,1,2,3], factor:0.82, label:'혹한기 비수기', badge:'비수기 −18%' },
@@ -169,7 +294,6 @@ const DEST_SEASON_PROFILES = [
   {
     /* 대만 — 가을·겨울(10~12월, 온화) 성수기 / 한여름(7~8월, 무덥고 태풍) 비수기. 춘절은 PEAK_CALENDAR가 가산 */
     id: 'taiwan', name: '대만 (가을·겨울 10~12월 성수기 / 한여름 비수기)',
-    keys: ['대만','가오슝'],
     config: [
       { id:'peak',    months:[10,11,12], factor:1.12, label:'가을·겨울 성수기', badge:'성수기 +12%' },
       { id:'offpeak', months:[7,8],      factor:0.90, label:'한여름 비수기',   badge:'비수기 −10%' },
@@ -179,7 +303,6 @@ const DEST_SEASON_PROFILES = [
   {
     /* 괌·사이판 — 건기·방학철(12~3,7~8월) 성수기 / 우기·태풍철(9~10월) 비수기 */
     id: 'guamSaipan', name: '괌·사이판 (건기·방학 12~3·7~8월 성수기 / 태풍철 비수기)',
-    keys: ['괌','사이판'],
     config: [
       { id:'peak',    months:[12,1,2,3,7,8], factor:1.15, label:'건기·방학 성수기', badge:'성수기 +15%' },
       { id:'offpeak', months:[9,10],         factor:0.90, label:'우기 비수기',     badge:'비수기 −10%' },
@@ -189,7 +312,6 @@ const DEST_SEASON_PROFILES = [
   {
     /* 북미 — 여름(6~8월)·연말(12월) 성수기 / 늦겨울(2~3월) 비수기. 하와이는 겨울도 강성수기라 예외 */
     id: 'northAmerica', name: '북미 (여름 6~8월·연말 성수기 / 늦겨울 비수기)',
-    keys: ['로스앤젤레스','샌프란시스코','워싱턴','뉴욕','하와이','밴쿠버','토론토'],
     config: [
       { id:'peak',    months:[6,7,8,12], factor:1.15, label:'여름·연말 성수기', badge:'성수기 +15%' },
       { id:'offpeak', months:[2,3],      factor:0.92, label:'늦겨울 비수기',   badge:'비수기 −8%' },
@@ -199,7 +321,6 @@ const DEST_SEASON_PROFILES = [
   {
     /* 중앙아시아(카자흐스탄·우즈베키스탄) — 봄가을(4~6,9~10월) 쾌적 성수기 / 혹서(7~8월)·혹한(12~2월) 비수기 */
     id: 'centralAsia', name: '중앙아시아 (봄·가을 성수기 / 혹서·혹한 비수기)',
-    keys: ['카자흐스탄','우즈베키스탄'],
     config: [
       { id:'peak',    months:[4,5,6,9,10], factor:1.12, label:'봄·가을 성수기',   badge:'성수기 +12%' },
       { id:'offpeak', months:[7,8,12,1,2], factor:0.90, label:'혹서·혹한 비수기', badge:'비수기 −10%' },
@@ -214,7 +335,6 @@ const DEST_SEASON_PROFILES = [
        멜버른(서늘)의 기후차는 월 단위 원가에 큰 영향이 없고, 호주·뉴질랜드 시즌 패턴도 사실상
        동일해 한 config로 통합. (성수기/비수기 월·계수는 도메인 초안, 실측으로 조정 예정.) */
     id: 'southern', name: '남반구 호주·뉴질랜드 (현지 여름 12~2월 성수기)',
-    keys: ['시드니','멜버른','호주','오클랜드'],
     config: [
       { id:'peak',    months:[12,1,2], factor:1.20, label:'현지 여름·연말 성수기', badge:'성수기 +20%' },
       { id:'offpeak', months:[6,7,8],  factor:0.90, label:'현지 겨울 비수기',     badge:'비수기 −10%' },
@@ -222,6 +342,27 @@ const DEST_SEASON_PROFILES = [
     ],
   },
 ];
+
+/* PY: 각 프로파일이 어느 목적지를 담당하는지(keys)를 DEST_CLASSIFY의 season에서 파생한다.
+   예전엔 프로파일마다 목적지 목록을 직접 적었는데, 그러면 목적지 하나를 추가할 때
+   요율표·좌석·보험·지역·통화에 더해 여기까지 여섯 곳을 손대야 했고 실제로 PQ에서
+   빠뜨린 적이 있다. getSeasonInfo(script.js)는 종전대로 keys로 매칭하므로 동작 불변.
+   ⚠ 배열을 새로 만들어 넣는다 — 커스텀 목적지는 런타임에 여기 push된다(PQ). */
+DEST_SEASON_PROFILES.forEach((p) => { p.keys = destKeysWhere('season', p.id); });
+
+/* 어느 프로파일에도 안 들어간 목적지 = season 값이 오타이거나 없는 프로파일을 가리킨 것.
+   destKeysWhere는 그냥 걸러내기만 하므로 여기서 따로 확인하지 않으면 조용히 공용표로
+   폴백한다 — 그 폴백은 '중립'이 아니라 **다른 계절**이라 최대 36% 어긋나고 부호까지
+   반대다(PQ에서 실제로 겪은 유형). 그래서 기록을 남긴다. */
+(function checkSeasonCoverage() {
+  const covered = new Set();
+  DEST_SEASON_PROFILES.forEach((p) => p.keys.forEach((k) => covered.add(k)));
+  Object.keys(DEST_CLASSIFY).forEach((k) => {
+    if (!covered.has(k)) {
+      noteClassifyIssue(`${k}: season '${DEST_CLASSIFY[k].season}'에 해당하는 시즌 프로파일이 없어 공용표로 폴백됨`);
+    }
+  });
+})();
 
 /* 호텔 등급별 단가 계수 (4성급 = 기준 1.0) */
 const HOTEL_GRADES = {
@@ -254,18 +395,18 @@ const RATE_META = {
    notes    : 운영 참고사항 (변동성·확인 주의사항 등)
               → 특이사항 없으면 빈 문자열로 유지
 
-   ⚠ 이중 관리 주의: 여기 destination_key 목록은 아래 네 곳과 반드시 1:1로
-   일치해야 합니다. 목적지를 추가/삭제할 때는 전부 함께 수정하세요.
-     ① index.html의 <select id="destination"> 옵션 목록
-     ② script.js의 BIZ_ZONES        — 좌석 등급(비즈니스) 배율 구간
-     ③ script.js의 INSURANCE_ZONES  — 여행자보험 권역 (PB에서 신설. BIZ_ZONES와
-        기준이 달라 별도 목록이며, 둘 다 갱신해야 합니다)
+   ⚠ 목적지를 추가/삭제할 때 함께 고칠 곳 (PY 이후로 두 곳이다):
+     ① 위 DEST_CLASSIFY에 한 줄 — 좌석 구간·보험 권역·지역·통화·시즌·반구.
+        BIZ_ZONES·INSURANCE_ZONES·REGION_MAP·DEST_CURRENCY·시즌 프로파일 keys는
+        전부 여기서 파생되므로 따로 손댈 필요가 없다.
+     ② index.html의 <select id="destination"> 옵션 목록 — 여기만 아직 별도다
+        (optgroup·표기가 화면 구성이라 자동 생성 대상이 아니다).
    한 곳만 바꾸면 getDestinationByKey()가 조용히 undefined를 반환하거나,
    getBizFactor()가 잘못된 요율 구간(short)으로, getInsuranceZone()이 중립값
    (1.00)으로 조용히 폴백되어 견적 금액이 틀어집니다. 후자 둘은 콘솔 경고를
    남기지만 금액 자체는 그대로 나가니 주의하세요.
-   커버리지는 `node ai-loop/test_pB_insurance.js`가 전수 검사합니다
-   (2026-07-28 확인 결과 55개 전부 정확히 일치함).
+   커버리지는 `node ai-loop/test_pB_insurance.js`와 `node ai-loop/audit_consistency.js`가
+   전수 검사합니다 (2026-07-31 확인 결과 55개 전부 정확히 일치함).
    ===================================================================== */
 const destinationRates = [
   /* ── 동북아시아 : 일본 ── */
@@ -347,6 +488,13 @@ if (typeof module !== 'undefined' && module.exports) {
      export 형태를 객체로 바꾸면 그 세 곳을 다 고쳐야 한다.
      서버가 허용 키를 따로 적지 않고 여기를 보므로 목록이 어긋날 수가 없다. */
   module.exports.DEST_SEASON_PROFILES = DEST_SEASON_PROFILES;
+  /* PY: 분류표와 파생 함수. dest_currency.js(Node)가 DEST_CURRENCY를 여기서 만들고,
+     감사 도구·테스트가 파생 결과를 대조하는 데 쓴다. */
+  module.exports.DEST_CLASSIFY = DEST_CLASSIFY;
+  module.exports.DEST_CLASSIFY_ISSUES = DEST_CLASSIFY_ISSUES;
+  module.exports.destGroupsBy = destGroupsBy;
+  module.exports.destFieldMap = destFieldMap;
+  module.exports.destKeysWhere = destKeysWhere;
 }
 
 /* =====================================================================
