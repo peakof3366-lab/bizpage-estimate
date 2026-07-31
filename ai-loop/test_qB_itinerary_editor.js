@@ -118,7 +118,7 @@ const OVERRIDE_TOKYO = [{
       },
     });
     /* const 전역은 window에 붙지 않는다(CLAUDE.md) — 필요한 것만 노출해서 본다 */
-    const EXPOSE = '\n;try{window.ITINERARY_DB=ITINERARY_DB;'
+    const EXPOSE = '\n;try{window.ITINERARY_DB=ITINERARY_DB;window.DEST_REC=DEST_REC;'
       + 'window.itineraryOverridesReady=itineraryOverridesReady;'
       + 'window.getItineraries=getItineraries;window._buildDisplayDays=_buildDisplayDays;}catch(e){}\n';
     const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
@@ -173,7 +173,7 @@ const OVERRIDE_TOKYO = [{
   const adminHtml = (function () {
     const html = htmlWithDeps('admin.html');
     const EXPOSE = '\n;try{window.__iti=itiState;window.__setUser=u=>{currentUser=u};'
-      + 'window.ITINERARY_DB=ITINERARY_DB;}catch(e){}\n';
+      + 'window.ITINERARY_DB=ITINERARY_DB;window.DEST_REC=DEST_REC;}catch(e){}\n';
     let injected = false;
     return html.replace(/(<script(?![^>]*\bsrc=)[^>]*>)([\s\S]*?)(<\/script>)/gi, (m, open, code, close) => {
       if (!injected && /let\s+currentUser/.test(code)) { injected = true; return open + code + EXPOSE + close; }
@@ -291,6 +291,110 @@ const OVERRIDE_TOKYO = [{
   ok('편집 화면이 innerHTML로 값을 그리지 않는다(createElement만 쓴다)',
     !/innerHTML\s*=/.test(itiJs) && /createElement/.test(itiJs));
 
+  /* ── [7] QC: 추천 콘텐츠(DEST_REC)도 같은 화면에서 고쳐지는가 ────────── */
+  console.log('\n[7] 추천 콘텐츠(방식 A/B) 편집 (QC)');
+  ok('data.js가 DEST_REC를 갖고 있다', /^const DEST_REC = \{/m.test(dataSrc));
+  ok('55곳 전부 방식 A·B가 있다(전제)',
+    (dataSrc.match(/^\s+a: \{ tag:/gm) || []).length === 55
+    && (dataSrc.match(/^\s+b: \{ tag:/gm) || []).length === 55);
+
+  ok('rec을 안 보내면 기존 값을 건드리지 않는다', content.normalizeRec(undefined).rec === undefined);
+  ok('방식 A가 빠지면 거부', errOf(content.normalizeRec({ b: { tag: 'x' } })) === 'rec_missing_a');
+  ok('방식 B가 빠지면 거부', errOf(content.normalizeRec({ a: { tag: 'x' } })) === 'rec_missing_b');
+  ok('핵심 포인트 개수 상한 적용',
+    errOf(content.normalizeRec({ a: { points: Array(content.MAX_POINTS + 1).fill('p') }, b: {} })) === 'too_many_points_a');
+  ok('일별 활동 개수 상한 적용',
+    errOf(content.normalizeRec({ a: {}, b: { items: Array(content.MAX_ITEMS + 1).fill('i') } })) === 'too_many_items_b');
+  const nr = content.normalizeRec({
+    a: { tag: ' 역량강화형 ', desc: 'd', points: ['p1', ' ', 'p2'], items: ['i1'], value: 'v' },
+    b: { tag: 'B' },
+  });
+  ok('공백을 정리하고 빈 항목을 버린다',
+    nr.rec.a.tag === '역량강화형' && nr.rec.a.points.length === 2, JSON.stringify(nr.rec && nr.rec.a));
+  ok('빠진 필드는 빈 값으로 채운다',
+    nr.rec.b.desc === '' && Array.isArray(nr.rec.b.items) && nr.rec.b.items.length === 0);
+  ok('저장은 일정과 한 행에 담긴다(반쪽 저장 방지)',
+    /insert into itinerary_overrides \(dest_key, courses, rec/.test(apiSrc));
+  ok('rec을 안 보낸 저장이 기존 추천을 지우지 않는다',
+    /rec = coalesce\(excluded\.rec, itinerary_overrides\.rec\)/.test(apiSrc));
+
+  /* 고객 화면 반영 */
+  const REC_OVERRIDE = {
+    a: { tag: '수정된 방식A', desc: '수정 설명', points: ['수정 포인트'], items: ['수정 활동1', '수정 활동2'], value: '수정 기대효과' },
+    b: { tag: '수정된 방식B', desc: 'b설명', points: ['b포인트'], items: ['b활동'], value: 'b기대효과' },
+  };
+  const w3 = bootPublic((u) => String(u).includes('action=itineraries')
+    ? Promise.resolve({ ok: true, json: () => Promise.resolve({
+        overrides: {}, recOverrides: { '파리': REC_OVERRIDE }, meta: {},
+      }) })
+    : new Promise(() => {}));
+  const defaultParisTag = w3.DEST_REC['파리'].a.tag;
+  await w3.itineraryOverridesReady;
+  ok('저장된 추천 콘텐츠가 DEST_REC를 덮어쓴다',
+    w3.DEST_REC['파리'].a.tag === '수정된 방식A', w3.DEST_REC['파리'].a.tag);
+  ok('수정하지 않은 목적지는 기본값 그대로다', w3.DEST_REC['도쿄'].a.tag === DEST_REC_TOKYO_TAG(w3));
+  ok('일정만 있고 추천이 없어도 상태가 applied다', w3.__ITINERARY_SOURCE__.state === 'applied');
+  ok('어느 목적지의 추천이 반영됐는지 남긴다', w3.__ITINERARY_SOURCE__.appliedRec.join(',') === '파리');
+
+  /* 남는 날 채움에 수정된 '일별 활동'이 실제로 쓰이는가 —
+     이 값이 어디에 쓰이는지가 화면 라벨의 주장이므로 실제로 확인한다. */
+  const parisCourse = w3.ITINERARY_DB['파리'][0];
+  const longDays = w3._buildDisplayDays(parisCourse, '파리', 'a', parisCourse.days.length + 3);
+  ok('연수 일수가 길 때 남는 날을 수정된 활동으로 채운다',
+    longDays.some(d => d.title === '수정 활동1' || d.title === '수정 활동2'),
+    longDays.map(d => d.title).join(' | '));
+
+  /* a/b 한쪽만 온 값은 넣지 않는다 */
+  const w4 = bootPublic((u) => String(u).includes('action=itineraries')
+    ? Promise.resolve({ ok: true, json: () => Promise.resolve({
+        overrides: {}, recOverrides: { '파리': { a: REC_OVERRIDE.a } }, meta: {},
+      }) })
+    : new Promise(() => {}));
+  await w4.itineraryOverridesReady;
+  ok('반쪽짜리 추천은 적용하지 않는다', w4.DEST_REC['파리'].a.tag === defaultParisTag, w4.DEST_REC['파리'].a.tag);
+  ok('건너뛴 사실을 기록으로 남긴다',
+    (w4.__ITINERARY_SOURCE__.skippedRec || []).join(',') === '파리');
+
+  /* 관리자 화면 */
+  const adoc2 = adoc;
+  aw.__iti.recOverrides = {};
+  sel.value = '도쿄';
+  sel.dispatchEvent(new aw.Event('change', { bubbles: true }));
+  const inputsNow = () => Array.from(body.querySelectorAll('input,textarea'));
+  ok('추천 콘텐츠 칸이 화면에 있다',
+    Array.from(body.querySelectorAll('.iti-course-no')).some(e => e.textContent === '방식 A')
+    && Array.from(body.querySelectorAll('.iti-course-no')).some(e => e.textContent === '방식 B'));
+  ok('기본 추천 콘텐츠가 폼에 올라온다',
+    inputsNow().some(el => el.value === aw.DEST_REC['도쿄'].a.tag), aw.DEST_REC['도쿄'].a.tag);
+  ok('일별 활동이 한 줄에 하나씩 올라온다',
+    inputsNow().some(el => el.value === aw.DEST_REC['도쿄'].a.items.join('\n')));
+  ok('그 값이 어디에 쓰이는지 화면에 적혀 있다',
+    Array.from(body.querySelectorAll('.iti-lbl')).some(e => /견적서/.test(e.textContent))
+    && Array.from(body.querySelectorAll('.iti-lbl')).some(e => /남는 날/.test(e.textContent)));
+
+  const tagInput = inputsNow().find(el => el.value === aw.DEST_REC['도쿄'].a.tag);
+  tagInput.value = '새 방식 이름';
+  tagInput.dispatchEvent(new aw.Event('input', { bubbles: true }));
+  putBody = null;
+  await aw.itiSave();
+  ok('추천 콘텐츠가 일정과 함께 한 번에 저장된다',
+    !!putBody && !!putBody.rec && !!putBody.courses, JSON.stringify(putBody && Object.keys(putBody)));
+  ok('고친 방식 이름이 실린다', putBody.rec.a.tag === '새 방식 이름');
+  ok('건드리지 않은 방식 B도 함께 실린다(반쪽 저장 방지)', !!putBody.rec.b && !!putBody.rec.b.tag);
+
+  ok('편집 화면은 여전히 innerHTML을 쓰지 않는다',
+    !/innerHTML\s*=/.test(adminSrc.slice(adminSrc.indexOf('const itiState = {'),
+                                         adminSrc.indexOf('async function renderContent'))));
+
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   process.exit(fail ? 1 : 0);
 })();
+
+/* 오버라이드가 적용되기 전 기본값을 알아야 "안 건드렸다"를 확인할 수 있다.
+   w3는 이미 적용된 뒤이므로 data.js에서 직접 읽는다. */
+function DEST_REC_TOKYO_TAG() {
+  const src = read('data.js');
+  const at = src.indexOf("  '도쿄': {", src.indexOf('const DEST_REC = {'));
+  const m = src.slice(at, at + 400).match(/a: \{ tag:'([^']+)'/);
+  return m ? m[1] : '';
+}

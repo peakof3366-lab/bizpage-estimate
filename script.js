@@ -179,8 +179,22 @@ const itineraryOverridesReady = (function applyItineraryOverrides() {
         if (!Array.isArray(courses) || !courses.length) { st.skipped = (st.skipped || []).concat(key); return; }
         ITINERARY_DB[key] = courses;
       });
-      st.state = keys.length ? 'applied' : 'none';
+
+      /* QC: 추천 콘텐츠(방식 A/B). 일정과 같은 행에 담겨 오지만 별도 맵으로 내려온다 —
+         일정만 고친 목적지는 여기 키가 없고, 그 경우 data.js 기본값을 그대로 쓴다.
+         a·b 한쪽만 있는 값은 넣지 않는다. 엔진은 rec['b']를 그대로 찾아 쓰는데
+         한쪽이 비면 그 자리가 조용히 일반 문구로 떨어진다. */
+      const recMap = (data && data.recOverrides) || {};
+      const recKeys = Object.keys(recMap);
+      recKeys.forEach((key) => {
+        const rec = recMap[key];
+        if (!rec || !rec.a || !rec.b) { st.skippedRec = (st.skippedRec || []).concat(key); return; }
+        DEST_REC[key] = rec;
+      });
+
+      st.state = (keys.length || recKeys.length) ? 'applied' : 'none';
       st.applied = keys;
+      st.appliedRec = recKeys;
       st.meta = (data && data.meta) || {};
       return st;
     })

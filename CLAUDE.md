@@ -93,12 +93,16 @@ node ai-loop/audit_rates.js         # 요율 '값' 점검 — ⚠ 결과는 '확
 - **요율의 진실은 `data.js`가 아니라 운영 DB(`rate_overrides`)다.** `data.js`는 폴백 기본값이라
   점점 낡는다. 요율 값 판단이 필요하면 `curl -s https://bizpage-estimate.vercel.app/api/rates`로
   실제 오버라이드를 먼저 확인한다.
-- **추천 일정도 같은 구조다(QB).** `data.js`의 `ITINERARY_DB`는 기본값이고, 관리자 → 일정
-  관리에서 담당자가 저장한 값이 `itinerary_overrides`에 얹혀 고객 견적서·일정 탐색에 나간다
-  (`/api/content?action=itineraries`). 일정 내용을 판단할 일이 있으면 **상수가 아니라 이 API를**
+- **추천 일정·추천 콘텐츠도 같은 구조다(QB·QC).** `data.js`의 `ITINERARY_DB`(코스)와
+  `DEST_REC`(방식 A/B)는 기본값이고, 관리자 → 일정 관리에서 담당자가 저장한 값이
+  `itinerary_overrides`(컬럼 `courses`·`rec`)에 얹혀 고객 견적서·일정 탐색에 나간다
+  (`/api/content?action=itineraries`). 내용을 판단할 일이 있으면 **상수가 아니라 이 API를**
   먼저 본다. ⚠ `ITINERARY_DB`는 예전엔 `script.js`에 있었는데 **`data.js`로 옮겼다** —
   `admin.html`이 `data.js`는 싣지만 `script.js`(견적 엔진)는 싣지 않기 때문이다. 편집 화면용으로
   admin에 표를 복사하면 같은 목록이 두 벌이 된다(결함 생성기 ①).
+  둘은 **한 행·한 번의 저장**으로 다룬다(테이블을 나누면 절반만 저장된 상태가 생긴다).
+  `rec`은 `a`·`b` 둘 다 있어야 적용된다 — 한쪽만 저장되면 그 자리가 조용히 일반 문구로
+  떨어진다(결함 생성기 ②). PUT에서 `rec`을 생략하면 기존 값을 건드리지 않는다(`coalesce`).
 - **Vercel Hobby = 서버리스 함수 12개 제한에 이미 도달.** 새 API는 새 파일이 아니라 기존
   파일에 `?action=` 분기로 추가한다.
 - **공유 페이로드(`script.js` `shareData`)를 건드릴 때 비공개 항목 유출 주의.**

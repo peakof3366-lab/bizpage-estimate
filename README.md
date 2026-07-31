@@ -28,8 +28,9 @@
 
 **요율의 진실은 `data.js`가 아니라 운영 DB(`rate_overrides`)다.** `data.js`는 폴백
 기본값이라 점점 낡는다. 실제 값은 `curl -s .../api/rates`로 확인한다.
-**추천 일정도 같은 구조다** — `data.js`의 `ITINERARY_DB`가 기본값이고, 관리자 →
-일정 관리에서 저장한 값이 `itinerary_overrides`에 얹혀 고객에게 나간다
+**추천 일정·추천 콘텐츠도 같은 구조다** — `data.js`의 `ITINERARY_DB`(코스)와
+`DEST_REC`(방식 A/B)가 기본값이고, 관리자 → 일정 관리에서 저장한 값이
+`itinerary_overrides`에 얹혀 고객에게 나간다
 (`curl -s '.../api/content?action=itineraries'`).
 
 ## 손대기 전에 돌릴 것 (읽기 전용, 1분)

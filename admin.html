@@ -1039,12 +1039,14 @@
          일자 5개짜리 폼을 손으로 적어두지 않기 위함(요율·콘텐츠 탭과 같은 방식). -->
     <div class="tab-panel" id="tab-itineraries">
       <div class="iti-note">
-        여기서 저장한 일정은 <strong>고객 견적서와 홈페이지 “연수 일정 탐색”에 바로 반영</strong>됩니다
+        여기서 저장한 <strong>추천 콘텐츠(방식 A·B)와 추천 일정(코스)</strong>은
+        <strong>고객 견적서와 홈페이지 “연수 일정 탐색”에 바로 반영</strong>됩니다
         (배포·개발자 작업 없이 즉시). 목적지를 고르면 현재 값이 그대로 올라오고, 아직 한 번도
-        수정하지 않은 목적지는 기본 일정이 올라옵니다. <strong>“기본값으로 되돌리기”</strong>를 누르면
-        이 목적지의 수정 내용이 지워지고 기본 일정로 돌아갑니다.<br>
+        수정하지 않은 목적지는 기본값이 올라옵니다. 둘은 <strong>“저장” 한 번에 함께</strong> 저장되고,
+        <strong>“기본값으로 되돌리기”</strong>는 이 목적지의 수정 내용을 <strong>둘 다</strong> 지웁니다.<br>
         코스는 <strong>프로그램 유형(언어·리더십·산업·교육)에 따라 어느 것이 먼저 보일지</strong>가 정해져 있고,
-        연수 일수가 코스에 적힌 일자 수보다 길면 마지막 “귀국” 일자는 항상 실제 마지막 날로 옮겨집니다.
+        연수 일수가 코스에 적힌 일자 수보다 길면 마지막 “귀국” 일자는 항상 실제 마지막 날로 옮겨지며,
+        남는 날은 <strong>추천 콘텐츠의 “일별 주요 활동”</strong>으로 채워집니다.
       </div>
       <div class="iti-bar">
         <label for="iti-dest">목적지</label>
@@ -4909,8 +4911,10 @@
      ═══════════════════════════════════════════════════════════════════════ */
   const itiState = {
     destKey: '',
-    courses: [],        /* 화면에서 편집 중인 사본 */
-    overrides: {},      /* 서버에 저장된 목적지별 수정본 */
+    courses: [],        /* 화면에서 편집 중인 일정 사본 */
+    rec: null,          /* 화면에서 편집 중인 추천 콘텐츠 사본 (QC) */
+    overrides: {},      /* 서버에 저장된 목적지별 일정 수정본 */
+    recOverrides: {},   /* 서버에 저장된 목적지별 추천 콘텐츠 수정본 (QC) */
     meta: {},           /* 목적지별 { updatedAt, updatedBy } */
     loaded: false,
     dirty: false,
@@ -4918,13 +4922,25 @@
 
   const itiEmptyDay    = () => ({ day: 1, title: '', am: '', pm: '', eve: '', tip: '' });
   const itiEmptyCourse = () => ({ title: '', subtitle: '', highlights: [], days: [itiEmptyDay()] });
-  /* 편집은 항상 사본으로 한다 — 기본값(ITINERARY_DB)을 직접 건드리면 되돌리기가
-     "되돌릴 원본이 이미 바뀐" 상태가 된다. */
+  const itiEmptyPlan   = () => ({ tag: '', desc: '', points: [], items: [], value: '' });
+  /* 편집은 항상 사본으로 한다 — 기본값(ITINERARY_DB·DEST_REC)을 직접 건드리면
+     되돌리기가 "되돌릴 원본이 이미 바뀐" 상태가 된다. */
   const itiClone = (v) => JSON.parse(JSON.stringify(v));
 
   function itiDefaults(destKey) {
     const db = (typeof ITINERARY_DB !== 'undefined') ? ITINERARY_DB[destKey] : null;
     return Array.isArray(db) ? itiClone(db) : [];
+  }
+
+  /* QC: 추천 콘텐츠 기본값. a·b 둘 다 있어야 서버가 받아준다(한쪽만 저장되면 화면
+     그 자리가 조용히 일반 문구로 떨어진다) — 없는 쪽은 빈 칸으로 채워 보여준다. */
+  function itiRecDefaults(destKey) {
+    const src = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
+    const base = src ? itiClone(src) : {};
+    return {
+      a: Object.assign(itiEmptyPlan(), base.a || {}),
+      b: Object.assign(itiEmptyPlan(), base.b || {}),
+    };
   }
 
   function itiSetMsg(text, kind) {
@@ -4973,6 +4989,59 @@
     inp.value = value == null ? '' : String(value);
     inp.addEventListener('input', function () { onInput(inp.value); itiMarkDirty(); });
     wrap.appendChild(lbl); wrap.appendChild(inp);
+    return wrap;
+  }
+
+  /* QC: 추천 콘텐츠(방식 A/B) 편집 카드.
+     이 값이 어디에 쓰이는지 화면에 적어둔다 — "핵심 포인트"·"일별 활동"·"기대 효과"가
+     각각 다른 자리에 나가는데, 이름만 봐서는 어디를 고치는 건지 알 수 없다. */
+  const ITI_REC_PLAN_LABEL = { a: '방식 A', b: '방식 B' };
+
+  function itiRenderRecPlan(plan) {
+    const p = itiState.rec[plan];
+    const box = document.createElement('div');
+    box.className = 'iti-course';
+
+    const head = document.createElement('div');
+    head.className = 'iti-course-head';
+    const no = document.createElement('span');
+    no.className = 'iti-course-no';
+    no.textContent = ITI_REC_PLAN_LABEL[plan];
+    head.appendChild(no);
+    box.appendChild(head);
+
+    box.appendChild(itiField('방식 이름 (예: 역량강화형) — 일정 탐색 화면의 배지', p.tag, false, (v) => { p.tag = v; }));
+    box.appendChild(itiField('한 줄 테마 설명', p.desc, true, (v) => { p.desc = v; }));
+    box.appendChild(itiField('핵심 포인트 (한 줄에 하나씩) — 일정 탐색 카드에 표시', (p.points || []).join('\n'), true,
+      (v) => { p.points = v.split('\n').map(s => s.trim()).filter(Boolean); }));
+    box.appendChild(itiField('일별 주요 활동 (한 줄에 하나씩) — 연수 일수가 코스보다 길 때 남는 날을 이 목록으로 채웁니다',
+      (p.items || []).join('\n'), true,
+      (v) => { p.items = v.split('\n').map(s => s.trim()).filter(Boolean); }));
+    box.appendChild(itiField('기대 효과 문구 — 고객 견적서(결재 보고용)에 나갑니다', p.value, true, (v) => { p.value = v; }));
+    return box;
+  }
+
+  /* 이 화면은 innerHTML을 일절 쓰지 않는다 — 정적 문구라도 예외를 두면 나중에 값이
+     섞여 들어오는 자리가 생긴다. 굵은 글씨는 <strong> 요소로 직접 만든다. */
+  function itiNote(leadText, restText) {
+    const el = document.createElement('div');
+    el.className = 'iti-note';
+    const b = document.createElement('strong');
+    b.textContent = leadText;
+    el.appendChild(b);
+    el.appendChild(document.createTextNode(restText));
+    return el;
+  }
+
+  function itiRenderRecSection() {
+    const wrap = document.createElement('div');
+    wrap.appendChild(itiNote('추천 콘텐츠',
+      ' — 홈페이지 “연수 일정 탐색”의 방식 A·B 카드와, 고객 견적서의 기대 효과 문구에 쓰입니다. '
+      + '아래 추천 일정(코스)과 함께 한 번에 저장됩니다.'));
+    wrap.appendChild(itiRenderRecPlan('a'));
+    wrap.appendChild(itiRenderRecPlan('b'));
+    wrap.appendChild(itiNote('추천 일정 (코스)',
+      ' — 프로그램 유형에 따라 어느 코스가 먼저 보일지 정해집니다.'));
     return wrap;
   }
 
@@ -5065,6 +5134,7 @@
       itiRenderState();
       return;
     }
+    if (itiState.rec) body.appendChild(itiRenderRecSection());
     if (!itiState.courses.length) {
       const p = document.createElement('p');
       p.className = 'iti-note';
@@ -5088,6 +5158,9 @@
     itiState.courses = destKey
       ? (itiState.overrides[destKey] ? itiClone(itiState.overrides[destKey]) : itiDefaults(destKey))
       : [];
+    itiState.rec = destKey
+      ? (itiState.recOverrides[destKey] ? itiClone(itiState.recOverrides[destKey]) : itiRecDefaults(destKey))
+      : null;
     itiRenderBody();
   }
 
@@ -5121,8 +5194,9 @@
       const r = await fetch('/api/content?action=itineraries');
       if (!r.ok) throw new Error('http_' + r.status);
       const data = await r.json();
-      itiState.overrides = (data && data.overrides) || {};
-      itiState.meta      = (data && data.meta) || {};
+      itiState.overrides    = (data && data.overrides) || {};
+      itiState.recOverrides = (data && data.recOverrides) || {};
+      itiState.meta         = (data && data.meta) || {};
       itiState.loaded = true;
       itiSetMsg('');
     } catch (err) {
@@ -5151,7 +5225,7 @@
     try {
       const r = await fetch('/api/content?action=itineraries', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ destKey: itiState.destKey, courses: itiState.courses }),
+        body: JSON.stringify({ destKey: itiState.destKey, courses: itiState.courses, rec: itiState.rec }),
       });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(out.error || ('http_' + r.status));
@@ -5159,6 +5233,10 @@
          보낸 값을 그대로 믿고 두면 화면과 실제 저장값이 조금씩 달라진다. */
       itiState.overrides[itiState.destKey] = out.courses || itiState.courses;
       itiState.courses = itiClone(itiState.overrides[itiState.destKey]);
+      if (out.rec) {
+        itiState.recOverrides[itiState.destKey] = out.rec;
+        itiState.rec = itiClone(out.rec);
+      }
       itiState.meta[itiState.destKey] = { updatedAt: new Date().toISOString(), updatedBy: (currentUser && currentUser.displayName) || '' };
       itiState.dirty = false;
       itiFillDestSelect();
@@ -5172,14 +5250,16 @@
 
   async function itiRevert() {
     if (!itiState.destKey) { itiSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
-    if (!confirm(itiState.destKey + '의 수정 내용을 지우고 기본 일정으로 되돌립니다. 계속할까요?')) return;
+    if (!confirm(itiState.destKey + '의 수정 내용(추천 콘텐츠 + 추천 일정)을 모두 지우고 기본값으로 되돌립니다. 계속할까요?')) return;
     try {
       const r = await fetch('/api/content?action=itineraries&destKey=' + encodeURIComponent(itiState.destKey), { method: 'DELETE' });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(out.error || ('http_' + r.status));
       delete itiState.overrides[itiState.destKey];
+      delete itiState.recOverrides[itiState.destKey];
       delete itiState.meta[itiState.destKey];
       itiState.courses = itiDefaults(itiState.destKey);
+      itiState.rec = itiRecDefaults(itiState.destKey);
       itiState.dirty = false;
       itiFillDestSelect();
       itiRenderBody();

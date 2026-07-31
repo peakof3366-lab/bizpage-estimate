@@ -306,6 +306,11 @@ async function main() {
       updated_by text not null default ''
     )
   `;
+  /* QC: 같은 목적지의 추천 콘텐츠(DEST_REC — 방식 A/B의 레이블·테마·핵심 포인트·
+     일별 활동·기대 효과 문구)도 같은 행에 담는다. 담당자는 한 화면에서 일정과 추천을
+     함께 고치고 한 번에 저장하므로, 테이블을 나누면 절반만 저장된 상태가 생긴다.
+     null = 이 목적지의 추천 콘텐츠는 아직 손대지 않음(data.js 기본값 사용). */
+  await sql`alter table itinerary_overrides add column if not exists rec jsonb`;
 
   console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations, app_settings, itinerary_overrides tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
 }

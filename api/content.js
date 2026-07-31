@@ -37,6 +37,8 @@ const MAX_DAYS = 30;
 const MAX_HIGHLIGHTS = 12;
 const MAX_TEXT = 400;
 const MAX_TITLE = 120;
+const MAX_POINTS = 8;   /* QC: 추천 콘텐츠 핵심 포인트 */
+const MAX_ITEMS = 12;   /* QC: 추천 콘텐츠 일별 활동 */
 
 function badText(v, limit) {
   return typeof v !== 'string' || v.length > limit;
@@ -94,6 +96,41 @@ function normalizeCourses(courses) {
   return { courses: out };
 }
 
+/* QC: 추천 콘텐츠(DEST_REC) — 목적지별 방식 A/B.
+   { a: {tag, desc, points[], items[], value}, b: {…} }
+   A·B 둘 다 요구한다. 엔진은 rec['a'] / rec['b']를 그대로 찾아 쓰는데, 한쪽만 저장하면
+   나머지 한쪽이 통째로 사라진다(그때 화면은 조용히 일반 문구로 떨어진다 — 결함 생성기 ②).
+   화면도 두 칸을 같이 보여주므로 반쪽 저장이 나올 이유가 없다. */
+function normalizeRec(rec) {
+  if (rec === null || rec === undefined) return { rec: undefined };  /* 이번 저장에서 다루지 않음 */
+  if (typeof rec !== 'object' || Array.isArray(rec)) return { error: 'rec_not_object' };
+
+  const out = {};
+  for (const plan of ['a', 'b']) {
+    const p = rec[plan];
+    if (!p || typeof p !== 'object') return { error: 'rec_missing_' + plan };
+    if (badText(p.tag ?? '', MAX_TITLE))  return { error: 'invalid_rec_tag_' + plan };
+    if (badText(p.desc ?? '', MAX_TEXT))  return { error: 'invalid_rec_desc_' + plan };
+    if (badText(p.value ?? '', MAX_TEXT)) return { error: 'invalid_rec_value_' + plan };
+
+    const points = Array.isArray(p.points) ? p.points : [];
+    const items  = Array.isArray(p.items)  ? p.items  : [];
+    if (points.length > MAX_POINTS) return { error: 'too_many_points_' + plan };
+    if (items.length  > MAX_ITEMS)  return { error: 'too_many_items_' + plan };
+    if (points.some((s) => badText(s, MAX_TITLE))) return { error: 'invalid_point_' + plan };
+    if (items.some((s) => badText(s, MAX_TITLE)))  return { error: 'invalid_item_' + plan };
+
+    out[plan] = {
+      tag:   String(p.tag ?? '').trim(),
+      desc:  String(p.desc ?? '').trim(),
+      value: String(p.value ?? '').trim(),
+      points: points.map((s) => s.trim()).filter(Boolean),
+      items:  items.map((s) => s.trim()).filter(Boolean),
+    };
+  }
+  return { rec: out };
+}
+
 async function isKnownDest(destKey) {
   if (BUILTIN_DEST_KEYS.has(destKey)) return true;
   try {
@@ -110,14 +147,16 @@ async function isKnownDest(destKey) {
 async function handleItineraries(req, res) {
   if (req.method === 'GET') {
     try {
-      const rows = await sql`select dest_key, courses, updated_at, updated_by from itinerary_overrides`;
+      const rows = await sql`select dest_key, courses, rec, updated_at, updated_by from itinerary_overrides`;
       const map = {};
+      const recMap = {};
       const meta = {};
       for (const r of rows) {
         map[r.dest_key] = r.courses;
+        if (r.rec) recMap[r.dest_key] = r.rec;
         meta[r.dest_key] = { updatedAt: r.updated_at, updatedBy: r.updated_by };
       }
-      return res.status(200).json({ overrides: map, meta });
+      return res.status(200).json({ overrides: map, recOverrides: recMap, meta });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'query_failed' });
@@ -128,7 +167,7 @@ async function handleItineraries(req, res) {
      건드리는 PATCH가 owner 전용인 것과 달리 여기는 staff까지 연다 — 사용자 요청. */
   if (req.method === 'PUT') {
     if (!(await requireRole(req, res, ['owner', 'manager', 'staff']))) return;
-    const { destKey, courses } = req.body || {};
+    const { destKey, courses, rec } = req.body || {};
     if (typeof destKey !== 'string' || !destKey || destKey.length > 40) {
       return res.status(400).json({ error: 'invalid_dest_key' });
     }
@@ -138,17 +177,28 @@ async function handleItineraries(req, res) {
 
     const norm = normalizeCourses(courses);
     if (norm.error) return res.status(400).json({ error: norm.error });
+    const normRec = normalizeRec(rec);
+    if (normRec.error) return res.status(400).json({ error: normRec.error });
 
+    /* rec을 안 보냈으면 기존 값을 건드리지 않는다(coalesce). 매번 통째로 덮어쓰게 하면
+       일정만 고치려던 호출이 추천 콘텐츠를 조용히 지운다. */
+    const recJson = normRec.rec === undefined ? null : JSON.stringify(normRec.rec);
     try {
-      await sql`
-        insert into itinerary_overrides (dest_key, courses, updated_at, updated_by)
-        values (${destKey}, ${JSON.stringify(norm.courses)}::jsonb, now(), ${req.user.displayName || ''})
+      const saved = await sql`
+        insert into itinerary_overrides (dest_key, courses, rec, updated_at, updated_by)
+        values (${destKey}, ${JSON.stringify(norm.courses)}::jsonb, ${recJson}::jsonb, now(), ${req.user.displayName || ''})
         on conflict (dest_key) do update
           set courses = excluded.courses,
+              rec = coalesce(excluded.rec, itinerary_overrides.rec),
               updated_at = now(),
               updated_by = excluded.updated_by
+        returning courses, rec
       `;
-      return res.status(200).json({ ok: true, courses: norm.courses });
+      return res.status(200).json({
+        ok: true,
+        courses: saved[0] ? saved[0].courses : norm.courses,
+        rec: saved[0] ? saved[0].rec : normRec.rec,
+      });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'update_failed' });
@@ -220,5 +270,8 @@ module.exports = async (req, res) => {
 /* 테스트가 서버를 띄우지 않고 검증 규칙만 직접 돌릴 수 있게 노출한다.
    (검증 로직을 테스트에 다시 옮겨 적으면 두 벌이 어긋난다 — 결함 생성기 ①) */
 module.exports.normalizeCourses = normalizeCourses;
+module.exports.normalizeRec = normalizeRec;
 module.exports.MAX_COURSES = MAX_COURSES;
 module.exports.MAX_DAYS = MAX_DAYS;
+module.exports.MAX_POINTS = MAX_POINTS;
+module.exports.MAX_ITEMS = MAX_ITEMS;
