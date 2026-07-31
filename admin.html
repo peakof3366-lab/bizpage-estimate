@@ -1734,11 +1734,23 @@
     } catch { return false; }
   }
 
+  /* 직원 목록을 못 받은 상태를 기억한다 — 빈 목록과 "못 받음"은 화면에서 똑같이
+     보이지만 결과가 다르다(assigneeSelectHtml 주석 참고). */
+  let staffListStale = false;
   async function loadStaffList() {
     try {
       const res = await fetch('/api/admin/account?action=staffList');
-      staffListCache = res.ok ? await res.json() : [];
-    } catch { staffListCache = []; }
+      if (!res.ok) {
+        console.warn('[admin] 직원 목록 조회 실패:', res.status);
+        staffListCache = []; staffListStale = true; return false;
+      }
+      const rows = await res.json();
+      if (!Array.isArray(rows)) { staffListCache = []; staffListStale = true; return false; }
+      staffListCache = rows; staffListStale = false; return true;
+    } catch (err) {
+      console.warn('[admin] 직원 목록 조회 실패:', err);
+      staffListCache = []; staffListStale = true; return false;
+    }
   }
 
   /* 역할 기반 UI 숨김 (신규) — 서버가 진짜 방어선(요율 목적지 추가삭제·CMS 편집은
@@ -2004,11 +2016,48 @@
     } catch { alert('요청에 실패했습니다.'); }
   }
 
-  function assigneeSelectHtml(current, extraAttrs) {
+  /* ⚠ 지금 담당자가 목록에 없으면 **그 사람을 옵션으로 남긴다.**
+     남기지 않으면 select가 첫 옵션(미배정)을 고른 채로 그려지는데, 이건 화면만의
+     문제가 아니다 — 상세 모달 저장(saveDetail·emSaveDetail)은 이 select의 value를
+     status·note와 함께 그대로 서버로 보낸다(PU에서 의도한 동작). 그래서 담당자가
+     **메모만 고쳐 저장해도 배정이 조용히 지워진다.**
+     목록에 없어지는 경우는 둘 다 평범하다:
+       ① 직원 목록 조회 실패 — 전원이 사라져 모든 리드가 '미배정'으로 보인다.
+       ② 그 사람 계정이 비활성(퇴사·일시 정지) — active 필터에서 빠진다. 장애가
+          아니라 정상 운영에서 매번 일어나는 일이다.
+     조회에 실패한 동안에는 아예 바꾸지 못하게 잠근다(빈 목록에서 고른 '미배정'이
+     저장되는 것을 막는다). disabled여도 value는 그대로 읽히므로 저장은 안전하다. */
+  const STAFF_LIST_LOCK_MSG = '직원 목록을 불러오지 못해 담당자를 바꿀 수 없습니다. 새로고침 후 다시 시도해 주세요.';
+
+  function assigneeOptionsHtml(current) {
     const active = staffListCache.filter(s => s.active);
-    const opts = ['<option value="">미배정</option>']
-      .concat(active.map(s => `<option value="${esc(s.display_name)}"${s.display_name===current?' selected':''}>${esc(s.display_name)}</option>`));
-    return `<select class="status-select" style="font-size:.78rem;padding:.3rem .5rem" data-prev="${esc(current||'')}" ${extraAttrs||''}>${opts.join('')}</select>`;
+    const known = active.some(s => s.display_name === current);
+    const opts = ['<option value="">미배정</option>'];
+    if (current && !known) {
+      const tag = staffListStale ? '' : ' (비활성 계정)';
+      opts.push(`<option value="${esc(current)}" selected>${esc(current)}${tag}</option>`);
+    }
+    opts.push(...active.map(s => `<option value="${esc(s.display_name)}"${s.display_name===current?' selected':''}>${esc(s.display_name)}</option>`));
+    return opts.join('');
+  }
+
+  function assigneeSelectHtml(current, extraAttrs) {
+    const lock = staffListStale ? ` disabled title="${esc(STAFF_LIST_LOCK_MSG)}"` : '';
+    return `<select class="status-select" style="font-size:.78rem;padding:.3rem .5rem" data-prev="${esc(current||'')}"${lock} ${extraAttrs||''}>${assigneeOptionsHtml(current)}</select>`;
+  }
+
+  /* 이미 화면에 있는 <select>(상세 모달의 d-assignee·em-assignee-sel)를 채운다.
+     ⚠ 예전엔 여기에도 assigneeSelectHtml()의 결과, 즉 **<select> 통째**를 넣었다.
+     HTML 파서가 중첩 <select>를 버리고 <option>만 남겨 줘서 우연히 동작했을 뿐이라,
+     겉에 붙인 disabled·title·data-prev는 조용히 사라졌다 — 정작 저장이 일어나는
+     화면이 잠기지 않았던 셈이다. 속성은 요소에 직접 건다. */
+  function fillAssigneeSelect(el, current) {
+    if (!el) return;
+    el.innerHTML = assigneeOptionsHtml(current);
+    el.value = current || '';
+    el.dataset.prev = current || '';
+    el.disabled = staffListStale;
+    el.title = staffListStale ? STAFF_LIST_LOCK_MSG : '';
   }
 
   /* 담당자 변경 시 확인창 — 취소하면 이전 값으로 되돌림 */
@@ -2888,7 +2937,7 @@
     document.getElementById('d-msg').textContent  = msgText;
     document.getElementById('d-note').value = c.note||'';
     document.getElementById('d-status').value = c.status||'read';
-    document.getElementById('d-assignee').innerHTML = assigneeSelectHtml(c.assignee);
+    fillAssigneeSelect(document.getElementById('d-assignee'), c.assignee);
     document.getElementById('d-log-list').innerHTML = activityLogHtml(c.activityLog);
     /* 답변/진행기록 작성자는 항상 로그인한 나 자신 — 실계정 도입 전엔 담당자
        배정과 무관하게 아무 이름이나 자칭할 수 있어 "담당자만 작성 가능"을 UI에서
@@ -6090,7 +6139,7 @@
     /* 상태 + 메모 */
     document.getElementById('em-status-sel').value = e.status || 'new';
     document.getElementById('em-note-area').value   = e.note   || '';
-    document.getElementById('em-assignee-sel').innerHTML = assigneeSelectHtml(e.assignee);
+    fillAssigneeSelect(document.getElementById('em-assignee-sel'), e.assignee);
     document.getElementById('em-log-author-tag').textContent = `작성자: ${currentUser.displayName}`;
     document.getElementById('em-log-list').innerHTML = activityLogHtml(e.activityLog);
 
