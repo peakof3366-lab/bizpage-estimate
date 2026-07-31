@@ -1090,7 +1090,11 @@
           </div>
           <div class="pw-form" id="pwForm">
             <input type="password" class="pw-input" id="pwCurrent" placeholder="현재 비밀번호" />
-            <input type="password" class="pw-input" id="pwNew" placeholder="새 비밀번호 (6자 이상)" />
+            <!-- 화면은 "6자 이상"이라고 안내했는데 클라이언트·서버 모두 8자를 요구했다.
+                 안내를 그대로 따른 사람만 거절당한다 — 팀원이 첫 로그인 뒤 비밀번호를
+                 바꿀 때 정확히 이 자리를 지난다. 코드가 아니라 안내가 틀렸으므로
+                 안내를 실제 규칙에 맞춘다(가입 화면·계정 생성 칸은 이미 8자로 맞다). -->
+            <input type="password" class="pw-input" id="pwNew" placeholder="새 비밀번호 (8자 이상)" />
             <input type="password" class="pw-input" id="pwConfirm" placeholder="새 비밀번호 확인" />
             <p id="pwMsg" style="font-size:.78rem;color:var(--danger)"></p>
             <button class="btn-act btn-primary" style="width:fit-content" onclick="changePw()">비밀번호 변경</button>
