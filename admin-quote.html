@@ -187,9 +187,84 @@
   .aq-shell .step-actions .button { height: 52px; font-size: .98rem; }
   .aq-shell .estimate-confirm { padding: 1.6rem; }
 
+  /* ── QA: 미입력 안내 ──────────────────────────────────────────────
+     원본 select들이 .aq-native-hidden(opacity:0·1px)이라 script.js가 하는
+     focus()가 화면에 아무 흔적을 남기지 못했다. 버튼이 죽은 것처럼 보이던
+     자리에 "무엇이 비었는지"를 글자로 세운다. */
+  .aq-validate-msg {
+    background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #dc2626;
+    color: #991b1b; padding: .8rem 1rem; font-size: .88rem; font-weight: 700; line-height: 1.6;
+    margin-bottom: .9rem;
+  }
+  .aq-validate-msg ul { margin: .35rem 0 0; padding-left: 1.1rem; font-weight: 600; }
+  .aq-validate-msg li { margin-top: .15rem; }
+
+  /* ── QA: 금액 미리보기 (저장·기록 없음) ────────────────────────────
+     조건을 바꿔가며 금액을 비교하는 일은 산출 담당자의 일상인데, 예전에는
+     STEP2까지 다 채워 "견적 산출하기"를 눌러야만 금액을 볼 수 있었고 그
+     한 번마다 견적 기록이 한 건씩 쌓였다. 이 버튼은 계산만 하고 아무것도
+     저장하지 않는다. */
+  .aq-step1-actions { display: flex; gap: .7rem; flex-wrap: wrap; align-items: stretch; }
+  .aq-step1-actions .button { flex: 1 1 220px; }
+  .btn-preview {
+    height: 52px; font-size: .98rem; font-weight: 700; background: #fff; color: var(--heading);
+    border: 2px solid var(--heading); cursor: pointer; font-family: inherit; padding: 0 1.2rem;
+    display: inline-flex; align-items: center; justify-content: center; gap: .45rem; transition: all .15s;
+  }
+  .btn-preview:hover { background: var(--heading); color: #fff; }
+
+  .aq-preview {
+    background: #fff; border: 1px solid var(--border); border-top: 3px solid var(--heading);
+    padding: 1.35rem 1.5rem; margin-top: 1rem;
+  }
+  .aq-preview-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+    padding-bottom: .9rem; margin-bottom: .9rem; border-bottom: 1px dashed var(--border);
+  }
+  .aq-preview-tag {
+    font-size: .68rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--muted); background: #f1f5f9; padding: .2rem .55rem;
+  }
+  .aq-total { font-size: 1.85rem; font-weight: 900; color: var(--primary); letter-spacing: -.02em; }
+  .aq-total small { font-size: .82rem; font-weight: 700; color: var(--muted); margin-left: .4rem; letter-spacing: 0; }
+  .aq-perperson { font-size: 1.02rem; font-weight: 700; color: var(--heading); }
+  .aq-perperson small { font-size: .78rem; font-weight: 600; color: var(--muted); }
+  .aq-cond { font-size: .84rem; color: var(--muted); line-height: 1.7; font-weight: 600; }
+  .aq-cond b { color: var(--heading); font-weight: 700; }
+
+  .aq-rows { width: 100%; border-collapse: collapse; margin-top: .9rem; font-size: .84rem; }
+  .aq-rows th {
+    text-align: left; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); padding: .45rem .5rem; border-bottom: 1.5px solid var(--heading);
+  }
+  .aq-rows td { padding: .45rem .5rem; border-bottom: 1px solid var(--border); color: var(--heading); }
+  .aq-rows td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .aq-rows tr.is-internal td { background: #fffbeb; }
+  .aq-rows tr.is-internal td:first-child::after {
+    content: '내부'; font-size: .62rem; font-weight: 800; color: #92400e; background: #fde68a;
+    padding: .08rem .35rem; margin-left: .4rem; letter-spacing: .04em; vertical-align: middle;
+  }
+  .aq-rows tfoot td { border-bottom: none; border-top: 2px solid var(--heading); font-weight: 800; padding-top: .6rem; }
+  .aq-internal-note { font-size: .76rem; color: #92400e; margin-top: .6rem; font-weight: 600; }
+
+  /* ── QA: 산출 완료 후 금액 요약 ────────────────────────────────────
+     예전에는 "견적 산출 완료!"라는 문장과 다운로드 버튼만 있어, 담당자가
+     금액을 알려면 PDF를 열어야 했다(전화 응대 중에는 그럴 시간이 없다). */
+  .aq-summary { margin: 1.1rem 0 .3rem; text-align: left; }
+  .aq-copy-area { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem; }
+  .btn-mini {
+    height: 40px; padding: 0 .95rem; font-size: .82rem; font-weight: 700; font-family: inherit;
+    background: #fff; color: var(--heading); border: 1.6px solid var(--border); cursor: pointer;
+    display: inline-flex; align-items: center; gap: .35rem; transition: all .15s;
+  }
+  .btn-mini:hover { border-color: var(--heading); }
+  .btn-mini.is-done { border-color: #16a34a; color: #16a34a; }
+  .aq-copy-fallback { width: 100%; min-height: 120px; margin-top: .6rem; font-family: inherit; font-size: .82rem; padding: .7rem; border: 1.6px solid var(--border); }
+
   @media (max-width: 700px) {
     .aq-controlbar { flex-direction: column; align-items: flex-start; }
     .aq-list-grid { grid-template-columns: 1fr 1fr; }
+    .aq-step1-actions .button, .btn-preview { flex: 1 1 100%; }
   }
 </style>
 </head>
@@ -252,7 +327,13 @@
 
           <!-- 계산 엔진(script.js)이 참조하는 진짜 입력값 — 화면에는 위 아코디언 UI로 대체 노출,
                .value/.selectedOptions는 반드시 실제 <select>여야 하므로 삭제하지 않고 숨김 처리만 함 -->
-          <select id="destination" class="aq-native-hidden" required tabindex="-1" aria-hidden="true">
+          <!-- data-field-label / data-reveal (QA): 이 select는 화면에 보이지 않으므로
+               script.js의 focus()가 아무 흔적을 남기지 못한다. 미입력 안내가 사람이 읽는
+               이름을 쓰고, 실제로 눌러야 할 자리(아코디언)를 열어주기 위한 표시다.
+               라벨을 코드에 따로 적는 대신 필드 자신에 붙여 둔다 — 항목이 늘어도
+               목록을 두 번 관리하지 않는다. -->
+          <select id="destination" class="aq-native-hidden" required tabindex="-1" aria-hidden="true"
+                  data-field-label="여행 목적지" data-reveal="#destMaster">
             <option value="" disabled selected>목적지를 선택하세요</option>
 
             <optgroup label="동북아시아 — 일본">
@@ -418,13 +499,15 @@
             <div class="aq-list-grid" id="visitModeList"></div>
           </div>
 
-          <select id="programType" class="aq-native-hidden" required tabindex="-1" aria-hidden="true">
+          <select id="programType" class="aq-native-hidden" required tabindex="-1" aria-hidden="true"
+                  data-field-label="프로그램 유형" data-reveal="#programTypeList">
             <option value="language">언어 집중 연수</option>
             <option value="leadership">리더십 / 조직문화</option>
             <option value="industry">산업체 실무 연수</option>
             <option value="academic">교육기관 / 연구 연수</option>
           </select>
-          <select id="organizationType" class="aq-native-hidden" required tabindex="-1" aria-hidden="true">
+          <select id="organizationType" class="aq-native-hidden" required tabindex="-1" aria-hidden="true"
+                  data-field-label="기관 유형" data-reveal="#organizationTypeList">
             <option value="company">기업</option>
             <option value="public">공공기관</option>
             <option value="education">교육기관</option>
@@ -535,9 +618,21 @@
           <input type="radio" name="vehicleType" value="auto" checked style="display:none" aria-hidden="true" />
         </div>
 
-        <div class="step-actions">
+        <!-- QA: 미입력 안내 — script.js가 숨은 select에 focus()만 하고 끝나던 자리.
+             role="alert"라 스크린리더에도 읽힌다. -->
+        <div id="aqValidateMsg" class="aq-validate-msg hidden" role="alert" aria-live="assertive"></div>
+
+        <div class="step-actions aq-step1-actions">
+          <button type="button" id="aqPreviewBtn" class="btn-preview">
+            <i data-lucide="calculator" style="width:17px;height:17px"></i>
+            금액 미리보기 <span style="font-weight:600;color:var(--muted)">(저장 안 함)</span>
+          </button>
           <button type="button" id="nextStepButton" class="button button-primary">다음 단계로 이동</button>
         </div>
+
+        <!-- 미리보기 결과 — 계산만 하고 서버·견적기록에 아무것도 남기지 않는다.
+             '견적 산출하기'를 눌러야 기록되고 견적서를 낼 수 있다. -->
+        <div id="aqPreview" class="aq-preview hidden"></div>
       </div>
 
       <div class="estimate-step" data-step="2">
@@ -571,6 +666,10 @@
           <p class="confirm-title">견적 산출 완료!</p>
           <p class="confirm-msg">아래 버튼으로 견적서(PDF)·엑셀을<br>바로 내려받아 고객에게 전달할 수 있습니다.</p>
 
+          <!-- QA: 산출된 금액 요약 — 예전에는 이 카드에 문장과 버튼만 있어서,
+               담당자가 금액을 알려면 PDF를 열어야 했다(고객 전화 중에는 그럴 틈이 없다). -->
+          <div id="aqSummary" class="aq-summary hidden"></div>
+
           <button type="button" id="downloadEstimate" class="btn-get-estimate hidden">
             <i data-lucide="file-text" style="width:18px;height:18px"></i>
             견적서 받기
@@ -579,7 +678,12 @@
             <i data-lucide="file-spreadsheet" style="width:15px;height:15px"></i>
             엑셀로 다운로드
           </button>
-          <button type="button" id="resetEstimateBtn" class="btn-reset-est">↩ 새 견적 다시 계산하기</button>
+          <!-- QA: 라벨 정정. 이 버튼은 예나 지금이나 **입력값을 지우지 않고** STEP 1로
+               돌아갈 뿐인데(script.js resetBtn.onclick — setActiveStep(1)만 한다),
+               "새 견적 다시 계산하기"라고 적혀 있어 담당자가 '처음부터 다시 입력해야
+               하는 버튼'으로 읽었다. 실제 동작대로 이름을 바꾼다. 돌아간 뒤
+               '금액 미리보기'를 쓰면 견적 기록을 늘리지 않고 조건을 비교할 수 있다. -->
+          <button type="button" id="resetEstimateBtn" class="btn-reset-est">↩ 조건 수정하고 다시 산출 <small style="font-weight:600;opacity:.75">(입력값 유지)</small></button>
 
           <!-- 서버 저장 실패 경고 (PX) — script.js가 채운다. 공개 화면에는 이 자리가
                없고(고객에게 저장 실패를 알리지 않는 것이 의도), 내부 도구에만 있다.
@@ -731,6 +835,255 @@
   buildFlatList('organizationType', 'organizationTypeList');
   buildFlatList('visitMode', 'visitModeList');
   buildFlatList('departureCity', 'departureCityList');
+
+  /* ══════════════════════════════════════════════════════════════════
+     QA — 내부 산출 담당자 흐름 보완. 셋 다 이 파일 안에서만 끝난다:
+     견적 엔진(script.js)과 공개 계산기는 한 줄도 건드리지 않는다.
+
+     ① 미입력 안내 — 목적지를 안 고르고 "다음 단계로 이동"을 누르면 script.js가
+        숨은 <select>에 focus()만 하고 끝나, 화면상 **버튼이 죽은 것처럼 보였다**
+        (jsdom 재현 확인: 단계 이동 없음 · 안내 없음 · focus 대상이 opacity:0 요소).
+     ② 금액 미리보기 — 조건별 금액 비교가 담당자의 일상인데, 예전엔 STEP2까지 다
+        채워 "견적 산출하기"를 눌러야 금액이 나왔고 그때마다 견적 기록이 한 건씩
+        쌓였다. 이 버튼은 계산만 하고 아무것도 저장하지 않는다.
+     ③ 완료 요약 — 산출 후 화면에 금액이 없어 PDF를 열어야 알 수 있었다.
+     ══════════════════════════════════════════════════════════════════ */
+  (function staffFlow() {
+    var validateMsgEl = document.getElementById('aqValidateMsg');
+    var previewEl     = document.getElementById('aqPreview');
+    var summaryEl     = document.getElementById('aqSummary');
+    var won = function (n) { return '₩ ' + Math.round(Number(n) || 0).toLocaleString('ko-KR'); };
+
+    /* 라벨은 필드 자신에게서 얻는다 — id→이름 표를 여기 따로 두면 항목이 늘 때마다
+       두 곳을 고쳐야 하고, 그게 이 저장소가 반복해서 당한 '목록 이중 관리'다. */
+    function fieldLabel(el) {
+      if (el.dataset.fieldLabel) return el.dataset.fieldLabel;
+      var lbl = el.closest('label');
+      if (lbl) {
+        var inner = lbl.querySelector('.fld-lbl, .aq-step2-lbl');
+        return (inner ? inner.textContent : lbl.textContent).trim().replace(/\s+/g, ' ');
+      }
+      return el.id || '입력 항목';
+    }
+
+    function missingFields(step) {
+      var scope = document.querySelector('.estimate-step[data-step="' + step + '"]');
+      if (!scope) return [];
+      return Array.prototype.filter.call(scope.querySelectorAll('[required]'), function (el) {
+        return !String(el.value || '').trim();
+      });
+    }
+
+    function hideValidation() {
+      if (validateMsgEl) validateMsgEl.classList.add('hidden');
+    }
+
+    function showValidation(missing) {
+      if (!validateMsgEl) return;
+      validateMsgEl.textContent = '';
+      var head = document.createElement('div');
+      head.textContent = '아래 항목을 먼저 선택·입력해 주세요.';
+      validateMsgEl.appendChild(head);
+      var ul = document.createElement('ul');
+      missing.forEach(function (el) {
+        var li = document.createElement('li');
+        li.textContent = fieldLabel(el);
+        ul.appendChild(li);
+      });
+      validateMsgEl.appendChild(ul);
+      validateMsgEl.classList.remove('hidden');
+
+      /* 실제로 눌러야 하는 자리를 열어준다. 숨은 select에 focus()하는 것만으로는
+         화면에 아무 일도 일어나지 않는다(그게 원래 결함이다). */
+      var first  = missing[0];
+      var target = first.dataset.reveal ? document.querySelector(first.dataset.reveal) : first;
+      if (target) {
+        if (target.tagName === 'DETAILS') target.open = true;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        var focusable = target.querySelector ? target.querySelector('summary, input, select, button') : null;
+        if (focusable && focusable.focus) focusable.focus();
+      }
+    }
+
+    /* ── 조건 요약(사람이 읽는 한 줄) — 미리보기·완료요약·복사가 함께 쓴다 ── */
+    function condLine(bd) {
+      var destEl = document.getElementById('destination');
+      var destLabel = (destEl.selectedOptions[0] && destEl.selectedOptions[0].textContent) || destEl.value;
+      var start = document.getElementById('startDate').value;
+      var end   = document.getElementById('endDate').value;
+      var parts = [
+        destLabel,
+        bd.participants + '명',
+        bd.days + '일' + (bd.nights ? '/' + bd.nights + '박' : ''),
+        bd.cabinClassLabel,
+        (bd.hotelGrade && bd.hotelGrade.label) || '',
+        bd.roomConfigLabel,
+        bd.departureCityLabel + ' 출발',
+      ].filter(Boolean);
+      if (start) parts.push(start + (end ? ' ~ ' + end : ''));
+      if (bd.seasonInfo && bd.seasonInfo.label) parts.push(bd.seasonInfo.label);
+      return parts.join(' · ');
+    }
+
+    /* 항목표. muted 행(ENBT 수익·현지 수익금·여행자보험)은 고객 견적서에서는 가려지지만
+       **여기는 인증된 내부 도구**라 담당자에게 보여야 마진 판단이 된다. 대신 '내부'
+       배지를 붙여, 이 줄이 고객에게 나가는 값이 아님을 화면에서 구분한다. */
+    function rowsTable(bd) {
+      var t = document.createElement('table');
+      t.className = 'aq-rows';
+      /* 행의 이름 필드는 `name`이다(`label`이 아니다 — getBreakdownData의 rows.push 참고). */
+      t.innerHTML = '<thead><tr><th>항목</th><th>산출 근거</th><th style="text-align:right">금액</th></tr></thead>';
+      var tb = document.createElement('tbody');
+      bd.rows.forEach(function (r) {
+        var tr = document.createElement('tr');
+        if (r.muted) tr.className = 'is-internal';
+        var td1 = document.createElement('td');
+        td1.textContent = r.name;
+        var td2 = document.createElement('td');
+        td2.textContent = r.qty || '';
+        td2.style.color = 'var(--muted)';
+        td2.style.fontSize = '.78rem';
+        var td3 = document.createElement('td');
+        td3.className = 'num';
+        td3.textContent = won(r.amount);
+        tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+        tb.appendChild(tr);
+      });
+      t.appendChild(tb);
+      var tf = document.createElement('tfoot');
+      var trf = document.createElement('tr');
+      var tdf1 = document.createElement('td'); tdf1.textContent = '합계';
+      var tdf2 = document.createElement('td');
+      var tdf3 = document.createElement('td'); tdf3.className = 'num'; tdf3.textContent = won(bd.total);
+      trf.appendChild(tdf1); trf.appendChild(tdf2); trf.appendChild(tdf3);
+      tf.appendChild(trf); t.appendChild(tf);
+      return t;
+    }
+
+    function amountBlock(bd, tagText) {
+      var wrap = document.createElement('div');
+      var head = document.createElement('div');
+      head.className = 'aq-preview-head';
+      var left = document.createElement('div');
+      var tot = document.createElement('div');
+      tot.className = 'aq-total';
+      tot.textContent = won(bd.total);
+      var totSmall = document.createElement('small');
+      totSmall.textContent = '총액';
+      tot.appendChild(totSmall);
+      var pp = document.createElement('div');
+      pp.className = 'aq-perperson';
+      pp.textContent = won(bd.perPerson);
+      var ppSmall = document.createElement('small');
+      ppSmall.textContent = ' / 1인당';
+      pp.appendChild(ppSmall);
+      left.appendChild(tot); left.appendChild(pp);
+      var tag = document.createElement('span');
+      tag.className = 'aq-preview-tag';
+      tag.textContent = tagText;
+      head.appendChild(left); head.appendChild(tag);
+      var cond = document.createElement('div');
+      cond.className = 'aq-cond';
+      cond.textContent = condLine(bd);
+      wrap.appendChild(head);
+      wrap.appendChild(cond);
+      return wrap;
+    }
+
+    function summaryText(bd) {
+      return [
+        '[비즈페이지 견적]',
+        condLine(bd),
+        '총액 ' + won(bd.total),
+        '1인당 ' + won(bd.perPerson),
+        '고객에게 보이는 금액 ' + won(bd.visibleTotal !== undefined ? bd.visibleTotal : bd.total),
+      ].join('\n');
+    }
+
+    /* ── ② 금액 미리보기 ── */
+    document.getElementById('aqPreviewBtn').addEventListener('click', function () {
+      var missing = missingFields(1);
+      if (missing.length) { showValidation(missing); previewEl.classList.add('hidden'); return; }
+      hideValidation();
+      var bd = (typeof getBreakdownData === 'function') ? getBreakdownData() : null;
+      previewEl.textContent = '';
+      if (!bd) {
+        /* 조용히 빈 화면을 두지 않는다 — 왜 안 나오는지 말한다. */
+        previewEl.textContent = '조건이 아직 계산 가능한 상태가 아닙니다. 목적지·인원·기간을 확인해 주세요.';
+        previewEl.classList.remove('hidden');
+        return;
+      }
+      previewEl.appendChild(amountBlock(bd, '미리보기 · 저장 안 됨'));
+      previewEl.appendChild(rowsTable(bd));
+      var note = document.createElement('p');
+      note.className = 'aq-internal-note';
+      note.textContent = '노란 줄(내부)은 고객 견적서에 나가지 않는 항목입니다. 이 미리보기는 견적 기록·견적서 링크와 무관합니다 — 기록에 남기려면 “다음 단계로 이동” 후 “견적 산출하기”를 누르세요.';
+      previewEl.appendChild(note);
+      previewEl.classList.remove('hidden');
+      previewEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    /* ── ① 미입력 안내: script.js 핸들러가 먼저 돌고(조건 미달이면 아무것도 안 함),
+       그 뒤 이 핸들러가 화면에 이유를 세운다. 통과했으면 안내를 지운다. ── */
+    document.getElementById('nextStepButton').addEventListener('click', function () {
+      var missing = missingFields(1);
+      if (missing.length) showValidation(missing); else hideValidation();
+    });
+
+    /* ── ③ 완료 요약: 제출이 성공해 확인 카드가 뜬 뒤에 채운다.
+       ⚠ 리스너 등록 순서에 기대지 않는다. 실제 페이지에서는 script.js가 먼저 실려
+       그쪽 submit 리스너가 앞서 돌지만, 그 순서를 전제로 쓰면 로드 방식이 조금만
+       달라져도(테스트 픽스처처럼) 요약이 조용히 안 채워진다. 한 틱 뒤로 미뤄
+       "확인 카드가 실제로 떴는가"만 보고 판단한다 — 막힌 제출이면 카드가 숨은 채라
+       그대로 아무것도 하지 않는다. ── */
+    document.getElementById('estimateForm').addEventListener('submit', function () {
+      setTimeout(renderSummary, 0);
+    });
+
+    function renderSummary() {
+      var confirmEl = document.getElementById('estimateConfirm');
+      if (!confirmEl || confirmEl.classList.contains('hidden')) return;  /* 제출이 막힌 경우 */
+      var bd = (typeof getBreakdownData === 'function') ? getBreakdownData() : null;
+      if (!bd) return;
+      summaryEl.textContent = '';
+      summaryEl.appendChild(amountBlock(bd, '산출 완료 · 기록됨'));
+      summaryEl.appendChild(rowsTable(bd));
+
+      var area = document.createElement('div');
+      area.className = 'aq-copy-area';
+      var copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'btn-mini';
+      copyBtn.textContent = '📋 요약 복사';
+      copyBtn.addEventListener('click', function () {
+        var text = summaryText(bd);
+        var done = function () { copyBtn.textContent = '✓ 복사됨'; copyBtn.classList.add('is-done'); };
+        /* admin.html 안 iframe에서는 클립보드 권한이 막힐 수 있다. 실패하면 조용히
+           끝내지 않고 직접 복사할 수 있는 칸을 띄운다. */
+        var fallback = function () {
+          copyBtn.textContent = '아래에서 직접 복사하세요';
+          var ta = area.querySelector('textarea') || document.createElement('textarea');
+          ta.className = 'aq-copy-fallback';
+          ta.value = text;
+          if (!ta.parentNode) area.appendChild(ta);
+          ta.focus(); ta.select();
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(fallback);
+        } else { fallback(); }
+      });
+      area.appendChild(copyBtn);
+      summaryEl.appendChild(area);
+      summaryEl.classList.remove('hidden');
+    }
+
+    /* 조건을 고치기 시작하면 이전 미리보기·안내는 더 이상 그 조건의 결과가 아니다.
+       낡은 금액이 화면에 남아 있으면 그게 지금 조건인 줄 알고 고객에게 말하게 된다. */
+    document.getElementById('estimateForm').addEventListener('change', function () {
+      previewEl.classList.add('hidden');
+      hideValidation();
+    });
+  })();
 
   (function authGate() {
     fetch('/api/admin/account?action=me').then(function (r) {

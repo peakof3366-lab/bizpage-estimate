@@ -16,8 +16,12 @@ const filters = process.argv.slice(2);
 
 /* 파이썬 테스트(test_*.py)는 Playwright·서버가 필요해 이 러너 대상이 아니다.
    여기서 도는 건 jsdom 기반 순수 계산 검증뿐 — 외부 의존 없이 항상 돌아야 한다. */
+/* ⚠ 예전 패턴은 /^test_p.*\.js$/ 였다. 작업 알파벳이 pZ를 넘어 qA로 넘어가는 순간
+   새 테스트가 **조용히 스위트에서 빠진다** — 파일은 있고, 러너는 초록이고, 아무도
+   그게 안 돌았다는 걸 모른다. 이 저장소가 이미 당한 '실행된 적 없는 안전망'(결함
+   생성기 ③)과 정확히 같은 모양이라, 접두사를 고정하지 않고 test_*.js 전부로 넓힌다. */
 const files = fs.readdirSync(HERE)
-  .filter(f => /^test_p.*\.js$/.test(f))
+  .filter(f => /^test_.*\.js$/.test(f))
   .filter(f => !filters.length || filters.some(k => f.includes(k)))
   .sort();
 
