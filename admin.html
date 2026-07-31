@@ -362,6 +362,10 @@
       font-weight: 600; border: 1.6px solid var(--border); background: #fff; color: var(--heading);
     }
     .iti-bar .iti-spacer { margin-left: auto; }
+    /* 이 줄의 버튼 셋은 클래스가 섞여 있다(.iti-btn 둘 + .btn-act 하나). .btn-act는
+       높이가 패딩으로 정해져 혼자 낮아지므로 여기서만 높이를 맞춘다 — 전역 .btn-act는
+       관리자 화면 곳곳에서 쓰이므로 건드리지 않는다. */
+    .iti-bar .btn-act { height: 34px; padding: 0 1rem; }
     .iti-state { font-size: .8rem; font-weight: 600; color: var(--muted); }
     .iti-state.is-edited { color: #b45309; }
     .iti-state.is-error  { color: var(--danger, #dc2626); }
@@ -396,6 +400,12 @@
     .iti-day-no { font-size: .78rem; font-weight: 800; color: var(--primary); white-space: nowrap; }
     .iti-day-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .8rem; }
     .iti-day-grid > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    /* 같은 행의 입력칸 윗선을 맞춘다 — 라벨 길이가 서로 다르면(예: '저녁' vs
+       '참고 팁 (고객 견적서에 함께 나갑니다)') 좁은 화면에서 한쪽만 두 줄이 되어
+       그 칸의 입력칸만 아래로 밀린다. 그리드 행은 높이가 같으므로, 입력칸을 칸
+       아래쪽에 붙이면 라벨이 몇 줄이든 윗선이 항상 일치한다. */
+    .iti-day-grid > div { display: flex; flex-direction: column; }
+    .iti-day-grid > div > .iti-ta, .iti-day-grid > div > .iti-inp { margin-top: auto; }
 
     .iti-btn {
       height: 34px; padding: 0 .8rem; font-size: .78rem; font-weight: 700; font-family: inherit;
@@ -5101,9 +5111,13 @@
     const no = document.createElement('span');
     no.className = 'iti-day-no';
     no.textContent = 'DAY ' + (dayIdx + 1);
-    const titleWrap = itiField('그날의 제목 (예: 첨단 제조업 현장)', day.title, false, (v) => { day.title = v; });
-    titleWrap.style.flex = '1';
-    titleWrap.querySelector('.iti-lbl').style.margin = '0 0 .2rem';
+    /* 배지와 삭제 버튼만 헤더 줄에 두고, 제목은 아래 필드들과 같은 폭으로 내린다.
+       예전엔 제목 입력칸이 이 줄 안에 flex:1로 들어가 있어서 ① 버튼 폭만큼 짧아져
+       오전·오후·저녁·팁과 오른쪽 끝이 어긋났고, ② align-items:center가 '라벨+입력칸'
+       묶음 기준으로 버튼을 세로 정렬해 버튼이 입력칸보다 위로 떴다.
+       바로 위 코스 카드(iti-course-head)가 이미 쓰는 구조라 모양도 통일된다. */
+    const spacer = document.createElement('span');
+    spacer.style.marginLeft = 'auto';
     const del = document.createElement('button');
     del.className = 'iti-btn danger';
     del.textContent = '일자 삭제';
@@ -5112,8 +5126,9 @@
       course.days.splice(dayIdx, 1);
       itiMarkDirty(); itiRenderBody();
     });
-    head.appendChild(no); head.appendChild(titleWrap); head.appendChild(del);
+    head.appendChild(no); head.appendChild(spacer); head.appendChild(del);
     box.appendChild(head);
+    box.appendChild(itiField('그날의 제목 (예: 첨단 제조업 현장)', day.title, false, (v) => { day.title = v; }));
 
     const grid = document.createElement('div');
     grid.className = 'iti-day-grid';
