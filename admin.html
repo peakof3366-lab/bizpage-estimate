@@ -890,6 +890,10 @@
         </div>
       </div>
 
+      <!-- 기준가를 서버에서 못 읽었을 때의 경고띠 — 이 화면은 실패해도 data.js 기본값으로
+           표를 그릴 수 있어서, 표시하지 않으면 "낡은 값이 운영값인 척" 보인다. -->
+      <div id="rate-stale-banner" class="hidden" style="margin-bottom:1rem;padding:.8rem 1rem;border:1.6px solid var(--danger,#dc2626);background:#fef2f2;color:#7f1d1d;font-size:.85rem;font-weight:600;line-height:1.6"></div>
+
       <!-- 실제 계약 데이터 기반 갱신 제안 (신규) — 항공료·호텔·식비는 인원별 협상 견적이라
            공개 API로 자동 갱신할 수 없지만, 계약완료된 견적/실제 계약가 위젯에 담당자가
            남긴 실제 단가를 목적지×항목별로 모아서 기준 요율과 얼마나 벌어졌는지 보여준다.
@@ -3457,10 +3461,37 @@
   };
   const RATE_FIELD_ORDER = Object.keys(RATE_FIELD_LABELS);
 
+  /* 서버에서 현재 기준가(rate_overrides)를 읽지 못한 상태를 기억한다.
+     ⚠ 예전엔 실패를 console.warn으로만 남기고 캐시를 그대로 뒀다. 그러면 화면이
+     **data.js 폴백 기본값을 운영 중인 기준가인 것처럼** 그린다(CLAUDE.md: 요율의 진실은
+     data.js가 아니라 운영 DB다). 담당자는 "값이 낡았네"로 읽고 고쳐 저장하고, 그 저장은
+     살아 있던 오버라이드를 덮어쓴다. 변경 이력에는 실제로 존재한 적 없는 '이전 값'이
+     남으므로 되돌리기(PS)도 그 값으로 돌아간다 — 조용한 폴백이 데이터를 지우는 자리다.
+     더 나쁜 건, 편집창을 열 때와 일괄 조정 직전에 "서버 최신값으로 다시 맞춘다"는
+     안전망이 이미 있었는데 **그 안전망이 실패하면 아무 일도 하지 않았다**는 점이다
+     (결함 생성기 ③ — 안전망은 발동하는 것까지 확인해야 안전망이다). */
+  let rateOverridesStale = null;   // null = 정상, { status } | { network: true } = 못 읽음
+
+  /* 못 읽었다는 사실을 사람 말로. 세션 만료(401)와 서버·네트워크 문제는 할 일이 다르다. */
+  function rateStaleReason() {
+    if (!rateOverridesStale) return '';
+    if (rateOverridesStale.status === 401 || rateOverridesStale.status === 403) {
+      return '로그인이 만료되어 현재 기준가를 불러오지 못했습니다. 다시 로그인해 주세요.';
+    }
+    return rateOverridesStale.network
+      ? '네트워크 문제로 현재 기준가를 불러오지 못했습니다.'
+      : `서버가 현재 기준가를 주지 못했습니다 (오류 ${rateOverridesStale.status}).`;
+  }
+
   async function loadRateOverrides() {
     try {
       const res = await fetch('/api/rates');
-      if (res.ok) {
+      if (!res.ok) {
+        console.warn('[admin] 요율 오버라이드 조회 실패:', res.status);
+        rateOverridesStale = { status: res.status };
+        return false;
+      }
+      {
         const data = await res.json();
         rateOverridesCache = data.overrides || {};
         fxRatesCache = data.fxRates || {};
@@ -3481,8 +3512,14 @@
              custom_destinations.currency로 rate_fx_baseline을 심어 FX 계산은 동작한다. */
           if (row.currency && typeof DEST_CURRENCY !== 'undefined') DEST_CURRENCY[destFields.destination_key] = row.currency;
         });
+        rateOverridesStale = null;
+        return true;
       }
-    } catch (err) { console.warn('[admin] 요율 오버라이드 조회 실패:', err); }
+    } catch (err) {
+      console.warn('[admin] 요율 오버라이드 조회 실패:', err);
+      rateOverridesStale = { network: true };
+      return false;
+    }
   }
 
   function effectiveRate(dest) {
@@ -3669,11 +3706,27 @@
      아래 computeRateSuggestions()에서는 이 소스의 비율을 "현재 기준가 대비"로
      계산해 견적 기반 비율과 함께 평균 낸다. */
   let priceReportsCache = [];
+  /* 제보를 못 읽은 것과 제보가 없는 것은 화면에서 똑같이 보인다 — 갱신 제안 카드가
+     그냥 숨겨지기 때문이다(renderRateSuggestions는 후보 0건이면 카드를 감춘다).
+     담당자는 "실측 대비 고칠 게 없구나"로 읽지만 사실은 아무것도 대조하지 못한 것이다.
+     조회 실패를 기억해 두고 경고띠에 함께 적는다(결함 생성기 ② — 폴백은 흔적을 남긴다). */
+  let priceReportsStale = false;
   async function loadPriceReports() {
     try {
       const res = await fetch('/api/quotes?action=priceReports');
-      priceReportsCache = res.ok ? await res.json() : [];
-    } catch (err) { console.warn('[admin] 실제 가격 제보 조회 실패:', err); priceReportsCache = []; }
+      if (!res.ok) {
+        console.warn('[admin] 실제 가격 제보 조회 실패:', res.status);
+        priceReportsCache = []; priceReportsStale = true;
+        return false;
+      }
+      priceReportsCache = await res.json();
+      priceReportsStale = false;
+      return true;
+    } catch (err) {
+      console.warn('[admin] 실제 가격 제보 조회 실패:', err);
+      priceReportsCache = []; priceReportsStale = true;
+      return false;
+    }
   }
 
   function computeRateSuggestions() {
@@ -3832,7 +3885,9 @@
     const dest = destinationRates.find(d => d.destination_key === destKey);
     if (!dest) return;
     const fieldLabel = RATE_FIELD_LABELS[field] || field;
-    await loadRateOverrides();
+    /* 제안값은 "현재 기준가 대비" 비율로 만들어진다 — 기준가를 못 읽은 상태면 제안
+       자체가 기본값 위에서 계산된 것이라 적용해서는 안 된다. */
+    if (!(await ensureFreshRates('제안 적용'))) return;
     const eff = effectiveRate(dest);
     if (!confirm(`"${dest.label}" ${fieldLabel}를 실제 데이터 ${count}건 평균 기준 ${fmtWon(suggestedBase)}(으)로 바로 적용할까요?\n(현재: ${fmtWon(eff[field] || 0)})`)) return;
 
@@ -4223,7 +4278,53 @@
       </tr>`).join('');
   }
 
+  /* 못 읽은 사실을 요율 화면 맨 위에 남긴다. 표는 data.js 기본값으로도 그려지므로
+     이 띠가 없으면 화면이 "정상"으로 보인다 — 그게 이 결함의 핵심이었다. */
+  function renderRateStaleBanner() {
+    const el = document.getElementById('rate-stale-banner');
+    if (!el) return;
+    if (!rateOverridesStale && !priceReportsStale) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+    const lines = [];
+    if (rateOverridesStale) {
+      lines.push(`⚠ ${esc(rateStaleReason())}`);
+      lines.push('아래 표의 단가는 <b>기본값이라 실제 운영 값과 다를 수 있습니다.</b> '
+        + '이 상태에서는 편집·일괄 조정이 잠깁니다(잘못된 값으로 덮어쓰는 것을 막기 위해).');
+    }
+    if (priceReportsStale) {
+      lines.push('⚠ 실제 계약가 제보를 불러오지 못했습니다 — '
+        + '<b>갱신 제안이 비어 있는 것은 "고칠 것이 없다"는 뜻이 아닙니다.</b>');
+    }
+    lines.push('<button type="button" class="btn-act btn-outline-p" style="margin-top:.5rem" onclick="reloadRateData(this)">다시 불러오기</button>');
+    el.innerHTML = lines.join('<br>');
+    el.classList.remove('hidden');
+  }
+
+  /* 요율을 쓰기 직전의 공통 관문.
+     네 경로(편집창 열기·일괄 조정·제안 적용·확인함 기록)가 모두 "쓰기 직전에 서버
+     최신값으로 맞춘다"는 같은 안전망을 갖고 있었는데, 넷 다 결과를 보지 않았다.
+     실패를 무시하면 그 안전망은 **정확히 필요한 순간에만** 없는 것이 된다 —
+     기준값을 모르는 채로 쓰고, 살아 있던 오버라이드를 기본값으로 덮는다.
+     문구를 한 곳에 두는 이유도 같다(네 곳에 따로 적으면 반드시 어긋난다). */
+  async function ensureFreshRates(actionLabel) {
+    if (await loadRateOverrides()) return true;
+    renderRates();   // 경고띠를 띄워 왜 멈췄는지 화면에 남긴다
+    alert(`${rateStaleReason()}\n\n지금 화면의 단가는 기본값일 수 있어 중단했습니다 — ${actionLabel}.\n`
+      + '아무것도 변경되지 않았습니다. 이 상태로 저장하면 실제 운영 중인 값을 덮어쓸 수 있습니다.\n'
+      + '연결을 확인한 뒤 다시 시도해 주세요.');
+    return false;
+  }
+
+  /* 경고띠의 '다시 불러오기' — 성공하면 표까지 새 값으로 다시 그린다. */
+  async function reloadRateData(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '불러오는 중...'; }
+    await loadRateOverrides();
+    await loadPriceReports();
+    if (btn) { btn.disabled = false; btn.textContent = '다시 불러오기'; }
+    renderRates();
+  }
+
   function renderRates() {
+    renderRateStaleBanner();
     refreshRateUndoBanner();
     populatePriceReportDestSelect();
     applyPriceReportModeUI();
@@ -4349,8 +4450,12 @@
     /* 편집창을 열기 직전에 서버 최신값으로 다시 맞춘다 — 다른 브라우저/동료가
        방금 일괄 조정으로 이 목적지 가격을 이미 바꿔놨는데 화면에는 예전 값이 남아
        있는 상태로 편집·저장하면 그 변경을 모르고 덮어써버릴 수 있어서(편집·일괄
-       조정 두 경로가 충돌할 수 있는 지점), 열 때마다 한 번 새로 받아온다. */
-    await loadRateOverrides();
+       조정 두 경로가 충돌할 수 있는 지점), 열 때마다 한 번 새로 받아온다.
+       ⚠ 그 새로 받아오기가 **실패하면 편집창을 열지 않는다.** 예전엔 실패를 무시하고
+       그대로 열었는데, 그건 이 안전망이 정확히 필요한 상황(값을 모르는 상황)에서만
+       무력해진다는 뜻이다 — 화면엔 data.js 기본값이 뜨고, 저장하면 살아 있던 기준가를
+       그 값으로 덮어쓴다. */
+    if (!(await ensureFreshRates('단가 편집창 열기'))) return;
     const eff = effectiveRate(dest);
     document.getElementById('rateEditTitle').textContent = `단가 편집 — ${dest.label}`;
     document.getElementById('rate-edit-fields').innerHTML = RATE_FIELD_ORDER.map(f => `
@@ -4551,7 +4656,9 @@
     const dest = destinationRates.find(d => d.destination_key === destKey);
     if (!dest) return;
     const author = currentUser.displayName;
-    await loadRateOverrides();
+    /* 이 버튼은 값을 안 바꾸는 것처럼 보이지만 환율 기준점을 오늘로 재설정한다 —
+       기준값·환율 변동폭을 못 읽은 상태에서 누르면 아래 경고문의 숫자부터 틀린다. */
+    if (!(await ensureFreshRates('요율 확인 기록'))) return;
     const eff = effectiveRate(dest);
     /* 환율 기준점 재설정을 반드시 알려준다 (신규) — 이 버튼은 "가격 그대로"라고만
        안내했지만, 서버는 rateDate가 갱신되면 그 목적지의 환율 기준점도 오늘로
@@ -4634,8 +4741,14 @@
     /* 실제로 값을 쓰기 직전에 서버 최신값으로 한 번 더 맞춘다 — 모달을 열어둔 사이
        다른 곳(동료의 개별 편집 등)에서 같은 목적지 가격이 바뀌었을 수 있어서, 그
        변경 위에 안전하게 %를 적용하기 위함(편집·일괄 조정 두 경로가 서로의 최신
-       값을 무시하고 덮어쓰는 충돌을 줄임). */
-    await loadRateOverrides();
+       값을 무시하고 덮어쓰는 충돌을 줄임).
+       ⚠ 실패하면 **한 곳도 쓰지 않고 멈춘다.** 일괄 조정은 %를 곱하는 연산이라 기준값이
+       틀리면 지역 전체가 한 번에 틀린 값으로 덮인다 — 개별 편집보다 피해 범위가 넓은데
+       예전엔 여기서도 실패를 무시하고 그대로 진행했다. */
+    if (!(await ensureFreshRates('일괄 조정'))) {
+      if (btn) { btn.disabled = false; btn.textContent = '일괄 적용'; }
+      return;
+    }
     /* 개별 편집(saveRateEdit)은 가격이 바뀌면 요율 기준월도 오늘로 자동 갱신하는데
        일괄 조정은 그동안 이 처리가 빠져 있었음 — 방금 일괄로 가격을 확정했는데도
        "요율 기준월"이 예전 그대로 남아 갱신 필요 배지가 잘못 뜨는 불일치가 있었어서
