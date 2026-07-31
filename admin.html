@@ -2068,6 +2068,39 @@
   /* 서버 세션 쿠키가 실제 인증 근거 — 페이지 로드 시 유효성 재확인(클라이언트 플래그는 신뢰하지 않음) */
   fetch('/api/admin/account?action=me').then(r => { if (r.ok) showDash(); }).catch(() => {});
 
+  /* 로그인 실패 사유를 사람 말로 옮긴다.
+     ⚠ 예전엔 423(잠김)만 구분하고 **나머지를 전부 "아이디 또는 비밀번호가 올바르지
+     않습니다"** 한 문장으로 말했다. 승인 대기 중인 직원도, 사장님이 꺼둔 계정도,
+     DB 장애로 서버가 500을 낸 경우도 똑같이 그 문구를 본다. 바로 옆 화면인
+     비밀번호 변경(changePw)은 이미 사유별로 나눠 말하고 있는데, 정작 팀원 5명이
+     제일 먼저·제일 자주 지나는 이 칸이 뭉뚱그리고 있었다.
+     상태 코드만으로는 못 나눈다 — 403은 승인 대기와 사용 중지 두 가지다. */
+  function loginErrText(status, data) {
+    const err = data && data.error;
+    if (err === 'pending_approval') {
+      return '가입 신청이 아직 승인되지 않았습니다. 아이디와 비밀번호는 맞습니다 — '
+           + '관리자가 승인하면 이대로 로그인됩니다.';
+    }
+    if (err === 'account_disabled') {
+      return '이 계정은 현재 사용할 수 없습니다. 관리자에게 문의해 주세요.';
+    }
+    if (status === 423) {
+      /* 서버가 준 해제 시각으로 남은 시간을 말한다 — 고정 문구("15분간")로 안내하면
+         12분을 기다리고 다시 눌러도 또 15분을 기다리라는 말을 듣는다. */
+      const until = data && data.lockedUntil ? new Date(data.lockedUntil) : null;
+      const mins = until && !isNaN(until.getTime())
+        ? Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60000)) : null;
+      return mins
+        ? `비밀번호를 5회 이상 틀려 계정이 잠겼습니다. 약 ${mins}분 후에 다시 시도해 주세요.`
+        : '비밀번호를 5회 이상 틀려 계정이 15분간 잠겼습니다. 잠시 후 다시 시도해 주세요.';
+    }
+    if (status >= 500) {
+      return `서버 오류로 로그인하지 못했습니다 (오류 ${status}). 비밀번호 문제가 아닐 수 `
+           + '있으니 잠시 후 다시 시도해 주세요.';
+    }
+    return '아이디 또는 비밀번호가 올바르지 않습니다.';
+  }
+
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const idVal = document.getElementById('adminId').value.trim();
@@ -2082,12 +2115,14 @@
         document.getElementById('loginErr').classList.add('hidden');
         await showDash();
       } else {
+        const data = await r.json().catch(() => ({}));
         const errEl = document.getElementById('loginErr');
-        errEl.textContent = r.status === 423
-          ? '비밀번호를 5회 이상 틀려 15분간 잠겼습니다. 잠시 후 다시 시도해 주세요.'
-          : '아이디 또는 비밀번호가 올바르지 않습니다.';
+        errEl.textContent = loginErrText(r.status, data);
         errEl.classList.remove('hidden');
-        document.getElementById('adminPw').value = '';
+        /* 비밀번호가 틀린 경우에만 입력칸을 비운다 — 승인 대기·사용 중지·서버 오류는
+           비밀번호가 맞았거나 아예 확인조차 못 한 것이라, 지우면 "내가 틀렸구나"로
+           읽히고 승인된 뒤 다시 칠 때 또 처음부터 입력하게 된다. */
+        if (r.status === 401 || r.status === 423) document.getElementById('adminPw').value = '';
       }
     } catch {
       document.getElementById('loginErr').classList.remove('hidden');

@@ -60,7 +60,15 @@ ok('코드 비교에 timingSafeEqual 사용', /function safeEqual/.test(accountS
 ok('getSignupCode가 빈 문자열을 미설정으로 취급', /code && String\(code\)\.length \? String\(code\) : null/.test(accountSrc));
 
 console.log('\n[3] 승인 전에는 로그인이 막힌다');
-ok('login.js가 !active를 거부', /if \(!rows\.length \|\| !rows\[0\]\.active\) return res\.status\(401\)/.test(loginSrc));
+/* ⚠ 예전엔 `if (!rows.length || !rows[0].active) return 401` 한 줄을 원문으로 대조했다.
+   그 형태는 QF에서 바뀌었다 — 승인 대기 계정이 맞는 비밀번호를 넣어도 "비밀번호가
+   틀렸다"고 말했고, 비활성 계정에는 락아웃이 아예 안 걸렸기 때문이다. 지금은
+   비밀번호를 검증한 **뒤** 상태를 보고 403으로 막는다. 막힌다는 사실 자체는 그대로라
+   여기서도 확인하되, 실제 동작은 test_qF_login_states.js가 핸들러를 호출해 본다. */
+ok('login.js가 비활성 계정에 세션을 주지 않는다', /if \(!acct\.active\) \{[\s\S]{0,200}res\.status\(403\)/.test(loginSrc));
+ok('상태 판정이 비밀번호 검증보다 뒤에 온다',
+  loginSrc.indexOf('bcrypt.compare') < loginSrc.indexOf('if (!acct.active)'),
+  '상태 판정이 앞서면 대기 계정에 락아웃이 안 걸린다');
 ok('가입 응답이 pending을 알린다', /pending: true/.test(signup));
 
 console.log('\n[4] 관리자 전용 액션이 owner로 잠겨 있다');
