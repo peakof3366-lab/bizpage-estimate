@@ -40,8 +40,14 @@ ok('배너 되돌리기도 대조를 호출한다', /undoConflicts\.push/.test(a
 /* 화면 캐시로 대조하면 방금 남이 바꾼 것을 놓쳐, 안전망이 정작 막아야 할 경우를 통과시킨다. */
 const revertBlock = (adminSrc.match(/async function revertRateChange[\s\S]*?\n  \}/) || [''])[0];
 const undoBlock = (adminSrc.match(/async function undoLastRateAction[\s\S]*?\n  \}/) || [''])[0];
-ok('이력 되돌리기가 대조 전에 서버 값을 다시 받는다', /await loadRateOverrides\(\)/.test(revertBlock));
-ok('배너 되돌리기도 대조 전에 서버 값을 다시 받는다', /await loadRateOverrides\(\)/.test(undoBlock));
+/* ⚠ 예전엔 `await loadRateOverrides()`가 있는지만 봤다. QG에서 드러났듯 그 호출은
+   **결과를 보지 않으면 없는 것과 같다** — 조회가 실패하면 기본값과 대조하게 되어
+   남의 변경이 충돌로 잡히지 않는다. 지금은 실패 시 중단하는 ensureFreshRates()를
+   거친다(실제 동작은 test_qG_rate_stale_guard.js가 PATCH 발생 여부로 확인). */
+ok('이력 되돌리기가 대조 전에 서버 값을 다시 받고, 못 받으면 중단한다',
+  /if \(!\(await ensureFreshRates\(/.test(revertBlock));
+ok('배너 되돌리기도 대조 전에 서버 값을 다시 받고, 못 받으면 중단한다',
+  /if \(!\(await ensureFreshRates\(/.test(undoBlock));
 ok('막지 않고 알린다 (confirm으로 사람이 판단)', /if \(!confirm\(msg\)\) return;/.test(revertBlock));
 
 /* ── jsdom 실동작 ─────────────────────────────────────────────────────

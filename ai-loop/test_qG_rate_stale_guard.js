@@ -81,6 +81,22 @@ const LIVE_OVERRIDE = { 도쿄: { airfare: 399000, rateDate: '2026-07' } };
   await w.confirmRateNoChange('도쿄');
   ok('"확인함" 기록도 멈춘다', w.__patchCount() === 0, String(w.__patchCount()));
 
+  /* 되돌리기 두 경로(배너 · 이력표)도 같은 조회를 충돌 검사의 근거로 쓴다. 예전엔
+     "실패해도 되돌리기 자체는 진행"이라 기본값과 대조하게 됐고, 그러면 남이 그 사이
+     바꾼 값을 충돌로 잡지 못한 채 덮어쓴다 — PS에서 고친 결함이 연결 장애일 때만
+     되살아나는 자리다. */
+  w.__resetFetchLog();
+  w.setLastRateAction({ label: '방금 "도쿄" 요율을 수정했습니다.', entries: [
+    { destinationKey: '도쿄', changes: [{ field: 'airfare', oldValue: 350000, newValue: 380000 }] },
+  ] });
+  await w.undoLastRateAction();
+  ok('배너 되돌리기가 멈춘다', w.__patchCount() === 0, String(w.__patchCount()));
+
+  w.__resetFetchLog();
+  w.__setHistoryCache([{ id: 1, destination_key: '도쿄', field: 'airfare', old_value: 350000, new_value: 380000 }]);
+  await w.revertRateChange(1);
+  ok('이력표 되돌리기가 멈춘다', w.__patchCount() === 0, String(w.__patchCount()));
+
   console.log('\n[3] 실패 사유별로 다르게 안내한다 — 세션 만료는 할 일이 다르다');
 
   dom = await bootAdmin({ ratesReply: { ok: false, status: 401 } });
@@ -134,6 +150,20 @@ const LIVE_OVERRIDE = { 도쿄: { airfare: 399000, rateDate: '2026-07' } };
     airfareInput && Number(airfareInput.value) === 399000,
     airfareInput ? airfareInput.value : '(입력칸 없음)');
 
+  /* 대조군 — 정상일 때는 이 경로들이 실제로 PATCH를 낸다. 이게 없으면 위의 "멈춘다"가
+     가드 덕분인지, 테스트가 애초에 PATCH를 못 만드는 설정인지 구별할 수 없다. */
+  w.__resetFetchLog();
+  w.setLastRateAction({ label: '방금 "도쿄" 요율을 수정했습니다.', entries: [
+    { destinationKey: '도쿄', changes: [{ field: 'airfare', oldValue: 350000, newValue: 399000 }] },
+  ] });
+  await w.undoLastRateAction();
+  ok('(대조군) 정상일 때 배너 되돌리기는 PATCH를 낸다', w.__patchCount() > 0, String(w.__patchCount()));
+
+  w.__resetFetchLog();
+  w.__setHistoryCache([{ id: 1, destination_key: '도쿄', field: 'airfare', old_value: 350000, new_value: 399000 }]);
+  await w.revertRateChange(1);
+  ok('(대조군) 정상일 때 이력표 되돌리기는 PATCH를 낸다', w.__patchCount() > 0, String(w.__patchCount()));
+
   console.log('\n[6] 다시 불러오기로 복구된다');
 
   dom = await bootAdmin({ ratesReply: { ok: false, status: 500 } });
@@ -171,6 +201,7 @@ async function bootAdmin({ ratesReply, reportsReply } = {}) {
     reports: (typeof priceReportsStale !== 'undefined') ? priceReportsStale : false,
     cache: rateOverridesCache,
   });
+  window.__setHistoryCache = (rows) => { rateHistoryRowsCache = rows; };
   currentUser = { id: '7', username: 'staff1', displayName: '김직원', role: 'staff' };
 }catch(e){ window.__exposeError = String(e); }
 `;
@@ -200,6 +231,9 @@ async function bootAdmin({ ratesReply, reportsReply } = {}) {
         const u = String(url);
         const method = (opts && opts.method) || 'GET';
         log.push({ url: u, method, body: opts && opts.body });
+        /* 쓰기는 성공했다고 답한다 — 이 테스트가 보는 것은 "PATCH가 나갔는가"이지
+           서버가 뭘 하는가가 아니다. 답을 안 주면(영구 pending) 대조군에서 멈춘다. */
+        if (u.includes('/api/rates') && method === 'PATCH') return json({ overrides: LIVE_OVERRIDE['도쿄'] });
         if (u.includes('/api/rates') && method === 'GET') {
           if (rates && rates.network) return Promise.reject(new Error('의도적으로 끊은 네트워크'));
           if (rates && rates.ok === false) return json({ error: 'nope' }, rates.status);
