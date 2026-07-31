@@ -1119,12 +1119,20 @@ form.addEventListener('submit', (event) => {
     consultBtn.classList.add('visible');
   }
 
-  /* 3b. 연수 일정 탐색 버튼 활성화 */
+  /* 3b. 연수 일정 탐색 버튼 활성화
+     QD: 등록된 코스가 없는 목적지(관리자가 새로 추가한 곳)에서는 버튼을 내놓지 않는다.
+     예전엔 버튼이 뜨고, 누르면 renderStep3()가 TypeError로 죽어 빈 화면만 남았다.
+     보여줄 게 없으면 처음부터 권하지 않는 편이 정직하다. */
   const exploreBtn = document.getElementById('explorePlanBtn');
   if (exploreBtn) {
-    exploreBtn.classList.remove('hidden');
-    /* Step 3 콘텐츠 미리 준비 */
-    renderStep3();
+    const destKeyForIti = destinationSelect.value;
+    if (typeof hasItineraryContent === 'function' && !hasItineraryContent(destKeyForIti)) {
+      exploreBtn.classList.add('hidden');
+    } else {
+      exploreBtn.classList.remove('hidden');
+      /* Step 3 콘텐츠 미리 준비 */
+      renderStep3();
+    }
   }
 
   /* 4. 결과 패널이 보이도록 스크롤 */
@@ -2980,8 +2988,22 @@ const _FALLBACK_MAP = {
   '밴쿠버':'뉴욕','토론토':'뉴욕',
 };
 
-/* 동기 버전 — ITINERARY_DB 직접 등록 목적지에만 사용 */
+/* QD: 이 목적지에 보여줄 코스가 실제로 있는가.
+   내장 55곳은 전부 있지만, **관리자가 요율 관리에서 추가한 신규 목적지는 없다**
+   (`data.js`가 아니라 DB의 custom_destinations에 있으므로 ITINERARY_DB에 자리가 없다).
+   담당자가 관리자 → 일정 관리에서 코스를 만들어 저장하면 그때 생긴다. */
+function hasItineraryContent(destKey) {
+  return typeof ITINERARY_DB !== 'undefined'
+    && Array.isArray(ITINERARY_DB[destKey])
+    && ITINERARY_DB[destKey].length > 0;
+}
+
+/* 동기 버전 — 코스가 없으면 null. 예전엔 `ITINERARY_DB[destKey]`를 그대로 받아
+   `courses.length`를 읽어서, 신규 목적지에서는 **TypeError로 견적서 만들기와 일정
+   탐색이 통째로 터졌다**(재현 확인). 여기서 null을 돌려주고, 부르는 쪽이 일정 없이도
+   견적서를 낼 수 있게 한다. */
 function getItineraries(destKey, programType) {
+  if (!hasItineraryContent(destKey)) return null;
   const courses = ITINERARY_DB[destKey];
 
   /* 프로그램 유형 기반 우선순위 적용 */
@@ -3132,15 +3154,31 @@ function openEstimateWindow() {
   const incItemsHtml = data.rows.filter(r => !r.muted)
     .map(r => `<span class="inc-tag">${r.name}</span>`).join('');
 
-  /* 일정 추천 */
-  const itineraries = getItineraries(destKey, programType) || [ITINERARY_DB[destKey][0], ITINERARY_DB[destKey][1] || ITINERARY_DB[destKey][0]];
-  const itiA = itineraries[0];
-  const itiB = itineraries[1] || itineraries[0];
+  /* 일정 추천
+     ⚠ 예전엔 `getItineraries(...) || [ITINERARY_DB[destKey][0], …]`였는데, 폴백 쪽도
+     같은 undefined를 인덱싱해서 **신규 목적지에서는 여기서 TypeError가 났다.**
+     견적 금액은 멀쩡히 계산된 뒤 견적서 만들기만 터지므로 담당자 입장에서는
+     "버튼이 안 먹는다"로 보인다. 일정이 없으면 그 섹션만 빼고 견적서를 낸다. */
+  const itineraries = getItineraries(destKey, programType);
+  const hasIti = !!itineraries;
+  const itiA = hasIti ? itineraries[0] : null;
+  const itiB = hasIti ? (itineraries[1] || itineraries[0]) : null;
 
   /* 실제 선택 일수에 맞춰 귀국일 콘텐츠가 마지막 날에만 나오도록 재배치
      (ITINERARY_DB 코스는 전부 5일 고정으로 작성되어 있음) */
-  const itiADisplayDays = _buildDisplayDays(itiA, destKey, 'a', days);
-  const itiBDisplayDays = _buildDisplayDays(itiB, destKey, 'b', days);
+  const itiADisplayDays = hasIti ? _buildDisplayDays(itiA, destKey, 'a', days) : [];
+  const itiBDisplayDays = hasIti ? _buildDisplayDays(itiB, destKey, 'b', days) : [];
+
+  /* 조용히 빠뜨리지 않는다 — 담당자가 관리자 → 일정 관리에서 이 목적지의 코스를
+     만들면 다음 견적서부터 섹션이 살아난다(결함 생성기 ②). */
+  if (!hasIti) {
+    console.warn('[견적서] "' + destKey + '"에 등록된 추천 일정이 없어 일정 섹션을 빼고 만듭니다. '
+      + '관리자 → 일정 관리에서 코스를 추가하면 다음 견적서부터 포함됩니다.');
+    if (window.__ITINERARY_SOURCE__) {
+      window.__ITINERARY_SOURCE__.missingOnQuote =
+        (window.__ITINERARY_SOURCE__.missingOnQuote || []).concat(destKey);
+    }
+  }
 
   /* STEP3 탐색기에서 이미 플랜을 선택한 경우, 그 선택을 견적서에도 그대로 반영 */
   const selectedPlan = (typeof _currentPlan !== 'undefined' && _currentPlan) ? _currentPlan : '';
@@ -3177,8 +3215,10 @@ function openEstimateWindow() {
     rd: rateDate, rv: rateVer,
     rows: data.rows.filter(r => !r.muted).map(r => [r.name, r.amount]),
     req: requestDetails.slice(0, 300),
-    itiA: { t: itiA.title, s: itiA.subtitle, h: itiA.highlights, d: itiADisplayDays },
-    itiB: { t: itiB.title, s: itiB.subtitle, h: itiB.highlights, d: itiBDisplayDays },
+    /* 일정이 없으면 아예 싣지 않는다. estimate-view.html은 `d.itiA || d.itiB`로
+       섹션 자체를 감싸고 있어 빠져도 정상 렌더된다(공유 견적서 확인). */
+    itiA: hasIti ? { t: itiA.title, s: itiA.subtitle, h: itiA.highlights, d: itiADisplayDays } : null,
+    itiB: hasIti ? { t: itiB.title, s: itiB.subtitle, h: itiB.highlights, d: itiBDisplayDays } : null,
     cover: destPhotos ? destPhotos.cover : '',
     strip: destPhotos ? destPhotos.strip.slice(0, 2) : [],
     sp: selectedPlan,
@@ -3419,7 +3459,7 @@ a{color:inherit;text-decoration:none}
 <!-- ANCHOR NAV (no-print) -->
 <div class="anchor-nav no-print">
   <a href="#quote" id="anc-quote">견적 내용</a>
-  <a href="#rec" id="anc-rec">추천 일정</a>
+  ${hasIti ? '<a href="#rec" id="anc-rec">추천 일정</a>' : ''}
   ${destPhotos ? '<a href="#gallery" id="anc-gallery">현지 사진</a>' : ''}
 </div>
 
@@ -3480,7 +3520,11 @@ a{color:inherit;text-decoration:none}
     <button class="q-print-btn no-print" onclick="window.print()"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>이 견적서 인쇄하기</button>
   </div><!-- /quote-doc -->
 
-  <!-- ══ 추천 일정 (no-print) ══ -->
+  <!-- ══ 추천 일정 (no-print) ══
+       QD: 등록된 코스가 없는 목적지(관리자가 새로 추가한 곳)에서는 이 섹션 전체를
+       뺀다. 예전엔 여기서 itiA.title을 읽다가 TypeError가 나 견적서 만들기 자체가
+       터졌다. 금액·조건은 그대로 나가므로 견적서로서는 온전하다. -->
+  ${!hasIti ? '' : `
   <section id="rec" class="pg-section no-print">
     <div class="sec-label">RECOMMENDED ITINERARY</div>
     <h2>맞춤 일정 추천</h2>
@@ -3515,6 +3559,7 @@ a{color:inherit;text-decoration:none}
       ${renderGallery(destPhotos?.strip)}
     </div>
   </section>
+  `}
 
 </div><!-- /page-wrap -->
 
@@ -3749,6 +3794,15 @@ var _step3Courses = null;
 function scrollToStep3() {
   var sec = document.getElementById('step3Section');
   if (!sec) return;
+  /* QD: 보여줄 코스가 없으면 열지 않는다. 여기서 막아야 두 진입 경로가 모두 닫힌다 —
+     index.html의 "연수 일정 탐색" 버튼과, 공유 견적서에서 ?dest=…로 들어오는 경로
+     (initFromSharedLink는 renderStep3 뒤에 이걸 무조건 부른다). 이 줄이 없으면
+     renderStep3가 닫아 둔 섹션을 곧바로 다시 열어 **빈 화면**을 보여준다. */
+  var destNow = (typeof destinationSelect !== 'undefined') ? destinationSelect.value : '';
+  if (typeof hasItineraryContent === 'function' && !hasItineraryContent(destNow)) {
+    sec.classList.add('hidden');
+    return;
+  }
   sec.classList.remove('hidden');
   /* 섹션이 숨겨져 있던 동안엔 지도 프레임 크기를 읽을 수 없었으므로(0px) 여기서 재배치 */
   if (typeof destinationSelect !== 'undefined' && destinationSelect.value) {
@@ -3787,6 +3841,16 @@ function renderStep3() {
     loadStep3Images(destKey);
     return;
   }
+
+  /* QD: 보여줄 코스가 없는 목적지(관리자가 새로 추가한 곳). 예전엔 이 함수가 여기
+     도달하기 전에 TypeError로 죽었다. 이제는 죽지 않지만, 그냥 return하면 **직전
+     목적지의 코스 카드가 그대로 남아** 다른 목적지 일정을 이 목적지 것으로 보게 된다.
+     남은 것을 지우고 섹션을 닫는다(호출부에서 버튼도 내놓지 않는다). */
+  _step3Courses = null;
+  var step3Sec = document.getElementById('step3Section');
+  if (step3Sec) step3Sec.classList.add('hidden');
+  console.warn('[일정 탐색] "' + destKey + '"에 등록된 추천 일정이 없어 일정 탐색을 열지 않습니다. '
+    + '관리자 → 일정 관리에서 코스를 추가하면 열립니다.');
 }
 
 /* API courses 배열 → DEST_REC {a, b} 형식 변환 */
