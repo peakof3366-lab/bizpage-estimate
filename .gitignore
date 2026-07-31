@@ -8,4 +8,9 @@ ai-loop/tmp_prompt.txt
 .env*
 node_modules/
 
+# DB 백업 파일 — 기본 저장 위치는 저장소 밖이지만, --allow-in-repo로 안에 만든 경우에도
+# 절대 커밋되지 않게 막는다(고객 개인정보·비밀번호 해시·가입코드가 들어 있다).
+bizpage_backup_*.json
+비즈페이지_백업/
+
 .env*
