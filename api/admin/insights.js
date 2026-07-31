@@ -10,18 +10,39 @@
    POST ?type=marketing = 실제 OpenAI API를 호출해 새로 분석하고 결과를 DB에 저장 */
 const { sql } = require('../_lib/db');
 const { requireAdmin } = require('../_lib/auth');
+const { CLICK_EVENT_NAMES } = require('../_lib/site_events');
 const OpenAI = require('openai');
 
-const CLICK_EVENT_NAMES = ['header_cta', 'estimate_step2', 'estimate_complete', 'kakao'];
 const MAX_SOURCES = 150;
+
+/* 방문 원본 행을 화면으로 보내는 상한. 차트(14일 추이·시간대·요일)가 원본 타임스탬프를
+   필요로 해서 집계만으로는 대체할 수 없다.
+   ⚠ 예전엔 이 상한에 걸린 사실이 **화면 어디에도 남지 않았다.** 방문이 3,000건을
+   넘는 순간 "전체 방문"은 3,000에서 멈추고, 퍼널의 분모도 3,000으로 굳어 전환율이
+   부풀려지며, 14일 차트는 오래된 날짜부터 잘려 **평평한 트래픽이 우상향으로 보인다.**
+   전부 사장님이 마케팅 판단에 쓰는 숫자다(결함 생성기 ② — 조용한 폴백).
+   → 전체 건수는 count(*)로 따로 세어 함께 돌려주고, 절단 여부를 명시한다. */
+const VISIT_WINDOW = 3000;
+
+/* 연수지 집계 행 상한. group by는 distinct 값 수만큼 행을 내는데 dest 값의 출처가
+   **인증 없는 공개 POST**라 상한이 없으면 응답 크기를 외부에서 좌우할 수 있었다.
+   `order by c desc`로 자르므로 화면이 쓰는 TOP 10은 상한과 무관하게 정확하다.
+   잘린 목적지가 있으면 `destTruncated`로 알린다(현재 화면은 TOP N만 쓰므로 표시는
+   하지 않는다 — 필요해지면 그때 쓰라고 값만 넘긴다). */
+const MAX_DEST_ROWS = 50;
 
 async function handleAnalytics(req, res) {
   try {
-    const [visitRows, eventRows, destRows] = await Promise.all([
-      sql`select created_at as ts from site_events where name = 'pageview' order by created_at desc limit 3000`,
+    const [visitRows, visitTotalRows, eventRows, destRows, destTotalRows] = await Promise.all([
+      sql`select created_at as ts from site_events where name = 'pageview'
+          order by created_at desc limit ${VISIT_WINDOW}`,
+      sql`select count(*)::int as c from site_events where name = 'pageview'`,
       sql`select name, count(*)::int as c from site_events where name = any(${CLICK_EVENT_NAMES}) group by name`,
       sql`select meta->>'dest' as dest, count(*)::int as c from site_events
-          where name = 'dest_select' and meta ? 'dest' group by dest`,
+          where name = 'dest_select' and meta ? 'dest'
+          group by dest order by c desc limit ${MAX_DEST_ROWS}`,
+      sql`select count(distinct meta->>'dest')::int as c from site_events
+          where name = 'dest_select' and meta ? 'dest'`,
     ]);
 
     const events = {};
@@ -30,10 +51,19 @@ async function handleAnalytics(req, res) {
     const dest = {};
     for (const row of destRows) if (row.dest) dest[row.dest] = row.c;
 
+    const visitTotal = visitTotalRows[0] ? visitTotalRows[0].c : visitRows.length;
+    const destTotal = destTotalRows[0] ? destTotalRows[0].c : Object.keys(dest).length;
+
     res.status(200).json({
       visits: visitRows.map((r) => ({ ts: r.ts })),
       events,
       dest,
+      /* 화면이 "지금 보고 있는 것이 전부인지"를 알 수 있게 하는 값들 (PZ) */
+      visitTotal,
+      visitWindow: VISIT_WINDOW,
+      visitsTruncated: visitTotal > visitRows.length,
+      destTotal,
+      destTruncated: destTotal > Object.keys(dest).length,
     });
   } catch (err) {
     console.error(err);

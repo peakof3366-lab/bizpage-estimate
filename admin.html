@@ -625,6 +625,8 @@
         <div class="stat-card warn"><div id="s-week" class="stat-num">0</div><div class="stat-lbl">이번 주</div></div>
         <div class="stat-card"><div id="s-avg" class="stat-num">0</div><div class="stat-lbl">일 평균 방문</div></div>
       </div>
+      <!-- 방문 원본 행 상한 안내 (PZ) — 상한에 걸렸을 때만 보인다 -->
+      <p id="s-trunc-note" class="hidden" style="font-size:.8rem;color:#92400e;background:#fffbeb;border:1px solid #fde68a;padding:.55rem .8rem;margin-bottom:.9rem"></p>
       <div class="grid-2">
         <div class="card">
           <div class="card-header"><span class="card-title">최근 14일 방문 추이</span></div>
@@ -1584,6 +1586,10 @@
     dest:      'linkedt_dest_stats',
     est:       'linkedt_estimates',
     estFull:   'linkedt_estimates_full',
+    /* 방문 원본 행은 서버가 최근 3,000건까지만 보낸다(PZ). 그 상한에 걸렸는지와
+       실제 전체 건수를 여기 따로 담는다 — 예전엔 visits.length를 "전체 방문"으로
+       그대로 썼기 때문에 3,000을 넘는 순간 숫자가 조용히 멈췄다. */
+    visitMeta: 'linkedt_visit_meta',
   };
 
   /* ── 로그인 계정(멀티유저) ────────────────────────────────────────────
@@ -2040,6 +2046,15 @@
           set(KEYS.visits, an.visits || []);
           set(KEYS.events, an.events || {});
           set(KEYS.dest, an.dest || {});
+          /* 서버가 상한에 걸렸다고 알려준 사실을 화면까지 가져온다 (PZ).
+             visitTotal이 없는 옛 응답이면 원본 건수를 그대로 쓴다(= 종전 동작). */
+          set(KEYS.visitMeta, {
+            visitTotal: Number.isFinite(an.visitTotal) ? an.visitTotal : (an.visits || []).length,
+            visitWindow: an.visitWindow || 0,
+            visitsTruncated: !!an.visitsTruncated,
+            destTotal: Number.isFinite(an.destTotal) ? an.destTotal : Object.keys(an.dest || {}).length,
+            destTruncated: !!an.destTruncated,
+          });
         }
       } catch (err) {
         console.warn('[admin] 방문/이벤트 통계 동기화 실패(문의·견적은 정상):', err);
@@ -2493,7 +2508,7 @@
       <div class="kpi-box"><div class="kpi-num">${ests.length}</div><div class="kpi-lbl">견적 건수</div></div>
       <div class="kpi-box"><div class="kpi-num">${avgP}명</div><div class="kpi-lbl">평균 인원</div></div>
       <div class="kpi-box"><div class="kpi-num">${avgD}일</div><div class="kpi-lbl">평균 기간</div></div>
-      <div class="kpi-box"><div class="kpi-num">${visits.length}</div><div class="kpi-lbl">총 방문</div></div>
+      <div class="kpi-box"><div class="kpi-num">${visitMeta().total.toLocaleString()}</div><div class="kpi-lbl">총 방문</div></div>
     `;
   }
 
@@ -2735,17 +2750,43 @@
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.getElementById('modal').classList.add('hidden'); });
 
   /* ════ STATS ════ */
+  /* 방문 원본 행의 상한 정보 (PZ). 서버가 최근 N건만 보내므로, "전체 방문"처럼
+     전체를 뜻하는 숫자는 원본 배열 길이가 아니라 서버가 센 총계를 써야 한다. */
+  function visitMeta() {
+    const m = getO(KEYS.visitMeta);
+    const visits = get(KEYS.visits);
+    return {
+      total: Number.isFinite(m.visitTotal) ? m.visitTotal : visits.length,
+      window: m.visitWindow || 0,
+      truncated: !!m.visitsTruncated,
+    };
+  }
+
   function renderStats() {
     const visits = get(KEYS.visits);
+    const vm     = visitMeta();
     const todayC = visits.filter(v=>isToday(v.ts)).length;
     const weekC  = visits.filter(v=>isThisWeek(v.ts)).length;
     const days   = [...new Set(visits.map(v=>new Date(v.ts).toDateString()))].length || 1;
     const avg    = Math.round(visits.length / days);
 
-    document.getElementById('s-all').textContent   = visits.length;
+    document.getElementById('s-all').textContent   = vm.total.toLocaleString();
     document.getElementById('s-today').textContent = todayC;
     document.getElementById('s-week').textContent  = weekC;
     document.getElementById('s-avg').textContent   = avg;
+
+    /* 상한에 걸렸으면 어느 숫자가 전체이고 어느 숫자가 최근 N건 기준인지 밝힌다.
+       ⚠ 이 안내를 지우면 14일 차트의 오래된 날짜가 잘려 **평평한 트래픽이
+       우상향 추세로 보이는데** 화면에는 아무 표시가 없게 된다. */
+    const note = document.getElementById('s-trunc-note');
+    if (note) {
+      if (vm.truncated) {
+        note.textContent = `전체 방문 ${vm.total.toLocaleString()}건 중 최근 ${vm.window.toLocaleString()}건만 아래 차트·일 평균에 반영됩니다. 그보다 오래된 날짜의 막대는 실제보다 낮게 보입니다.`;
+        note.classList.remove('hidden');
+      } else {
+        note.classList.add('hidden');
+      }
+    }
 
     renderBarChart('chart-14d', buildDailyData(visits, 14), 110);
     renderBarChart('chart-hour', buildHourData(visits), 110);
@@ -2760,11 +2801,17 @@
     const ests   = getEstsFull(); /* 실제 서버 견적 데이터 (기존엔 미사용 변수였음) */
     const inquiries = get(KEYS.contacts);
 
+    /* ⚠ 이 표는 서버 `api/_lib/site_events.js`의 EVENT_DEFS(click:true)와 **같아야 한다.**
+       브라우저라 서버 모듈을 읽을 수 없어 사본이 남았고, `ai-loop/test_pZ_site_events.js`가
+       원문 대조로 어긋남을 잡는다. 예전엔 이 대조가 없어서 `consult_request`가
+       수집 목록에만 있고 여기에는 없었다 — 상담 신청 클릭이 DB에 쌓이기만 하고
+       화면 어디에도 나오지 않았다(퍼널에서 리드 직전 단계라 제일 중요한 축이다). */
     const btnMap = {
       'header_cta':       '상단 "1분 견적 받기" 버튼',
       'estimate_step2':   '견적 계산기 → 2단계 이동',
       'estimate_complete':'견적 확인 완료',
       'kakao':            '카카오톡 상담 버튼',
+      'consult_request':  '상담 신청 제출',
     };
     const el = document.getElementById('ev-buttons');
     el.innerHTML = Object.entries(btnMap).map(([k,lbl])=>`
@@ -2779,7 +2826,11 @@
 
     /* Funnel — "문의 접수"는 실제 서버에 저장된 문의(inquiries) 건수로,
        카카오톡 클릭과 달리 실제 리드 전환을 나타냄 */
-    const vTotal = visits.length;
+    /* ⚠ 분모는 원본 배열 길이가 아니라 서버가 센 전체 방문이다 (PZ). 아래 단계들은
+       전부 전체 기간 count(*)인데 분모만 최근 3,000건으로 잘리면 방문이 그 상한을
+       넘는 순간 전환율이 **실제보다 높게** 나온다(방문 10,000·견적완료 300이면
+       실제 3%인데 300/3,000 = 10%로 보였다). */
+    const vTotal = visitMeta().total;
     const step2  = events['estimate_step2']||0;
     const done   = events['estimate_complete']||0;
     const kakao  = events['kakao']||0;
