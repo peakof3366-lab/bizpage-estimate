@@ -111,6 +111,23 @@ function verifyFile(file) {
   return { ok: problems.length === 0, problems, meta: parsed.meta };
 }
 
+/* 자동 백업이 조용히 멈춘 것을 알아채는 유일한 창구다 — 작업 스케줄러가 실패해도
+   아무도 로그를 안 본다. 목록을 볼 때 "마지막이 며칠 전"인지 항상 말해 준다. */
+function stalenessNote(files, now = new Date()) {
+  if (!files.length) return { days: null, stale: true, text: '아직 백업이 없습니다.' };
+  const last = files[files.length - 1];
+  const m = last.match(/^bizpage_backup_(.+?)(?:_PARTIAL)?\.json$/);
+  const iso = m ? m[1].replace(/-/g, ':').replace(/^(\d{4}):(\d{2}):(\d{2})T/, '$1-$2-$3T').replace(/:(\d{3})Z$/, '.$1Z') : '';
+  const t = Date.parse(iso);
+  if (isNaN(t)) return { days: null, stale: true, text: `마지막 백업 시각을 읽을 수 없습니다: ${last}` };
+  const days = Math.floor((now.getTime() - t) / 86400000);
+  const partial = /_PARTIAL\.json$/.test(last);
+  if (partial) return { days, stale: true, text: `⚠ 가장 최근 백업이 부분 백업입니다(${days}일 전). 다시 받아 주세요.` };
+  return days >= 2
+    ? { days, stale: true, text: `⚠ 마지막 백업이 ${days}일 전입니다 — 자동 백업이 멈춰 있는지 확인해 주세요.` }
+    : { days, stale: false, text: `마지막 백업: ${days === 0 ? '오늘' : days + '일 전'}` };
+}
+
 function defaultDir() {
   /* 프로젝트 폴더와 나란히 둔다 — 찾기 쉬우면서 저장소 밖이다. */
   return path.join(path.dirname(ROOT), '비즈페이지_백업');
@@ -158,11 +175,13 @@ async function main() {
   if (argv.includes('--list')) {
     const files = listBackups(dir);
     console.log(`백업 폴더: ${dir}`);
-    if (!files.length) { console.log('  (아직 백업이 없습니다)'); return; }
     files.forEach(f => {
       const size = (fs.statSync(path.join(dir, f)).size / 1024).toFixed(0);
       console.log(`  ${f}  ${size} KB`);
     });
+    const note = stalenessNote(files);
+    console.log(`\n${note.text}`);
+    if (note.stale) process.exit(1);
     return;
   }
 
@@ -222,7 +241,7 @@ async function main() {
   console.log(`✓ 총 ${backup.meta.totalRows}행 백업 완료 — 다시 읽어 행 수까지 대조했습니다.`);
 }
 
-module.exports = { readTableNames, loadTableNames, dumpTables, buildBackup, verifyFile, listBackups, pruneOld, taggedLiteral, FILE_RE };
+module.exports = { readTableNames, loadTableNames, dumpTables, buildBackup, verifyFile, listBackups, pruneOld, stalenessNote, taggedLiteral, FILE_RE };
 
 if (require.main === module) {
   main().catch((err) => { console.error(err); process.exit(1); });

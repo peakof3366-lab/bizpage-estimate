@@ -79,6 +79,21 @@ node ai-loop/db_restore.js --confirm # 계획대로 실행 — 빠진 행만 채
 - `id`가 bigserial인 테이블은 복원 후 시퀀스를 다시 맞춘다. 안 맞추면 복원 며칠 뒤
   "계정 추가가 안 된다"로 나타난다.
 
+**자동 실행** — Windows 작업 스케줄러에 `bizpage-db-backup`으로 등록돼 있다(매일 18:00,
+`ai-loop/backup_daily.bat`, 실행 로그는 `ai-loop/logs/backup.log`). PC가 꺼져 있어 건너뛴
+날은 다음에 켜질 때 실행된다(`StartWhenAvailable`).
+
+⚠ **자동 백업은 조용히 멈춘다** — 스케줄러가 실패해도 아무도 로그를 안 본다. 그래서
+`--list`가 마지막 백업이 며칠 전인지 항상 말하고, 이틀 이상 지났거나 부분 백업이면
+종료 코드 1로 끝낸다. 가끔 `node ai-loop/db_backup.js --list`를 확인하면 된다.
+
+```powershell
+# 상태 확인 / 지금 즉시 한 번 실행 / 해제
+Get-ScheduledTaskInfo -TaskName 'bizpage-db-backup'
+Start-ScheduledTask   -TaskName 'bizpage-db-backup'
+Unregister-ScheduledTask -TaskName 'bizpage-db-backup'
+```
+
 ## 자격증명
 
 둘 다 gitignore돼 있고 저장소에 커밋하지 않는다.

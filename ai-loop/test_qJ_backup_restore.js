@@ -151,6 +151,23 @@ const SAMPLE = {
   ok('남긴 개수가 맞다', backupTool.listBackups(dir).length === 2);
   ok('이름 규칙이 다른 파일은 그대로 둔다', fs.existsSync(decoy));
 
+  console.log('\n[4-2] 자동 백업이 멈춘 것을 알아채는가');
+
+  /* 스케줄러가 조용히 죽는 것이 이 구조의 가장 큰 위험이다. 아무도 로그를 안 보므로,
+     목록을 볼 때마다 마지막 백업이 며칠 전인지 말하고 오래됐으면 실패로 끝낸다. */
+  const now = new Date('2026-07-31T09:00:00.000Z');
+  const fresh = stale => backupTool.stalenessNote([`bizpage_backup_${stale}.json`], now);
+  ok('오늘 받은 백업은 정상으로 본다', !fresh('2026-07-31T08-42-21-328Z').stale,
+    fresh('2026-07-31T08-42-21-328Z').text);
+  ok('하루 전까지는 정상', !fresh('2026-07-30T08-42-21-328Z').stale, fresh('2026-07-30T08-42-21-328Z').text);
+  const old = fresh('2026-07-25T08-42-21-328Z');
+  ok('며칠 지났으면 경고한다', old.stale && old.days === 6, JSON.stringify(old));
+  ok('경고문이 "자동 백업이 멈췄는지"를 짚는다', /자동 백업/.test(old.text), old.text);
+  const partialNote = fresh('2026-07-31T08-42-21-328Z_PARTIAL');
+  ok('가장 최근이 부분 백업이면 그것도 경고한다', partialNote.stale && /부분 백업/.test(partialNote.text),
+    partialNote.text);
+  ok('백업이 하나도 없으면 경고한다', backupTool.stalenessNote([], now).stale);
+
   console.log('\n[5] 복원 — 기본은 아무것도 지우지 않는다');
 
   /* 사고 상황 재현: 문의 1건이 사라지고, 견적 1건은 그 뒤에 새로 들어왔다. */
