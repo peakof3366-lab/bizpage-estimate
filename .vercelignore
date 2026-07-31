@@ -1,6 +1,7 @@
 # 배포에서 제외할 것 — 이 저장소는 루트가 정적 출력이라, 커밋된 파일은 기본적으로
 # 프로덕션 도메인에서 그대로 읽힌다. 2026-07-30 확인 결과 아래가 공개로 열려 있었다:
 #   /RESUME_NOTE.md                  → 내부 인수인계 노트(보안 방어선·검증의 한계까지 기술)
+#                                      ※ 이 파일은 2026-07-31 저장소에서 삭제됐다
 #   /ai-loop/db_migrate.js           → 운영 DB 전체 스키마
 #   /ai-loop/test_pJ_public_input.js → 어떤 공격이 막히고 무엇이 안 막히는지
 #   /.claude/settings.local.json     → 로컬 개발 설정
@@ -9,13 +10,15 @@
 # 못 잡는다")를 공개해 둘 이유가 없다.
 #
 # ⚠ 여기에 추가할 때는 런타임에 필요한 파일을 빼지 않도록 주의할 것.
-#   필요: index.html·admin.html·estimate-view.html·styles.css·script.js·images/
+#   필요: index.html·admin.html·admin-quote.html·estimate-view.html·styles.css·script.js
 #         data.js·dest_currency.js·company-info.js (브라우저가 직접 로드)
+#         이미지/ ← 폴더 이름이 한글이다. 'images/'가 아니다(예전 주석이 그렇게 적혀
+#                  있었는데, 그 이름으로 규칙을 쓰면 아무것도 안 걸러 조용히 통과한다)
 #         api/** (서버리스 함수 — api/rates.js가 ../data와 ../dest_currency를 require한다)
 
-# 내부 문서 — 전부 제외한다.
-# (참고: 지금 RESUME_NOTE.md는 200인데 README.md는 404다. Vercel이 어떤 .md는
-#  서빙하고 어떤 건 안 하는 규칙에 기대면 안 되므로 확실히 빼는 쪽으로 간다.)
+# 내부 문서(README.md·CLAUDE.md) — 전부 제외한다.
+# (근거: 2026-07-30 실측에서 RESUME_NOTE.md는 200인데 README.md는 404였다. Vercel이
+#  어떤 .md는 서빙하고 어떤 건 안 하는 규칙에 기대면 안 되므로 확실히 빼는 쪽으로 간다.)
 *.md
 
 # 개발·검증 도구 (런타임에 쓰이지 않음)

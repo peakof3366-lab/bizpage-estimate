@@ -26,7 +26,7 @@ const fs = require('fs');
 
 const ROOT = path.join(__dirname, '..', '..');
 
-/* 관심 대상 — 견적 금액이나 검증 자체에 영향을 주는 파일만. RESUME_NOTE.md·개인 메모·
+/* 관심 대상 — 견적 금액이나 검증 자체에 영향을 주는 파일만. 문서(README·CLAUDE.md)와
    GPT 협의 기록(.txt)은 고쳐도 검증이 필요 없으므로 넣지 않는다(불필요한 30초 방지). */
 const WATCH = [
   /^data\.js$/, /^script\.js$/, /^dest_currency\.js$/, /^company-info\.js$/,
