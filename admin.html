@@ -1776,12 +1776,18 @@
     /* 상태 칸은 세 가지를 구분한다 — 승인 대기(가입 신청), 활성, 비활성.
        self_signup이 없으면 대기자와 "내가 꺼둔 계정"이 똑같이 보여서, 기다리는
        사람을 놓치거나 내보낸 계정을 되살리게 된다. */
+    /* ⚠ id는 bigserial이라 API가 **문자열**로 준다("1"). `s.id === currentUser.id`가
+       지금 통하는 건 양쪽 다 문자열이기 때문인데, 한쪽이라도 숫자로 바뀌면 본인 행
+       보호가 조용히 풀린다 — 서버 가드가 정확히 그 이유로 죽어 있었다(account.js
+       isSelf 주석). 여기서도 String()으로 못박고, 서버에 넘길 때도 따옴표로 감싸
+       원래 형태 그대로 보낸다. */
+    const isMe = (s) => String(s.id) === String(currentUser.id);
     tbody.innerHTML = staffListCache.map(s => `
       <tr${s.self_signup ? ' style="background:var(--warn-bg,rgba(255,193,7,.08))"' : ''}>
         <td>${esc(s.display_name)}</td>
         <td style="color:var(--muted)">${esc(s.username)}</td>
         <td>
-          <select class="status-select" style="font-size:.76rem;padding:.25rem .4rem" onchange="changeStaffRole(${s.id}, this.value)" ${s.id===currentUser.id?'disabled title="본인 역할은 변경할 수 없습니다"':''}>
+          <select class="status-select" style="font-size:.76rem;padding:.25rem .4rem" onchange="changeStaffRole('${esc(s.id)}', this.value)" ${isMe(s)?'disabled title="본인 역할은 변경할 수 없습니다"':''}>
             <option value="staff"${s.role==='staff'?' selected':''}>직원</option>
             <option value="manager"${s.role==='manager'?' selected':''}>매니저</option>
             <option value="owner"${s.role==='owner'?' selected':''}>관리자</option>
@@ -1792,10 +1798,10 @@
               : '<span class="rate-badge stale">🔴 비활성</span>'}</td>
         <td style="display:flex;gap:.3rem;flex-wrap:wrap">
           ${s.self_signup
-            ? `<button class="btn-detail" style="border-color:var(--success);color:var(--success)" onclick="approveStaff(${s.id}, '${esc(s.display_name)}')">승인</button>
-               <button class="btn-detail" onclick="rejectStaff(${s.id}, '${esc(s.display_name)}')">거절</button>`
-            : `<button class="btn-detail" onclick="resetStaffPasswordPrompt(${s.id}, '${esc(s.display_name)}')">비번 재설정</button>
-               ${s.id===currentUser.id ? '' : `<button class="btn-detail" onclick="toggleStaffActive(${s.id}, ${!s.active})">${s.active ? '비활성화' : '활성화'}</button>`}`}
+            ? `<button class="btn-detail" style="border-color:var(--success);color:var(--success)" onclick="approveStaff('${esc(s.id)}', '${esc(s.display_name)}')">승인</button>
+               <button class="btn-detail" onclick="rejectStaff('${esc(s.id)}', '${esc(s.display_name)}')">거절</button>`
+            : `<button class="btn-detail" onclick="resetStaffPasswordPrompt('${esc(s.id)}', '${esc(s.display_name)}')">비번 재설정</button>
+               ${isMe(s) ? '' : `<button class="btn-detail" onclick="toggleStaffActive('${esc(s.id)}', ${!s.active})">${s.active ? '비활성화' : '활성화'}</button>`}`}
         </td>
       </tr>`).join('');
 
@@ -1810,22 +1816,44 @@
   }
 
   /* ── 가입코드 관리 (신규, 관리자 전용) ── */
+  /* 현재 가입코드를 서버에서 실제로 읽어왔는가. 못 읽었으면 **저장을 막는다** —
+     빈 칸을 "설정 안 됨"으로 오해하고 그대로 저장하면 가입이 실제로 꺼지고, 코드를
+     기다리던 팀원 전원이 403을 받는다(읽기 실패가 파괴적 쓰기로 이어지는 자리다).
+     예전에는 조회 실패를 조용히 넘겨서 그 상태와 "정말 미설정"이 화면상 똑같았다. */
+  let signupCodeLoaded = false;
   async function loadSignupCode() {
     const input = document.getElementById('signup-code-input');
     const msg = document.getElementById('signup-code-msg');
     if (!input) return;
+    const failed = (why) => {
+      signupCodeLoaded = false;
+      input.value = '';
+      input.placeholder = '불러오지 못함';
+      if (msg) {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = `현재 가입코드를 불러오지 못했습니다(${why}). 아래 칸은 지금 설정된 값이 아니므로, 새로고침해서 다시 확인한 뒤 저장해 주세요.`;
+      }
+    };
     try {
       const res = await fetch('/api/admin/account?action=signupSettings');
-      if (!res.ok) return;
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { failed(data.error === 'signup_check_failed' ? '서버가 설정을 읽지 못함' : `오류 ${res.status}`); return; }
+      signupCodeLoaded = true;
       input.value = data.code || '';
       msg.style.color = 'var(--muted)';
       msg.textContent = data.enabled ? '가입 신청을 받는 중입니다.' : '지금은 가입 신청을 받지 않습니다.';
-    } catch { /* 조회 실패는 조용히 — 코드 관리는 부가 기능이라 화면 전체를 막지 않는다 */ }
+    } catch { failed('서버에 연결하지 못함'); }
   }
 
   async function submitSignupCode(code) {
     const msg = document.getElementById('signup-code-msg');
+    /* 현재 값을 못 읽은 상태에서의 저장은 막는다 — 특히 빈 값 저장은 가입을 끄는
+       동작이라, 조회 실패를 미설정으로 오해한 저장이 그대로 사고가 된다. */
+    if (!signupCodeLoaded) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = '현재 가입코드를 확인하지 못한 상태입니다. 새로고침해서 지금 설정된 값을 먼저 확인해 주세요.';
+      return;
+    }
     try {
       const res = await fetch('/api/admin/account?action=setSignupCode', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1859,10 +1887,13 @@
     submitSignupCode('');
   }
 
-  /* 승인 = 활성화. 서버가 활성화 시 self_signup을 내려 대기 목록에서 빼준다. */
+  /* 승인 = 활성화. 서버가 활성화 시 self_signup을 내려 대기 목록에서 빼준다.
+     확인창은 여기서 이미 물었으므로 toggleStaffActive의 확인은 건너뛴다 — 안 그러면
+     "승인할까요?" 다음에 "다시 활성화할까요?"가 연달아 뜬다. 승인은 5명분을 연속으로
+     누르는 작업이라, 뜻이 다른 확인창이 하나 더 끼면 읽지 않고 넘기게 된다. */
   async function approveStaff(id, name) {
     if (!confirm(`"${name}" 가입을 승인할까요?\n승인하면 직원 권한으로 바로 로그인할 수 있습니다.`)) return;
-    await toggleStaffActive(id, true);
+    await toggleStaffActive(id, true, { confirmed: true });
   }
 
   /* 거절 = 비활성 확정. 계정 행은 남긴다 — 같은 아이디로 재신청이 반복되는 걸 막고,
@@ -1923,12 +1954,15 @@
     } catch { alert('역할 변경 요청에 실패했습니다.'); }
   }
 
-  async function toggleStaffActive(id, nextActive) {
-    if (!confirm(nextActive ? '이 계정을 다시 활성화할까요?' : '이 계정을 비활성화할까요? 즉시 로그인할 수 없게 됩니다.')) return;
+  async function toggleStaffActive(id, nextActive, opts) {
+    if (!(opts && opts.confirmed)
+        && !confirm(nextActive ? '이 계정을 다시 활성화할까요?' : '이 계정을 비활성화할까요? 즉시 로그인할 수 없게 됩니다.')) return;
     try {
       const res = await fetch('/api/admin/account?action=updateStaff', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, active: nextActive }),
+        /* active는 반드시 boolean으로 보낸다 — 서버가 타입을 검사한다(0/'false'가
+           가드와 적용을 어긋나게 했던 이력). */
+        body: JSON.stringify({ id, active: !!nextActive }),
       });
       if (!res.ok) { alert('처리에 실패했습니다.'); return; }
       await loadStaffList();
@@ -1946,7 +1980,13 @@
         body: JSON.stringify({ id, newPassword }),
       });
       if (!res.ok) { alert('비밀번호 재설정에 실패했습니다.'); return; }
-      alert(`"${displayName}"의 비밀번호가 재설정되었습니다. 새 비밀번호를 본인에게 전달해 주세요.`);
+      const data = await res.json().catch(() => ({}));
+      /* 본인 비밀번호를 재설정한 경우 — 서버가 이 세션은 새로 발급해 주지만 다른
+         기기·탭의 로그인은 끊긴다. 말해주지 않으면 "다른 컴퓨터에서 갑자기
+         로그아웃됐다"로만 겪는다. */
+      alert(data.self
+        ? '본인 비밀번호가 재설정되었습니다.\n지금 보고 있는 이 화면은 그대로 쓸 수 있고, 다른 기기·브라우저에 남아 있던 로그인은 모두 해제됩니다.'
+        : `"${displayName}"의 비밀번호가 재설정되었습니다. 새 비밀번호를 본인에게 전달해 주세요.`);
     } catch { alert('요청에 실패했습니다.'); }
   }
 
@@ -2067,6 +2107,9 @@
        가입코드가 틀린 경우와 아이디 중복은 구분해야 재시도 방향이 달라진다. */
     const REASONS = {
       signup_disabled: '지금은 가입 신청을 받고 있지 않습니다. 관리자에게 문의해 주세요.',
+      /* 가입이 꺼진 것과 **확인을 못 한 것**은 다르다 — 뭉뚱그리면 신청자는 관리자를
+         찾아가고, 정작 필요한 건 잠시 후 재시도다(서버가 503으로 구별해 준다). */
+      signup_check_failed: '지금은 가입 가능 여부를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요. (관리자 설정 문제가 아닙니다)',
       invalid_signup_code: '가입코드가 올바르지 않습니다.',
       invalid_username: '아이디는 영문·숫자·(_ . -) 조합 2~30자여야 합니다.',
       invalid_display_name: '이름은 40자 이내로, 특수문자 없이 입력해 주세요.',
@@ -5389,6 +5432,7 @@
     const nw      = document.getElementById('pwNew').value;
     const confirm = document.getElementById('pwConfirm').value;
     const msg     = document.getElementById('pwMsg');
+    if (!curr)            { msg.textContent='현재 비밀번호를 입력해 주세요.'; return; }
     if (nw.length < 8)    { msg.textContent='새 비밀번호는 8자 이상이어야 합니다.'; return; }
     if (nw !== confirm)   { msg.textContent='새 비밀번호가 일치하지 않습니다.'; return; }
     try {
@@ -5396,10 +5440,37 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ current: curr, next: nw }),
       });
-      if (!r.ok) { msg.textContent='현재 비밀번호가 올바르지 않습니다.'; return; }
-      msg.style.color='var(--success)'; msg.textContent='비밀번호가 변경되었습니다.';
+      const data = await r.json().catch(() => ({}));
+      /* ⚠ 예전엔 **모든 실패를 "현재 비밀번호가 올바르지 않습니다"로** 말했다.
+         세션이 끊겼을 때도, 서버가 계정 상태를 못 읽었을 때도(503), 저장이 실패했을
+         때도(500) 똑같이 그렇게 말한다 — 승인받고 첫 로그인한 직원이 맞는 비밀번호를
+         몇 번이고 다시 치게 되는 자리다. 401도 두 가지 뜻이라 상태 코드만 봐선 안 되고
+         data.error를 봐야 구별된다. */
+      if (!r.ok) {
+        if (r.status === 401 && data.error === 'invalid_current_password') {
+          msg.textContent = '현재 비밀번호가 올바르지 않습니다.';
+        } else if (r.status === 401) {
+          msg.textContent = '로그인이 만료되어 변경하지 못했습니다. 다시 로그인한 뒤 시도해 주세요.';
+          showLoginAgain();
+        } else if (data.error === 'session_check_failed') {
+          msg.textContent = '서버가 계정 상태를 확인하지 못했습니다. 로그인이 풀린 것은 아니니 잠시 후 다시 시도해 주세요.';
+        } else if (data.error === 'password_too_short') {
+          msg.textContent = '새 비밀번호는 8자 이상이어야 합니다.';
+        } else if (data.error === 'missing_fields') {
+          msg.textContent = '현재 비밀번호와 새 비밀번호를 모두 입력해 주세요.';
+        } else {
+          msg.textContent = `변경하지 못했습니다 (오류 ${r.status}${data.error ? ' ' + data.error : ''}). 잠시 후 다시 시도해 주세요.`;
+        }
+        return;
+      }
+      msg.style.color='var(--success)';
+      /* 다른 기기 로그아웃을 미리 말해 준다 — 서버가 이 세션은 새로 발급하지만
+         집·휴대폰에 열어둔 화면은 끊긴다(account.js reissueOwnSession). */
+      msg.textContent = data.otherSessionsRevoked
+        ? '비밀번호가 변경되었습니다. 이 화면은 그대로 쓸 수 있고, 다른 기기에 남아 있던 로그인은 해제됩니다.'
+        : '비밀번호가 변경되었습니다.';
       document.getElementById('pwCurrent').value=''; document.getElementById('pwNew').value=''; document.getElementById('pwConfirm').value='';
-      setTimeout(()=>{ msg.textContent=''; msg.style.color='var(--danger)'; },3000);
+      setTimeout(()=>{ msg.textContent=''; msg.style.color='var(--danger)'; },6000);
     } catch {
       msg.textContent='변경 요청에 실패했습니다. 다시 시도해 주세요.';
     }

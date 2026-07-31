@@ -16,10 +16,41 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { sql } = require('../_lib/db');
-const { requireAdmin, requireRole, clearSessionCookie } = require('../_lib/auth');
+const {
+  requireAdmin, requireRole, clearSessionCookie, signSession, setSessionCookie,
+} = require('../_lib/auth');
 
 const ROLES = new Set(['owner', 'manager', 'staff']);
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{2,30}$/;
+
+/* ⚠ `staff_accounts.id`는 bigserial이고 드라이버가 **문자열**로 돌려준다("1").
+   JWT의 sub도 그 값을 그대로 실으므로 `req.user.id`도 문자열이다.
+   예전 자기보호 가드는 `Number(id) === req.user.id`였다 — 숫자와 문자열을 `===`로
+   비교하니 `1 === "1"`이 되어 **한 번도 발동한 적이 없다**(실제 DB로 확인).
+   화면이 본인 행의 컨트롤을 가려주고 있어 드러나지 않았을 뿐, 서버 방어선은 죽어
+   있었다. 이 저장소가 "화면만 숨기고 서버를 안 막으면 방어가 아니다"라고 적어둔
+   바로 그 상태다(admin.html 권한 렌더 주석).
+   막지 못했을 때의 값: 사장님이 본인을 강등·비활성화하면 updateStaff가 owner
+   전용이라 되돌릴 사람이 아무도 남지 않는다 — DB를 직접 고쳐야 복구된다. */
+const isSelf = (id, user) => String(id) === String(user.id);
+
+/* 비밀번호를 바꾼 **본인 세션만** 새로 발급한다.
+   `staff_accounts.updated_at`을 갱신하는 순간 그 계정의 기존 세션이 전부 끊긴다
+   (auth.js `sessionRejection`: updated_at > iat). 방금 비밀번호를 바꾼 사람의 세션도
+   예외가 아니라서, 예전에는 화면이 "변경되었습니다"라고 말한 직후부터 모든 요청이
+   401로 떨어지고 다음 동작에서 "로그인이 만료되었습니다"(틀린 사유)로 튕겼다.
+   승인받고 첫 로그인한 직원이 정확히 이 칸을 지난다.
+   새 토큰의 iat는 방금 찍힌 updated_at 이후라(초 단위 내림은 CLOCK_TOLERANCE_MS가
+   흡수한다) 이 세션만 살아남고, 다른 기기·탭의 예전 토큰은 그대로 끊긴다 —
+   비밀번호를 바꾸는 사람이 기대하는 바로 그 동작이다. */
+async function reissueOwnSession(req, res) {
+  setSessionCookie(res, await signSession({
+    id: req.user.id,
+    username: req.user.username,
+    displayName: req.user.displayName,
+    role: req.user.role,
+  }));
+}
 
 /* 직원 자가 가입 (신규) — 사장님이 계정 5개를 손으로 만드는 대신 직원이 직접
    신청하고 나중에 승인/승급하는 흐름.
@@ -40,16 +71,17 @@ const SIGNUP_CODE_RE = /^[a-zA-Z0-9_-]{6,40}$/;
    쓰레기 행으로 채워지는 걸 끊는 마지막 밸브. 사장님이 대기열을 정리하면 풀린다. */
 const MAX_PENDING = 20;
 
+/* ⚠ 조회가 실패하면 **던진다**. 예전에는 catch에서 null(=미설정)로 떨어뜨렸는데,
+   그러면 DB 장애가 "가입 기능이 꺼져 있습니다"로 둔갑한다 — 신청하려던 직원은
+   사장님을 찾아가고, 사장님 설정 화면은 코드 칸이 빈 채로 보인다. 둘 다 사실이
+   아니고, 두 사람 모두 엉뚱한 곳을 고치게 된다(결함 생성기 ②).
+   같은 이유로 content.js의 isKnownDest는 503을 쓴다 — "모른다"와 "없다"는 다르다. */
 async function getSignupCode() {
-  try {
-    const rows = await sql`select value from app_settings where key = ${SIGNUP_CODE_KEY}`;
-    if (!rows.length) return null;
-    const v = rows[0].value;
-    const code = typeof v === 'string' ? v : (v && v.code);
-    return code && String(code).length ? String(code) : null;
-  } catch {
-    return null;
-  }
+  const rows = await sql`select value from app_settings where key = ${SIGNUP_CODE_KEY}`;
+  if (!rows.length) return null;
+  const v = rows[0].value;
+  const code = typeof v === 'string' ? v : (v && v.code);
+  return code && String(code).length ? String(code) : null;
 }
 
 /* 길이가 다르면 timingSafeEqual이 예외를 던지므로 해시로 길이를 맞춘 뒤 비교한다.
@@ -113,7 +145,11 @@ module.exports = async (req, res) => {
 
       const hash = await bcrypt.hash(next, 12);
       await sql`update staff_accounts set password_hash = ${hash}, updated_at = now() where id = ${req.user.id}`;
-      return res.status(200).json({ ok: true });
+      /* 지금 쓰고 있는 세션을 새로 발급한다 — 안 하면 방금 성공한 사람이 다음
+         동작에서 조용히 로그아웃된다(reissueOwnSession 주석 참고).
+         otherSessionsRevoked는 화면이 사람에게 설명하라고 주는 값이다. */
+      await reissueOwnSession(req, res);
+      return res.status(200).json({ ok: true, otherSessionsRevoked: true });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'change_failed' });
@@ -154,9 +190,16 @@ module.exports = async (req, res) => {
 
     const { id, role, active, displayName } = req.body || {};
     if (!id) return res.status(400).json({ error: 'missing_id' });
+    /* active를 boolean으로 못박는다 — 예전엔 가드가 `active === false`를 보고 적용은
+       `!!active`로 해서 판정 기준이 두 개였다. `active: 0`은 가드를 그냥 지나 계정을
+       비활성화했고, 문자열 `'false'`는 반대로 활성화했다. 기준이 둘이면 어긋난다. */
+    if (active !== undefined && typeof active !== 'boolean') {
+      return res.status(400).json({ error: 'invalid_active' });
+    }
     /* 본인 계정을 스스로 비활성화/강등하지 못하게 — 마지막 owner가 자기 권한을
-       잃어버리면 아무도 직원 계정 관리를 할 수 없게 되는 상황을 막는다. */
-    if (Number(id) === req.user.id && (active === false || (role && role !== 'owner'))) {
+       잃어버리면 아무도 직원 계정 관리를 할 수 없게 되는 상황을 막는다.
+       비교는 반드시 isSelf로 — 숫자/문자열 혼용이 이 가드를 죽였던 이력이 있다. */
+    if (isSelf(id, req.user) && (active === false || (role && role !== 'owner'))) {
       return res.status(400).json({ error: 'cannot_modify_self' });
     }
     if (role !== undefined && !ROLES.has(role)) return res.status(400).json({ error: 'invalid_role' });
@@ -208,7 +251,11 @@ module.exports = async (req, res) => {
         returning id
       `;
       if (!updated.length) return res.status(404).json({ error: 'not_found' });
-      return res.status(200).json({ ok: true });
+      /* 본인 비밀번호를 여기서 재설정한 경우도 change-password와 똑같이 자기 세션이
+         끊긴다(updated_at 갱신). 화면은 본인 행에도 '비번 재설정' 버튼을 내주므로
+         실제로 지나갈 수 있는 길이다. */
+      if (isSelf(id, req.user)) await reissueOwnSession(req, res);
+      return res.status(200).json({ ok: true, self: isSelf(id, req.user) });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'reset_failed' });
@@ -222,7 +269,15 @@ module.exports = async (req, res) => {
   if (action === 'signup') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
-    const configured = await getSignupCode();
+    let configured;
+    try {
+      configured = await getSignupCode();
+    } catch (err) {
+      /* 재시도하면 되는 상황이라 403(=기능 꺼짐)과 구별해서 알린다. 403으로 뭉뚱그리면
+         신청자는 "사장님이 아직 안 열었구나"로 읽고 기다린다. */
+      console.error('[signup] 가입코드 조회 실패 — 가입 가능 여부를 모른다:', err);
+      return res.status(503).json({ error: 'signup_check_failed' });
+    }
     if (!configured) return res.status(403).json({ error: 'signup_disabled' });
 
     const { username, displayName, password, code } = req.body || {};
@@ -265,7 +320,7 @@ module.exports = async (req, res) => {
 
     const { id } = req.body || {};
     if (!id) return res.status(400).json({ error: 'missing_id' });
-    if (Number(id) === req.user.id) return res.status(400).json({ error: 'cannot_modify_self' });
+    if (isSelf(id, req.user)) return res.status(400).json({ error: 'cannot_modify_self' });
 
     try {
       const updated = await sql`
@@ -284,8 +339,16 @@ module.exports = async (req, res) => {
   if (action === 'signupSettings') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
     if (!(await requireRole(req, res, ['owner']))) return;
-    const code = await getSignupCode();
-    return res.status(200).json({ enabled: !!code, code: code || '' });
+    try {
+      const code = await getSignupCode();
+      return res.status(200).json({ enabled: !!code, code: code || '' });
+    } catch (err) {
+      /* 못 읽었으면 `code: ''`를 돌려주지 않는다 — 화면이 그걸 빈 칸으로 보여주면
+         사장님은 "가입코드가 설정 안 됐네"로 읽고, 그 상태로 저장을 누르면 실제로
+         가입이 꺼진다(읽기 실패가 파괴적 쓰기로 이어진다). */
+      console.error('[signupSettings] 가입코드 조회 실패:', err);
+      return res.status(503).json({ error: 'signup_check_failed' });
+    }
   }
 
   if (action === 'setSignupCode') {
