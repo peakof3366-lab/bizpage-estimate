@@ -19,7 +19,15 @@ function inlineScriptDeps(html) {
     if (/^(https?:)?\/\//i.test(src)) return m;
     const file = path.join(ROOT, src);
     if (!fs.existsSync(file)) throw new Error(`인라인할 스크립트를 찾을 수 없습니다: ${src}`);
-    return '<script>\n' + fs.readFileSync(file, 'utf8') + '\n</script>';
+    /* ⚠ 파일 안의 `</script>`는 반드시 깨서 넣는다. script.js는 인쇄용 페이지를
+       템플릿 문자열로 만들면서 그 문자열 안에 `</script>`를 갖고 있는데, 그대로
+       인라인하면 **HTML 파서가 거기서 스크립트를 끊는다.** 그러면 나머지 절반이
+       통째로 실행되지 않고 SyntaxError만 하나 남는다 — 픽스처는 "로드된 것처럼"
+       보이면서 실제 페이지와 다른 상태로 돌게 된다. 이 파일이 없는 src를 조용히
+       넘기지 않는 것과 같은 이유다(실제로 admin-quote.html을 띄우다 겪었다).
+       `<\/script>`는 JS 문자열 안에서 `</script>`와 완전히 같은 값이다. */
+    const code = fs.readFileSync(file, 'utf8').replace(/<\/script/gi, '<\\/script');
+    return '<script>\n' + code + '\n</script>';
   });
 }
 

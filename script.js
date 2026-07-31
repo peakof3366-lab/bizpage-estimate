@@ -50,12 +50,22 @@ function applyStrength(baseFactor, strength) {
   return 1 + (baseFactor - 1) * s;
 }
 
-(function applyRateOverrides() {
-  if (typeof destinationRates === 'undefined') return;
-  fetch('/api/rates')
-    .then((r) => (r.ok ? r.json() : null))
+/* ⚠ 이 로드가 실패하면 **금액이 조용히 달라진다** — 일정 오버라이드(QB)보다 무겁다.
+   ① 요율이 data.js 기본값에 머문다(운영 진실은 rate_overrides다),
+   ② FX_STATE가 비어 getFxAdjust가 전부 1.0이 되어 환율 보정이 통째로 사라진다,
+   ③ 계수 노브가 기본값으로 돌아간다.
+   셋 다 화면에는 그냥 '견적 금액'으로 보인다. 그래서 QB와 같은 방식으로 결과를
+   window.__RATE_SOURCE__에 남기고, 담당자가 쓰는 내부 산출 도구가 이 값을 읽어
+   사람에게 알린다(고객 화면에는 띄우지 않는다 — 고객이 할 수 있는 일이 없다). */
+window.__RATE_SOURCE__ = { state: 'pending', applied: [], error: '' };
+
+const rateOverridesReady = (function applyRateOverrides() {
+  const st = window.__RATE_SOURCE__;
+  if (typeof destinationRates === 'undefined') { st.state = 'skipped'; return Promise.resolve(st); }
+  return fetch('/api/rates')
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error('http_' + r.status))))
     .then((data) => {
-      if (!data) return;
+      if (!data) return st;
       if (data.fxRates) FX_STATE.rates = data.fxRates;
       if (data.fxBaseline) FX_STATE.baseline = data.fxBaseline;
 
@@ -108,15 +118,28 @@ function applyStrength(baseFactor, strength) {
 
       /* 요율 오버라이드 적용 — 커스텀 목적지가 위에서 이미 destinationRates에 편입된
          뒤라, 내장·커스텀 목적지 모두 대상 행을 찾아 편집분이 반영된다. */
+      const applied = [];
       if (data.overrides) Object.entries(data.overrides).forEach(([key, fields]) => {
         const dest = destinationRates.find((d) => d.destination_key === key);
-        if (dest && fields && typeof fields === 'object') Object.assign(dest, fields);
+        if (dest && fields && typeof fields === 'object') { Object.assign(dest, fields); applied.push(key); }
       });
+
+      st.state = 'applied';
+      st.applied = applied;
+      st.fx = Object.keys(FX_STATE.rates || {}).length;
 
       /* 오버라이드·FX가 로드되면 현재 견적을 다시 그려 반영(초기 렌더 이후 도착 대비) */
       if (typeof renderLiveBreakdown === 'function') renderLiveBreakdown();
+      return st;
     })
-    .catch(() => {});
+    .catch((err) => {
+      st.state = 'failed';
+      st.error = String((err && err.message) || err);
+      /* 콘솔 경고로 끝내지 않는다 — 이 저장소가 반복해서 당한 형태다(결함 생성기 ②).
+         담당자가 보는 내부 산출 도구가 이 값을 읽어 사람에게 알린다. */
+      console.warn('[요율] 오버라이드·환율을 불러오지 못했습니다. 기본 요율로 계산됩니다:', st.error);
+      return st;
+    });
 })();
 
 /* 관리자 신규 목적지 선택 옵션 주입 (신규) — index.html/admin-quote.html 양쪽의
