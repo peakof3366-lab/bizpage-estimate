@@ -288,7 +288,26 @@ async function main() {
     )
   `;
 
-  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations, app_settings tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
+  /* QB: 추천 일정 오버라이드 (신규) — 목적지별 추천 코스(제목·하이라이트·일자별
+     오전/오후/저녁/팁)를 산출 담당자가 관리자 화면에서 직접 고칠 수 있게 한다.
+     예전에는 이 내용이 script.js의 ITINERARY_DB 상수에만 있어서, 한 줄을 고치려면
+     개발자가 코드를 수정하고 배포해야 했다.
+     rate_overrides가 data.js 요율의 진실인 것과 같은 구조다 — 행이 없는 목적지는
+     data.js의 ITINERARY_DB 기본값을 그대로 쓴다(그래서 이 테이블이 비어 있어도
+     지금과 100% 같은 화면이 나온다).
+     courses는 코스 배열 전체를 통째로 담는다. 코스·일자 단위로 행을 쪼개면 순서
+     컬럼과 부분 저장 실패가 생기는데, 한 목적지의 일정은 항상 통째로 편집·저장되므로
+     쪼갤 이유가 없다. */
+  await sql`
+    create table if not exists itinerary_overrides (
+      dest_key text primary key,
+      courses jsonb not null,
+      updated_at timestamptz not null default now(),
+      updated_by text not null default ''
+    )
+  `;
+
+  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations, app_settings, itinerary_overrides tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
 }
 
 main().catch((err) => {

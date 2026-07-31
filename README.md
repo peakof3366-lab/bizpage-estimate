@@ -17,9 +17,9 @@
 |---|---|
 | `index.html` · `styles.css` | 고객이 보는 랜딩·견적 계산기 화면 |
 | `script.js` | **견적 엔진**(요율·계수·시즌·환율 계산) + 화면 로직 |
-| `data.js` | 55개 목적지 요율표 + `DEST_CLASSIFY` 분류표(좌석·보험·지역·통화·시즌·반구) |
+| `data.js` | 55개 목적지 요율표 + `DEST_CLASSIFY` 분류표(좌석·보험·지역·통화·시즌·반구) + 추천 콘텐츠(`DEST_REC`)·추천 일정(`ITINERARY_DB`) |
 | `dest_currency.js` · `company-info.js` | 정산 통화 매핑 · 회사 정보 |
-| `admin.html` | 관리자 화면 — 요율 편집, 문의·견적 관리, 통계, 계정 관리 |
+| `admin.html` | 관리자 화면 — 요율 편집, 문의·견적 관리, 통계, **일정 관리**, 계정 관리 |
 | `admin-quote.html` | 담당자용 내부 견적 산출 도구 |
 | `estimate-view.html` | 고객에게 공유되는 견적서 화면 |
 | `api/` | 서버리스 함수(인증·요율·문의·견적·공유링크·통계) |
@@ -28,6 +28,9 @@
 
 **요율의 진실은 `data.js`가 아니라 운영 DB(`rate_overrides`)다.** `data.js`는 폴백
 기본값이라 점점 낡는다. 실제 값은 `curl -s .../api/rates`로 확인한다.
+**추천 일정도 같은 구조다** — `data.js`의 `ITINERARY_DB`가 기본값이고, 관리자 →
+일정 관리에서 저장한 값이 `itinerary_overrides`에 얹혀 고객에게 나간다
+(`curl -s '.../api/content?action=itineraries'`).
 
 ## 손대기 전에 돌릴 것 (읽기 전용, 1분)
 

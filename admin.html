@@ -349,6 +349,72 @@
       .stat-grid { grid-template-columns: 1fr 1fr; }
       .h-bar-row { grid-template-columns: 80px 1fr 36px; }
     }
+
+    /* ══ QB: 일정 관리 ══════════════════════════════════════════════ */
+    .iti-bar {
+      display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+      background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--primary);
+      padding: .9rem 1.1rem; margin-bottom: 1rem; position: sticky; top: 0; z-index: 20;
+    }
+    .iti-bar label { font-size: .8rem; font-weight: 700; color: var(--heading); }
+    .iti-bar select {
+      height: 40px; min-width: 240px; padding: 0 .8rem; font-family: inherit; font-size: .88rem;
+      font-weight: 600; border: 1.6px solid var(--border); background: #fff; color: var(--heading);
+    }
+    .iti-bar .iti-spacer { margin-left: auto; }
+    .iti-state { font-size: .8rem; font-weight: 600; color: var(--muted); }
+    .iti-state.is-edited { color: #b45309; }
+    .iti-state.is-error  { color: var(--danger, #dc2626); }
+    .iti-dirty {
+      font-size: .78rem; font-weight: 800; color: #b45309; background: #fef3c7;
+      border: 1px solid #fde68a; padding: .2rem .55rem;
+    }
+
+    .iti-course {
+      background: #fff; border: 1px solid var(--border); border-top: 3px solid var(--heading);
+      padding: 1.2rem 1.35rem; margin-bottom: 1rem;
+    }
+    .iti-course-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .9rem; }
+    .iti-course-no {
+      font-size: .68rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+      color: #fff; background: var(--heading); padding: .2rem .55rem;
+    }
+    .iti-lbl { display: block; font-size: .74rem; font-weight: 800; letter-spacing: .04em; color: var(--muted); margin: .7rem 0 .25rem; }
+    .iti-inp, .iti-ta {
+      width: 100%; font-family: inherit; font-size: .88rem; color: var(--heading);
+      border: 1.5px solid var(--border); background: #fff; padding: .5rem .65rem;
+    }
+    .iti-inp { height: 38px; }
+    .iti-ta { min-height: 66px; line-height: 1.55; resize: vertical; }
+    .iti-inp:focus, .iti-ta:focus { outline: none; border-color: var(--primary); }
+
+    .iti-day {
+      border: 1px solid var(--border); border-left: 3px solid var(--primary);
+      padding: .85rem 1rem; margin-top: .7rem; background: #fcfcfc;
+    }
+    .iti-day-head { display: flex; align-items: center; gap: .6rem; }
+    .iti-day-no { font-size: .78rem; font-weight: 800; color: var(--primary); white-space: nowrap; }
+    .iti-day-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .8rem; }
+    .iti-day-grid > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+    .iti-btn {
+      height: 34px; padding: 0 .8rem; font-size: .78rem; font-weight: 700; font-family: inherit;
+      border: 1.5px solid var(--border); background: #fff; color: var(--heading); cursor: pointer;
+    }
+    .iti-btn:hover { border-color: var(--heading); }
+    .iti-btn.danger { color: var(--danger, #dc2626); border-color: #fecaca; }
+    .iti-btn.danger:hover { background: #fef2f2; border-color: #dc2626; }
+    .iti-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem; }
+    .iti-msg { font-size: .82rem; font-weight: 700; margin-top: .5rem; }
+    .iti-msg.ok  { color: #15803d; }
+    .iti-msg.err { color: var(--danger, #dc2626); }
+
+    .iti-note {
+      background: #f8fafc; border: 1px solid var(--border); padding: .9rem 1.1rem;
+      font-size: .82rem; line-height: 1.7; color: var(--heading); margin-bottom: 1rem;
+    }
+    .iti-note strong { font-weight: 800; }
+    @media (max-width: 768px) { .iti-day-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -461,6 +527,9 @@
         </button>
         <button class="sidebar-item" data-tab="quotetool">
           <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">내부 견적 산출</span>
+        </button>
+        <button class="sidebar-item" data-tab="itineraries">
+          <span class="si-icon"><i data-lucide="calendar-range"></i></span><span class="si-label">일정 관리</span>
         </button>
         <button class="sidebar-item" data-tab="content" id="navContent">
           <span class="si-icon"><i data-lucide="edit-3"></i></span><span class="si-label">콘텐츠 관리</span>
@@ -959,6 +1028,35 @@
         <iframe id="quoteToolFrame" title="내부 견적 산출"
           style="width:100%;height:calc(100vh - 150px);border:none;display:block;background:#fff"></iframe>
       </div>
+    </div>
+
+    <!-- ── 일정 관리 (QB) ── 목적지별 추천 코스를 산출 담당자가 직접 고친다.
+         예전에는 이 내용이 script.js의 ITINERARY_DB 상수에만 있어서, 한 줄을 고치려면
+         개발자가 코드를 수정하고 배포해야 했다. 지금은 data.js의 값이 '기본값'이고
+         여기서 저장한 것이 DB(itinerary_overrides)에 얹혀 고객 견적서·일정 탐색에
+         그대로 나간다(요율의 rate_overrides와 같은 구조).
+         화면은 renderItineraries()가 통째로 그린다 — 목적지 55개 × 코스 2~3개 ×
+         일자 5개짜리 폼을 손으로 적어두지 않기 위함(요율·콘텐츠 탭과 같은 방식). -->
+    <div class="tab-panel" id="tab-itineraries">
+      <div class="iti-note">
+        여기서 저장한 일정은 <strong>고객 견적서와 홈페이지 “연수 일정 탐색”에 바로 반영</strong>됩니다
+        (배포·개발자 작업 없이 즉시). 목적지를 고르면 현재 값이 그대로 올라오고, 아직 한 번도
+        수정하지 않은 목적지는 기본 일정이 올라옵니다. <strong>“기본값으로 되돌리기”</strong>를 누르면
+        이 목적지의 수정 내용이 지워지고 기본 일정로 돌아갑니다.<br>
+        코스는 <strong>프로그램 유형(언어·리더십·산업·교육)에 따라 어느 것이 먼저 보일지</strong>가 정해져 있고,
+        연수 일수가 코스에 적힌 일자 수보다 길면 마지막 “귀국” 일자는 항상 실제 마지막 날로 옮겨집니다.
+      </div>
+      <div class="iti-bar">
+        <label for="iti-dest">목적지</label>
+        <select id="iti-dest"><option value="">불러오는 중…</option></select>
+        <span id="iti-state" class="iti-state"></span>
+        <span class="iti-spacer"></span>
+        <button class="iti-btn" id="iti-add-course">＋ 코스 추가</button>
+        <button class="iti-btn danger" id="iti-revert">기본값으로 되돌리기</button>
+        <button class="btn-act btn-primary" id="iti-save">저장</button>
+      </div>
+      <p id="iti-msg" class="iti-msg"></p>
+      <div id="iti-body"></div>
     </div>
 
     <!-- ── 콘텐츠 관리 (신규) ── 필드 110개는 CMS_FIELDS 데이터에서 renderContent()가
@@ -2413,7 +2511,7 @@
     dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 관리',
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', rates:'요율 관리', quotetool:'내부 견적 산출',
-    content:'콘텐츠 관리', settings:'설정'
+    itineraries:'일정 관리', content:'콘텐츠 관리', settings:'설정'
   };
 
   function switchTab(name) {
@@ -2437,6 +2535,7 @@
     else if (name==='marketing') renderMarketingInsights();
     else if (name==='rates') renderRates();
     else if (name==='quotetool') renderQuoteTool();
+    else if (name==='itineraries') renderItineraries();
     else if (name==='content') renderContent();
   }
 
@@ -4798,6 +4897,308 @@
   });
 
   let contentOverridesCache = {};
+
+  /* ════ QB: 일정 관리 ═══════════════════════════════════════════════════
+     목적지별 추천 코스를 산출 담당자가 직접 고친다. data.js의 ITINERARY_DB가 기본값,
+     DB(itinerary_overrides)에 저장된 것이 실제로 고객에게 나가는 값이다.
+
+     ⚠ DOM은 innerHTML 문자열이 아니라 createElement로 만든다. 여기 들어가는 값은
+     담당자가 방금 친 자유 문자열이고, 인라인 onclick 안의 JS 문자열은 esc()로 막을 수
+     없다(CLAUDE.md — 홑따옴표를 안 바꾸고, &#39;로 바꿔도 HTML 파서가 되돌린 뒤 JS가
+     해석한다). 그 구조 자체를 쓰지 않는 게 안전하다.
+     ═══════════════════════════════════════════════════════════════════════ */
+  const itiState = {
+    destKey: '',
+    courses: [],        /* 화면에서 편집 중인 사본 */
+    overrides: {},      /* 서버에 저장된 목적지별 수정본 */
+    meta: {},           /* 목적지별 { updatedAt, updatedBy } */
+    loaded: false,
+    dirty: false,
+  };
+
+  const itiEmptyDay    = () => ({ day: 1, title: '', am: '', pm: '', eve: '', tip: '' });
+  const itiEmptyCourse = () => ({ title: '', subtitle: '', highlights: [], days: [itiEmptyDay()] });
+  /* 편집은 항상 사본으로 한다 — 기본값(ITINERARY_DB)을 직접 건드리면 되돌리기가
+     "되돌릴 원본이 이미 바뀐" 상태가 된다. */
+  const itiClone = (v) => JSON.parse(JSON.stringify(v));
+
+  function itiDefaults(destKey) {
+    const db = (typeof ITINERARY_DB !== 'undefined') ? ITINERARY_DB[destKey] : null;
+    return Array.isArray(db) ? itiClone(db) : [];
+  }
+
+  function itiSetMsg(text, kind) {
+    const el = document.getElementById('iti-msg');
+    el.textContent = text || '';
+    el.className = 'iti-msg' + (kind ? ' ' + kind : '');
+  }
+
+  function itiMarkDirty() {
+    itiState.dirty = true;
+    itiRenderState();
+  }
+
+  function itiRenderState() {
+    const el = document.getElementById('iti-state');
+    if (!el) return;
+    el.textContent = '';
+    el.className = 'iti-state';
+    if (!itiState.destKey) return;
+
+    const m = itiState.meta[itiState.destKey];
+    if (m) {
+      el.classList.add('is-edited');
+      const when = m.updatedAt ? new Date(m.updatedAt).toLocaleString('ko-KR') : '';
+      el.textContent = '수정됨 · ' + (m.updatedBy || '담당자 미상') + (when ? ' · ' + when : '');
+    } else {
+      el.textContent = '기본 일정 (아직 수정한 적 없음)';
+    }
+    if (itiState.dirty) {
+      const tag = document.createElement('span');
+      tag.className = 'iti-dirty';
+      tag.textContent = '저장 안 함';
+      tag.style.marginLeft = '.5rem';
+      el.appendChild(tag);
+    }
+  }
+
+  /* 라벨 있는 입력칸 한 줄. oninput에서 상태 객체의 해당 필드를 바로 갱신한다. */
+  function itiField(labelText, value, multiline, onInput) {
+    const wrap = document.createElement('div');
+    const lbl = document.createElement('label');
+    lbl.className = 'iti-lbl';
+    lbl.textContent = labelText;
+    const inp = document.createElement(multiline ? 'textarea' : 'input');
+    inp.className = multiline ? 'iti-ta' : 'iti-inp';
+    inp.value = value == null ? '' : String(value);
+    inp.addEventListener('input', function () { onInput(inp.value); itiMarkDirty(); });
+    wrap.appendChild(lbl); wrap.appendChild(inp);
+    return wrap;
+  }
+
+  function itiRenderDay(course, day, dayIdx, courseIdx) {
+    const box = document.createElement('div');
+    box.className = 'iti-day';
+
+    const head = document.createElement('div');
+    head.className = 'iti-day-head';
+    const no = document.createElement('span');
+    no.className = 'iti-day-no';
+    no.textContent = 'DAY ' + (dayIdx + 1);
+    const titleWrap = itiField('그날의 제목 (예: 첨단 제조업 현장)', day.title, false, (v) => { day.title = v; });
+    titleWrap.style.flex = '1';
+    titleWrap.querySelector('.iti-lbl').style.margin = '0 0 .2rem';
+    const del = document.createElement('button');
+    del.className = 'iti-btn danger';
+    del.textContent = '일자 삭제';
+    del.addEventListener('click', function () {
+      if (course.days.length <= 1) { itiSetMsg('일자는 최소 1개가 필요합니다.', 'err'); return; }
+      course.days.splice(dayIdx, 1);
+      itiMarkDirty(); itiRenderBody();
+    });
+    head.appendChild(no); head.appendChild(titleWrap); head.appendChild(del);
+    box.appendChild(head);
+
+    const grid = document.createElement('div');
+    grid.className = 'iti-day-grid';
+    grid.appendChild(itiField('오전', day.am,  true, (v) => { day.am = v; }));
+    grid.appendChild(itiField('오후', day.pm,  true, (v) => { day.pm = v; }));
+    grid.appendChild(itiField('저녁', day.eve, true, (v) => { day.eve = v; }));
+    grid.appendChild(itiField('참고 팁 (고객 견적서에 함께 나갑니다)', day.tip, true, (v) => { day.tip = v; }));
+    box.appendChild(grid);
+    return box;
+  }
+
+  function itiRenderCourse(course, courseIdx) {
+    const box = document.createElement('div');
+    box.className = 'iti-course';
+
+    const head = document.createElement('div');
+    head.className = 'iti-course-head';
+    const no = document.createElement('span');
+    no.className = 'iti-course-no';
+    no.textContent = '코스 ' + String.fromCharCode(65 + courseIdx);
+    const spacer = document.createElement('span');
+    spacer.style.marginLeft = 'auto';
+    const del = document.createElement('button');
+    del.className = 'iti-btn danger';
+    del.textContent = '이 코스 삭제';
+    del.addEventListener('click', function () {
+      if (itiState.courses.length <= 1) { itiSetMsg('코스는 최소 1개가 필요합니다.', 'err'); return; }
+      itiState.courses.splice(courseIdx, 1);
+      itiMarkDirty(); itiRenderBody();
+    });
+    head.appendChild(no); head.appendChild(spacer); head.appendChild(del);
+    box.appendChild(head);
+
+    box.appendChild(itiField('코스 제목', course.title, false, (v) => { course.title = v; }));
+    box.appendChild(itiField('한 줄 설명', course.subtitle, true, (v) => { course.subtitle = v; }));
+    box.appendChild(itiField('핵심 하이라이트 (한 줄에 하나씩)', (course.highlights || []).join('\n'), true,
+      (v) => { course.highlights = v.split('\n').map(s => s.trim()).filter(Boolean); }));
+
+    const daysWrap = document.createElement('div');
+    (course.days || []).forEach((d, i) => daysWrap.appendChild(itiRenderDay(course, d, i, courseIdx)));
+    box.appendChild(daysWrap);
+
+    const acts = document.createElement('div');
+    acts.className = 'iti-actions';
+    const addDay = document.createElement('button');
+    addDay.className = 'iti-btn';
+    addDay.textContent = '＋ 일자 추가';
+    addDay.addEventListener('click', function () {
+      course.days.push(itiEmptyDay());
+      itiMarkDirty(); itiRenderBody();
+    });
+    acts.appendChild(addDay);
+    box.appendChild(acts);
+    return box;
+  }
+
+  function itiRenderBody() {
+    const body = document.getElementById('iti-body');
+    body.textContent = '';
+    if (!itiState.destKey) {
+      const p = document.createElement('p');
+      p.className = 'iti-note';
+      p.textContent = '위에서 목적지를 먼저 고르세요.';
+      body.appendChild(p);
+      itiRenderState();
+      return;
+    }
+    if (!itiState.courses.length) {
+      const p = document.createElement('p');
+      p.className = 'iti-note';
+      p.textContent = '이 목적지에는 아직 등록된 코스가 없습니다. “＋ 코스 추가”로 만들어 주세요.';
+      body.appendChild(p);
+      itiRenderState();
+      return;
+    }
+    itiState.courses.forEach((c, i) => body.appendChild(itiRenderCourse(c, i)));
+    itiRenderState();
+  }
+
+  function itiSelectDest(destKey) {
+    if (itiState.dirty && !confirm('저장하지 않은 수정 내용이 있습니다. 목적지를 바꾸면 사라집니다. 계속할까요?')) {
+      document.getElementById('iti-dest').value = itiState.destKey;
+      return;
+    }
+    itiState.destKey = destKey;
+    itiState.dirty = false;
+    itiSetMsg('');
+    itiState.courses = destKey
+      ? (itiState.overrides[destKey] ? itiClone(itiState.overrides[destKey]) : itiDefaults(destKey))
+      : [];
+    itiRenderBody();
+  }
+
+  function itiFillDestSelect() {
+    const sel = document.getElementById('iti-dest');
+    const prev = itiState.destKey;
+    sel.textContent = '';
+    const blank = document.createElement('option');
+    blank.value = ''; blank.textContent = '목적지를 선택하세요';
+    sel.appendChild(blank);
+    /* 목록은 요율표(data.js destinationRates)에서 파생한다 — 목적지 목록을 여기에
+       또 적으면 목적지가 늘 때 한 곳을 빠뜨린다(결함 생성기 ①). */
+    const keys = (typeof destinationRates !== 'undefined')
+      ? destinationRates.map(d => d.destination_key) : Object.keys(itiState.overrides);
+    keys.forEach((k) => {
+      const o = document.createElement('option');
+      o.value = k;
+      const hasDefault = (typeof ITINERARY_DB !== 'undefined') && Array.isArray(ITINERARY_DB[k]);
+      o.textContent = k
+        + (itiState.overrides[k] ? '  ✏️ 수정됨' : '')
+        + (hasDefault || itiState.overrides[k] ? '' : '  (일정 없음)');
+      sel.appendChild(o);
+    });
+    if (prev) sel.value = prev;
+  }
+
+  async function renderItineraries() {
+    /* 탭을 열 때마다 서버 상태를 다시 읽는다 — 동료가 방금 고친 것을 덮어쓰지 않기 위해.
+       (요율에서 '되돌리기가 그 사이 남이 바꾼 값을 말없이 덮어쓰던' 문제를 이미 겪었다.) */
+    try {
+      const r = await fetch('/api/content?action=itineraries');
+      if (!r.ok) throw new Error('http_' + r.status);
+      const data = await r.json();
+      itiState.overrides = (data && data.overrides) || {};
+      itiState.meta      = (data && data.meta) || {};
+      itiState.loaded = true;
+      itiSetMsg('');
+    } catch (err) {
+      /* 조용히 기본값으로 떨어지지 않는다 — 그러면 담당자가 남의 수정본 위에
+         기본 일정을 덮어써 저장하게 된다. */
+      console.warn('[admin] 일정 조회 실패:', err);
+      itiState.loaded = false;
+      itiSetMsg('저장된 일정을 불러오지 못했습니다. 지금 저장하면 다른 사람의 수정본을 덮어쓸 수 있으니, 새로고침 후 다시 시도해 주세요.', 'err');
+    }
+    itiFillDestSelect();
+    if (itiState.destKey) {
+      /* 편집 중이던 목적지가 있으면 화면은 유지하되, 서버 상태 표시는 갱신한다 */
+      itiRenderState();
+    } else {
+      itiRenderBody();
+    }
+  }
+
+  async function itiSave() {
+    if (!itiState.destKey) { itiSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    if (!itiState.loaded) { itiSetMsg('저장된 일정을 아직 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.', 'err'); return; }
+    const empty = itiState.courses.findIndex(c => !String(c.title || '').trim());
+    if (empty >= 0) { itiSetMsg('코스 ' + String.fromCharCode(65 + empty) + '의 제목을 입력해 주세요.', 'err'); return; }
+
+    itiSetMsg('저장 중…');
+    try {
+      const r = await fetch('/api/content?action=itineraries', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destKey: itiState.destKey, courses: itiState.courses }),
+      });
+      const out = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(out.error || ('http_' + r.status));
+      /* 서버가 정규화한 결과(일자 번호 재부여·공백 정리)를 화면에 그대로 반영한다.
+         보낸 값을 그대로 믿고 두면 화면과 실제 저장값이 조금씩 달라진다. */
+      itiState.overrides[itiState.destKey] = out.courses || itiState.courses;
+      itiState.courses = itiClone(itiState.overrides[itiState.destKey]);
+      itiState.meta[itiState.destKey] = { updatedAt: new Date().toISOString(), updatedBy: (currentUser && currentUser.displayName) || '' };
+      itiState.dirty = false;
+      itiFillDestSelect();
+      itiRenderBody();
+      itiSetMsg('저장했습니다. 고객 견적서·일정 탐색에 바로 반영됩니다.', 'ok');
+    } catch (err) {
+      console.warn('[admin] 일정 저장 실패:', err);
+      itiSetMsg('저장하지 못했습니다 (' + err.message + '). 수정 내용은 화면에 그대로 있으니 다시 시도해 주세요.', 'err');
+    }
+  }
+
+  async function itiRevert() {
+    if (!itiState.destKey) { itiSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    if (!confirm(itiState.destKey + '의 수정 내용을 지우고 기본 일정으로 되돌립니다. 계속할까요?')) return;
+    try {
+      const r = await fetch('/api/content?action=itineraries&destKey=' + encodeURIComponent(itiState.destKey), { method: 'DELETE' });
+      const out = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(out.error || ('http_' + r.status));
+      delete itiState.overrides[itiState.destKey];
+      delete itiState.meta[itiState.destKey];
+      itiState.courses = itiDefaults(itiState.destKey);
+      itiState.dirty = false;
+      itiFillDestSelect();
+      itiRenderBody();
+      /* '지울 게 없었다'와 '지웠다'를 구분해서 말한다 */
+      itiSetMsg(out.removed ? '기본 일정으로 되돌렸습니다.' : '이 목적지에는 수정 내용이 없었습니다 (이미 기본 일정입니다).', 'ok');
+    } catch (err) {
+      console.warn('[admin] 일정 되돌리기 실패:', err);
+      itiSetMsg('되돌리지 못했습니다 (' + err.message + ').', 'err');
+    }
+  }
+
+  document.getElementById('iti-dest').addEventListener('change', function () { itiSelectDest(this.value); });
+  document.getElementById('iti-save').addEventListener('click', itiSave);
+  document.getElementById('iti-revert').addEventListener('click', itiRevert);
+  document.getElementById('iti-add-course').addEventListener('click', function () {
+    if (!itiState.destKey) { itiSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    itiState.courses.push(itiEmptyCourse());
+    itiMarkDirty(); itiRenderBody();
+  });
 
   async function renderContent() {
     const wrap    = document.getElementById('content-sections');
