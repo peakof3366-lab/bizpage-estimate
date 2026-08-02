@@ -424,6 +424,45 @@
       font-size: .82rem; line-height: 1.7; color: var(--heading); margin-bottom: 1rem;
     }
     .iti-note strong { font-weight: 800; }
+
+    /* ── 활동 고르기 (QL) ── 라벨 줄 오른쪽에 붙는 작은 버튼과, 후보를 고르는 모달.
+         모달 껍데기는 .modal-overlay/.modal-box를 그대로 쓴다(요율 이력 등과 동일). */
+    .iti-lbl-row { display: flex; align-items: flex-end; gap: .5rem; }
+    .iti-lbl-row .iti-lbl { flex: 1; margin-bottom: 0; }
+    .iti-pick-btn {
+      flex-shrink: 0; height: 22px; padding: 0 .5rem; margin-bottom: .25rem;
+      font-size: .7rem; font-weight: 800; font-family: inherit; cursor: pointer;
+      border: 1.5px solid var(--border); background: #fff; color: var(--muted);
+    }
+    .iti-pick-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .itip-bar { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; margin-bottom: .7rem; }
+    .itip-chip {
+      height: 30px; padding: 0 .7rem; font-size: .76rem; font-weight: 700; font-family: inherit;
+      border: 1.5px solid var(--border); background: #fff; color: var(--muted); cursor: pointer;
+    }
+    .itip-chip.on { border-color: var(--primary); color: var(--primary); background: #fff5f6; }
+    .itip-chip[disabled] { opacity: .45; cursor: not-allowed; }
+    .itip-search {
+      width: 100%; height: 36px; padding: 0 .7rem; font-size: .84rem; font-family: inherit;
+      border: 1.5px solid var(--border); background: #fff; color: var(--heading);
+    }
+    .itip-search:focus { outline: none; border-color: var(--primary); }
+    .itip-count { font-size: .76rem; font-weight: 700; color: var(--muted); margin: .6rem 0 .4rem; }
+    .itip-list { display: grid; gap: .35rem; max-height: 46vh; overflow-y: auto; }
+    .itip-item {
+      display: block; width: 100%; text-align: left; font-family: inherit; cursor: pointer;
+      border: 1.5px solid var(--border); background: #fff; padding: .55rem .7rem;
+    }
+    .itip-item:hover { border-color: var(--primary); background: #fff5f6; }
+    .itip-item-text { display: block; font-size: .82rem; line-height: 1.55; color: var(--heading); }
+    .itip-item-from { display: block; font-size: .7rem; font-weight: 700; color: var(--muted); margin-top: .25rem; }
+    .itip-cur {
+      background: #f8fafc; border: 1px solid var(--border); padding: .55rem .7rem;
+      font-size: .78rem; line-height: 1.6; color: var(--muted); margin-bottom: .7rem;
+    }
+    .itip-cur strong { font-weight: 800; color: var(--heading); }
+    .itip-empty { font-size: .82rem; color: var(--muted); padding: 1.2rem .2rem; line-height: 1.7; }
+
     @media (max-width: 768px) { .iti-day-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -1694,6 +1733,26 @@
     </div>
     <div class="modal-body">
       <div id="rate-history-list" style="display:grid;gap:.5rem;max-height:60vh;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 활동 고르기 (QL) ── 일정 관리에서 칸마다 후보를 골라 넣는 창.
+     후보는 새로 만든 목록이 아니라 **지금 실제로 쓰이는 일정 값**에서 그때그때 뽑는다
+     (itiPickCandidates). 별도 목록을 두면 일정을 고쳐도 후보는 안 바뀌어 곧 어긋난다.
+     내용은 담당자가 친 자유 문자열이라 전부 itiPick* 쪽에서 createElement로 채운다. -->
+<div id="itiPickModal" class="modal-overlay hidden">
+  <div class="modal-box" style="width:min(680px,100%)">
+    <div class="modal-header">
+      <h3 id="itiPickTitle">활동 고르기</h3>
+      <button type="button" class="modal-close" id="itiPickClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="itiPickCur" class="itip-cur hidden"></div>
+      <div class="itip-bar" id="itiPickScopes"></div>
+      <input type="text" class="itip-search" id="itiPickSearch" placeholder="검색 — 단어를 넣으면 좁혀집니다" />
+      <p class="itip-count" id="itiPickCount"></p>
+      <div class="itip-list" id="itiPickList"></div>
     </div>
   </div>
 </div>
@@ -5265,8 +5324,10 @@
     }
   }
 
-  /* 라벨 있는 입력칸 한 줄. oninput에서 상태 객체의 해당 필드를 바로 갱신한다. */
-  function itiField(labelText, value, multiline, onInput) {
+  /* 라벨 있는 입력칸 한 줄. oninput에서 상태 객체의 해당 필드를 바로 갱신한다.
+     pickKind를 주면 라벨 옆에 '고르기' 버튼이 붙는다(QL) — 칸마다 따로 만들지 않고
+     여기 한 곳에서 붙여야 새 칸이 생겨도 빠지지 않는다. */
+  function itiField(labelText, value, multiline, onInput, pickKind) {
     const wrap = document.createElement('div');
     const lbl = document.createElement('label');
     lbl.className = 'iti-lbl';
@@ -5275,8 +5336,230 @@
     inp.className = multiline ? 'iti-ta' : 'iti-inp';
     inp.value = value == null ? '' : String(value);
     inp.addEventListener('input', function () { onInput(inp.value); itiMarkDirty(); });
-    wrap.appendChild(lbl); wrap.appendChild(inp);
+
+    if (pickKind && ITI_PICK_KINDS[pickKind]) {
+      /* 라벨과 버튼을 한 줄에 둔다. 입력칸 옆에 넣으면 오전·오후·저녁·팁 2×2 그리드에서
+         칸 폭이 제각각 줄어든다 — iti-day-head에서 이미 같은 문제를 겪었다. */
+      const row = document.createElement('div');
+      row.className = 'iti-lbl-row';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'iti-pick-btn';
+      btn.textContent = '고르기';
+      btn.addEventListener('click', function () {
+        itiOpenPicker(pickKind, function () { return inp.value; }, function (next) {
+          inp.value = next; onInput(next); itiMarkDirty();
+        });
+      });
+      row.appendChild(lbl); row.appendChild(btn);
+      wrap.appendChild(row);
+    } else {
+      wrap.appendChild(lbl);
+    }
+    wrap.appendChild(inp);
     return wrap;
+  }
+
+  /* ════ QL: 활동 고르기 ══════════════════════════════════════════════════
+     담당자가 빈 칸을 매번 새로 타이핑하던 것을, 이미 있는 문구에서 고르게 한다.
+
+     ⚠ 후보 목록을 따로 만들어 두지 않는다. 지금 실제로 쓰이는 값(오버라이드가 있으면
+     그것, 없으면 data.js 기본값)에서 열 때마다 뽑는다 — 목록을 복사해 두면 일정을
+     고쳐도 후보는 안 바뀌어 반드시 어긋난다(결함 생성기 ①). 재료는 이미 충분하다:
+     55개 목적지 × 코스 115개 × 일자 575개.
+
+     mode가 둘인 이유: '오전'처럼 값이 하나인 칸은 바꿔치기(replace)지만, '핵심
+     하이라이트'처럼 한 줄에 하나씩 적는 목록 칸은 줄을 더하는 것(line)이 맞다.
+     같은 동작으로 묶으면 목록 칸에서 기존 줄이 통째로 날아간다.
+     ═══════════════════════════════════════════════════════════════════════ */
+  const ITI_PICK_KINDS = {
+    dayTitle:  { label: '그날의 제목',      mode: 'replace', from: 'courses', pick: (c) => (c.days || []).map((d) => d.title) },
+    dayAct:    { label: '오전·오후 활동',   mode: 'replace', from: 'courses', pick: (c) => (c.days || []).reduce((a, d) => a.concat(d.am, d.pm), []) },
+    dayEve:    { label: '저녁 일정',        mode: 'replace', from: 'courses', pick: (c) => (c.days || []).map((d) => d.eve) },
+    dayTip:    { label: '참고 팁',          mode: 'replace', from: 'courses', pick: (c) => (c.days || []).map((d) => d.tip) },
+    highlight: { label: '핵심 하이라이트',   mode: 'line',    from: 'courses', pick: (c) => c.highlights || [] },
+    recPoint:  { label: '핵심 포인트',      mode: 'line',    from: 'rec',     pick: (r) => [].concat((r.a && r.a.points) || [], (r.b && r.b.points) || []) },
+    recItem:   { label: '일별 주요 활동',    mode: 'line',    from: 'rec',     pick: (r) => [].concat((r.a && r.a.items) || [], (r.b && r.b.items) || []) },
+  };
+
+  const ITI_PICK_SCOPES = [
+    { id: 'this',   label: '이 목적지' },
+    { id: 'region', label: '같은 지역' },
+    { id: 'all',    label: '전체' },
+  ];
+
+  const itiPick = { kind: '', scope: 'region', read: null, write: null, q: '' };
+
+  /* 지금 고객에게 나가는 값 — 오버라이드가 있으면 그것이 진실이다(요율에서 data.js보다
+     rate_overrides가 진실인 것과 같다). 후보도 같은 규칙을 따라야 화면과 안 어긋난다. */
+  function itiLiveCourses(destKey) {
+    if (itiState.overrides[destKey]) return itiState.overrides[destKey];
+    return (typeof ITINERARY_DB !== 'undefined' && ITINERARY_DB[destKey]) || [];
+  }
+  function itiLiveRec(destKey) {
+    if (itiState.recOverrides[destKey]) return itiState.recOverrides[destKey];
+    return (typeof DEST_REC !== 'undefined' && DEST_REC[destKey]) || null;
+  }
+
+  /* 후보를 모은다. 같은 문구가 여러 목적지에 있으면 한 번만 남기고 처음 만난 목적지를
+     출처로 적는다 — 담당자가 "이게 우리 지역 문구인가"를 판단하는 유일한 단서다. */
+  function itiPickCandidates(kind, scope) {
+    const spec = ITI_PICK_KINDS[kind];
+    if (!spec) return [];
+    const cur = itiState.destKey;
+    const region = (typeof REGION_MAP !== 'undefined' && REGION_MAP[cur]) || '';
+    const seen = new Map();
+    for (const k of itiDestKeys()) {
+      if (scope === 'this' && k !== cur) continue;
+      if (scope === 'region') {
+        const r = (typeof REGION_MAP !== 'undefined' && REGION_MAP[k]) || '';
+        /* 지역을 모르는 목적지(관리자가 추가한 커스텀 등)끼리 '기타'로 뭉뚱그려
+           묶이지 않게, 현재 목적지의 지역을 모르면 같은 지역 범위는 자기 자신뿐이다. */
+        if (!region || r !== region) continue;
+      }
+      let texts = [];
+      if (spec.from === 'courses') {
+        for (const c of itiLiveCourses(k)) texts = texts.concat(spec.pick(c) || []);
+      } else {
+        const rec = itiLiveRec(k);
+        if (rec) texts = spec.pick(rec) || [];
+      }
+      for (const t of texts) {
+        const s = String(t == null ? '' : t).trim();
+        if (s && !seen.has(s)) seen.set(s, k);
+      }
+    }
+    const out = [];
+    seen.forEach((from, text) => out.push({ text: text, from: from }));
+    return out;
+  }
+
+  function itiPickClose() {
+    document.getElementById('itiPickModal').classList.add('hidden');
+    itiPick.kind = ''; itiPick.read = null; itiPick.write = null;
+  }
+
+  function itiOpenPicker(kind, read, write) {
+    const spec = ITI_PICK_KINDS[kind];
+    if (!spec) return;
+    if (!itiState.destKey) { itiSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    itiPick.kind = kind; itiPick.read = read; itiPick.write = write; itiPick.q = '';
+    /* 같은 지역에 후보가 없으면(지역을 모르는 목적지 등) 빈 창을 보여주지 않고 전체로 연다.
+       '고르기'를 눌렀는데 아무것도 없는 창이 뜨면 기능이 고장 난 것으로 읽힌다. */
+    itiPick.scope = itiPickCandidates(kind, 'region').length ? 'region' : 'all';
+
+    document.getElementById('itiPickTitle').textContent = spec.label + ' 고르기';
+    const search = document.getElementById('itiPickSearch');
+    search.value = '';
+    search.placeholder = spec.mode === 'line'
+      ? '검색 — 고른 문구가 한 줄씩 더해집니다'
+      : '검색 — 고르면 이 칸의 내용이 바뀝니다';
+    document.getElementById('itiPickModal').classList.remove('hidden');
+    itiPickRender();
+    search.focus();
+  }
+
+  function itiPickRender() {
+    const spec = ITI_PICK_KINDS[itiPick.kind];
+    if (!spec) return;
+    const curText = itiPick.read ? String(itiPick.read() || '') : '';
+
+    /* 현재 칸에 무엇이 들어 있는지 위에 보여준다 — 바꿔치기 칸에서 무엇을 잃는지
+       모른 채 고르는 일을 없앤다. */
+    const curBox = document.getElementById('itiPickCur');
+    curBox.textContent = '';
+    if (curText.trim()) {
+      const b = document.createElement('strong');
+      b.textContent = spec.mode === 'line' ? '지금 이 칸의 줄: ' : '지금 이 칸의 내용: ';
+      curBox.appendChild(b);
+      curBox.appendChild(document.createTextNode(
+        spec.mode === 'line' ? String(curText.split('\n').filter((s) => s.trim()).length) + '줄' : curText));
+      curBox.classList.remove('hidden');
+    } else {
+      curBox.classList.add('hidden');
+    }
+
+    const scopeBar = document.getElementById('itiPickScopes');
+    scopeBar.textContent = '';
+    const counts = {};
+    ITI_PICK_SCOPES.forEach((s) => { counts[s.id] = itiPickCandidates(itiPick.kind, s.id).length; });
+    ITI_PICK_SCOPES.forEach((s) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'itip-chip' + (itiPick.scope === s.id ? ' on' : '');
+      b.textContent = s.label + ' ' + counts[s.id];
+      if (!counts[s.id]) b.disabled = true;
+      b.addEventListener('click', function () { itiPick.scope = s.id; itiPickRender(); });
+      scopeBar.appendChild(b);
+    });
+
+    const q = itiPick.q.trim().toLowerCase();
+    const all = itiPickCandidates(itiPick.kind, itiPick.scope);
+    const list = q ? all.filter((c) => c.text.toLowerCase().includes(q)) : all;
+    /* 이미 들어 있는 줄은 다시 고를 수 없게 표시한다 — 조용히 무시하면 눌렀는데
+       아무 일도 안 일어난 것처럼 보인다. */
+    const already = new Set(spec.mode === 'line'
+      ? curText.split('\n').map((s) => s.trim()).filter(Boolean)
+      : [curText.trim()].filter(Boolean));
+
+    document.getElementById('itiPickCount').textContent =
+      list.length ? (q ? list.length + '건 (검색 ' + all.length + '건 중)' : list.length + '건') : '';
+
+    const box = document.getElementById('itiPickList');
+    box.textContent = '';
+    if (!list.length) {
+      const p = document.createElement('p');
+      p.className = 'itip-empty';
+      p.textContent = q
+        ? '검색어와 맞는 문구가 없습니다. 단어를 줄이거나 범위를 “전체”로 넓혀 보세요.'
+        : '이 범위에는 후보가 없습니다. 범위를 “전체”로 넓혀 보세요.';
+      box.appendChild(p);
+      return;
+    }
+    const MAX = 300;   /* 한 번에 그리는 상한 — 넘으면 아래에 몇 건이 잘렸는지 적는다 */
+    list.slice(0, MAX).forEach((c) => {
+      const used = already.has(c.text);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'itip-item';
+      btn.disabled = used;
+      if (used) btn.style.opacity = '.45';
+      const t = document.createElement('span');
+      t.className = 'itip-item-text';
+      t.textContent = c.text;
+      const f = document.createElement('span');
+      f.className = 'itip-item-from';
+      f.textContent = used ? '이미 이 칸에 있음' : (c.from === itiState.destKey ? '이 목적지' : c.from);
+      btn.appendChild(t); btn.appendChild(f);
+      btn.addEventListener('click', function () { itiPickApply(c.text); });
+      box.appendChild(btn);
+    });
+    if (list.length > MAX) {
+      const p = document.createElement('p');
+      p.className = 'itip-empty';
+      p.textContent = (list.length - MAX) + '건은 화면에 다 담지 못했습니다. 검색으로 좁혀 주세요.';
+      box.appendChild(p);
+    }
+  }
+
+  function itiPickApply(text) {
+    const spec = ITI_PICK_KINDS[itiPick.kind];
+    if (!spec || !itiPick.write) return;
+    const cur = String(itiPick.read ? (itiPick.read() || '') : '');
+
+    if (spec.mode === 'line') {
+      /* 목록 칸은 줄을 더한다. 창은 열어 둔다 — 하이라이트 서너 개를 연달아 고르는 게
+         가장 흔한 흐름인데 매번 다시 열게 하면 고르기가 타이핑보다 번거로워진다. */
+      const lines = cur.split('\n').map((s) => s.trim()).filter(Boolean);
+      lines.push(text);
+      itiPick.write(lines.join('\n'));
+      itiPickRender();
+      return;
+    }
+    /* 값이 하나인 칸은 바꿔치기다. 이미 쓴 내용이 있으면 되돌릴 방법이 없으므로 한 번 묻는다. */
+    if (cur.trim() && cur.trim() !== text && !confirm('이 칸의 내용을 고른 문구로 바꿉니다.\n\n지금: ' + cur.trim() + '\n\n바꿀 내용: ' + text)) return;
+    itiPick.write(text);
+    itiPickClose();
   }
 
   /* QC: 추천 콘텐츠(방식 A/B) 편집 카드.
@@ -5300,10 +5583,10 @@
     box.appendChild(itiField('방식 이름 (예: 역량강화형) — 일정 탐색 화면의 배지', p.tag, false, (v) => { p.tag = v; }));
     box.appendChild(itiField('한 줄 테마 설명', p.desc, true, (v) => { p.desc = v; }));
     box.appendChild(itiField('핵심 포인트 (한 줄에 하나씩) — 일정 탐색 카드에 표시', (p.points || []).join('\n'), true,
-      (v) => { p.points = v.split('\n').map(s => s.trim()).filter(Boolean); }));
+      (v) => { p.points = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recPoint'));
     box.appendChild(itiField('일별 주요 활동 (한 줄에 하나씩) — 연수 일수가 코스보다 길 때 남는 날을 이 목록으로 채웁니다',
       (p.items || []).join('\n'), true,
-      (v) => { p.items = v.split('\n').map(s => s.trim()).filter(Boolean); }));
+      (v) => { p.items = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recItem'));
     box.appendChild(itiField('기대 효과 문구 — 고객 견적서(결재 보고용)에 나갑니다', p.value, true, (v) => { p.value = v; }));
     return box;
   }
@@ -5358,14 +5641,14 @@
     });
     head.appendChild(no); head.appendChild(spacer); head.appendChild(del);
     box.appendChild(head);
-    box.appendChild(itiField('그날의 제목 (예: 첨단 제조업 현장)', day.title, false, (v) => { day.title = v; }));
+    box.appendChild(itiField('그날의 제목 (예: 첨단 제조업 현장)', day.title, false, (v) => { day.title = v; }, 'dayTitle'));
 
     const grid = document.createElement('div');
     grid.className = 'iti-day-grid';
-    grid.appendChild(itiField('오전', day.am,  true, (v) => { day.am = v; }));
-    grid.appendChild(itiField('오후', day.pm,  true, (v) => { day.pm = v; }));
-    grid.appendChild(itiField('저녁', day.eve, true, (v) => { day.eve = v; }));
-    grid.appendChild(itiField('참고 팁 (고객 견적서에 함께 나갑니다)', day.tip, true, (v) => { day.tip = v; }));
+    grid.appendChild(itiField('오전', day.am,  true, (v) => { day.am = v; }, 'dayAct'));
+    grid.appendChild(itiField('오후', day.pm,  true, (v) => { day.pm = v; }, 'dayAct'));
+    grid.appendChild(itiField('저녁', day.eve, true, (v) => { day.eve = v; }, 'dayEve'));
+    grid.appendChild(itiField('참고 팁 (고객 견적서에 함께 나갑니다)', day.tip, true, (v) => { day.tip = v; }, 'dayTip'));
     box.appendChild(grid);
     return box;
   }
@@ -5395,7 +5678,7 @@
     box.appendChild(itiField('코스 제목', course.title, false, (v) => { course.title = v; }));
     box.appendChild(itiField('한 줄 설명', course.subtitle, true, (v) => { course.subtitle = v; }));
     box.appendChild(itiField('핵심 하이라이트 (한 줄에 하나씩)', (course.highlights || []).join('\n'), true,
-      (v) => { course.highlights = v.split('\n').map(s => s.trim()).filter(Boolean); }));
+      (v) => { course.highlights = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'highlight'));
 
     const daysWrap = document.createElement('div');
     (course.days || []).forEach((d, i) => daysWrap.appendChild(itiRenderDay(course, d, i, courseIdx)));
@@ -5456,6 +5739,15 @@
     itiRenderBody();
   }
 
+  /* 목록은 요율표(data.js destinationRates)에서 파생한다 — 목적지 목록을 여기에
+     또 적으면 목적지가 늘 때 한 곳을 빠뜨린다(결함 생성기 ①).
+     목적지 드롭다운과 활동 고르기(QL)의 후보 범위가 **같은 규칙**을 써야 하므로
+     함수로 빼 둔다. 한쪽만 커스텀 목적지를 포함하면 "화면에는 있는데 못 고르는" 칸이 생긴다. */
+  function itiDestKeys() {
+    return (typeof destinationRates !== 'undefined')
+      ? destinationRates.map((d) => d.destination_key) : Object.keys(itiState.overrides);
+  }
+
   function itiFillDestSelect() {
     const sel = document.getElementById('iti-dest');
     const prev = itiState.destKey;
@@ -5463,11 +5755,7 @@
     const blank = document.createElement('option');
     blank.value = ''; blank.textContent = '목적지를 선택하세요';
     sel.appendChild(blank);
-    /* 목록은 요율표(data.js destinationRates)에서 파생한다 — 목적지 목록을 여기에
-       또 적으면 목적지가 늘 때 한 곳을 빠뜨린다(결함 생성기 ①). */
-    const keys = (typeof destinationRates !== 'undefined')
-      ? destinationRates.map(d => d.destination_key) : Object.keys(itiState.overrides);
-    keys.forEach((k) => {
+    itiDestKeys().forEach((k) => {
       const o = document.createElement('option');
       o.value = k;
       const hasDefault = (typeof ITINERARY_DB !== 'undefined') && Array.isArray(ITINERARY_DB[k]);
@@ -5570,6 +5858,19 @@
     if (!itiState.destKey) { itiSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
     itiState.courses.push(itiEmptyCourse());
     itiMarkDirty(); itiRenderBody();
+  });
+
+  /* 활동 고르기 창 (QL). 검색은 입력할 때마다 다시 그린다 — 후보가 1,000건대라
+     실시간으로 좁혀지지 않으면 스크롤로 찾게 되고, 그러면 타이핑보다 느려진다. */
+  document.getElementById('itiPickClose').addEventListener('click', itiPickClose);
+  document.getElementById('itiPickSearch').addEventListener('input', function () {
+    itiPick.q = this.value; itiPickRender();
+  });
+  document.getElementById('itiPickModal').addEventListener('click', function (e) {
+    if (e.target === this) itiPickClose();          /* 바깥을 눌러도 닫힌다 */
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !document.getElementById('itiPickModal').classList.contains('hidden')) itiPickClose();
   });
 
   async function renderContent() {
