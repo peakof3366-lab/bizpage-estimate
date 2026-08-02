@@ -589,6 +589,12 @@
           <span class="si-icon"><i data-lucide="edit-3"></i></span><span class="si-label">콘텐츠 관리</span>
         </button>
         <div class="sidebar-divider"></div>
+        <!-- 매뉴얼 (QN) — 별도 파일(manual.html)을 iframe으로 띄운다. 내부 견적 산출과
+             같은 방식. 문서를 admin.html 안에 붙여넣지 않는 이유: 같은 내용이 두 벌이
+             되는 순간 한쪽만 고쳐지고, 팀은 서로 다른 지침을 보게 된다. -->
+        <button class="sidebar-item" data-tab="manual">
+          <span class="si-icon"><i data-lucide="book-open"></i></span><span class="si-label">매뉴얼</span>
+        </button>
         <button class="sidebar-item" data-tab="settings">
           <span class="si-icon"><i data-lucide="settings"></i></span><span class="si-label">설정</span>
           <!-- 승인 대기 배지 — 가입이 상시 열려 있어 신청이 언제든 들어온다. 기존 알림은
@@ -1088,6 +1094,19 @@
       <div class="card" style="padding:0;overflow:hidden">
         <iframe id="quoteToolFrame" title="내부 견적 산출"
           style="width:100%;height:calc(100vh - 150px);border:none;display:block;background:#fff"></iframe>
+      </div>
+    </div>
+
+    <!-- ── 매뉴얼 (QN) ── manual.html을 그대로 띄운다. 새 탭으로도 열 수 있게 링크를 둔다:
+         인쇄하거나 두 화면을 나란히 보며 따라 하는 경우가 실제로 많다. -->
+    <div class="tab-panel" id="tab-manual">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:.6rem">
+        <a href="manual.html" target="_blank" rel="noopener" class="btn-act btn-outline-p"
+           style="text-decoration:none;display:inline-flex;align-items:center">새 탭으로 열기 ↗</a>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <iframe id="manualFrame" title="운영 매뉴얼"
+          style="width:100%;height:calc(100vh - 190px);border:none;display:block;background:#fff"></iframe>
       </div>
     </div>
 
@@ -2768,7 +2787,7 @@
     dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 관리',
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', rates:'요율 관리', quotetool:'내부 견적 산출',
-    itineraries:'일정 관리', content:'콘텐츠 관리', settings:'설정'
+    itineraries:'일정 관리', content:'콘텐츠 관리', manual:'매뉴얼', settings:'설정'
   };
 
   function switchTab(name) {
@@ -2792,6 +2811,7 @@
     else if (name==='marketing') renderMarketingInsights();
     else if (name==='rates') renderRates();
     else if (name==='quotetool') renderQuoteTool();
+    else if (name==='manual') renderManual();
     else if (name==='itineraries') renderItineraries();
     else if (name==='content') renderContent();
   }
@@ -2801,6 +2821,11 @@
   function renderQuoteTool() {
     const frame = document.getElementById('quoteToolFrame');
     if (frame && !frame.src) frame.src = 'admin-quote.html';
+  }
+
+  function renderManual() {
+    const frame = document.getElementById('manualFrame');
+    if (frame && !frame.src) frame.src = 'manual.html';
   }
 
   function renderAll() { renderDashboard(); }
