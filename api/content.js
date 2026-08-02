@@ -32,7 +32,9 @@ const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key)
 
 /* 한 목적지의 일정 전체 크기 상한. 코스 6개 × 일자 30개 정도면 어떤 실제 연수보다 넉넉하다.
    상한이 없으면 인증된 계정 하나가 실수로(또는 붙여넣기 사고로) DB를 채울 수 있다. */
-const MAX_COURSES = 6;
+/* 값은 limits.js가 안다 — 관리자 화면 사전 안내(ITI_MAX_COURSES)와 매뉴얼이 같은
+   값을 읽어야 한다(QO). */
+const { MAX_COURSES } = require('../limits');
 const MAX_DAYS = 30;
 const MAX_HIGHLIGHTS = 12;
 const MAX_TEXT = 400;

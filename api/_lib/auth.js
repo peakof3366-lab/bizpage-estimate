@@ -1,8 +1,11 @@
 const { SignJWT, jwtVerify } = require('jose');
 const { sql } = require('./db');
 
+const { SESSION_HOURS } = require('../../limits');
+
 const COOKIE_NAME = 'bp_admin_session';
-const MAX_AGE_SECONDS = 12 * 3600;
+/* 값 자체는 limits.js가 안다 — 화면 안내·매뉴얼이 같은 값을 읽어야 하기 때문(QO). */
+const MAX_AGE_SECONDS = SESSION_HOURS * 3600;
 
 /* JWT의 iat는 **초 단위로 내림**되므로, 토큰 발급 직후에 찍힌 updated_at이 iat보다
    최대 1초 앞서 보일 수 있다(승인 직후 로그인 등). 그 인공물로 방금 로그인한 사람을

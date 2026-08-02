@@ -20,6 +20,8 @@ const {
   requireAdmin, requireRole, clearSessionCookie, signSession, setSessionCookie,
 } = require('../_lib/auth');
 
+const { PASSWORD_MIN_LENGTH, SIGNUP_CODE_MIN, SIGNUP_CODE_MAX } = require('../../limits');
+
 const ROLES = new Set(['owner', 'manager', 'staff']);
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{2,30}$/;
 
@@ -66,7 +68,9 @@ async function reissueOwnSession(req, res) {
    코드를 평문으로 두는 이유: 사장님이 직원에게 불러줘야 해서 화면에 보여야 한다.
    비밀번호가 아니라 '초대 코드'라 유출돼도 승인 단계가 남는다. */
 const SIGNUP_CODE_KEY = 'staff_signup_code';
-const SIGNUP_CODE_RE = /^[a-zA-Z0-9_-]{6,40}$/;
+/* 정규식을 길이 상수에서 만든다 — 숫자와 정규식이 따로 놀면 화면 안내("6~40자")와
+   실제 검증이 어긋난다. 값은 limits.js 하나가 안다(QO). */
+const SIGNUP_CODE_RE = new RegExp(`^[a-zA-Z0-9_-]{${SIGNUP_CODE_MIN},${SIGNUP_CODE_MAX}}$`);
 /* 승인 대기 계정이 이만큼 쌓이면 신청을 막는다 — 코드가 새어나갔을 때 DB가
    쓰레기 행으로 채워지는 걸 끊는 마지막 밸브. 사장님이 대기열을 정리하면 풀린다. */
 const MAX_PENDING = 20;
@@ -136,7 +140,7 @@ module.exports = async (req, res) => {
 
     const { current, next } = req.body || {};
     if (!current || !next) return res.status(400).json({ error: 'missing_fields' });
-    if (String(next).length < 8) return res.status(400).json({ error: 'password_too_short' });
+    if (String(next).length < PASSWORD_MIN_LENGTH) return res.status(400).json({ error: 'password_too_short' });
 
     try {
       const rows = await sql`select password_hash from staff_accounts where id = ${req.user.id}`;
@@ -166,7 +170,7 @@ module.exports = async (req, res) => {
     if (!USERNAME_RE.test(uname)) return res.status(400).json({ error: 'invalid_username' });
     if (!dname || dname.length > 40 || !DISPLAY_NAME_RE.test(dname)) return res.status(400).json({ error: 'invalid_display_name' });
     if (!ROLES.has(role)) return res.status(400).json({ error: 'invalid_role' });
-    if (!password || String(password).length < 8) return res.status(400).json({ error: 'password_too_short' });
+    if (!password || String(password).length < PASSWORD_MIN_LENGTH) return res.status(400).json({ error: 'password_too_short' });
 
     try {
       const hash = await bcrypt.hash(password, 12);
@@ -240,7 +244,7 @@ module.exports = async (req, res) => {
 
     const { id, newPassword } = req.body || {};
     if (!id) return res.status(400).json({ error: 'missing_id' });
-    if (!newPassword || String(newPassword).length < 8) return res.status(400).json({ error: 'password_too_short' });
+    if (!newPassword || String(newPassword).length < PASSWORD_MIN_LENGTH) return res.status(400).json({ error: 'password_too_short' });
 
     try {
       const hash = await bcrypt.hash(newPassword, 12);
@@ -286,7 +290,7 @@ module.exports = async (req, res) => {
     if (!code || !safeEqual(code, configured)) return res.status(403).json({ error: 'invalid_signup_code' });
     if (!USERNAME_RE.test(uname)) return res.status(400).json({ error: 'invalid_username' });
     if (!dname || dname.length > 40 || !DISPLAY_NAME_RE.test(dname)) return res.status(400).json({ error: 'invalid_display_name' });
-    if (!password || String(password).length < 8) return res.status(400).json({ error: 'password_too_short' });
+    if (!password || String(password).length < PASSWORD_MIN_LENGTH) return res.status(400).json({ error: 'password_too_short' });
 
     try {
       /* 대기열 = 승인 대기 중인 가입 신청만. 관리자가 일부러 비활성화한 계정까지

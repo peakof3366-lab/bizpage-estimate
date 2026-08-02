@@ -29,8 +29,12 @@ const ROOT = path.join(__dirname, '..', '..');
 /* 관심 대상 — 견적 금액이나 검증 자체에 영향을 주는 파일만. 문서(README·CLAUDE.md)와
    GPT 협의 기록(.txt)은 고쳐도 검증이 필요 없으므로 넣지 않는다(불필요한 30초 방지). */
 const WATCH = [
-  /^data\.js$/, /^script\.js$/, /^dest_currency\.js$/, /^company-info\.js$/,
+  /^data\.js$/, /^script\.js$/, /^dest_currency\.js$/, /^company-info\.js$/, /^limits\.js$/,
   /^index\.html$/, /^admin\.html$/, /^estimate-view\.html$/,
+  /* manual.html은 '문서'지만 README·CLAUDE.md와 성격이 다르다 — 화면 동작을 설명하는
+     운영 문서라 어긋나면 직원이 없는 버튼을 찾는다. test_qN이 화면·limits.js와 대조하므로
+     여기 넣어야 그 대조가 실제로 돌아간다(QO). */
+  /^manual\.html$/,
   /^api\//, /^ai-loop\/[^/]+\.js$/,
 ];
 

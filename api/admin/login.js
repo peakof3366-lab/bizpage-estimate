@@ -3,9 +3,9 @@ const { sql } = require('../_lib/db');
 const { signSession, setSessionCookie } = require('../_lib/auth');
 
 /* 브루트포스 방지 락아웃 (신규) — 예전엔 비밀번호를 몇 번이든 무제한으로 시도할
-   수 있었음. 계정별로 실패 횟수를 세다가 임계치에 도달하면 일정 시간 잠근다. */
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 15;
+   수 있었음. 계정별로 실패 횟수를 세다가 임계치에 도달하면 일정 시간 잠근다.
+   값은 limits.js가 안다 — 로그인 화면 안내와 매뉴얼이 같은 값을 읽어야 한다(QO). */
+const { LOGIN_MAX_ATTEMPTS: MAX_FAILED_ATTEMPTS, LOGIN_LOCKOUT_MINUTES: LOCKOUT_MINUTES } = require('../../limits');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });

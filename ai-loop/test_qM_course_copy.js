@@ -30,12 +30,15 @@ const contentSrc = fs.readFileSync(path.join(ROOT, 'api', 'content.js'), 'utf8')
 const adminSrc   = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
 
 (async () => {
-  console.log('\n[1] 클라이언트 상한이 서버 상한과 같은가 (결함 생성기 ① — 두 파일 직접 대조)');
-  const srvMax = Number((contentSrc.match(/const\s+MAX_COURSES\s*=\s*(\d+)/) || [])[1]);
-  const cliMax = Number((adminSrc.match(/const\s+ITI_MAX_COURSES\s*=\s*(\d+)/) || [])[1]);
-  ok('api/content.js에서 MAX_COURSES를 읽었다', Number.isFinite(srvMax), String(srvMax));
-  ok('admin.html에서 ITI_MAX_COURSES를 읽었다', Number.isFinite(cliMax), String(cliMax));
-  ok('두 값이 같다', srvMax === cliMax, `서버 ${srvMax} vs 화면 ${cliMax} — 갈라지면 화면이 틀린 안내를 한다`);
+  console.log('\n[1] 코스 상한이 한 곳에서만 나오는가 (QO — 예전엔 두 파일을 대조했다)');
+  /* 예전에는 서버와 화면이 각자 6이라고 적어두고 이 테스트가 둘을 비교했다. 지금은
+     limits.js 하나에서 둘 다 읽으므로 '갈라졌는가'가 아니라 '따로 적어뒀는가'를 본다. */
+  const srvMax = require(path.join(ROOT, 'limits.js')).MAX_COURSES;
+  ok('limits.js가 MAX_COURSES를 갖고 있다', Number.isFinite(srvMax), String(srvMax));
+  ok('서버가 숫자를 따로 적어두지 않았다', !/const\s+MAX_COURSES\s*=\s*\d/.test(contentSrc),
+    'api/content.js가 limits.js 대신 자기 숫자를 쓰면 limits.js를 고쳐도 서버는 안 바뀐다');
+  ok('화면이 숫자를 따로 적어두지 않았다', /ITI_MAX_COURSES\s*=\s*LIMITS\.MAX_COURSES/.test(adminSrc),
+    (adminSrc.match(/ITI_MAX_COURSES\s*=.*/) || [''])[0]);
 
   const dom = await bootAdmin();
   const w = dom.window, d = w.document;

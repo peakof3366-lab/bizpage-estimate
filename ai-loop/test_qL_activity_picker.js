@@ -140,11 +140,14 @@ const ok = (name, cond, extra = '') => {
   /* 화면에서만 되는 값이면 저장 순간 400으로 튕긴다. 실제 서버 함수로 돌려본다. */
   const contentSrc = require('fs').readFileSync(path.join(ROOT, 'api', 'content.js'), 'utf8');
   const m = contentSrc.match(/function normalizeCourses[\s\S]*?\n}\n/);
-  /* 상한은 **서버 소스에서 읽는다.** 숫자를 여기 적어두면 서버가 더 빡빡해져도 이
-     테스트는 계속 통과해서, 화면에서만 되는 값을 '검증했다'고 말하게 된다. */
+  /* 상한은 **서버가 쓰는 값 그대로** 읽는다. 숫자를 여기 적어두면 서버가 더 빡빡해져도
+     이 테스트는 계속 통과해서, 화면에서만 되는 값을 '검증했다'고 말하게 된다.
+     일부는 api/content.js가 직접 갖고 있고, 일부는 limits.js에서 온다(QO) — 둘 다 본다. */
+  const sharedLimits = require(path.join(ROOT, 'limits.js'));
   const lim = (name) => {
+    if (Number.isFinite(sharedLimits[name])) return sharedLimits[name];
     const v = Number((contentSrc.match(new RegExp('const\\s+' + name + '\\s*=\\s*(\\d+)')) || [])[1]);
-    if (!Number.isFinite(v)) throw new Error('api/content.js에서 ' + name + '을 못 읽었습니다');
+    if (!Number.isFinite(v)) throw new Error(name + '을 limits.js에서도 api/content.js에서도 못 읽었습니다');
     return v;
   };
   const normalizeCourses = new Function(
