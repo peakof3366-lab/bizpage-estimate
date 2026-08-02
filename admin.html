@@ -547,6 +547,9 @@
         <div class="sidebar-divider"></div>
         <button class="sidebar-item" data-tab="settings">
           <span class="si-icon"><i data-lucide="settings"></i></span><span class="si-label">설정</span>
+          <!-- 승인 대기 배지 — 가입이 상시 열려 있어 신청이 언제든 들어온다. 기존 알림은
+               설정 탭 안(staff-pending-banner)에만 있어 들어가 봐야 알 수 있었다. -->
+          <span class="si-badge" id="sb-pending-signup" style="display:none"></span>
         </button>
       </div>
       <div class="sidebar-footer">
@@ -1839,6 +1842,30 @@
         : '';
       banner.classList.toggle('hidden', !waiting);
     }
+    updatePendingSignupBadge();
+  }
+
+  /* 승인 대기 배지 (신규) — 위 배너는 staffAdminSection 안에 있어서 **설정 탭을 열어야만**
+     보인다. 가입코드를 계속 열어 두는 운영에서는 신청이 아무 때나 들어오므로, 사장님이
+     어느 화면에 있든 사이드바에서 보이게 한다. 세는 값은 위와 같은 staffListCache
+     하나에서 나온다 — 대기 건수를 두 곳에서 따로 세면 반드시 어긋난다(결함 생성기 ①).
+
+     ⚠ 목록을 못 받았을 때 0건으로 보여주지 않는다. 여기서 조용한 폴백(결함 생성기 ②)은
+     "기다리는 사람이 없다"는 거짓말이 되고, 신청한 팀원은 승인을 무한정 기다리게 된다. */
+  function updatePendingSignupBadge() {
+    const badge = document.getElementById('sb-pending-signup');
+    if (!badge) return;
+    const show = (text, title) => {
+      badge.textContent = text;
+      badge.title = title;
+      badge.style.display = text ? '' : 'none';
+    };
+    /* 승인은 관리자만 할 수 있다(account.js updateStaff = requireRole owner).
+       매니저·직원에게 띄우면 아무도 처리할 수 없는 알림이 된다. */
+    if (!currentUser || currentUser.role !== 'owner') { show('', ''); return; }
+    if (staffListStale) { show('?', '가입 신청 목록을 불러오지 못했습니다. 설정 → 직원 계정 관리에서 확인해 주세요.'); return; }
+    const waiting = staffListCache.filter(s => s.self_signup).length;
+    show(waiting ? String(waiting) : '', waiting ? `승인을 기다리는 가입 신청 ${waiting}건` : '');
   }
 
   /* ── 가입코드 관리 (신규, 관리자 전용) ── */
