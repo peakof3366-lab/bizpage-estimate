@@ -416,13 +416,62 @@
     }
     @media (max-width: 640px) { .edit-id .id-mark { display: none; } }
 
-    /* 파랑 = 날짜, 보라 = 방식 A·B. 두 색은 이 화면들에서만 쓴다. */
-    #tab-itineraries { --id-accent: #1D4ED8; --id-bg: #EFF6FF; }
-    #tab-reccontent  { --id-accent: #7C3AED; --id-bg: #F5F3FF; }
-    #tab-itineraries .iti-course    { border-top-color: #1D4ED8; }
-    #tab-itineraries .iti-course-no { background: #1D4ED8; }
-    #tab-reccontent  .iti-course    { border-top-color: #7C3AED; }
-    #tab-reccontent  .iti-course-no { background: #7C3AED; font-size: .78rem; }
+    /* ── 한 화면 안의 두 구역 (QY) ──
+       ✨ 방식 A·B = 보라, 📅 날짜별 일정 = 파랑. 구역 전체가 색을 갖는다 —
+       스크롤 중에 편집칸만 보여도 지금 어느 구역을 고치는지 알 수 있어야 한다. */
+    .sec-rec  { --sec: #7C3AED; --sec-bg: #F5F3FF; }
+    .sec-days { --sec: #1D4ED8; --sec-bg: #EFF6FF; }
+    .edit-sec {
+      border: 1px solid var(--border); border-top: 4px solid var(--sec);
+      background: #fff; padding: 0 0 1.1rem; margin-bottom: 1.6rem; scroll-margin-top: 1rem;
+    }
+    .sec-head {
+      display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+      background: var(--sec-bg); padding: .9rem 1.15rem; border-bottom: 1px solid var(--border);
+    }
+    .sec-mark { font-size: 1.5rem; line-height: 1; flex-shrink: 0; }
+    .sec-title { flex: 1; min-width: 14rem; }
+    .sec-title h3 { font-size: 1rem; font-weight: 800; color: var(--sec); display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+    .sec-title .sec-sub { font-size: .74rem; font-weight: 700; color: #fff; background: var(--sec); padding: .1rem .4rem; letter-spacing: .02em; }
+    .sec-title p { font-size: .8rem; color: var(--heading); margin-top: .2rem; }
+    .sec-note { font-size: .8rem; color: var(--muted); padding: .7rem 1.15rem 0; line-height: 1.6; }
+    .sec-note strong { color: var(--heading); }
+    .edit-sec .iti-msg { padding: 0 1.15rem; }
+    .edit-sec #rec-body, .edit-sec #iti-body { padding: .9rem 1.15rem 0; }
+
+    /* 구역 바로가기 — 문서가 길어 스크롤로만 오가면 금방 지친다. */
+    .iti-jumplbl { font-size: .74rem; font-weight: 700; color: var(--muted); }
+    .iti-jump {
+      font-family: inherit; font-size: .78rem; font-weight: 700; cursor: pointer;
+      background: #fff; border: 1px solid var(--border); padding: .3rem .7rem;
+    }
+    .iti-jump.jump-rec  { color: #7C3AED; } .iti-jump.jump-rec:hover  { border-color: #7C3AED; background: #F5F3FF; }
+    .iti-jump.jump-days { color: #1D4ED8; } .iti-jump.jump-days:hover { border-color: #1D4ED8; background: #EFF6FF; }
+
+    /* 두 구역의 의존관계를 숫자로 보여주는 자리 — 이 화면을 합친 이유다. */
+    .sec-link { margin: .9rem 1.15rem 0; padding: .6rem .85rem; font-size: .8rem; line-height: 1.6;
+      background: #F8FAFC; border-left: 3px solid #94A3B8; color: var(--heading); }
+    .sec-link.warn { background: #FFFBEB; border-left-color: #B45309; }
+    .sec-link strong { font-weight: 800; }
+    .sec-link .sl-go { background: none; border: 0; padding: 0; font: inherit; font-weight: 800;
+      color: #7C3AED; text-decoration: underline; cursor: pointer; }
+
+    /* ── 방식 A·B를 **나란히** 둔다 ──
+       A와 B는 고객이 둘 중 하나를 고르는 '대안'이다. 위아래로 쌓으면 순서가 있는 것처럼
+       읽히고, 무엇보다 둘을 견주며 쓰기 어렵다. 고객 화면(카드 두 장)과 같은 모양으로 둔다. */
+    .rec-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
+    @media (max-width: 1180px) { .rec-pair { grid-template-columns: 1fr; } }
+    .rec-plan { border-top-width: 4px; margin-bottom: 0; }
+    .rec-plan.plan-a { border-top-color: #7C3AED; }
+    .rec-plan.plan-b { border-top-color: #DB2777; }
+    .plan-mark {
+      width: 1.9rem; height: 1.9rem; display: grid; place-items: center; flex-shrink: 0;
+      font-size: 1rem; font-weight: 900; color: #fff; letter-spacing: 0;
+    }
+    .plan-a .plan-mark { background: #7C3AED; }
+    .plan-b .plan-mark { background: #DB2777; }
+    .plan-name { font-size: .92rem; font-weight: 800; color: var(--heading); }
+    .plan-hint { font-size: .74rem; color: var(--muted); }
 
     .iti-course {
       background: #fff; border: 1px solid var(--border); border-top: 3px solid var(--heading);
@@ -645,14 +694,11 @@
         <button class="sidebar-item" data-tab="quotetool">
           <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">내부 견적 산출</span>
         </button>
-        <!-- ⚠ 메뉴 이름을 '일정 관리'·'추천 콘텐츠'에서 바꿨다 (QV).
-             둘 다 무엇이 들었는지 말해주지 않아, 나눠 놓아도 어느 쪽에서 무엇을 고치는지
-             헷갈렸다. 이름이 곧 내용이 되게 한다 — 하나는 '날짜', 하나는 'A·B'다. -->
+        <!-- ⚠ 메뉴 하나다 (QY). QU에서 둘로 갈랐다가 되돌렸다 — 둘은 같은 목적지의
+             한 덩어리이고 서로 의존한다(tab-itineraries 주석 참고). 이름은 두 구역을
+             그대로 부른다: '무엇이 들었는지'를 이름이 말해야 한다(QV에서 배운 것). -->
         <button class="sidebar-item" data-tab="itineraries">
-          <span class="si-icon"><i data-lucide="calendar-range"></i></span><span class="si-label">날짜별 일정</span>
-        </button>
-        <button class="sidebar-item" data-tab="reccontent">
-          <span class="si-icon"><i data-lucide="sparkles"></i></span><span class="si-label">방식 A·B 소개</span>
+          <span class="si-icon"><i data-lucide="calendar-range"></i></span><span class="si-label">일정 · 방식 A·B</span>
         </button>
         <button class="sidebar-item" data-tab="content" id="navContent">
           <span class="si-icon"><i data-lucide="edit-3"></i></span><span class="si-label">콘텐츠 관리</span>
@@ -1194,84 +1240,65 @@
          그대로 나간다(요율의 rate_overrides와 같은 구조).
          화면은 renderItineraries()가 통째로 그린다 — 목적지 55개 × 코스 2~3개 ×
          일자 5개짜리 폼을 손으로 적어두지 않기 위함(요율·콘텐츠 탭과 같은 방식). -->
+    <!-- ── 연수 내용 (QY) ── 방식 A·B와 날짜별 일정을 **한 화면**에서 다룬다.
+         QU에서 잠깐 두 메뉴로 갈랐다가 되돌린 것이다. 되돌린 이유:
+           · 둘은 같은 목적지의 한 덩어리다(DB도 한 행 itinerary_overrides).
+           · 무엇보다 **서로 의존한다** — 연수 일수가 코스보다 길면 남는 날이 방식 A·B의
+             '일별 주요 활동'으로 채워진다. 화면이 갈리면 그 의존이 보이지 않아, 매뉴얼에
+             같은 경고를 세 번 적어야 했다. **경고를 세 번 적어야 한다는 것 자체가
+             설계가 틀렸다는 뜻이다.** 지금은 아래 sec-days 안에 숫자로 직접 보여준다.
+         대신 QU에서 만든 것 중 **저장·되돌리기를 구역마다 따로 두는 것은 그대로 쓴다** —
+         부분 저장(api/content.js coalesce) 덕분에 한 구역을 저장해도 다른 구역은
+         동료가 방금 고친 값 그대로 남는다. 그건 갈라서 얻은 진짜 소득이라 버리지 않는다. -->
     <div class="tab-panel" id="tab-itineraries">
-      <div class="edit-id">
-        <span class="id-mark" aria-hidden="true">📅</span>
-        <div class="id-body">
-          <h3>날짜별 일정 — DAY 1, 2, 3… 을 채우는 곳</h3>
-          <p>
-            목적지마다 <strong>며칠짜리 일정표</strong>를 만듭니다. 오전·오후·저녁에 무엇을 하는지 적는 곳이고,
-            <strong>고객 견적서의 일정표</strong>에 그대로 나갑니다.
-          </p>
-          <div class="id-sample">DAY 1  입국 · 오리엔테이션
-   오전  나리타 도착 · 호텔 체크인
-   오후  시부야 도보 탐방
-   저녁  환영 만찬</div>
-          <p class="id-cross">
-            카드 문구·기대 효과처럼 <strong>날짜가 없는 소개글</strong>을 고치려면 →
-            <button type="button" data-goto="reccontent">✨ 방식 A·B 소개</button>
-          </p>
-        </div>
-      </div>
-      <div class="iti-note">
-        저장하면 <strong>배포·개발자 작업 없이 즉시</strong> 반영됩니다. 아직 한 번도 수정하지 않은 목적지는
-        기본값이 올라옵니다. 코스는 <strong>프로그램 유형(언어·리더십·산업·교육)에 따라 어느 것이 먼저 보일지</strong>가
-        정해져 있고, 연수 일수가 코스보다 길면 마지막 “귀국” 일자는 실제 마지막 날로 옮겨집니다.
-      </div>
       <div class="iti-bar">
         <label for="iti-dest">목적지</label>
         <select id="iti-dest"><option value="">불러오는 중…</option></select>
-        <span id="iti-state" class="iti-state"></span>
         <span class="iti-spacer"></span>
-        <button class="iti-btn" id="iti-add-course">＋ 코스 추가</button>
-        <button class="iti-btn" id="iti-copy-course">다른 목적지에서 가져오기</button>
-        <button class="iti-btn danger" id="iti-revert">기본값으로 되돌리기</button>
-        <button class="btn-act btn-primary" id="iti-save">저장</button>
+        <span class="iti-jumplbl">바로가기</span>
+        <button type="button" class="iti-jump jump-rec"  data-jump="sec-rec">✨ 방식 A·B</button>
+        <button type="button" class="iti-jump jump-days" data-jump="sec-days">📅 날짜별 일정</button>
       </div>
-      <p id="iti-msg" class="iti-msg"></p>
-      <div id="iti-body"></div>
-    </div>
 
-    <!-- ── 추천 콘텐츠 (QU) ── 방식 A·B 전용 화면.
-         일정 관리와 **목적지 선택도 따로**다(사용자 결정) — 한쪽을 다루다 다른 쪽이
-         바뀌는 일이 없게 하려는 것이다. 저장도 자기 부분만 보내므로, 동료가 그 사이
-         코스를 고쳤어도 이 화면의 저장이 그걸 되돌리지 않는다. -->
-    <div class="tab-panel" id="tab-reccontent">
-      <div class="edit-id">
-        <span class="id-mark" aria-hidden="true">✨</span>
-        <div class="id-body">
-          <h3>방식 A·B 소개 — 날짜 없는 “소개글” 두 벌</h3>
-          <p>
-            같은 목적지를 <strong>어떤 목적으로 가느냐</strong>를 두 갈래로 소개하는 짧은 글입니다.
-            홈페이지 <strong>“연수 일정 탐색”의 두 카드</strong>와 <strong>견적서의 기대 효과 문구</strong>에 쓰입니다.
-            <strong>날짜(DAY)는 여기에 없습니다.</strong>
-          </p>
-          <div class="id-sample">방식 A  역량강화형
-   테마     일본 제조·IT 혁신 현장 벤치마킹
-   기대효과  실무 혁신 아이디어 확보
-방식 B  동기부여·화합형</div>
-          <p class="id-cross">
-            <strong>DAY 1·2·3의 오전·오후</strong>를 고치려면 →
-            <button type="button" data-goto="itineraries">📅 날짜별 일정</button>
-          </p>
+      <!-- 구역 ① 방식 A·B — 날짜가 없는 소개글 두 벌 -->
+      <section class="edit-sec sec-rec" id="sec-rec">
+        <header class="sec-head">
+          <span class="sec-mark" aria-hidden="true">✨</span>
+          <div class="sec-title">
+            <h3>방식 A·B 소개 <span class="sec-sub">날짜 없는 소개글 두 벌</span></h3>
+            <p>홈페이지 <strong>“연수 일정 탐색”의 두 카드</strong>와 <strong>견적서의 기대 효과 문구</strong>에 나갑니다.</p>
+          </div>
+          <span id="rec-state" class="iti-state"></span>
+          <button class="iti-btn danger" id="rec-revert">이 구역만 되돌리기</button>
+          <button class="btn-act btn-primary" id="rec-save">방식 A·B 저장</button>
+        </header>
+        <div class="sec-note">
+          ⚠ <strong>A와 B를 둘 다 채워야 저장됩니다.</strong> 한쪽만 저장되면 고객 화면의 그 자리가
+          조용히 일반 문구로 떨어지기 때문에, 서버가 반쪽 저장을 받지 않습니다.
         </div>
-      </div>
-      <div class="iti-note">
-        ⚠ <strong>방식 A·B는 둘 다 채워야 저장됩니다.</strong> 한쪽만 저장되면 고객 화면의 그 자리가
-        조용히 일반 문구로 떨어지기 때문에, 서버가 반쪽 저장을 받지 않습니다.<br>
-        💡 <strong>긴 일정에서 빈 날이 생긴다면 여기입니다.</strong> 연수 일수가 코스보다 길 때
-        남는 날은 아래 <strong>“일별 주요 활동”</strong> 목록으로 채워집니다 — 넉넉히 적어 두세요.
-      </div>
-      <div class="iti-bar">
-        <label for="rec-dest">목적지</label>
-        <select id="rec-dest"><option value="">불러오는 중…</option></select>
-        <span id="rec-state" class="iti-state"></span>
-        <span class="iti-spacer"></span>
-        <button class="iti-btn danger" id="rec-revert">기본값으로 되돌리기</button>
-        <button class="btn-act btn-primary" id="rec-save">저장</button>
-      </div>
-      <p id="rec-msg" class="iti-msg"></p>
-      <div id="rec-body"></div>
+        <p id="rec-msg" class="iti-msg"></p>
+        <div id="rec-body"></div>
+      </section>
+
+      <!-- 구역 ② 날짜별 일정 — DAY 1, 2, 3… -->
+      <section class="edit-sec sec-days" id="sec-days">
+        <header class="sec-head">
+          <span class="sec-mark" aria-hidden="true">📅</span>
+          <div class="sec-title">
+            <h3>날짜별 일정 <span class="sec-sub">DAY 1, 2, 3…</span></h3>
+            <p>오전·오후·저녁에 무엇을 하는지 — <strong>고객 견적서의 일정표</strong>에 그대로 나갑니다.</p>
+          </div>
+          <span id="iti-state" class="iti-state"></span>
+          <button class="iti-btn" id="iti-add-course">＋ 코스 추가</button>
+          <button class="iti-btn" id="iti-copy-course">가져오기</button>
+          <button class="iti-btn danger" id="iti-revert">이 구역만 되돌리기</button>
+          <button class="btn-act btn-primary" id="iti-save">일정 저장</button>
+        </header>
+        <!-- 두 구역의 의존관계를 **숫자로** 보여주는 자리. 이것이 한 화면으로 합친 이유다. -->
+        <div id="iti-link" class="sec-link"></div>
+        <p id="iti-msg" class="iti-msg"></p>
+        <div id="iti-body"></div>
+      </section>
     </div>
 
     <!-- ── 콘텐츠 관리 (신규) ── 필드 110개는 CMS_FIELDS 데이터에서 renderContent()가
@@ -3103,7 +3130,7 @@
     dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 관리',
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', rates:'요율 관리', quotetool:'내부 견적 산출',
-    itineraries:'날짜별 일정', reccontent:'방식 A·B 소개', content:'콘텐츠 관리',
+    itineraries:'일정 · 방식 A·B', content:'콘텐츠 관리',
     manual:'매뉴얼', settings:'설정'
   };
 
@@ -3130,7 +3157,6 @@
     else if (name==='quotetool') renderQuoteTool();
     else if (name==='manual') renderManual();
     else if (name==='itineraries') renderItineraries();
-    else if (name==='reccontent') renderRecContent();
     else if (name==='content') renderContent();
   }
 
@@ -5665,6 +5691,8 @@
   function itiMarkDirty() {
     itiState.dirty = true;
     itiRenderState();
+    /* 코스 일수가 바뀌면 두 구역의 관계 안내도 따라가야 한다 (QY). */
+    itiRenderLink();
   }
 
   function itiRenderState() {
@@ -6159,18 +6187,26 @@
   function itiRenderRecPlan(rec, plan) {
     const p = rec[plan];
     const box = document.createElement('div');
-    box.className = 'iti-course';
+    box.className = 'iti-course rec-plan plan-' + plan;
 
+    /* 큰 A·B 표식 + 이 방식이 무엇인지 (QY) — 두 칸이 나란히 있을 때 어느 쪽이 A인지
+       한눈에 보여야 한다. 배지 글자만으로는 스크롤 중에 헷갈린다. */
     const head = document.createElement('div');
     head.className = 'iti-course-head';
-    const no = document.createElement('span');
-    no.className = 'iti-course-no';
-    no.textContent = ITI_REC_PLAN_LABEL[plan];
-    head.appendChild(no);
+    const mark = document.createElement('span');
+    mark.className = 'plan-mark';
+    mark.textContent = plan.toUpperCase();
+    const name = document.createElement('span');
+    name.className = 'plan-name';
+    name.textContent = ITI_REC_PLAN_LABEL[plan];
+    const hint = document.createElement('span');
+    hint.className = 'plan-hint';
+    hint.textContent = plan === 'a' ? '보통 “역량강화형”' : '보통 “동기부여·화합형”';
+    head.appendChild(mark); head.appendChild(name); head.appendChild(hint);
     box.appendChild(head);
 
     const D = recMarkDirty;
-    const G = () => recState.destKey;   /* 고르기 후보 기준 = 이 화면이 고른 목적지 */
+    const G = () => itiState.destKey;   /* 목적지 선택은 하나다 (QY) */
     box.appendChild(itiField('방식 이름 (예: 역량강화형) — 일정 탐색 화면의 배지', p.tag, false, (v) => { p.tag = v; }, null, D, G));
     box.appendChild(itiField('한 줄 테마 설명', p.desc, true, (v) => { p.desc = v; }, null, D, G));
     box.appendChild(itiField('핵심 포인트 (한 줄에 하나씩) — 일정 탐색 카드에 표시', (p.points || []).join('\n'), true,
@@ -6194,8 +6230,11 @@
     return el;
   }
 
+  /* A와 B를 **나란히** 놓는다 (QY). 고객이 둘 중 하나를 고르는 '대안'이라 위아래로 쌓으면
+     순서가 있는 것처럼 읽히고, 둘을 견주며 쓰기도 어렵다. 고객 화면(카드 두 장)과 같은 모양. */
   function itiRenderRecSection(rec) {
     const wrap = document.createElement('div');
+    wrap.className = 'rec-pair';
     wrap.appendChild(itiRenderRecPlan(rec, 'a'));
     wrap.appendChild(itiRenderRecPlan(rec, 'b'));
     return wrap;
@@ -6287,12 +6326,16 @@
   function itiRenderBody() {
     const body = document.getElementById('iti-body');
     body.textContent = '';
+    /* ⚠ 두 구역의 관계 안내(itiRenderLink)는 **여기 한 곳에서만** 갱신한다.
+       itiRenderBody는 코스가 바뀌는 거의 모든 자리에서 불리므로, 부르는 쪽마다
+       따로 챙기게 하면 언젠가 한 곳을 빠뜨리고 숫자가 낡는다(결함 생성기 ①). */
+    const done = () => { itiRenderState(); itiRenderLink(); };
     if (!itiState.destKey) {
       const p = document.createElement('p');
       p.className = 'iti-note';
       p.textContent = '위에서 목적지를 먼저 고르세요.';
       body.appendChild(p);
-      itiRenderState();
+      done();
       return;
     }
     if (!itiState.courses.length) {
@@ -6300,15 +6343,18 @@
       p.className = 'iti-note';
       p.textContent = '이 목적지에는 아직 등록된 코스가 없습니다. “＋ 코스 추가”로 만들어 주세요.';
       body.appendChild(p);
-      itiRenderState();
+      done();
       return;
     }
     itiState.courses.forEach((c, i) => body.appendChild(itiRenderCourse(c, i)));
-    itiRenderState();
+    done();
   }
 
   function itiSelectDest(destKey) {
-    if (itiState.dirty && !confirm('저장하지 않은 수정 내용이 있습니다. 목적지를 바꾸면 사라집니다. 계속할까요?')) {
+    /* 두 구역 중 **어느 쪽이라도** 저장 안 한 게 있으면 묻는다 — 방식 A·B만 고쳐 놓고
+       목적지를 바꾸면 그것도 그대로 날아간다. */
+    if ((itiState.dirty || recState.dirty)
+        && !confirm('저장하지 않은 수정 내용이 있습니다. 목적지를 바꾸면 사라집니다. 계속할까요?')) {
       document.getElementById('iti-dest').value = itiState.destKey;
       return;
     }
@@ -6318,7 +6364,15 @@
     itiState.courses = destKey
       ? (itiState.overrides[destKey] ? itiClone(itiState.overrides[destKey]) : itiDefaults(destKey))
       : [];
+    /* QY: 목적지 선택은 하나다 — 두 구역이 항상 같은 목적지를 본다. 예전(QU)처럼
+       따로 고르게 두면 "지금 어느 목적지를 고치는 중인가"가 두 개가 되어 헷갈린다. */
+    recState.rec = destKey
+      ? (itiState.recOverrides[destKey] ? itiClone(itiState.recOverrides[destKey]) : itiRecDefaults(destKey))
+      : null;
+    recState.dirty = false;
+    recSetMsg('');
     itiRenderBody();
+    recRenderBody();
   }
 
   /* 목록은 요율표(data.js destinationRates)에서 파생한다 — 목적지 목록을 여기에
@@ -6341,8 +6395,14 @@
       const o = document.createElement('option');
       o.value = k;
       const hasDefault = (typeof ITINERARY_DB !== 'undefined') && Array.isArray(ITINERARY_DB[k]);
+      /* 무엇이 수정됐는지까지 적는다 (QY) — '수정됨'만 적으면 일정인지 방식 A·B인지
+         목록에서 알 수 없다. 한 화면이 둘을 다 다루므로 여기서 구별해 준다. */
+      const edited = [
+        itiState.overrides[k] ? '일정' : '',
+        itiState.recOverrides[k] ? '방식' : '',
+      ].filter(Boolean).join('·');
       o.textContent = k
-        + (itiState.overrides[k] ? '  ✏️ 수정됨' : '')
+        + (edited ? '  ✏️ ' + edited : '')
         + (hasDefault || itiState.overrides[k] ? '' : '  (일정 없음)');
       sel.appendChild(o);
     });
@@ -6373,14 +6433,21 @@
 
   async function renderItineraries() {
     const err = await itiLoadServer();
-    if (err) itiSetMsg('저장된 일정을 불러오지 못했습니다. 지금 저장하면 다른 사람의 수정본을 덮어쓸 수 있으니, 새로고침 후 다시 시도해 주세요.', 'err');
-    else itiSetMsg('');
+    /* 두 구역이 같은 조회를 쓰므로 실패도 양쪽에 알린다 — 한쪽만 조용하면 그 구역에서
+       낡은 값 위에 저장하게 된다. */
+    if (err) {
+      const msg = '저장된 값을 불러오지 못했습니다. 지금 저장하면 다른 사람의 수정본을 덮어쓸 수 있으니, 새로고침 후 다시 시도해 주세요.';
+      itiSetMsg(msg, 'err'); recSetMsg(msg, 'err');
+    } else { itiSetMsg(''); recSetMsg(''); }
     itiFillDestSelect();
     if (itiState.destKey) {
       /* 편집 중이던 목적지가 있으면 화면은 유지하되, 서버 상태 표시는 갱신한다 */
       itiRenderState();
+      recRenderState();
+      itiRenderLink();
     } else {
       itiRenderBody();
+      recRenderBody();
     }
   }
 
@@ -6491,7 +6558,10 @@
      ⚠ 고객이 보는 결과는 하나도 바뀌지 않는다. 저장되는 곳도 예전과 같은 행이고
      (itinerary_overrides.rec), 엔진도 예전처럼 DEST_REC을 읽는다. 나뉜 것은 관리 화면뿐이다.
      ═══════════════════════════════════════════════════════════════════════ */
-  const recState = { destKey: '', rec: null, dirty: false };
+  /* ⚠ destKey가 없다 (QY). 목적지 선택은 화면에 하나뿐이고 itiState.destKey가 진실이다.
+     여기 또 두면 두 값이 어긋나는 순간 "지금 어느 목적지를 고치는 중인가"를 아무도
+     모르게 된다(결함 생성기 ①의 상태판). */
+  const recState = { rec: null, dirty: false };
 
   function recSetMsg(text, kind) {
     const el = document.getElementById('rec-msg');
@@ -6503,6 +6573,8 @@
   function recMarkDirty() {
     recState.dirty = true;
     recRenderState();
+    /* '일별 주요 활동' 줄 수가 바뀌면 아래 코스 구역의 안내 숫자도 따라가야 한다 (QY). */
+    itiRenderLink();
   }
 
   function recRenderState() {
@@ -6510,129 +6582,138 @@
     if (!el) return;
     el.textContent = '';
     el.className = 'iti-state';
-    if (!recState.destKey) return;
+    if (!itiState.destKey) return;
     if (recState.dirty) { el.textContent = '● 저장하지 않음'; el.classList.add('dirty'); return; }
-    /* '수정됨' 여부는 **추천 콘텐츠 기준**으로만 말한다. 코스만 고친 목적지에까지
-       수정됨이 붙으면 이 화면에서 무엇이 바뀐 건지 알 수 없다. */
-    const saved = itiState.recOverrides[recState.destKey];
-    const meta = itiState.meta[recState.destKey];
+    /* '수정됨'은 **이 구역 기준**으로만 말한다. 일정만 고친 목적지에까지 수정됨이 붙으면
+       이 구역에서 무엇이 바뀐 건지 알 수 없다(구역이 둘이라 특히). */
+    const saved = itiState.recOverrides[itiState.destKey];
+    const meta = itiState.meta[itiState.destKey];
     if (!saved) { el.textContent = '기본값'; return; }
     const when = meta && meta.updatedAt ? new Date(meta.updatedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
     el.textContent = '수정됨' + (meta && meta.updatedBy ? ' · ' + meta.updatedBy : '') + (when ? ' · ' + when : '');
-  }
-
-  function recFillDestSelect() {
-    const sel = document.getElementById('rec-dest');
-    if (!sel) return;
-    const prev = recState.destKey;
-    sel.textContent = '';
-    const blank = document.createElement('option');
-    blank.value = ''; blank.textContent = '목적지를 선택하세요';
-    sel.appendChild(blank);
-    /* 목적지 목록은 일정 관리와 **같은 규칙**에서 나온다(itiDestKeys) — 한쪽만
-       커스텀 목적지를 포함하면 "일정은 고칠 수 있는데 추천은 못 고치는" 칸이 생긴다. */
-    itiDestKeys().forEach((k) => {
-      const o = document.createElement('option');
-      o.value = k;
-      o.textContent = k + (itiState.recOverrides[k] ? '  ✏️ 수정됨' : '');
-      sel.appendChild(o);
-    });
-    if (prev) sel.value = prev;
   }
 
   function recRenderBody() {
     const body = document.getElementById('rec-body');
     if (!body) return;
     body.textContent = '';
-    if (!recState.destKey || !recState.rec) {
+    if (!itiState.destKey || !recState.rec) {
       const p = document.createElement('p');
       p.className = 'iti-note';
       p.textContent = '목적지를 선택하면 그 목적지의 방식 A·B가 올라옵니다.';
       body.appendChild(p);
       recRenderState();
+      itiRenderLink();
       return;
     }
     body.appendChild(itiRenderRecSection(recState.rec));
     recRenderState();
+    itiRenderLink();
   }
 
-  function recSelectDest(destKey) {
-    if (recState.dirty && !confirm('저장하지 않은 수정 내용이 있습니다. 목적지를 바꾸면 사라집니다. 계속할까요?')) {
-      document.getElementById('rec-dest').value = recState.destKey;
-      return;
+  /* ── 두 구역의 의존관계를 숫자로 (QY) ────────────────────────────────────
+     연수 일수가 코스보다 길면 남는 날은 **방식 A·B의 '일별 주요 활동'**으로 채워진다.
+     화면이 갈려 있을 때는 이걸 매뉴얼로 세 번 설명해야 했다. 지금은 코스 구역에서
+     바로 숫자로 보여준다 — 설명이 필요 없어진다. 이것이 두 구역을 한 화면에 둔 이유다. */
+  function itiRenderLink() {
+    const el = document.getElementById('iti-link');
+    if (!el) return;
+    el.textContent = '';
+    el.className = 'sec-link';
+    if (!itiState.destKey) return;
+
+    const maxDays = itiState.courses.reduce((n, c) => Math.max(n, (c.days || []).length), 0);
+    const rec = recState.rec || {};
+    const itemsA = ((rec.a && rec.a.items) || []).length;
+    const itemsB = ((rec.b && rec.b.items) || []).length;
+    const fewest = Math.min(itemsA, itemsB);
+
+    const add = (text, bold) => {
+      const s = document.createElement(bold ? 'strong' : 'span');
+      s.textContent = text;
+      el.appendChild(s);
+    };
+    add('이 목적지는 코스가 최대 ');
+    add(maxDays + '일', true);
+    add(' · 방식 A·B의 “일별 주요 활동”은 ');
+    add(`A ${itemsA}줄 / B ${itemsB}줄`, true);
+    add('입니다. ');
+    add(`${maxDays}일보다 긴 견적이 오면 남는 날은 그 목록에서 채워집니다.`);
+
+    if (maxDays && fewest < 3) {
+      el.classList.add('warn');
+      el.appendChild(document.createElement('br'));
+      add('⚠ 목록이 짧아 긴 일정에서 빈 날이 생길 수 있습니다. ');
+      const go = document.createElement('button');
+      go.type = 'button';
+      go.className = 'sl-go';
+      go.textContent = '✨ 방식 A·B에서 채우기';
+      go.addEventListener('click', () => itiJump('sec-rec'));
+      el.appendChild(go);
     }
-    recState.destKey = destKey;
-    recState.dirty = false;
-    recSetMsg('');
-    recState.rec = destKey
-      ? (itiState.recOverrides[destKey] ? itiClone(itiState.recOverrides[destKey]) : itiRecDefaults(destKey))
-      : null;
-    recRenderBody();
   }
 
-  async function renderRecContent() {
-    const err = await itiLoadServer();
-    if (err) recSetMsg('저장된 추천 콘텐츠를 불러오지 못했습니다. 지금 저장하면 다른 사람의 수정본을 덮어쓸 수 있으니, 새로고침 후 다시 시도해 주세요.', 'err');
-    else recSetMsg('');
-    recFillDestSelect();
-    if (recState.destKey) recRenderState();
-    else recRenderBody();
+  function itiJump(id) {
+    const el = document.getElementById(id);
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   async function recSave() {
-    if (!recState.destKey) { recSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    if (!itiState.destKey) { recSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
     if (!itiState.loaded) { recSetMsg('저장된 값을 아직 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.', 'err'); return; }
 
     recSetMsg('저장 중…');
     try {
       const r = await fetch('/api/content?action=itineraries', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        /* ⚠ courses를 보내지 않는다. 코스는 다른 화면이 관리하므로, 여기서 함께 보내면
-           이 화면이 들고 있던 낡은 사본이 동료가 방금 고친 코스를 조용히 되돌린다.
-           서버는 안 보낸 쪽을 건드리지 않는다(coalesce). */
-        body: JSON.stringify({ destKey: recState.destKey, rec: recState.rec }),
+        /* ⚠ courses를 보내지 않는다. 한 화면이 되었어도 **구역별 저장은 유지한다** —
+           이 구역이 들고 있는 코스 사본은 화면을 연 시점의 것이라, 함께 보내면 그 사이
+           동료가 고친 코스를 조용히 되돌린다. 서버는 안 보낸 쪽을 건드리지 않는다(coalesce). */
+        body: JSON.stringify({ destKey: itiState.destKey, rec: recState.rec }),
       });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(out.error || ('http_' + r.status));
       if (out.rec) {
-        itiState.recOverrides[recState.destKey] = out.rec;
+        itiState.recOverrides[itiState.destKey] = out.rec;
         recState.rec = itiClone(out.rec);
       }
-      itiState.meta[recState.destKey] = { updatedAt: new Date().toISOString(), updatedBy: (currentUser && currentUser.displayName) || '' };
+      itiState.meta[itiState.destKey] = { updatedAt: new Date().toISOString(), updatedBy: (currentUser && currentUser.displayName) || '' };
       recState.dirty = false;
-      recFillDestSelect();
+      itiFillDestSelect();
       recRenderBody();
-      recSetMsg('저장했습니다. 고객 견적서·일정 탐색에 바로 반영됩니다.', 'ok');
+      recSetMsg('방식 A·B를 저장했습니다. 고객 견적서·일정 탐색에 바로 반영됩니다.', 'ok');
     } catch (err) {
-      console.warn('[admin] 추천 콘텐츠 저장 실패:', err);
+      console.warn('[admin] 방식 A·B 저장 실패:', err);
       recSetMsg('저장하지 못했습니다 — ' + itiSaveErrorText(err.message)
         + ' 수정 내용은 화면에 그대로 있습니다.', 'err');
     }
   }
 
   async function recRevert() {
-    if (!recState.destKey) { recSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
-    if (!confirm(recState.destKey + '의 **추천 콘텐츠(방식 A·B)** 수정 내용을 지우고 기본값으로 되돌립니다.\n(추천 일정 코스는 그대로 남습니다.)\n계속할까요?')) return;
+    if (!itiState.destKey) { recSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    if (!confirm(itiState.destKey + '의 방식 A·B 수정 내용을 지우고 기본값으로 되돌립니다.\n(아래 날짜별 일정은 그대로 남습니다.)\n계속할까요?')) return;
     try {
-      const r = await fetch('/api/content?action=itineraries&part=rec&destKey=' + encodeURIComponent(recState.destKey), { method: 'DELETE' });
+      const r = await fetch('/api/content?action=itineraries&part=rec&destKey=' + encodeURIComponent(itiState.destKey), { method: 'DELETE' });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(out.error || ('http_' + r.status));
-      delete itiState.recOverrides[recState.destKey];
-      if (!itiState.overrides[recState.destKey]) delete itiState.meta[recState.destKey];
-      recState.rec = itiRecDefaults(recState.destKey);
+      delete itiState.recOverrides[itiState.destKey];
+      if (!itiState.overrides[itiState.destKey]) delete itiState.meta[itiState.destKey];
+      recState.rec = itiRecDefaults(itiState.destKey);
       recState.dirty = false;
-      recFillDestSelect();
+      itiFillDestSelect();
       recRenderBody();
-      recSetMsg(out.removed ? '기본 추천 콘텐츠로 되돌렸습니다.' : '이 목적지에는 수정 내용이 없었습니다 (이미 기본값입니다).', 'ok');
+      recSetMsg(out.removed ? '기본 방식 A·B로 되돌렸습니다.' : '이 목적지에는 수정 내용이 없었습니다 (이미 기본값입니다).', 'ok');
     } catch (err) {
-      console.warn('[admin] 추천 콘텐츠 되돌리기 실패:', err);
+      console.warn('[admin] 방식 A·B 되돌리기 실패:', err);
       recSetMsg('되돌리지 못했습니다 (' + err.message + ').', 'err');
     }
   }
 
-  document.getElementById('rec-dest').addEventListener('change', function () { recSelectDest(this.value); });
   document.getElementById('rec-save').addEventListener('click', recSave);
   document.getElementById('rec-revert').addEventListener('click', recRevert);
+  document.querySelectorAll('[data-jump]').forEach((b) => {
+    b.addEventListener('click', () => itiJump(b.dataset.jump));
+  });
 
   document.getElementById('iti-dest').addEventListener('change', function () { itiSelectDest(this.value); });
   document.getElementById('iti-save').addEventListener('click', itiSave);

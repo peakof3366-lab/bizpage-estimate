@@ -243,7 +243,7 @@
         <li><a href="#inquiries">문의 관리</a></li>
         <li><a href="#estmgr">견적 관리</a></li>
         <li><a href="#quotetool">내부 견적 산출</a></li>
-        <li><a href="#itinerary">날짜별 일정 · 방식 A·B 소개</a></li>
+        <li><a href="#itinerary">일정 · 방식 A·B</a></li>
         <li><a href="#rates">요율 관리 — 단가 갱신</a></li>
         <li><a href="#newdest">새 목적지 추가<span class="who">매니저·관리자</span></a></li>
         <li><a href="#roles">권한별로 할 수 있는 일</a></li>
@@ -335,8 +335,7 @@
             <tr><td class="field">문의 관리</td><td>홈페이지 문의 폼으로 들어온 건 처리</td><td>매일</td></tr>
             <tr><td class="field">견적 관리</td><td>고객이 직접 뽑은 견적 건 처리 · 견적서 링크 발급</td><td>매일</td></tr>
             <tr><td class="field">내부 견적 산출</td><td>담당자가 직접 조건을 넣어 견적서를 뽑는 도구</td><td>상담할 때</td></tr>
-            <tr><td class="field">날짜별 일정</td><td><strong>DAY 1, 2, 3…</strong> 오전·오후·저녁에 무엇을 하는지 (일정표)</td><td>필요할 때</td></tr>
-            <tr><td class="field">방식 A·B 소개</td><td><strong>날짜 없는 소개글</strong> 두 벌 — 일정 탐색 카드·기대 효과 문구</td><td>필요할 때</td></tr>
+            <tr><td class="field">일정 · 방식 A·B</td><td>목적지별 연수 내용 — 한 화면에 <strong>두 구역</strong>(✨ 방식 A·B 소개 / 📅 날짜별 일정)</td><td>필요할 때</td></tr>
             <tr><td class="field">요율 관리</td><td>목적지별 단가 갱신 · 변경 이력</td><td>분기 1회</td></tr>
             <tr><td class="field">방문 통계 · 이벤트 분석 · 견적 분석 · 마케팅 인사이트</td><td>보는 곳(읽기 전용). 무엇을 눌러도 고객 화면은 안 바뀝니다</td><td>필요할 때</td></tr>
             <tr><td class="field">매뉴얼</td><td>이 문서</td><td>막힐 때마다</td></tr>
@@ -507,27 +506,29 @@
     </section>
 
     <section id="itinerary">
-      <h2>6. 날짜별 일정 · 방식 A·B 소개</h2>
+      <h2>6. 일정 · 방식 A·B</h2>
       <p>
-        연수 내용을 고치는 화면은 <strong>둘</strong>이고, 왼쪽 메뉴에서 따로 들어갑니다.
-        저장하면 <strong>고객 견적서와 홈페이지 “연수 일정 탐색”에 즉시</strong> 반영됩니다 —
-        개발자 작업도, 배포도 필요 없습니다.
+        연수 내용을 고치는 곳입니다. 왼쪽 메뉴 <strong>“일정 · 방식 A·B”</strong> 하나로 들어가고,
+        그 안이 <strong>두 구역</strong>으로 나뉩니다. 목적지는 <strong>위에서 한 번만</strong> 고르면
+        두 구역이 함께 올라옵니다. 저장하면 <strong>고객 견적서와 홈페이지 “연수 일정 탐색”에 즉시</strong>
+        반영됩니다 — 개발자 작업도, 배포도 필요 없습니다.
       </p>
 
-      <h3>어느 쪽에서 고치나 — 한 줄로</h3>
+      <h3>두 구역 — 어느 쪽에서 고치나</h3>
       <div class="scroller">
         <table>
-          <thead><tr><th>메뉴</th><th>무엇이 들었나</th><th>고객은 어디서 보나</th></tr></thead>
+          <thead><tr><th>구역</th><th>무엇이 들었나</th><th>고객은 어디서 보나</th></tr></thead>
           <tbody>
             <tr>
-              <td class="field">📅 날짜별 일정</td>
-              <td><strong>DAY 1, 2, 3…</strong> 오전·오후·저녁·팁 <span class="tag off">날짜 있음</span></td>
-              <td>견적서의 <strong>일정표</strong></td>
+              <td class="field">✨ 방식 A·B 소개<br><span class="tag off">위쪽 · 보라</span></td>
+              <td>방식 이름·테마·핵심 포인트·기대 효과 <span class="tag off">날짜 없음</span><br>
+                <strong>A와 B가 좌우로 나란히</strong> 놓입니다 (A 보라 · B 자홍)</td>
+              <td>일정 탐색의 <strong>두 카드</strong> · 견적서의 <strong>기대 효과 문구</strong></td>
             </tr>
             <tr>
-              <td class="field">✨ 방식 A·B 소개</td>
-              <td>방식 이름·테마·핵심 포인트·기대 효과 <span class="tag off">날짜 없음</span></td>
-              <td>일정 탐색의 <strong>두 카드</strong> · 견적서의 <strong>기대 효과 문구</strong></td>
+              <td class="field">📅 날짜별 일정<br><span class="tag off">아래쪽 · 파랑</span></td>
+              <td><strong>DAY 1, 2, 3…</strong> 오전·오후·저녁·팁 <span class="tag off">날짜 있음</span></td>
+              <td>견적서의 <strong>일정표</strong></td>
             </tr>
           </tbody>
         </table>
@@ -535,23 +536,27 @@
       <p>
         헷갈리면 <strong>“날짜(DAY)가 있느냐”</strong>만 보면 됩니다. DAY가 붙는 것은 전부 📅 날짜별 일정,
         날짜 없이 문구만 있는 것은 전부 ✨ 방식 A·B 소개입니다.
-        각 화면 맨 위에 어떤 곳인지와 <strong>실제 예시</strong>가 색과 함께 적혀 있고(📅 파랑 · ✨ 보라),
-        잘못 들어왔으면 그 자리에서 반대편으로 건너가는 링크가 있습니다.
+        구역마다 색과 제목이 다르고, 화면 위쪽 <strong>바로가기</strong> 버튼으로 두 구역을 오갈 수 있습니다.
       </p>
+      <div class="note">
+        <span class="label">저장·되돌리기는 구역마다 따로입니다</span>
+        <p>
+          한 화면이지만 <strong>저장 버튼이 구역마다 하나씩</strong>입니다 —
+          <strong>방식 A·B 저장</strong> / <strong>일정 저장</strong>. 한 구역을 저장해도 다른 구역은
+          그대로 남습니다(동료가 방금 고친 것을 덮어쓰지 않게 한 장치입니다).
+          되돌리기도 <strong>“이 구역만 되돌리기”</strong>로 각각입니다.
+        </p>
+      </div>
       <div class="note alarm">
         <span class="label">긴 일정에서 빈 날이 생긴다면 — ✨ 쪽입니다</span>
         <p>
-          가장 헷갈리는 자리입니다. 연수 일수가 코스보다 길 때 남는 날은
-          <strong>✨ 방식 A·B 소개</strong>의 <strong>“일별 주요 활동”</strong> 목록으로 채워집니다.
-          📅 날짜별 일정에서 아무리 찾아도 그 칸은 없습니다.
+          연수 일수가 코스보다 길 때 남는 날은 <strong>✨ 방식 A·B 소개</strong>의
+          <strong>“일별 주요 활동”</strong> 목록으로 채워집니다. 📅 쪽에는 그 칸이 없습니다.
         </p>
-      </div>
-      <div class="note">
-        <span class="label">저장·되돌리기는 각각입니다</span>
         <p>
-          <strong>목적지 선택·저장·되돌리기가 화면마다 따로</strong>입니다. 한쪽에서 저장해도 다른 쪽은
-          건드리지 않으니, 같은 목적지의 둘을 다 고치려면 두 화면에서 각각 목적지를 고르고 각각 저장하세요.
-          고객에게 나가는 모양은 <strong>예전과 똑같습니다</strong> — 화면만 나뉜 것입니다.
+          <strong>화면이 알려줍니다.</strong> 📅 구역 위에
+          <em>“이 목적지는 코스가 최대 5일 · 방식 A·B의 일별 주요 활동은 A 4줄 / B 4줄입니다”</em>
+          처럼 지금 숫자가 뜹니다. 목록이 짧으면 노란 경고와 함께 채우러 가는 버튼이 붙습니다.
         </p>
       </div>
       <p>
@@ -805,7 +810,7 @@
             <tr><td>견적서 링크 발급</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>실제 계약 금액 입력</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>내부 견적 산출</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
-            <tr><td>날짜별 일정 · 방식 A·B 소개 편집</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
+            <tr><td>일정 · 방식 A·B 편집 (두 구역 모두)</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>목적지 단가 개별 수정 · 변경 이력 되돌리기</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>문의 · 견적 <strong>삭제</strong></td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>권역 일괄 조정 (%)</td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>

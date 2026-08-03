@@ -197,7 +197,6 @@ const OVERRIDE_TOKYO = [{
     const html = htmlWithDeps('admin.html');
     const EXPOSE = '\n;try{window.__iti=itiState;window.__setUser=u=>{currentUser=u};'
       + 'window.__rec=recState;window.recSave=recSave;window.recRevert=recRevert;'
-      + 'window.renderRecContent=renderRecContent;window.__recFill=recFillDestSelect;'
       + 'window.ITINERARY_DB=ITINERARY_DB;window.DEST_REC=DEST_REC;}catch(e){}\n';
     let injected = false;
     return html.replace(/(<script(?![^>]*\bsrc=)[^>]*>)([\s\S]*?)(<\/script>)/gi, (m, open, code, close) => {
@@ -244,8 +243,14 @@ const OVERRIDE_TOKYO = [{
   const sel = adoc.getElementById('iti-dest');
   ok('목적지 목록이 요율표에서 파생돼 채워진다', sel.options.length === destKeys.length + 1,
     String(sel.options.length));
+  /* QY: 한 화면이 두 구역을 다루므로 목록도 **무엇이** 수정됐는지 말한다 —
+     '수정됨'만 적으면 일정인지 방식 A·B인지 목록에서 알 수 없다. */
   ok('이미 수정한 목적지는 목록에서 표시된다',
-    Array.from(sel.options).some(o => o.value === '도쿄' && o.textContent.includes('수정됨')));
+    Array.from(sel.options).some(o => o.value === '도쿄' && o.textContent.includes('✏️')),
+    Array.from(sel.options).find(o => o.value === '도쿄')?.textContent);
+  ok('무엇이 수정됐는지까지 적는다 (일정 / 방식)',
+    Array.from(sel.options).some(o => o.value === '도쿄' && /✏️\s*일정/.test(o.textContent)),
+    Array.from(sel.options).find(o => o.value === '도쿄')?.textContent);
 
   /* 수정된 목적지를 고르면 기본값이 아니라 저장본이 올라와야 한다 —
      기본값이 올라오면 담당자가 그걸 저장해 남의 수정본을 지운다. */
@@ -380,22 +385,31 @@ const OVERRIDE_TOKYO = [{
   ok('건너뛴 사실을 기록으로 남긴다',
     (w4.__ITINERARY_SOURCE__.skippedRec || []).join(',') === '파리');
 
-  /* 관리자 화면 — QU: 추천 콘텐츠는 **별도 화면**(추천 콘텐츠 탭)으로 옮겼다.
-     고객 쪽(위 검증)은 하나도 바뀌지 않았고, 나뉜 것은 관리 화면뿐이다. */
+  /* 관리자 화면 — QY: 방식 A·B와 날짜별 일정이 **한 화면의 두 구역**이다.
+     (QU에서 두 메뉴로 갈랐다가 되돌렸다 — 둘은 서로 의존하고 DB도 한 행이다.)
+     고객 쪽(위 검증)은 그 어느 쪽으로도 바뀌지 않았다. */
   aw.__iti.recOverrides = {};
-  const recSel  = adoc.getElementById('rec-dest');
   const recBody = adoc.getElementById('rec-body');
-  ok('추천 콘텐츠 화면이 따로 있다', !!recSel && !!recBody);
-  ok('추천 콘텐츠는 일정 관리 화면 안에 있지 않다',
-    !adoc.getElementById('tab-itineraries').contains(recBody));
+  ok('두 구역이 한 화면 안에 있다',
+    !!recBody && adoc.getElementById('tab-itineraries').contains(recBody)
+    && adoc.getElementById('tab-itineraries').contains(adoc.getElementById('iti-body')));
+  ok('목적지 선택은 하나뿐이다',
+    !!adoc.getElementById('iti-dest') && !adoc.getElementById('rec-dest'),
+    '두 개면 "지금 어느 목적지인가"가 두 개가 된다');
+  ok('구역마다 자기 저장 버튼이 있다',
+    !!adoc.getElementById('rec-save') && !!adoc.getElementById('iti-save'));
 
-  aw.__recFill();
-  recSel.value = '도쿄';
-  recSel.dispatchEvent(new aw.Event('change', { bubbles: true }));
+  sel.value = '도쿄';
+  sel.dispatchEvent(new aw.Event('change', { bubbles: true }));
   const inputsNow = () => Array.from(recBody.querySelectorAll('input,textarea'));
-  ok('추천 콘텐츠 칸이 그 화면에 있다',
-    Array.from(recBody.querySelectorAll('.iti-course-no')).some(e => e.textContent === '방식 A')
-    && Array.from(recBody.querySelectorAll('.iti-course-no')).some(e => e.textContent === '방식 B'));
+  ok('한 번의 목적지 선택으로 두 구역이 함께 올라온다',
+    inputsNow().length > 0 && body.querySelectorAll('input,textarea').length > 0);
+  ok('방식 A·B가 나란히 두 칸으로 놓인다',
+    !!recBody.querySelector('.rec-pair')
+    && !!recBody.querySelector('.rec-plan.plan-a') && !!recBody.querySelector('.rec-plan.plan-b'));
+  ok('A·B 표식이 크게 붙는다',
+    Array.from(recBody.querySelectorAll('.plan-mark')).map(e => e.textContent).join('') === 'AB',
+    Array.from(recBody.querySelectorAll('.plan-mark')).map(e => e.textContent).join(','));
   ok('기본 추천 콘텐츠가 폼에 올라온다',
     inputsNow().some(el => el.value === aw.DEST_REC['도쿄'].a.tag), aw.DEST_REC['도쿄'].a.tag);
   ok('일별 활동이 한 줄에 하나씩 올라온다',
@@ -411,33 +425,37 @@ const OVERRIDE_TOKYO = [{
   /* ── QV: 두 화면이 헷갈리지 않게 만든 것들이 실제로 붙어 있는가 ──
      나눠 놓기만 하면 담당자는 여전히 헷갈린다(두 화면이 똑같이 생겼으므로).
      이름·색·예시·건너가기 링크가 정체를 다르게 만든다. 하나라도 빠지면 원점이다. */
+  /* ── QY: 한 화면 안에서 두 구역이 확실히 갈라져 보이는가 ── */
   const labels = Array.from(adoc.querySelectorAll('.sidebar-item .si-label')).map(e => e.textContent.trim());
-  ok('메뉴 이름이 내용을 말한다 (날짜별 일정)', labels.includes('날짜별 일정'), labels.join(', '));
-  ok('메뉴 이름이 내용을 말한다 (방식 A·B 소개)', labels.includes('방식 A·B 소개'));
-  ok('옛 이름은 남아 있지 않다', !labels.includes('일정 관리') && !labels.includes('추천 콘텐츠'));
+  ok('메뉴가 하나로 합쳐졌다', labels.filter(l => /일정|방식/.test(l)).length === 1, labels.join(', '));
+  ok('메뉴 이름이 두 구역을 다 말한다', labels.includes('일정 · 방식 A·B'), labels.join(', '));
 
-  const idIti = adoc.querySelector('#tab-itineraries .edit-id');
-  const idRec = adoc.querySelector('#tab-reccontent .edit-id');
-  ok('두 화면 모두 맨 위에 "여기가 어디인지"가 있다', !!idIti && !!idRec);
-  ok('날짜 쪽 제목에 DAY가 들어 있다', /DAY/.test(idIti.querySelector('h3').textContent));
-  ok('A·B 쪽 제목에 "날짜 없는"이 들어 있다', /날짜 없는/.test(idRec.querySelector('h3').textContent));
-  ok('두 화면에 실제 예시가 붙어 있다',
-    !!idIti.querySelector('.id-sample') && !!idRec.querySelector('.id-sample'));
-  /* 예시가 서로 반대여야 한다 — 날짜 쪽엔 DAY가, A·B 쪽엔 DAY가 없어야 구별이 선다. */
-  ok('날짜 쪽 예시에는 DAY가 있다', /DAY/.test(idIti.querySelector('.id-sample').textContent));
-  ok('A·B 쪽 예시에는 DAY가 없다', !/DAY/.test(idRec.querySelector('.id-sample').textContent));
-  /* 헷갈리는 순간이 곧 잘못 고치는 순간이라, 그 자리에서 건너갈 수 있어야 한다. */
-  ok('날짜 화면에서 A·B 화면으로 건너가는 링크가 있다',
-    idIti.querySelector('[data-goto="reccontent"]') !== null);
-  ok('A·B 화면에서 날짜 화면으로 건너가는 링크가 있다',
-    idRec.querySelector('[data-goto="itineraries"]') !== null);
-  /* 색까지 달라야 스크롤을 내려 편집칸만 보일 때도 어느 화면인지 안다. */
-  ok('두 화면의 강조색이 서로 다르다',
-    /#tab-itineraries \{ --id-accent: #1D4ED8/.test(adminSrc)
-    && /#tab-reccontent  \{ --id-accent: #7C3AED/.test(adminSrc));
-  ok('카드(코스·방식) 색도 그 화면 색을 따른다',
-    /#tab-itineraries \.iti-course-no \{ background: #1D4ED8/.test(adminSrc)
-    && /#tab-reccontent  \.iti-course-no \{ background: #7C3AED/.test(adminSrc));
+  const secRec = adoc.getElementById('sec-rec');
+  const secDays = adoc.getElementById('sec-days');
+  ok('두 구역이 각각 제목·설명을 갖는다',
+    !!secRec.querySelector('.sec-head h3') && !!secDays.querySelector('.sec-head h3'));
+  ok('구역 제목에 무엇이 들었는지 적혀 있다',
+    /방식 A·B/.test(secRec.querySelector('.sec-head h3').textContent)
+    && /날짜별 일정/.test(secDays.querySelector('.sec-head h3').textContent));
+  ok('“날짜 없음/DAY”로 구별해 준다',
+    /날짜 없는/.test(secRec.querySelector('.sec-sub').textContent)
+    && /DAY/.test(secDays.querySelector('.sec-sub').textContent));
+  ok('구역 바로가기가 있다',
+    !!adoc.querySelector('[data-jump="sec-rec"]') && !!adoc.querySelector('[data-jump="sec-days"]'));
+  /* 색까지 달라야 스크롤을 내려 편집칸만 보일 때도 어느 구역인지 안다. */
+  ok('두 구역의 색이 서로 다르다',
+    /\.sec-rec  \{ --sec: #7C3AED/.test(adminSrc) && /\.sec-days \{ --sec: #1D4ED8/.test(adminSrc));
+  ok('A와 B의 표식 색도 서로 다르다',
+    /\.plan-a \.plan-mark \{ background: #7C3AED/.test(adminSrc)
+    && /\.plan-b \.plan-mark \{ background: #DB2777/.test(adminSrc));
+
+  /* ⚠ 이 화면을 합친 이유 자체 — 두 구역의 의존관계를 숫자로 보여준다.
+     화면이 갈려 있을 때는 이걸 매뉴얼로 세 번 설명해야 했다. */
+  const link = adoc.getElementById('iti-link');
+  ok('두 구역의 관계를 숫자로 보여주는 자리가 있다', !!link);
+  ok('코스 일수와 “일별 주요 활동” 줄 수를 함께 말한다',
+    /코스가 최대/.test(link.textContent) && /일별 주요 활동/.test(link.textContent),
+    link.textContent.slice(0, 80));
 
   const tagInput = inputsNow().find(el => el.value === aw.DEST_REC['도쿄'].a.tag);
   tagInput.value = '새 방식 이름';

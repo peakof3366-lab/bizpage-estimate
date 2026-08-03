@@ -32,10 +32,9 @@ const ok = (name, cond, extra = '') => {
   const w = dom.window, d = w.document;
 
   console.log('\n[1] 칸마다 “고르기” 버튼이 실제로 붙는가');
-  /* QU: 추천 콘텐츠(방식 A·B)가 별도 화면으로 나갔다. '고르기'는 두 화면 모두에 있어야
-     하므로 **양쪽을 다 렌더해서** 확인한다 — 한쪽만 보면 옮겨간 칸의 버튼이 빠져도 모른다. */
+  /* QY: 방식 A·B와 날짜별 일정은 한 화면의 두 구역이다. '고르기'는 **두 구역 모두**에
+     있어야 하므로 양쪽 body를 함께 본다 — 한쪽만 보면 옮겨간 칸의 버튼이 빠져도 모른다. */
   w.__itiSelect('도쿄');
-  w.__recSelect('도쿄');
   const labelsWithBtn = Array.from(d.querySelectorAll('#iti-body .iti-lbl-row, #rec-body .iti-lbl-row'))
     .map((r) => r.querySelector('.iti-lbl').textContent.split('(')[0].split('—')[0].trim());
   const want = ['그날의 제목', '오전', '오후', '저녁', '참고 팁', '핵심 하이라이트', '핵심 포인트', '일별 주요 활동'];
@@ -88,21 +87,12 @@ const ok = (name, cond, extra = '') => {
     regional.some(c => c.uses > 1) || regional.length < 3,
     regional.slice(0, 5).map(c => `${c.uses}`).join(','));
 
-  console.log('\n[1-3] 고르기 후보 기준이 “연 화면이 고른 목적지”인가 (QW)');
-  /* ⚠ 화면을 둘로 나눈 뒤 생긴 결함이었다. 예전에는 어느 화면에서 열든 📅 날짜별 일정의
-     목적지를 기준으로 잡아서, ✨ 쪽에서 다른 목적지를 골라 놓아도 엉뚱한 후보가 나왔고
-     📅 쪽이 비어 있으면 아예 안 열렸다. */
-  w.__itiSelect('도쿄');
-  w.__recSelect('오사카');
-  ok('✨ 화면의 고르기가 열린다', w.__openRecPicker('핵심 포인트'));
-  ok('그 화면이 고른 목적지가 기준이 된다', w.__pickDest() === '오사카', w.__pickDest());
-  w.__pickClose();
-
-  /* 📅 쪽을 비워도 ✨ 쪽은 열려야 한다 — 두 화면은 독립이다. */
-  w.__itiSelect('');
-  w.__recSelect('오사카');
-  ok('📅 쪽이 비어 있어도 ✨ 쪽 고르기는 열린다',
-    w.__openRecPicker('핵심 포인트') && w.__pickDest() === '오사카', w.__pickDest());
+  console.log('\n[1-3] 두 구역 어디서 열든 같은 목적지를 기준으로 잡는가 (QY)');
+  /* 목적지 선택이 하나이므로 두 구역의 고르기는 **반드시 같은 목적지**를 봐야 한다.
+     (QU에서 화면을 갈랐을 때는 여기가 어긋나 ✨ 쪽이 엉뚱한 후보를 냈다.) */
+  w.__itiSelect('오사카');
+  ok('✨ 구역의 고르기가 열린다', w.__openRecPicker('핵심 포인트'));
+  ok('고른 목적지가 기준이 된다', w.__pickDest() === '오사카', w.__pickDest());
   w.__pickClose();
   w.__itiSelect('도쿄');
 
@@ -259,8 +249,8 @@ async function bootAdmin() {
   const EXPOSE = `
 ;try{
   window.REGION_MAP = REGION_MAP;
-  window.__itiSelect = (k) => { itiState.dirty = false; itiSelectDest(k); };
-  window.__recSelect = (k) => { recState.dirty = false; recSelectDest(k); };
+  /* QY: 목적지 선택은 하나다 — 한 번 고르면 두 구역이 함께 올라온다. */
+  window.__itiSelect = (k) => { itiState.dirty = false; recState.dirty = false; itiSelectDest(k); };
   window.__candidates = (kind, scope, dest) => itiPickCandidates(kind, scope, dest);
   window.__pickDest = () => itiPick.destKey;
   /* ✨ 방식 A·B 소개 화면의 '고르기'를 실제 버튼 클릭으로 연다 (QW). */
