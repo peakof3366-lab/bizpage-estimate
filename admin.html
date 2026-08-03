@@ -102,6 +102,14 @@
     .si-label { flex: 1; }
     .si-badge { background: var(--danger); color: #fff; font-size: .65rem; font-weight: 700;
       padding: .1rem .35rem; border-radius: 0; line-height: 1.4; }
+    /* 알림 켜기 안내 (QT) — 대시보드 맨 위. 권한이 정해지면 JS가 숨긴다. */
+    .notify-cta { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+      background: #FFF8E1; border: 1px solid #F5D78E; color: #6B4E00;
+      padding: .6rem .9rem; font-size: .84rem; margin-bottom: 1rem; }
+    .notify-cta .btn-sm { margin-left: auto; background: var(--primary); color: #fff; border: 0;
+      font-family: inherit; font-size: .78rem; font-weight: 700; padding: .35rem .8rem; cursor: pointer; }
+    .notify-cta .btn-sm:hover { filter: brightness(1.08); }
+    .notify-cta.done { background: #ECFDF5; border-color: #A7F3D0; color: #065F46; }
     .sidebar-footer { padding: .8rem .8rem; border-top: 1px solid rgba(255,255,255,.1); display: flex; gap: .5rem; }
     .sf-link    { flex: 1; padding: .45rem .75rem; background: rgba(255,255,255,.08); color: rgba(255,255,255,.7);
       font-size: .76rem; font-weight: 600; text-align: center; border-radius: 0; transition: background .18s; text-decoration: none; }
@@ -567,6 +575,9 @@
         </button>
         <button class="sidebar-item" data-tab="estmgr">
           <span class="si-icon"><i data-lucide="clipboard-list"></i></span><span class="si-label">견적 관리</span>
+          <!-- 미처리 견적 배지 (QT) — 문의 쪽 배지와 짝이다. 알림 수단이 하나도 없어
+               담당자가 화면을 열어봐야만 새 건을 알 수 있었다. -->
+          <span class="si-badge" id="sb-new-quotes" style="display:none"></span>
         </button>
         <button class="sidebar-item" data-tab="stats">
           <span class="si-icon"><i data-lucide="bar-chart-2"></i></span><span class="si-label">방문 통계</span>
@@ -622,6 +633,14 @@
 
     <!-- ── 대시보드 ── -->
     <div class="tab-panel active" id="tab-dashboard">
+      <!-- 알림 켜기 안내 (QT) — 브라우저 알림 권한은 **사용자가 직접 누를 때만** 요청할 수
+           있다(자동 요청은 브라우저가 막는다). 그래서 버튼으로 둔다.
+           권한이 이미 정해졌으면 JS가 이 줄을 숨긴다. -->
+      <div id="notify-cta" class="notify-cta" style="display:none">
+        <span id="notify-cta-text">새 문의·견적이 들어오면 <b>알림</b>을 받으시겠습니까? 화면을 안 보고 있어도 뜹니다.</span>
+        <button type="button" id="notify-cta-btn" class="btn-sm">알림 켜기</button>
+      </div>
+
       <div class="stat-grid">
         <div class="stat-card"><div id="d-visits-today" class="stat-num">0</div><div class="stat-lbl">오늘 방문</div><div class="stat-sub" id="d-visits-week">이번 주 0명</div></div>
         <div class="stat-card warn"><div id="d-inq-unread" class="stat-num">0</div><div class="stat-lbl">미확인 문의</div><div class="stat-sub" id="d-inq-total">전체 0건</div></div>
@@ -2790,6 +2809,9 @@
        staffListCache를 전제하므로 먼저 채운다 */
     await Promise.all([loadCurrentUser(), loadStaffList()]);
     renderAll();
+    /* 새 문의·견적 감시 시작 (QT) — currentUser가 채워진 **뒤에** 부른다(pollInbox가
+       로그아웃 상태에서는 아무것도 하지 않는다). */
+    startInboxWatch();
     applyRolePermissionsToUI();
     /* 설정 탭 요율 정보 초기화 */
     const rvEl = document.getElementById('rate-settings-version');
@@ -2804,6 +2826,158 @@
     function tick() { el.textContent = new Date().toLocaleString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}); }
     tick(); setInterval(tick, 30000);
   }
+
+  /* ════ 새 문의·견적 감시 (QT) ════
+
+     이 서비스에는 메일·문자 알림이 **하나도 없다.** 그런데 관리자 화면은 로그인할 때와
+     탭을 바꿀 때만 데이터를 다시 읽어서, 하루 종일 켜 둬도 새 문의가 온 것을 알 수 없었다.
+     "화면을 안 보면 아무도 모른다"가 실사용 첫 주에 가장 사고나기 쉬운 지점이라 여기부터 막는다.
+
+     로그인해 둔 화면이 1분마다 스스로 확인하고 **세 곳**에 표시한다:
+       ① 사이드바 배지(문의·견적 각각)
+       ② **브라우저 탭 제목** — "(3) 비즈페이지 Admin"
+       ③ 브라우저 알림(권한을 켠 사람만)
+     ②를 넣은 이유: 알림 권한을 거부했거나 못 켠 사람에게도 통하는 유일한 창구다.
+     탭이 뒤에 가 있어도 숫자가 보인다. ③에만 기대면 거부한 순간 예전 상태로 돌아간다.
+
+     주기 1분: 서버 호출이 집계 두 줄이라 가볍다(목록을 받아오지 않는다 —
+     api/admin/insights.js `?type=inbox` 주석 참고). 로그아웃 상태면 아예 부르지 않는다. */
+  const INBOX_POLL_MS = 60000;
+  const INBOX_SEEN_KEY = 'bizpage_inbox_seen';
+  const BASE_TITLE = document.title;
+  let inboxTimer = null;
+
+  function readInboxSeen() {
+    try { return JSON.parse(localStorage.getItem(INBOX_SEEN_KEY)) || {}; } catch { return {}; }
+  }
+  function writeInboxSeen(v) {
+    try { localStorage.setItem(INBOX_SEEN_KEY, JSON.stringify(v)); } catch { /* 저장 못 해도 배지는 돈다 */ }
+  }
+
+  function setSideBadge(id, text, title) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.title = title || '';
+    el.style.display = text ? '' : 'none';
+  }
+
+  function setTabTitleCount(n) {
+    document.title = n > 0 ? `(${n}) ${BASE_TITLE}` : BASE_TITLE;
+  }
+
+  function fireInboxNotification(title, body, tab) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+    try {
+      /* tag를 종류별로 고정한다 — 같은 종류의 알림이 쌓여 화면을 도배하지 않고
+         마지막 것 하나로 덮인다. renotify로 덮일 때도 한 번 더 알린다. */
+      const n = new Notification(title, { body, tag: 'bizpage-' + tab, renotify: true });
+      n.onclick = () => {
+        try { window.focus(); switchTab(tab); } catch (err) { console.warn(err); }
+        n.close();
+      };
+      return true;
+    } catch (err) {
+      console.warn('[알림] 표시하지 못했습니다:', err);
+      return false;
+    }
+  }
+
+  async function pollInbox() {
+    if (!currentUser) return;
+    let data;
+    try {
+      const res = await fetch('/api/admin/insights?type=inbox');
+      if (res.status === 401) return;   /* 세션 만료는 다른 요청이 로그인 화면으로 보낸다 */
+      if (!res.ok) throw new Error('status ' + res.status);
+      data = await res.json();
+      if (!data || !data.inquiries || !data.quotes) throw new Error('응답 형식이 다릅니다');
+    } catch (err) {
+      /* ⚠ 못 읽었을 때 배지를 지우지 않는다. 배지가 사라지면 "새 건 없음"으로 읽히는데,
+         그건 사실이 아니라 **모른다**는 뜻이다(결함 생성기 ②). 승인 대기 배지와 같은
+         방식으로 '?'를 띄워 모른다는 것을 드러낸다. */
+      console.warn('[알림] 미처리 건수를 불러오지 못했습니다:', err);
+      setSideBadge('sb-unread', '?', '새 문의 건수를 불러오지 못했습니다. 새로고침해 주세요.');
+      setSideBadge('sb-new-quotes', '?', '새 견적 건수를 불러오지 못했습니다. 새로고침해 주세요.');
+      return;
+    }
+
+    const inq = data.inquiries;
+    const quo = data.quotes;
+    setSideBadge('sb-unread', inq.pending > 0 ? String(inq.pending) : '',
+      inq.pending ? `미확인 문의 ${inq.pending}건` : '');
+    setSideBadge('sb-new-quotes', quo.pending > 0 ? String(quo.pending) : '',
+      quo.pending ? `미처리 견적 ${quo.pending}건` : '');
+    setTabTitleCount((inq.pending || 0) + (quo.pending || 0));
+
+    /* 알림 여부는 **저장해 둔 기준 시각 하나로만** 판단한다.
+       - 기준값이 없으면(이 브라우저에서 처음) 알리지 않는다. 비교할 대상이 없는데
+         알리면 기존 건 전부가 '새 것'으로 한꺼번에 튀어나온다. 기준만 저장하고 넘어간다.
+       - 기준값이 있으면 로그인 직후라도 알린다. **자리를 비운 사이 들어온 건**이
+         바로 그때 알아야 하는 것이다.
+       ⚠ 예전엔 여기에 '첫 확인이면 건너뛴다' 플래그를 따로 뒀는데, 빈 기준값이 이미
+       같은 일을 하고 있어서 그 플래그는 **하는 일이 없었고**(일부러 망가뜨려 보고 알았다),
+       대신 자리를 비운 사이 들어온 건의 알림까지 없애고 있었다. 판단 근거를 하나로 줄인다. */
+    const seen = readInboxSeen();
+    const isNewer = (a, b) => !!a && !!b && new Date(a).getTime() > new Date(b).getTime();
+    if (isNewer(inq.latest, seen.inq)) {
+      fireInboxNotification('새 문의가 들어왔습니다', `미확인 문의 ${inq.pending}건`, 'inquiries');
+    }
+    if (isNewer(quo.latest, seen.quote)) {
+      fireInboxNotification('새 견적 요청이 들어왔습니다', `미처리 견적 ${quo.pending}건`, 'estmgr');
+    }
+    writeInboxSeen({ inq: inq.latest || seen.inq || null, quote: quo.latest || seen.quote || null });
+  }
+
+  function startInboxWatch() {
+    if (inboxTimer) return;
+    pollInbox();
+    inboxTimer = setInterval(pollInbox, INBOX_POLL_MS);
+    updateNotifyCta();
+  }
+
+  /* 알림 권한 안내. ⚠ 권한 요청은 **사용자가 버튼을 눌렀을 때만** 통한다 —
+     페이지가 열리자마자 요청하면 브라우저가 무시하거나 영구 차단으로 처리한다. */
+  function updateNotifyCta() {
+    const box = document.getElementById('notify-cta');
+    if (!box) return;
+    if (!('Notification' in window)) { box.style.display = 'none'; return; }
+    const text = document.getElementById('notify-cta-text');
+    const btn = document.getElementById('notify-cta-btn');
+    const perm = Notification.permission;
+
+    if (perm === 'granted') { box.style.display = 'none'; return; }
+    if (perm === 'denied') {
+      /* 거부해도 탭 제목 숫자는 계속 보인다는 사실을 알려준다 — 안 그러면
+         "알림을 못 켜서 아무것도 못 본다"고 오해한다. */
+      box.style.display = '';
+      box.classList.remove('done');
+      text.innerHTML = '이 브라우저에서 <b>알림이 차단</b>돼 있습니다. 주소창 왼쪽 자물쇠 → 알림 → 허용으로 바꿀 수 있습니다. '
+        + '(탭 제목의 숫자와 왼쪽 메뉴 배지는 계속 보입니다.)';
+      btn.style.display = 'none';
+      return;
+    }
+    box.style.display = '';
+    btn.style.display = '';
+  }
+
+  document.getElementById('notify-cta-btn')?.addEventListener('click', async () => {
+    try { await Notification.requestPermission(); }
+    catch (err) { console.warn('[알림] 권한 요청 실패:', err); }
+    updateNotifyCta();
+    if (('Notification' in window) && Notification.permission === 'granted') {
+      const box = document.getElementById('notify-cta');
+      const text = document.getElementById('notify-cta-text');
+      const btn = document.getElementById('notify-cta-btn');
+      if (box && text && btn) {
+        box.style.display = '';
+        box.classList.add('done');
+        text.textContent = '알림을 켰습니다. 새 문의·견적이 들어오면 바로 알려드립니다.';
+        btn.style.display = 'none';
+        setTimeout(() => { box.style.display = 'none'; }, 4000);
+      }
+    }
+  });
 
   /* ════ SIDEBAR NAVIGATION ════ */
   document.querySelectorAll('.sidebar-item').forEach(btn => {

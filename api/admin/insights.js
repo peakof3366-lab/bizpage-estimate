@@ -7,7 +7,8 @@
        linkedt_events/linkedt_dest_stats)와 동일한 모양으로 채워 넣으므로, 기존 렌더링
        코드(renderStats/renderEvents 등)는 전혀 수정하지 않고 실제 서버 데이터로 전환된다.
    GET  ?type=marketing = 가장 최근 캐시된 GPT 마케팅 분석 결과 조회 (호출 비용 없음)
-   POST ?type=marketing = 실제 OpenAI API를 호출해 새로 분석하고 결과를 DB에 저장 */
+   POST ?type=marketing = 실제 OpenAI API를 호출해 새로 분석하고 결과를 DB에 저장
+   GET  ?type=inbox     = 미처리 건수 + 가장 최근 접수 시각만 (화면이 주기적으로 부른다) */
 const { sql } = require('../_lib/db');
 const { requireAdmin } = require('../_lib/auth');
 const { CLICK_EVENT_NAMES } = require('../_lib/site_events');
@@ -67,6 +68,35 @@ async function handleAnalytics(req, res) {
     });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: 'query_failed' });
+  }
+}
+
+/* 미처리 건수 + 가장 최근 접수 시각. 화면이 1분마다 부르는 자리라 **가볍게** 유지한다
+   (행을 내려주지 않고 집계만 한다 — 문의·견적 목록 전체를 매분 받아오면 데이터가
+   쌓일수록 느려지고, 그러면 결국 주기를 늘리게 되어 알림이 늦어진다).
+
+   ⚠ `latest`는 미처리 건이 아니라 **전체 중 가장 최근 접수 시각**이다.
+   미처리만 보면, 누가 먼저 열어 '확인'으로 바꾼 순간 그 건이 사라져 다른 사람에게는
+   알림이 영영 안 간다. "새 것이 왔는가"와 "아직 처리 안 된 게 몇 건인가"는 다른
+   질문이라 따로 센다. */
+async function handleInbox(req, res) {
+  try {
+    const [inq, quote] = await Promise.all([
+      sql`select count(*) filter (where read = false)::int as pending,
+                 count(*)::int as total, max(created_at) as latest from inquiries`,
+      sql`select count(*) filter (where status = 'new')::int as pending,
+                 count(*)::int as total, max(created_at) as latest from quotes`,
+    ]);
+    res.status(200).json({
+      inquiries: { pending: inq[0].pending, total: inq[0].total, latest: inq[0].latest },
+      quotes: { pending: quote[0].pending, total: quote[0].total, latest: quote[0].latest },
+    });
+  } catch (err) {
+    /* ⚠ 실패를 0건으로 내려보내지 않는다. 화면이 그걸 "새 문의 없음"으로 읽으면
+       배지가 조용히 사라지고, 아무도 안 온 것처럼 보인다(결함 생성기 ②).
+       화면은 이 오류를 받아 배지를 '?'로 둔다 — 승인 대기 배지와 같은 방식. */
+    console.error('[inbox] 집계 실패:', err);
     res.status(500).json({ error: 'query_failed' });
   }
 }
@@ -160,6 +190,11 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') return handleMarketingGet(req, res);
     if (req.method === 'POST') return handleMarketingPost(req, res);
     return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
+  if (type === 'inbox') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+    return handleInbox(req, res);
   }
 
   res.status(400).json({ error: 'invalid_type' });
