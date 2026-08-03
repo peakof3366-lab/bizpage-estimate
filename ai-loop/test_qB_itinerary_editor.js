@@ -408,6 +408,37 @@ const OVERRIDE_TOKYO = [{
   ok('일정 관리 화면에는 방식 A·B가 남아 있지 않다',
     !Array.from(body.querySelectorAll('.iti-course-no')).some(e => /방식 [AB]/.test(e.textContent)));
 
+  /* ── QV: 두 화면이 헷갈리지 않게 만든 것들이 실제로 붙어 있는가 ──
+     나눠 놓기만 하면 담당자는 여전히 헷갈린다(두 화면이 똑같이 생겼으므로).
+     이름·색·예시·건너가기 링크가 정체를 다르게 만든다. 하나라도 빠지면 원점이다. */
+  const labels = Array.from(adoc.querySelectorAll('.sidebar-item .si-label')).map(e => e.textContent.trim());
+  ok('메뉴 이름이 내용을 말한다 (날짜별 일정)', labels.includes('날짜별 일정'), labels.join(', '));
+  ok('메뉴 이름이 내용을 말한다 (방식 A·B 소개)', labels.includes('방식 A·B 소개'));
+  ok('옛 이름은 남아 있지 않다', !labels.includes('일정 관리') && !labels.includes('추천 콘텐츠'));
+
+  const idIti = adoc.querySelector('#tab-itineraries .edit-id');
+  const idRec = adoc.querySelector('#tab-reccontent .edit-id');
+  ok('두 화면 모두 맨 위에 "여기가 어디인지"가 있다', !!idIti && !!idRec);
+  ok('날짜 쪽 제목에 DAY가 들어 있다', /DAY/.test(idIti.querySelector('h3').textContent));
+  ok('A·B 쪽 제목에 "날짜 없는"이 들어 있다', /날짜 없는/.test(idRec.querySelector('h3').textContent));
+  ok('두 화면에 실제 예시가 붙어 있다',
+    !!idIti.querySelector('.id-sample') && !!idRec.querySelector('.id-sample'));
+  /* 예시가 서로 반대여야 한다 — 날짜 쪽엔 DAY가, A·B 쪽엔 DAY가 없어야 구별이 선다. */
+  ok('날짜 쪽 예시에는 DAY가 있다', /DAY/.test(idIti.querySelector('.id-sample').textContent));
+  ok('A·B 쪽 예시에는 DAY가 없다', !/DAY/.test(idRec.querySelector('.id-sample').textContent));
+  /* 헷갈리는 순간이 곧 잘못 고치는 순간이라, 그 자리에서 건너갈 수 있어야 한다. */
+  ok('날짜 화면에서 A·B 화면으로 건너가는 링크가 있다',
+    idIti.querySelector('[data-goto="reccontent"]') !== null);
+  ok('A·B 화면에서 날짜 화면으로 건너가는 링크가 있다',
+    idRec.querySelector('[data-goto="itineraries"]') !== null);
+  /* 색까지 달라야 스크롤을 내려 편집칸만 보일 때도 어느 화면인지 안다. */
+  ok('두 화면의 강조색이 서로 다르다',
+    /#tab-itineraries \{ --id-accent: #1D4ED8/.test(adminSrc)
+    && /#tab-reccontent  \{ --id-accent: #7C3AED/.test(adminSrc));
+  ok('카드(코스·방식) 색도 그 화면 색을 따른다',
+    /#tab-itineraries \.iti-course-no \{ background: #1D4ED8/.test(adminSrc)
+    && /#tab-reccontent  \.iti-course-no \{ background: #7C3AED/.test(adminSrc));
+
   const tagInput = inputsNow().find(el => el.value === aw.DEST_REC['도쿄'].a.tag);
   tagInput.value = '새 방식 이름';
   tagInput.dispatchEvent(new aw.Event('input', { bubbles: true }));

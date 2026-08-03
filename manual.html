@@ -243,7 +243,7 @@
         <li><a href="#inquiries">문의 관리</a></li>
         <li><a href="#estmgr">견적 관리</a></li>
         <li><a href="#quotetool">내부 견적 산출</a></li>
-        <li><a href="#itinerary">일정 관리 · 추천 콘텐츠</a></li>
+        <li><a href="#itinerary">날짜별 일정 · 방식 A·B 소개</a></li>
         <li><a href="#rates">요율 관리 — 단가 갱신</a></li>
         <li><a href="#newdest">새 목적지 추가<span class="who">매니저·관리자</span></a></li>
         <li><a href="#roles">권한별로 할 수 있는 일</a></li>
@@ -335,8 +335,8 @@
             <tr><td class="field">문의 관리</td><td>홈페이지 문의 폼으로 들어온 건 처리</td><td>매일</td></tr>
             <tr><td class="field">견적 관리</td><td>고객이 직접 뽑은 견적 건 처리 · 견적서 링크 발급</td><td>매일</td></tr>
             <tr><td class="field">내부 견적 산출</td><td>담당자가 직접 조건을 넣어 견적서를 뽑는 도구</td><td>상담할 때</td></tr>
-            <tr><td class="field">일정 관리</td><td>목적지별 <strong>추천 코스</strong> 편집</td><td>필요할 때</td></tr>
-            <tr><td class="field">추천 콘텐츠</td><td>목적지별 <strong>방식 A·B</strong> 편집 — 일정 관리와 별개 화면입니다</td><td>필요할 때</td></tr>
+            <tr><td class="field">날짜별 일정</td><td><strong>DAY 1, 2, 3…</strong> 오전·오후·저녁에 무엇을 하는지 (일정표)</td><td>필요할 때</td></tr>
+            <tr><td class="field">방식 A·B 소개</td><td><strong>날짜 없는 소개글</strong> 두 벌 — 일정 탐색 카드·기대 효과 문구</td><td>필요할 때</td></tr>
             <tr><td class="field">요율 관리</td><td>목적지별 단가 갱신 · 변경 이력</td><td>분기 1회</td></tr>
             <tr><td class="field">방문 통계 · 이벤트 분석 · 견적 분석 · 마케팅 인사이트</td><td>보는 곳(읽기 전용). 무엇을 눌러도 고객 화면은 안 바뀝니다</td><td>필요할 때</td></tr>
             <tr><td class="field">매뉴얼</td><td>이 문서</td><td>막힐 때마다</td></tr>
@@ -507,21 +507,50 @@
     </section>
 
     <section id="itinerary">
-      <h2>6. 일정 관리 · 추천 콘텐츠</h2>
+      <h2>6. 날짜별 일정 · 방식 A·B 소개</h2>
       <p>
-        목적지별 <strong>추천 코스</strong>와 <strong>추천 콘텐츠(방식 A·B)</strong>를 고치는 곳입니다.
-        여기서 저장하면 <strong>고객 견적서와 홈페이지 “연수 일정 탐색”에 즉시</strong> 반영됩니다 —
+        연수 내용을 고치는 화면은 <strong>둘</strong>이고, 왼쪽 메뉴에서 따로 들어갑니다.
+        저장하면 <strong>고객 견적서와 홈페이지 “연수 일정 탐색”에 즉시</strong> 반영됩니다 —
         개발자 작업도, 배포도 필요 없습니다.
       </p>
-      <div class="note">
-        <span class="label">둘은 왼쪽 메뉴가 다릅니다</span>
+
+      <h3>어느 쪽에서 고치나 — 한 줄로</h3>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>메뉴</th><th>무엇이 들었나</th><th>고객은 어디서 보나</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="field">📅 날짜별 일정</td>
+              <td><strong>DAY 1, 2, 3…</strong> 오전·오후·저녁·팁 <span class="tag off">날짜 있음</span></td>
+              <td>견적서의 <strong>일정표</strong></td>
+            </tr>
+            <tr>
+              <td class="field">✨ 방식 A·B 소개</td>
+              <td>방식 이름·테마·핵심 포인트·기대 효과 <span class="tag off">날짜 없음</span></td>
+              <td>일정 탐색의 <strong>두 카드</strong> · 견적서의 <strong>기대 효과 문구</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        헷갈리면 <strong>“날짜(DAY)가 있느냐”</strong>만 보면 됩니다. DAY가 붙는 것은 전부 📅 날짜별 일정,
+        날짜 없이 문구만 있는 것은 전부 ✨ 방식 A·B 소개입니다.
+        각 화면 맨 위에 어떤 곳인지와 <strong>실제 예시</strong>가 색과 함께 적혀 있고(📅 파랑 · ✨ 보라),
+        잘못 들어왔으면 그 자리에서 반대편으로 건너가는 링크가 있습니다.
+      </p>
+      <div class="note alarm">
+        <span class="label">긴 일정에서 빈 날이 생긴다면 — ✨ 쪽입니다</span>
         <p>
-          <strong>일정 관리</strong> = 추천 코스(며칠짜리 일정표),
-          <strong>추천 콘텐츠</strong> = 방식 A·B(일정 탐색 카드와 기대 효과 문구).
-          <strong>목적지 선택·저장·되돌리기가 각각 따로</strong>라, 한쪽에서 저장해도 다른 쪽은 건드리지
-          않습니다. 같은 목적지를 둘 다 고치려면 두 화면에서 각각 목적지를 고르고 각각 저장하세요.
+          가장 헷갈리는 자리입니다. 연수 일수가 코스보다 길 때 남는 날은
+          <strong>✨ 방식 A·B 소개</strong>의 <strong>“일별 주요 활동”</strong> 목록으로 채워집니다.
+          📅 날짜별 일정에서 아무리 찾아도 그 칸은 없습니다.
         </p>
+      </div>
+      <div class="note">
+        <span class="label">저장·되돌리기는 각각입니다</span>
         <p>
+          <strong>목적지 선택·저장·되돌리기가 화면마다 따로</strong>입니다. 한쪽에서 저장해도 다른 쪽은
+          건드리지 않으니, 같은 목적지의 둘을 다 고치려면 두 화면에서 각각 목적지를 고르고 각각 저장하세요.
           고객에게 나가는 모양은 <strong>예전과 똑같습니다</strong> — 화면만 나뉜 것입니다.
         </p>
       </div>
@@ -570,11 +599,12 @@
 
       <h3>저장하기 전에</h3>
       <ul class="plain">
-        <li><strong>추천 콘텐츠와 코스는 각각 따로 저장합니다.</strong> 화면이 다르니 저장 버튼도 각각입니다 —
-          한쪽에서 저장해도 다른 쪽은 그대로 남습니다.</li>
+        <li><strong>두 화면은 각각 따로 저장합니다.</strong> 저장 버튼도 각각이라, 한쪽에서 저장해도
+          다른 쪽은 그대로 남습니다.</li>
         <li>저장하지 않은 상태로 목적지를 바꾸면 <strong>수정 내용이 사라집니다.</strong> 확인창이 뜨니 읽고 판단하세요.</li>
-        <li><strong>“기본값으로 되돌리기”</strong>도 <strong>그 화면의 것만</strong> 지웁니다 — 일정 관리에서 누르면 코스만,
-          추천 콘텐츠에서 누르면 방식 A·B만 되돌아갑니다. 코스 하나만 지우려면 그 코스의 “이 코스 삭제”를 쓰세요.</li>
+        <li><strong>“기본값으로 되돌리기”</strong>도 <strong>그 화면의 것만</strong> 지웁니다 —
+          📅 날짜별 일정에서 누르면 코스만, ✨ 방식 A·B 소개에서 누르면 방식 A·B만 되돌아갑니다.
+          코스 하나만 지우려면 그 코스의 “이 코스 삭제”를 쓰세요.</li>
         <li><strong>방식 A·B는 둘 다 채워야 저장됩니다.</strong> 한쪽만 저장되면 고객 화면의 그 자리가
           조용히 일반 문구로 떨어지기 때문에, 서버가 반쪽 저장을 받지 않습니다.</li>
         <li>일자 번호(DAY 1, 2, 3…)는 <strong>저장할 때 순서대로 자동으로 다시 매겨집니다.</strong> 중간 일자를 지워도 번호가 비지 않습니다.</li>
@@ -584,7 +614,7 @@
         <span class="label">연수 일수가 코스보다 길면</span>
         <p>
           마지막 “귀국” 일자는 항상 실제 마지막 날로 옮겨지고, 남는 날은
-          <strong>추천 콘텐츠의 “일별 주요 활동”</strong> 목록으로 채워집니다.
+          <strong>✨ 방식 A·B 소개의 “일별 주요 활동”</strong> 목록으로 채워집니다.
           그래서 그 목록을 넉넉히 채워 두면 긴 일정에서도 빈 날이 생기지 않습니다.
         </p>
       </div>
@@ -743,8 +773,9 @@
         <li>
           <h3>일정도 만들어 주세요</h3>
           <p>
-            새 목적지는 <strong>추천 코스가 비어 있습니다.</strong> 일정 관리에서
+            새 목적지는 <strong>추천 코스가 비어 있습니다.</strong> 📅 <strong>날짜별 일정</strong>에서
             <strong>다른 목적지에서 가져오기</strong>로 비슷한 지역의 코스를 복사해 오면 가장 빠릅니다.
+            ✨ <strong>방식 A·B 소개</strong>도 함께 채워 주세요.
             추가했다는 사실도 관리자나 개발 담당자에게 한 줄 알려 주세요 — 분류값이 제대로 붙었는지 대조 확인하는 절차가 있습니다.
           </p>
         </li>
@@ -766,7 +797,7 @@
             <tr><td>견적서 링크 발급</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>실제 계약 금액 입력</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>내부 견적 산출</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
-            <tr><td>일정 관리 (코스 · 추천 콘텐츠 편집)</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
+            <tr><td>날짜별 일정 · 방식 A·B 소개 편집</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>목적지 단가 개별 수정 · 변경 이력 되돌리기</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>문의 · 견적 <strong>삭제</strong></td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>권역 일괄 조정 (%)</td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>
@@ -789,7 +820,7 @@
             <tr><td class="msg">이 작업은 권한이 없습니다</td><td>직원 계정으로는 못 하는 작업입니다 (일괄 조정·목적지 추가·삭제 등)</td><td>매니저 또는 관리자에게 요청</td></tr>
             <tr><td class="msg">로그인이 만료되었습니다</td><td><span data-fact="SESSION_HOURS">12</span>시간이 지났습니다</td><td>새로고침 후 다시 로그인. 고치던 내용은 다시 입력해야 합니다</td></tr>
             <tr><td class="msg">변경된 내용이 없습니다</td><td>숫자를 안 바꾸고 저장을 눌렀습니다</td><td>값을 바꾸거나, 가격은 그대로 두고 “확인함”만 기록</td></tr>
-            <tr><td class="msg">저장하지 못했습니다 — 코스가 너무 많습니다</td><td>일정 관리에서 코스가 상한(<span data-fact="MAX_COURSES">6</span>개)을 넘었습니다</td><td>쓰지 않는 코스를 “이 코스 삭제”로 지운 뒤 다시 저장</td></tr>
+            <tr><td class="msg">저장하지 못했습니다 — 코스가 너무 많습니다</td><td>📅 날짜별 일정에서 코스가 상한(<span data-fact="MAX_COURSES">6</span>개)을 넘었습니다</td><td>쓰지 않는 코스를 “이 코스 삭제”로 지운 뒤 다시 저장</td></tr>
             <tr><td class="msg">저장된 일정을 불러오지 못했습니다</td><td>서버에서 현재 일정을 못 읽었습니다</td><td><strong>저장하지 마세요</strong> — 남의 수정본을 덮어쓸 수 있습니다. 새로고침 후 다시</td></tr>
             <tr><td class="msg">아이디 또는 비밀번호가 올바르지 않습니다</td><td><span data-fact="LOGIN_MAX_ATTEMPTS">5</span>회까지만 시도할 수 있습니다</td><td>천천히 다시 입력. 넘기면 <span data-fact="LOGIN_LOCKOUT_MINUTES">15</span>분 잠깁니다</td></tr>
             <tr><td class="msg">승인 대기 중입니다</td><td>가입 신청은 들어갔고, 관리자 승인 전입니다</td><td>비밀번호 문제가 아닙니다. 관리자에게 승인을 요청하세요</td></tr>
