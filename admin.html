@@ -491,10 +491,49 @@
     .iti-ta  { min-height: var(--iti-line); line-height: 1.55; resize: none; overflow-y: auto; }
     .iti-inp:focus, .iti-ta:focus { outline: none; border-color: var(--primary); }
 
+    /* ── 코스 탭 (RF) ──
+       세 코스를 한꺼번에 펼쳐 두면 고칠 코스를 찾는 데만 스크롤을 쓴다. 탭에 일자 수와
+       빈 칸 수를 적어, **안 보이는 코스의 상태도 탭에서 읽히게** 한다. */
+    .iti-ctabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .9rem; }
+    .iti-ctab {
+      display: flex; align-items: center; gap: .45rem; max-width: 100%;
+      padding: .5rem .8rem; font-family: inherit; font-size: .78rem; cursor: pointer;
+      border: 1.5px solid var(--border); border-bottom-width: 3px; background: #fff; color: var(--muted);
+    }
+    .iti-ctab:hover { border-color: var(--heading); }
+    .iti-ctab.on { border-bottom-color: var(--primary); color: var(--heading); background: #fff; }
+    .iti-ctab-no { font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+    .iti-ctab.on .iti-ctab-no { color: var(--primary); }
+    /* 코스 제목이 길어도 탭 줄이 무너지지 않게 한 줄로 자른다 */
+    .iti-ctab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 16rem; }
+    .iti-ctab-meta { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+    .iti-ctab-warn {
+      font-size: .68rem; font-weight: 800; color: #b45309; background: #fef3c7;
+      border: 1px solid #fde68a; padding: .05rem .35rem; white-space: nowrap;
+    }
+
     .iti-day {
       border: 1px solid var(--border); border-left: 3px solid var(--primary);
       padding: .85rem 1rem; margin-top: .7rem; background: #fcfcfc;
     }
+    /* ── 일자 접기 (RF) ──
+       접힌 줄이 비어 있으면 접기는 그냥 '숨기기'다. 그래서 줄 자체가 내용을 말한다:
+       DAY 번호 · 그날의 제목(없으면 첫 활동) · 빈 칸이 있으면 그 개수. */
+    .iti-day-toggle {
+      display: flex; align-items: center; gap: .5rem; flex: 1 1 12rem; min-width: 0;
+      padding: .1rem 0; font-family: inherit; font-size: .82rem; text-align: left;
+      border: 0; background: none; color: var(--heading); cursor: pointer;
+    }
+    .iti-caret { font-size: .7rem; color: var(--muted); width: .8rem; flex: none; }
+    .iti-day-toggle:hover .iti-day-sum { text-decoration: underline; }
+    /* 제목이 길어도 버튼 줄이 밀리지 않게 자른다 — 밀리면 ↑↓ 버튼이 줄바꿈된다 */
+    .iti-day-sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .iti-day.is-open .iti-day-sum { color: var(--muted); }
+    .iti-day-blank {
+      font-size: .68rem; font-weight: 800; color: #b45309; background: #fef3c7;
+      border: 1px solid #fde68a; padding: .05rem .35rem; white-space: nowrap; flex: none;
+    }
+    .iti-day-body { margin-top: .2rem; }
     /* RD로 이 줄의 버튼이 1개(삭제)에서 4개(↑ ↓ 복제 삭제)로 늘었다. 360px 화면에서
        실제로 재 보니 버튼이 카드 오른쪽 밖으로 47px 밀려났다 — 자리가 없으면 줄을
        바꾸게 한다. wrap이 없으면 flex는 넘치는 쪽을 그냥 밖으로 내보낸다.
@@ -5741,6 +5780,23 @@
     dirty: false,
   };
 
+  /* ════ RF: 지금 고치는 것만 펼쳐 둔다 ═════════════════════════════════════
+     도쿄 기준으로 코스 3개 × 일자 5개 = 일자 카드 15장이 늘 전부 펼쳐져 있었다. 정작
+     고치는 건 보통 한 코스의 한 일자인데 나머지 14장이 계속 자리를 차지한다(실측:
+     세로 6,708px). 코스는 탭으로 하나씩, 일자는 접어 두고 고칠 것만 편다.
+
+     ⚠ 접힘 상태는 **일자 객체 자체**로 기억한다(인덱스가 아니라). ↑↓로 자리를 옮기면
+     인덱스는 바뀌지만 펼쳐 둔 일자는 그대로 펼쳐져 있어야 한다 — 인덱스로 기억하면
+     3일차를 올렸을 때 엉뚱한 일자가 펼쳐진다. WeakSet이라 목적지를 바꿔 코스를 새로
+     복제하면(itiClone) 저절로 전부 접힌 상태로 시작한다.
+
+     ⚠ 접는 것의 진짜 위험은 **"안 보여서 못 본 채 저장"**이다. 그래서 접힌 줄이
+     비어 있지 않다: 그날의 제목(없으면 첫 활동 문구)과, 빈 칸이 있으면 그 개수를 적는다.
+     접혀 있어도 무엇이 들었고 무엇이 비었는지 읽힌다.
+     ═══════════════════════════════════════════════════════════════════════ */
+  const itiOpenDays = new WeakSet();
+  const itiView = { courseIdx: 0 };
+
   const itiEmptyDay    = () => ({ day: 1, title: '', am: '', pm: '', eve: '', tip: '' });
   /* 배열 순서가 곧 일자 번호다. day 필드는 그 파생값이라 **구조가 바뀔 때마다 여기서
      다시 매긴다**(추가·삭제·순서 바꾸기·복제). 순서와 번호를 각각 관리하면 반드시
@@ -6292,6 +6348,9 @@
     }
     const copy = itiClone(cand.course);
     itiState.courses.push(copy);
+    /* 가져온 코스로 옮겨 준다 (RF) — 아래 안내가 "○○이 몇 곳에 남아 있으니 고치라"고
+       말하는데, 정작 그 코스가 안 보이는 탭에 있으면 고칠 수가 없다. */
+    itiView.courseIdx = itiState.courses.length - 1;
     itiMarkDirty();
     itiCopyClose();
     itiRenderBody();
@@ -6372,15 +6431,49 @@
     }
   }
 
+  /* 접힌 줄에 무엇을 적을지 (RF). 여기가 비면 접기는 그냥 '숨기기'가 된다.
+     제목이 없으면 첫 활동 문구로 대신한다 — 제목을 안 적는 일자가 실제로 있다. */
+  function itiDaySummary(day) {
+    const title = String(day.title || '').trim();
+    if (title) return title;
+    const first = [day.am, day.pm, day.eve].map((s) => String(s || '').trim()).find(Boolean);
+    return first || '(비어 있음)';
+  }
+
+  /* 빈 칸 세기 — 저녁·팁은 비워 두는 게 정상이라 세지 않는다. 아무 칸이나 세면
+     경고가 늘 켜져 있어서 아무도 안 본다. */
+  const ITI_DAY_MUST = [
+    { key: 'title', label: '그날의 제목' }, { key: 'am', label: '오전' }, { key: 'pm', label: '오후' },
+  ];
+  function itiDayBlanks(day) {
+    return ITI_DAY_MUST.filter((f) => !String(day[f.key] || '').trim()).map((f) => f.label);
+  }
+
   function itiRenderDay(course, day, dayIdx, courseIdx) {
     const box = document.createElement('div');
     box.className = 'iti-day';
 
     const head = document.createElement('div');
     head.className = 'iti-day-head';
+
+    /* 접기 손잡이. DAY 배지와 요약을 통째로 버튼으로 만든다 — 작은 삼각형만 누르게
+       하면 매번 조준해야 한다. ⚠ 요약은 담당자가 친 자유 문자열이라 textContent로만
+       넣는다(결함 생성기 ④). */
+    const tog = document.createElement('button');
+    tog.type = 'button';
+    tog.className = 'iti-day-toggle';
+    const caret = document.createElement('span');
+    caret.className = 'iti-caret';
+    caret.setAttribute('aria-hidden', 'true');
     const no = document.createElement('span');
     no.className = 'iti-day-no';
     no.textContent = 'DAY ' + (dayIdx + 1);
+    const sum = document.createElement('span');
+    sum.className = 'iti-day-sum';
+    sum.textContent = itiDaySummary(day);
+    const blank = document.createElement('span');
+    blank.className = 'iti-day-blank';
+    tog.appendChild(caret); tog.appendChild(no); tog.appendChild(sum); tog.appendChild(blank);
     /* 배지와 삭제 버튼만 헤더 줄에 두고, 제목은 아래 필드들과 같은 폭으로 내린다.
        예전엔 제목 입력칸이 이 줄 안에 flex:1로 들어가 있어서 ① 버튼 폭만큼 짧아져
        오전·오후·저녁·팁과 오른쪽 끝이 어긋났고, ② align-items:center가 '라벨+입력칸'
@@ -6431,7 +6524,9 @@
       if (course.days.length >= ITI_MAX_DAYS) {
         itiSetMsg('일자는 코스당 최대 ' + ITI_MAX_DAYS + '개입니다.', 'err'); return;
       }
-      course.days.splice(dayIdx + 1, 0, itiClone(course.days[dayIdx]));
+      const copy = itiClone(course.days[dayIdx]);
+      course.days.splice(dayIdx + 1, 0, copy);
+      itiOpenDays.add(copy);   /* 사본은 고치려고 만든 것이라 펼쳐 준다 */
       itiRenumberDays(course);
       itiMarkDirty();
       itiRenderBodyFocus(['c' + courseIdx + 'd' + (dayIdx + 1) + ':dup']);
@@ -6446,10 +6541,16 @@
       itiRenumberDays(course);
       itiMarkDirty(); itiRenderBody();
     });
-    head.appendChild(no); head.appendChild(spacer);
+    /* ⚠ ↑ ↓ 복제 삭제는 **접힌 채로도 쓸 수 있어야 한다.** 접기의 가장 큰 쓸모가
+       "다섯 일자를 한눈에 놓고 순서를 바꾸는 것"이라, 이 버튼들을 본문에 넣으면
+       순서를 바꾸려고 매번 펼쳐야 한다. 그래서 헤더 줄에 남긴다. */
+    head.appendChild(tog); head.appendChild(spacer);
     head.appendChild(up); head.appendChild(down); head.appendChild(dup); head.appendChild(del);
     box.appendChild(head);
-    box.appendChild(itiField('그날의 제목 (예: 첨단 제조업 현장)', day.title, false, (v) => { day.title = v; }, 'dayTitle'));
+
+    const bodyBox = document.createElement('div');
+    bodyBox.className = 'iti-day-body';
+    bodyBox.appendChild(itiField('그날의 제목 (예: 첨단 제조업 현장)', day.title, false, (v) => { day.title = v; }, 'dayTitle'));
 
     const grid = document.createElement('div');
     grid.className = 'iti-day-grid';
@@ -6457,7 +6558,33 @@
     grid.appendChild(itiField('오후', day.pm,  true, (v) => { day.pm = v; }, 'dayAct'));
     grid.appendChild(itiField('저녁', day.eve, true, (v) => { day.eve = v; }, 'dayEve'));
     grid.appendChild(itiField('참고 팁 (고객 견적서에 함께 나갑니다)', day.tip, true, (v) => { day.tip = v; }, 'dayTip'));
-    box.appendChild(grid);
+    bodyBox.appendChild(grid);
+    box.appendChild(bodyBox);
+
+    /* 접힌 줄의 글(요약·빈 칸)은 **접을 때마다 다시 만든다.** 펼쳐서 고친 내용이
+       접으면 바로 반영돼야 한다 — 안 그러면 접힌 줄이 옛 내용을 말하는 거짓말이 된다. */
+    const applyOpen = () => {
+      const open = itiOpenDays.has(day);
+      bodyBox.hidden = !open;
+      box.classList.toggle('is-open', open);
+      tog.setAttribute('aria-expanded', open ? 'true' : 'false');
+      caret.textContent = open ? '▾' : '▸';
+      sum.textContent = itiDaySummary(day);
+      const blanks = itiDayBlanks(day);
+      blank.textContent = blanks.length ? '빈 칸 ' + blanks.join('·') : '';
+      blank.hidden = !blanks.length || open;   /* 펼쳐 두면 빈 칸이 눈앞에 있다 */
+      tog.title = open ? '접기' : '펼쳐서 고치기';
+    };
+    tog.addEventListener('click', function () {
+      if (itiOpenDays.has(day)) itiOpenDays.delete(day);
+      else itiOpenDays.add(day);
+      applyOpen();
+      /* ⚠ 접혀 있는 동안에는 칸 높이를 잴 수 없다(RE — display:none이면 scrollHeight가 0).
+         펼치는 이 순간이 처음으로 잴 수 있게 되는 때라, 여기서 안 부르면 여러 줄 문구가
+         한 줄 칸에 갇힌 채로 보인다. */
+      itiAutoGrowAll();
+    });
+    applyOpen();
     return box;
   }
 
@@ -6478,9 +6605,26 @@
     del.addEventListener('click', function () {
       if (itiState.courses.length <= 1) { itiSetMsg('코스는 최소 1개가 필요합니다.', 'err'); return; }
       itiState.courses.splice(courseIdx, 1);
+      /* 지금 보던 탭이 사라졌으니 어디를 볼지 정해 준다. 안 정하면 마지막 코스를
+         지웠을 때 없는 탭을 가리켜 빈 화면이 된다. */
+      if (itiView.courseIdx >= itiState.courses.length) itiView.courseIdx = itiState.courses.length - 1;
       itiMarkDirty(); itiRenderBody();
     });
-    head.appendChild(no); head.appendChild(spacer); head.appendChild(del);
+
+    /* 이 코스의 일자를 한 번에 펴고 접는다 (RF). 처음 보는 목적지를 통독할 때 다섯 번
+       누르게 하지 않는다. 전부 펼쳐져 있으면 '전체 접기'로 바뀐다. */
+    const allOpen = (course.days || []).length > 0 && course.days.every((d) => itiOpenDays.has(d));
+    const foldAll = document.createElement('button');
+    foldAll.type = 'button';
+    foldAll.className = 'iti-btn';
+    foldAll.id = 'iti-fold-all';
+    foldAll.textContent = allOpen ? '전체 접기' : '전체 펼치기';
+    foldAll.addEventListener('click', function () {
+      (course.days || []).forEach((d) => { if (allOpen) itiOpenDays.delete(d); else itiOpenDays.add(d); });
+      itiRenderBody();
+    });
+
+    head.appendChild(no); head.appendChild(spacer); head.appendChild(foldAll); head.appendChild(del);
     box.appendChild(head);
 
     box.appendChild(itiField('코스 제목', course.title, false, (v) => { course.title = v; }));
@@ -6503,7 +6647,9 @@
       if (course.days.length >= ITI_MAX_DAYS) {
         itiSetMsg('일자는 코스당 최대 ' + ITI_MAX_DAYS + '개입니다.', 'err'); return;
       }
-      course.days.push(itiEmptyDay());
+      const fresh = itiEmptyDay();
+      course.days.push(fresh);
+      itiOpenDays.add(fresh);   /* 방금 만든 빈 일자는 펼쳐 준다 — 채우려고 만든 것이다 */
       itiRenumberDays(course);
       itiMarkDirty(); itiRenderBody();
     });
@@ -6535,8 +6681,53 @@
       done();
       return;
     }
-    itiState.courses.forEach((c, i) => body.appendChild(itiRenderCourse(c, i)));
+    /* RF: 코스는 탭으로 하나씩 보여준다. 세 코스를 한꺼번에 펼쳐 두면 지금 고치는
+       코스를 찾는 데만 스크롤을 쓴다. 고르는 순간 바뀌는 것은 **보이는 것뿐**이고,
+       안 보이는 코스도 저장할 때 함께 저장된다(itiState.courses 전체를 보낸다).
+       ⚠ 그래서 탭에 **일자 수와 빈 칸 수**를 적는다 — 안 보이는 코스에 문제가 있으면
+       탭에서 보여야 한다. 안 그러면 "코스 B가 비어 있는 줄 몰랐다"가 된다. */
+    if (itiView.courseIdx >= itiState.courses.length) itiView.courseIdx = itiState.courses.length - 1;
+    if (!(itiView.courseIdx >= 0)) itiView.courseIdx = 0;
+    body.appendChild(itiRenderCourseTabs());
+    body.appendChild(itiRenderCourse(itiState.courses[itiView.courseIdx], itiView.courseIdx));
     done();
+  }
+
+  function itiRenderCourseTabs() {
+    const bar = document.createElement('div');
+    bar.className = 'iti-ctabs';
+    bar.id = 'iti-ctabs';
+    itiState.courses.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'iti-ctab' + (i === itiView.courseIdx ? ' on' : '');
+      b.dataset.courseIdx = String(i);
+      const name = document.createElement('span');
+      name.className = 'iti-ctab-no';
+      name.textContent = '코스 ' + String.fromCharCode(65 + i);
+      /* 코스 제목은 담당자가 친 자유 문자열이다 — textContent로만 넣는다 */
+      const title = document.createElement('span');
+      title.className = 'iti-ctab-title';
+      title.textContent = String(c.title || '(제목 없음)').trim() || '(제목 없음)';
+      const meta = document.createElement('span');
+      meta.className = 'iti-ctab-meta';
+      const blanks = (c.days || []).reduce((n, d) => n + itiDayBlanks(d).length, 0);
+      meta.textContent = (c.days || []).length + '일';
+      b.appendChild(name); b.appendChild(title); b.appendChild(meta);
+      if (blanks) {
+        const warn = document.createElement('span');
+        warn.className = 'iti-ctab-warn';
+        warn.textContent = '빈 칸 ' + blanks;
+        b.appendChild(warn);
+      }
+      b.addEventListener('click', function () {
+        if (itiView.courseIdx === i) return;
+        itiView.courseIdx = i;
+        itiRenderBody();
+      });
+      bar.appendChild(b);
+    });
+    return bar;
   }
 
   function itiSelectDest(destKey) {
@@ -6549,6 +6740,7 @@
     }
     itiState.destKey = destKey;
     itiState.dirty = false;
+    itiView.courseIdx = 0;   /* 목적지를 바꾸면 코스 A부터 본다 (RF) */
     itiSetMsg('');
     itiState.courses = destKey
       ? (itiState.overrides[destKey] ? itiClone(itiState.overrides[destKey]) : itiDefaults(destKey))
@@ -6914,7 +7106,12 @@
   document.getElementById('iti-revert').addEventListener('click', itiRevert);
   document.getElementById('iti-add-course').addEventListener('click', function () {
     if (!itiState.destKey) { itiSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
-    itiState.courses.push(itiEmptyCourse());
+    const fresh = itiEmptyCourse();
+    itiState.courses.push(fresh);
+    /* 방금 만든 코스로 옮겨 준다 (RF). 안 옮기면 "＋ 코스 추가를 눌렀는데 아무 일도
+       안 일어난다" — 새 코스는 안 보이는 탭에 생기고 화면은 그대로다. */
+    itiView.courseIdx = itiState.courses.length - 1;
+    (fresh.days || []).forEach((d) => itiOpenDays.add(d));
     itiMarkDirty(); itiRenderBody();
   });
 
