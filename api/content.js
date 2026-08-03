@@ -51,6 +51,13 @@ function badText(v, limit) {
    그게 의미 있는 값인 줄 알고 읽는 코드가 생긴다. 문제가 있으면 이유를 돌려준다
    (조용히 잘라내면 담당자는 저장됐다고 믿고, 화면에는 반쪽만 나온다). */
 function normalizeCourses(courses) {
+  /* QU: 코스와 추천 콘텐츠를 **다른 화면에서** 관리하게 되면서, 한쪽만 저장하는 호출이
+     생겼다. 안 보낸 쪽은 '이번 저장에서 다루지 않음'이고 기존 값을 건드리지 않는다
+     (normalizeRec이 rec에 대해 하던 것과 같은 규칙).
+     ⚠ 안 보낸 것(undefined)과 **빈 배열**은 다르다. 빈 배열은 "코스를 전부 지웠다"는
+     뜻이라 그대로 두면 고객 견적서에 코스가 사라진다 — 그건 되돌리기로 해야 할 일이라
+     예전처럼 거절한다. */
+  if (courses === undefined || courses === null) return { courses: undefined };
   if (!Array.isArray(courses) || courses.length === 0) return { error: 'courses_empty' };
   if (courses.length > MAX_COURSES) return { error: 'too_many_courses' };
 
@@ -154,7 +161,11 @@ async function handleItineraries(req, res) {
       const recMap = {};
       const meta = {};
       for (const r of rows) {
-        map[r.dest_key] = r.courses;
+        /* ⚠ courses가 null인 행이 있다(추천 콘텐츠만 수정한 목적지 — QU).
+           그 키를 map에 넣으면 받는 쪽이 "수정본이 있다"고 읽는다: 고객 화면은
+           '건너뛴 목적지' 목록에 올리고, 관리자 목록에는 ✏️ 수정됨이 붙는다.
+           둘 다 사실이 아니므로 **키 자체를 넣지 않는다.** rec이 이미 그렇게 하고 있다. */
+        if (r.courses) map[r.dest_key] = r.courses;
         if (r.rec) recMap[r.dest_key] = r.rec;
         meta[r.dest_key] = { updatedAt: r.updated_at, updatedBy: r.updated_by };
       }
@@ -182,15 +193,24 @@ async function handleItineraries(req, res) {
     const normRec = normalizeRec(rec);
     if (normRec.error) return res.status(400).json({ error: normRec.error });
 
-    /* rec을 안 보냈으면 기존 값을 건드리지 않는다(coalesce). 매번 통째로 덮어쓰게 하면
-       일정만 고치려던 호출이 추천 콘텐츠를 조용히 지운다. */
+    /* 둘 다 안 보냈으면 할 일이 없다. 조용히 ok를 돌려주면 화면은 "저장했습니다"라고
+       말하는데 실제로는 아무 일도 없었던 것이 된다(updated_at만 움직인다). */
+    if (norm.courses === undefined && normRec.rec === undefined) {
+      return res.status(400).json({ error: 'nothing_to_save' });
+    }
+
+    /* 안 보낸 쪽은 기존 값을 그대로 둔다(coalesce). 두 화면이 각자 자기 부분만 저장하므로,
+       한쪽 화면이 들고 있던 낡은 사본이 다른 쪽을 덮어쓰는 일이 없어야 한다.
+       ⚠ 새 행을 만들 때도 안 보낸 쪽은 null로 들어간다 = "이 목적지의 그 부분은
+       손대지 않음(data.js 기본값 사용)". courses의 NOT NULL을 푼 이유가 이것이다. */
+    const coursesJson = norm.courses === undefined ? null : JSON.stringify(norm.courses);
     const recJson = normRec.rec === undefined ? null : JSON.stringify(normRec.rec);
     try {
       const saved = await sql`
         insert into itinerary_overrides (dest_key, courses, rec, updated_at, updated_by)
-        values (${destKey}, ${JSON.stringify(norm.courses)}::jsonb, ${recJson}::jsonb, now(), ${req.user.displayName || ''})
+        values (${destKey}, ${coursesJson}::jsonb, ${recJson}::jsonb, now(), ${req.user.displayName || ''})
         on conflict (dest_key) do update
-          set courses = excluded.courses,
+          set courses = coalesce(excluded.courses, itinerary_overrides.courses),
               rec = coalesce(excluded.rec, itinerary_overrides.rec),
               updated_at = now(),
               updated_by = excluded.updated_by
@@ -213,11 +233,38 @@ async function handleItineraries(req, res) {
     if (typeof destKey !== 'string' || !destKey) {
       return res.status(400).json({ error: 'invalid_dest_key' });
     }
+    /* QU: 화면이 둘로 나뉘었으니 되돌리기도 자기 부분만 할 수 있어야 한다.
+       part를 안 주면 예전처럼 둘 다 지운다(기존 호출과 호환). */
+    const part = (req.query && req.query.part) || 'all';
+    if (!['all', 'courses', 'rec'].includes(part)) {
+      return res.status(400).json({ error: 'invalid_part' });
+    }
+
     try {
-      const rows = await sql`delete from itinerary_overrides where dest_key = ${destKey} returning dest_key`;
-      /* 지울 게 없었으면 그렇다고 말한다. ok:true만 돌려주면 화면은 "기본값으로
-         되돌렸습니다"라고 하는데 실제로는 아무 일도 없었던 경우와 구분되지 않는다. */
-      return res.status(200).json({ ok: true, removed: rows.length > 0 });
+      if (part === 'all') {
+        const rows = await sql`delete from itinerary_overrides where dest_key = ${destKey} returning dest_key`;
+        /* 지울 게 없었으면 그렇다고 말한다. ok:true만 돌려주면 화면은 "기본값으로
+           되돌렸습니다"라고 하는데 실제로는 아무 일도 없었던 경우와 구분되지 않는다. */
+        return res.status(200).json({ ok: true, removed: rows.length > 0 });
+      }
+
+      /* 한쪽만 비운다. `and … is not null`을 붙여, **실제로 지울 게 있었을 때만** 행이
+         잡히게 한다 — 그래야 위와 같은 기준으로 '지웠다/없었다'를 말할 수 있다. */
+      const by = req.user.displayName || '';
+      const updated = part === 'courses'
+        ? await sql`update itinerary_overrides set courses = null, updated_at = now(), updated_by = ${by}
+                    where dest_key = ${destKey} and courses is not null returning courses, rec`
+        : await sql`update itinerary_overrides set rec = null, updated_at = now(), updated_by = ${by}
+                    where dest_key = ${destKey} and rec is not null returning courses, rec`;
+
+      if (!updated.length) return res.status(200).json({ ok: true, removed: false });
+
+      /* 둘 다 비었으면 행을 남길 이유가 없다. 남겨두면 목록에는 수정 시각만 찍혀 있고
+         정작 수정된 내용은 없는, 아무도 설명할 수 없는 흔적이 된다. */
+      if (!updated[0].courses && !updated[0].rec) {
+        await sql`delete from itinerary_overrides where dest_key = ${destKey}`;
+      }
+      return res.status(200).json({ ok: true, removed: true });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'delete_failed' });

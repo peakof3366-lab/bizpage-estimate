@@ -312,6 +312,15 @@ async function main() {
      null = 이 목적지의 추천 콘텐츠는 아직 손대지 않음(data.js 기본값 사용). */
   await sql`alter table itinerary_overrides add column if not exists rec jsonb`;
 
+  /* QU: 추천 콘텐츠(방식 A·B)를 일정과 **다른 화면에서** 관리하게 되면서,
+     "코스는 기본값을 쓰고 추천 콘텐츠만 수정한 목적지"가 생긴다. 그 상태를 표현할
+     방법이 없으면 추천만 저장하려는 호출이 코스를 함께 보내야 하고, 그러면 그 화면이
+     들고 있던 낡은 코스 사본이 **동료가 방금 고친 코스를 조용히 되돌린다.**
+     null = 이 목적지의 코스는 손대지 않음(data.js 기본값 사용) — rec이 null인 것과 같은 뜻이다.
+     ⚠ 제약을 '푸는' 변경이라 기존 행·기존 코드에 영향이 없다(예전 코드는 항상 courses를
+     보낸다). 여러 번 실행해도 안전하다. */
+  await sql`alter table itinerary_overrides alter column courses drop not null`;
+
   console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations, app_settings, itinerary_overrides tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
 }
 

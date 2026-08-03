@@ -600,6 +600,12 @@
         <button class="sidebar-item" data-tab="itineraries">
           <span class="si-icon"><i data-lucide="calendar-range"></i></span><span class="si-label">일정 관리</span>
         </button>
+        <!-- 추천 콘텐츠 (QU) — 방식 A·B를 일정(코스)과 **다른 화면에서** 관리한다(사용자 요청).
+             고객이 보는 결과는 그대로다: 같은 행(itinerary_overrides)에 저장되고,
+             엔진도 예전과 똑같이 DEST_REC을 읽는다. 나뉜 것은 관리 화면뿐이다. -->
+        <button class="sidebar-item" data-tab="reccontent">
+          <span class="si-icon"><i data-lucide="sparkles"></i></span><span class="si-label">추천 콘텐츠</span>
+        </button>
         <button class="sidebar-item" data-tab="content" id="navContent">
           <span class="si-icon"><i data-lucide="edit-3"></i></span><span class="si-label">콘텐츠 관리</span>
         </button>
@@ -1142,14 +1148,15 @@
          일자 5개짜리 폼을 손으로 적어두지 않기 위함(요율·콘텐츠 탭과 같은 방식). -->
     <div class="tab-panel" id="tab-itineraries">
       <div class="iti-note">
-        여기서 저장한 <strong>추천 콘텐츠(방식 A·B)와 추천 일정(코스)</strong>은
+        여기서 저장한 <strong>추천 일정(코스)</strong>은
         <strong>고객 견적서와 홈페이지 “연수 일정 탐색”에 바로 반영</strong>됩니다
         (배포·개발자 작업 없이 즉시). 목적지를 고르면 현재 값이 그대로 올라오고, 아직 한 번도
-        수정하지 않은 목적지는 기본값이 올라옵니다. 둘은 <strong>“저장” 한 번에 함께</strong> 저장되고,
-        <strong>“기본값으로 되돌리기”</strong>는 이 목적지의 수정 내용을 <strong>둘 다</strong> 지웁니다.<br>
+        수정하지 않은 목적지는 기본값이 올라옵니다.<br>
         코스는 <strong>프로그램 유형(언어·리더십·산업·교육)에 따라 어느 것이 먼저 보일지</strong>가 정해져 있고,
         연수 일수가 코스에 적힌 일자 수보다 길면 마지막 “귀국” 일자는 항상 실제 마지막 날로 옮겨지며,
-        남는 날은 <strong>추천 콘텐츠의 “일별 주요 활동”</strong>으로 채워집니다.
+        남는 날은 <strong>추천 콘텐츠의 “일별 주요 활동”</strong>으로 채워집니다.<br>
+        <strong>방식 A·B(추천 콘텐츠)는 왼쪽 메뉴 “추천 콘텐츠”에서 따로 관리합니다.</strong>
+        저장·되돌리기도 각각이라, 여기서 저장해도 추천 콘텐츠는 건드리지 않습니다.
       </div>
       <div class="iti-bar">
         <label for="iti-dest">목적지</label>
@@ -1163,6 +1170,32 @@
       </div>
       <p id="iti-msg" class="iti-msg"></p>
       <div id="iti-body"></div>
+    </div>
+
+    <!-- ── 추천 콘텐츠 (QU) ── 방식 A·B 전용 화면.
+         일정 관리와 **목적지 선택도 따로**다(사용자 결정) — 한쪽을 다루다 다른 쪽이
+         바뀌는 일이 없게 하려는 것이다. 저장도 자기 부분만 보내므로, 동료가 그 사이
+         코스를 고쳤어도 이 화면의 저장이 그걸 되돌리지 않는다. -->
+    <div class="tab-panel" id="tab-reccontent">
+      <div class="iti-note">
+        <strong>방식 A·B</strong>는 홈페이지 <strong>“연수 일정 탐색”의 두 카드</strong>와
+        <strong>고객 견적서의 기대 효과 문구</strong>에 쓰입니다. 여기서 저장하면 바로 반영됩니다
+        (배포·개발자 작업 없이 즉시).<br>
+        <strong>코스(추천 일정)는 왼쪽 메뉴 “일정 관리”에서 따로 관리합니다.</strong>
+        고객에게 나가는 모양은 예전과 똑같고, 관리 화면만 나뉜 것입니다.<br>
+        ⚠ <strong>방식 A·B는 둘 다 채워야 저장됩니다.</strong> 한쪽만 저장되면 고객 화면의 그 자리가
+        조용히 일반 문구로 떨어지기 때문에, 서버가 반쪽 저장을 받지 않습니다.
+      </div>
+      <div class="iti-bar">
+        <label for="rec-dest">목적지</label>
+        <select id="rec-dest"><option value="">불러오는 중…</option></select>
+        <span id="rec-state" class="iti-state"></span>
+        <span class="iti-spacer"></span>
+        <button class="iti-btn danger" id="rec-revert">기본값으로 되돌리기</button>
+        <button class="btn-act btn-primary" id="rec-save">저장</button>
+      </div>
+      <p id="rec-msg" class="iti-msg"></p>
+      <div id="rec-body"></div>
     </div>
 
     <!-- ── 콘텐츠 관리 (신규) ── 필드 110개는 CMS_FIELDS 데이터에서 renderContent()가
@@ -2988,7 +3021,8 @@
     dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 관리',
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', rates:'요율 관리', quotetool:'내부 견적 산출',
-    itineraries:'일정 관리', content:'콘텐츠 관리', manual:'매뉴얼', settings:'설정'
+    itineraries:'일정 관리', reccontent:'추천 콘텐츠', content:'콘텐츠 관리',
+    manual:'매뉴얼', settings:'설정'
   };
 
   function switchTab(name) {
@@ -3014,6 +3048,7 @@
     else if (name==='quotetool') renderQuoteTool();
     else if (name==='manual') renderManual();
     else if (name==='itineraries') renderItineraries();
+    else if (name==='reccontent') renderRecContent();
     else if (name==='content') renderContent();
   }
 
@@ -5577,7 +5612,10 @@
   /* 라벨 있는 입력칸 한 줄. oninput에서 상태 객체의 해당 필드를 바로 갱신한다.
      pickKind를 주면 라벨 옆에 '고르기' 버튼이 붙는다(QL) — 칸마다 따로 만들지 않고
      여기 한 곳에서 붙여야 새 칸이 생겨도 빠지지 않는다. */
-  function itiField(labelText, value, multiline, onInput, pickKind) {
+  /* markDirty를 받는 이유 (QU): 추천 콘텐츠가 별도 화면으로 나가면서 '수정 중' 표시를
+     둘 중 어느 화면에 할지가 달라졌다. 기본값은 일정 관리 쪽이라 기존 호출은 그대로 둔다. */
+  function itiField(labelText, value, multiline, onInput, pickKind, markDirty) {
+    const dirty = markDirty || itiMarkDirty;
     const wrap = document.createElement('div');
     const lbl = document.createElement('label');
     lbl.className = 'iti-lbl';
@@ -5585,7 +5623,7 @@
     const inp = document.createElement(multiline ? 'textarea' : 'input');
     inp.className = multiline ? 'iti-ta' : 'iti-inp';
     inp.value = value == null ? '' : String(value);
-    inp.addEventListener('input', function () { onInput(inp.value); itiMarkDirty(); });
+    inp.addEventListener('input', function () { onInput(inp.value); dirty(); });
 
     if (pickKind && ITI_PICK_KINDS[pickKind]) {
       /* 라벨과 버튼을 한 줄에 둔다. 입력칸 옆에 넣으면 오전·오후·저녁·팁 2×2 그리드에서
@@ -5598,7 +5636,7 @@
       btn.textContent = '고르기';
       btn.addEventListener('click', function () {
         itiOpenPicker(pickKind, function () { return inp.value; }, function (next) {
-          inp.value = next; onInput(next); itiMarkDirty();
+          inp.value = next; onInput(next); dirty();
         });
       });
       row.appendChild(lbl); row.appendChild(btn);
@@ -5959,8 +5997,9 @@
      각각 다른 자리에 나가는데, 이름만 봐서는 어디를 고치는 건지 알 수 없다. */
   const ITI_REC_PLAN_LABEL = { a: '방식 A', b: '방식 B' };
 
-  function itiRenderRecPlan(plan) {
-    const p = itiState.rec[plan];
+  /* 편집 대상(rec)을 인자로 받는다 — 이 카드는 이제 추천 콘텐츠 화면(recState)이 쓴다. */
+  function itiRenderRecPlan(rec, plan) {
+    const p = rec[plan];
     const box = document.createElement('div');
     box.className = 'iti-course';
 
@@ -5972,14 +6011,15 @@
     head.appendChild(no);
     box.appendChild(head);
 
-    box.appendChild(itiField('방식 이름 (예: 역량강화형) — 일정 탐색 화면의 배지', p.tag, false, (v) => { p.tag = v; }));
-    box.appendChild(itiField('한 줄 테마 설명', p.desc, true, (v) => { p.desc = v; }));
+    const D = recMarkDirty;
+    box.appendChild(itiField('방식 이름 (예: 역량강화형) — 일정 탐색 화면의 배지', p.tag, false, (v) => { p.tag = v; }, null, D));
+    box.appendChild(itiField('한 줄 테마 설명', p.desc, true, (v) => { p.desc = v; }, null, D));
     box.appendChild(itiField('핵심 포인트 (한 줄에 하나씩) — 일정 탐색 카드에 표시', (p.points || []).join('\n'), true,
-      (v) => { p.points = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recPoint'));
+      (v) => { p.points = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recPoint', D));
     box.appendChild(itiField('일별 주요 활동 (한 줄에 하나씩) — 연수 일수가 코스보다 길 때 남는 날을 이 목록으로 채웁니다',
       (p.items || []).join('\n'), true,
-      (v) => { p.items = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recItem'));
-    box.appendChild(itiField('기대 효과 문구 — 고객 견적서(결재 보고용)에 나갑니다', p.value, true, (v) => { p.value = v; }));
+      (v) => { p.items = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recItem', D));
+    box.appendChild(itiField('기대 효과 문구 — 고객 견적서(결재 보고용)에 나갑니다', p.value, true, (v) => { p.value = v; }, null, D));
     return box;
   }
 
@@ -5995,15 +6035,10 @@
     return el;
   }
 
-  function itiRenderRecSection() {
+  function itiRenderRecSection(rec) {
     const wrap = document.createElement('div');
-    wrap.appendChild(itiNote('추천 콘텐츠',
-      ' — 홈페이지 “연수 일정 탐색”의 방식 A·B 카드와, 고객 견적서의 기대 효과 문구에 쓰입니다. '
-      + '아래 추천 일정(코스)과 함께 한 번에 저장됩니다.'));
-    wrap.appendChild(itiRenderRecPlan('a'));
-    wrap.appendChild(itiRenderRecPlan('b'));
-    wrap.appendChild(itiNote('추천 일정 (코스)',
-      ' — 프로그램 유형에 따라 어느 코스가 먼저 보일지 정해집니다.'));
+    wrap.appendChild(itiRenderRecPlan(rec, 'a'));
+    wrap.appendChild(itiRenderRecPlan(rec, 'b'));
     return wrap;
   }
 
@@ -6101,7 +6136,6 @@
       itiRenderState();
       return;
     }
-    if (itiState.rec) body.appendChild(itiRenderRecSection());
     if (!itiState.courses.length) {
       const p = document.createElement('p');
       p.className = 'iti-note';
@@ -6125,9 +6159,6 @@
     itiState.courses = destKey
       ? (itiState.overrides[destKey] ? itiClone(itiState.overrides[destKey]) : itiDefaults(destKey))
       : [];
-    itiState.rec = destKey
-      ? (itiState.recOverrides[destKey] ? itiClone(itiState.recOverrides[destKey]) : itiRecDefaults(destKey))
-      : null;
     itiRenderBody();
   }
 
@@ -6159,9 +6190,12 @@
     if (prev) sel.value = prev;
   }
 
-  async function renderItineraries() {
-    /* 탭을 열 때마다 서버 상태를 다시 읽는다 — 동료가 방금 고친 것을 덮어쓰지 않기 위해.
-       (요율에서 '되돌리기가 그 사이 남이 바꾼 값을 말없이 덮어쓰던' 문제를 이미 겪었다.) */
+  /* 탭을 열 때마다 서버 상태를 다시 읽는다 — 동료가 방금 고친 것을 덮어쓰지 않기 위해.
+     (요율에서 '되돌리기가 그 사이 남이 바꾼 값을 말없이 덮어쓰던' 문제를 이미 겪었다.)
+     ⚠ 두 화면(일정 관리·추천 콘텐츠)이 **같은 조회**를 쓴다. 각자 부르게 두면 한쪽만
+     새로고침되어 서로 다른 값을 보게 되고, 그 상태로 저장하면 어느 쪽이 맞는지 알 수 없다.
+     조용히 기본값으로 떨어지지도 않는다 — 그러면 담당자가 남의 수정본 위에 기본값을 덮어쓴다. */
+  async function itiLoadServer() {
     try {
       const r = await fetch('/api/content?action=itineraries');
       if (!r.ok) throw new Error('http_' + r.status);
@@ -6170,14 +6204,18 @@
       itiState.recOverrides = (data && data.recOverrides) || {};
       itiState.meta         = (data && data.meta) || {};
       itiState.loaded = true;
-      itiSetMsg('');
+      return null;
     } catch (err) {
-      /* 조용히 기본값으로 떨어지지 않는다 — 그러면 담당자가 남의 수정본 위에
-         기본 일정을 덮어써 저장하게 된다. */
-      console.warn('[admin] 일정 조회 실패:', err);
+      console.warn('[admin] 일정·추천 콘텐츠 조회 실패:', err);
       itiState.loaded = false;
-      itiSetMsg('저장된 일정을 불러오지 못했습니다. 지금 저장하면 다른 사람의 수정본을 덮어쓸 수 있으니, 새로고침 후 다시 시도해 주세요.', 'err');
+      return err;
     }
+  }
+
+  async function renderItineraries() {
+    const err = await itiLoadServer();
+    if (err) itiSetMsg('저장된 일정을 불러오지 못했습니다. 지금 저장하면 다른 사람의 수정본을 덮어쓸 수 있으니, 새로고침 후 다시 시도해 주세요.', 'err');
+    else itiSetMsg('');
     itiFillDestSelect();
     if (itiState.destKey) {
       /* 편집 중이던 목적지가 있으면 화면은 유지하되, 서버 상태 표시는 갱신한다 */
@@ -6197,7 +6235,10 @@
     try {
       const r = await fetch('/api/content?action=itineraries', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ destKey: itiState.destKey, courses: itiState.courses, rec: itiState.rec }),
+        /* ⚠ rec을 보내지 않는다 (QU). 추천 콘텐츠는 다른 화면이 관리하므로, 여기서 함께
+           보내면 이 화면이 들고 있던 낡은 사본이 **동료가 방금 고친 추천 콘텐츠를
+           조용히 되돌린다.** 서버는 안 보낸 쪽을 건드리지 않는다(coalesce). */
+        body: JSON.stringify({ destKey: itiState.destKey, courses: itiState.courses }),
       });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(out.error || ('http_' + r.status));
@@ -6205,10 +6246,8 @@
          보낸 값을 그대로 믿고 두면 화면과 실제 저장값이 조금씩 달라진다. */
       itiState.overrides[itiState.destKey] = out.courses || itiState.courses;
       itiState.courses = itiClone(itiState.overrides[itiState.destKey]);
-      if (out.rec) {
-        itiState.recOverrides[itiState.destKey] = out.rec;
-        itiState.rec = itiClone(out.rec);
-      }
+      /* 서버가 돌려준 rec은 다른 화면이 쓰는 값이라 캐시만 최신으로 맞춰 둔다. */
+      if (out.rec) itiState.recOverrides[itiState.destKey] = out.rec;
       itiState.meta[itiState.destKey] = { updatedAt: new Date().toISOString(), updatedBy: (currentUser && currentUser.displayName) || '' };
       itiState.dirty = false;
       itiFillDestSelect();
@@ -6264,16 +6303,16 @@
 
   async function itiRevert() {
     if (!itiState.destKey) { itiSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
-    if (!confirm(itiState.destKey + '의 수정 내용(추천 콘텐츠 + 추천 일정)을 모두 지우고 기본값으로 되돌립니다. 계속할까요?')) return;
+    /* QU: 이제 코스만 되돌린다. 추천 콘텐츠는 그 화면에서 따로 되돌린다 —
+       한 버튼이 다른 화면의 작업까지 지우면 누른 사람이 예상하지 못한 손실이 난다. */
+    if (!confirm(itiState.destKey + '의 **추천 일정(코스)** 수정 내용을 지우고 기본값으로 되돌립니다.\n(추천 콘텐츠 방식 A·B는 그대로 남습니다.)\n계속할까요?')) return;
     try {
-      const r = await fetch('/api/content?action=itineraries&destKey=' + encodeURIComponent(itiState.destKey), { method: 'DELETE' });
+      const r = await fetch('/api/content?action=itineraries&part=courses&destKey=' + encodeURIComponent(itiState.destKey), { method: 'DELETE' });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(out.error || ('http_' + r.status));
       delete itiState.overrides[itiState.destKey];
-      delete itiState.recOverrides[itiState.destKey];
-      delete itiState.meta[itiState.destKey];
+      if (!itiState.recOverrides[itiState.destKey]) delete itiState.meta[itiState.destKey];
       itiState.courses = itiDefaults(itiState.destKey);
-      itiState.rec = itiRecDefaults(itiState.destKey);
       itiState.dirty = false;
       itiFillDestSelect();
       itiRenderBody();
@@ -6284,6 +6323,157 @@
       itiSetMsg('되돌리지 못했습니다 (' + err.message + ').', 'err');
     }
   }
+
+  /* ════ 추천 콘텐츠 (QU) ═══════════════════════════════════════════════════
+     방식 A·B 전용 화면. 일정 관리와 **완전히 독립**이다 — 목적지 선택도, 저장도,
+     되돌리기도 각자다(사용자 결정). 서버 데이터(itiState.overrides/recOverrides/meta)만
+     같은 것을 본다.
+
+     ⚠ 고객이 보는 결과는 하나도 바뀌지 않는다. 저장되는 곳도 예전과 같은 행이고
+     (itinerary_overrides.rec), 엔진도 예전처럼 DEST_REC을 읽는다. 나뉜 것은 관리 화면뿐이다.
+     ═══════════════════════════════════════════════════════════════════════ */
+  const recState = { destKey: '', rec: null, dirty: false };
+
+  function recSetMsg(text, kind) {
+    const el = document.getElementById('rec-msg');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'iti-msg' + (kind ? ' ' + kind : '');
+  }
+
+  function recMarkDirty() {
+    recState.dirty = true;
+    recRenderState();
+  }
+
+  function recRenderState() {
+    const el = document.getElementById('rec-state');
+    if (!el) return;
+    el.textContent = '';
+    el.className = 'iti-state';
+    if (!recState.destKey) return;
+    if (recState.dirty) { el.textContent = '● 저장하지 않음'; el.classList.add('dirty'); return; }
+    /* '수정됨' 여부는 **추천 콘텐츠 기준**으로만 말한다. 코스만 고친 목적지에까지
+       수정됨이 붙으면 이 화면에서 무엇이 바뀐 건지 알 수 없다. */
+    const saved = itiState.recOverrides[recState.destKey];
+    const meta = itiState.meta[recState.destKey];
+    if (!saved) { el.textContent = '기본값'; return; }
+    const when = meta && meta.updatedAt ? new Date(meta.updatedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    el.textContent = '수정됨' + (meta && meta.updatedBy ? ' · ' + meta.updatedBy : '') + (when ? ' · ' + when : '');
+  }
+
+  function recFillDestSelect() {
+    const sel = document.getElementById('rec-dest');
+    if (!sel) return;
+    const prev = recState.destKey;
+    sel.textContent = '';
+    const blank = document.createElement('option');
+    blank.value = ''; blank.textContent = '목적지를 선택하세요';
+    sel.appendChild(blank);
+    /* 목적지 목록은 일정 관리와 **같은 규칙**에서 나온다(itiDestKeys) — 한쪽만
+       커스텀 목적지를 포함하면 "일정은 고칠 수 있는데 추천은 못 고치는" 칸이 생긴다. */
+    itiDestKeys().forEach((k) => {
+      const o = document.createElement('option');
+      o.value = k;
+      o.textContent = k + (itiState.recOverrides[k] ? '  ✏️ 수정됨' : '');
+      sel.appendChild(o);
+    });
+    if (prev) sel.value = prev;
+  }
+
+  function recRenderBody() {
+    const body = document.getElementById('rec-body');
+    if (!body) return;
+    body.textContent = '';
+    if (!recState.destKey || !recState.rec) {
+      const p = document.createElement('p');
+      p.className = 'iti-note';
+      p.textContent = '목적지를 선택하면 그 목적지의 방식 A·B가 올라옵니다.';
+      body.appendChild(p);
+      recRenderState();
+      return;
+    }
+    body.appendChild(itiRenderRecSection(recState.rec));
+    recRenderState();
+  }
+
+  function recSelectDest(destKey) {
+    if (recState.dirty && !confirm('저장하지 않은 수정 내용이 있습니다. 목적지를 바꾸면 사라집니다. 계속할까요?')) {
+      document.getElementById('rec-dest').value = recState.destKey;
+      return;
+    }
+    recState.destKey = destKey;
+    recState.dirty = false;
+    recSetMsg('');
+    recState.rec = destKey
+      ? (itiState.recOverrides[destKey] ? itiClone(itiState.recOverrides[destKey]) : itiRecDefaults(destKey))
+      : null;
+    recRenderBody();
+  }
+
+  async function renderRecContent() {
+    const err = await itiLoadServer();
+    if (err) recSetMsg('저장된 추천 콘텐츠를 불러오지 못했습니다. 지금 저장하면 다른 사람의 수정본을 덮어쓸 수 있으니, 새로고침 후 다시 시도해 주세요.', 'err');
+    else recSetMsg('');
+    recFillDestSelect();
+    if (recState.destKey) recRenderState();
+    else recRenderBody();
+  }
+
+  async function recSave() {
+    if (!recState.destKey) { recSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    if (!itiState.loaded) { recSetMsg('저장된 값을 아직 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.', 'err'); return; }
+
+    recSetMsg('저장 중…');
+    try {
+      const r = await fetch('/api/content?action=itineraries', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        /* ⚠ courses를 보내지 않는다. 코스는 다른 화면이 관리하므로, 여기서 함께 보내면
+           이 화면이 들고 있던 낡은 사본이 동료가 방금 고친 코스를 조용히 되돌린다.
+           서버는 안 보낸 쪽을 건드리지 않는다(coalesce). */
+        body: JSON.stringify({ destKey: recState.destKey, rec: recState.rec }),
+      });
+      const out = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(out.error || ('http_' + r.status));
+      if (out.rec) {
+        itiState.recOverrides[recState.destKey] = out.rec;
+        recState.rec = itiClone(out.rec);
+      }
+      itiState.meta[recState.destKey] = { updatedAt: new Date().toISOString(), updatedBy: (currentUser && currentUser.displayName) || '' };
+      recState.dirty = false;
+      recFillDestSelect();
+      recRenderBody();
+      recSetMsg('저장했습니다. 고객 견적서·일정 탐색에 바로 반영됩니다.', 'ok');
+    } catch (err) {
+      console.warn('[admin] 추천 콘텐츠 저장 실패:', err);
+      recSetMsg('저장하지 못했습니다 — ' + itiSaveErrorText(err.message)
+        + ' 수정 내용은 화면에 그대로 있습니다.', 'err');
+    }
+  }
+
+  async function recRevert() {
+    if (!recState.destKey) { recSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    if (!confirm(recState.destKey + '의 **추천 콘텐츠(방식 A·B)** 수정 내용을 지우고 기본값으로 되돌립니다.\n(추천 일정 코스는 그대로 남습니다.)\n계속할까요?')) return;
+    try {
+      const r = await fetch('/api/content?action=itineraries&part=rec&destKey=' + encodeURIComponent(recState.destKey), { method: 'DELETE' });
+      const out = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(out.error || ('http_' + r.status));
+      delete itiState.recOverrides[recState.destKey];
+      if (!itiState.overrides[recState.destKey]) delete itiState.meta[recState.destKey];
+      recState.rec = itiRecDefaults(recState.destKey);
+      recState.dirty = false;
+      recFillDestSelect();
+      recRenderBody();
+      recSetMsg(out.removed ? '기본 추천 콘텐츠로 되돌렸습니다.' : '이 목적지에는 수정 내용이 없었습니다 (이미 기본값입니다).', 'ok');
+    } catch (err) {
+      console.warn('[admin] 추천 콘텐츠 되돌리기 실패:', err);
+      recSetMsg('되돌리지 못했습니다 (' + err.message + ').', 'err');
+    }
+  }
+
+  document.getElementById('rec-dest').addEventListener('change', function () { recSelectDest(this.value); });
+  document.getElementById('rec-save').addEventListener('click', recSave);
+  document.getElementById('rec-revert').addEventListener('click', recRevert);
 
   document.getElementById('iti-dest').addEventListener('change', function () { itiSelectDest(this.value); });
   document.getElementById('iti-save').addEventListener('click', itiSave);

@@ -32,8 +32,11 @@ const ok = (name, cond, extra = '') => {
   const w = dom.window, d = w.document;
 
   console.log('\n[1] 칸마다 “고르기” 버튼이 실제로 붙는가');
+  /* QU: 추천 콘텐츠(방식 A·B)가 별도 화면으로 나갔다. '고르기'는 두 화면 모두에 있어야
+     하므로 **양쪽을 다 렌더해서** 확인한다 — 한쪽만 보면 옮겨간 칸의 버튼이 빠져도 모른다. */
   w.__itiSelect('도쿄');
-  const labelsWithBtn = Array.from(d.querySelectorAll('#iti-body .iti-lbl-row'))
+  w.__recSelect('도쿄');
+  const labelsWithBtn = Array.from(d.querySelectorAll('#iti-body .iti-lbl-row, #rec-body .iti-lbl-row'))
     .map((r) => r.querySelector('.iti-lbl').textContent.split('(')[0].split('—')[0].trim());
   const want = ['그날의 제목', '오전', '오후', '저녁', '참고 팁', '핵심 하이라이트', '핵심 포인트', '일별 주요 활동'];
   for (const label of want) {
@@ -196,6 +199,7 @@ async function bootAdmin() {
 ;try{
   window.REGION_MAP = REGION_MAP;
   window.__itiSelect = (k) => { itiState.dirty = false; itiSelectDest(k); };
+  window.__recSelect = (k) => { recState.dirty = false; recSelectDest(k); };
   window.__candidates = (kind, scope) => itiPickCandidates(kind, scope);
   window.__setOverride = (k, courses) => { itiState.overrides[k] = courses; };
   window.__clearOverrides = () => { itiState.overrides = {}; itiState.recOverrides = {}; };

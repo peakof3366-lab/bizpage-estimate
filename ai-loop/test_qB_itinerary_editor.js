@@ -73,6 +73,29 @@ const OVERRIDE_TOKYO = [{
   const errOf = r => r.error || 'ok';
   ok('빈 코스 배열 거부',      errOf(content.normalizeCourses([])) === 'courses_empty');
   ok('배열이 아니면 거부',     errOf(content.normalizeCourses({})) === 'courses_empty');
+
+  /* QU: 코스와 추천 콘텐츠를 다른 화면에서 관리하게 되면서 '한쪽만 저장'이 생겼다.
+     ⚠ 안 보낸 것(undefined)과 빈 배열은 **다르게** 다뤄야 한다. 빈 배열은 "코스를 전부
+     지웠다"는 뜻이라 그대로 저장하면 고객 견적서에서 코스가 사라진다. */
+  ok('안 보낸 코스는 "이번 저장에서 다루지 않음"이다 (거절이 아니다)',
+    content.normalizeCourses(undefined).courses === undefined
+    && content.normalizeCourses(undefined).error === undefined);
+  ok('null도 같게 다룬다', content.normalizeCourses(null).courses === undefined);
+  ok('빈 배열은 여전히 거절한다 (코스를 지우는 것은 되돌리기로 해야 한다)',
+    errOf(content.normalizeCourses([])) === 'courses_empty');
+
+  const contentSrc = read('api/content.js');
+  ok('안 보낸 쪽은 기존 값을 그대로 둔다 (양쪽 coalesce)',
+    /set courses = coalesce\(excluded\.courses, itinerary_overrides\.courses\)/.test(contentSrc)
+    && /rec = coalesce\(excluded\.rec, itinerary_overrides\.rec\)/.test(contentSrc));
+  ok('둘 다 안 보내면 거절한다 (아무 일도 안 하고 저장됐다고 말하지 않게)',
+    /nothing_to_save/.test(contentSrc));
+  /* courses가 null인 행을 그대로 내려보내면 받는 쪽이 "수정본이 있다"고 읽는다 —
+     고객 화면은 '건너뛴 목적지'로 기록하고, 관리자 목록에는 ✏️ 수정됨이 붙는다. */
+  ok('조회는 코스가 비어 있는 목적지를 목록에 넣지 않는다',
+    /if \(r\.courses\) map\[r\.dest_key\] = r\.courses;/.test(contentSrc));
+  ok('되돌리기를 부분으로 나눌 수 있다 (part=courses|rec)',
+    /\['all', 'courses', 'rec'\]/.test(contentSrc));
   ok('제목 없는 코스 거부',    errOf(content.normalizeCourses([{ title: '  ', days: [{ title: 'a' }] }])) === 'empty_title');
   ok('일자 없는 코스 거부',    errOf(content.normalizeCourses([{ title: 'A', days: [] }])) === 'days_empty');
   ok('코스 개수 상한 적용',
@@ -173,6 +196,8 @@ const OVERRIDE_TOKYO = [{
   const adminHtml = (function () {
     const html = htmlWithDeps('admin.html');
     const EXPOSE = '\n;try{window.__iti=itiState;window.__setUser=u=>{currentUser=u};'
+      + 'window.__rec=recState;window.recSave=recSave;window.recRevert=recRevert;'
+      + 'window.renderRecContent=renderRecContent;window.__recFill=recFillDestSelect;'
       + 'window.ITINERARY_DB=ITINERARY_DB;window.DEST_REC=DEST_REC;}catch(e){}\n';
     let injected = false;
     return html.replace(/(<script(?![^>]*\bsrc=)[^>]*>)([\s\S]*?)(<\/script>)/gi, (m, open, code, close) => {
@@ -355,32 +380,54 @@ const OVERRIDE_TOKYO = [{
   ok('건너뛴 사실을 기록으로 남긴다',
     (w4.__ITINERARY_SOURCE__.skippedRec || []).join(',') === '파리');
 
-  /* 관리자 화면 */
-  const adoc2 = adoc;
+  /* 관리자 화면 — QU: 추천 콘텐츠는 **별도 화면**(추천 콘텐츠 탭)으로 옮겼다.
+     고객 쪽(위 검증)은 하나도 바뀌지 않았고, 나뉜 것은 관리 화면뿐이다. */
   aw.__iti.recOverrides = {};
-  sel.value = '도쿄';
-  sel.dispatchEvent(new aw.Event('change', { bubbles: true }));
-  const inputsNow = () => Array.from(body.querySelectorAll('input,textarea'));
-  ok('추천 콘텐츠 칸이 화면에 있다',
-    Array.from(body.querySelectorAll('.iti-course-no')).some(e => e.textContent === '방식 A')
-    && Array.from(body.querySelectorAll('.iti-course-no')).some(e => e.textContent === '방식 B'));
+  const recSel  = adoc.getElementById('rec-dest');
+  const recBody = adoc.getElementById('rec-body');
+  ok('추천 콘텐츠 화면이 따로 있다', !!recSel && !!recBody);
+  ok('추천 콘텐츠는 일정 관리 화면 안에 있지 않다',
+    !adoc.getElementById('tab-itineraries').contains(recBody));
+
+  aw.__recFill();
+  recSel.value = '도쿄';
+  recSel.dispatchEvent(new aw.Event('change', { bubbles: true }));
+  const inputsNow = () => Array.from(recBody.querySelectorAll('input,textarea'));
+  ok('추천 콘텐츠 칸이 그 화면에 있다',
+    Array.from(recBody.querySelectorAll('.iti-course-no')).some(e => e.textContent === '방식 A')
+    && Array.from(recBody.querySelectorAll('.iti-course-no')).some(e => e.textContent === '방식 B'));
   ok('기본 추천 콘텐츠가 폼에 올라온다',
     inputsNow().some(el => el.value === aw.DEST_REC['도쿄'].a.tag), aw.DEST_REC['도쿄'].a.tag);
   ok('일별 활동이 한 줄에 하나씩 올라온다',
     inputsNow().some(el => el.value === aw.DEST_REC['도쿄'].a.items.join('\n')));
   ok('그 값이 어디에 쓰이는지 화면에 적혀 있다',
-    Array.from(body.querySelectorAll('.iti-lbl')).some(e => /견적서/.test(e.textContent))
-    && Array.from(body.querySelectorAll('.iti-lbl')).some(e => /남는 날/.test(e.textContent)));
+    Array.from(recBody.querySelectorAll('.iti-lbl')).some(e => /견적서/.test(e.textContent))
+    && Array.from(recBody.querySelectorAll('.iti-lbl')).some(e => /남는 날/.test(e.textContent)));
+  /* 일정 관리 쪽에는 더 이상 방식 A·B가 없어야 한다 — 남아 있으면 같은 값을 두 화면에서
+     따로 고치게 되고, 어느 쪽 저장이 이겼는지 아무도 모른다(결함 생성기 ①). */
+  ok('일정 관리 화면에는 방식 A·B가 남아 있지 않다',
+    !Array.from(body.querySelectorAll('.iti-course-no')).some(e => /방식 [AB]/.test(e.textContent)));
 
   const tagInput = inputsNow().find(el => el.value === aw.DEST_REC['도쿄'].a.tag);
   tagInput.value = '새 방식 이름';
   tagInput.dispatchEvent(new aw.Event('input', { bubbles: true }));
   putBody = null;
-  await aw.itiSave();
-  ok('추천 콘텐츠가 일정과 함께 한 번에 저장된다',
-    !!putBody && !!putBody.rec && !!putBody.courses, JSON.stringify(putBody && Object.keys(putBody)));
+  await aw.recSave();
+  /* ⚠ 여기가 이 절의 핵심이다. 추천 콘텐츠 화면은 **코스를 보내면 안 된다.**
+     보내면 이 화면이 들고 있던 낡은 코스 사본이, 그 사이 동료가 일정 관리에서 고친
+     코스를 조용히 되돌린다. 서버는 안 보낸 쪽을 건드리지 않는다(coalesce). */
+  ok('추천 콘텐츠만 저장한다 (코스를 함께 보내지 않는다)',
+    !!putBody && !!putBody.rec && putBody.courses === undefined,
+    JSON.stringify(putBody && Object.keys(putBody)));
   ok('고친 방식 이름이 실린다', putBody.rec.a.tag === '새 방식 이름');
   ok('건드리지 않은 방식 B도 함께 실린다(반쪽 저장 방지)', !!putBody.rec.b && !!putBody.rec.b.tag);
+
+  /* 반대 방향도 같아야 한다 — 일정 관리는 추천 콘텐츠를 보내지 않는다. */
+  putBody = null;
+  await aw.itiSave();
+  ok('일정 관리는 코스만 저장한다 (추천 콘텐츠를 함께 보내지 않는다)',
+    !!putBody && !!putBody.courses && putBody.rec === undefined,
+    JSON.stringify(putBody && Object.keys(putBody)));
 
   ok('편집 화면은 여전히 innerHTML을 쓰지 않는다',
     !/innerHTML\s*=/.test(adminSrc.slice(adminSrc.indexOf('const itiState = {'),
