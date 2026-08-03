@@ -218,7 +218,7 @@
         <li><a href="#roles">권한별로 할 수 있는 일</a></li>
         <li><a href="#errors">막혔을 때 나오는 메시지</a></li>
         <li><a href="#dont">하면 안 되는 것</a></li>
-        <li><a href="#owner">사장님 — 가입 열고 승인하기<span class="who">관리자</span></a></li>
+        <li><a href="#owner">관리자 — 가입 열고 승인하기</a></li>
       </ol>
     </details>
   </nav>
@@ -254,18 +254,26 @@
         나머지 장은 <strong>지금 읽는 것이 아니라 막혔을 때 찾는 것</strong>입니다.
         화면에 낯선 문구가 떠서 “고장인가?” 싶으면 <a href="#errors">10장 막혔을 때 나오는 메시지</a>를 먼저 보세요.
         찾는 단어가 있으면 왼쪽 <strong>문서에서 찾기</strong> 칸에 넣으면 됩니다.
-        사장님은 <a href="#owner">12장</a>부터 보시면 됩니다.
+        관리자는 <a href="#owner">12장</a>부터 보시면 됩니다.
       </p>
     </div>
 
     <section id="start">
       <h2>1. 시작하기 — 계정과 화면</h2>
       <p>주소는 <code>bizpage-estimate.vercel.app/admin.html</code> 입니다. 즐겨찾기에 넣어 두세요.</p>
+      <div class="note">
+        <span class="label">이 문서에서 “관리자”라고 하면</span>
+        <p>
+          <strong>사람</strong>을 가리킵니다 — 계정을 승인하고 권한을 정하는 최고 권한 계정입니다.
+          권한은 <strong>직원 · 매니저 · 관리자</strong> 세 단계이고, 누가 무엇을 할 수 있는지는 <a href="#roles">9장</a>에 있습니다.
+          우리가 지금 보고 있는 <strong>“관리자 화면”</strong>(이 문서가 열려 있는 이 사이트)과는 다른 말이니 헷갈리지 마세요.
+        </p>
+      </div>
 
       <h3>계정 만들기 — 직접 신청합니다</h3>
       <ol class="steps">
         <li>
-          <h3>사장님께 가입코드를 받습니다</h3>
+          <h3>관리자에게 가입코드를 받습니다</h3>
           <p>팀 공용으로 하나입니다. 외부에 알려주지 마세요.</p>
         </li>
         <li>
@@ -274,16 +282,16 @@
         </li>
         <li>
           <h3>승인을 기다립니다</h3>
-          <p>신청 직후에는 <strong>로그인이 안 되는 게 정상</strong>입니다. 사장님이 승인하면 그때부터 들어갈 수 있습니다.</p>
+          <p>신청 직후에는 <strong>로그인이 안 되는 게 정상</strong>입니다. 관리자가 승인하면 그때부터 들어갈 수 있습니다.</p>
         </li>
       </ol>
 
       <ul class="plain">
         <li><strong>계정은 한 사람당 하나입니다.</strong> 남의 계정을 빌려 쓰면 변경 이력이 엉뚱한 사람 이름으로 남습니다.</li>
-        <li><strong>비밀번호를 <span data-fact="LOGIN_MAX_ATTEMPTS">5</span>번 틀리면 <span data-fact="LOGIN_LOCKOUT_MINUTES">15</span>분 잠깁니다.</strong> 잠겼으면 기다리거나 사장님께 재설정을 요청하세요.</li>
+        <li><strong>비밀번호를 <span data-fact="LOGIN_MAX_ATTEMPTS">5</span>번 틀리면 <span data-fact="LOGIN_LOCKOUT_MINUTES">15</span>분 잠깁니다.</strong> 잠겼으면 기다리거나 관리자에게 재설정을 요청하세요.</li>
         <li><strong>로그인은 <span data-fact="SESSION_HOURS">12</span>시간 유지됩니다.</strong> 다음 날 다시 들어가면 로그인 화면이 나오는 게 정상입니다.</li>
         <li>비밀번호는 <strong>설정 → 비밀번호 변경</strong>에서 언제든 바꿀 수 있습니다. <span data-fact="PASSWORD_MIN_LENGTH">8</span>자 이상이어야 합니다.</li>
-        <li><strong>비밀번호를 잊었다면 — 스스로 되찾는 방법은 없습니다.</strong> “비밀번호 찾기” 버튼도, 메일로 재설정 링크를 보내는 기능도 없습니다(없는 것이 정상입니다). <strong>사장님께 재설정을 요청</strong>하시면 새 비밀번호를 받아 바로 로그인할 수 있고, 잠겨 있었다면 잠금도 함께 풀립니다. 로그인한 뒤 설정에서 본인만 아는 값으로 다시 바꿔 두세요.</li>
+        <li><strong>비밀번호를 잊었다면 — 스스로 되찾는 방법은 없습니다.</strong> “비밀번호 찾기” 버튼도, 메일로 재설정 링크를 보내는 기능도 없습니다(없는 것이 정상입니다). <strong>관리자에게 재설정을 요청</strong>하시면 새 비밀번호를 받아 바로 로그인할 수 있고, 잠겨 있었다면 잠금도 함께 풀립니다. 로그인한 뒤 설정에서 본인만 아는 값으로 다시 바꿔 두세요.</li>
         <li><strong>비밀번호를 바꾸면 다른 기기의 로그인은 전부 풀립니다.</strong> 사무실 PC에서 바꾸면 휴대폰은 다시 로그인해야 합니다 — 고장이 아니라, 비밀번호를 바꾼 사람이 기대하는 동작입니다.</li>
       </ul>
 
@@ -307,7 +315,7 @@
       </div>
       <div class="note">
         <span class="label">안 보이는 메뉴가 있다면</span>
-        <p>고장이 아닙니다. <strong>권한에 따라 아예 안 보이게</strong> 해 둔 것입니다 — 누를 수 없는 버튼을 보여주고 눌렀을 때 거절하는 것보다 낫기 때문입니다. 필요하면 매니저나 사장님께 요청하세요.</p>
+        <p>고장이 아닙니다. <strong>권한에 따라 아예 안 보이게</strong> 해 둔 것입니다 — 누를 수 없는 버튼을 보여주고 눌렀을 때 거절하는 것보다 낫기 때문입니다. 필요하면 매니저나 관리자에게 요청하세요.</p>
       </div>
     </section>
 
@@ -671,7 +679,7 @@
           <p>
             새 목적지는 <strong>추천 코스가 비어 있습니다.</strong> 일정 관리에서
             <strong>다른 목적지에서 가져오기</strong>로 비슷한 지역의 코스를 복사해 오면 가장 빠릅니다.
-            추가했다는 사실도 사장님이나 개발 담당자에게 한 줄 알려 주세요 — 분류값이 제대로 붙었는지 대조 확인하는 절차가 있습니다.
+            추가했다는 사실도 관리자나 개발 담당자에게 한 줄 알려 주세요 — 분류값이 제대로 붙었는지 대조 확인하는 절차가 있습니다.
           </p>
         </li>
       </ol>
@@ -712,14 +720,14 @@
           <thead><tr><th>화면에 뜨는 말</th><th>뜻</th><th>할 일</th></tr></thead>
           <tbody>
             <tr><td class="msg">입력값이 너무 큽니다</td><td>요율 허용 상한을 넘었습니다. 저장된 값은 없습니다.</td><td>0이 하나 더 붙지 않았는지 확인하고 다시 저장</td></tr>
-            <tr><td class="msg">이 작업은 권한이 없습니다</td><td>직원 계정으로는 못 하는 작업입니다 (일괄 조정·목적지 추가·삭제 등)</td><td>매니저 또는 사장님께 요청</td></tr>
+            <tr><td class="msg">이 작업은 권한이 없습니다</td><td>직원 계정으로는 못 하는 작업입니다 (일괄 조정·목적지 추가·삭제 등)</td><td>매니저 또는 관리자에게 요청</td></tr>
             <tr><td class="msg">로그인이 만료되었습니다</td><td><span data-fact="SESSION_HOURS">12</span>시간이 지났습니다</td><td>새로고침 후 다시 로그인. 고치던 내용은 다시 입력해야 합니다</td></tr>
             <tr><td class="msg">변경된 내용이 없습니다</td><td>숫자를 안 바꾸고 저장을 눌렀습니다</td><td>값을 바꾸거나, 가격은 그대로 두고 “확인함”만 기록</td></tr>
             <tr><td class="msg">저장하지 못했습니다 — 코스가 너무 많습니다</td><td>일정 관리에서 코스가 상한(<span data-fact="MAX_COURSES">6</span>개)을 넘었습니다</td><td>쓰지 않는 코스를 “이 코스 삭제”로 지운 뒤 다시 저장</td></tr>
             <tr><td class="msg">저장된 일정을 불러오지 못했습니다</td><td>서버에서 현재 일정을 못 읽었습니다</td><td><strong>저장하지 마세요</strong> — 남의 수정본을 덮어쓸 수 있습니다. 새로고침 후 다시</td></tr>
             <tr><td class="msg">아이디 또는 비밀번호가 올바르지 않습니다</td><td><span data-fact="LOGIN_MAX_ATTEMPTS">5</span>회까지만 시도할 수 있습니다</td><td>천천히 다시 입력. 넘기면 <span data-fact="LOGIN_LOCKOUT_MINUTES">15</span>분 잠깁니다</td></tr>
-            <tr><td class="msg">승인 대기 중입니다</td><td>가입 신청은 들어갔고, 사장님 승인 전입니다</td><td>비밀번호 문제가 아닙니다. 사장님께 승인을 요청하세요</td></tr>
-            <tr><td class="msg">지금은 가입 신청을 받고 있지 않습니다</td><td>가입코드가 꺼져 있습니다</td><td>사장님께 알려 주세요 (설정 → 직원 계정 관리에서 켤 수 있습니다)</td></tr>
+            <tr><td class="msg">승인 대기 중입니다</td><td>가입 신청은 들어갔고, 관리자 승인 전입니다</td><td>비밀번호 문제가 아닙니다. 관리자에게 승인을 요청하세요</td></tr>
+            <tr><td class="msg">지금은 가입 신청을 받고 있지 않습니다</td><td>가입코드가 꺼져 있습니다</td><td>관리자에게 알려 주세요 (설정 → 직원 계정 관리에서 켤 수 있습니다)</td></tr>
             <tr><td class="msg">알 수 없는 이유입니다</td><td>정상적으로는 나오지 않는 메시지입니다</td><td>값을 바꿔 다시 시도하지 말고 <strong>개발 담당자에게 알려 주세요</strong></td></tr>
           </tbody>
         </table>
@@ -738,7 +746,7 @@
     </section>
 
     <section id="owner">
-      <h2>12. 사장님 — 가입 열고 승인하기</h2>
+      <h2>12. 관리자 — 가입 열고 승인하기</h2>
       <ol class="steps">
         <li>
           <h3>가입코드를 정합니다</h3>

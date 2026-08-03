@@ -121,6 +121,15 @@ const manualPath = path.join(ROOT, 'manual.html');
   ok('모든 메뉴가 매뉴얼에 설명돼 있다', undocumented.length === 0,
     '매뉴얼에 없는 메뉴: ' + undocumented.join(', ') + ' — 화면에 생겼으면 문서에도 넣어야 한다');
 
+  /* 역할 호칭은 화면·권한표와 같은 말이어야 한다 — 2026-08-03 사용자 지시로 매뉴얼의
+     '사장님'을 전부 '관리자'로 바꿨다. 권한 3단계(직원·매니저·관리자)와 같은 말을 쓰는
+     것이 목적이므로, 새 절을 쓰면서 다시 '사장님'이라 적으면 여기서 걸린다.
+     (사람 호칭이 두 벌이면 "매니저나 사장님께 요청"과 "관리자에게 요청"이 같은 사람을
+      가리키는지 직원이 판단할 수 없다 — 결함 생성기 ①의 문서판이다.) */
+  ok('매뉴얼이 역할을 권한표와 같은 말로 부른다 (사장님 → 관리자)',
+    !manualSrc.includes('사장님'),
+    (manualSrc.match(/.{0,30}사장님.{0,30}/g) || []).slice(0, 3).join(' | '));
+
   const emStatuses = Array.from(d.querySelectorAll('#em-status-sel option')).map((o) => o.textContent.trim());
   const inqStatuses = Array.from(d.querySelectorAll('#d-status option')).map((o) => o.textContent.trim());
   ok('견적 상태 4개가 화면과 문서에 같이 있다',
