@@ -5874,13 +5874,22 @@
     el.className = 'iti-state';
     if (!itiState.destKey) return;
 
-    const m = itiState.meta[itiState.destKey];
-    if (m) {
-      el.classList.add('is-edited');
-      const when = m.updatedAt ? new Date(m.updatedAt).toLocaleString('ko-KR') : '';
-      el.textContent = '수정됨 · ' + (m.updatedBy || '담당자 미상') + (when ? ' · ' + when : '');
-    } else {
+    /* '수정됨'은 **이 구역 기준**으로만 말한다 — recRenderState와 같은 규칙이다 (RI).
+       ⚠ meta는 목적지 **한 행 전체**(코스+방식 A·B)의 저장 시각이다. 코스와 방식이
+       `itinerary_overrides` 한 행에 같이 들어가고, api/content.js는 행이 있으면
+       courses가 null이어도 meta를 채운다. 그래서 meta만 보고 판단하면
+       **방식 A·B만 저장한 목적지의 기본 일정이 '수정됨'이 된다**(프로덕션 상해가 그랬다).
+       코스를 기본값으로 되돌린 직후에도 방식 저장본이 남아 있으면 meta가 남아
+       '수정됨'이 그대로 붙었다 — 되돌렸는데 수정됨이라 말하는 게 제일 헷갈린다.
+       무엇이 저장돼 있는지는 이 구역의 저장본이 정하고, meta는 '누가·언제'에만 쓴다. */
+    const saved = itiState.overrides[itiState.destKey];
+    if (!saved) {
       el.textContent = '기본 일정 (아직 수정한 적 없음)';
+    } else {
+      el.classList.add('is-edited');
+      const m = itiState.meta[itiState.destKey];
+      const when = m && m.updatedAt ? new Date(m.updatedAt).toLocaleString('ko-KR') : '';
+      el.textContent = '수정됨 · ' + ((m && m.updatedBy) || '담당자 미상') + (when ? ' · ' + when : '');
     }
     if (itiState.dirty) {
       const tag = document.createElement('span');
