@@ -190,6 +190,21 @@
     .filter-btn { padding: .4rem .85rem; border: 1.5px solid var(--border); background: var(--white); font-size: .78rem; font-weight: 600; color: var(--muted); border-radius: var(--r); transition: all .2s; }
     .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
     .filter-btn:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
+    /* ── 실적 미입력 (RG) ──
+       '계약은 됐는데 실제 총 계약가가 비어 있는 건'. 할 일이 있을 때만 노랗게 켜진다 —
+       0건일 때도 켜져 있으면 곧 아무도 안 보게 된다. 대신 버튼 자체는 늘 자리에 둔다
+       (사라졌다 나타나면 그 자리에 무엇이 있었는지 기억해야 한다). */
+    .filter-btn.filter-warn.has-work {
+      color: #b45309; border-color: #fde68a; background: #fffbeb; font-weight: 800;
+    }
+    .filter-btn.filter-warn.has-work.active { color: #fff; background: #b45309; border-color: #b45309; }
+    .badge-need-actual {
+      display: inline-block; margin-left: .25rem; font-size: .68rem; font-weight: 800;
+      color: #b45309; background: #fef3c7; border: 1px solid #fde68a; padding: .05rem .3rem;
+    }
+    /* 취소하고 입력하러 갈 때 그 칸을 잠깐 켠다 — 스크롤만 하면 어디가 그 칸인지
+       여전히 눈으로 찾아야 한다. */
+    .need-actual-hi { outline: 3px solid #f59e0b; outline-offset: 2px; background: #fffbeb !important; }
 
     .btn-act { padding: .4rem .9rem; font-size: .78rem; font-weight: 600; border-radius: var(--r); border: 1.5px solid; transition: all .2s; }
     .btn-act:disabled { opacity: .4; cursor: not-allowed; }
@@ -888,6 +903,9 @@
           <button class="filter-btn" data-emfilter="consulting">상담중</button>
           <button class="filter-btn" data-emfilter="contracted">계약완료</button>
           <button class="filter-btn" data-emfilter="closed">종료</button>
+          <!-- RG: 계약은 됐는데 '실제 총 계약가'가 비어 있는 건. 이 숫자가 쌓여야
+               신뢰구간·요율 갱신 제안이 돌아가는데, 시간이 지나면 다시 알아내기 어렵다. -->
+          <button class="filter-btn filter-warn" data-emfilter="needs-actual" id="emNeedsActualBtn">💰 실적 미입력</button>
         </div>
         <div style="display:flex;gap:.5rem">
           <button class="btn-act btn-danger-sm" id="emDeleteSelectedBtn" onclick="deleteSelectedEstimates()" disabled>🗑️ 선택 삭제 (0)</button>
@@ -3360,9 +3378,15 @@
 
   /* ════ INQUIRIES ════ */
   document.getElementById('inqSearch').addEventListener('input', (e) => { searchQuery=e.target.value.toLowerCase(); currentPage=1; renderInquiries(); });
-  document.querySelectorAll('.filter-btn').forEach(b => {
+  /* ⚠ 이 화면(문의 관리)의 버튼만 잡는다. 예전에는 `.filter-btn` 전체를 잡아서,
+     **견적 관리의 필터 버튼을 눌러도 이 핸들러가 함께 돌았다** — 그 버튼에는
+     data-filter가 없으므로 currentFilter가 undefined가 되고, 여기 활성 표시는 전부
+     지워졌다. 문의를 '미확인'으로 걸러 두고 견적 관리에 다녀오면 목록이 말없이 '전체'로
+     풀려 있고 어느 버튼도 켜져 있지 않았다(결함 생성기 ②: 조용한 폴백).
+     탭마다 필터 줄이 따로 있으므로 범위도 탭으로 나눈다. */
+  document.querySelectorAll('#tab-inquiries .filter-btn[data-filter]').forEach(b => {
     b.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('#tab-inquiries .filter-btn[data-filter]').forEach(x=>x.classList.remove('active'));
       b.classList.add('active');
       currentFilter = b.dataset.filter;
       currentPage = 1;
@@ -7342,9 +7366,26 @@
     document.getElementById('em-revenue').textContent  = Math.round(totalRev/10000).toLocaleString('ko-KR');
     document.getElementById('em-avgdeal').textContent  = Math.round(avgDeal/10000).toLocaleString('ko-KR');
 
+    /* RG: 실적 미입력 — 계약은 됐는데 '실제 총 계약가'가 비어 있는 건.
+       ⚠ 이 화면에서 이 숫자만 별도로 세는 이유: 견적 정확도를 높이는 남은 작업
+       (실측 신뢰구간 P5·요율 갱신 제안)이 전부 actualTotal에서 나온다. 그런데 이 값은
+       **계약할 때 잠깐만 알 수 있고 시간이 지나면 다시 알아내기 어렵다.** 안 챙기면
+       "데이터가 없어서 못 한다"가 영원히 계속된다. */
+    const emNeedsActual = (e) => e.status === 'contracted' && e.actualTotal == null;
+    const needsActualCount = all.filter(emNeedsActual).length;
+    const naBtn = document.getElementById('emNeedsActualBtn');
+    if (naBtn) {
+      naBtn.textContent = '💰 실적 미입력' + (needsActualCount ? ' ' + needsActualCount : '');
+      naBtn.classList.toggle('has-work', needsActualCount > 0);
+      naBtn.title = needsActualCount
+        ? `계약완료인데 '실제 총 계약가'가 비어 있는 견적 ${needsActualCount}건 — 상세에서 넣어 주세요.`
+        : '계약완료 건의 실제 총 계약가가 모두 입력돼 있습니다.';
+    }
+
     /* 필터 */
     let list = all.slice().reverse();
-    if (emFilter !== 'all') list = list.filter(e => e.status === emFilter);
+    if (emFilter === 'needs-actual') list = list.filter(emNeedsActual);
+    else if (emFilter !== 'all') list = list.filter(e => e.status === emFilter);
     if (emSearch) list = list.filter(e => {
       return (e.destLabel+e.orgName+e.contact+e.programLabel).toLowerCase().includes(emSearch);
     });
@@ -7388,7 +7429,7 @@
         <td style="text-align:right;color:var(--muted)">₩${Math.round(costTot/10000).toLocaleString()}만</td>
         <td style="text-align:right;color:var(--success);font-weight:700">₩${Math.round(profit/10000).toLocaleString()}만</td>
         <td style="text-align:right">₩${Math.round(per/10000).toLocaleString()}만</td>
-        <td><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span>${verifyBadgeHtml(e)}</td>
+        <td><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span>${verifyBadgeHtml(e)}${emNeedsActual(e)?' <span class="badge-need-actual" title="실제 총 계약가가 비어 있습니다 — 상세에서 넣어 주세요">💰 실적</span>':''}</td>
         <td>${assigneeSelectHtml(e.assignee, `data-id="${safeId(e.id)}" onchange="updateAssignee(this,'quote')"`)}</td>
         <td><button class="btn-detail" onclick="openEstDetail('${safeId(e.id)}')">상세</button></td>
       </tr>`;
@@ -7868,19 +7909,54 @@
     setTimeout(() => { msg.textContent=''; }, 3000);
   }
 
+  /* RG: '실제 총 계약가' 칸으로 데려간다. 예전에는 취소하면 저장만 멈추고 모달이 열린
+     채로 남았는데, 이 모달은 길어서 담당자가 어느 칸을 채워야 하는지 스스로 찾아야 했다.
+     "넣어 달라"고 말했으면 그 자리까지 데려가는 것이 맞다. */
+  function emFocusActualTotal() {
+    const el = document.getElementById('em-actual-total');
+    if (!el) return;
+    if (el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+    el.focus();
+    /* 잠깐 켰다 끄는 강조 — 스크롤만 하면 어디가 그 칸인지 여전히 눈으로 찾아야 한다.
+       CSS 애니메이션이 아니라 클래스 토글이라, 모션을 끈 환경에서도 확실히 보인다. */
+    const card = el.closest('div');
+    if (!card) return;
+    card.classList.add('need-actual-hi');
+    setTimeout(() => card.classList.remove('need-actual-hi'), 2600);
+  }
+
   /* 저장 */
   async function saveEstimateDetail() {
     const all = getEstsFull();
     const idx = all.findIndex(x => x.id === emCurrentId);
     if (idx < 0) return;
     const newStatus = document.getElementById('em-status-sel').value;
-    /* 계약완료 전환 시 실제가 리마인드 (신규) — 강제 차단은 아니고, 값이 비어 있으면
-       한 번 더 확인만 한다. 취소하면 저장을 중단해 모달이 열린 채로 남아 담당자가
-       바로 입력할 기회를 준다("부드러운 리마인드", 사용자가 명시적으로 선택한 방식). */
-    if (newStatus === 'contracted' && all[idx].status !== 'contracted' &&
-        all[idx].actualAirfareUnit == null && all[idx].actualHotelUnit == null) {
-      const proceed = confirm('실제 계약 항공료·호텔단가가 아직 입력되지 않았습니다.\n지금 입력하지 않고 계약완료로 저장하시겠습니까?');
-      if (!proceed) return;
+    /* 계약완료 전환 시 실제가 리마인드 — 강제 차단은 아니고, 값이 비어 있으면 한 번 더
+       확인만 한다. 취소하면 저장을 중단해 모달이 열린 채로 남는다("부드러운 리마인드").
+
+       ⚠ RG에서 **무엇을 확인하는지**를 고쳤다. 예전에는 항공료·호텔단가만 봤는데,
+       실측 신뢰구간(P5)과 목적지별 '종합' 오차가 실제로 읽는 값은 **actualTotal(실제 총
+       계약가)**이다. 그래서 총 계약가가 비어 있어도 항공료 하나만 채워져 있으면 리마인드가
+       조용히 지나갔다 — 안전망이 정작 필요한 값을 안 보고 있었던 셈이다(결함 생성기 ③).
+       ⚠ 그리고 **지금이 그 숫자를 아는 유일한 때다.** 이번 주 계약 금액을 다음 달에
+       기억해서 채우기는 어렵다. 그래서 여기서 한 번 더 묻는 값이 있다. */
+    if (newStatus === 'contracted' && all[idx].status !== 'contracted'
+        && all[idx].actualTotal == null) {
+      const alsoEmpty = [
+        ['actualAirfareUnit', '실제 계약 항공료'],
+        ['actualHotelUnit', '실제 계약 호텔단가'],
+        ['actualMealUnit', '실제 계약 식비'],
+      ].filter(([k]) => all[idx][k] == null).map(([, label]) => label);
+      const NL = String.fromCharCode(10);
+      const proceed = confirm(
+        '‘실제 총 계약가’가 아직 비어 있습니다.' + NL + NL
+        + '이 숫자로 목적지별 견적 정확도(실측 신뢰구간·요율 갱신 제안)를 계산합니다.' + NL
+        + '계약할 때만 알 수 있는 값이라, 지금 넣지 않으면 나중에 채우기 어렵습니다.'
+        + (alsoEmpty.length ? NL + NL + '함께 비어 있는 칸: ' + alsoEmpty.join(', ') : '')
+        + NL + NL
+        + '[취소] 를 누르면 그 칸으로 데려다 드립니다.' + NL
+        + '[확인] 을 누르면 비워 둔 채로 계약완료 저장합니다.');
+      if (!proceed) { emFocusActualTotal(); return; }
     }
     all[idx].status = newStatus;
     all[idx].note   = document.getElementById('em-note-area').value;
