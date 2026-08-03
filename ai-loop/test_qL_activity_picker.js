@@ -96,6 +96,40 @@ const ok = (name, cond, extra = '') => {
   w.__pickClose();
   w.__itiSelect('도쿄');
 
+  console.log('\n[1-4] 기업 연수 적합도 필터 (QZ) — 900건 가까운 후보를 한 번에 좁힌다');
+  /* 배지를 보여주는 것만으로는 부족하다. '연수'만 눌러 거를 수 있어야 실제로 빨라진다. */
+  const amBox0 = w.__fieldInput('오전');
+  w.__openPicker('dayAct', amBox0);
+  w.__setScope('all');
+  const fitChips = () => Array.from(d.querySelectorAll('#itiPickFits .itip-chip'));
+  ok('등급 필터 칩이 4개다 (전체·연수·보완·여가)', fitChips().length === 4,
+    fitChips().map(b => b.textContent).join(' | '));
+  ok('칩마다 건수가 적혀 있다', fitChips().every(b => /\d+$/.test(b.textContent.trim())),
+    fitChips().map(b => b.textContent).join(' | '));
+
+  /* ⚠ 목록은 300건까지만 그린다. 화면에 보이는 개수로 재면 필터가 들었는지 알 수 없다
+     (889건도 439건도 화면에는 300개로 똑같이 보인다). 실제 건수로 잰다. */
+  const fitAllCount = w.__filteredCount();
+  fitChips()[1].click();   /* '연수' */
+  const badges = Array.from(d.querySelectorAll('#itiPickList .itip-fit')).map(e => e.textContent);
+  ok('거르면 그 등급만 남는다', badges.length > 0 && badges.every(b => b === '연수'),
+    Array.from(new Set(badges)).join(','));
+  const fitCount = w.__filteredCount();
+  ok('걸러진 건수가 전체보다 적다', fitCount < fitAllCount, `${fitCount} < ${fitAllCount}`);
+  ok('절반 가까이 줄어든다 (실제로 쓸모가 있는 정도)', fitCount < fitAllCount * 0.75,
+    `${fitCount}/${fitAllCount}`);
+
+  fitChips()[0].click();   /* 다시 '전체' */
+  ok('전체로 되돌리면 다시 늘어난다', w.__filteredCount() === fitAllCount);
+
+  /* ⚠ 창을 새로 열면 필터가 풀려 있어야 한다 — 지난번에 '여가'로 걸러 둔 채 열리면
+     "후보가 왜 이것뿐이지?"가 되는데, 창을 새로 연 사람은 그 사실을 모른다. */
+  fitChips()[3].click();   /* '여가'로 걸러 둔 채 닫는다 */
+  w.__pickClose();
+  w.__openPicker('dayAct', amBox0);
+  ok('창을 새로 열면 등급 필터가 풀린다', w.__pickFit() === 0, String(w.__pickFit()));
+  w.__pickClose();
+
   console.log('\n[2] 후보가 “지금 쓰이는 값”에서 나오는가 — 일부러 오버라이드를 얹는다 (결함 생성기 ①)');
   const beforeAct = w.__candidates('dayAct', 'this').map((c) => c.text);
   const defaultPhrase = beforeAct[0];
@@ -253,6 +287,14 @@ async function bootAdmin() {
   window.__itiSelect = (k) => { itiState.dirty = false; recState.dirty = false; itiSelectDest(k); };
   window.__candidates = (kind, scope, dest) => itiPickCandidates(kind, scope, dest);
   window.__pickDest = () => itiPick.destKey;
+  window.__pickFit = () => itiPick.fit;
+  window.__setScope = (s) => { itiPick.scope = s; itiPickRender(); };
+  window.__listCount = () => document.querySelectorAll('#itiPickList .itip-item').length;
+  /* 화면에 그리는 상한(300건)이 있어 목록 개수로는 필터 효과를 못 잰다 — 실제 건수를 본다. */
+  window.__filteredCount = () => {
+    const all = itiPickCandidates(itiPick.kind, itiPick.scope);
+    return itiPick.fit ? all.filter(c => c.fit === itiPick.fit).length : all.length;
+  };
   /* ✨ 방식 A·B 소개 화면의 '고르기'를 실제 버튼 클릭으로 연다 (QW). */
   window.__openRecPicker = (labelStarts) => {
     const rows = Array.from(document.querySelectorAll('#rec-body .iti-lbl-row'));

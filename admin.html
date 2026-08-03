@@ -438,6 +438,27 @@
     .sec-days .iti-course    { border-top-color: var(--sec); }
     .sec-days .iti-course-no { background: var(--sec); }
 
+    /* ── 떠 있는 저장 바 (QZ) ── 저장 안 한 게 있을 때만 뜬다. */
+    .savebar {
+      position: fixed; left: 50%; transform: translateX(-50%); bottom: 1.1rem; z-index: 60;
+      display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; justify-content: center;
+      background: #111827; color: #fff; padding: .55rem .8rem;
+      box-shadow: 0 6px 26px rgba(0,0,0,.28); max-width: calc(100vw - 2rem);
+    }
+    .savebar[hidden] { display: none; }
+    .savebar-what { font-size: .8rem; font-weight: 700; white-space: nowrap; }
+    .savebar-btn {
+      font-family: inherit; font-size: .8rem; font-weight: 800; color: #fff;
+      border: 0; padding: .4rem .8rem; cursor: pointer; white-space: nowrap;
+    }
+    .savebar-btn.rec  { background: #7C3AED; }
+    .savebar-btn.days { background: #1D4ED8; }
+    .savebar-btn[hidden] { display: none; }
+    .savebar-btn:hover { filter: brightness(1.12); }
+
+    /* 사이드바 '저장 안 함' 표시 — 다른 메뉴에 가 있어도 보인다. */
+    .si-unsaved { color: #FBBF24; font-size: .7rem; line-height: 1; }
+
     .iti-course {
       background: #fff; border: 1px solid var(--border); border-top: 3px solid var(--heading);
       padding: 1.2rem 1.35rem; margin-bottom: 1rem;
@@ -1216,6 +1237,15 @@
          부분 저장(api/content.js coalesce) 덕분에 한 구역을 저장해도 다른 구역은
          동료가 방금 고친 값 그대로 남는다. 그건 갈라서 얻은 진짜 소득이라 버리지 않는다. -->
     <div class="tab-panel" id="tab-itineraries">
+      <!-- 떠 있는 저장 바 (QZ) — 이 화면은 도쿄 기준 7,500px(약 8화면)이고 입력칸이 94개다.
+           마지막 코스를 고치고 나면 저장하려고 6,000px를 되돌아 올라가야 했다.
+           ⚠ 이 패널 **안**에 둔다. 밖에 두면 다른 탭에서도 떠 있게 된다
+           (탭 패널이 display:none이면 그 안의 fixed 요소도 함께 사라진다). -->
+      <div class="savebar" id="iti-savebar" hidden>
+        <span class="savebar-what" id="savebar-what"></span>
+        <button type="button" class="savebar-btn rec"  id="savebar-rec">✨ 방식 A·B 저장</button>
+        <button type="button" class="savebar-btn days" id="savebar-days">📅 일정 저장</button>
+      </div>
       <div class="iti-bar">
         <label for="iti-dest">목적지</label>
         <select id="iti-dest"><option value="">불러오는 중…</option></select>
@@ -1899,6 +1929,9 @@
     <div class="modal-body">
       <div id="itiPickCur" class="itip-cur hidden"></div>
       <div class="itip-bar" id="itiPickScopes"></div>
+      <!-- 기업 연수 적합도 필터 (QZ) — 전체 범위 후보가 900건 가까이라, 배지를 보여주는
+           것만으로는 부족하다. "연수만" 한 번에 걸러야 실제로 빨라진다. -->
+      <div class="itip-bar" id="itiPickFits"></div>
       <input type="text" class="itip-search" id="itiPickSearch" placeholder="검색 — 단어를 넣으면 좁혀집니다" />
       <p class="itip-count" id="itiPickCount"></p>
       <div class="itip-list" id="itiPickList"></div>
@@ -2927,6 +2960,67 @@
     function tick() { el.textContent = new Date().toLocaleString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}); }
     tick(); setInterval(tick, 30000);
   }
+
+  /* ════ 저장 안 한 편집 지키기 (QZ) ════
+
+     ⚠ 무엇을 막고 무엇을 안 막는지 **실제로 해보고** 정했다.
+     · 다른 메뉴로 이동 → 탭 패널이 숨겨질 뿐 입력값도 itiState도 그대로 남는다.
+       돌아오면 이어서 쓸 수 있다. 그래서 **확인창을 띄우지 않는다** — 잃지도 않는데
+       매번 묻는 창은 사람을 "무조건 예"로 길들이고, 정작 중요한 확인창까지 무시하게 만든다.
+     · 브라우저 닫기·새로고침 → 여기서 진짜 잃는다. 이것만 막는다.
+     대신 "지금 저장 안 한 게 있다"는 사실은 **항상 보이게** 한다(사이드바 ● 표시). */
+  function itiUnsaved() {
+    return { rec: !!recState.dirty, days: !!itiState.dirty };
+  }
+  function itiHasUnsaved() {
+    const u = itiUnsaved();
+    return u.rec || u.days;
+  }
+
+  /* 사이드바 메뉴에 ● 을 띄운다 — 다른 탭에 가 있어도 "돌아가서 저장할 게 있다"를 안다. */
+  function itiRenderUnsavedDot() {
+    const btn = document.querySelector('.sidebar-item[data-tab="itineraries"]');
+    if (!btn) return;
+    let dot = btn.querySelector('.si-unsaved');
+    if (!itiHasUnsaved()) { if (dot) dot.remove(); return; }
+    if (!dot) {
+      dot = document.createElement('span');
+      dot.className = 'si-unsaved';
+      dot.textContent = '●';
+      btn.appendChild(dot);
+    }
+    dot.title = '저장하지 않은 수정이 있습니다';
+  }
+
+  /* 떠 있는 저장 바 — 무엇이 안 저장됐는지 말하고, 그 자리에서 저장하게 한다.
+     ⚠ 저장 버튼은 **안 저장된 구역만** 보여준다. 둘 다 늘 띄우면 방금 저장한 구역을
+     또 누르게 되고(무해하지만 헷갈린다), 무엇이 남았는지도 흐려진다. */
+  function itiRenderSaveBar() {
+    const bar = document.getElementById('iti-savebar');
+    if (!bar) return;
+    const u = itiUnsaved();
+    if (!u.rec && !u.days) { bar.hidden = true; return; }
+    const what = [u.rec ? '방식 A·B' : '', u.days ? '날짜별 일정' : ''].filter(Boolean).join(' · ');
+    document.getElementById('savebar-what').textContent = '저장 안 함: ' + what;
+    document.getElementById('savebar-rec').hidden = !u.rec;
+    document.getElementById('savebar-days').hidden = !u.days;
+    bar.hidden = false;
+  }
+
+  /* dirty가 바뀌는 자리는 여러 곳(수정·저장·되돌리기·목적지 변경)이다. 부르는 쪽마다
+     챙기게 하면 언젠가 한 곳을 빠뜨린다 — 상태 표시 함수 안에서 한 번에 갱신한다. */
+  function itiRefreshUnsavedUi() {
+    itiRenderUnsavedDot();
+    itiRenderSaveBar();
+  }
+
+  /* 브라우저가 허용하는 유일한 방법 — 문구는 브라우저가 자기 것으로 대체한다. */
+  window.addEventListener('beforeunload', function (e) {
+    if (!itiHasUnsaved()) return;
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  });
 
   /* ════ 새 문의·견적 감시 (QT) ════
 
@@ -5655,6 +5749,9 @@
   }
 
   function itiRenderState() {
+    /* 저장 안 함 표시(사이드바 ●·떠 있는 저장 바)를 여기서 함께 갱신한다 (QZ) —
+       dirty가 바뀌는 모든 경로가 결국 이 함수를 지난다. */
+    itiRefreshUnsavedUi();
     const el = document.getElementById('iti-state');
     if (!el) return;
     el.textContent = '';
@@ -5750,7 +5847,7 @@
     { id: 'all',    label: '전체' },
   ];
 
-  const itiPick = { kind: '', scope: 'region', read: null, write: null, q: '', destKey: '' };
+  const itiPick = { kind: '', scope: 'region', read: null, write: null, q: '', destKey: '', fit: 0 };
 
   /* 기업 연수 적합도 등급 이름 (QX) — activity_rank.js의 1·2·3과 짝이다. */
   const ITI_FIT_LABEL = { 1: '연수', 2: '보완', 3: '여가' };
@@ -5855,6 +5952,9 @@
     if (!cur) { (destKey === undefined ? itiSetMsg : recSetMsg)('목적지를 먼저 고르세요.', 'err'); return; }
     itiPick.kind = kind; itiPick.read = read; itiPick.write = write; itiPick.q = '';
     itiPick.destKey = cur;
+    /* 등급 필터는 열 때마다 초기화한다 — 지난번에 '여가'로 걸러 둔 채 다시 열면
+       "후보가 왜 이것뿐이지?"가 된다(창을 새로 여는 사람은 그 사실을 모른다). */
+    itiPick.fit = 0;
     /* 같은 지역에 후보가 없으면(지역을 모르는 목적지 등) 빈 창을 보여주지 않고 전체로 연다.
        '고르기'를 눌렀는데 아무것도 없는 창이 뜨면 기능이 고장 난 것으로 읽힌다. */
     itiPick.scope = itiPickCandidates(kind, 'region', cur).length ? 'region' : 'all';
@@ -5904,9 +6004,28 @@
       scopeBar.appendChild(b);
     });
 
-    const q = itiPick.q.trim().toLowerCase();
+    /* 기업 연수 적합도 필터 (QZ) — 배지를 보여주는 것만으로는 900건 가까운 후보에서
+       '연수'를 골라내기 어렵다. 한 번 눌러 거를 수 있어야 실제로 빨라진다.
+       ⚠ 건수를 함께 적는다. 눌렀는데 0건이면 고장으로 읽히므로 빈 칸은 아예 못 누르게 한다. */
     const all = itiPickCandidates(itiPick.kind, itiPick.scope);
-    const list = q ? all.filter((c) => c.text.toLowerCase().includes(q)) : all;
+    const fitBar = document.getElementById('itiPickFits');
+    fitBar.textContent = '';
+    const fitCounts = { 0: all.length, 1: 0, 2: 0, 3: 0 };
+    all.forEach((c) => { fitCounts[c.fit] = (fitCounts[c.fit] || 0) + 1; });
+    [{ id: 0, label: '전체' }, { id: 1, label: '연수' }, { id: 2, label: '보완' }, { id: 3, label: '여가' }]
+      .forEach((f) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'itip-chip' + (itiPick.fit === f.id ? ' on' : '');
+        b.textContent = f.label + ' ' + (fitCounts[f.id] || 0);
+        if (!fitCounts[f.id]) b.disabled = true;
+        b.addEventListener('click', function () { itiPick.fit = f.id; itiPickRender(); });
+        fitBar.appendChild(b);
+      });
+
+    const q = itiPick.q.trim().toLowerCase();
+    const scoped = itiPick.fit ? all.filter((c) => c.fit === itiPick.fit) : all;
+    const list = q ? scoped.filter((c) => c.text.toLowerCase().includes(q)) : scoped;
     /* 이미 들어 있는 줄은 다시 고를 수 없게 표시한다 — 조용히 무시하면 눌렀는데
        아무 일도 안 일어난 것처럼 보인다. */
     const already = new Set(spec.mode === 'line'
@@ -5914,7 +6033,7 @@
       : [curText.trim()].filter(Boolean));
 
     document.getElementById('itiPickCount').textContent =
-      list.length ? (q ? list.length + '건 (검색 ' + all.length + '건 중)' : list.length + '건') : '';
+      list.length ? (q ? list.length + '건 (검색 ' + scoped.length + '건 중)' : list.length + '건') : '';
 
     const box = document.getElementById('itiPickList');
     box.textContent = '';
@@ -5922,8 +6041,8 @@
       const p = document.createElement('p');
       p.className = 'itip-empty';
       p.textContent = q
-        ? '검색어와 맞는 문구가 없습니다. 단어를 줄이거나 범위를 “전체”로 넓혀 보세요.'
-        : '이 범위에는 후보가 없습니다. 범위를 “전체”로 넓혀 보세요.';
+        ? '검색어와 맞는 문구가 없습니다. 단어를 줄이거나, 범위·등급을 “전체”로 넓혀 보세요.'
+        : '이 조건에는 후보가 없습니다. 범위나 등급을 “전체”로 넓혀 보세요.';
       box.appendChild(p);
       return;
     }
@@ -6526,6 +6645,7 @@
   }
 
   function recRenderState() {
+    itiRefreshUnsavedUi();   /* itiRenderState와 같은 이유 (QZ) */
     const el = document.getElementById('rec-state');
     if (!el) return;
     el.textContent = '';
@@ -6659,6 +6779,9 @@
 
   document.getElementById('rec-save').addEventListener('click', recSave);
   document.getElementById('rec-revert').addEventListener('click', recRevert);
+  /* 떠 있는 저장 바는 **같은 함수**를 부른다 — 저장 경로가 둘이면 언젠가 갈라진다. */
+  document.getElementById('savebar-rec').addEventListener('click', recSave);
+  document.getElementById('savebar-days').addEventListener('click', itiSave);
   document.querySelectorAll('[data-jump]').forEach((b) => {
     b.addEventListener('click', () => itiJump(b.dataset.jump));
   });

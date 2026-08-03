@@ -462,6 +462,32 @@ const OVERRIDE_TOKYO = [{
     /코스가 최대/.test(link.textContent) && /일별 주요 활동/.test(link.textContent),
     link.textContent.slice(0, 80));
 
+  /* ── QZ: 저장 안 한 편집을 지키는 장치 ──
+     이 화면은 도쿄 기준 7,500px(약 8화면)에 입력칸 94개다. 저장 버튼이 위쪽에만 있으면
+     마지막 코스를 고친 뒤 6,000px를 되돌아 올라가야 한다. */
+  const bar = adoc.getElementById('iti-savebar');
+  ok('떠 있는 저장 바가 있다', !!bar);
+  ok('수정 전에는 저장 바가 숨어 있다', bar.hidden);
+  ok('저장 바가 편집 화면 안에 있다 (다른 탭에서 떠 있지 않게)',
+    adoc.getElementById('tab-itineraries').contains(bar));
+
+  const firstTa = recBody.querySelector('textarea');
+  firstTa.value = '무언가 고침';
+  firstTa.dispatchEvent(new aw.Event('input', { bubbles: true }));
+  ok('수정하면 저장 바가 뜬다', !bar.hidden);
+  ok('무엇이 안 저장됐는지 말한다',
+    /방식 A·B/.test(adoc.getElementById('savebar-what').textContent),
+    adoc.getElementById('savebar-what').textContent);
+  /* 안 고친 구역의 저장 버튼까지 띄우면 방금 저장한 것을 또 누르게 되고 무엇이 남았는지 흐려진다. */
+  ok('고친 구역의 저장 버튼만 보인다',
+    !adoc.getElementById('savebar-rec').hidden && adoc.getElementById('savebar-days').hidden);
+  ok('사이드바에도 저장 안 함 표시가 붙는다',
+    !!adoc.querySelector('.sidebar-item[data-tab="itineraries"] .si-unsaved'),
+    '다른 메뉴에 가 있어도 돌아가서 저장할 게 있다는 걸 알아야 한다');
+
+  /* 브라우저 닫기·새로고침은 진짜로 잃는 자리다(탭 이동은 값이 남는 것을 확인했다). */
+  ok('브라우저를 닫을 때 막는 장치가 있다', /addEventListener\('beforeunload'/.test(adminSrc));
+
   const tagInput = inputsNow().find(el => el.value === aw.DEST_REC['도쿄'].a.tag);
   tagInput.value = '새 방식 이름';
   tagInput.dispatchEvent(new aw.Event('input', { bubbles: true }));
