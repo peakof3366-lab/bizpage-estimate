@@ -551,6 +551,12 @@
     .itip-fit.fit-2 { color: #6B7280; }   /* 보완 */
     .itip-fit.fit-3 { color: #B45309; }   /* 여가 */
     .itip-item-from { display: block; font-size: .7rem; font-weight: 700; color: var(--muted); margin-top: .25rem; }
+    /* 출처 종류를 색으로도 구분한다 (RA) — 목록을 훑을 때 글자를 읽지 않고도
+       "우리 것 / 남의 것"이 갈려 보여야 한다. */
+    .itip-item-from.from-here   { color: #1D4ED8; }   /* 이 목적지 */
+    .itip-item-from.from-region { color: #047857; }   /* 같은 지역 */
+    .itip-item-from.from-common { color: #6B7280; }   /* 여러 곳 공통 */
+    .itip-item-from.from-far    { color: #B45309; }   /* 다른 지역 */
     .itip-cur {
       background: #f8fafc; border: 1px solid var(--border); padding: .55rem .7rem;
       font-size: .78rem; line-height: 1.6; color: var(--muted); margin-bottom: .7rem;
@@ -5913,7 +5919,12 @@
           fit: (typeof ACTIVITY_RANK !== 'undefined' && ACTIVITY_RANK[s]) || 2,
         };
         c.uses += 1;
-        if (k === cur) { c.here = true; c.from = k; }   /* 이 목적지 것이면 출처도 여기로 */
+        /* ⚠ 출처는 **보고 있는 목적지에 가까운 쪽**을 고른다 (RA).
+           예전에는 전 목적지를 훑다 '처음 만난 곳'을 그대로 썼다. 그래서 방콕을 보고 있는데
+           "후쿠오카"가 출처로 뜨는 일이 생겼다 — 담당자는 "왜 다른 지역 문구가 여기 있지?"로
+           읽는다. 실제로는 방콕도 쓰는 문구인데 라벨이 거짓말을 한 것이다. */
+        if (k === cur) { c.here = true; c.from = k; }
+        else if (sameRegion && !c.here && !c.sameRegion) { c.from = k; }
         if (sameRegion) c.sameRegion = true;
         stat.set(s, c);
       }
@@ -5994,11 +6005,19 @@
     scopeBar.textContent = '';
     const counts = {};
     ITI_PICK_SCOPES.forEach((s) => { counts[s.id] = itiPickCandidates(itiPick.kind, s.id).length; });
+    /* 범위 이름이 **무엇이 들어오는지**를 말해야 한다 (RA).
+       '같은 지역'은 어느 지역인지 적고, '전체'는 다른 지역이 섞인다는 사실을 이름에 넣는다 —
+       실측으로 전체 889건 중 767건이 다른 지역 문구다. 이름이 안 말해주면 담당자는
+       목록을 보고서야 알게 되고, 그때는 이미 "왜 이런 게 있지?"가 된다. */
+    const curRegion = (typeof REGION_MAP !== 'undefined' && REGION_MAP[itiPick.destKey]) || '';
     ITI_PICK_SCOPES.forEach((s) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'itip-chip' + (itiPick.scope === s.id ? ' on' : '');
-      b.textContent = s.label + ' ' + counts[s.id];
+      let label = s.label;
+      if (s.id === 'region' && curRegion) label += ' (' + curRegion + ')';
+      if (s.id === 'all') label += ' (다른 지역 포함)';
+      b.textContent = label + ' ' + counts[s.id];
       if (!counts[s.id]) b.disabled = true;
       b.addEventListener('click', function () { itiPick.scope = s.id; itiPickRender(); });
       scopeBar.appendChild(b);
@@ -6070,17 +6089,27 @@
       t.appendChild(phrase);
       const f = document.createElement('span');
       f.className = 'itip-item-from';
-      /* 출처만 적던 자리에 **왜 위에 있는지**를 함께 적는다 (QW).
-         순서만 바꾸고 이유를 안 보여주면 담당자는 그냥 뒤죽박죽으로 읽는다.
-         "12곳"은 곧 '여러 목적지가 이미 쓰는 검증된 문구'라는 뜻이다. */
+      /* 출처 표시 (RA) — 담당자가 "이 문구를 우리 목적지에 써도 되나"를 판단하는 유일한 단서다.
+         ⚠ 목적지 이름만 적으면 안 된다. 두 가지가 섞여 보인다:
+           · "공항 이동"처럼 37곳이 쓰는 일반 문구에 특정 목적지 이름을 하나 붙이면
+             "왜 저 지역 문구가 여기 있지?"가 된다. 실은 어디에도 속하지 않는 문구다.
+           · 다른 지역 문구인지 같은 지역 문구인지가 이름만 봐서는 안 보인다.
+         그래서 **어디 소속인지를 말로** 적는다. 실측: 후보 889건 중 862건은 한 곳에서만
+         쓰이므로, '여러 곳 공통'으로 묶이는 것은 27건뿐이다(공항 이동·자유시간·쇼핑 등). */
       if (used) {
         f.textContent = '이미 이 칸에 있음';
       } else if (c.here) {
         f.textContent = '이 목적지';
-      } else if (c.uses > 1) {
-        f.textContent = c.from + ' 외 ' + (c.uses - 1) + '곳';
+        f.classList.add('from-here');
+      } else if (c.uses >= 3) {
+        f.textContent = '여러 곳 공통 · ' + c.uses + '곳';
+        f.classList.add('from-common');
+      } else if (c.sameRegion) {
+        f.textContent = '같은 지역 · ' + c.from + (c.uses > 1 ? ' 외 1곳' : '');
+        f.classList.add('from-region');
       } else {
-        f.textContent = c.from;
+        f.textContent = '다른 지역 · ' + c.from + (c.uses > 1 ? ' 외 1곳' : '');
+        f.classList.add('from-far');
       }
       btn.appendChild(t); btn.appendChild(f);
       btn.addEventListener('click', function () { itiPickApply(c.text); });

@@ -96,6 +96,44 @@ const ok = (name, cond, extra = '') => {
   w.__pickClose();
   w.__itiSelect('도쿄');
 
+  console.log('\n[1-3b] 출처 표시가 사실대로인가 (RA) — "왜 다른 지역 문구가 여기 있지?"를 없앤다');
+  /* ⚠ 실제로 겪은 결함이다. 출처를 '전 목적지를 훑다 처음 만난 곳'으로 정해서,
+     방콕을 보고 있는데 "후쿠오카"가 출처로 떴다. 담당자는 다른 지역 문구가 섞였다고 읽는다.
+     실은 방콕도 쓰는 문구인데 라벨이 거짓말을 한 것이다. */
+  for (const dest of ['방콕', '파리']) {
+    w.__itiSelect(dest);
+    const my = w.REGION_MAP[dest] || '';
+    for (const scope of ['region', 'all']) {
+      const list = w.__candidates('dayAct', scope, dest);
+      /* 3곳 이상 쓰는 문구는 '여러 곳 공통'으로 묶어 출처를 말하지 않으므로 제외한다. */
+      const named = list.filter(c => c.uses < 3 && !c.here);
+      const wrong = named.filter(c => c.sameRegion && (w.REGION_MAP[c.from] || '') !== my);
+      ok(`${dest}/${scope}: 같은 지역 문구에 다른 지역 이름이 붙지 않는다`,
+        wrong.length === 0, wrong.slice(0, 3).map(c => `${c.from}(${w.REGION_MAP[c.from]})`).join(', '));
+    }
+  }
+  w.__itiSelect('방콕');
+  w.__openPicker('dayAct', w.__fieldInput('오전'));
+  w.__setScope('all');
+  const froms = Array.from(d.querySelectorAll('#itiPickList .itip-item-from'));
+  const kinds = new Set(froms.map(e => e.className.replace('itip-item-from', '').trim()).filter(Boolean));
+  ok('출처를 네 갈래로 구분해 말한다 (이 목적지·같은 지역·여러 곳 공통·다른 지역)',
+    kinds.has('from-here') && kinds.has('from-region') && kinds.has('from-common') && kinds.has('from-far'),
+    [...kinds].join(', '));
+  ok('널리 쓰이는 일반 문구는 특정 목적지 이름을 달지 않는다',
+    froms.filter(e => /여러 곳 공통/.test(e.textContent)).every(e => !/·\s*[가-힣]+\s*외/.test(e.textContent)),
+    '“공항 이동”(37곳) 같은 문구에 한 곳을 골라 붙이면 그 지역 것으로 오해된다');
+  ok('다른 지역 문구는 “다른 지역”이라고 밝힌다',
+    froms.some(e => /^다른 지역 · /.test(e.textContent)),
+    froms.slice(0, 5).map(e => e.textContent).join(' | '));
+
+  const scopeChips = Array.from(d.querySelectorAll('#itiPickScopes .itip-chip')).map(b => b.textContent);
+  ok('범위 이름이 어느 지역인지 말한다', scopeChips.some(t => /같은 지역 \(동남아\)/.test(t)), scopeChips.join(' | '));
+  ok('“전체”가 다른 지역을 포함한다는 사실을 이름에 적는다',
+    scopeChips.some(t => /전체 \(다른 지역 포함\)/.test(t)), scopeChips.join(' | '));
+  w.__pickClose();
+  w.__itiSelect('도쿄');
+
   console.log('\n[1-4] 기업 연수 적합도 필터 (QZ) — 900건 가까운 후보를 한 번에 좁힌다');
   /* 배지를 보여주는 것만으로는 부족하다. '연수'만 눌러 거를 수 있어야 실제로 빨라진다. */
   const amBox0 = w.__fieldInput('오전');
