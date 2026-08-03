@@ -152,6 +152,39 @@ function resolveBackupDir(argv, env = process.env) {
   return { dir: path.resolve(defaultDir()), source: '기본값' };
 }
 
+/* 클라우드 사본 위치(.env.local의 BACKUP_MIRROR_DIR). 없으면 사본을 만들지 않는다.
+
+   ⚠ **왜 '주 저장소를 클라우드로 바꾸기'가 아니라 '사본을 하나 더'인가.**
+   구글 드라이브 스트리밍 모드에서 G: 드라이브는 **앱이 켜져 있을 때만 존재한다.**
+   백업 위치를 통째로 거기로 옮기면, 앱이 안 떠 있거나 인터넷이 끊긴 날에는 백업이
+   아예 안 된다. 정작 노트북이 이상해서 앱이 안 뜨는 날 백업이 빠지는 셈이다.
+   그래서 **노트북에 먼저 쓰고(항상 성공), 클라우드에 사본을 올린다(되면 올린다).**
+   미러링을 쓰든 스트리밍을 쓰든 이 구조에서는 백업이 실패하지 않는다. */
+function resolveMirrorDir(env = process.env) {
+  const v = (env.BACKUP_MIRROR_DIR || '').trim();
+  return v ? path.resolve(v) : null;
+}
+
+/* 사본 만들기. 폴더가 없으면 만들되, **상위 경로(=구글 드라이브 폴더)까지 없으면**
+   만들지 않고 실패로 알린다 — 그건 동기화 앱이 꺼졌다는 뜻이고, 여기서 평범한 폴더를
+   만들어 버리면 사본이 클라우드에 영영 안 올라간다(결함 생성기 ②). */
+function mirrorBackup(file, mirrorDir, keep, io = fs) {
+  if (!mirrorDir) return { skipped: true };
+  if (!io.existsSync(mirrorDir)) {
+    if (!io.existsSync(path.dirname(mirrorDir))) {
+      return { failed: `클라우드 폴더를 찾지 못했습니다: ${mirrorDir}` };
+    }
+    io.mkdirSync(mirrorDir, { recursive: true });
+  }
+  const dest = path.join(mirrorDir, path.basename(file));
+  try {
+    io.copyFileSync(file, dest);
+  } catch (err) {
+    return { failed: `사본을 쓰지 못했습니다: ${(err && err.message) || err}` };
+  }
+  return { ok: true, dest };
+}
+
 /* BACKUP_DIR로 지정된 폴더가 실제로 쓸 수 있는 상태인지 본다.
    폴더 자체는 없어도 되지만(첫 실행), **부모 폴더**는 있어야 한다 —
    부모가 없으면 동기화 폴더 경로 자체가 틀린 것이다. */
@@ -222,7 +255,29 @@ async function main() {
     });
     const note = stalenessNote(files);
     console.log(`\n${note.text}`);
-    if (note.stale) process.exit(1);
+
+    /* ⚠ 클라우드 사본도 같은 기준으로 본다. 사본만 조용히 몇 달째 안 올라가 있으면
+       "백업은 되고 있다"는 착각 속에서 노트북 한 곳 의존으로 돌아간다. */
+    const mirrorDir = resolveMirrorDir();
+    let mirrorStale = false;
+    if (mirrorDir) {
+      if (!fs.existsSync(mirrorDir)) {
+        console.log(`\n⚠ 클라우드 사본 폴더가 지금 보이지 않습니다: ${mirrorDir}`);
+        console.log('  구글 드라이브 앱이 꺼져 있거나 경로가 바뀐 것입니다.');
+        mirrorStale = true;
+      } else {
+        const mFiles = listBackups(mirrorDir);
+        const mNote = stalenessNote(mFiles);
+        console.log(`\n클라우드 사본: ${mirrorDir}  (${mFiles.length}개)`);
+        console.log(`  ${mNote.text}`);
+        mirrorStale = mNote.stale;
+      }
+    } else {
+      console.log('\n클라우드 사본: 설정 안 됨 — 백업이 이 PC 한 곳에만 있습니다.');
+      console.log('  설정하려면: node ai-loop/setup_cloud_backup.js');
+    }
+
+    if (note.stale || mirrorStale) process.exit(1);
     return;
   }
 
@@ -265,8 +320,27 @@ async function main() {
   const sizeKb = (fs.statSync(file).size / 1024).toFixed(0);
   console.log(`\n저장: ${file}  (${sizeKb} KB)`);
 
-  const pruned = pruneOld(dir, Number(argValue(argv, '--keep', 14)));
+  const keep = Number(argValue(argv, '--keep', 14));
+  const pruned = pruneOld(dir, keep);
   if (pruned.length) console.log(`오래된 백업 ${pruned.length}개 정리: ${pruned.join(', ')}`);
+
+  /* 클라우드 사본 — 노트북 백업이 온전한 것을 확인한 **뒤에** 올린다. */
+  const mirrorDir = resolveMirrorDir();
+  if (check.ok && !backup.meta.partial) {
+    const m = mirrorBackup(file, mirrorDir, keep);
+    if (m.skipped) {
+      console.log('클라우드 사본: 설정 안 됨 (node ai-loop/setup_cloud_backup.js 로 설정)');
+    } else if (m.failed) {
+      /* 실패해도 노트북 백업은 이미 성공했으므로 전체를 실패로 만들지 않는다.
+         대신 눈에 띄게 말하고, --list가 며칠째 안 올라갔는지 계속 알려준다. */
+      console.error(`⚠ 클라우드 사본 실패 — ${m.failed}`);
+      console.error('  노트북 백업은 정상입니다. 구글 드라이브 앱을 켜고 다시 실행하면 사본도 올라갑니다.');
+    } else {
+      const mp = pruneOld(mirrorDir, keep);
+      console.log(`클라우드 사본: ${m.dest}`
+        + (mp.length ? `  (오래된 사본 ${mp.length}개 정리)` : ''));
+    }
+  }
 
   if (!check.ok) {
     console.error('\n✗ 저장한 파일을 다시 읽어 확인하는 데 실패했습니다:');
@@ -281,7 +355,7 @@ async function main() {
   console.log(`✓ 총 ${backup.meta.totalRows}행 백업 완료 — 다시 읽어 행 수까지 대조했습니다.`);
 }
 
-module.exports = { readTableNames, loadTableNames, dumpTables, buildBackup, verifyFile, listBackups, pruneOld, stalenessNote, taggedLiteral, FILE_RE, defaultDir, resolveBackupDir, backupDirProblem };
+module.exports = { readTableNames, loadTableNames, dumpTables, buildBackup, verifyFile, listBackups, pruneOld, stalenessNote, taggedLiteral, FILE_RE, defaultDir, resolveBackupDir, backupDirProblem, resolveMirrorDir, mirrorBackup };
 
 if (require.main === module) {
   main().catch((err) => { console.error(err); process.exit(1); });

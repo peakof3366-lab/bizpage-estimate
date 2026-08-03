@@ -271,6 +271,76 @@ const SAMPLE = {
   ok('복원도 같은 규칙으로 폴더를 찾는다', /resolveBackupDir\(/.test(restoreSrc));
   ok('복원 쪽에 폴더 이름이 손으로 복사돼 있지 않다', !/비즈페이지_백업/.test(restoreSrc));
 
+  console.log('\n[10] 클라우드 사본 — 백업이 이 PC 한 곳에만 있지 않게 (QS)');
+  /* 구조: 노트북에 먼저 쓰고(항상 성공) 클라우드에 사본을 올린다(되면 올린다).
+     ⚠ 백업 위치를 통째로 클라우드로 옮기지 않는 이유 — 스트리밍 모드에서 G: 드라이브는
+     구글 드라이브 앱이 켜져 있을 때만 존재한다. 옮겨 버리면 앱이 꺼진 날엔 백업이 아예
+     안 된다. 정작 노트북이 이상한 날 백업이 빠지는 셈이다. */
+  ok('사본 위치가 없으면 null', backupTool.resolveMirrorDir({}) === null);
+  ok('공백만 있으면 없는 것으로 본다', backupTool.resolveMirrorDir({ BACKUP_MIRROR_DIR: '  ' }) === null);
+  ok('설정하면 그 경로를 쓴다',
+    backupTool.resolveMirrorDir({ BACKUP_MIRROR_DIR: 'D:\\드라이브\\백업' }) === path.resolve('D:\\드라이브\\백업'));
+
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'bizpage-mirror-'));
+  const srcFile = path.join(dir2, 'bizpage_backup_2026-01-01T00-00-00-000Z.json');
+  fs.writeFileSync(srcFile, JSON.stringify({ meta: { tables: [], counts: {}, totalRows: 0 }, data: {} }), 'utf8');
+
+  ok('사본 위치가 없으면 조용히 건너뛴다(실패가 아니다)',
+    backupTool.mirrorBackup(srcFile, null, 14).skipped === true);
+
+  /* ⚠ 핵심 — 동기화 폴더의 상위까지 없으면 **만들지 않고 실패로 알린다.**
+     여기서 평범한 폴더를 만들어 버리면 사본은 영영 클라우드에 안 올라가는데,
+     화면에는 매일 '사본 저장 완료'가 찍힌다(결함 생성기 ②). */
+  const madeDirs = [];
+  const fakeIo = {
+    existsSync: (p) => p === 'D:\\드라이브' || madeDirs.includes(p),
+    mkdirSync: (p) => { madeDirs.push(p); },
+    copyFileSync: () => {},
+  };
+  const okRes = backupTool.mirrorBackup(srcFile, 'D:\\드라이브\\백업', 14, fakeIo);
+  ok('동기화 폴더가 있으면 그 안에 백업 폴더를 만든다', okRes.ok === true && madeDirs.includes('D:\\드라이브\\백업'));
+
+  const gone = backupTool.mirrorBackup(srcFile, 'Z:\\없는드라이브\\백업', 14, fakeIo);
+  ok('동기화 폴더 자체가 없으면 폴더를 만들지 않고 실패로 알린다',
+    typeof gone.failed === 'string' && !madeDirs.includes('Z:\\없는드라이브\\백업'), JSON.stringify(gone));
+
+  /* 진짜 파일로도 한 번 — 복사본이 원본과 같은지까지 본다. */
+  const realMirror = path.join(dir2, 'mirror');
+  const real = backupTool.mirrorBackup(srcFile, realMirror, 14);
+  ok('실제 복사가 되고 경로를 돌려준다', real.ok === true && fs.existsSync(real.dest));
+  ok('복사본 내용이 원본과 같다',
+    fs.readFileSync(real.dest, 'utf8') === fs.readFileSync(srcFile, 'utf8'));
+
+  /* 설정 파일에 키를 넣는 것 — 다른 줄(자격증명!)을 건드리면 안 된다. */
+  const setup = require('./setup_cloud_backup');
+  const before = 'DATABASE_URL=postgres://x\r\nSESSION_SECRET=abc\r\n';
+  const added = setup.upsertEnv(before, 'BACKUP_MIRROR_DIR', 'G:\\내 드라이브\\백업');
+  ok('없던 키는 새로 적는다', added.changed && /BACKUP_MIRROR_DIR=G:/.test(added.text));
+  ok('기존 줄은 그대로 둔다',
+    /DATABASE_URL=postgres:\/\/x/.test(added.text) && /SESSION_SECRET=abc/.test(added.text));
+  ok('원본 줄바꿈 방식을 따른다 (파일 전체가 바뀌지 않게)', added.text.includes('\r\n'));
+
+  const changed = setup.upsertEnv(added.text, 'BACKUP_MIRROR_DIR', 'D:\\다른곳');
+  ok('있던 키는 값만 바꾼다',
+    changed.changed && /BACKUP_MIRROR_DIR=D:\\다른곳/.test(changed.text)
+    && (changed.text.match(/BACKUP_MIRROR_DIR=/g) || []).length === 1);
+  ok('같은 값이면 파일을 건드리지 않는다',
+    setup.upsertEnv(changed.text, 'BACKUP_MIRROR_DIR', 'D:\\다른곳').changed === false);
+
+  /* 구글 드라이브 폴더 찾기 — 미러링(로컬 폴더)이 있으면 그쪽을 먼저 고른다. */
+  const fakeFs = {
+    existsSync: (p) => p === path.join(process.env.USERPROFILE || 'X:', '내 드라이브') || p === 'G:\\My Drive',
+    statSync: () => ({ isDirectory: () => true }),
+  };
+  const drives = setup.findDriveFolders(fakeFs);
+  ok('미러링·스트리밍 폴더를 둘 다 찾는다', drives.length === 2, JSON.stringify(drives));
+  ok('미러링 폴더를 미러링으로 구분한다', drives.some((d) => d.mode === '미러링'));
+  ok('가상 드라이브를 스트리밍으로 구분한다', drives.some((d) => d.mode === '스트리밍'));
+  ok('드라이브 문자를 G로 못 박지 않는다',
+    !/['"]G:/.test(fs.readFileSync(path.join(__dirname, 'setup_cloud_backup.js'), 'utf8')));
+
+  fs.rmSync(dir2, { recursive: true, force: true });
+
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   if (fail) process.exit(1);
 })().catch((err) => { console.error(err); process.exit(1); });
