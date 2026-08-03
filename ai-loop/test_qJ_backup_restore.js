@@ -238,6 +238,39 @@ const SAMPLE = {
 
   fs.rmSync(dir, { recursive: true, force: true });
 
+  console.log('\n[9] 저장 위치를 설정으로 뺀 것 — 클라우드 동기화 폴더를 쓰기 위해 (QR)');
+  /* 백업을 클라우드 동기화 폴더에 두면 노트북이 고장나도 사본이 남는다. 그 경로는
+     이 PC에만 해당하는 값이라 .env.local(gitignore됨)에서 읽는다. */
+  const R = (argv, env) => backupTool.resolveBackupDir(argv, env);
+
+  ok('아무것도 없으면 기본 폴더', R([], {}).source === '기본값');
+  ok('기본 폴더는 저장소 밖이다',
+    !R([], {}).dir.startsWith(path.join(__dirname, '..') + path.sep), R([], {}).dir);
+  ok('BACKUP_DIR가 있으면 그쪽을 쓴다',
+    R([], { BACKUP_DIR: 'D:\\동기화\\백업' }).source === 'BACKUP_DIR');
+  ok('--dir가 BACKUP_DIR보다 우선한다',
+    R(['--dir', 'E:\\임시'], { BACKUP_DIR: 'D:\\동기화\\백업' }).source === '--dir');
+  ok('공백만 있는 BACKUP_DIR는 없는 것으로 본다',
+    R([], { BACKUP_DIR: '   ' }).source === '기본값');
+
+  /* ⚠ 여기가 이 절의 핵심이다. 동기화 폴더가 사라졌는데 조용히 새로 만들면
+     백업은 매일 '성공'하면서 클라우드에는 한 건도 안 올라간다 — 정작 필요한 날
+     알게 된다(결함 생성기 ②). 그래서 멈추고 말해야 한다. */
+  const fakeExists = (p) => p === 'D:\\동기화';
+  ok('동기화 폴더의 상위가 있으면 통과(첫 실행이라 폴더만 없는 경우)',
+    backupTool.backupDirProblem({ dir: 'D:\\동기화\\백업', source: 'BACKUP_DIR' }, fakeExists) === null);
+  ok('상위 경로까지 없으면 멈춘다 (조용히 새로 만들지 않는다)',
+    typeof backupTool.backupDirProblem({ dir: 'Z:\\없는곳\\백업', source: 'BACKUP_DIR' }, fakeExists) === 'string');
+  ok('기본값·--dir일 때는 이 검사를 적용하지 않는다',
+    backupTool.backupDirProblem({ dir: 'Z:\\없는곳\\백업', source: '기본값' }, fakeExists) === null
+    && backupTool.backupDirProblem({ dir: 'Z:\\없는곳\\백업', source: '--dir' }, fakeExists) === null);
+
+  /* 백업과 복원이 **같은 규칙**으로 폴더를 찾아야 한다. 예전엔 복원 쪽에 경로가
+     손으로 복사돼 있어서, 백업 위치를 바꾸면 복원만 옛 폴더를 뒤지게 돼 있었다. */
+  const restoreSrc = fs.readFileSync(path.join(__dirname, 'db_restore.js'), 'utf8');
+  ok('복원도 같은 규칙으로 폴더를 찾는다', /resolveBackupDir\(/.test(restoreSrc));
+  ok('복원 쪽에 폴더 이름이 손으로 복사돼 있지 않다', !/비즈페이지_백업/.test(restoreSrc));
+
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   if (fail) process.exit(1);
 })().catch((err) => { console.error(err); process.exit(1); });

@@ -133,6 +133,36 @@ function defaultDir() {
   return path.join(path.dirname(ROOT), '비즈페이지_백업');
 }
 
+/* 저장 위치를 정하는 곳 하나 — `--dir` > `.env.local`의 BACKUP_DIR > 기본값.
+   왜 .env.local인가: 백업을 클라우드 동기화 폴더에 두면 그 경로는 이 PC에만 해당하는
+   값이다. 저장소에 커밋하면 다른 환경에서 틀린 경로가 되고, 배치파일에 박아 넣으면
+   경로가 바뀔 때 아무도 못 찾는다. 자격증명과 같은 자리(.env.local, gitignore됨)에 둔다.
+
+   ⚠ **BACKUP_DIR를 쓸 때는 폴더를 새로 만들지 않는다.** 동기화 폴더가 없다는 것은
+   클라우드 앱이 꺼졌거나 경로가 바뀌었다는 뜻인데, 여기서 조용히 폴더를 만들어 버리면
+   백업은 매일 '성공'하면서 **클라우드에는 한 건도 안 올라간다.** 정작 필요한 날
+   그 사실을 알게 된다(결함 생성기 ② — 조용한 폴백). 그래서 없으면 멈추고 말한다. */
+function resolveBackupDir(argv, env = process.env) {
+  const explicit = argValue(argv, '--dir', null);
+  if (explicit) return { dir: path.resolve(explicit), source: '--dir' };
+
+  const configured = (env.BACKUP_DIR || '').trim();
+  if (configured) return { dir: path.resolve(configured), source: 'BACKUP_DIR' };
+
+  return { dir: path.resolve(defaultDir()), source: '기본값' };
+}
+
+/* BACKUP_DIR로 지정된 폴더가 실제로 쓸 수 있는 상태인지 본다.
+   폴더 자체는 없어도 되지만(첫 실행), **부모 폴더**는 있어야 한다 —
+   부모가 없으면 동기화 폴더 경로 자체가 틀린 것이다. */
+function backupDirProblem({ dir, source }, exists = fs.existsSync) {
+  if (source !== 'BACKUP_DIR') return null;
+  if (exists(dir)) return null;
+  const parent = path.dirname(dir);
+  if (exists(parent)) return null;
+  return `설정된 백업 폴더의 상위 경로가 없습니다: ${parent}`;
+}
+
 function listBackups(dir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter(f => FILE_RE.test(f)).sort();
@@ -155,6 +185,8 @@ function argValue(argv, name, fallback) {
 
 async function main() {
   const argv = process.argv.slice(2);
+  /* 저장 위치가 .env.local에서 올 수 있으므로 **경로를 정하기 전에** 읽는다. */
+  require('./_load_env')();
 
   if (argv.includes('--verify')) {
     const file = argValue(argv, '--verify', '');
@@ -170,11 +202,20 @@ async function main() {
     process.exit(r.ok ? 0 : 1);
   }
 
-  const dir = path.resolve(argValue(argv, '--dir', defaultDir()));
+  const target = resolveBackupDir(argv);
+  const dir = target.dir;
+  const problem = backupDirProblem(target);
+  if (problem) {
+    console.error(`✗ ${problem}`);
+    console.error('  .env.local의 BACKUP_DIR를 확인해 주세요. 클라우드 동기화 앱이 꺼져 있으면');
+    console.error('  그 폴더가 사라져 보일 수 있습니다 — 앱을 켠 뒤 다시 실행하세요.');
+    console.error('  (여기서 폴더를 새로 만들면 백업은 매일 성공하면서 클라우드에는 한 건도 안 올라갑니다.)');
+    process.exit(1);
+  }
 
   if (argv.includes('--list')) {
     const files = listBackups(dir);
-    console.log(`백업 폴더: ${dir}`);
+    console.log(`백업 폴더: ${dir}  (${target.source})`);
     files.forEach(f => {
       const size = (fs.statSync(path.join(dir, f)).size / 1024).toFixed(0);
       console.log(`  ${f}  ${size} KB`);
@@ -196,7 +237,6 @@ async function main() {
     process.exit(1);
   }
 
-  require('./_load_env')();
   if (!process.env.DATABASE_URL) {
     console.error('DATABASE_URL이 없습니다(.env.local을 확인해 주세요).');
     process.exit(1);
@@ -241,7 +281,7 @@ async function main() {
   console.log(`✓ 총 ${backup.meta.totalRows}행 백업 완료 — 다시 읽어 행 수까지 대조했습니다.`);
 }
 
-module.exports = { readTableNames, loadTableNames, dumpTables, buildBackup, verifyFile, listBackups, pruneOld, stalenessNote, taggedLiteral, FILE_RE };
+module.exports = { readTableNames, loadTableNames, dumpTables, buildBackup, verifyFile, listBackups, pruneOld, stalenessNote, taggedLiteral, FILE_RE, defaultDir, resolveBackupDir, backupDirProblem };
 
 if (require.main === module) {
   main().catch((err) => { console.error(err); process.exit(1); });

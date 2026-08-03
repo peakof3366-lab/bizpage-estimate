@@ -21,7 +21,10 @@
    그래서 넣은 뒤 setval로 맞추고, 맞췄다고 화면에 적는다. */
 const fs = require('fs');
 const path = require('path');
-const { verifyFile, listBackups, loadTableNames } = require('./db_backup');
+/* 저장 위치를 정하는 규칙은 db_backup.js 하나가 안다 — 여기 다시 적으면 백업은
+   클라우드 폴더에 쌓이는데 복원은 옛 폴더를 뒤지는 상태가 된다(결함 생성기 ①).
+   실제로 여기엔 경로가 손으로 복사돼 있었다. */
+const { verifyFile, listBackups, loadTableNames, resolveBackupDir, backupDirProblem } = require('./db_backup');
 
 const SAFE_NAME = /^[a-z_][a-z0-9_]*$/;
 
@@ -107,13 +110,17 @@ async function main() {
   const confirm = argv.includes('--confirm');
   const replace = argv.includes('--replace');
 
+  /* 저장 위치가 .env.local에서 올 수 있으므로 경로를 정하기 전에 읽는다. */
+  require('./_load_env')();
+
   let file = argValue(argv, '--file', '');
   if (!file) {
-    const { defaultDirForCli } = module.exports;
-    const dir = argValue(argv, '--dir', defaultDirForCli());
-    const files = listBackups(dir);
-    if (!files.length) { console.error(`백업 파일이 없습니다: ${dir}`); process.exit(1); }
-    file = path.join(dir, files[files.length - 1]);
+    const target = resolveBackupDir(argv);
+    const problem = backupDirProblem(target);
+    if (problem) { console.error(`✗ ${problem}`); process.exit(1); }
+    const files = listBackups(target.dir);
+    if (!files.length) { console.error(`백업 파일이 없습니다: ${target.dir}  (${target.source})`); process.exit(1); }
+    file = path.join(target.dir, files[files.length - 1]);
     console.log(`가장 최근 백업을 씁니다: ${file}`);
   }
 
@@ -178,7 +185,6 @@ async function main() {
 
 module.exports = {
   readSerialTables, planRestore, restoreTable, currentCounts, taggedLiteral, taggedWithValue,
-  defaultDirForCli: () => path.join(path.dirname(path.join(__dirname, '..')), '비즈페이지_백업'),
 };
 
 if (require.main === module) {
