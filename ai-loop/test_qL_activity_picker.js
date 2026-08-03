@@ -45,6 +45,56 @@ const ok = (name, cond, extra = '') => {
   }
   ok('코스 제목처럼 목적지 고유한 칸에는 안 붙였다', !labelsWithBtn.includes('코스 제목'));
 
+  console.log('\n[1-2] 후보가 추천 순서로 나오는가 (QW) — 예전엔 사실상 무작위였다');
+  /* 후보가 1,000건대라 순서가 곧 쓸모다. 목적지 순회 순서 그대로 내보내면 담당자는
+     스크롤로 찾게 되고, 그러면 타이핑보다 느려져 기능 자체를 안 쓰게 된다. */
+  const rank = w.__candidates('dayAct', 'all', '도쿄');
+  ok('후보가 충분히 있다', rank.length > 50, `${rank.length}건`);
+  ok('빈도(uses)를 세어 준다 — 예전엔 버리던 정보다',
+    rank.every(c => typeof c.uses === 'number' && c.uses >= 1));
+
+  const firstOther = rank.findIndex(c => !c.here);
+  ok('이 목적지에서 쓰는 문구가 맨 위에 모인다',
+    firstOther > 0 && rank.slice(0, firstOther).every(c => c.here),
+    `앞쪽 ${firstOther}건이 이 목적지`);
+  const afterHere = rank.slice(firstOther);
+  const firstFar = afterHere.findIndex(c => !c.sameRegion);
+  ok('그 다음이 같은 지역이다',
+    firstFar === -1 || afterHere.slice(0, firstFar).every(c => c.sameRegion));
+  /* 같은 조건 안에서는 여러 곳이 쓰는 문구가 위로 — '검증된 문구'가 먼저 보여야 한다. */
+  const far = afterHere.slice(firstFar === -1 ? afterHere.length : firstFar);
+  ok('나머지는 여러 곳에서 쓰는 문구가 위로 온다',
+    far.every((c, i) => i === 0 || far[i - 1].uses >= c.uses),
+    far.slice(0, 5).map(c => `${c.uses}`).join(','));
+
+  /* 순서가 매번 흔들리면 아까 본 것을 다시 못 찾는다. */
+  const again = w.__candidates('dayAct', 'all', '도쿄');
+  ok('두 번 불러도 순서가 같다', rank.map(c => c.text).join('|') === again.map(c => c.text).join('|'));
+
+  /* 범위를 좁혀도 빈도가 납작해지면 안 된다 — 전체에서 세야 순위가 살아 있다. */
+  const regional = w.__candidates('dayAct', 'region', '도쿄');
+  ok('범위를 좁혀도 빈도는 전체 기준이다',
+    regional.some(c => c.uses > 1) || regional.length < 3,
+    regional.slice(0, 5).map(c => `${c.uses}`).join(','));
+
+  console.log('\n[1-3] 고르기 후보 기준이 “연 화면이 고른 목적지”인가 (QW)');
+  /* ⚠ 화면을 둘로 나눈 뒤 생긴 결함이었다. 예전에는 어느 화면에서 열든 📅 날짜별 일정의
+     목적지를 기준으로 잡아서, ✨ 쪽에서 다른 목적지를 골라 놓아도 엉뚱한 후보가 나왔고
+     📅 쪽이 비어 있으면 아예 안 열렸다. */
+  w.__itiSelect('도쿄');
+  w.__recSelect('오사카');
+  ok('✨ 화면의 고르기가 열린다', w.__openRecPicker('핵심 포인트'));
+  ok('그 화면이 고른 목적지가 기준이 된다', w.__pickDest() === '오사카', w.__pickDest());
+  w.__pickClose();
+
+  /* 📅 쪽을 비워도 ✨ 쪽은 열려야 한다 — 두 화면은 독립이다. */
+  w.__itiSelect('');
+  w.__recSelect('오사카');
+  ok('📅 쪽이 비어 있어도 ✨ 쪽 고르기는 열린다',
+    w.__openRecPicker('핵심 포인트') && w.__pickDest() === '오사카', w.__pickDest());
+  w.__pickClose();
+  w.__itiSelect('도쿄');
+
   console.log('\n[2] 후보가 “지금 쓰이는 값”에서 나오는가 — 일부러 오버라이드를 얹는다 (결함 생성기 ①)');
   const beforeAct = w.__candidates('dayAct', 'this').map((c) => c.text);
   const defaultPhrase = beforeAct[0];
@@ -200,7 +250,15 @@ async function bootAdmin() {
   window.REGION_MAP = REGION_MAP;
   window.__itiSelect = (k) => { itiState.dirty = false; itiSelectDest(k); };
   window.__recSelect = (k) => { recState.dirty = false; recSelectDest(k); };
-  window.__candidates = (kind, scope) => itiPickCandidates(kind, scope);
+  window.__candidates = (kind, scope, dest) => itiPickCandidates(kind, scope, dest);
+  window.__pickDest = () => itiPick.destKey;
+  /* ✨ 방식 A·B 소개 화면의 '고르기'를 실제 버튼 클릭으로 연다 (QW). */
+  window.__openRecPicker = (labelStarts) => {
+    const rows = Array.from(document.querySelectorAll('#rec-body .iti-lbl-row'));
+    const row = rows.find(r => r.querySelector('.iti-lbl').textContent.trim().startsWith(labelStarts));
+    if (row) row.querySelector('.iti-pick-btn').click();
+    return !!row;
+  };
   window.__setOverride = (k, courses) => { itiState.overrides[k] = courses; };
   window.__clearOverrides = () => { itiState.overrides = {}; itiState.recOverrides = {}; };
   window.__isDirty = () => itiState.dirty;
