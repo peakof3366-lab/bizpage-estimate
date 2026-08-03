@@ -3430,7 +3430,19 @@ a{color:inherit;text-decoration:none}
   .totals-row{grid-template-columns:1fr}
   .top-nav{padding:12px 16px}
   .nav-brand{font-size:13px}
-  .rec-tab{font-size:12px;padding:8px 6px}
+  /* ── RH: 휴대폰에서 견적서가 가로로 삐져나오던 것 ──
+     코스 탭 두 개가 한 줄에 나란히 있고 제목까지 nowrap이라, 390px 화면에서
+     **오른쪽으로 289px** 밀려났다(실측). 고객이 결재 보고용으로 받아 보는 문서라
+     가로 스크롤이 생기면 그 자체로 신뢰를 깎는다.
+     탭 줄을 세로로 세우고 제목이 줄바꿈되게 한다 — 가로 스크롤 대신 세로로 쌓으면
+     "코스 B가 있는 줄 몰랐다"도 함께 막힌다(가로 스크롤은 놓치기 쉽다). */
+  .rec-tabs{flex-direction:column;border-bottom:none;gap:6px}
+  .rec-tab{font-size:12px;padding:10px 12px;white-space:normal;text-align:left;
+    border:1px solid #EBEBEB;border-bottom:3px solid #EBEBEB;margin-bottom:0}
+  .rec-tab.active{border-color:#CC001A}
+  /* 상단 바도 13px 넘쳤다 — 자리가 없으면 버튼 줄을 아래로 내린다 */
+  .top-nav{flex-wrap:wrap;row-gap:8px}
+  .nav-btns{flex-shrink:1;flex-wrap:wrap}
 }
 </style>
 </head>

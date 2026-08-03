@@ -47,8 +47,14 @@ node ai-loop/audit_rates.js         # 요율 '값' 점검 — 결과는 '확인 
 ```bash
 python ai-loop/check_manual_layout.py           # 매뉴얼 줄맞춤 (데스크톱·태블릿·모바일)
 python ai-loop/check_editor_layout.py           # 일정 편집 화면 (5폭 + 화면 세로 길이)
-python ai-loop/check_manual_layout.py --shots   # 스크린샷도 저장 (--shots는 둘 다 있다)
+python ai-loop/check_quote_doc_layout.py        # 고객 견적서 — 고객이 하는 그대로 뽑아 잰다
+python ai-loop/check_manual_layout.py --shots   # 스크린샷도 저장 (--shots는 셋 다 있다)
 ```
+
+⚠ **고객이 보는 쪽도 재 볼 것.** 지금까지 잡힌 모양 결함은 전부 관리자 화면 밖에서도
+났다 — 견적서가 휴대폰에서 가로로 289px 삐져나가고 있었는데(RH) 데스크톱에서는 0px라
+아무도 못 봤다. `check_quote_doc_layout.py`는 **프로덕션 DB에 아무것도 남기지 않는다**
+(로컬 파일로 열고 `/api/*`를 막아 견적이 전송되지 않는다).
 
 jsdom은 레이아웃을 계산하지 않아 위 스위트로는 **보이는 모양**을 잴 수 없다. 실제로
 "글자가 번호 칸에 갇혀 한 글자씩 세로로 쏟아지는" 상태가 배포된 적이 있는데, 그때
