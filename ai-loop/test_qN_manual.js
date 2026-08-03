@@ -204,6 +204,35 @@ const manualPath = path.join(ROOT, 'manual.html');
 
   ok('맨 위로 버튼이 있다', !!md.getElementById('backtop'));
 
+  /* ── 줄맞춤이 되돌아가는 것을 막는다 (2026-08-03) ──
+     번호 매긴 목록의 li를 2열 격자로 만들고 첫 칸에 ::before 번호를 넣는 방식은
+     **글자 덩어리와 인라인 요소가 각각 한 칸을 차지**하기 때문에, 내용이 조각나 있으면
+     둘째 조각부터 번호 칸으로 밀려 들어가 한 글자씩 세로로 쏟아진다. 2장 하루 흐름과
+     첫날 안내가 실제로 그 상태로 배포됐다.
+     jsdom은 레이아웃을 계산하지 않아 '보이는 결과'는 여기서 못 잰다(그건
+     ai-loop/check_manual_layout.py가 실제 브라우저로 한다). 대신 **원인이 되는 구조**를
+     여기서 막는다 — 이건 브라우저 없이 항상 돌기 때문이다. */
+  const styleBlock = (manualSrc.match(/<style>[\s\S]*?<\/style>/) || [''])[0];
+  const NUMBERED_LI = [
+    ['ol.flow > li', /ol\.flow > li \{([^}]*)\}/],
+    ['ol.steps > li', /ol\.steps > li \{([^}]*)\}/],
+    ['ul.dont li', /ul\.dont li \{([^}]*)\}/],
+    ['.kickoff ol li', /\.kickoff ol li \{([^}]*)\}/],
+    ['nav.toc li', /nav\.toc li \{([^}]*)\}/],
+  ];
+  for (const [name, re] of NUMBERED_LI) {
+    const body = (styleBlock.match(re) || [])[1];
+    ok(`${name} 규칙을 찾았다`, !!body);
+    if (!body) continue;
+    ok(`${name}: 번호를 격자 칸으로 만들지 않았다`,
+      !/grid-template-columns/.test(body), body.trim().slice(0, 70));
+    ok(`${name}: 번호를 띄우고 내용은 글 흐름에 둔다(position: relative)`,
+      /position:\s*relative/.test(body), body.trim().slice(0, 70));
+  }
+  /* 설명 문장 안의 상태 배지가 블록으로 늘어나던 것 — 직계 자식만 잡아야 한다. */
+  ok('ol.flow의 블록 규칙이 직계 자식만 잡는다 (안쪽 배지까지 늘리지 않게)',
+    /ol\.flow > li > span \{/.test(styleBlock) && !/^\s*ol\.flow span \{/m.test(styleBlock));
+
   /* 목차 접기는 좁은 화면 전용이다. 접힌 채 창이 넓어지면 목차가 사라지고 펼 버튼도
      안 보인다(접힘은 브라우저가 내용을 감추므로 CSS로 못 되돌린다). 넓은 폭에서는
      JS가 강제로 펴야 한다 — jsdom 기본 폭은 1024라 여기서 확인된다. */

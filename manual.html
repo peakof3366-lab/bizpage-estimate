@@ -38,8 +38,8 @@
   nav.toc h2 { font-size: .68rem; letter-spacing: .14em; color: var(--muted); font-weight: 700; margin: 0 0 .8rem; text-transform: uppercase; }
   nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: t; display: grid; gap: .3rem; }
   @media (max-width: 900px) { nav.toc ol { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); } }
-  nav.toc li { counter-increment: t; display: grid; grid-template-columns: 1.35rem 1fr; font-size: .84rem; }
-  nav.toc li::before { content: counter(t) "."; color: var(--muted); font-size: .76rem; padding-top: .1rem; }
+  nav.toc li { counter-increment: t; position: relative; padding-left: 1.35rem; font-size: .84rem; }
+  nav.toc li::before { content: counter(t) "."; position: absolute; left: 0; top: .1rem; color: var(--muted); font-size: .76rem; }
   nav.toc a { color: var(--text); text-decoration: none; border-bottom: 1px solid transparent; }
   nav.toc a:hover, nav.toc a:focus-visible { color: var(--primary); border-bottom-color: currentColor; }
   /* 지금 읽고 있는 장을 표시한다 — 17,000자짜리 문서에서 "내가 어디쯤인가"를 모르면
@@ -90,8 +90,8 @@
   .kickoff { background: var(--white); border: 1px solid var(--border); border-top: 3px solid var(--primary); padding: 1.05rem 1.2rem; display: flex; flex-direction: column; gap: .7rem; }
   .kickoff h2 { font-size: .95rem; font-weight: 800; color: var(--heading); margin: 0; }
   .kickoff ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; counter-reset: k; }
-  .kickoff ol li { counter-increment: k; display: grid; grid-template-columns: 1.4rem 1fr; font-size: .87rem; }
-  .kickoff ol li::before { content: counter(k); color: var(--primary); font-weight: 800; font-size: .8rem; padding-top: .12rem; }
+  .kickoff ol li { counter-increment: k; position: relative; padding-left: 1.5rem; font-size: .87rem; }
+  .kickoff ol li::before { content: counter(k); position: absolute; left: 0; top: .12rem; color: var(--primary); font-weight: 800; font-size: .8rem; }
   .kickoff .rest { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--rule-soft); padding-top: .6rem; margin: 0; max-width: none; }
   .kickoff a { color: var(--primary); font-weight: 700; }
 
@@ -123,18 +123,49 @@
 
   .role-flag { font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--warn); border: 1px solid currentColor; padding: .08rem .4rem; margin-left: .45rem; vertical-align: .16em; white-space: nowrap; font-weight: 800; }
 
+  /* ═══ 번호 매긴 목록들 ═══
+     ⚠ **번호를 격자(grid)의 한 칸으로 만들지 말 것.** 예전에는 li를 2열 격자로 두고
+     첫 칸에 ::before 번호, 둘째 칸에 내용을 넣었는데, 격자 안에서는 **글자 덩어리와
+     인라인 요소 하나하나가 각각 한 칸을 차지한다.** 그래서 내용이 "굵은 글씨 + 이어지는
+     문장"이나 "문장 + 링크 + 문장"처럼 조각나 있으면, 둘째 조각부터 번호 칸(1.4~1.8rem)
+     으로 밀려 들어가 **한 글자씩 세로로 쏟아졌다.** 2장 하루 흐름과 첫날 안내가 실제로
+     그 상태로 배포됐다(2026-08-03 발견).
+
+     그래서 전부 **자리잡기(position) 방식**으로 바꿨다 — 번호는 absolute로 왼쪽 여백에
+     띄우고 내용은 평범한 글 흐름 그대로 둔다. 내용이 무엇이든(문장·링크·목록·표)
+     줄이 맞고, 앞으로 항목을 추가해도 이 사고가 되풀이되지 않는다.
+
+     두 겹으로 지킨다:
+       · ai-loop/test_qN_manual.js — 아래 목록들이 다시 격자 번호 방식으로 돌아가면
+         실패한다. 회귀 스위트에 들어 있어 **항상 돈다**(빠르다).
+       · ai-loop/check_manual_layout.py — 실제 브라우저로 띄워 좌표를 잰다. 브라우저가
+         필요해 스위트에는 없으니, 매뉴얼 모양을 손댔으면 직접 한 번 돌릴 것. */
+
   /* 하루 흐름 — 순서가 곧 정보라 번호를 쓴다 */
   ol.flow { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; counter-reset: f; }
-  ol.flow > li { counter-increment: f; display: grid; grid-template-columns: 1.8rem 1fr; gap: 0 .8rem; background: var(--white); border-left: 3px solid var(--primary); padding: .7rem .95rem; }
-  ol.flow > li::before { content: counter(f); font-weight: 800; font-size: .82rem; color: var(--primary); padding-top: .15rem; }
-  ol.flow b { display: block; font-size: .9rem; color: var(--heading); }
-  ol.flow span { display: block; font-size: .82rem; color: var(--muted); line-height: 1.65; }
+  ol.flow > li {
+    counter-increment: f; position: relative;
+    background: var(--white); border-left: 3px solid var(--primary);
+    padding: .7rem .95rem .7rem 2.7rem;
+  }
+  ol.flow > li::before {
+    content: counter(f); position: absolute; left: .95rem; top: .85rem;
+    font-weight: 800; font-size: .82rem; color: var(--primary);
+  }
+  /* ⚠ **직계 자식만** 잡는다(`>`). 예전에는 `ol.flow span`이라 설명 문장 안에 들어 있는
+     상태 배지(<span class="tag">신규</span>)까지 블록으로 만들어, 배지가 한 줄을 통째로
+     차지하며 테두리가 화면 끝까지 늘어났다. 줄맞춤이 깨져 있던 동안에는 그 span이
+     번호 칸에 갇혀 있어 이 증상이 가려져 있었다 — 하나를 고치니 드러난 결함이다. */
+  ol.flow > li > b { display: block; font-size: .9rem; color: var(--heading); }
+  ol.flow > li > span { display: block; font-size: .82rem; color: var(--muted); line-height: 1.65; }
 
   ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.25rem; counter-reset: s; }
-  ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 2.2rem 1fr; gap: 0 .9rem; align-items: start; }
-  ol.steps > li::before { content: counter(s); font-size: 1.25rem; font-weight: 800; line-height: 1.2; color: var(--primary); text-align: right; }
-  ol.steps > li > h3 { grid-column: 2; margin: 0; }
-  ol.steps > li > p { grid-column: 2; }
+  ol.steps > li { counter-increment: s; position: relative; padding-left: 3.1rem; }
+  ol.steps > li::before {
+    content: counter(s); position: absolute; left: 0; top: 0; width: 2.2rem;
+    font-size: 1.25rem; font-weight: 800; line-height: 1.2; color: var(--primary); text-align: right;
+  }
+  ol.steps > li > h3 { margin: 0; }
 
   ul.plain { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .35rem; }
   ul.plain li::marker { color: var(--muted); }
@@ -163,8 +194,8 @@
   .yes { color: var(--success); font-weight: 800; } .no { color: var(--muted); }
 
   ul.dont { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .8rem; }
-  ul.dont li { display: grid; grid-template-columns: 1.3rem 1fr; gap: 0 .6rem; }
-  ul.dont li::before { content: "✕"; color: var(--danger); font-weight: 800; line-height: 1.75; }
+  ul.dont li { position: relative; padding-left: 1.9rem; }
+  ul.dont li::before { content: "✕"; position: absolute; left: 0; top: 0; color: var(--danger); font-weight: 800; line-height: 1.75; }
 
   footer { border-top: 1px solid var(--border); padding-top: 1.1rem; font-size: .8rem; color: var(--muted); display: flex; flex-direction: column; gap: .3rem; }
 
