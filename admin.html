@@ -14,6 +14,10 @@
   <script src="limits.js"></script>
   <script src="data.js"></script>
   <script src="dest_currency.js"></script>
+  <!-- 고르기 후보의 **기업 연수 적합도** 등급 (QX). ai-loop/rank_activities.js가 만든다.
+       ⚠ 없어도 화면은 정상 동작한다 — 등급이 없는 문구는 순위에서 중립으로 다룬다.
+       (이 파일이 안 실려도 고르기가 죽지 않아야 한다. 순위는 보조 신호다.) -->
+  <script src="activity_rank.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -501,6 +505,16 @@
     }
     .itip-item:hover { border-color: var(--primary); background: #fff5f6; }
     .itip-item-text { display: block; font-size: .82rem; line-height: 1.55; color: var(--heading); }
+    /* 기업 연수 적합도 배지 (QX) — 순서의 근거를 문구 옆에 그대로 보여준다.
+       ⚠ '여가'를 빨강(위험)으로 칠하지 않는다. 나쁜 문구가 아니라 성격이 다를 뿐이고,
+       연수 일정에도 여가는 필요하다. 색은 구분용이지 경고가 아니다. */
+    .itip-fit {
+      display: inline-block; font-size: .64rem; font-weight: 800; letter-spacing: .03em;
+      padding: .05rem .3rem; margin-right: .4rem; vertical-align: .08em; border: 1px solid currentColor;
+    }
+    .itip-fit.fit-1 { color: #1D4ED8; }   /* 연수 */
+    .itip-fit.fit-2 { color: #6B7280; }   /* 보완 */
+    .itip-fit.fit-3 { color: #B45309; }   /* 여가 */
     .itip-item-from { display: block; font-size: .7rem; font-weight: 700; color: var(--muted); margin-top: .25rem; }
     .itip-cur {
       background: #f8fafc; border: 1px solid var(--border); padding: .55rem .7rem;
@@ -5751,6 +5765,9 @@
 
   const itiPick = { kind: '', scope: 'region', read: null, write: null, q: '', destKey: '' };
 
+  /* 기업 연수 적합도 등급 이름 (QX) — activity_rank.js의 1·2·3과 짝이다. */
+  const ITI_FIT_LABEL = { 1: '연수', 2: '보완', 3: '여가' };
+
   /* 지금 고객에게 나가는 값 — 오버라이드가 있으면 그것이 진실이다(요율에서 data.js보다
      rate_overrides가 진실인 것과 같다). 후보도 같은 규칙을 따라야 화면과 안 어긋난다. */
   function itiLiveCourses(destKey) {
@@ -5772,8 +5789,12 @@
      순위 — 위에서부터 강하다:
        ① 이 목적지에서 이미 쓰는 문구   (그 자리에 맞는 것이 확실하다)
        ② 같은 지역에서 쓰는 문구        (지역 특성이 맞는다)
-       ③ 여러 목적지에서 쓰이는 문구    (일반적으로 통하는, 검증된 문구)
-       ④ 같으면 가나다순               (매번 순서가 흔들리면 아까 본 것을 다시 못 찾는다)
+       ③ **기업 연수 적합도 등급**      (연수 → 보완 → 여가, QX)
+       ④ 여러 목적지에서 쓰이는 문구    (일반적으로 통하는, 검증된 문구)
+       ⑤ 같으면 가나다순               (매번 순서가 흔들리면 아까 본 것을 다시 못 찾는다)
+
+     ①②를 ③보다 위에 두는 이유: 적합도는 '좋은 문구인가'이고 ①②는 '이 목적지에 맞는가'다.
+     아무리 훌륭한 문구라도 다른 지역 것이면 그 자리에 못 쓴다.
 
      ⚠ 빈도는 **범위와 무관하게 전체에서** 센다. 화면에 보이는 것만 세면 '같은 지역'으로
      좁혔을 때 빈도가 전부 1로 납작해져 순위가 사라진다. */
@@ -5800,7 +5821,13 @@
         const s = String(t == null ? '' : t).trim();
         if (!s || inThisDest.has(s)) continue;   /* 한 목적지 안에서 여러 번 나와도 1곳으로 센다 */
         inThisDest.add(s);
-        const c = stat.get(s) || { text: s, from: k, uses: 0, here: false, sameRegion: false };
+        /* 등급이 없는 문구(관리자가 새로 쓴 것 등)는 **중립(2)** 으로 둔다.
+           3으로 밀면 새 문구가 영영 맨 아래에 깔리고, 1로 올리면 검증 안 된 문구가
+           맨 위에 온다 — 둘 다 사실이 아니다. */
+        const c = stat.get(s) || {
+          text: s, from: k, uses: 0, here: false, sameRegion: false,
+          fit: (typeof ACTIVITY_RANK !== 'undefined' && ACTIVITY_RANK[s]) || 2,
+        };
         c.uses += 1;
         if (k === cur) { c.here = true; c.from = k; }   /* 이 목적지 것이면 출처도 여기로 */
         if (sameRegion) c.sameRegion = true;
@@ -5817,6 +5844,7 @@
     out.sort((a, b) =>
       (b.here - a.here)
       || (b.sameRegion - a.sameRegion)
+      || (a.fit - b.fit)            /* 1 연수 → 2 보완 → 3 여가 */
       || (b.uses - a.uses)
       || a.text.localeCompare(b.text, 'ko'));
     return out;
@@ -5922,7 +5950,18 @@
       if (used) btn.style.opacity = '.45';
       const t = document.createElement('span');
       t.className = 'itip-item-text';
-      t.textContent = c.text;
+      /* 등급을 문구 앞에 붙인다 (QX). 순서만 바꾸면 담당자는 왜 그 순서인지 모르고,
+         무엇보다 **이 문구가 연수용인지 여가용인지**가 그 자체로 필요한 정보다. */
+      const tag = document.createElement('span');
+      tag.className = 'itip-fit fit-' + c.fit;
+      tag.textContent = ITI_FIT_LABEL[c.fit] || '보완';
+      /* ⚠ 문구는 **자기 요소**에 담는다. 배지와 한 덩어리로 두면 "이 항목의 문구"를
+         읽으려는 쪽이 배지까지 함께 집어 간다(테스트가 실제로 그렇게 걸렸다). */
+      const phrase = document.createElement('span');
+      phrase.className = 'itip-phrase';
+      phrase.textContent = c.text;
+      t.appendChild(tag);
+      t.appendChild(phrase);
       const f = document.createElement('span');
       f.className = 'itip-item-from';
       /* 출처만 적던 자리에 **왜 위에 있는지**를 함께 적는다 (QW).

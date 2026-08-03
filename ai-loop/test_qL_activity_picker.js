@@ -61,11 +61,22 @@ const ok = (name, cond, extra = '') => {
   const firstFar = afterHere.findIndex(c => !c.sameRegion);
   ok('그 다음이 같은 지역이다',
     firstFar === -1 || afterHere.slice(0, firstFar).every(c => c.sameRegion));
-  /* 같은 조건 안에서는 여러 곳이 쓰는 문구가 위로 — '검증된 문구'가 먼저 보여야 한다. */
+  /* QX: 그 다음이 **기업 연수 적합도**(1 연수 → 2 보완 → 3 여가)이고,
+     같은 등급 안에서 여러 곳이 쓰는 문구가 위로 온다('검증된 문구'가 먼저). */
   const far = afterHere.slice(firstFar === -1 ? afterHere.length : firstFar);
-  ok('나머지는 여러 곳에서 쓰는 문구가 위로 온다',
-    far.every((c, i) => i === 0 || far[i - 1].uses >= c.uses),
-    far.slice(0, 5).map(c => `${c.uses}`).join(','));
+  ok('등급을 매겨 준다 (연수·보완·여가)',
+    far.every(c => [1, 2, 3].includes(c.fit)), far.slice(0, 5).map(c => c.fit).join(','));
+  ok('연수 적합도가 높은 것이 위로 온다',
+    far.every((c, i) => i === 0 || far[i - 1].fit <= c.fit),
+    far.slice(0, 8).map(c => c.fit).join(','));
+  ok('같은 등급 안에서는 여러 곳이 쓰는 문구가 위로 온다',
+    far.every((c, i) => i === 0 || far[i - 1].fit < c.fit || far[i - 1].uses >= c.uses),
+    far.slice(0, 8).map(c => `${c.fit}/${c.uses}`).join(' '));
+  /* 등급이 아예 안 실렸으면(파일 누락) 전부 중립 2가 되어 위 단언이 조용히 통과한다.
+     실제로 등급 파일이 붙어 있는지 따로 확인한다 — 안전망이 무력해지는 자리다. */
+  ok('등급 파일이 실제로 실려 있다',
+    new Set(far.map(c => c.fit)).size > 1,
+    '전부 같은 등급이면 activity_rank.js가 안 실린 것이다');
 
   /* 순서가 매번 흔들리면 아까 본 것을 다시 못 찾는다. */
   const again = w.__candidates('dayAct', 'all', '도쿄');
@@ -130,7 +141,7 @@ const ok = (name, cond, extra = '') => {
   ok('창이 열린다', !d.getElementById('itiPickModal').classList.contains('hidden'));
   const first = d.querySelector('#itiPickList .itip-item:not([disabled])');
   ok('후보가 목록에 그려진다', !!first);
-  const firstText = first.querySelector('.itip-item-text').textContent;
+  const firstText = first.querySelector('.itip-phrase').textContent;
 
   w.__confirmReply = false; w.__confirmCalls = 0;
   first.click();
@@ -141,14 +152,14 @@ const ok = (name, cond, extra = '') => {
 
   w.__openPicker('dayAct', amBox);
   const other = Array.from(d.querySelectorAll('#itiPickList .itip-item:not([disabled])'))
-    .find((b) => b.querySelector('.itip-item-text').textContent !== firstText);
+    .find((b) => b.querySelector('.itip-phrase').textContent !== firstText);
   w.__confirmCalls = 0; w.__confirmReply = false;
   other.click();
   ok('내용이 있으면 먼저 묻는다', w.__confirmCalls === 1);
   ok('아니오면 값이 그대로다', amBox.value === firstText, JSON.stringify(amBox.value));
   w.__confirmReply = true;
   other.click();
-  const otherText = other.querySelector('.itip-item-text').textContent;
+  const otherText = other.querySelector('.itip-phrase').textContent;
   ok('예면 바뀐다', amBox.value === otherText);
 
   console.log('\n[5] 목록 칸 — 줄을 더하고 기존 줄을 지우지 않는다');
@@ -157,7 +168,7 @@ const ok = (name, cond, extra = '') => {
   hlBox.value = '내가 직접 쓴 줄';
   w.__openPicker('highlight', hlBox);
   const h1 = d.querySelector('#itiPickList .itip-item:not([disabled])');
-  const h1Text = h1.querySelector('.itip-item-text').textContent;
+  const h1Text = h1.querySelector('.itip-phrase').textContent;
   w.__confirmCalls = 0;
   h1.click();
   ok('묻지 않고 줄이 더해진다', w.__confirmCalls === 0);
@@ -166,7 +177,7 @@ const ok = (name, cond, extra = '') => {
   ok('연달아 고르도록 창이 열려 있다', !d.getElementById('itiPickModal').classList.contains('hidden'));
 
   const usedBtn = Array.from(d.querySelectorAll('#itiPickList .itip-item'))
-    .find((b) => b.querySelector('.itip-item-text').textContent === h1Text);
+    .find((b) => b.querySelector('.itip-phrase').textContent === h1Text);
   ok('이미 넣은 줄은 다시 못 고르게 잠긴다', !!usedBtn && usedBtn.disabled);
   ok('왜 잠겼는지 화면에 적힌다', !!usedBtn && /이미/.test(usedBtn.querySelector('.itip-item-from').textContent));
 
@@ -180,7 +191,7 @@ const ok = (name, cond, extra = '') => {
   const allCount = d.querySelectorAll('#itiPickList .itip-item').length;
   w.__search('견학');
   const hits = Array.from(d.querySelectorAll('#itiPickList .itip-item'))
-    .map((b) => b.querySelector('.itip-item-text').textContent);
+    .map((b) => b.querySelector('.itip-phrase').textContent);
   ok('검색하면 줄어든다', hits.length > 0 && hits.length < allCount, `${allCount} → ${hits.length}`);
   ok('남은 것은 전부 검색어를 포함한다', hits.every((t) => t.includes('견학')));
   w.__search('zzz없는단어zzz');
