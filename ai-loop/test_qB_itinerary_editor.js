@@ -448,6 +448,11 @@ const OVERRIDE_TOKYO = [{
   ok('A와 B의 표식 색도 서로 다르다',
     /\.plan-a \.plan-mark \{ background: #7C3AED/.test(adminSrc)
     && /\.plan-b \.plan-mark \{ background: #DB2777/.test(adminSrc));
+  /* 카드까지 구역 색을 따라야 스크롤을 내려 카드만 보일 때도 어느 구역인지 안다.
+     (합치면서 이 규칙이 빠져 코스 카드만 구역 색을 안 따라가고 있었다.) */
+  ok('구역 안의 카드도 그 구역 색을 따른다',
+    /\.sec-days \.iti-course\s+\{ border-top-color: var\(--sec\)/.test(adminSrc)
+    && /\.sec-days \.iti-course-no \{ background: var\(--sec\)/.test(adminSrc));
 
   /* ⚠ 이 화면을 합친 이유 자체 — 두 구역의 의존관계를 숫자로 보여준다.
      화면이 갈려 있을 때는 이걸 매뉴얼로 세 번 설명해야 했다. */

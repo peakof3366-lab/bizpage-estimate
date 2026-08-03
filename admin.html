@@ -78,7 +78,6 @@
     .csw-label { font-size: .78rem; font-weight: 700; color: #fff; white-space: nowrap; }
     .csw-role { font-size: .66rem; font-weight: 700; color: rgba(255,255,255,.6); background: rgba(255,255,255,.1); padding: .1rem .4rem; letter-spacing: .03em; }
     .rate-author-tag { font-size: .82rem; font-weight: 700; color: var(--heading); background: var(--bg); border: 1.5px solid var(--border); padding: .4rem .8rem; }
-    .rate-author-tag.unset { color: var(--primary); border-color: var(--primary); }
 
     /* ── LAYOUT ────────────────────── */
     .dash-layout { display: flex; min-height: calc(100vh - 56px); }
@@ -126,19 +125,10 @@
     .mobile-tab-header { display: none; padding: .7rem 1.2rem; background: var(--white);
       border-bottom: 1px solid var(--border); font-weight: 700; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--heading); }
 
-    /* TABS (하위호환용) */
-    .tab-nav { display: none; }
-    .tab-btn { display: none; }
-
     /* ── CONTENT ───────────────────── */
     .dash-body { width: 96%; max-width: 1680px; margin: 0 auto 0 1.5rem; padding: 1.75rem 0; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
-    .panel-title {
-      font-size: 1.05rem; font-weight: 800; color: var(--heading); margin-bottom: 1.25rem;
-      padding-left: .7rem; border-left: 3px solid var(--primary);
-    }
-
     /* ── CARD ─────────────────────── */
     .card { background: var(--white); border: 1px solid var(--border); }
     .card-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
@@ -209,8 +199,6 @@
     .btn-outline-p:hover { background: var(--primary-lt); }
     .btn-danger-sm { background: #fef2f2; color: var(--danger); border-color: #fecaca; }
     .btn-danger-sm:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-    .btn-success-sm { background: #f0fdf4; color: var(--success); border-color: #bbf7d0; }
-    .btn-success-sm:hover { background: var(--success); color: #fff; border-color: var(--success); }
 
     .inq-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
     .inq-table thead { background: var(--bg); }
@@ -298,7 +286,6 @@
     .rate-badge.check { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
     .rate-badge.stale { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
     .rate-region-row td { background:var(--bg); font-weight:700; color:var(--heading); font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; padding:.45rem .85rem; }
-    .rate-notes { font-size:.76rem; color:var(--muted); max-width:280px; }
     .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; }
     .rate-undo-banner { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; font-size:.82rem; font-weight:600; background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:.75rem 1rem; margin-bottom:1.25rem; }
 
@@ -384,37 +371,10 @@
     .iti-bar .btn-act { height: 34px; padding: 0 1rem; }
     .iti-state { font-size: .8rem; font-weight: 600; color: var(--muted); }
     .iti-state.is-edited { color: #b45309; }
-    .iti-state.is-error  { color: var(--danger, #dc2626); }
     .iti-dirty {
       font-size: .78rem; font-weight: 800; color: #b45309; background: #fef3c7;
       border: 1px solid #fde68a; padding: .2rem .55rem;
     }
-
-    /* ── 두 편집 화면을 한눈에 구별되게 (QV) ─────────────────────────────
-       나눠 놓기만 해서는 헷갈림이 안 없어진다 — 두 화면이 똑같이 생겼기 때문이다.
-       색·아이콘·제목·실물 예시로 **정체를 다르게** 만든다. 스크롤을 내려 편집칸만
-       보이는 상태에서도 어느 화면인지 알 수 있어야 한다(카드 색까지 따라간다). */
-    .edit-id {
-      display: flex; gap: 1rem; align-items: flex-start;
-      padding: 1rem 1.15rem; margin-bottom: 1rem;
-      border: 1px solid var(--border); border-left: 5px solid var(--id-accent);
-      background: var(--id-bg);
-    }
-    .edit-id .id-mark { font-size: 1.7rem; line-height: 1.1; flex-shrink: 0; }
-    .edit-id .id-body { flex: 1; min-width: 0; }
-    .edit-id h3 { margin: 0 0 .25rem; font-size: 1rem; font-weight: 800; color: var(--id-accent); }
-    .edit-id p { margin: 0; font-size: .84rem; line-height: 1.6; color: var(--heading); }
-    .edit-id .id-sample {
-      margin-top: .65rem; font-size: .76rem; color: var(--muted); white-space: pre-line;
-      background: #fff; border: 1px dashed var(--border); padding: .55rem .75rem;
-      font-family: Consolas, 'D2Coding', ui-monospace, monospace;
-    }
-    .edit-id .id-cross { margin-top: .65rem; font-size: .8rem; color: var(--muted); }
-    .edit-id .id-cross button {
-      background: none; border: 0; padding: 0; font: inherit; font-weight: 800;
-      color: var(--id-accent); text-decoration: underline; cursor: pointer;
-    }
-    @media (max-width: 640px) { .edit-id .id-mark { display: none; } }
 
     /* ── 한 화면 안의 두 구역 (QY) ──
        ✨ 방식 A·B = 보라, 📅 날짜별 일정 = 파랑. 구역 전체가 색을 갖는다 —
@@ -472,6 +432,11 @@
     .plan-b .plan-mark { background: #DB2777; }
     .plan-name { font-size: .92rem; font-weight: 800; color: var(--heading); }
     .plan-hint { font-size: .74rem; color: var(--muted); }
+
+    /* 📅 구역의 코스 카드도 구역 색을 따른다 — 스크롤을 내려 카드만 보일 때도
+       어느 구역인지 알아야 한다는 것이 이 화면의 규칙이다. (합치면서 빠져 있었다.) */
+    .sec-days .iti-course    { border-top-color: var(--sec); }
+    .sec-days .iti-course-no { background: var(--sec); }
 
     .iti-course {
       background: #fff; border: 1px solid var(--border); border-top: 3px solid var(--heading);
@@ -3118,12 +3083,6 @@
   /* ════ SIDEBAR NAVIGATION ════ */
   document.querySelectorAll('.sidebar-item').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-  });
-
-  /* 화면 안에서 "그건 저쪽입니다"로 바로 건너가는 링크 (QV).
-     헷갈리는 순간이 곧 잘못 고치는 순간이라, 안내만 하지 말고 갈 길을 열어 준다. */
-  document.querySelectorAll('[data-goto]').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.goto));
   });
 
   const tabTitles = {
@@ -6218,17 +6177,6 @@
     return box;
   }
 
-  /* 이 화면은 innerHTML을 일절 쓰지 않는다 — 정적 문구라도 예외를 두면 나중에 값이
-     섞여 들어오는 자리가 생긴다. 굵은 글씨는 <strong> 요소로 직접 만든다. */
-  function itiNote(leadText, restText) {
-    const el = document.createElement('div');
-    el.className = 'iti-note';
-    const b = document.createElement('strong');
-    b.textContent = leadText;
-    el.appendChild(b);
-    el.appendChild(document.createTextNode(restText));
-    return el;
-  }
 
   /* A와 B를 **나란히** 놓는다 (QY). 고객이 둘 중 하나를 고르는 '대안'이라 위아래로 쌓으면
      순서가 있는 것처럼 읽히고, 둘을 견주며 쓰기도 어렵다. 고객 화면(카드 두 장)과 같은 모양. */
