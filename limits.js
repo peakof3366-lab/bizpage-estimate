@@ -37,6 +37,11 @@ const LIMITS = {
 
   /* 목적지 하나에 둘 수 있는 추천 코스 개수 (api/content.js 저장 검증). */
   MAX_COURSES: 6,
+
+  /* 코스 하나에 둘 수 있는 일자 개수. 서버 검증(api/content.js)과 편집 화면의 사전
+     안내가 같은 값을 봐야 한다 — 화면이 막지 않고 서버만 거절하면, 담당자는 30개를
+     넘겨 채워 넣은 뒤 저장 버튼을 눌러서야 그 사실을 안다(RD). */
+  MAX_DAYS: 30,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = LIMITS;
