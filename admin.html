@@ -473,15 +473,22 @@
       width: 100%; font-family: inherit; font-size: .88rem; color: var(--heading);
       border: 1.5px solid var(--border); background: #fff; padding: .5rem .65rem;
     }
-    /* ── 입력칸 높이 (RC) ──
-       이 화면은 고객 견적서에 그대로 나가는 문구를 쓰는 곳이라, 쓰는 동안 내용이 다 보여야
-       한다. 사용자 요청으로 **딱 1.8배**로 키웠다(38 → 68px, 66 → 119px).
-       ⚠ 숫자를 손으로 두 벌 적지 않는다 — 기준값과 배율을 변수로 두고 계산한다.
-       나중에 배율만 바꾸면 두 칸이 함께 움직인다(한쪽만 고쳐 어긋나는 것이 이 저장소의
-       단골 결함이다). ai-loop/test_qL이 실제 렌더 높이로 1.8배를 확인한다. */
-    :root { --iti-box-scale: 1.8; --iti-inp-base: 38px; --iti-ta-base: 66px; }
-    .iti-inp { height: calc(var(--iti-inp-base) * var(--iti-box-scale)); }
-    .iti-ta  { min-height: calc(var(--iti-ta-base) * var(--iti-box-scale)); line-height: 1.55; resize: vertical; }
+    /* ── 입력칸 높이 (RC → RE) ──
+       RC에서 모든 칸을 1.8배로 키웠다(38 → 68px, 66 → 119px). 의도는 "이 화면은 고객
+       견적서에 그대로 나가는 문구를 쓰는 곳이라 **쓰는 동안 내용이 다 보여야 한다**"였다.
+       그 의도는 그대로 두고 방법을 바꿨다 — **고정 높이는 그 의도를 양쪽에서 어긴다.**
+       한 줄짜리 문구("도요타 산업기술기념관 견학")에도 119px를 쓰고, 정작 여섯 줄짜리는
+       119px에서 잘려 스크롤해야 보인다. 도쿄 한 목적지가 세로 10,156px가 된 주된 이유다.
+       그래서 높이를 **내용이 정하게** 했다: 짧으면 한 줄, 길면 그만큼 늘어난다(itiAutoGrow).
+       ⚠ 여전히 숫자를 두 벌 적지 않는다 — 한 줄 높이 하나(--iti-line)에서 input의 높이와
+       textarea의 최소 높이가 함께 나온다. 한쪽만 고쳐 어긋나는 것이 이 저장소 단골 결함이다.
+       ⚠ overflow를 hidden으로 잠그지 않는다. 자동 늘리기가 어떤 이유로든 못 돌면
+       내용이 **소리 없이 잘려 안 보이게** 된다(결함 생성기 ②). auto면 그때도 스크롤로 읽힌다. */
+    :root { --iti-line: 38px; }
+    .iti-inp { height: var(--iti-line); }
+    /* resize 손잡이를 없앤 이유: 칸이 늘 내용에 맞으므로 끌어 늘릴 일이 없고, 끌어 놓아도
+       다음 타이핑 때 자동 높이가 이겨서 "왜 도로 줄지?"가 된다. */
+    .iti-ta  { min-height: var(--iti-line); line-height: 1.55; resize: none; overflow-y: auto; }
     .iti-inp:focus, .iti-ta:focus { outline: none; border-color: var(--primary); }
 
     .iti-day {
@@ -3212,6 +3219,10 @@
     const mtEl = document.getElementById('mobileTabTitle');
     if (mtEl) mtEl.textContent = tabTitles[name] || name;
     renderTab(name);
+    /* RE: 숨어 있는 동안에는 칸 높이를 잴 수 없다(display:none이면 scrollHeight가 0).
+       다른 탭에 갔다 돌아오면 다시 그리지 않는 경우가 있으므로 여기서 한 번 맞춘다.
+       안 하면 고치던 내용이 한 줄 칸에 갇힌 채로 보인다. */
+    if (name === 'itineraries') itiAutoGrowAll();
     /* 모바일: 스크롤 상단 */
     document.querySelector('.dash-main')?.scrollTo({top: 0, behavior: 'smooth'});
   }
@@ -5800,6 +5811,37 @@
     }
   }
 
+  /* ════ RE: 칸 높이를 내용이 정한다 ═══════════════════════════════════════
+     고정 높이는 짧은 문구에는 빈 자리를, 긴 문구에는 잘림을 만든다 — 둘 다 "쓰는 동안
+     내용이 다 보여야 한다"(RC)를 어긴다. 여기서 높이를 실제 내용 높이로 맞춘다.
+
+     ⚠ box-sizing이 border-box라 height에 테두리가 포함되는데 scrollHeight에는 안 들어간다.
+     그냥 scrollHeight를 넣으면 매번 테두리 두께(3px)만큼 모자라 스크롤바가 생긴다.
+     ⚠ **화면에 안 보이는 동안에는 잴 수 없다**(display:none이면 scrollHeight가 0이다).
+     그때 0px를 박아 두면 칸이 사라진 것처럼 보이므로, 못 쟀으면 **손대지 않고 그대로 둔다**
+     (결함 생성기 ②: 조용한 폴백 금지). 탭을 여는 순간 다시 부른다 — 그때는 잴 수 있다.
+     ═══════════════════════════════════════════════════════════════════════ */
+  function itiAutoGrow(el) {
+    if (!el || !el.isConnected || el.offsetParent === null) return false;
+    const cs = getComputedStyle(el);
+    const border = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+    /* ⚠ 여기서 'auto'를 쓰면 안 된다. textarea의 auto 높이는 rows 속성(기본 2줄)이라
+       scrollHeight가 절대 그 아래로 안 내려간다 — 한 줄짜리 문구도 두 줄 칸이 된다
+       (실제로 그렇게 재서 62px이 나왔다). 0으로 눌러야 내용 높이가 그대로 읽힌다.
+       0으로 눌러도 CSS의 min-height가 바닥을 잡아 주므로 칸이 사라지지 않는다. */
+    el.style.height = '0px';
+    el.style.height = (el.scrollHeight + border) + 'px';
+    return true;
+  }
+
+  /* 다시 그린 뒤·탭을 연 뒤에 한 번에 맞춘다. 칸마다 부르는 자리를 따로 두면 언젠가
+     한 곳을 빠뜨려 그 칸만 높이가 안 맞는다(결함 생성기 ①). */
+  function itiAutoGrowAll() {
+    let done = 0;
+    document.querySelectorAll('#tab-itineraries .iti-ta').forEach((el) => { if (itiAutoGrow(el)) done++; });
+    return done;
+  }
+
   /* 라벨 있는 입력칸 한 줄. oninput에서 상태 객체의 해당 필드를 바로 갱신한다.
      pickKind를 주면 라벨 옆에 '고르기' 버튼이 붙는다(QL) — 칸마다 따로 만들지 않고
      여기 한 곳에서 붙여야 새 칸이 생겨도 빠지지 않는다. */
@@ -5819,7 +5861,12 @@
     const inp = document.createElement(multiline ? 'textarea' : 'input');
     inp.className = multiline ? 'iti-ta' : 'iti-inp';
     inp.value = value == null ? '' : String(value);
-    inp.addEventListener('input', function () { onInput(inp.value); dirty(); });
+    /* 타이핑·붙여넣기·되돌리기 전부 input 이벤트를 낸다 — 여기 한 곳이면 충분하다.
+       (여러 줄 칸만 늘어난다. 한 줄 칸은 아무리 키워도 보이는 글자가 늘지 않는다.) */
+    inp.addEventListener('input', function () {
+      onInput(inp.value); dirty();
+      if (multiline) itiAutoGrow(inp);
+    });
 
     if (pickKind && ITI_PICK_KINDS[pickKind]) {
       /* 라벨과 버튼을 한 줄에 둔다. 입력칸 옆에 넣으면 오전·오후·저녁·팁 2×2 그리드에서
@@ -5832,7 +5879,10 @@
       btn.textContent = '고르기';
       btn.addEventListener('click', function () {
         itiOpenPicker(pickKind, function () { return inp.value; }, function (next) {
+          /* 고르기로 넣은 값은 input 이벤트를 내지 않는다 — 여기서 직접 맞춰 주지 않으면
+             줄이 서너 개 붙는 목록 칸(하이라이트·핵심 포인트)에서 넣은 줄이 안 보인다. */
           inp.value = next; onInput(next); dirty();
+          if (multiline) itiAutoGrow(inp);
         }, destOf());
       });
       row.appendChild(lbl); row.appendChild(btn);
@@ -6468,7 +6518,7 @@
     /* ⚠ 두 구역의 관계 안내(itiRenderLink)는 **여기 한 곳에서만** 갱신한다.
        itiRenderBody는 코스가 바뀌는 거의 모든 자리에서 불리므로, 부르는 쪽마다
        따로 챙기게 하면 언젠가 한 곳을 빠뜨리고 숫자가 낡는다(결함 생성기 ①). */
-    const done = () => { itiRenderState(); itiRenderLink(); };
+    const done = () => { itiRenderState(); itiRenderLink(); itiAutoGrowAll(); };
     if (!itiState.destKey) {
       const p = document.createElement('p');
       p.className = 'iti-note';
@@ -6749,6 +6799,7 @@
     body.appendChild(itiRenderRecSection(recState.rec));
     recRenderState();
     itiRenderLink();
+    itiAutoGrowAll();   /* RE: 붙인 뒤에 잰다 — DOM에 없는 동안에는 높이를 못 잰다 */
   }
 
   /* ── 두 구역의 의존관계를 숫자로 (QY) ────────────────────────────────────
@@ -6891,6 +6942,16 @@
     if (e.key !== 'Escape') return;
     if (!document.getElementById('itiPickModal').classList.contains('hidden')) itiPickClose();
     else if (!document.getElementById('itiCopyModal').classList.contains('hidden')) itiCopyClose();
+  });
+
+  /* RE: 폭이 바뀌면 같은 글이 차지하는 줄 수가 달라진다(2×2 격자가 좁은 화면에서 1열이
+     되는 자리라 특히 크게 바뀐다). 다시 재지 않으면 그 뒤로 계속 어긋난 높이로 남는다.
+     연속으로 쏟아지는 이벤트라 마지막 한 번만 처리한다. */
+  let itiResizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (currentTab !== 'itineraries') return;
+    clearTimeout(itiResizeTimer);
+    itiResizeTimer = setTimeout(itiAutoGrowAll, 120);
   });
 
   async function renderContent() {

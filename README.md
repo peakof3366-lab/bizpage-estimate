@@ -42,17 +42,21 @@ node ai-loop/audit_consistency.js   # 목적지 목록 교차 정합성 (오류 
 node ai-loop/audit_rates.js         # 요율 '값' 점검 — 결과는 '확인 대상'이지 '오류'가 아니다
 ```
 
-**매뉴얼 모양(`manual.html`)을 손댔으면 하나 더** — 실제 브라우저로 띄워 줄맞춤을 잰다.
+**보이는 모양을 손댔으면 하나 더** — 실제 브라우저로 띄워 좌표를 잰다.
 
 ```bash
-python ai-loop/check_manual_layout.py           # 데스크톱·태블릿·모바일 3폭
-python ai-loop/check_manual_layout.py --shots   # 스크린샷도 저장
+python ai-loop/check_manual_layout.py           # 매뉴얼 줄맞춤 (데스크톱·태블릿·모바일)
+python ai-loop/check_editor_layout.py           # 일정 편집 화면 (5폭 + 화면 세로 길이)
+python ai-loop/check_manual_layout.py --shots   # 스크린샷도 저장 (--shots는 둘 다 있다)
 ```
 
 jsdom은 레이아웃을 계산하지 않아 위 스위트로는 **보이는 모양**을 잴 수 없다. 실제로
 "글자가 번호 칸에 갇혀 한 글자씩 세로로 쏟아지는" 상태가 배포된 적이 있는데, 그때
-소스만 봐서는 아무 이상이 없어 보였다. 브라우저 설치가 필요해 스위트에는 넣지 않았고,
-대신 그 결함의 **원인이 되는 CSS 구조**는 `test_qN_manual.js`가 항상 막는다.
+소스만 봐서는 아무 이상이 없어 보였다. 일정 편집 화면에서도 같은 유형으로 두 번 잡혔다 —
+버튼이 좁은 화면에서 카드 밖으로 47px 밀려난 것(RD), 자동 높이가 textarea 기본 rows에
+걸려 한 줄짜리 문구가 두 줄 칸을 쓰던 것(RE). 브라우저 설치가 필요해 스위트에는 넣지
+않았고, 대신 그 결함의 **원인이 되는 구조**는 `test_qN_manual.js`·`test_rD`·`test_rE`가
+항상 막는다.
 
 `jsdom`이 `--no-save`로 설치돼 있어 실행 시 `NODE_PATH=<프로젝트경로>/node_modules`가
 필요하다(`run_all_tests.js`는 알아서 잡는다). 턴 종료 시 Stop 훅

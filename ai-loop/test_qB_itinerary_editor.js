@@ -462,17 +462,18 @@ const OVERRIDE_TOKYO = [{
     /코스가 최대/.test(link.textContent) && /일별 주요 활동/.test(link.textContent),
     link.textContent.slice(0, 80));
 
-  /* ── RC: 입력칸 높이 ──
+  /* ── RC → RE: 입력칸 높이 ──
      고객 견적서에 그대로 나가는 문구를 쓰는 곳이라 쓰는 동안 내용이 다 보여야 한다.
-     사용자 요청으로 1.8배로 키웠다(38 → 68px, 66 → 119px, 실제 브라우저로 측정 확인).
+     RC는 그걸 **고정 1.8배**로 풀었는데, 고정 높이는 그 의도를 양쪽에서 어겼다 —
+     한 줄짜리 문구에도 119px를 쓰고 여섯 줄짜리는 119px에서 잘렸다. RE에서 높이를
+     **내용이 정하게** 바꿨다(itiAutoGrow). 이제 배율 변수는 없다.
      ⚠ jsdom은 레이아웃을 계산하지 않아 여기서 '보이는 높이'는 못 잰다. 대신 **숫자를
-     손으로 두 벌 적지 않았는지**를 본다 — 기준값과 배율을 변수로 두고 calc로 곱해야
-     나중에 배율만 바꿔도 두 칸이 함께 움직인다(한쪽만 고쳐 어긋나는 것이 단골 결함이다). */
-  ok('입력칸 높이를 배율 변수로 둔다', /--iti-box-scale:\s*1\.8/.test(adminSrc));
-  ok('한 줄 칸이 배율을 곱해 쓴다',
-    /\.iti-inp \{ height: calc\(var\(--iti-inp-base\) \* var\(--iti-box-scale\)\)/.test(adminSrc));
-  ok('여러 줄 칸이 같은 배율을 쓴다',
-    /\.iti-ta\s+\{ min-height: calc\(var\(--iti-ta-base\) \* var\(--iti-box-scale\)\)/.test(adminSrc));
+     손으로 두 벌 적지 않았는지**를 본다 — 한 줄 높이 하나에서 두 칸이 함께 나와야
+     한쪽만 고쳐 어긋나는 일이 없다. 실제 높이는 test_rE가 브라우저로 잰다. */
+  ok('한 줄 높이를 변수 하나로 둔다', /--iti-line:\s*\d+px/.test(adminSrc));
+  ok('한 줄 칸이 그 변수를 쓴다', /\.iti-inp \{ height: var\(--iti-line\)/.test(adminSrc));
+  ok('여러 줄 칸의 최소 높이도 같은 변수에서 나온다',
+    /\.iti-ta\s+\{ min-height: var\(--iti-line\)/.test(adminSrc));
   ok('높이를 숫자로 다시 적어두지 않았다',
     !/\.iti-inp \{ height: \d+px/.test(adminSrc) && !/\.iti-ta \{ min-height: \d+px/.test(adminSrc));
 
