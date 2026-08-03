@@ -42,6 +42,67 @@
   nav.toc li::before { content: counter(t) "."; color: var(--muted); font-size: .76rem; padding-top: .1rem; }
   nav.toc a { color: var(--text); text-decoration: none; border-bottom: 1px solid transparent; }
   nav.toc a:hover, nav.toc a:focus-visible { color: var(--primary); border-bottom-color: currentColor; }
+  /* 지금 읽고 있는 장을 표시한다 — 17,000자짜리 문서에서 "내가 어디쯤인가"를 모르면
+     목차가 있어도 길을 잃는다. JS가 붙이는 클래스이고, JS가 없어도 문서는 멀쩡하다. */
+  nav.toc a.here { color: var(--primary); font-weight: 800; }
+  nav.toc li:has(a.here)::before { color: var(--primary); font-weight: 800; }
+  nav.toc .who { font-size: .68rem; color: var(--muted); margin-left: .3rem; white-space: nowrap; }
+
+  /* 모바일에서는 목차 12줄이 본문을 밀어낸다 — 접어 둔다.
+     넓은 화면에서는 <summary>를 숨기고 항상 펼친 상태로 둔다(details[open]). */
+  nav.toc summary { display: none; }
+  @media (max-width: 900px) {
+    nav.toc summary {
+      display: block; cursor: pointer; font-size: .8rem; font-weight: 800; color: var(--heading);
+      padding: .2rem 0; list-style: none;
+    }
+    nav.toc summary::-webkit-details-marker { display: none; }
+    nav.toc summary::after { content: " ▾"; color: var(--muted); }
+    nav.toc details[open] summary::after { content: " ▴"; }
+    nav.toc details:not([open]) ol { display: none; }
+  }
+
+  /* ── 문서 내 검색 ──
+     이 문서는 관리자 화면 안 iframe으로 열린다. 그 상태에서 Ctrl+F는 바깥 화면을
+     검색하는 경우가 많아 직원이 "찾기가 안 된다"고 느낀다. 그래서 문서가 자체 검색을
+     가진다. 외부 라이브러리는 쓸 수 없으므로(사내망·오프라인) 인라인 JS로만 만든다. */
+  .docsearch { margin-bottom: .9rem; }
+  .docsearch input {
+    width: 100%; font: inherit; font-size: .84rem; padding: .42rem .55rem;
+    border: 1px solid var(--border); background: var(--white); color: var(--text);
+  }
+  .docsearch input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .docsearch .hits { margin: .5rem 0 0; padding: 0; list-style: none; display: grid; gap: .25rem; max-height: 15rem; overflow-y: auto; }
+  .docsearch .hits li { display: block; font-size: .78rem; }
+  .docsearch .hits button {
+    all: unset; cursor: pointer; display: block; width: 100%; padding: .3rem .4rem;
+    border-left: 2px solid var(--rule-soft); line-height: 1.5;
+  }
+  .docsearch .hits button:hover, .docsearch .hits button:focus-visible { background: var(--primary-lt); border-left-color: var(--primary); }
+  .docsearch .hits .where { display: block; color: var(--muted); font-size: .7rem; }
+  .docsearch .none { font-size: .78rem; color: var(--muted); padding: .3rem .4rem; }
+  /* 검색으로 이동한 자리를 잠깐 표시한다 — 스크롤만 하면 어디로 왔는지 모른다. */
+  .flash { animation: flash 1.6s ease-out; }
+  @keyframes flash { from { background: #FDF3B4; } to { background: transparent; } }
+  @media (prefers-reduced-motion: reduce) { .flash { animation: none; outline: 2px solid var(--warn); outline-offset: 3px; } }
+
+  /* ── 첫날 안내 ── 12장을 다 읽을 사람은 없다. 무엇부터 볼지 먼저 말한다. */
+  .kickoff { background: var(--white); border: 1px solid var(--border); border-top: 3px solid var(--primary); padding: 1.05rem 1.2rem; display: flex; flex-direction: column; gap: .7rem; }
+  .kickoff h2 { font-size: .95rem; font-weight: 800; color: var(--heading); margin: 0; }
+  .kickoff ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; counter-reset: k; }
+  .kickoff ol li { counter-increment: k; display: grid; grid-template-columns: 1.4rem 1fr; font-size: .87rem; }
+  .kickoff ol li::before { content: counter(k); color: var(--primary); font-weight: 800; font-size: .8rem; padding-top: .12rem; }
+  .kickoff .rest { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--rule-soft); padding-top: .6rem; margin: 0; max-width: none; }
+  .kickoff a { color: var(--primary); font-weight: 700; }
+
+  /* 맨 위로 — 긴 문서에서 목차로 돌아가는 길. 화면이 좁을 때만 필요하다
+     (넓은 화면에서는 목차가 왼쪽에 계속 붙어 있다). */
+  .backtop {
+    position: fixed; right: 1rem; bottom: 1rem; display: none;
+    background: var(--white); border: 1px solid var(--border); color: var(--heading);
+    font: inherit; font-size: .78rem; font-weight: 700; padding: .45rem .7rem; cursor: pointer;
+  }
+  @media (max-width: 900px) { .backtop.show { display: block; } }
 
   main { display: flex; flex-direction: column; gap: 2.75rem; min-width: 0; }
 
@@ -107,14 +168,24 @@
 
   footer { border-top: 1px solid var(--border); padding-top: 1.1rem; font-size: .8rem; color: var(--muted); display: flex; flex-direction: column; gap: .3rem; }
 
-  /* 인쇄 — 목차와 버튼은 종이에서 쓸모가 없다. 표가 잘리지 않게 배경도 지운다. */
+  /* 인쇄 — 책상에 두고 보는 용도. 표가 잘리지 않게 배경도 지운다.
+     ⚠ 목차는 **남긴다.** 예전에는 버튼과 함께 숨겼는데, 종이로 받은 사람은 목차가
+     없으면 12장짜리 문서에서 원하는 장을 찾을 방법이 아예 없다(스크롤도 검색도 없다).
+     대신 화면용 고정(sticky)을 풀고 맨 앞 한 덩어리로 내려놓는다.
+     ⚠ 쪽번호는 CSS로 넣지 않는다 — @page 여백 상자(@bottom-right 등)를 크롬이
+     지원하지 않아 "넣었는데 안 나오는" 상태가 된다. 브라우저 인쇄 설정의
+     머리글/바닥글을 쓰면 된다. */
+  @page { margin: 14mm; }
   @media print {
     body { background: #fff; font-size: 11pt; }
     .layout { display: block; max-width: none; padding: 0; }
-    nav.toc, .print-btn { display: none; }
+    .print-btn, .docsearch, .backtop { display: none; }
+    nav.toc { position: static; border: 0; border-bottom: 2px solid var(--heading); padding: 0 0 .8rem; margin-bottom: 1.4rem; break-after: avoid; }
+    nav.toc summary { display: none; }
+    nav.toc ol { grid-template-columns: 1fr 1fr; }
     section { break-inside: auto; }
     section > h2 { break-after: avoid; }
-    .note, .scroller, ol.flow > li { break-inside: avoid; }
+    .note, .scroller, ol.flow > li, .kickoff { break-inside: avoid; }
     a { color: inherit; text-decoration: none; }
   }
 </style>
@@ -125,20 +196,31 @@
 
   <nav class="toc" aria-label="목차">
     <h2>목차</h2>
-    <ol>
-      <li><a href="#start">시작하기 — 계정과 화면</a></li>
-      <li><a href="#flow">하루 흐름 한눈에</a></li>
-      <li><a href="#inquiries">문의 관리</a></li>
-      <li><a href="#estmgr">견적 관리</a></li>
-      <li><a href="#quotetool">내부 견적 산출</a></li>
-      <li><a href="#itinerary">일정 관리</a></li>
-      <li><a href="#rates">요율 관리 — 단가 갱신</a></li>
-      <li><a href="#newdest">새 목적지 추가</a></li>
-      <li><a href="#roles">권한별로 할 수 있는 일</a></li>
-      <li><a href="#errors">막혔을 때 나오는 메시지</a></li>
-      <li><a href="#dont">하면 안 되는 것</a></li>
-      <li><a href="#owner">사장님 — 가입 열고 승인하기</a></li>
-    </ol>
+
+    <!-- 문서 내 검색. JS가 없거나 실패해도 목차는 그대로 쓸 수 있게 별개로 둔다. -->
+    <div class="docsearch">
+      <label for="q" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">문서에서 찾기</label>
+      <input id="q" type="search" placeholder="문서에서 찾기 (예: 확인 필요)" autocomplete="off">
+      <ul class="hits" id="hits" aria-live="polite"></ul>
+    </div>
+
+    <details open>
+      <summary>장 목록 12개</summary>
+      <ol>
+        <li><a href="#start">시작하기 — 계정과 화면</a></li>
+        <li><a href="#flow">하루 흐름 한눈에</a></li>
+        <li><a href="#inquiries">문의 관리</a></li>
+        <li><a href="#estmgr">견적 관리</a></li>
+        <li><a href="#quotetool">내부 견적 산출</a></li>
+        <li><a href="#itinerary">일정 관리</a></li>
+        <li><a href="#rates">요율 관리 — 단가 갱신</a></li>
+        <li><a href="#newdest">새 목적지 추가<span class="who">매니저·관리자</span></a></li>
+        <li><a href="#roles">권한별로 할 수 있는 일</a></li>
+        <li><a href="#errors">막혔을 때 나오는 메시지</a></li>
+        <li><a href="#dont">하면 안 되는 것</a></li>
+        <li><a href="#owner">사장님 — 가입 열고 승인하기<span class="who">관리자</span></a></li>
+      </ol>
+    </details>
   </nav>
 
   <main>
@@ -150,10 +232,31 @@
         저장 버튼 하나가 곧바로 고객이 보는 금액과 일정이 되므로, 맡은 부분만이라도 한 번 읽고 시작해 주세요.
       </p>
       <div class="meta">
-        <span>팀 공용 · 2026년 8월 2일 기준</span>
+        <span>팀 공용 · 2026년 8월 3일 기준</span>
         <button type="button" class="print-btn" onclick="window.print()">인쇄 / PDF로 저장</button>
       </div>
     </header>
+
+    <!-- 첫날 경로.
+         12개 장을 처음부터 다 읽을 사람은 없고, 다 읽으라고 하면 아무도 안 읽는다.
+         그래서 "지금 읽어야 할 것"과 "막혔을 때 찾을 것"을 문서가 스스로 구분해 준다.
+         ⚠ 이 덩어리는 일부러 <section id>가 아니다 — 섹션으로 만들면 목차 번호가
+         한 칸씩 밀려 본문 제목("1. 시작하기")과 어긋난다. -->
+    <div class="kickoff">
+      <h2>처음이라면 — 이 순서로 10분이면 됩니다</h2>
+      <ol>
+        <li><strong><a href="#start">1장 시작하기</a></strong> — 계정 만들고 로그인하기. 여기부터 안 되면 나머지는 볼 수 없습니다.</li>
+        <li><strong><a href="#flow">2장 하루 흐름</a></strong> — 일이 어떤 순서로 흘러가는지 다섯 줄로 봅니다.</li>
+        <li><strong>내가 맡은 일 한 장만</strong> — 문의·견적 담당이면 <a href="#inquiries">3장</a>·<a href="#estmgr">4장</a>,
+          일정 담당이면 <a href="#itinerary">6장</a>, 단가 담당이면 <a href="#rates">7장</a>.</li>
+      </ol>
+      <p class="rest">
+        나머지 장은 <strong>지금 읽는 것이 아니라 막혔을 때 찾는 것</strong>입니다.
+        화면에 낯선 문구가 떠서 “고장인가?” 싶으면 <a href="#errors">10장 막혔을 때 나오는 메시지</a>를 먼저 보세요.
+        찾는 단어가 있으면 왼쪽 <strong>문서에서 찾기</strong> 칸에 넣으면 됩니다.
+        사장님은 <a href="#owner">12장</a>부터 보시면 됩니다.
+      </p>
+    </div>
 
     <section id="start">
       <h2>1. 시작하기 — 계정과 화면</h2>
@@ -180,6 +283,8 @@
         <li><strong>비밀번호를 <span data-fact="LOGIN_MAX_ATTEMPTS">5</span>번 틀리면 <span data-fact="LOGIN_LOCKOUT_MINUTES">15</span>분 잠깁니다.</strong> 잠겼으면 기다리거나 사장님께 재설정을 요청하세요.</li>
         <li><strong>로그인은 <span data-fact="SESSION_HOURS">12</span>시간 유지됩니다.</strong> 다음 날 다시 들어가면 로그인 화면이 나오는 게 정상입니다.</li>
         <li>비밀번호는 <strong>설정 → 비밀번호 변경</strong>에서 언제든 바꿀 수 있습니다. <span data-fact="PASSWORD_MIN_LENGTH">8</span>자 이상이어야 합니다.</li>
+        <li><strong>비밀번호를 잊었다면 — 스스로 되찾는 방법은 없습니다.</strong> “비밀번호 찾기” 버튼도, 메일로 재설정 링크를 보내는 기능도 없습니다(없는 것이 정상입니다). <strong>사장님께 재설정을 요청</strong>하시면 새 비밀번호를 받아 바로 로그인할 수 있고, 잠겨 있었다면 잠금도 함께 풀립니다. 로그인한 뒤 설정에서 본인만 아는 값으로 다시 바꿔 두세요.</li>
+        <li><strong>비밀번호를 바꾸면 다른 기기의 로그인은 전부 풀립니다.</strong> 사무실 PC에서 바꾸면 휴대폰은 다시 로그인해야 합니다 — 고장이 아니라, 비밀번호를 바꾼 사람이 기대하는 동작입니다.</li>
       </ul>
 
       <h3>왼쪽 메뉴 — 어디에 무엇이 있나</h3>
@@ -220,7 +325,7 @@
         <span class="label">5번을 빠뜨리지 마세요</span>
         <p>
           계약된 건의 <strong>실제 금액</strong>이 쌓여야 “우리 견적이 얼마나 맞았나”를 계산할 수 있습니다.
-          지금은 계약 완료 데이터가 <strong>한 건도 없어서</strong> 그 기능이 전부 멈춰 있습니다.
+          <strong>계약완료로 기록된 건이 쌓이기 전까지 그 기능은 빈 채로 있습니다</strong> — 화면이 고장 난 게 아닙니다.
           입력하는 데 30초면 되고, 쌓이는 만큼 견적이 정확해집니다.
         </p>
       </div>
@@ -413,6 +518,10 @@
 
     <section id="rates">
       <h2>7. 요율 관리 — 단가 갱신</h2>
+      <p>
+        목적지별 단가를 최신으로 유지하는 곳입니다. <strong>여기서 저장을 누르는 순간 고객이 보는 견적 금액이 바뀝니다</strong> —
+        그래서 이 장은 “어떻게 고치나”보다 <strong>근거를 가지고 고치고, 틀렸을 때 되돌리는 방법</strong>에 대한 이야기입니다.
+      </p>
       <ol class="steps">
         <li>
           <h3>고칠 목적지를 찾습니다</h3>
@@ -490,7 +599,10 @@
 
     <section id="newdest">
       <h2>8. 새 목적지 추가하기<span class="role-flag">매니저 · 관리자</span></h2>
-      <p>요율 관리 위쪽 <strong>➕ 새 목적지 추가</strong> 버튼입니다. 직원 계정에는 이 버튼이 보이지 않습니다.</p>
+      <p>
+        요율표에 없는 나라·도시를 새로 만드는 작업입니다. 요율 관리 위쪽 <strong>➕ 새 목적지 추가</strong> 버튼으로 하고,
+        직원 계정에는 이 버튼이 보이지 않습니다. <strong>단가 9개보다 분류값 5개가 훨씬 중요하니</strong>, 아래 두 표를 먼저 보고 시작하세요.
+      </p>
 
       <div class="note alarm">
         <span class="label">단가 9개보다 분류값 5개가 더 위험합니다</span>
@@ -683,6 +795,8 @@
 
 </div>
 
+<button type="button" class="backtop" id="backtop">↑ 맨 위로</button>
+
 <!-- 운영 상수의 단일 출처. 서버 검증(api/*.js)과 관리자 화면도 같은 파일을 읽는다.
      여기 숫자를 문서에 손으로 적어 두면 값이 바뀔 때 문서만 낡는다(QO). -->
 <script src="limits.js"></script>
@@ -726,6 +840,155 @@
       if (unknown.length) note.style.color = 'var(--danger)';
     }
   })();
+</script>
+
+<script>
+/* ─────────────────────────────────────────────────────────────────────────
+   읽기 보조 — 검색 · 현재 위치 표시 · 맨 위로.
+
+   ⚠ **위 fillFacts와 별개의 스크립트 블록인 것이 의도다.** 한 블록에 두면 여기서 난
+   예외 하나가 숫자 채우기까지 통째로 멈춘다(그리고 그건 화면에 티가 안 난다).
+   같은 이유로 전체를 try/catch로 감싼다 — 이 기능들이 죽어도 문서는 읽을 수 있어야 한다.
+
+   ⚠ 외부 라이브러리를 쓰지 않는다. 사내망·오프라인에서 깨지고, 무엇보다
+   ai-loop/test_qN_manual.js가 외부 주소를 불러오는 태그를 실패로 잡는다.
+   (⚠ 주석에 태그 문자열을 그대로 적지 말 것 — 소스를 훑어 검사하는 테스트가
+    주석까지 세어 단언이 조용히 무력해진다. 실제로 한 번 그렇게 됐다.)
+   ───────────────────────────────────────────────────────────────────────── */
+(function reading() {
+  try {
+    var main = document.querySelector('main');
+    if (!main) return;
+
+    /* ── 1. 문서에서 찾기 ──
+       이 문서는 관리자 화면 안 iframe으로 열린다. 그 안에서 Ctrl+F는 바깥 화면을
+       검색하는 일이 잦아 "찾기가 안 된다"가 된다. 그래서 문서가 자체 검색을 갖는다. */
+    var input = document.getElementById('q');
+    var hits = document.getElementById('hits');
+
+    /* 본문을 한 번만 훑어 색인해 둔다. 문단·목록·표 칸·소제목·알림 라벨이 대상이다. */
+    var index = [];
+    main.querySelectorAll('h2, h3, p, li, td, .label').forEach(function (el) {
+      var text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (text.length < 2) return;
+      var sec = el.closest('section');
+      var title = sec && sec.querySelector('h2') ? sec.querySelector('h2').textContent.trim() : '처음이라면';
+      index.push({ el: el, text: text, lower: text.toLowerCase(), where: title });
+    });
+
+    function jumpTo(el) {
+      if (el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      /* 스크롤만 하면 어디로 왔는지 모른다 — 잠깐 표시해 준다. */
+      el.classList.remove('flash');
+      void el.offsetWidth;                       // 같은 자리를 다시 눌러도 다시 켜지게
+      el.classList.add('flash');
+      setTimeout(function () { el.classList.remove('flash'); }, 2000);
+    }
+
+    /* 결과 한 줄. innerHTML을 쓰지 않고 노드로 만든다 — 본문 문구에 <, & 가 있어도
+       안전하고, 이스케이프를 기억해야 하는 구조를 애초에 만들지 않는다. */
+    function hitRow(item, q) {
+      var i = item.lower.indexOf(q);
+      var from = Math.max(0, i - 24);
+      var head = (from > 0 ? '…' : '') + item.text.slice(from, i);
+      var mid = item.text.slice(i, i + q.length);
+      var tailRaw = item.text.slice(i + q.length, i + q.length + 46);
+      var tail = tailRaw + (i + q.length + 46 < item.text.length ? '…' : '');
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.appendChild(document.createTextNode(head));
+      var mark = document.createElement('mark');
+      mark.appendChild(document.createTextNode(mid));
+      btn.appendChild(mark);
+      btn.appendChild(document.createTextNode(tail));
+
+      var where = document.createElement('span');
+      where.className = 'where';
+      where.appendChild(document.createTextNode(item.where));
+      btn.appendChild(where);
+
+      btn.addEventListener('click', function () { jumpTo(item.el); });
+      var li = document.createElement('li');
+      li.appendChild(btn);
+      return li;
+    }
+
+    if (input && hits) {
+      input.addEventListener('input', function () {
+        var q = input.value.trim().toLowerCase();
+        hits.textContent = '';
+        if (q.length < 2) return;                // 한 글자로는 온 문서가 걸린다
+
+        var found = [];
+        for (var n = 0; n < index.length && found.length < 12; n++) {
+          if (index[n].lower.indexOf(q) !== -1) found.push(index[n]);
+        }
+        if (!found.length) {
+          var none = document.createElement('li');
+          none.className = 'none';
+          none.textContent = '“' + input.value.trim() + '” — 이 문서에는 없습니다.';
+          hits.appendChild(none);
+          return;
+        }
+        found.forEach(function (item) { hits.appendChild(hitRow(item, q)); });
+      });
+      /* Esc로 지우기 — 검색창에 갇힌 느낌을 없앤다. */
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { input.value = ''; hits.textContent = ''; }
+      });
+    }
+
+    /* ── 2. 지금 읽고 있는 장을 목차에 표시 ──
+       ⚠ IntersectionObserver가 없는 환경(구형 브라우저, 테스트용 jsdom)에서는
+       조용히 건너뛴다. 이게 없다고 문서를 못 읽는 것은 아니다. */
+    if ('IntersectionObserver' in window) {
+      var links = {};
+      document.querySelectorAll('nav.toc a[href^="#"]').forEach(function (a) {
+        links[a.getAttribute('href').slice(1)] = a;
+      });
+      var seen = {};
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { seen[en.target.id] = en.isIntersecting; });
+        var current = null;
+        document.querySelectorAll('main section[id]').forEach(function (s) {
+          if (seen[s.id] && !current) current = s.id;
+        });
+        Object.keys(links).forEach(function (id) {
+          links[id].classList.toggle('here', id === current);
+        });
+      }, { rootMargin: '-10% 0px -70% 0px' });
+      document.querySelectorAll('main section[id]').forEach(function (s) { io.observe(s); });
+    }
+
+    /* ── 3. 넓은 화면에서는 목차를 항상 펼쳐 둔다 ──
+       ⚠ 목차를 <details>로 접을 수 있게 한 것은 **좁은 화면 전용**이다. 넓은 화면에서는
+       접기 버튼(summary)을 CSS로 숨기는데, 좁은 화면에서 접어 둔 채 창을 넓히면
+       "목차가 통째로 사라졌고 펼 방법도 없는" 상태가 된다(접힘 상태는 브라우저가
+       내용을 감추므로 CSS로 되돌릴 수 없다). 그래서 폭을 보고 강제로 펴 준다. */
+    var toc = document.querySelector('nav.toc details');
+    if (toc) {
+      var keepOpen = function () { if (window.innerWidth > 900) toc.open = true; };
+      keepOpen();
+      window.addEventListener('resize', keepOpen, { passive: true });
+    }
+
+    /* ── 4. 맨 위로 ── 좁은 화면에서는 목차가 위에 있어서 돌아갈 길이 필요하다. */
+    var top = document.getElementById('backtop');
+    if (top) {
+      top.addEventListener('click', function () {
+        if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (input) input.focus();
+      });
+      window.addEventListener('scroll', function () {
+        top.classList.toggle('show', (window.scrollY || 0) > 600);
+      }, { passive: true });
+    }
+  } catch (err) {
+    /* 읽기 보조가 죽어도 본문은 그대로 읽힌다 — 조용히 넘기되 흔적은 남긴다. */
+    console.warn('[manual] 읽기 보조 기능을 켜지 못했습니다:', err);
+  }
+})();
 </script>
 
 </body>

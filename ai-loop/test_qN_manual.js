@@ -142,7 +142,85 @@ const manualPath = path.join(ROOT, 'manual.html');
   /* 외부 리소스를 부르면 사내망·오프라인에서 깨진 화면이 된다. 자급자족이어야 한다. */
   ok('외부 CDN·폰트를 부르지 않는다', !/<(script|link)[^>]+https?:\/\//i.test(manualSrc));
 
-  console.log('\n[8] 상수를 못 불러온 경우 낡은 숫자를 조용히 보여주지 않는가 (결함 생성기 ②)');
+  console.log('\n[8] 읽기 보조 — 검색·첫날 안내·맨 위로가 실제로 동작하는가 (QP)');
+  /* ⚠ 여기를 원문 정규식으로 때우지 않는다. 이 저장소가 반복해서 당한 것이
+     "기능은 만들었는데 한 번도 실행해 본 적이 없다"이므로, 실제로 값을 넣고
+     이벤트를 쏴서 결과가 나오는지 본다(결함 생성기 ③). */
+  const q = md.getElementById('q');
+  const hits = md.getElementById('hits');
+  ok('검색창과 결과 자리가 있다', !!q && !!hits);
+
+  const type = (value) => {
+    q.value = value;
+    q.dispatchEvent(new mdom.window.Event('input'));
+  };
+
+  /* 한 글자로 검색하면 온 문서가 걸려 결과가 쓸모없어진다 — 일부러 막아둔 동작. */
+  type('요');
+  ok('한 글자로는 검색하지 않는다', hits.children.length === 0, `${hits.children.length}건`);
+
+  /* 본문에만 있고 목차·제목에는 없는 문구여야 '본문을 색인했는지'가 확인된다. */
+  type('확인 필요');
+  ok('본문 문구를 찾아낸다 ("확인 필요")', hits.children.length > 0, `${hits.children.length}건`);
+  const firstBtn = hits.querySelector('button');
+  ok('결과에 어느 장인지 함께 나온다',
+    !!firstBtn && !!firstBtn.querySelector('.where') && firstBtn.querySelector('.where').textContent.trim().length > 0,
+    firstBtn && firstBtn.textContent.slice(0, 40));
+  ok('찾은 말이 결과 안에 강조된다', !!firstBtn && !!firstBtn.querySelector('mark'));
+
+  /* 없으면 "없다"고 말해야 한다. 빈 목록만 남으면 고장인지 없는 건지 구별이 안 된다. */
+  type('이런말은문서에없다zzz');
+  ok('없는 말은 없다고 알린다', !!hits.querySelector('.none'),
+    hits.textContent.trim().slice(0, 40));
+
+  /* 눌렀을 때 그 자리로 갔다는 표시가 나야 한다 — 스크롤만 하면 어디로 왔는지 모른다. */
+  type('담당자');
+  const jumpBtn = hits.querySelector('button');
+  ok('결과가 있다(이동 확인용)', !!jumpBtn);
+  if (jumpBtn) {
+    jumpBtn.click();
+    ok('결과를 누르면 이동한 자리를 표시한다', !!md.querySelector('.flash'));
+  }
+
+  /* 첫날 경로 — 12개 장 중 무엇부터 볼지 문서가 스스로 말해야 한다. */
+  const kick = md.querySelector('.kickoff');
+  ok('첫날 안내가 있다', !!kick);
+  const kickLinks = kick ? Array.from(kick.querySelectorAll('a[href^="#"]')).map((a) => a.getAttribute('href').slice(1)) : [];
+  ok('첫날 안내 링크가 3개 이상이다', kickLinks.length >= 3, `${kickLinks.length}개`);
+  const kickDead = kickLinks.filter((id) => !md.getElementById(id));
+  ok('첫날 안내의 링크가 전부 실제 섹션으로 이어진다', kickDead.length === 0, kickDead.join(', '));
+  /* 섹션으로 만들면 목차 번호가 밀려 본문 제목과 어긋난다 — 일부러 div로 둔 것을 고정한다. */
+  ok('첫날 안내는 섹션이 아니다 (목차 번호가 밀리지 않게)',
+    !kick || kick.tagName.toLowerCase() !== 'section');
+
+  ok('맨 위로 버튼이 있다', !!md.getElementById('backtop'));
+
+  /* 목차 접기는 좁은 화면 전용이다. 접힌 채 창이 넓어지면 목차가 사라지고 펼 버튼도
+     안 보인다(접힘은 브라우저가 내용을 감추므로 CSS로 못 되돌린다). 넓은 폭에서는
+     JS가 강제로 펴야 한다 — jsdom 기본 폭은 1024라 여기서 확인된다. */
+  const tocDetails = md.querySelector('nav.toc details');
+  ok('목차가 접을 수 있게 돼 있다(좁은 화면용)', !!tocDetails);
+  ok('넓은 화면에서는 목차가 펼쳐진다', !!tocDetails && tocDetails.open === true,
+    `innerWidth=${mdom.window.innerWidth}, open=${tocDetails && tocDetails.open}`);
+  if (tocDetails) {
+    tocDetails.open = false;
+    mdom.window.dispatchEvent(new mdom.window.Event('resize'));
+    ok('접힌 채 창이 넓어지면 다시 펴 준다', tocDetails.open === true);
+  }
+
+  /* 읽기 보조가 숫자 채우기와 **다른 스크립트 블록**이어야 한다. 한 블록에 두면 여기서
+     난 예외 하나가 fillFacts까지 멈추는데, 그건 화면에 티가 안 난다(결함 생성기 ②).
+
+     ⚠ 주석을 먼저 걷어낸 뒤에 센다. 처음엔 원문을 그대로 셌는데, 매뉴얼 주석 안에
+     설명용으로 적힌 태그 문자열까지 함께 세어져 **두 블록을 하나로 합쳐도 통과했다**
+     (일부러 망가뜨려 보고 나서야 알았다 — 결함 생성기 ③이 말하는 그 상태였다). */
+  const srcNoComments = manualSrc
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  const inlineScripts = srcNoComments.match(/<script(?![^>]*\bsrc=)[^>]*>/g) || [];
+  ok('읽기 보조가 숫자 채우기와 분리된 블록이다', inlineScripts.length >= 2, `${inlineScripts.length}개`);
+
+  console.log('\n[9] 상수를 못 불러온 경우 낡은 숫자를 조용히 보여주지 않는가 (결함 생성기 ②)');
   const noLimits = await bootManual({ withLimits: false });
   const nd = noLimits.window.document;
   ok('문서 맨 위에 확인하지 못했다고 알린다',
