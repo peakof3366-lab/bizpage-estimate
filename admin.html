@@ -551,12 +551,9 @@
     .itip-fit.fit-2 { color: #6B7280; }   /* 보완 */
     .itip-fit.fit-3 { color: #B45309; }   /* 여가 */
     .itip-item-from { display: block; font-size: .7rem; font-weight: 700; color: var(--muted); margin-top: .25rem; }
-    /* 출처 종류를 색으로도 구분한다 (RA) — 목록을 훑을 때 글자를 읽지 않고도
-       "우리 것 / 남의 것"이 갈려 보여야 한다. */
-    .itip-item-from.from-here   { color: #1D4ED8; }   /* 이 목적지 */
-    .itip-item-from.from-region { color: #047857; }   /* 같은 지역 */
-    .itip-item-from.from-common { color: #6B7280; }   /* 여러 곳 공통 */
-    .itip-item-from.from-far    { color: #B45309; }   /* 다른 지역 */
+    /* 출처(코스·일자)를 눈에 띄게 — 목록을 훑을 때 "어느 코스 몇 일차 문구인지"가
+       바로 보여야 한다. 후보가 전부 이 목적지 것이라 색은 한 가지면 충분하다 (RB). */
+    .itip-item-from.from-here { color: #1D4ED8; }
     .itip-cur {
       background: #f8fafc; border: 1px solid var(--border); padding: .55rem .7rem;
       font-size: .78rem; line-height: 1.6; color: var(--muted); margin-bottom: .7rem;
@@ -1934,9 +1931,8 @@
     </div>
     <div class="modal-body">
       <div id="itiPickCur" class="itip-cur hidden"></div>
-      <div class="itip-bar" id="itiPickScopes"></div>
-      <!-- 기업 연수 적합도 필터 (QZ) — 전체 범위 후보가 900건 가까이라, 배지를 보여주는
-           것만으로는 부족하다. "연수만" 한 번에 걸러야 실제로 빨라진다. -->
+      <!-- ⚠ 범위(이 목적지·같은 지역·전체) 칩은 없앴다 (RB). 후보는 늘 이 목적지 것뿐이다 —
+           도쿄 일정에 파리 문구를 넣을 일이 없기 때문이다(한 연수로 두 지역을 가지 않는다). -->
       <div class="itip-bar" id="itiPickFits"></div>
       <input type="text" class="itip-search" id="itiPickSearch" placeholder="검색 — 단어를 넣으면 좁혀집니다" />
       <p class="itip-count" id="itiPickCount"></p>
@@ -5837,23 +5833,34 @@
      하이라이트'처럼 한 줄에 하나씩 적는 목록 칸은 줄을 더하는 것(line)이 맞다.
      같은 동작으로 묶으면 목록 칸에서 기존 줄이 통째로 날아간다.
      ═══════════════════════════════════════════════════════════════════════ */
+  /* pick은 **문구와 함께 '그 목적지 안에서 어디서 왔는지'**를 돌려준다 (RB).
+     후보를 이 목적지 안으로 좁히고 나면 "어느 목적지 것인가"는 전부 같아져서 쓸모가 없다.
+     대신 "코스 B · DAY 2 오전"이 실제로 필요한 단서다 — 같은 목적지 안에서도 코스마다
+     성격이 다르고(언어·리더십·산업), 몇 일차 문구인지가 그대로 판단 근거가 된다. */
   const ITI_PICK_KINDS = {
-    dayTitle:  { label: '그날의 제목',      mode: 'replace', from: 'courses', pick: (c) => (c.days || []).map((d) => d.title) },
-    dayAct:    { label: '오전·오후 활동',   mode: 'replace', from: 'courses', pick: (c) => (c.days || []).reduce((a, d) => a.concat(d.am, d.pm), []) },
-    dayEve:    { label: '저녁 일정',        mode: 'replace', from: 'courses', pick: (c) => (c.days || []).map((d) => d.eve) },
-    dayTip:    { label: '참고 팁',          mode: 'replace', from: 'courses', pick: (c) => (c.days || []).map((d) => d.tip) },
-    highlight: { label: '핵심 하이라이트',   mode: 'line',    from: 'courses', pick: (c) => c.highlights || [] },
-    recPoint:  { label: '핵심 포인트',      mode: 'line',    from: 'rec',     pick: (r) => [].concat((r.a && r.a.points) || [], (r.b && r.b.points) || []) },
-    recItem:   { label: '일별 주요 활동',    mode: 'line',    from: 'rec',     pick: (r) => [].concat((r.a && r.a.items) || [], (r.b && r.b.items) || []) },
+    dayTitle:  { label: '그날의 제목',      mode: 'replace', from: 'courses',
+                 pick: (c) => (c.days || []).map((d, i) => ({ text: d.title, where: 'DAY ' + (i + 1) })) },
+    dayAct:    { label: '오전·오후 활동',   mode: 'replace', from: 'courses',
+                 pick: (c) => (c.days || []).reduce((a, d, i) => a.concat(
+                   { text: d.am, where: 'DAY ' + (i + 1) + ' 오전' },
+                   { text: d.pm, where: 'DAY ' + (i + 1) + ' 오후' }), []) },
+    dayEve:    { label: '저녁 일정',        mode: 'replace', from: 'courses',
+                 pick: (c) => (c.days || []).map((d, i) => ({ text: d.eve, where: 'DAY ' + (i + 1) })) },
+    dayTip:    { label: '참고 팁',          mode: 'replace', from: 'courses',
+                 pick: (c) => (c.days || []).map((d, i) => ({ text: d.tip, where: 'DAY ' + (i + 1) })) },
+    highlight: { label: '핵심 하이라이트',   mode: 'line',    from: 'courses',
+                 pick: (c) => (c.highlights || []).map((h) => ({ text: h, where: '하이라이트' })) },
+    recPoint:  { label: '핵심 포인트',      mode: 'line',    from: 'rec',
+                 pick: (r) => [].concat(
+                   ((r.a && r.a.points) || []).map((t) => ({ text: t, where: '방식 A' })),
+                   ((r.b && r.b.points) || []).map((t) => ({ text: t, where: '방식 B' }))) },
+    recItem:   { label: '일별 주요 활동',    mode: 'line',    from: 'rec',
+                 pick: (r) => [].concat(
+                   ((r.a && r.a.items) || []).map((t) => ({ text: t, where: '방식 A' })),
+                   ((r.b && r.b.items) || []).map((t) => ({ text: t, where: '방식 B' }))) },
   };
 
-  const ITI_PICK_SCOPES = [
-    { id: 'this',   label: '이 목적지' },
-    { id: 'region', label: '같은 지역' },
-    { id: 'all',    label: '전체' },
-  ];
-
-  const itiPick = { kind: '', scope: 'region', read: null, write: null, q: '', destKey: '', fit: 0 };
+  const itiPick = { kind: '', read: null, write: null, q: '', destKey: '', fit: 0 };
 
   /* 기업 연수 적합도 등급 이름 (QX) — activity_rank.js의 1·2·3과 짝이다. */
   const ITI_FIT_LABEL = { 1: '연수', 2: '보완', 3: '여가' };
@@ -5869,79 +5876,54 @@
     return (typeof DEST_REC !== 'undefined' && DEST_REC[destKey]) || null;
   }
 
-  /* 후보를 모으고 **추천 순서로 정렬**한다 (QW).
+  /* 후보는 **이 목적지 안에서만** 모은다 (RB).
 
-     ⚠ 예전에는 목적지 순회 순서 그대로 나왔다 — 담당자에게는 사실상 무작위였다.
-     게다가 같은 문구가 **몇 곳에서 쓰이는지**(= 여러 목적지가 이미 검증한 문구인지)를
-     알 수 있었는데도 그 정보를 버리고 있었다(처음 만난 것만 남기고 버림).
-     이제 그것을 점수로 쓴다. 후보가 1,000건대라 순서가 곧 쓸모다.
+     ⚠ 예전에는 '같은 지역'·'전체' 범위가 있어서 다른 나라 문구까지 후보로 나왔다.
+     사용자 지적으로 걷어냈다 — 도쿄 일정에 파리 문구를 넣을 일은 없다. 한 번의 연수로
+     두 지역을 가지 않기 때문이다. 실제로 그 후보들 때문에 "왜 다른 지역 문구가 여기
+     있지?"가 나왔고, 매뉴얼에는 "넣은 뒤 목적지 이름이 남아 있는지 확인하라"는 경고까지
+     적어야 했다. **경고가 필요하다는 것은 그 후보를 보여주면 안 된다는 뜻이었다.**
+     (다른 목적지 것을 통째로 가져오는 길은 따로 있다 — '다른 목적지에서 가져오기'.
+      거기서는 남은 목적지 이름을 세어 알려주므로 그 경고가 제자리에 있다.)
 
-     순위 — 위에서부터 강하다:
-       ① 이 목적지에서 이미 쓰는 문구   (그 자리에 맞는 것이 확실하다)
-       ② 같은 지역에서 쓰는 문구        (지역 특성이 맞는다)
-       ③ **기업 연수 적합도 등급**      (연수 → 보완 → 여가, QX)
-       ④ 여러 목적지에서 쓰이는 문구    (일반적으로 통하는, 검증된 문구)
-       ⑤ 같으면 가나다순               (매번 순서가 흔들리면 아까 본 것을 다시 못 찾는다)
+     55곳 × 7종류 = 385개 조합을 전부 세어 확인했다: 이 목적지만 남겨도 최소 4건,
+     중앙값 8~19건이라 '고르기'가 빈 창이 되는 조합은 하나도 없다.
 
-     ①②를 ③보다 위에 두는 이유: 적합도는 '좋은 문구인가'이고 ①②는 '이 목적지에 맞는가'다.
-     아무리 훌륭한 문구라도 다른 지역 것이면 그 자리에 못 쓴다.
-
-     ⚠ 빈도는 **범위와 무관하게 전체에서** 센다. 화면에 보이는 것만 세면 '같은 지역'으로
-     좁혔을 때 빈도가 전부 1로 납작해져 순위가 사라진다. */
-  function itiPickCandidates(kind, scope, destKey) {
+     순위 — 위에서부터:
+       ① 기업 연수 적합도 등급 (연수 → 보완 → 여가, QX)
+       ② 같은 등급이면 가나다순 (매번 흔들리면 아까 본 것을 다시 못 찾는다) */
+  function itiPickCandidates(kind, destKey) {
     const spec = ITI_PICK_KINDS[kind];
     if (!spec) return [];
     const cur = destKey || itiPick.destKey || itiState.destKey;
-    const region = (typeof REGION_MAP !== 'undefined' && REGION_MAP[cur]) || '';
+    if (!cur) return [];
 
-    const stat = new Map();
-    for (const k of itiDestKeys()) {
-      let texts = [];
-      if (spec.from === 'courses') {
-        for (const c of itiLiveCourses(k)) texts = texts.concat(spec.pick(c) || []);
-      } else {
-        const rec = itiLiveRec(k);
-        if (rec) texts = spec.pick(rec) || [];
-      }
-      /* 지역을 모르는 목적지(관리자가 추가한 커스텀 등)끼리 '기타'로 뭉뚱그려 묶이지
-         않게, 현재 목적지의 지역을 모르면 '같은 지역'은 자기 자신뿐이다. */
-      const sameRegion = !!region && ((typeof REGION_MAP !== 'undefined' && REGION_MAP[k]) || '') === region;
-      const inThisDest = new Set();
-      for (const t of texts) {
-        const s = String(t == null ? '' : t).trim();
-        if (!s || inThisDest.has(s)) continue;   /* 한 목적지 안에서 여러 번 나와도 1곳으로 센다 */
-        inThisDest.add(s);
-        /* 등급이 없는 문구(관리자가 새로 쓴 것 등)는 **중립(2)** 으로 둔다.
-           3으로 밀면 새 문구가 영영 맨 아래에 깔리고, 1로 올리면 검증 안 된 문구가
-           맨 위에 온다 — 둘 다 사실이 아니다. */
-        const c = stat.get(s) || {
-          text: s, from: k, uses: 0, here: false, sameRegion: false,
-          fit: (typeof ACTIVITY_RANK !== 'undefined' && ACTIVITY_RANK[s]) || 2,
-        };
-        c.uses += 1;
-        /* ⚠ 출처는 **보고 있는 목적지에 가까운 쪽**을 고른다 (RA).
-           예전에는 전 목적지를 훑다 '처음 만난 곳'을 그대로 썼다. 그래서 방콕을 보고 있는데
-           "후쿠오카"가 출처로 뜨는 일이 생겼다 — 담당자는 "왜 다른 지역 문구가 여기 있지?"로
-           읽는다. 실제로는 방콕도 쓰는 문구인데 라벨이 거짓말을 한 것이다. */
-        if (k === cur) { c.here = true; c.from = k; }
-        else if (sameRegion && !c.here && !c.sameRegion) { c.from = k; }
-        if (sameRegion) c.sameRegion = true;
-        stat.set(s, c);
-      }
+    /* 어디서 왔는지(코스·일자)를 함께 모은다. 같은 문구가 여러 자리에 있으면 처음 것만
+       남긴다 — 같은 문구를 두 번 보여줄 이유가 없다. */
+    const found = new Map();
+    const add = (text, where) => {
+      const s = String(text == null ? '' : text).trim();
+      if (!s || found.has(s)) return;
+      found.set(s, {
+        text: s, where: where,
+        /* 등급이 없는 문구(담당자가 새로 쓴 것)는 **중립(2)**. 3으로 밀면 새 문구가
+           영영 맨 아래에 깔리고, 1로 올리면 검증 안 된 문구가 맨 위에 온다. */
+        fit: (typeof ACTIVITY_RANK !== 'undefined' && ACTIVITY_RANK[s]) || 2,
+      });
+    };
+
+    if (spec.from === 'courses') {
+      itiLiveCourses(cur).forEach((c, i) => {
+        const courseLabel = '코스 ' + String.fromCharCode(65 + i);
+        (spec.pick(c) || []).forEach((p) => add(p.text, courseLabel + ' · ' + p.where));
+      });
+    } else {
+      const rec = itiLiveRec(cur);
+      if (rec) (spec.pick(rec) || []).forEach((p) => add(p.text, p.where));
     }
 
-    const out = [];
-    stat.forEach((c) => {
-      if (scope === 'this' && !c.here) return;
-      if (scope === 'region' && !c.sameRegion) return;
-      out.push(c);
-    });
-    out.sort((a, b) =>
-      (b.here - a.here)
-      || (b.sameRegion - a.sameRegion)
-      || (a.fit - b.fit)            /* 1 연수 → 2 보완 → 3 여가 */
-      || (b.uses - a.uses)
-      || a.text.localeCompare(b.text, 'ko'));
+    const out = [...found.values()];
+    out.sort((a, b) => (a.fit - b.fit) || a.text.localeCompare(b.text, 'ko'));
     return out;
   }
 
@@ -5966,9 +5948,6 @@
     /* 등급 필터는 열 때마다 초기화한다 — 지난번에 '여가'로 걸러 둔 채 다시 열면
        "후보가 왜 이것뿐이지?"가 된다(창을 새로 여는 사람은 그 사실을 모른다). */
     itiPick.fit = 0;
-    /* 같은 지역에 후보가 없으면(지역을 모르는 목적지 등) 빈 창을 보여주지 않고 전체로 연다.
-       '고르기'를 눌렀는데 아무것도 없는 창이 뜨면 기능이 고장 난 것으로 읽힌다. */
-    itiPick.scope = itiPickCandidates(kind, 'region', cur).length ? 'region' : 'all';
 
     document.getElementById('itiPickTitle').textContent = spec.label + ' 고르기';
     const search = document.getElementById('itiPickSearch');
@@ -6001,32 +5980,9 @@
       curBox.classList.add('hidden');
     }
 
-    const scopeBar = document.getElementById('itiPickScopes');
-    scopeBar.textContent = '';
-    const counts = {};
-    ITI_PICK_SCOPES.forEach((s) => { counts[s.id] = itiPickCandidates(itiPick.kind, s.id).length; });
-    /* 범위 이름이 **무엇이 들어오는지**를 말해야 한다 (RA).
-       '같은 지역'은 어느 지역인지 적고, '전체'는 다른 지역이 섞인다는 사실을 이름에 넣는다 —
-       실측으로 전체 889건 중 767건이 다른 지역 문구다. 이름이 안 말해주면 담당자는
-       목록을 보고서야 알게 되고, 그때는 이미 "왜 이런 게 있지?"가 된다. */
-    const curRegion = (typeof REGION_MAP !== 'undefined' && REGION_MAP[itiPick.destKey]) || '';
-    ITI_PICK_SCOPES.forEach((s) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'itip-chip' + (itiPick.scope === s.id ? ' on' : '');
-      let label = s.label;
-      if (s.id === 'region' && curRegion) label += ' (' + curRegion + ')';
-      if (s.id === 'all') label += ' (다른 지역 포함)';
-      b.textContent = label + ' ' + counts[s.id];
-      if (!counts[s.id]) b.disabled = true;
-      b.addEventListener('click', function () { itiPick.scope = s.id; itiPickRender(); });
-      scopeBar.appendChild(b);
-    });
-
-    /* 기업 연수 적합도 필터 (QZ) — 배지를 보여주는 것만으로는 900건 가까운 후보에서
-       '연수'를 골라내기 어렵다. 한 번 눌러 거를 수 있어야 실제로 빨라진다.
+    /* 기업 연수 적합도 필터 (QZ) — 등급으로 한 번 더 좁힌다.
        ⚠ 건수를 함께 적는다. 눌렀는데 0건이면 고장으로 읽히므로 빈 칸은 아예 못 누르게 한다. */
-    const all = itiPickCandidates(itiPick.kind, itiPick.scope);
+    const all = itiPickCandidates(itiPick.kind, itiPick.destKey);
     const fitBar = document.getElementById('itiPickFits');
     fitBar.textContent = '';
     const fitCounts = { 0: all.length, 1: 0, 2: 0, 3: 0 };
@@ -6089,27 +6045,15 @@
       t.appendChild(phrase);
       const f = document.createElement('span');
       f.className = 'itip-item-from';
-      /* 출처 표시 (RA) — 담당자가 "이 문구를 우리 목적지에 써도 되나"를 판단하는 유일한 단서다.
-         ⚠ 목적지 이름만 적으면 안 된다. 두 가지가 섞여 보인다:
-           · "공항 이동"처럼 37곳이 쓰는 일반 문구에 특정 목적지 이름을 하나 붙이면
-             "왜 저 지역 문구가 여기 있지?"가 된다. 실은 어디에도 속하지 않는 문구다.
-           · 다른 지역 문구인지 같은 지역 문구인지가 이름만 봐서는 안 보인다.
-         그래서 **어디 소속인지를 말로** 적는다. 실측: 후보 889건 중 862건은 한 곳에서만
-         쓰이므로, '여러 곳 공통'으로 묶이는 것은 27건뿐이다(공항 이동·자유시간·쇼핑 등). */
+      /* 출처 표시 (RB) — 후보가 전부 이 목적지 것이므로 목적지 이름은 쓸모가 없다.
+         대신 **이 목적지 안에서 어디 문구인지**를 적는다: "코스 B · DAY 2 오전".
+         같은 목적지 안에서도 코스마다 성격이 다르고(언어·리더십·산업), 몇 일차 문구인지가
+         그대로 판단 근거가 된다 — 3일차 오후 문구를 1일차 오전에 넣으면 어색하다. */
       if (used) {
         f.textContent = '이미 이 칸에 있음';
-      } else if (c.here) {
-        f.textContent = '이 목적지';
-        f.classList.add('from-here');
-      } else if (c.uses >= 3) {
-        f.textContent = '여러 곳 공통 · ' + c.uses + '곳';
-        f.classList.add('from-common');
-      } else if (c.sameRegion) {
-        f.textContent = '같은 지역 · ' + c.from + (c.uses > 1 ? ' 외 1곳' : '');
-        f.classList.add('from-region');
       } else {
-        f.textContent = '다른 지역 · ' + c.from + (c.uses > 1 ? ' 외 1곳' : '');
-        f.classList.add('from-far');
+        f.textContent = c.where || '';
+        f.classList.add('from-here');
       }
       btn.appendChild(t); btn.appendChild(f);
       btn.addEventListener('click', function () { itiPickApply(c.text); });

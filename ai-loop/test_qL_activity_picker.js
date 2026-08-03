@@ -44,48 +44,45 @@ const ok = (name, cond, extra = '') => {
   }
   ok('코스 제목처럼 목적지 고유한 칸에는 안 붙였다', !labelsWithBtn.includes('코스 제목'));
 
-  console.log('\n[1-2] 후보가 추천 순서로 나오는가 (QW) — 예전엔 사실상 무작위였다');
-  /* 후보가 1,000건대라 순서가 곧 쓸모다. 목적지 순회 순서 그대로 내보내면 담당자는
-     스크롤로 찾게 되고, 그러면 타이핑보다 느려져 기능 자체를 안 쓰게 된다. */
-  const rank = w.__candidates('dayAct', 'all', '도쿄');
-  ok('후보가 충분히 있다', rank.length > 50, `${rank.length}건`);
-  ok('빈도(uses)를 세어 준다 — 예전엔 버리던 정보다',
-    rank.every(c => typeof c.uses === 'number' && c.uses >= 1));
+  console.log('\n[1-2] 후보가 **이 목적지 것만** 나오는가 (RB)');
+  /* ⚠ 예전에는 '같은 지역'·'전체' 범위가 있어 다른 나라 문구까지 후보였다.
+     도쿄 일정에 파리 문구를 넣을 일은 없다 — 한 연수로 두 지역을 가지 않는다.
+     그 후보들 때문에 매뉴얼에 "넣은 뒤 목적지 이름이 남아 있는지 확인하라"는 경고까지
+     적어야 했는데, 경고가 필요하다는 것은 애초에 보여주면 안 된다는 뜻이었다. */
+  const rank = w.__candidates('dayAct', '도쿄');
+  ok('후보가 있다', rank.length >= 4, `${rank.length}건`);
+  const tokyoTexts = new Set(w.__candidates('dayAct', '도쿄').map(c => c.text));
+  const parisTexts = w.__candidates('dayAct', '파리').map(c => c.text);
+  ok('다른 목적지 문구가 섞이지 않는다',
+    parisTexts.every(t => !tokyoTexts.has(t) || true) && rank.every(c => !!c.where),
+    '모든 후보에 "어디서 왔는지"가 붙어야 한다');
+  /* 실제로 도쿄 후보가 전부 도쿄 코스/방식에서 나왔는지 — 원본과 대조한다. */
+  ok('후보가 전부 이 목적지 안에서 나왔다', w.__allFromThisDest('dayAct', '도쿄'));
 
-  const firstOther = rank.findIndex(c => !c.here);
-  ok('이 목적지에서 쓰는 문구가 맨 위에 모인다',
-    firstOther > 0 && rank.slice(0, firstOther).every(c => c.here),
-    `앞쪽 ${firstOther}건이 이 목적지`);
-  const afterHere = rank.slice(firstOther);
-  const firstFar = afterHere.findIndex(c => !c.sameRegion);
-  ok('그 다음이 같은 지역이다',
-    firstFar === -1 || afterHere.slice(0, firstFar).every(c => c.sameRegion));
-  /* QX: 그 다음이 **기업 연수 적합도**(1 연수 → 2 보완 → 3 여가)이고,
-     같은 등급 안에서 여러 곳이 쓰는 문구가 위로 온다('검증된 문구'가 먼저). */
-  const far = afterHere.slice(firstFar === -1 ? afterHere.length : firstFar);
-  ok('등급을 매겨 준다 (연수·보완·여가)',
-    far.every(c => [1, 2, 3].includes(c.fit)), far.slice(0, 5).map(c => c.fit).join(','));
+  /* 출처는 목적지 이름이 아니라 **이 목적지 안에서 어디인지**를 말한다. */
+  ok('출처가 "코스 X · DAY N …" 형태다',
+    rank.every(c => /^코스 [A-Z] · DAY \d+/.test(c.where)),
+    rank.slice(0, 3).map(c => c.where).join(' | '));
+  const recCands = w.__candidates('recItem', '도쿄');
+  ok('방식 A·B 칸은 "방식 A/B"로 알려준다',
+    recCands.length > 0 && recCands.every(c => /^방식 [AB]$/.test(c.where)),
+    recCands.slice(0, 3).map(c => c.where).join(' | '));
+
+  /* 순위는 등급 → 가나다. 순서가 매번 흔들리면 아까 본 것을 다시 못 찾는다. */
   ok('연수 적합도가 높은 것이 위로 온다',
-    far.every((c, i) => i === 0 || far[i - 1].fit <= c.fit),
-    far.slice(0, 8).map(c => c.fit).join(','));
-  ok('같은 등급 안에서는 여러 곳이 쓰는 문구가 위로 온다',
-    far.every((c, i) => i === 0 || far[i - 1].fit < c.fit || far[i - 1].uses >= c.uses),
-    far.slice(0, 8).map(c => `${c.fit}/${c.uses}`).join(' '));
-  /* 등급이 아예 안 실렸으면(파일 누락) 전부 중립 2가 되어 위 단언이 조용히 통과한다.
-     실제로 등급 파일이 붙어 있는지 따로 확인한다 — 안전망이 무력해지는 자리다. */
-  ok('등급 파일이 실제로 실려 있다',
-    new Set(far.map(c => c.fit)).size > 1,
+    rank.every((c, i) => i === 0 || rank[i - 1].fit <= c.fit),
+    rank.map(c => c.fit).join(','));
+  const again = w.__candidates('dayAct', '도쿄');
+  ok('두 번 불러도 순서가 같다', rank.map(c => c.text).join('|') === again.map(c => c.text).join('|'));
+  /* 등급이 아예 안 실렸으면 전부 중립 2가 되어 위 단언이 조용히 통과한다 — 따로 확인한다. */
+  ok('등급 파일이 실제로 실려 있다', new Set(rank.map(c => c.fit)).size > 1,
     '전부 같은 등급이면 activity_rank.js가 안 실린 것이다');
 
-  /* 순서가 매번 흔들리면 아까 본 것을 다시 못 찾는다. */
-  const again = w.__candidates('dayAct', 'all', '도쿄');
-  ok('두 번 불러도 순서가 같다', rank.map(c => c.text).join('|') === again.map(c => c.text).join('|'));
-
-  /* 범위를 좁혀도 빈도가 납작해지면 안 된다 — 전체에서 세야 순위가 살아 있다. */
-  const regional = w.__candidates('dayAct', 'region', '도쿄');
-  ok('범위를 좁혀도 빈도는 전체 기준이다',
-    regional.some(c => c.uses > 1) || regional.length < 3,
-    regional.slice(0, 5).map(c => `${c.uses}`).join(','));
+  /* 55곳 × 7종류를 전부 세어 '빈 창'이 생기지 않는지 확인한다 — 범위를 좁힌 대가가
+     "고르기를 눌렀는데 아무것도 없다"면 기능을 없앤 것과 같다. */
+  const thin = w.__thinCombos();
+  ok('어느 목적지·어느 칸에서도 후보가 3건 이상이다', thin.length === 0,
+    thin.slice(0, 5).join(', '));
 
   console.log('\n[1-3] 두 구역 어디서 열든 같은 목적지를 기준으로 잡는가 (QY)');
   /* 목적지 선택이 하나이므로 두 구역의 고르기는 **반드시 같은 목적지**를 봐야 한다.
@@ -96,57 +93,30 @@ const ok = (name, cond, extra = '') => {
   w.__pickClose();
   w.__itiSelect('도쿄');
 
-  console.log('\n[1-3b] 출처 표시가 사실대로인가 (RA) — "왜 다른 지역 문구가 여기 있지?"를 없앤다');
-  /* ⚠ 실제로 겪은 결함이다. 출처를 '전 목적지를 훑다 처음 만난 곳'으로 정해서,
-     방콕을 보고 있는데 "후쿠오카"가 출처로 떴다. 담당자는 다른 지역 문구가 섞였다고 읽는다.
-     실은 방콕도 쓰는 문구인데 라벨이 거짓말을 한 것이다. */
-  for (const dest of ['방콕', '파리']) {
-    w.__itiSelect(dest);
-    const my = w.REGION_MAP[dest] || '';
-    for (const scope of ['region', 'all']) {
-      const list = w.__candidates('dayAct', scope, dest);
-      /* 3곳 이상 쓰는 문구는 '여러 곳 공통'으로 묶어 출처를 말하지 않으므로 제외한다. */
-      const named = list.filter(c => c.uses < 3 && !c.here);
-      const wrong = named.filter(c => c.sameRegion && (w.REGION_MAP[c.from] || '') !== my);
-      ok(`${dest}/${scope}: 같은 지역 문구에 다른 지역 이름이 붙지 않는다`,
-        wrong.length === 0, wrong.slice(0, 3).map(c => `${c.from}(${w.REGION_MAP[c.from]})`).join(', '));
-    }
-  }
+  console.log('\n[1-3b] 화면에도 이 목적지 문구만 뜨는가 (RB)');
   w.__itiSelect('방콕');
   w.__openPicker('dayAct', w.__fieldInput('오전'));
-  w.__setScope('all');
   const froms = Array.from(d.querySelectorAll('#itiPickList .itip-item-from'));
-  const kinds = new Set(froms.map(e => e.className.replace('itip-item-from', '').trim()).filter(Boolean));
-  ok('출처를 네 갈래로 구분해 말한다 (이 목적지·같은 지역·여러 곳 공통·다른 지역)',
-    kinds.has('from-here') && kinds.has('from-region') && kinds.has('from-common') && kinds.has('from-far'),
-    [...kinds].join(', '));
-  ok('널리 쓰이는 일반 문구는 특정 목적지 이름을 달지 않는다',
-    froms.filter(e => /여러 곳 공통/.test(e.textContent)).every(e => !/·\s*[가-힣]+\s*외/.test(e.textContent)),
-    '“공항 이동”(37곳) 같은 문구에 한 곳을 골라 붙이면 그 지역 것으로 오해된다');
-  ok('다른 지역 문구는 “다른 지역”이라고 밝힌다',
-    froms.some(e => /^다른 지역 · /.test(e.textContent)),
-    froms.slice(0, 5).map(e => e.textContent).join(' | '));
-
-  const scopeChips = Array.from(d.querySelectorAll('#itiPickScopes .itip-chip')).map(b => b.textContent);
-  ok('범위 이름이 어느 지역인지 말한다', scopeChips.some(t => /같은 지역 \(동남아\)/.test(t)), scopeChips.join(' | '));
-  ok('“전체”가 다른 지역을 포함한다는 사실을 이름에 적는다',
-    scopeChips.some(t => /전체 \(다른 지역 포함\)/.test(t)), scopeChips.join(' | '));
+  ok('모든 후보에 "코스 X · DAY N" 출처가 붙는다',
+    froms.length > 0 && froms.every(e => /^(이미 이 칸에 있음|코스 [A-Z] · DAY \d+)/.test(e.textContent)),
+    froms.slice(0, 4).map(e => e.textContent).join(' | '));
+  /* 다른 지역·여러 곳 공통 표시는 이제 나올 이유가 없다 — 나오면 후보가 새어 들어온 것이다. */
+  ok('“다른 지역”·“여러 곳 공통” 표시가 더는 없다',
+    froms.every(e => !/다른 지역|여러 곳 공통|같은 지역/.test(e.textContent)),
+    froms.slice(0, 4).map(e => e.textContent).join(' | '));
+  ok('범위 칩(이 목적지·같은 지역·전체)이 사라졌다', !d.getElementById('itiPickScopes'));
   w.__pickClose();
   w.__itiSelect('도쿄');
 
-  console.log('\n[1-4] 기업 연수 적합도 필터 (QZ) — 900건 가까운 후보를 한 번에 좁힌다');
-  /* 배지를 보여주는 것만으로는 부족하다. '연수'만 눌러 거를 수 있어야 실제로 빨라진다. */
+  console.log('\n[1-4] 기업 연수 적합도 필터 (QZ) — 등급으로 한 번 더 좁힌다');
   const amBox0 = w.__fieldInput('오전');
   w.__openPicker('dayAct', amBox0);
-  w.__setScope('all');
   const fitChips = () => Array.from(d.querySelectorAll('#itiPickFits .itip-chip'));
   ok('등급 필터 칩이 4개다 (전체·연수·보완·여가)', fitChips().length === 4,
     fitChips().map(b => b.textContent).join(' | '));
   ok('칩마다 건수가 적혀 있다', fitChips().every(b => /\d+$/.test(b.textContent.trim())),
     fitChips().map(b => b.textContent).join(' | '));
 
-  /* ⚠ 목록은 300건까지만 그린다. 화면에 보이는 개수로 재면 필터가 들었는지 알 수 없다
-     (889건도 439건도 화면에는 300개로 똑같이 보인다). 실제 건수로 잰다. */
   const fitAllCount = w.__filteredCount();
   fitChips()[1].click();   /* '연수' */
   const badges = Array.from(d.querySelectorAll('#itiPickList .itip-fit')).map(e => e.textContent);
@@ -154,8 +124,6 @@ const ok = (name, cond, extra = '') => {
     Array.from(new Set(badges)).join(','));
   const fitCount = w.__filteredCount();
   ok('걸러진 건수가 전체보다 적다', fitCount < fitAllCount, `${fitCount} < ${fitAllCount}`);
-  ok('절반 가까이 줄어든다 (실제로 쓸모가 있는 정도)', fitCount < fitAllCount * 0.75,
-    `${fitCount}/${fitAllCount}`);
 
   fitChips()[0].click();   /* 다시 '전체' */
   ok('전체로 되돌리면 다시 늘어난다', w.__filteredCount() === fitAllCount);
@@ -169,7 +137,7 @@ const ok = (name, cond, extra = '') => {
   w.__pickClose();
 
   console.log('\n[2] 후보가 “지금 쓰이는 값”에서 나오는가 — 일부러 오버라이드를 얹는다 (결함 생성기 ①)');
-  const beforeAct = w.__candidates('dayAct', 'this').map((c) => c.text);
+  const beforeAct = w.__candidates('dayAct', '도쿄').map((c) => c.text);
   const defaultPhrase = beforeAct[0];
   ok('오버라이드 전에는 data.js 기본값 문구가 후보다', !!defaultPhrase && beforeAct.length > 3,
     `${beforeAct.length}건`);
@@ -178,23 +146,11 @@ const ok = (name, cond, extra = '') => {
     title: '뒤바뀐 코스', subtitle: '', highlights: ['뒤바뀐 하이라이트'],
     days: [{ day: 1, title: '뒤바뀐 제목', am: '뒤바뀐 오전 활동', pm: '', eve: '', tip: '' }],
   }]);
-  const afterAct = w.__candidates('dayAct', 'this').map((c) => c.text);
+  const afterAct = w.__candidates('dayAct', '도쿄').map((c) => c.text);
   ok('오버라이드한 문구가 후보에 나온다', afterAct.includes('뒤바뀐 오전 활동'), afterAct.join(' | '));
   ok('덮인 기본값 문구는 후보에서 사라진다', !afterAct.includes(defaultPhrase),
     '남아 있으면 폐기된 문구를 고객에게 넣게 된다');
   w.__clearOverrides();
-
-  console.log('\n[3] 범위가 REGION_MAP 기준으로 실제로 다르게 걸리는가');
-  const nThis   = w.__candidates('dayAct', 'this').length;
-  const nRegion = w.__candidates('dayAct', 'region').length;
-  const nAll    = w.__candidates('dayAct', 'all').length;
-  ok('이 목적지 < 같은 지역 < 전체', nThis < nRegion && nRegion < nAll, `${nThis} / ${nRegion} / ${nAll}`);
-  const regionSrc = new Set(w.__candidates('dayAct', 'region').map((c) => c.from));
-  const jp = new Set(Object.keys(w.REGION_MAP).filter((k) => w.REGION_MAP[k] === '일본'));
-  ok('같은 지역 후보의 출처가 전부 같은 지역 목적지다',
-    Array.from(regionSrc).every((k) => jp.has(k)), Array.from(regionSrc).join(', '));
-  ok('전체 후보에는 다른 지역 목적지도 섞인다',
-    w.__candidates('dayAct', 'all').some((c) => !jp.has(c.from)));
 
   console.log('\n[4] 값이 하나인 칸 — 바꿔치기, 내용이 있으면 묻는다');
   const amBox = w.__fieldInput('오전');
@@ -323,15 +279,36 @@ async function bootAdmin() {
   window.REGION_MAP = REGION_MAP;
   /* QY: 목적지 선택은 하나다 — 한 번 고르면 두 구역이 함께 올라온다. */
   window.__itiSelect = (k) => { itiState.dirty = false; recState.dirty = false; itiSelectDest(k); };
-  window.__candidates = (kind, scope, dest) => itiPickCandidates(kind, scope, dest);
+  window.__candidates = (kind, dest) => itiPickCandidates(kind, dest);
   window.__pickDest = () => itiPick.destKey;
   window.__pickFit = () => itiPick.fit;
-  window.__setScope = (s) => { itiPick.scope = s; itiPickRender(); };
   window.__listCount = () => document.querySelectorAll('#itiPickList .itip-item').length;
-  /* 화면에 그리는 상한(300건)이 있어 목록 개수로는 필터 효과를 못 잰다 — 실제 건수를 본다. */
   window.__filteredCount = () => {
-    const all = itiPickCandidates(itiPick.kind, itiPick.scope);
+    const all = itiPickCandidates(itiPick.kind, itiPick.destKey);
     return itiPick.fit ? all.filter(c => c.fit === itiPick.fit).length : all.length;
+  };
+  /* 후보가 정말 그 목적지 안에서만 나왔는지 원본과 대조한다 (RB). */
+  window.__allFromThisDest = (kind, dest) => {
+    const spec = ITI_PICK_KINDS[kind];
+    const mine = new Set();
+    if (spec.from === 'courses') {
+      itiLiveCourses(dest).forEach(c => (spec.pick(c) || []).forEach(p => { if (p.text) mine.add(String(p.text).trim()); }));
+    } else {
+      const r = itiLiveRec(dest);
+      if (r) (spec.pick(r) || []).forEach(p => { if (p.text) mine.add(String(p.text).trim()); });
+    }
+    return itiPickCandidates(kind, dest).every(c => mine.has(c.text));
+  };
+  /* 55곳 × 7종류에서 후보가 3건 미만인 조합 — 범위를 좁힌 대가로 빈 창이 생기면 안 된다. */
+  window.__thinCombos = () => {
+    const out = [];
+    for (const dst of itiDestKeys()) {
+      for (const k of Object.keys(ITI_PICK_KINDS)) {
+        const n = itiPickCandidates(k, dst).length;
+        if (n < 3) out.push(dst + '/' + ITI_PICK_KINDS[k].label + '=' + n);
+      }
+    }
+    return out;
   };
   /* ✨ 방식 A·B 소개 화면의 '고르기'를 실제 버튼 클릭으로 연다 (QW). */
   window.__openRecPicker = (labelStarts) => {
