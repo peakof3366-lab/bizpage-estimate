@@ -462,6 +462,20 @@ const OVERRIDE_TOKYO = [{
     /코스가 최대/.test(link.textContent) && /일별 주요 활동/.test(link.textContent),
     link.textContent.slice(0, 80));
 
+  /* ── RC: 입력칸 높이 ──
+     고객 견적서에 그대로 나가는 문구를 쓰는 곳이라 쓰는 동안 내용이 다 보여야 한다.
+     사용자 요청으로 1.8배로 키웠다(38 → 68px, 66 → 119px, 실제 브라우저로 측정 확인).
+     ⚠ jsdom은 레이아웃을 계산하지 않아 여기서 '보이는 높이'는 못 잰다. 대신 **숫자를
+     손으로 두 벌 적지 않았는지**를 본다 — 기준값과 배율을 변수로 두고 calc로 곱해야
+     나중에 배율만 바꿔도 두 칸이 함께 움직인다(한쪽만 고쳐 어긋나는 것이 단골 결함이다). */
+  ok('입력칸 높이를 배율 변수로 둔다', /--iti-box-scale:\s*1\.8/.test(adminSrc));
+  ok('한 줄 칸이 배율을 곱해 쓴다',
+    /\.iti-inp \{ height: calc\(var\(--iti-inp-base\) \* var\(--iti-box-scale\)\)/.test(adminSrc));
+  ok('여러 줄 칸이 같은 배율을 쓴다',
+    /\.iti-ta\s+\{ min-height: calc\(var\(--iti-ta-base\) \* var\(--iti-box-scale\)\)/.test(adminSrc));
+  ok('높이를 숫자로 다시 적어두지 않았다',
+    !/\.iti-inp \{ height: \d+px/.test(adminSrc) && !/\.iti-ta \{ min-height: \d+px/.test(adminSrc));
+
   /* ── QZ: 저장 안 한 편집을 지키는 장치 ──
      이 화면은 도쿄 기준 7,500px(약 8화면)에 입력칸 94개다. 저장 버튼이 위쪽에만 있으면
      마지막 코스를 고친 뒤 6,000px를 되돌아 올라가야 한다. */

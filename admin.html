@@ -473,8 +473,15 @@
       width: 100%; font-family: inherit; font-size: .88rem; color: var(--heading);
       border: 1.5px solid var(--border); background: #fff; padding: .5rem .65rem;
     }
-    .iti-inp { height: 38px; }
-    .iti-ta { min-height: 66px; line-height: 1.55; resize: vertical; }
+    /* ── 입력칸 높이 (RC) ──
+       이 화면은 고객 견적서에 그대로 나가는 문구를 쓰는 곳이라, 쓰는 동안 내용이 다 보여야
+       한다. 사용자 요청으로 **딱 1.8배**로 키웠다(38 → 68px, 66 → 119px).
+       ⚠ 숫자를 손으로 두 벌 적지 않는다 — 기준값과 배율을 변수로 두고 계산한다.
+       나중에 배율만 바꾸면 두 칸이 함께 움직인다(한쪽만 고쳐 어긋나는 것이 이 저장소의
+       단골 결함이다). ai-loop/test_qL이 실제 렌더 높이로 1.8배를 확인한다. */
+    :root { --iti-box-scale: 1.8; --iti-inp-base: 38px; --iti-ta-base: 66px; }
+    .iti-inp { height: calc(var(--iti-inp-base) * var(--iti-box-scale)); }
+    .iti-ta  { min-height: calc(var(--iti-ta-base) * var(--iti-box-scale)); line-height: 1.55; resize: vertical; }
     .iti-inp:focus, .iti-ta:focus { outline: none; border-color: var(--primary); }
 
     .iti-day {
