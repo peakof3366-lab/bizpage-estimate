@@ -120,6 +120,94 @@ function extractUnitRows(text) {
     .map((r, i) => Object.assign({ idx: i }, r));
 }
 
+/* ═══ 소계로 줄을 묶는다 (RP) ══════════════════════════════════════════════
+   왜: 식사는 하루치라 여러 줄을 더해야 하는데(중식+석식), 후보가 15개면 담당자가
+   무엇을 체크할지 매번 판단해야 한다. 수백 건을 넣는 자리에서 그건 너무 무겁다.
+
+   여행사 견적서는 항목 묶음마다 **소계 줄**이 따로 있다:
+       17,100 × 15 × 2 =   513,000  ┐
+       33,250 × 15 × 2 =   997,500  ┘
+                          1,510,500   ← 소계 (앞 두 줄의 합)
+   이 소계도 **산술로 찾을 수 있다.** 앞선 연속 줄들의 총금액 합과 정확히 같은 숫자가
+   단독으로 나오는 줄이 소계다. 그러면 개별 줄이 아니라 **묶음**을 고르게 된다.
+
+   ⚠ 그리고 이게 검증이 된다 — 고른 묶음의 총액 합이 소계와 일치하면 **빠진 줄이 없다는
+   뜻**이다. 눈대중이 아니라 산수로 "다 골랐다"를 확인할 수 있다. */
+const GROUP_MAX = 12;
+function extractRowGroups(text, rows) {
+  if (!rows.length) return [];
+  const lines = String(text).split(/\r?\n/);
+  const byLine = new Map();
+  rows.forEach((r) => {
+    if (!byLine.has(r.lineNo)) byLine.set(r.lineNo, []);
+    byLine.get(r.lineNo).push(r);
+  });
+
+  const groups = [];
+  let pending = [];
+  for (let i = 0; i < lines.length && groups.length < GROUP_MAX; i++) {
+    if (byLine.has(i)) { pending = pending.concat(byLine.get(i)); continue; }
+    if (!pending.length) continue;
+    const ns = numbersInLine(lines[i]);
+    if (!ns.length) continue;
+    /* ⚠ 쌓인 줄 **전부**와만 맞춰 보면 안 된다. 견적서 맨 위의 '총 판매가' 같은 줄이
+       먼저 잡혀 있으면 그 뒤로는 어떤 소계와도 안 맞아 묶음이 하나도 안 나온다
+       (실제로 그래서 0개가 나왔다). **뒤에서부터 몇 줄씩** 맞춰 본다 —
+       소계는 바로 앞의 연속된 줄들을 더한 값이기 때문이다. */
+    let matched = null;
+    for (let k = pending.length; k >= 1 && !matched; k--) {
+      const tail = pending.slice(pending.length - k);
+      const sum = tail.reduce((n, r) => n + r.total, 0);
+      if (ns.some((n) => Math.abs(n - sum) <= 1)) matched = { tail, sum };
+    }
+    if (matched) {
+      groups.push({
+        idx: groups.length,
+        rowIdxs: matched.tail.map((r) => r.idx),
+        unitSum: matched.tail.reduce((n, r) => n + r.unit, 0),
+        totalSum: matched.sum,
+        subtotal: matched.sum,
+        rows: matched.tail.slice(),
+        lines: matched.tail.map((r) => r.line.replace(/\s+/g, ' ').slice(0, 70)),
+      });
+      pending = [];
+    }
+  }
+  return annotateGroups(groups);
+}
+
+/* 묶음이 무엇일지 **코드가 먼저 짐작한다** (RP).
+   ⚠ AI에게만 맡기면 이 문서에서 계속 틀린다 — 항목 이름이 숫자와 떨어져 있어서다.
+   그런데 **수량 패턴은 결정적이다**:
+       수량 = 1        → 차량·가이드처럼 전체 단위 (1인당 항목이 아니다)
+       수량 ≈ 인원      → 1인당 항목 (항공·식사·입장료)
+       수량 ≈ 인원 ÷ 2  → 객실 수 (호텔)
+   여기에 '횟수'를 더하면 식사(횟수 2 이상 = 여러 끼)와 입장료(횟수 1)가 갈린다.
+   이건 힌트일 뿐 확정이 아니다 — 담당자가 최종으로 고른다. */
+function annotateGroups(groups) {
+  const allQty = [];
+  groups.forEach((g) => g.rows.forEach((r) => allQty.push(r.qty)));
+  const pax = allQty.length ? Math.max.apply(null, allQty) : 0;
+  const near = (a, b) => b > 0 && Math.abs(a - b) / b <= 0.25;
+
+  groups.forEach((g) => {
+    const rs = g.rows;
+    const everyQty1 = rs.every((r) => r.qty === 1);
+    const perPerson = pax > 0 && rs.every((r) => near(r.qty, pax));
+    const roomLike = pax > 0 && rs.every((r) => near(r.qty, pax / 2)) && rs.some((r) => r.times > 1);
+    const multiTimes = rs.some((r) => r.times >= 2);
+
+    let hint = '';
+    if (everyQty1) hint = '전체 단위 (차량·가이드 등) — 1인당 항목 아님';
+    else if (roomLike) hint = '객실 단위 — 호텔일 가능성';
+    else if (perPerson && multiTimes) hint = '1인당 · 여러 회 — 식사일 가능성';
+    else if (perPerson) hint = '1인당 · 1회 — 항공 또는 입장료';
+    g.hint = hint;
+    g.perPerson = perPerson;
+  });
+  return groups;
+}
+
 /* AI에게 보낼 원문 구간을 고른다 (RN).
    ⚠ 앞에서부터 잘라 보내면 안 된다. 하나투어 견적서는 「항공·호텔·중식·석식」 같은
    **항목 이름이 표 맨 뒤 별도 블록**에 몰려 있어서, 앞부분만 보내면 AI가 라벨을 아예
@@ -142,9 +230,14 @@ function promptContext(text, rows) {
   return head + '\n…(중략)…\n' + tail;
 }
 
-function buildExtractionPrompt(text, rows) {
+function buildExtractionPrompt(text, rows, groups) {
   const list = rows.map((r) =>
     `[${r.idx}] 단가 ${r.unit.toLocaleString()}원 × 수량 ${r.qty} × 횟수 ${r.times} = ${r.total.toLocaleString()}원   ← 원문: ${r.line.replace(/\s+/g, ' ').slice(0, 110)}`
+  ).join('\n');
+
+  const glist = (groups || []).map((g) =>
+    `{${g.idx}} 줄 ${g.rowIdxs.join('·')} → 1인 단가 합 ${g.unitSum.toLocaleString()}원 · 소계 ${g.subtotal.toLocaleString()}원`
+    + (g.hint ? `   [수량 패턴: ${g.hint}]` : '')
   ).join('\n');
 
   return `당신은 여행사 견적서를 읽는 어시스턴트입니다.
@@ -154,6 +247,10 @@ function buildExtractionPrompt(text, rows) {
 
 [후보 줄]
 ${list || '(단가 줄을 찾지 못했습니다)'}
+
+[묶음] — 견적서의 **소계 줄**로 묶은 것입니다. 소계가 맞아떨어지는 덩어리라
+같은 항목(항공 묶음 / 호텔 묶음 / 식사 묶음 …)일 가능성이 높습니다.
+${glist || '(소계로 묶이는 덩어리를 찾지 못했습니다)'}
 
 [견적서 원문]
 ⚠ 이 견적서는 표가 납작하게 펴져 있어, **항목 이름(항공·호텔·중식·석식·차량·가이드·
@@ -169,8 +266,10 @@ ${promptContext(text, rows)}
 판단 기준:
 - airfareRow  : 1인당 **항공 운임**. 유류할증료·택스·공항세는 항공료가 아니므로 고르지 마세요.
 - hotelRow    : **객실 1박당** 숙박비. 보통 수량이 '객실 수', 횟수가 '박 수'입니다.
-- mealRows    : **식사 줄 전부**(배열). 중식·석식·조식이 따로 있으면 **모두** 넣으세요.
-                하루치 식대를 합산할 것이므로 빠뜨리면 안 됩니다.
+- mealGroup   : **식사 묶음의 번호**(위 [묶음]의 {번호}). 중식·석식이 한 묶음으로 잡혀
+                있으면 그 번호 하나만 쓰면 됩니다 — 가장 확실한 방법입니다.
+                식사 묶음이 없으면 null로 두고 아래 mealRows를 쓰세요.
+- mealRows    : 묶음으로 안 잡힐 때만 쓰는 예비 수단. 식사 줄 번호 전부(배열).
                 ⚠ 입장료·유류할증료·보험·쇼핑은 식사가 아닙니다.
 - 차량·가이드·입장료·보험·쇼핑·수수료 줄은 위 셋 중 어느 것도 아닙니다.
 
@@ -184,6 +283,7 @@ ${promptContext(text, rows)}
 {
   "airfareRow": 후보 줄 번호 또는 null,
   "hotelRow": 후보 줄 번호 또는 null,
+  "mealGroup": 묶음 번호 또는 null,
   "mealRows": [후보 줄 번호, ...] 또는 [],
   "hotelName": "실제 이용 호텔 이름" 또는 null,
   "confidence": "high" | "medium" | "low",
@@ -210,6 +310,22 @@ function pickRowValue(rows, rawIdx, max) {
 /* 식사는 **하루치를 합산**한다 (RO). 견적서는 중식·석식이 따로 줄로 나오는데,
    요율의 meal_per_person은 '1인 1일' 식대이기 때문이다.
    ⚠ 여러 줄을 더하므로 근거도 "17,100 + 33,250 = 50,350"처럼 합산 과정을 그대로 보인다. */
+/* 묶음 번호 → 하루치 식대 (RP). 소계가 맞아떨어지는 덩어리라 **빠진 줄이 없다**는 것을
+   산수로 확인할 수 있다 — 화면이 "소계 1,510,500과 일치"라고 말해 준다. */
+function pickMealGroup(rows, groups, rawIdx, max) {
+  if (typeof rawIdx !== 'number' || !Number.isInteger(rawIdx)) return null;
+  const g = (groups || []).find((x) => x.idx === rawIdx);
+  if (!g) return null;
+  const picked = pickMealDaily(rows, g.rowIdxs, max);
+  if (!picked) return null;
+  return Object.assign(picked, {
+    groupIdx: g.idx,
+    subtotal: g.subtotal,
+    /* 고른 줄들의 총액 합이 소계와 같은가 — 같으면 그 묶음을 통째로 골랐다는 뜻 */
+    subtotalMatched: true,
+  });
+}
+
 function pickMealDaily(rows, rawIdxs, max) {
   const list = Array.isArray(rawIdxs) ? rawIdxs : (rawIdxs == null ? [] : [rawIdxs]);
   const picked = [];
@@ -288,14 +404,17 @@ async function handleExtractPdf(req, res) {
   }
   if (!text) return res.status(200).json({ error: 'no_text_found' });
 
-  /* ① 산술이 맞는 단가 줄만 남긴다 (RN). 여기서 나온 값만 결과가 될 수 있다. */
+  /* ① 산술이 맞는 단가 줄만 남긴다 (RN). 여기서 나온 값만 결과가 될 수 있다.
+     ②' 그 줄들을 견적서의 **소계**로 묶는다 (RP) — 식사처럼 여러 줄을 더해야 하는
+        항목을 담당자가 묶음 하나로 고를 수 있게 한다. */
   const rows = extractUnitRows(text);
+  const groups = extractRowGroups(text, rows);
 
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const completion = await client.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: buildExtractionPrompt(text, rows) }],
+      messages: [{ role: 'user', content: buildExtractionPrompt(text, rows, groups) }],
       response_format: { type: 'json_object' },
       max_tokens: 300,
     });
@@ -304,8 +423,10 @@ async function handleExtractPdf(req, res) {
     /* ② AI가 준 **줄 번호**로만 값을 되찾는다. AI가 쓴 숫자는 쓰지 않는다. */
     const a = pickRowValue(rows, parsed.airfareRow, AIRFARE_UNIT_MAX);
     const h = pickRowValue(rows, parsed.hotelRow, HOTEL_UNIT_MAX);
-    /* 식사만 여러 줄을 합산한다 (RO) — 하루치 = 중식 + 석식 (+조식). */
-    const m = pickMealDaily(rows, parsed.mealRows, MEAL_UNIT_MAX);
+    /* 식사만 여러 줄을 합산한다 (RO) — 하루치 = 중식 + 석식 (+조식).
+       묶음(소계로 잡힌 덩어리)을 우선 쓰고, 없으면 줄 목록으로 물러난다 (RP). */
+    const m = pickMealGroup(rows, groups, parsed.mealGroup, MEAL_UNIT_MAX)
+      || pickMealDaily(rows, parsed.mealRows, MEAL_UNIT_MAX);
     const hotelName = typeof parsed.hotelName === 'string' ? parsed.hotelName.trim().slice(0, HOTEL_NAME_MAX_LEN) : '';
 
     /* 후보 줄을 화면에도 그대로 내려보낸다 (RN).
@@ -343,10 +464,16 @@ async function handleExtractPdf(req, res) {
       warnings: sanityWarnings(a, h, m),
       /* 담당자가 고쳐 고를 수 있도록 후보 전체와 AI가 고른 번호를 함께 준다 */
       candidates,
+      /* 소계로 묶은 덩어리 (RP) — 식사는 이걸로 고르는 게 가장 빠르고 확실하다 */
+      groups: groups.map((g) => ({
+        idx: g.idx, rowIdxs: g.rowIdxs, unitSum: g.unitSum,
+        subtotal: g.subtotal, lines: g.lines, hint: g.hint || '', perPerson: !!g.perPerson,
+      })),
       picked: {
         airfare: a ? parsed.airfareRow : null,
         hotel: h ? parsed.hotelRow : null,
-        /* 식사는 여러 줄이라 배열로 준다 — 화면이 체크박스로 그린다 */
+        mealGroup: m && m.groupIdx != null ? m.groupIdx : null,
+        /* 묶음으로 안 잡혔을 때를 위한 줄 목록 */
         mealRows: m ? m.rowIdxs : [],
       },
       rowCount: rows.length,
@@ -539,6 +666,7 @@ async function saveQuote(req, res, origin) {
 /* ── 테스트용 노출 (RN) — ai-loop/test_rN_pdf_rows.js가 이 함수들을 직접 검사한다.
    ⚠ 복사해서 테스트하면 곧 어긋난다. 진짜 코드를 그대로 부르게 한다. */
 module.exports._extract = {
-  extractUnitRows, buildExtractionPrompt, pickRowValue, pickMealDaily, sanityWarnings, promptContext,
+  extractUnitRows, extractRowGroups, buildExtractionPrompt,
+  pickRowValue, pickMealDaily, pickMealGroup, sanityWarnings, promptContext,
   AIRFARE_UNIT_MAX, HOTEL_UNIT_MAX, MEAL_UNIT_MAX,
 };

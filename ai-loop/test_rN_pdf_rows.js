@@ -68,8 +68,10 @@ const HANATOUR_LIKE = `견적 담당자명 : (담당자)
 1,510,500
 99,000 940,500 	1 	3 2,821,500 45인승 차량*3일기준
 20,000 190,000 	1 	3 	570,000
+3,391,500
 22,000 209,000 	1 	3 	627,000 	3일 기준
 10,000 	95,000 	1 	3 	285,000
+912,000
 2,000 	19,000 	14 	1 	266,000
 - 	10,000 	15 	1 	150,000 	1억원 보장
 총 견적가 	16,660,000
@@ -176,6 +178,49 @@ const PACKAGE_ONLY = `상해 2박3일
     /const mealDays = days;/.test(engineSrc) && !/const mealCount = days \* 2 - 1;/.test(engineSrc),
     '식수(2d-1)로 되돌아가면 견적서 하루치를 넣었을 때 3.45배가 된다');
   ok('화면 라벨도 1인 1일이다', /실제 식비\(1인 1일\)/.test(adminSrc));
+
+  /* ── [2-c] 소계로 묶는가 (RP) ──────────────────────────────────────────────
+     식사는 하루치라 여러 줄을 더해야 하는데, 후보 15개를 매번 판단하는 건 수백 건을
+     넣는 자리에서 너무 무겁다. 견적서의 **소계 줄**은 앞선 줄들의 합이므로 산술로
+     찾을 수 있고, 그러면 '식사 묶음' 하나를 고르는 일이 된다.
+     ⚠ 그리고 이게 검증이 된다 — 묶음 총액이 소계와 같으면 **빠진 줄이 없다**는 뜻이다. */
+  console.log('\n[2-c] 소계로 묶어 식사를 한 번에 고르게 하는가 (RP)');
+  const groups = X.extractRowGroups(HANATOUR_LIKE, rows);
+  ok('묶음을 찾았다', groups.length > 0, String(groups.length));
+  ok('모든 묶음의 총액 합이 소계와 같다',
+    groups.every(g => Math.abs(g.rowIdxs.reduce((n, i) => n + rows[i].total, 0) - g.subtotal) <= 1));
+  const mealG = groups.find(g => g.unitSum === 50350);
+  ok('식사 묶음(17,100+33,250=50,350)이 잡힌다', !!mealG,
+    groups.map(g => g.unitSum).join(', '));
+  ok('그 묶음의 소계가 1,510,500이다', mealG && mealG.subtotal === 1510500,
+    mealG && String(mealG.subtotal));
+  ok('항공 묶음(320,000+90,000)도 잡힌다', !!groups.find(g => g.unitSum === 410000));
+
+  /* 수량 패턴 힌트 — AI가 라벨을 못 볼 때 이게 판단 근거가 된다.
+     실제로 이 힌트를 넣기 전에는 AI가 가이드·관광 묶음을 식사로 골랐다. */
+  ok('묶음마다 수량 패턴 힌트가 붙는다', groups.every(g => typeof g.hint === 'string'));
+  ok('식사 묶음은 "1인당 · 여러 회"로 짚는다',
+    mealG && /여러 회/.test(mealG.hint), mealG && mealG.hint);
+  const carG = groups.find(g => g.unitSum === 1130500);   /* 차량 940,500 + 190,000 */
+  ok('수량이 1뿐인 묶음은 "1인당 항목 아님"으로 짚는다',
+    carG && /1인당 항목 아님/.test(carG.hint), carG && carG.hint);
+
+  /* 묶음 번호로 고르면 하루치가 되는가 */
+  const byGroup = X.pickMealGroup(rows, groups, mealG.idx, X.MEAL_UNIT_MAX);
+  ok('묶음 번호로 고르면 하루치가 나온다', byGroup && byGroup.value === 50350,
+    byGroup && String(byGroup.value));
+  ok('소계와 일치한다고 알려준다', byGroup && byGroup.subtotalMatched === true
+    && byGroup.subtotal === 1510500);
+  ok('없는 묶음 번호는 null', X.pickMealGroup(rows, groups, 999, X.MEAL_UNIT_MAX) === null);
+  ok('묶음이 없으면 null', X.pickMealGroup(rows, [], 0, X.MEAL_UNIT_MAX) === null);
+
+  /* 프롬프트·응답·화면에 묶음이 실리는가 */
+  const gPrompt = X.buildExtractionPrompt(HANATOUR_LIKE, rows, groups);
+  ok('프롬프트에 묶음 목록이 들어간다', /\{0\} 줄/.test(gPrompt));
+  ok('프롬프트에 수량 패턴 힌트도 들어간다', /수량 패턴/.test(gPrompt));
+  ok('서버가 묶음을 화면에 내려보낸다', /groups: groups\.map/.test(code));
+  ok('화면이 묶음으로 고르게 한다', /mealGroup/.test(adminSrc));
+  ok('화면이 소계 일치를 알려준다', /✅ 소계 /.test(adminSrc) && /원과 일치/.test(adminSrc));
 
   /* ── [3] 단가표가 없는 견적서 (④) ─────────────────────────────────────── */
   console.log('\n[3] 패키지 총액만 있는 견적서는 어떻게 되는가 (④)');
