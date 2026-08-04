@@ -244,6 +244,7 @@
         <li><a href="#estmgr">견적 관리</a></li>
         <li><a href="#quotetool">내부 견적 산출</a></li>
         <li><a href="#itinerary">일정 · 방식 A·B</a></li>
+        <li><a href="#pricereport">견적서 업데이트 — 실제 단가 남기기</a></li>
         <li><a href="#rates">요율 관리 — 단가 갱신</a></li>
         <li><a href="#newdest">새 목적지 추가<span class="who">매니저·관리자</span></a></li>
         <li><a href="#roles">권한별로 할 수 있는 일</a></li>
@@ -838,8 +839,78 @@
       </div>
     </section>
 
+    <section id="pricereport">
+      <h2>7. 견적서 업데이트 — 실제 단가 남기기</h2>
+      <p>
+        <strong>받은 견적서에 적힌 실제 단가를 남기는 곳</strong>입니다. 왼쪽 메뉴에서
+        「견적서 업데이트」로 들어갑니다. 여기서 넣은 숫자가 <strong>요율 관리</strong>의 기준 단가와
+        비교되고, 차이가 크면 갱신 제안으로 올라옵니다.
+      </p>
+      <div class="note">
+        <span class="label">여기서는 “넣는 일”만 합니다</span>
+        <p>
+          요율 표·계수 조정처럼 <strong>잘못 누르면 전 목적지 견적이 바뀌는</strong> 기능은 이 화면에 없습니다.
+          그건 옆 메뉴 <strong>요율 관리</strong>에 있습니다. 견적서를 많이 넣는 날에는 이 화면만 열어 두세요.
+        </p>
+      </div>
+      <ol class="steps">
+        <li>
+          <h3>목적지를 고릅니다</h3>
+          <p>견적서의 여행지에 해당하는 목적지를 고릅니다. 목록에 없으면 요율 관리의 <strong>➕ 새 목적지 추가</strong>가 먼저입니다.</p>
+        </li>
+        <li>
+          <h3>✏️ 직접 입력 또는 📄 PDF 제출 — 둘 중 하나만</h3>
+          <p>
+            <strong>직접 입력</strong>: 견적서를 보고 아는 항목만 채웁니다. 전부 채울 필요 없습니다.<br>
+            <strong>PDF 제출</strong>: 견적서 PDF를 올리고 “PDF에서 추출”을 누르면 AI가 항목을 찾아 채워 줍니다.
+          </p>
+          <p>
+            ⚠ <strong>PDF는 자동으로 저장되지 않습니다.</strong> 채워진 값을 견적서와 눈으로 대조한 뒤
+            <strong>제출</strong>을 눌러야 반영됩니다. 표가 복잡한 견적서는 AI가 엉뚱한 숫자를 집을 수 있습니다.
+          </p>
+          <p>
+            ⚠ <strong>텍스트가 있는 PDF만 됩니다.</strong> 스캔해서 사진으로 만든 PDF는 글자가 없어 추출되지 않습니다 —
+            그때는 직접 입력을 쓰세요.
+          </p>
+        </li>
+        <li>
+          <h3>어디까지 넣었는지 확인합니다</h3>
+          <p>
+            화면 아래 <strong>📥 지금까지 넣은 견적서</strong>에 목적지별 건수가 뜹니다.
+            같은 견적서를 두 번 넣거나 빠뜨리지 않도록 여기를 보면서 진행하세요.
+            잘못 넣은 것은 <strong>📋 제보 내역·삭제</strong>에서 지웁니다.
+          </p>
+        </li>
+      </ol>
+      <div class="note alarm">
+        <span class="label">넣는다고 요율이 바로 바뀌지는 않습니다</span>
+        <p>
+          여기 넣은 값은 <strong>근거로 쌓일 뿐</strong>이고, 고객이 보는 견적 금액은 그대로입니다.
+          요율 관리에서 사람이 보고 반영해야 바뀝니다. 그래야 오타 한 건이 곧바로 고객 금액을 흔들지 않습니다.
+        </p>
+      </div>
+      <p>
+        🔒 <strong>실제 이용 호텔명</strong>은 가격 계산에 전혀 쓰이지 않는 관리자 전용 참고 정보입니다.
+        고객이 보는 견적서·홈페이지에는 절대 나가지 않습니다.
+      </p>
+    </section>
+
     <section id="rates">
-      <h2>7. 요율 관리 — 단가 갱신</h2>
+      <h2>8. 요율 관리 — 단가 갱신</h2>
+      <div class="note">
+        <span class="label">숫자마다 “어디서 왔는지”가 적혀 있습니다</span>
+        <p>
+          각 단가 아래에 출처 배지가 붙습니다.
+          <strong>❓ 온라인 추정</strong> — 온라인 조사로 넣은 값이라 실제 견적서와 대조된 적이 없습니다.
+          <strong>✅ 실측 N건</strong> — 실제 견적서 N건에서 확인된 값입니다.
+          <strong>⚠ 실측 N건 · M개월 전</strong> — 확인은 했지만 오래됐습니다.
+          <strong>❗ 실측대비 ±N%</strong> — 실측과 크게 벌어져 기준가가 어긋났을 수 있습니다.
+        </p>
+        <p>
+          위쪽 필터의 <strong>❓ 온라인 추정만</strong>을 누르면 <strong>아직 실제 견적서로 확인 안 된 목적지</strong>만 모아 볼 수 있습니다.
+          상단 <strong>실측 전환</strong> 칸에 “몇 칸이 실측으로 바뀌었는지”가 %로 나옵니다.
+        </p>
+      </div>
       <p>
         목적지별 단가를 최신으로 유지하는 곳입니다. <strong>여기서 저장을 누르는 순간 고객이 보는 견적 금액이 바뀝니다</strong> —
         그래서 이 장은 “어떻게 고치나”보다 <strong>근거를 가지고 고치고, 틀렸을 때 되돌리는 방법</strong>에 대한 이야기입니다.
@@ -920,7 +991,7 @@
     </section>
 
     <section id="newdest">
-      <h2>8. 새 목적지 추가하기<span class="role-flag">매니저 · 관리자</span></h2>
+      <h2>9. 새 목적지 추가하기<span class="role-flag">매니저 · 관리자</span></h2>
       <p>
         요율표에 없는 나라·도시를 새로 만드는 작업입니다. 요율 관리 위쪽 <strong>➕ 새 목적지 추가</strong> 버튼으로 하고,
         직원 계정에는 이 버튼이 보이지 않습니다. <strong>단가 9개보다 분류값 5개가 훨씬 중요하니</strong>, 아래 두 표를 먼저 보고 시작하세요.
@@ -1006,7 +1077,7 @@
     </section>
 
     <section id="roles">
-      <h2>9. 권한별로 할 수 있는 일</h2>
+      <h2>10. 권한별로 할 수 있는 일</h2>
       <div class="scroller">
         <table>
           <thead><tr><th>작업</th><th>직원</th><th>매니저</th><th>관리자</th></tr></thead>
@@ -1029,7 +1100,7 @@
     </section>
 
     <section id="errors">
-      <h2>10. 막혔을 때 나오는 메시지</h2>
+      <h2>11. 막혔을 때 나오는 메시지</h2>
       <div class="scroller">
         <table>
           <thead><tr><th>화면에 뜨는 말</th><th>뜻</th><th>할 일</th></tr></thead>
@@ -1050,7 +1121,7 @@
     </section>
 
     <section id="dont">
-      <h2>11. 하면 안 되는 것</h2>
+      <h2>12. 하면 안 되는 것</h2>
       <ul class="dont">
         <li><div><strong>계정 공유.</strong> 모든 변경이 로그인한 사람 이름으로 남습니다. 계정을 빌려주면 “누가 이 가격을 넣었는지, 누가 이 고객을 맡았는지” 추적이 끊깁니다.</div></li>
         <li><div><strong>확인창을 습관적으로 넘기기.</strong> “현재 기준가의 약 8배입니다”, “담당자를 ○○에서 △△로 바꿉니다” 같은 창은 대부분 실수를 잡으려고 뜬 것입니다. 읽고 판단해 주세요.</div></li>
@@ -1061,7 +1132,7 @@
     </section>
 
     <section id="owner">
-      <h2>12. 관리자 — 가입 열고 승인하기</h2>
+      <h2>13. 관리자 — 가입 열고 승인하기</h2>
       <ol class="steps">
         <li>
           <h3>가입코드를 정합니다</h3>
