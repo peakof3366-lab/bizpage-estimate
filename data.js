@@ -2698,8 +2698,34 @@ const ITINERARY_DB = {
 }; /* ITINERARY_DB 끝 */
 
 /* ════════════════════════════════════════════════════════════════════
+   프로그램 유형의 이름 (RK)
+
+   왜 여기 있는가: 이 값은 원래 index.html의 <select id="programType"> 안에만
+   있었다. 그런데 관리자 화면이 **"이 코스는 어떤 유형에서 방식 A로 나가는가"**를
+   보여주려면 같은 이름이 필요하다. admin.html에 다시 적으면 두 벌이 되고, 두 벌은
+   반드시 어긋난다(결함 생성기 ①). 그래서 아는 곳을 여기 하나로 둔다.
+   ⚠ 키는 아래 PROGRAM_PRIORITY의 키와 **반드시 같아야** 한다.
+   ai-loop/test_rK_course_role.js가 index.html의 option과 이 표를 대조한다.
+
+   label = 고객이 STEP1에서 고르는 그 문구(index.html의 option과 같아야 한다).
+   short = 관리자 코스 탭 배지처럼 자리가 좁은 곳에서 쓰는 짧은 이름.
+   ════════════════════════════════════════════════════════════════════ */
+const PROGRAM_TYPES = {
+  language:   { label: '언어 집중 연수',       short: '언어' },
+  leadership: { label: '리더십 / 조직문화',    short: '리더십' },
+  industry:   { label: '산업체 실무 연수',     short: '산업' },
+  academic:   { label: '교육기관 / 연구 연수', short: '교육' },
+};
+
+/* ════════════════════════════════════════════════════════════════════
    프로그램 유형 × 목적지별 코스 우선순위
    [primaryIdx, secondaryIdx]  — 배열 인덱스 초과 시 자동 fallback
+
+   ⚠ **이 표가 관리자의 '코스 A·B·C'와 고객의 '방식 A·B'를 갈라놓는다.**
+   고객이 고른 프로그램 유형에 따라 어느 코스가 방식 A로 나갈지가 바뀐다.
+   예: 도쿄 + 언어 집중 연수 → 방식 A는 **코스 C**(인덱스 2)다.
+   두 화면을 나란히 놓고 봐도 A가 A로 안 보이는 이유가 이것이라,
+   관리자 화면의 코스 탭에 이 매핑을 배지로 띄운다(RK).
    ════════════════════════════════════════════════════════════════════ */
 const PROGRAM_PRIORITY = {
   /* language  = 언어집중연수  (인덱스 2 = 전용 언어코스)
@@ -2721,3 +2747,12 @@ const PROGRAM_PRIORITY = {
   '몽골':        { language:[1,0], leadership:[1,0], industry:[0,1], academic:[0,1] },
   '대만':        { language:[0,1], leadership:[1,0], industry:[0,1], academic:[0,1] },
 };
+
+/* 위 두 표의 Node 쪽 출구 (RK). ⚠ 파일 앞부분의 module.exports 블록에 넣을 수 없다 —
+   그 블록은 여기보다 먼저 실행되는데 PROGRAM_TYPES·PROGRAM_PRIORITY는 아직 선언 전
+   (TDZ)이라 로드가 통째로 죽는다. 그래서 선언 뒤인 여기에 따로 둔다.
+   감사 도구·테스트가 index.html의 select와 이 표를 대조하는 데 쓴다. */
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports.PROGRAM_TYPES = PROGRAM_TYPES;
+  module.exports.PROGRAM_PRIORITY = PROGRAM_PRIORITY;
+}

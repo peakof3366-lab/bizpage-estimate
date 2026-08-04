@@ -532,10 +532,14 @@
        세 코스를 한꺼번에 펼쳐 두면 고칠 코스를 찾는 데만 스크롤을 쓴다. 탭에 일자 수와
        빈 칸 수를 적어, **안 보이는 코스의 상태도 탭에서 읽히게** 한다. */
     .iti-ctabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .9rem; }
+    /* ⚠ flex-wrap: wrap — 탭 안에 들어가는 것이 늘었다(제목·일수·빈칸·방식 배지 2개, RK).
+       한 줄로 묶어 두면 좁은 화면에서 탭이 통째로 잘려 코스 제목이 안 보인다
+       (360px에서 실제로 잘렸고 check_editor_layout.py가 잡았다). 줄을 바꿔서라도 다 보인다. */
     .iti-ctab {
-      display: flex; align-items: center; gap: .45rem; max-width: 100%;
+      display: flex; align-items: center; gap: .45rem; max-width: 100%; flex-wrap: wrap;
       padding: .5rem .8rem; font-family: inherit; font-size: .78rem; cursor: pointer;
       border: 1.5px solid var(--border); border-bottom-width: 3px; background: #fff; color: var(--muted);
+      text-align: left;
     }
     .iti-ctab:hover { border-color: var(--heading); }
     .iti-ctab.on { border-bottom-color: var(--primary); color: var(--heading); background: #fff; }
@@ -548,6 +552,27 @@
       font-size: .68rem; font-weight: 800; color: #b45309; background: #fef3c7;
       border: 1px solid #fde68a; padding: .05rem .35rem; white-space: nowrap;
     }
+    /* 이 코스가 고객 화면에서 방식 A/B 중 무엇으로 나가는지 (RK).
+       A는 방식 A·B 구역의 A 배지와 **같은 색**을 쓴다 — 색이 다르면 같은 것을
+       가리키는 줄 모른다. */
+    .iti-ctab-role {
+      font-size: .66rem; font-weight: 800; padding: .05rem .35rem; white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .iti-ctab-role.role-a { color: #5B21B6; background: #EDE9FE; border-color: #DDD6FE; }
+    .iti-ctab-role.role-b { color: #9D174D; background: #FCE7F3; border-color: #FBCFE8; }
+
+    /* ✨ 구역 맨 위 — 이 목적지에서 무엇이 실제로 고객에게 나가는가 (RK) */
+    .rec-reality { padding: .8rem .9rem; margin-bottom: 1rem; border-left: 3px solid; }
+    .rec-reality.is-live { background: #F0FDF4; border-color: #16A34A; }
+    .rec-reality.is-idle { background: #FFFBEB; border-color: #D97706; }
+    .rec-reality-t { font-size: .84rem; font-weight: 800; color: var(--heading); }
+    .rec-reality-b { font-size: .8rem; color: var(--muted); line-height: 1.65; margin-top: .3rem; }
+    .rec-reality-b .iti-btn { margin-top: .5rem; }
+    /* 안 쓰이는 칸은 흐리게 — 지우지는 않는다. 코스를 다 지우면 다시 쓰이고,
+       예전에 써 둔 글도 그대로 남아 있어야 한다. */
+    .rec-fld-idle { opacity: .55; }
+    .rec-fld-idle:focus-within { opacity: 1; }
 
     .iti-day {
       border: 1px solid var(--border); border-left: 3px solid var(--primary);
@@ -605,10 +630,23 @@
        했고, 재어 보니 있기는 한데(135×34px, 안 잘림) 테두리가 사실상 없었다.
        이 구역의 강조색(--sec)으로 테두리·글자를 준다. ⚠ 채우지는 않는다 — 채우면
        빨간 '방식 A·B 저장'과 주목도를 다툰다. 저장이 이 화면의 주 동작이다. */
-    #rec-preview {
+    #rec-preview, #iti-preview {
       border-color: var(--sec); color: var(--sec); background: var(--sec-bg); font-weight: 800;
     }
-    #rec-preview:hover { background: var(--sec); color: #fff; border-color: var(--sec); }
+    #rec-preview:hover, #iti-preview:hover { background: var(--sec); color: #fff; border-color: var(--sec); }
+
+    /* 미리보기 창 위쪽의 프로그램 유형 줄 (RK) */
+    .recpv-bar {
+      display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+      padding: .6rem 1.25rem 0; font-size: .8rem; color: var(--muted);
+    }
+    .recpv-bar label { font-weight: 700; color: var(--heading); }
+    .recpv-bar select {
+      height: 30px; padding: 0 .5rem; font-family: inherit; font-size: .8rem; font-weight: 600;
+      border: 1.5px solid var(--border); background: #fff; color: var(--heading);
+    }
+    .recpv-map { font-weight: 800; color: #5B21B6; background: #EDE9FE; padding: .15rem .5rem; }
+    @media (max-width: 1000px) { .recpv-bar { padding: .5rem .7rem 0; } }
     .iti-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem; }
     .iti-msg { font-size: .82rem; font-weight: 700; margin-top: .5rem; }
     .iti-msg.ok  { color: #15803d; }
@@ -1403,6 +1441,9 @@
             <p>오전·오후·저녁에 무엇을 하는지 — <strong>고객 견적서의 일정표</strong>에 그대로 나갑니다.</p>
           </div>
           <span id="iti-state" class="iti-state"></span>
+          <!-- 미리보기는 두 구역 모두에 둔다 (RK) — 한 곳에만 있으면 다른 구역에서
+               작업하던 사람은 버튼이 없는 줄 안다. 같은 창을 연다. -->
+          <button class="iti-btn" id="iti-preview">👁 고객 화면 미리보기</button>
           <button class="iti-btn" id="iti-add-course">＋ 코스 추가</button>
           <button class="iti-btn" id="iti-copy-course">가져오기</button>
           <button class="iti-btn danger" id="iti-revert">이 구역만 되돌리기</button>
@@ -1573,6 +1614,14 @@
       <button id="recPvClose" class="modal-close">✕</button>
     </div>
     <p id="recPvNote" class="sec-note recpv-note"></p>
+    <!-- 프로그램 유형 (RK) — 고객이 STEP1에서 고른 유형에 따라 **어느 코스가 방식 A로
+         나갈지가 바뀐다.** 고정해 두면 미리보기가 한 경우만 보여주게 되고, 담당자는
+         나머지 경우에 무엇이 나가는지 여전히 모른다. -->
+    <div class="recpv-bar">
+      <label for="recPvType">고객이 고른 프로그램 유형</label>
+      <select id="recPvType"></select>
+      <span id="recPvMap" class="recpv-map"></span>
+    </div>
     <div class="modal-body recpv-body">
       <iframe id="recPvFrame" title="고객 화면 미리보기"></iframe>
     </div>
@@ -6481,15 +6530,44 @@
 
     const D = recMarkDirty;
     const G = () => itiState.destKey;   /* 목적지 선택은 하나다 (QY) */
-    box.appendChild(itiField('방식 이름 (예: 역량강화형) — 일정 탐색 화면의 배지', p.tag, false, (v) => { p.tag = v; }, null, D, G));
-    box.appendChild(itiField('한 줄 테마 설명', p.desc, true, (v) => { p.desc = v; }, null, D, G));
-    box.appendChild(itiField('핵심 포인트 (한 줄에 하나씩) — 일정 탐색 카드에 표시', (p.points || []).join('\n'), true,
-      (v) => { p.points = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recPoint', D, G));
-    box.appendChild(itiField('일별 주요 활동 (한 줄에 하나씩) — 연수 일수가 코스보다 길 때 남는 날을 이 목록으로 채웁니다',
+
+    /* ⚠ 이 네 칸(방식 이름·한 줄 설명·핵심 포인트·기대 효과)은 **코스가 하나도 없는
+       목적지에서만** 고객에게 나간다 (RK). 코스가 있으면 script.js의 renderStep3가
+       _coursesToDestRec()로 **코스의 제목·한 줄 설명·핵심 하이라이트**를 카드에 넣고,
+       기대 효과도 코스의 한 줄 설명을 쓴다.
+       예전 라벨은 그냥 "일정 탐색 화면의 배지"라고 적혀 있어서, 여기를 채운 담당자가
+       고객 화면에서 그 글을 찾다가 못 찾았다(사용자가 실제로 겪었다).
+       라벨이 조건을 말하게 하고, 안 쓰이는 상태면 칸을 흐리게 해서 눈으로도 구분되게 한다. */
+    const live = itiRecFieldsLive();
+    /* ⚠ 이름을 mark로 두지 말 것 — 이 함수 위쪽에 A·B 표식용 `mark`가 이미 있다. */
+    const fld = (el, used) => {
+      el.className = 'rec-fld' + (used ? '' : ' rec-fld-idle');
+      return el;
+    };
+    const onlyWhenNoCourse = ' — 이 목적지에 코스가 없을 때만 고객에게 나갑니다';
+
+    box.appendChild(fld(itiField('방식 이름 (예: 역량강화형)' + (live ? ' — 일정 탐색 카드의 배지' : onlyWhenNoCourse),
+      p.tag, false, (v) => { p.tag = v; }, null, D, G), live));
+    box.appendChild(fld(itiField('한 줄 테마 설명' + (live ? '' : onlyWhenNoCourse),
+      p.desc, true, (v) => { p.desc = v; }, null, D, G), live));
+    box.appendChild(fld(itiField('핵심 포인트 (한 줄에 하나씩)' + (live ? ' — 일정 탐색 카드에 표시' : onlyWhenNoCourse),
+      (p.points || []).join('\n'), true,
+      (v) => { p.points = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recPoint', D, G), live));
+    /* ✅ 이 칸만은 코스가 있든 없든 늘 쓰인다 — _buildDisplayDays의 pool이다. */
+    box.appendChild(fld(itiField('일별 주요 활동 (한 줄에 하나씩) — 연수 일수가 코스보다 길 때 남는 날을 이 목록으로 채웁니다',
       (p.items || []).join('\n'), true,
-      (v) => { p.items = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recItem', D, G));
-    box.appendChild(itiField('기대 효과 문구 — 고객 견적서(결재 보고용)에 나갑니다', p.value, true, (v) => { p.value = v; }, null, D, G));
+      (v) => { p.items = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recItem', D, G), true));
+    box.appendChild(fld(itiField('기대 효과 문구 — 고객 견적서(결재 보고용)' + (live ? '에 나갑니다' : onlyWhenNoCourse),
+      p.value, true, (v) => { p.value = v; }, null, D, G), live));
     return box;
+  }
+
+  /* 이 목적지에서 방식 A·B의 소개 네 칸이 실제로 고객에게 나가는가 (RK).
+     ⚠ 판단 기준은 script.js의 renderStep3와 같아야 한다 — 거기서는 getItineraries가
+     코스를 돌려주면 코스 기반으로 카드를 채운다. 관리자에서는 지금 편집 중인
+     itiState.courses가 곧 그 코스다(저장 전 상태까지 반영해야 화면이 안 어긋난다). */
+  function itiRecFieldsLive() {
+    return (itiState.courses || []).length === 0;
   }
 
 
@@ -6783,6 +6861,44 @@
     done();
   }
 
+  /* ════ 코스 → 고객의 '방식 A/B' 매핑 (RK) ═══════════════════════════════
+     관리자의 **코스 A·B·C**와 고객의 **방식 A·B**는 다른 것이다. 고객이 고른
+     프로그램 유형에 따라 어느 코스가 방식 A로 나갈지가 바뀐다
+     (예: 도쿄 + 언어 집중 연수 → 방식 A는 코스 C다).
+
+     ⚠ 규칙을 여기 옮겨 적지 않는다. script.js의 getItineraries()가 부르는 것과
+     **같은 함수**(rec_fallbacks.js의 recResolvePlanCourseIdx)를 부른다. 규칙이 두 벌이
+     되면 관리자 화면이 고객 화면과 다른 매핑을 말하게 되고, 그건 지금 문제보다 더 나쁘다.
+     ═══════════════════════════════════════════════════════════════════════ */
+  function itiCourseRoles(destKey, courseIdx) {
+    if (!destKey || typeof PROGRAM_TYPES === 'undefined') return [];
+    const courses = itiState.courses || [];
+    if (!courses.length) return [];
+    const prio = (typeof PROGRAM_PRIORITY !== 'undefined' ? PROGRAM_PRIORITY[destKey] : null) || {};
+    const out = [];
+    Object.keys(PROGRAM_TYPES).forEach((type) => {
+      const pair = recResolvePlanCourseIdx(courses.length, prio, type);
+      const primary = pair[0], secondary = pair[1];
+      const t = PROGRAM_TYPES[type];
+      if (courseIdx === primary)        out.push({ plan: 'a', type, label: t.label, short: t.short });
+      else if (courseIdx === secondary) out.push({ plan: 'b', type, label: t.label, short: t.short });
+    });
+    return out;
+  }
+
+  /* 배지는 **방식별로 묶는다.** 유형마다 하나씩 붙이면 탭 하나에 배지가 넷이라
+     탭 줄이 무너지고, 정작 알고 싶은 "이 코스가 A냐 B냐"가 안 읽힌다. */
+  function itiCourseRoleTags(destKey, courseIdx) {
+    const roles = itiCourseRoles(destKey, courseIdx);
+    return ['a', 'b'].map((plan) => {
+      const mine = roles.filter((r) => r.plan === plan);
+      if (!mine.length) return null;
+      return { plan, text: '방식 ' + plan.toUpperCase() + ' ← ' + mine.map((r) => r.short).join('·'),
+               title: mine.map((r) => r.label).join(', ') + '을(를) 고른 고객에게는 이 코스가 방식 '
+                      + plan.toUpperCase() + '로 나갑니다' };
+    }).filter(Boolean);
+  }
+
   function itiRenderCourseTabs() {
     const bar = document.createElement('div');
     bar.className = 'iti-ctabs';
@@ -6804,6 +6920,17 @@
       const blanks = (c.days || []).reduce((n, d) => n + itiDayBlanks(d).length, 0);
       meta.textContent = (c.days || []).length + '일';
       b.appendChild(name); b.appendChild(title); b.appendChild(meta);
+      /* 이 코스가 고객 화면에서 '방식 A'로 나가는지 'B'로 나가는지 (RK).
+         관리자의 코스 A·B·C와 고객의 방식 A·B는 **다른 것**이고, 고객이 고른
+         프로그램 유형에 따라 매핑이 바뀐다. 여기 안 적으면 두 화면을 나란히 놓고도
+         어느 것이 어느 것인지 알 수 없다(사용자가 실제로 그래서 못 찾았다). */
+      itiCourseRoleTags(itiState.destKey, i).forEach((r) => {
+        const tag = document.createElement('span');
+        tag.className = 'iti-ctab-role role-' + r.plan;
+        tag.textContent = r.text;
+        tag.title = r.title;
+        b.appendChild(tag);
+      });
       if (blanks) {
         const warn = document.createElement('span');
         warn.className = 'iti-ctab-warn';
@@ -7078,10 +7205,46 @@
       itiRenderLink();
       return;
     }
+    /* 코스가 있는 목적지에서는 이 구역의 네 칸이 고객에게 안 나간다 — 그 사실을
+       칸 라벨보다 먼저, 구역 맨 위에서 말한다 (RK). 라벨만으로는 이미 다 채워 놓고
+       나서야 알게 된다. */
+    body.appendChild(recRenderReality());
     body.appendChild(itiRenderRecSection(recState.rec));
     recRenderState();
     itiRenderLink();
     itiAutoGrowAll();   /* RE: 붙인 뒤에 잰다 — DOM에 없는 동안에는 높이를 못 잰다 */
+  }
+
+  /* ✨ 구역 맨 위 — "이 목적지에서는 무엇이 실제로 고객에게 나가는가" (RK) */
+  function recRenderReality() {
+    const n = (itiState.courses || []).length;
+    const box = document.createElement('div');
+    box.className = 'rec-reality' + (n ? ' is-idle' : ' is-live');
+
+    const t = document.createElement('p');
+    t.className = 'rec-reality-t';
+    const b = document.createElement('div');
+    b.className = 'rec-reality-b';
+
+    if (!n) {
+      t.textContent = '✅ 이 목적지는 등록된 코스가 없어, 아래 다섯 칸이 모두 고객에게 나갑니다.';
+      b.textContent = '고객의 “연수 일정 탐색” 카드와 견적서 기대 효과 문구가 여기 내용으로 채워집니다.';
+    } else {
+      t.textContent = '⚠ 이 목적지는 코스가 ' + n + '개 있어, 아래 네 칸은 고객에게 나가지 않습니다.';
+      b.textContent = '코스가 있으면 고객 화면의 방식 카드는 📅 날짜별 일정에 있는 '
+        + '코스의 제목 · 한 줄 설명 · 핵심 하이라이트로 채워지고, 견적서의 기대 효과 문구도 '
+        + '코스의 한 줄 설명을 씁니다. 여기서 실제로 쓰이는 것은 「일별 주요 활동」 한 칸뿐입니다 '
+        + '(연수 일수가 코스보다 길 때 남는 날을 채웁니다).';
+      const go = document.createElement('button');
+      go.type = 'button';
+      go.className = 'iti-btn';
+      go.textContent = '📅 날짜별 일정에서 고치기';
+      go.addEventListener('click', () => itiJump('sec-days'));
+      b.appendChild(document.createElement('br'));
+      b.appendChild(go);
+    }
+    box.appendChild(t); box.appendChild(b);
+    return box;
   }
 
   /* ── 두 구역의 의존관계를 숫자로 (QY) ────────────────────────────────────
@@ -7236,6 +7399,11 @@
       + '.pv-warn{font-size:12px;color:#8A5A00;background:#FFF8E8;border-left:3px solid #E0A100;'
       + 'padding:8px 12px;margin:14px 0 0;line-height:1.6}'
       + '.pv-warn b{color:#6A4400}'
+      /* 정말 빈칸으로 나가는 쪽은 더 세게 — 기본 문구로 채워지는 것과 결과가 다르다 */
+      + '.pv-warn-hard{color:#9B1C1C;background:#FEF2F2;border-left-color:#DC2626}'
+      /* 어느 화면을 고쳐야 이 자리가 바뀌는지 (RK) */
+      + '.pv-from{font-size:11px;font-weight:700;color:#5B21B6;background:#F5F3FF;'
+      + 'border:1px solid #DDD6FE;padding:4px 8px;margin:6px 0 0;line-height:1.5}'
       + '.pv-plan-lbl{font-size:11px;font-weight:800;color:#8A8A8A;margin:0 0 6px}'
       /* ⚠ 미리보기 껍데기는 **.pv-* 만 건드린다.** 고객 클래스(.plan-card 등)에
          여백 하나라도 얹으면 그 순간 미리보기가 고객 화면과 달라진다. 자리를 벌려야
@@ -7263,10 +7431,66 @@
      경고가 너무 많아 아무도 안 읽는다. */
   function recPvFallbackWarn(doc, fallen) {
     if (!fallen.length) return null;
-    return recPvNote(doc, 'pv-warn',
-      '⚠ 비어 있는 칸이 있습니다 — ' + fallen.join(', ')
-      + '. 위 화면에 보이는 그 자리의 문구는 담당자가 쓴 글이 아니라 '
-      + '시스템 기본 문구이고, 이대로 두면 고객에게 그대로 나갑니다.');
+    /* 빈 칸의 결과가 두 가지다 — 기본 문구로 채워지는 것과, 정말 빈칸으로 나가는 것.
+       뭉뚱그리면 후자(더 나쁜 쪽)를 놓친다. */
+    const fb = fallen.filter((f) => f.fb);
+    const blank = fallen.filter((f) => !f.fb);
+    const box = doc.createElement('div');
+    if (fb.length) {
+      box.appendChild(recPvNote(doc, 'pv-warn',
+        '⚠ 비어 있어 시스템 기본 문구가 나갑니다 — '
+        + fb.map((f) => f.label + '의 “' + f.field + '”').join(', ')
+        + '. 위 화면의 그 자리에 보이는 글은 담당자가 쓴 것이 아니고, '
+        + '이대로 두면 고객에게 그대로 나갑니다.'));
+    }
+    if (blank.length) {
+      box.appendChild(recPvNote(doc, 'pv-warn pv-warn-hard',
+        '⚠ 비어 있어 고객 화면에 **빈칸으로** 나갑니다 — '
+        + blank.map((f) => f.label + '의 “' + f.field + '” (' + f.src.where + ')').join(', ')
+        + '. 코스에서 오는 값은 비어도 기본 문구로 채워지지 않습니다.'));
+    }
+    return box.childNodes.length ? box : null;
+  }
+
+  /* ════ 이 목적지에서 고객의 방식 A·B가 **실제로** 무엇으로 채워지는가 (RK) ════
+     코스가 있으면 코스에서, 없으면 ✨ 방식 A·B에서 온다. 미리보기가 이걸 틀리면
+     "여기 쓴 글이 고객 화면 어디로 가는가"를 계속 잘못 알려주게 된다 — 처음 붙였을 때
+     실제로 그랬고, 그게 두 화면을 못 맞추던 원인이었다.
+     ⚠ 판단·변환 규칙은 rec_fallbacks.js가 안다. 고객 코드(script.js)가 부르는 함수와
+     같은 것을 부른다. */
+  function recPvSource(plan) {
+    const courses = itiState.courses || [];
+    const label = ITI_REC_PLAN_LABEL[plan];
+    if (!courses.length) {
+      return { from: 'rec', data: (recState.rec && recState.rec[plan]) || {}, label,
+               where: '✨ 방식 A·B 소개' };
+    }
+    const prio = (typeof PROGRAM_PRIORITY !== 'undefined' ? PROGRAM_PRIORITY[itiState.destKey] : null) || {};
+    const pair = recResolvePlanCourseIdx(courses.length, prio, recPvProgramType());
+    const idx = plan === 'a' ? pair[0] : pair[1];
+    const course = courses[idx] || {};
+    return { from: 'course', data: recPlanFromCourse(course), label, courseIdx: idx,
+             where: '📅 날짜별 일정의 코스 ' + String.fromCharCode(65 + idx),
+             courseTitle: String(course.title || '(제목 없음)') };
+  }
+
+  function recPvProgramType() {
+    const sel = document.getElementById('recPvType');
+    return sel ? sel.value : 'industry';
+  }
+
+  /* 코스에서 온 값이 비면 고객 화면도 **빈칸**이다(기본 문구로 안 채워진다) —
+     rec에서 올 때만 rec_fallbacks.js의 문구가 들어간다. 둘을 구분해서 경고한다. */
+  function recPvFill(src, key, fallback) {
+    const raw = src.data ? src.data[key] : null;
+    if (Array.isArray(fallback)) {
+      const v = (Array.isArray(raw) ? raw : []).map((s) => String(s || '').trim()).filter(Boolean);
+      if (v.length) return { list: v, empty: false, fb: false };
+      return src.from === 'rec' ? { list: fallback, empty: true, fb: true } : { list: [], empty: true, fb: false };
+    }
+    const v = String(raw == null ? '' : raw).trim();
+    if (v) return { text: v, empty: false, fb: false };
+    return src.from === 'rec' ? { text: fallback, empty: true, fb: true } : { text: '', empty: true, fb: false };
   }
 
   /* ── 구역 ①: 홈페이지 '연수 일정 탐색'의 방식 선택 카드 (tag·desc·points) ── */
@@ -7276,9 +7500,11 @@
     const grid = doc.createElement('div');
     grid.className = 'plan-cards';
     const fallen = [];
+    const froms = [];
 
     REC_PV_PLANS.forEach((plan) => {
-      const p = (rec && rec[plan]) || {};
+      const src = recPvSource(plan);
+      const p = src.data || {};
       const label = ITI_REC_PLAN_LABEL[plan];
       const card = doc.createElement('div');
       card.className = 'plan-card';
@@ -7288,19 +7514,19 @@
       const badge = doc.createElement('span');
       badge.className = 'plan-tag plan-tag-' + plan;
       badge.textContent = label;
-      const tag = recPvText(p.tag, REC_FALLBACKS.tag[plan]);
-      if (tag.fb) fallen.push(label + '의 “방식 이름”');
+      const tag = recPvFill(src, 'tag', REC_FALLBACKS.tag[plan]);
+      if (tag.empty) fallen.push({ label, field: '방식 이름', fb: tag.fb, src });
       const tagEl = doc.createElement('span');
       tagEl.className = 'plan-type-lbl'; tagEl.textContent = tag.text;
       hd.appendChild(badge); hd.appendChild(tagEl);
 
-      const desc = recPvText(p.desc, REC_FALLBACKS.desc);
-      if (desc.fb) fallen.push(label + '의 “한 줄 테마 설명”');
+      const desc = recPvFill(src, 'desc', REC_FALLBACKS.desc);
+      if (desc.empty) fallen.push({ label, field: '한 줄 (테마) 설명', fb: desc.fb, src });
       const descEl = doc.createElement('p');
       descEl.className = 'plan-desc'; descEl.textContent = desc.text;
 
-      const pts = recPvList(p.points, REC_FALLBACKS.points);
-      if (pts.fb) fallen.push(label + '의 “핵심 포인트”');
+      const pts = recPvFill(src, 'points', REC_FALLBACKS.points);
+      if (pts.empty) fallen.push({ label, field: '핵심 포인트 / 하이라이트', fb: pts.fb, src });
       const ul = doc.createElement('ul');
       ul.className = 'plan-points';
       pts.list.forEach((s) => {
@@ -7309,9 +7535,15 @@
 
       card.appendChild(hd); card.appendChild(descEl); card.appendChild(ul);
       grid.appendChild(card);
+      /* 출처는 **그리드 바깥**에 모아 적는다. 카드 안에 넣으면 고객이 보는 모양이
+         달라지고, 그리드 안에 넣으면 칸이 늘어 두 장 나란히가 깨진다(실제로 깨졌다).
+         이 한 줄이 "어디를 고쳐야 이 자리가 바뀌는가"를 말해준다 (RK). */
+      froms.push(label + ' ← ' + src.where
+        + (src.from === 'course' ? ' “' + src.courseTitle + '”' : ''));
     });
 
     sec.appendChild(grid);
+    froms.forEach((f) => sec.appendChild(recPvNote(doc, 'pv-from', f)));
     sec.appendChild(recPvNote(doc, 'pv-hint',
       '고객이 카드를 고르면 빨간 테두리가 붙습니다. 사진은 목적지에 등록된 것이 자동으로 올라가며 여기서는 생략했습니다.'));
     const warn = recPvFallbackWarn(doc, fallen);
@@ -7325,15 +7557,15 @@
       '고객이 회사에 결재를 올릴 때 그대로 붙여 쓰는 문장입니다.');
     const fallen = [];
     REC_PV_PLANS.forEach((plan) => {
-      const p = (rec && rec[plan]) || {};
+      const src = recPvSource(plan);
       const label = ITI_REC_PLAN_LABEL[plan];
-      const v = recPvText(p.value, REC_FALLBACKS.value);
-      if (v.fb) fallen.push(label + '의 “기대 효과 문구”');
+      const v = recPvFill(src, 'value', REC_FALLBACKS.value);
+      if (v.empty) fallen.push({ label, field: '기대 효과 문구 / 코스 한 줄 설명', fb: v.fb, src });
 
       const group = doc.createElement('div'); group.className = 'pv-group';
       const lbl = doc.createElement('p');
       lbl.className = 'pv-plan-lbl';
-      lbl.textContent = label + '을 고른 고객이 보는 문구';
+      lbl.textContent = label + '을 고른 고객이 보는 문구 · ' + src.where + '에서 옵니다';
       const box = doc.createElement('div'); box.className = 'plan-value-box';
       const body = doc.createElement('div'); body.className = 'plan-value-body';
       const cap = doc.createElement('p');
@@ -7360,10 +7592,16 @@
       '고객이 고른 일수가 코스보다 길면, 남는 날을 이 활동 목록으로 돌아가며 채웁니다.');
     const fallen = [];
     REC_PV_PLANS.forEach((plan) => {
-      const p = (rec && rec[plan]) || {};
+      /* ⚠ 이 칸만은 **언제나 ✨ 방식 A·B에서 온다** — 코스가 있어도 그렇다.
+         _buildDisplayDays의 pool이 pRec.items이고, 비어 있을 때만 코스 하이라이트로
+         물러난다. 다른 네 칸과 출처가 다르므로 recPvSource를 쓰지 않는다. */
+      const p = (recState.rec && recState.rec[plan]) || {};
       const label = ITI_REC_PLAN_LABEL[plan];
-      const it = recPvList(p.items, REC_FALLBACKS.items);
-      if (it.fb) fallen.push(label + '의 “일별 주요 활동”');
+      const courses = itiState.courses || [];
+      const hi = courses.length ? (courses[0].highlights || []) : [];
+      const it = recPvList(p.items, hi.length ? hi : REC_FALLBACKS.items);
+      if (it.fb) fallen.push({ label, field: '일별 주요 활동', fb: true,
+        src: { where: hi.length ? '📅 코스의 핵심 하이라이트' : '시스템 기본 목록' } });
 
       const lbl = doc.createElement('p');
       lbl.className = 'pv-plan-lbl';
@@ -7402,14 +7640,43 @@
     doc.body.appendChild(recPvPlanCards(doc, rec));
     doc.body.appendChild(recPvValueBoxes(doc, rec));
     doc.body.appendChild(recPvDayFill(doc, rec));
+    recPvRenderMap();
+  }
+
+  /* 지금 고른 유형에서 코스 ↔ 방식이 어떻게 짝지어지는지 한 줄로 (RK). */
+  function recPvRenderMap() {
+    const el = document.getElementById('recPvMap');
+    if (!el) return;
+    const courses = itiState.courses || [];
+    if (!courses.length) {
+      el.textContent = '이 목적지는 코스가 없어 ✨ 방식 A·B의 내용이 그대로 나갑니다.';
+      return;
+    }
+    const a = recPvSource('a'), b = recPvSource('b');
+    el.textContent = '방식 A = 코스 ' + String.fromCharCode(65 + a.courseIdx)
+      + ' · 방식 B = 코스 ' + String.fromCharCode(65 + b.courseIdx);
+  }
+
+  function recPvFillTypes() {
+    const sel = document.getElementById('recPvType');
+    if (!sel || sel.options.length || typeof PROGRAM_TYPES === 'undefined') return;
+    Object.keys(PROGRAM_TYPES).forEach((k) => {
+      const o = document.createElement('option');
+      o.value = k; o.textContent = PROGRAM_TYPES[k].label;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', recPvRender);
   }
 
   function recPreviewOpen() {
     if (!itiState.destKey) { recSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    recPvFillTypes();
     document.getElementById('recPvDest').textContent = itiState.destKey;
     /* 저장 전 내용을 보고 있다는 것을 분명히 한다 — 미리보기를 보고 "반영됐다"고
-       읽으면 저장을 건너뛴다. */
-    document.getElementById('recPvNote').textContent = recState.dirty
+       읽으면 저장을 건너뛴다. ⚠ 두 구역 중 **어느 쪽이라도** 저장 전이면 말해야 한다.
+       미리보기가 이제 코스(📅)도 함께 보여주기 때문이다. */
+    const unsaved = recState.dirty || itiState.dirty;
+    document.getElementById('recPvNote').textContent = unsaved
       ? '지금 화면에서 고치는 중인 내용입니다 (아직 저장하지 않았습니다). 저장해야 고객에게 나갑니다.'
       : '지금 저장되어 있는 내용입니다 — 고객이 지금 보고 있는 그대로입니다.';
     document.getElementById('recPvModal').classList.remove('hidden');
@@ -7419,7 +7686,10 @@
     document.getElementById('recPvModal').classList.add('hidden');
   }
 
+  /* 미리보기는 **두 구역 모두에서** 열린다 (RK). 한 곳에만 두면, 다른 구역에서
+     작업하던 사람은 버튼이 없는 줄 안다 — 실제로 그래서 "버튼이 안 보인다"가 나왔다. */
   document.getElementById('rec-preview').addEventListener('click', recPreviewOpen);
+  document.getElementById('iti-preview').addEventListener('click', recPreviewOpen);
   document.getElementById('recPvClose').addEventListener('click', recPreviewClose);
   /* 바깥을 눌러도 닫는다 — 안쪽(모달 상자)을 누른 것은 닫지 않는다. */
   document.getElementById('recPvModal').addEventListener('click', function (e) {

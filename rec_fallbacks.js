@@ -36,4 +36,49 @@ const REC_FALLBACKS = {
   value: '연수 목적에 맞는 맞춤 일정으로 팀 역량 강화 및 결속력 향상',
 };
 
-if (typeof module !== 'undefined' && module.exports) module.exports = REC_FALLBACKS;
+/* ═══════════════════════════════════════════════════════════════════════════
+   고객의 '방식 A·B'가 실제로 무엇으로 채워지는가 (RK)
+
+   여기 두 함수가 **관리자 화면과 고객 화면이 갈라지던 지점**이다. 실제로 이렇게 갈렸다:
+   담당자가 ✨ 방식 A·B에 써 넣은 배지·설명·포인트를 고객 화면에서 찾을 수 없었고,
+   관리자의 '코스 A'가 고객의 '방식 A'로 나가지도 않았다. 두 화면을 나란히 놓고도
+   어디가 어디인지 알 수 없었다.
+
+   규칙은 원래 script.js 안에만 있었다(getItineraries·_coursesToDestRec). 관리자 화면은
+   script.js를 싣지 않으므로, 관리자에서 같은 것을 보여주려면 규칙을 옮겨 적어야 하는데
+   그러면 두 벌이 된다(결함 생성기 ①). 그래서 규칙을 여기로 꺼내 **둘 다 이 함수를 부른다.**
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 이 목적지·프로그램 유형에서 방식 A·B가 **몇 번째 코스**인가 → [aIdx, bIdx].
+   ⚠ 코스가 2개 미만이거나 이 유형의 우선순위가 없으면 [0, 1]이다. 범위를 넘는
+   인덱스는 0/1로 접는다(예전 getItineraries의 `courses[p[0]] || courses[0]`과 같은 결과). */
+function recResolvePlanCourseIdx(courseCount, priorityForDest, programType) {
+  const n = Number(courseCount) || 0;
+  if (n <= 0) return null;
+  let p = null;
+  if (programType && n >= 2 && priorityForDest) p = priorityForDest[programType] || null;
+  if (!p) p = [0, 1];
+  const a = p[0] < n ? p[0] : 0;
+  const b = p[1] < n ? p[1] : (n > 1 ? 1 : 0);
+  return [a, b];
+}
+
+/* 코스 하나 → 고객 방식 카드가 보여주는 값.
+   ⚠ 코스가 있는 목적지에서는 **이것이 DEST_REC보다 우선한다.** 담당자가 ✨에 써 둔
+   글이 아니라 여기서 나온 값이 고객 화면에 뜬다. */
+function recPlanFromCourse(course) {
+  const c = course || {};
+  return {
+    tag:    c.title || '',
+    desc:   c.subtitle || '',
+    points: c.highlights ? c.highlights.slice(0, 3) : [],
+    items:  c.days ? c.days.slice(1, -1).map(function (d) { return d.title; }) : [],
+    value:  c.subtitle || '',
+  };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = REC_FALLBACKS;
+  module.exports.recResolvePlanCourseIdx = recResolvePlanCourseIdx;
+  module.exports.recPlanFromCourse = recPlanFromCourse;
+}

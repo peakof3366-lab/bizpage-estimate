@@ -3029,17 +3029,12 @@ function getItineraries(destKey, programType) {
   if (!hasItineraryContent(destKey)) return null;
   const courses = ITINERARY_DB[destKey];
 
-  /* 프로그램 유형 기반 우선순위 적용 */
-  if (programType && courses.length >= 2) {
-    const priority = (PROGRAM_PRIORITY[destKey] || {})[programType];
-    if (priority) {
-      const primary   = courses[priority[0]] || courses[0];
-      const secondary = courses[priority[1]] || courses[1] || courses[0];
-      return [primary, secondary];
-    }
-  }
-
-  return [courses[0], courses[1] || courses[0]];
+  /* 프로그램 유형 기반 우선순위 적용.
+     ⚠ 규칙은 rec_fallbacks.js가 안다 (RK) — 관리자 화면도 **같은 함수**를 불러
+     "이 코스는 어떤 유형에서 방식 A로 나가는가"를 배지로 보여준다. 여기 다시 적으면
+     두 화면이 다른 매핑을 말하게 되고, 그게 담당자가 두 화면을 못 맞추던 원인이었다. */
+  const idx = recResolvePlanCourseIdx(courses.length, PROGRAM_PRIORITY[destKey], programType);
+  return [courses[idx[0]], courses[idx[1]]];
 }
 
 /* ITINERARY_DB의 코스는 전부 "5일 고정"(마지막 날 = 귀국 콘텐츠)으로 작성되어 있음.
@@ -3888,18 +3883,11 @@ function renderStep3() {
     + '관리자 → 일정 관리에서 코스를 추가하면 열립니다.');
 }
 
-/* API courses 배열 → DEST_REC {a, b} 형식 변환 */
+/* API courses 배열 → DEST_REC {a, b} 형식 변환.
+   ⚠ 변환 규칙은 rec_fallbacks.js가 안다 (RK) — 관리자 미리보기가 같은 함수를 불러
+   "코스를 이렇게 고치면 고객 카드가 이렇게 보인다"를 그대로 보여준다. */
 function _coursesToDestRec(courses) {
-  function toRec(c) {
-    return {
-      tag: c.title || '',
-      desc: c.subtitle || '',
-      points: c.highlights ? c.highlights.slice(0, 3) : [],
-      items: c.days ? c.days.slice(1, -1).map(function(d) { return d.title; }) : [],
-      value: c.subtitle || '',
-    };
-  }
-  return { a: toRec(courses[0]), b: toRec(courses[1] || courses[0]) };
+  return { a: recPlanFromCourse(courses[0]), b: recPlanFromCourse(courses[1] || courses[0]) };
 }
 
 /* 플랜 카드 내부 채우기 */

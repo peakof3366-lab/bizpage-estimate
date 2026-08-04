@@ -78,6 +78,7 @@ const EMPTY = {
     d.getElementById('rec-msg').textContent);
 
   w.__select('도쿄');
+  w.__setCourses([]);          /* 코스 없는 상태 = ✨ 방식 A·B가 출처 (RK) */
   w.__setRec(FULL);
   btn.click();
   ok('목적지를 고르면 열린다', open());
@@ -94,6 +95,7 @@ const EMPTY = {
   console.log('\n[2] 저장 전 편집 중인 값을 보여주는가 (①)');
   w.__seed({}, { 도쿄: FULL }, {});      /* 서버에 저장된 값은 FULL */
   w.__select('도쿄');
+  w.__setCourses([]);
   w.__setRec({ a: Object.assign({}, FULL.a, { desc: '방금 고친 A 설명' }), b: FULL.b });
   w.__markRecDirty();
   btn.click();
@@ -109,14 +111,15 @@ const EMPTY = {
     d.getElementById('recPvNote').textContent);
   d.getElementById('recPvClose').click();
   w.__select('도쿄');                     /* dirty를 지우고 다시 연다 */
+  w.__setCourses([]);
   btn.click();
   ok('저장된 상태면 고객이 지금 보는 것이라고 말한다',
     /고객이 지금 보고 있는/.test(d.getElementById('recPvNote').textContent),
     d.getElementById('recPvNote').textContent);
 
   /* ── [4] 세 군데가 다 나오는가 ─────────────────────────────────────────── */
-  console.log('\n[4] 다섯 칸이 나가는 자리를 다 보여주는가');
-  w.__select('도쿄'); w.__setRec(FULL); btn.click();
+  console.log('\n[4] 다섯 칸이 나가는 자리를 다 보여주는가 (코스 없는 목적지)');
+  w.__select('도쿄'); w.__setCourses([]); w.__setRec(FULL); btn.click();
   ok('방식 선택 카드 두 장이 있다', cards().length === 2, String(cards().length));
   ok('기대 효과 박스가 A·B 둘 다 있다',
     pdoc().querySelectorAll('.plan-value-box').length === 2,
@@ -145,7 +148,7 @@ const EMPTY = {
 
   /* ── [5] 빈 칸을 어떻게 보여주는가 (②③) — 가장 중요 ──────────────────── */
   console.log('\n[5] 빈 칸이 고객 화면에서 어떻게 되는지 보여주는가 (②③)');
-  w.__select('도쿄'); w.__setRec(EMPTY); btn.click();
+  w.__select('도쿄'); w.__setCourses([]); w.__setRec(EMPTY); btn.click();
   ok('빈 칸을 빈 채로 두지 않는다',
     texts('.plan-desc').every((t) => t.trim().length > 0), texts('.plan-desc').join(' | '));
   ok('방식 이름이 고객 화면과 같은 기본값이다',
@@ -167,7 +170,7 @@ const EMPTY = {
   ok('비어 있다는 것을 경고로 알린다', pdoc().querySelectorAll('.pv-warn').length === 3,
     String(pdoc().querySelectorAll('.pv-warn').length));
   ok('어느 칸이 비었는지 이름을 적는다',
-    warns.includes('한 줄 테마 설명') && warns.includes('기대 효과 문구'), warns);
+    warns.includes('한 줄') && warns.includes('기대 효과 문구'), warns);
   ok('A와 B를 구분해서 적는다', warns.includes('방식 A') && warns.includes('방식 B'), warns);
   ok('이대로 두면 고객에게 나간다고 못 박는다', /고객에게 그대로 나갑니다/.test(warns), warns);
   /* ⚠ 경고는 카드 바깥이어야 한다 — 안에 넣으면 고객이 보는 모양이 달라진다 */
@@ -175,6 +178,73 @@ const EMPTY = {
     Array.from(pdoc().querySelectorAll('.pv-warn')).every((el) => !el.closest('.plan-card')));
   ok('경고가 기대 효과 박스 안에도 없다',
     Array.from(pdoc().querySelectorAll('.pv-warn')).every((el) => !el.closest('.plan-value-box')));
+
+  /* ── [5-b] 코스가 있으면 **코스가 출처다** (RK) — 이 저장소가 실제로 틀렸던 곳 ──
+     처음 미리보기를 붙였을 때는 언제나 ✨ 방식 A·B를 보여줬다. 그런데 코스가 등록된
+     목적지에서는 고객 화면이 **코스의 제목·한 줄 설명·핵심 하이라이트**를 쓴다
+     (script.js renderStep3 → _coursesToDestRec). 그래서 담당자가 ✨에 써 넣은 글을
+     고객 화면에서 찾을 수 없었고, 미리보기는 그 사실을 감추고 있었다. */
+  console.log('\n[5-b] 코스가 있으면 코스가 출처인가 (RK)');
+  const COURSES = [
+    { title: '코스가 제목', subtitle: '코스가 한 줄', highlights: ['하이가1', '하이가2', '하이가3', '하이가4'],
+      days: [{ day:1, title:'첫날' }, { day:2, title:'가운데' }, { day:3, title:'마지막' }] },
+    { title: '코스나 제목', subtitle: '코스나 한 줄', highlights: ['하이나1'],
+      days: [{ day:1, title:'첫날' }, { day:2, title:'마지막' }] },
+  ];
+  w.__select('도쿄'); w.__setCourses(COURSES); w.__setRec(FULL); btn.click();
+  ok('카드 배지가 코스 제목이다 (방식 이름이 아니다)',
+    texts('.plan-type-lbl').join(',') === '코스가 제목,코스나 제목', texts('.plan-type-lbl').join(','));
+  ok('설명이 코스의 한 줄 설명이다',
+    texts('.plan-desc').join(',') === '코스가 한 줄,코스나 한 줄', texts('.plan-desc').join(','));
+  ok('포인트가 코스 하이라이트 **앞 3개**다',
+    texts('.plan-points li').join(',') === '하이가1,하이가2,하이가3,하이나1',
+    texts('.plan-points li').join(','));
+  ok('기대 효과도 코스의 한 줄 설명이다',
+    texts('.plan-value-text').join(',') === '코스가 한 줄,코스나 한 줄', texts('.plan-value-text').join(','));
+  ok('✨에 써 둔 방식 이름은 카드에 안 나온다',
+    !texts('.plan-type-lbl').includes('역량강화'), texts('.plan-type-lbl').join(','));
+  /* 어디를 고쳐야 이 자리가 바뀌는지 말해 준다 — 이게 없으면 또 못 찾는다 */
+  const froms = texts('.pv-from').join(' | ');
+  ok('각 카드의 출처를 적는다', /코스 A/.test(froms) && /코스 B/.test(froms), froms);
+  ok('출처에 코스 제목까지 적는다', froms.includes('코스가 제목'), froms);
+  ok('출처가 📅 날짜별 일정을 가리킨다', /날짜별 일정/.test(froms), froms);
+
+  /* 일별 주요 활동만은 코스가 있어도 ✨에서 온다 — 다른 넷과 출처가 다르다 */
+  ok('일별 주요 활동은 코스가 있어도 ✨ 방식 A·B에서 온다',
+    texts('.itin-day-title').join(',') === 'A활동1,A활동2,B활동1',
+    texts('.itin-day-title').join(','));
+
+  /* ⚠ 코스에서 오는 값이 비면 기본 문구로 안 채워진다 — 고객 화면이 빈칸이 된다 */
+  w.__setCourses([{ title: '', subtitle: '', highlights: [], days: [{ day:1, title:'ㄱ' }] }]);
+  btn.click();
+  const hard = Array.from(pdoc().querySelectorAll('.pv-warn-hard')).map((e) => e.textContent).join(' ');
+  ok('빈 코스 값은 “빈칸으로 나간다”고 따로 경고한다', hard.length > 0, hard);
+  ok('그 경고가 기본 문구 경고와 구분된다', /빈칸으로/.test(hard), hard);
+
+  /* ── [5-c] 프로그램 유형에 따라 A/B가 바뀌는 것을 보여주는가 (RK) ────── */
+  console.log('\n[5-c] 프로그램 유형에 따라 코스↔방식 매핑이 바뀌는가');
+  w.__select('도쿄'); w.__setCourses(COURSES); btn.click();
+  const typeSel = d.getElementById('recPvType');
+  ok('프로그램 유형을 고를 수 있다', !!typeSel && typeSel.options.length === 4,
+    typeSel ? String(typeSel.options.length) : '(없음)');
+  ok('유형 이름이 data.js의 PROGRAM_TYPES에서 온다',
+    Array.from(typeSel.options).map((o) => o.value).join(',') === 'language,leadership,industry,academic',
+    Array.from(typeSel.options).map((o) => o.value).join(','));
+  /* 도쿄 PROGRAM_PRIORITY: language:[2,1] leadership:[1,0] industry:[0,1]
+     코스를 2개만 뒀으니 인덱스 2는 범위를 넘어 0으로 접힌다 — 고객 코드와 같은 규칙이다 */
+  w.__pvType('leadership');
+  ok('리더십에서는 코스 B가 방식 A가 된다',
+    w.__planSource('a').courseIdx === 1 && w.__planSource('b').courseIdx === 0,
+    JSON.stringify([w.__planSource('a').courseIdx, w.__planSource('b').courseIdx]));
+  w.__pvType('industry');
+  ok('산업체에서는 코스 A가 방식 A가 된다',
+    w.__planSource('a').courseIdx === 0 && w.__planSource('b').courseIdx === 1,
+    JSON.stringify([w.__planSource('a').courseIdx, w.__planSource('b').courseIdx]));
+  ok('바꾼 유형이 화면 내용에도 반영된다',
+    texts('.plan-type-lbl')[0] === '코스가 제목', texts('.plan-type-lbl').join(','));
+  ok('지금 매핑을 한 줄로 알려준다',
+    /방식 A = 코스 A/.test(d.getElementById('recPvMap').textContent),
+    d.getElementById('recPvMap').textContent);
 
   /* ── [6] 기본 문구가 고객 화면과 같은 곳에서 오는가 (③) ───────────────── */
   console.log('\n[6] 기본 문구를 두 벌로 적지 않았는가 (③)');
@@ -257,6 +327,7 @@ const EMPTY = {
   console.log('\n[9] 담당자가 친 글자가 코드로 해석되지 않는가 (⑥)');
   const EVIL = `'"><img src=x onerror=parent.__pwned=1><script>parent.__pwned=1<\/script>`;
   w.__select('도쿄');
+  w.__setCourses([]);
   w.__setRec({
     a: { tag: EVIL, desc: EVIL, points: [EVIL], items: [EVIL], value: EVIL },
     b: { tag: EVIL, desc: EVIL, points: [EVIL], items: [EVIL], value: EVIL },
@@ -294,6 +365,11 @@ async function bootAdmin() {
   /* 편집 중인 값을 직접 세운다 — 미리보기가 '저장된 값'이 아니라 이걸 봐야 한다 */
   window.__setRec = (r) => { recState.rec = JSON.parse(JSON.stringify(r)); recRenderBody(); };
   window.__markRecDirty = () => recMarkDirty();
+  /* ⚠ 코스 유무가 미리보기의 **출처를 바꾼다**(RK). 코스가 있으면 방식 카드는 코스에서,
+     없으면 ✨ 방식 A·B에서 온다. 그래서 테스트가 둘을 따로 세울 수 있어야 한다. */
+  window.__setCourses = (c) => { itiState.courses = JSON.parse(JSON.stringify(c)); itiRenderBody(); recRenderBody(); };
+  window.__pvType = (t) => { document.getElementById('recPvType').value = t; recPvRender(); };
+  window.__planSource = (plan) => recPvSource(plan);
 }catch(e){ window.__exposeError = String(e); }
 `;
   let injected = false;
