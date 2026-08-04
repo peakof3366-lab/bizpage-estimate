@@ -42,6 +42,14 @@ async function loadVerifyContext(destKey) {
 const AIRFARE_UNIT_MAX = 50000000;
 const HOTEL_UNIT_MAX = 10000000;
 const MEAL_UNIT_MAX = 1000000;
+/* RQ: 추가 항목 상한. 요율표의 현실적 규모에 맞춘다 —
+   유류할증은 1인당이라 작고, 차량·가이드는 '대당/일' 또는 '일당'이라 크다. */
+const FUEL_UNIT_MAX = 2000000;
+const VEHICLE_UNIT_MAX = 10000000;
+const GUIDE_UNIT_MAX = 5000000;
+const SIGHT_UNIT_MAX = 2000000;
+/* 1인 최종 판매가 — 요율이 아니라 우리 견적의 정확도를 재는 기준선이다. */
+const SELL_UNIT_MAX = 50000000;
 const HOTEL_NAME_MAX_LEN = 80;
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -488,7 +496,9 @@ async function handleExtractPdf(req, res) {
 
 async function handlePriceReport(req, res) {
   if (!(await requireAdmin(req, res))) return;
-  const { destinationKey, airfareUnit, hotelUnit, hotelName, mealUnit, author, source } = req.body || {};
+  const { destinationKey, airfareUnit, hotelUnit, hotelName, mealUnit,
+          fuelUnit, vehicleUnit, guideUnit, sightUnit, sellPriceUnit,
+          author, source } = req.body || {};
   if (typeof destinationKey !== 'string' || !destinationKey.trim() || destinationKey.length > 100) {
     return res.status(400).json({ error: 'invalid_body' });
   }
@@ -500,9 +510,17 @@ async function handlePriceReport(req, res) {
   const airfare = parseOptional(airfareUnit, AIRFARE_UNIT_MAX);
   const hotel = parseOptional(hotelUnit, HOTEL_UNIT_MAX);
   const meal = parseOptional(mealUnit, MEAL_UNIT_MAX);
-  if (!airfare.ok || !hotel.ok || !meal.ok) return res.status(400).json({ error: 'invalid_body' });
+  /* RQ: 요율표의 나머지 항목도 받는다 — 견적서에서 이미 뽑히고 있던 값들이다.
+     상한은 각 항목의 현실적 규모에 맞춘다(차량은 대당 하루라 크고, 유류할증은 작다). */
+  const fuel = parseOptional(fuelUnit, FUEL_UNIT_MAX);
+  const vehicle = parseOptional(vehicleUnit, VEHICLE_UNIT_MAX);
+  const guide = parseOptional(guideUnit, GUIDE_UNIT_MAX);
+  const sight = parseOptional(sightUnit, SIGHT_UNIT_MAX);
+  const sell = parseOptional(sellPriceUnit, SELL_UNIT_MAX);
+  const parsed = [airfare, hotel, meal, fuel, vehicle, guide, sight, sell];
+  if (parsed.some((p) => !p.ok)) return res.status(400).json({ error: 'invalid_body' });
   const safeHotelName = typeof hotelName === 'string' ? hotelName.trim().slice(0, HOTEL_NAME_MAX_LEN) : '';
-  if (airfare.value == null && hotel.value == null && meal.value == null && !safeHotelName) {
+  if (parsed.every((p) => p.value == null) && !safeHotelName) {
     return res.status(400).json({ error: 'invalid_body' });
   }
   /* destinationKey 유효성 — 내장 목적지가 아니면 커스텀 목적지 존재 확인. 오타/미존재
@@ -520,9 +538,16 @@ async function handlePriceReport(req, res) {
      요율 PATCH(api/rates.js)와 동일 원칙. requireAdmin이 req.user를 세팅한다. */
   const safeAuthor = String((req.user && req.user.displayName) || '').slice(0, 40);
   try {
+    /* ⚠ 새 컬럼(fuel/vehicle/guide/sight/sell_price)은 **마이그레이션이 먼저** 돌아야 한다.
+       배포가 앞서면 여기서 500이 난다 — CLAUDE.md의 순서 규칙 그대로다.
+       `node ai-loop/db_migrate.js` (additive, if not exists) */
     await sql`
-      insert into actual_price_reports (destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit, author, source)
-      values (${destinationKey}, ${airfare.value}, ${hotel.value}, ${safeHotelName || null}, ${meal.value}, ${safeAuthor}, ${source === 'pdf' ? 'pdf' : 'manual'})
+      insert into actual_price_reports
+        (destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
+         fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit, author, source)
+      values (${destinationKey}, ${airfare.value}, ${hotel.value}, ${safeHotelName || null}, ${meal.value},
+              ${fuel.value}, ${vehicle.value}, ${guide.value}, ${sight.value}, ${sell.value},
+              ${safeAuthor}, ${source === 'pdf' ? 'pdf' : 'manual'})
     `;
     return res.status(200).json({ ok: true });
   } catch (err) {
@@ -534,14 +559,24 @@ async function handlePriceReport(req, res) {
 async function handlePriceReports(req, res) {
   if (!(await requireAdmin(req, res))) return;
   try {
-    const rows = await sql`select id, destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit, author, source, created_at from actual_price_reports order by created_at desc limit 1000`;
+    const rows = await sql`select id, destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
+                                  fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
+                                  author, source, created_at
+                           from actual_price_reports order by created_at desc limit 1000`;
+    const num = (v) => (v != null ? Number(v) : null);
     return res.status(200).json(rows.map((r) => ({
       id: Number(r.id),
       destinationKey: r.destination_key,
-      airfareUnit: r.airfare_unit != null ? Number(r.airfare_unit) : null,
-      hotelUnit: r.hotel_unit != null ? Number(r.hotel_unit) : null,
+      airfareUnit: num(r.airfare_unit),
+      hotelUnit: num(r.hotel_unit),
       hotelName: r.hotel_name || null,
-      mealUnit: r.meal_unit != null ? Number(r.meal_unit) : null,
+      mealUnit: num(r.meal_unit),
+      /* RQ: 요율표의 나머지 항목 + 검증용 판매가 */
+      fuelUnit: num(r.fuel_unit),
+      vehicleUnit: num(r.vehicle_unit),
+      guideUnit: num(r.guide_unit),
+      sightUnit: num(r.sight_unit),
+      sellPriceUnit: num(r.sell_price_unit),
       author: r.author || '', source: r.source, createdAt: r.created_at,
     })));
   } catch (err) {

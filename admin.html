@@ -1263,7 +1263,29 @@
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 식비(1인 1일)</div>
-              <input type="number" id="pr-meal" class="pw-input" min="0" placeholder="예: 20000" />
+              <input type="number" id="pr-meal" class="pw-input" min="0" placeholder="예: 50000" />
+            </div>
+            <!-- RQ: 요율표의 나머지 항목 — 견적서에서 이미 뽑히던 값들이다.
+                 2026-08-04 회의에서 정의한 추출 필드(차량·가이드비·판매가)를 담는다. -->
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">실제 유류할증료(1인당)</div>
+              <input type="number" id="pr-fuel" class="pw-input" min="0" placeholder="예: 90000" />
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">실제 차량비(대당 1일)</div>
+              <input type="number" id="pr-vehicle" class="pw-input" min="0" placeholder="예: 940000" />
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">실제 가이드비(1일)</div>
+              <input type="number" id="pr-guide" class="pw-input" min="0" placeholder="예: 209000" />
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">실제 관광·입장료(1인당)</div>
+              <input type="number" id="pr-sight" class="pw-input" min="0" placeholder="예: 40000" />
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">최종 판매가(1인) 📏<span style="font-weight:400;text-transform:none;letter-spacing:0"> 정확도 기준</span></div>
+              <input type="number" id="pr-sell" class="pw-input" min="0" placeholder="예: 1190000" />
             </div>
           </div>
 
@@ -4808,7 +4830,8 @@
      · pdf   : PDF 업로드→추출만 사용. 가격 필드는 readonly로 잠가 사람이 손대지 못하게
                하고, extractPdfDetails가 채운 값 그대로만 제출된다.
      방식 전환 시에는 값을 초기화해 한 방식의 입력이 다른 방식으로 섞이지 않게 한다. */
-  const PR_FIELD_IDS = ['pr-airfare', 'pr-hotel', 'pr-hotel-name', 'pr-meal'];
+  const PR_FIELD_IDS = ['pr-airfare', 'pr-hotel', 'pr-hotel-name', 'pr-meal',
+    'pr-fuel', 'pr-vehicle', 'pr-guide', 'pr-sight', 'pr-sell'];
   let priceReportMode = 'manual';
 
   function applyPriceReportModeUI() {
@@ -4842,10 +4865,19 @@
      AI가 고른 값이 왜 그 값인지 칸 밑에 적고, 틀렸으면 **후보 목록에서 1클릭으로**
      바꾸게 한다. 담당자가 숫자를 타이핑할 일이 없고, 값은 언제나 견적서에 실제로 있는
      (단가×수량×횟수=총액이 검산된) 줄에서만 온다. */
+  /* ⚠ 항공·호텔·식비만 AI가 고른다. 나머지(유류할증·차량·가이드·관광·판매가)는
+     **후보 목록만 붙여** 담당자가 직접 고르게 한다 (RQ) — AI에게 9개를 다 시키면
+     식사에서 겪은 것처럼 라벨 추측이 흔들리고, 틀린 값이 여러 칸에 한꺼번에 들어간다.
+     후보는 어차피 산술 검증된 줄이라 고르기만 하면 되고, 안 고르면 비어 있을 뿐이다. */
   const PR_EVIDENCE_FIELDS = [
     { key: 'airfare', input: 'pr-airfare', label: '항공료' },
     { key: 'hotel', input: 'pr-hotel', label: '호텔단가' },
     { key: 'meal', input: 'pr-meal', label: '식비' },
+    { key: 'fuel', input: 'pr-fuel', label: '유류할증료', pickOnly: true },
+    { key: 'vehicle', input: 'pr-vehicle', label: '차량비', pickOnly: true },
+    { key: 'guide', input: 'pr-guide', label: '가이드비', pickOnly: true },
+    { key: 'sight', input: 'pr-sight', label: '관광·입장료', pickOnly: true },
+    { key: 'sell', input: 'pr-sell', label: '최종 판매가', pickOnly: true },
   ];
 
   function clearPdfEvidence() {
@@ -4904,7 +4936,9 @@
       const ev = (data.evidence || {})[f.key];
       const src = document.createElement('div');
       src.className = 'pr-ev-src';
-      src.textContent = ev ? '📄 견적서: ' + ev.calc : '📄 이 항목은 찾지 못했습니다 — 아래에서 골라 주세요';
+      src.textContent = ev ? '📄 견적서: ' + ev.calc
+        : (f.pickOnly ? '📄 아래 후보에서 골라 주세요 (선택)'
+                      : '📄 이 항목은 찾지 못했습니다 — 아래에서 골라 주세요');
       if (ev) src.title = ev.line;
       box.appendChild(src);
 
@@ -5097,10 +5131,20 @@
     const airfare = parseField(airfareInput, 50000000);
     const hotel = parseField(hotelInput, 10000000);
     const meal = parseField(mealInput, 1000000);
-    if (!airfare.ok || !hotel.ok || !meal.ok) { msg.style.color = 'var(--danger)'; msg.textContent = '입력값을 확인해 주세요(0보다 큰 올바른 범위의 숫자여야 합니다).'; return; }
+    /* RQ: 요율표의 나머지 항목 + 검증용 판매가. 상한은 서버(api/quotes.js)와 같은 값이다 —
+       다르면 화면은 통과시키고 서버가 거절하는 일이 생긴다. */
+    const extra = {
+      fuelUnit: parseField(document.getElementById('pr-fuel'), 2000000),
+      vehicleUnit: parseField(document.getElementById('pr-vehicle'), 10000000),
+      guideUnit: parseField(document.getElementById('pr-guide'), 5000000),
+      sightUnit: parseField(document.getElementById('pr-sight'), 2000000),
+      sellPriceUnit: parseField(document.getElementById('pr-sell'), 50000000),
+    };
+    const allParsed = [airfare, hotel, meal].concat(Object.keys(extra).map((k) => extra[k]));
+    if (allParsed.some((p) => !p.ok)) { msg.style.color = 'var(--danger)'; msg.textContent = '입력값을 확인해 주세요(0보다 큰 올바른 범위의 숫자여야 합니다).'; return; }
     const hotelName = hotelNameInput.value.trim().slice(0, 80);
-    if (airfare.value == null && hotel.value == null && meal.value == null && !hotelName) {
-      msg.style.color = 'var(--danger)'; msg.textContent = '항공료·호텔단가·호텔명·식비 중 최소 하나는 입력해 주세요.'; return;
+    if (allParsed.every((p) => p.value == null) && !hotelName) {
+      msg.style.color = 'var(--danger)'; msg.textContent = '항목 중 최소 하나는 입력해 주세요.'; return;
     }
     /* 오타 방어(신규) — 기준가에서 크게 벗어난 값은 제출 전에 한 번 더 확인받는다.
        cancel하면 제출 중단(모달 유지, 담당자가 값을 고칠 수 있음). */
@@ -5114,12 +5158,17 @@
     try {
       const res = await fetch('/api/quotes?action=priceReport', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ destinationKey: destKey, airfareUnit: airfare.value, hotelUnit: hotel.value, hotelName, mealUnit: meal.value, author, source }),
+        body: JSON.stringify(Object.assign({
+          destinationKey: destKey, airfareUnit: airfare.value, hotelUnit: hotel.value,
+          hotelName, mealUnit: meal.value, author, source,
+        }, Object.keys(extra).reduce((o, k) => { o[k] = extra[k].value; return o; }, {}))),
       });
       const data = await res.json();
       if (!res.ok) { msg.style.color = 'var(--danger)'; msg.textContent = '제출 실패: ' + (data.error || ''); return; }
       msg.style.color = 'var(--success)'; msg.textContent = '제출되었습니다 — 갱신 제안에 반영됩니다.';
-      airfareInput.value = ''; hotelInput.value = ''; hotelNameInput.value = ''; mealInput.value = ''; pdfInput.value = '';
+      PR_FIELD_IDS.forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+      pdfInput.value = '';
+      clearPdfEvidence();
       await loadPriceReports();
       renderRateSuggestions();
       renderHotelReference();
@@ -5206,6 +5255,12 @@
       if (r.airfareUnit != null) put(r.destinationKey, 'airfare', ts, r.airfareUnit);
       if (r.hotelUnit != null) put(r.destinationKey, 'hotel_per_room', ts, r.hotelUnit);
       if (r.mealUnit != null) put(r.destinationKey, 'meal_per_person', ts, r.mealUnit);
+      /* RQ: 새로 받기 시작한 항목들도 실측 근거로 센다 — 그래야 요율표 배지와
+         '실측 전환' 진행률이 실제로 채워진 만큼 올라간다. */
+      if (r.fuelUnit != null) put(r.destinationKey, 'fuel_surcharge', ts, r.fuelUnit);
+      if (r.vehicleUnit != null) put(r.destinationKey, 'vehicle_large', ts, r.vehicleUnit);
+      if (r.guideUnit != null) put(r.destinationKey, 'guide_fee', ts, r.guideUnit);
+      if (r.sightUnit != null) put(r.destinationKey, 'sightseeing_fee', ts, r.sightUnit);
     });
     getEstsFull().filter(e => e.status === 'contracted' && e.destKey).forEach(e => {
       const ts = new Date(e.ts).getTime();
@@ -5221,6 +5276,9 @@
   /* 실측으로 확인된 칸이 몇 개인가 (RM).
      ⚠ 세는 기준을 배지와 **같은 것**(rateActualValidationMap)으로 둔다. 따로 세면
      "표에는 ✅인데 진행률은 안 올라간다"가 생긴다. 배지가 진실이고 여기는 그 합계다. */
+  /* ⚠ 진행률에 세는 항목 (RQ). 요율표에 실제로 **보이는 칸**만 센다 —
+     차량·가이드·관광은 요율에 있지만 표에는 열이 없어, 여기 넣으면 "배지는 없는데
+     진행률만 오른다"가 된다. 표에 열을 늘릴 때 여기도 함께 늘린다. */
   const RATE_MEASURED_FIELDS = ['airfare', 'hotel_per_room', 'meal_per_person'];
   function countMeasuredCells() {
     const keys = (typeof destinationRates !== 'undefined' ? destinationRates : []).map(d => d.destination_key);

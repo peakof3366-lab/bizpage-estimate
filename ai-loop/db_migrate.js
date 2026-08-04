@@ -275,6 +275,22 @@ async function main() {
   await sql`alter table actual_price_reports add column if not exists hotel_name text`;
   await sql`alter table actual_price_reports add column if not exists meal_unit numeric`;
 
+  /* RQ: 실제 계약가 항목 확대 — 항공·호텔·식비 셋만 받던 것을 요율표의 나머지 항목까지
+     넓힌다. 2026-08-04 회의(견적 자동화)에서 정의한 추출 필드가 근거다:
+       "항공료, 호텔, 차량, 가이드비, 식사비, 기관 섭외비, 기타 / 최종 판매가(인당), 수익 책정액"
+     ⚠ 이 값들은 **이미 견적서에서 산술로 뽑히고 있었다**(오키나와 실측: 차량 940,500 /
+     가이드 209,000 / 유류할증 90,000). 받을 칸이 없어서 버리고 있었을 뿐이다.
+     전부 nullable — 한 건의 제보에 모든 항목이 채워질 필요는 없다(기존 셋과 같은 규칙).
+     ⚠ 컬럼을 따로 두는 이유: 갱신 제안·정확도·실측 배지가 항목별로 집계하는데,
+     jsonb 한 칸에 몰아넣으면 그 집계가 전부 복잡해진다. 요율표 필드와 1:1로 맞춘다. */
+  await sql`alter table actual_price_reports add column if not exists fuel_unit numeric`;
+  await sql`alter table actual_price_reports add column if not exists vehicle_unit numeric`;
+  await sql`alter table actual_price_reports add column if not exists guide_unit numeric`;
+  await sql`alter table actual_price_reports add column if not exists sight_unit numeric`;
+  /* 1인 최종 판매가 — 요율 항목이 아니라 **검증용**이다. 우리 견적이 실제 판매가와
+     얼마나 맞았는지 재는 기준선이 된다(회의록의 '오차 ±5%' 판정에 직결). */
+  await sql`alter table actual_price_reports add column if not exists sell_price_unit numeric`;
+
   /* P2b: 전역 앱 설정 KV (신규) — 견적 계수 스칼라 노브(coefficients) 등 사이트 전역 설정을
      key→jsonb로 저장. 공개 계산기는 /api/rates GET이 이 중 'coefficients' 행을 코드 기본값 위에
      폴백-우선 병합한다(행이 없으면 기본값=현재 동작). content_overrides와 같은 KV 형태이되 값이
