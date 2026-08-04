@@ -598,6 +598,17 @@
     .iti-btn:disabled:hover { border-color: var(--border); }
     .iti-btn.danger { color: var(--danger, #dc2626); border-color: #fecaca; }
     .iti-btn.danger:hover { background: #fef2f2; border-color: #dc2626; }
+
+    /* 👁 고객 화면 미리보기 (RJ) — `.iti-btn` 기본 테두리는 `--border`(8% 검정)라
+       회색 패널 위의 '＋ 코스 추가'에서는 보이지만, **흰 구역 헤더에서 빨간 버튼 둘
+       옆에 놓이면 버튼으로 안 보인다.** 실제로 사용자가 "미리보기 버튼이 안 보인다"고
+       했고, 재어 보니 있기는 한데(135×34px, 안 잘림) 테두리가 사실상 없었다.
+       이 구역의 강조색(--sec)으로 테두리·글자를 준다. ⚠ 채우지는 않는다 — 채우면
+       빨간 '방식 A·B 저장'과 주목도를 다툰다. 저장이 이 화면의 주 동작이다. */
+    #rec-preview {
+      border-color: var(--sec); color: var(--sec); background: var(--sec-bg); font-weight: 800;
+    }
+    #rec-preview:hover { background: var(--sec); color: #fff; border-color: var(--sec); }
     .iti-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem; }
     .iti-msg { font-size: .82rem; font-weight: 700; margin-top: .5rem; }
     .iti-msg.ok  { color: #15803d; }

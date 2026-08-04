@@ -179,6 +179,40 @@ with sync_playwright() as p:
         apage.evaluate(f"() => {{ window.REC_UNDER_TEST = {REC}; }}")
         a = apage.evaluate(ADMIN)
         apage.wait_for_timeout(400)
+
+        # ⑥ 버튼이 **버튼으로 보이는가** — 있기만 해서는 소용이 없다.
+        #    처음 붙였을 때 `.iti-btn` 기본 테두리(--border = 8% 검정)를 그대로 써서,
+        #    흰 헤더에 빨간 버튼 둘 옆에 놓이니 글자로만 읽혔다. 사용자가 "버튼이 안
+        #    보인다"고 해서 알았다. 존재·크기 검사는 전부 통과하고 있었다.
+        #    ⚠ 화면을 세운 **뒤에** 잰다 — 로그인 화면 상태에서는 조상이 display:none이라
+        #    크기가 0으로 나와 엉뚱한 판단을 하게 된다.
+        btn = apage.evaluate(r"""() => {
+          const b = document.getElementById('rec-preview');
+          if (!b) return { exists: false };
+          const cs = getComputedStyle(b);
+          const r = b.getBoundingClientRect();
+          const rgb = (s) => (s.match(/[\d.]+/g) || []).map(Number);
+          const bc = rgb(cs.borderTopColor);      /* [r,g,b] 또는 [r,g,b,a] */
+          return {
+            exists: true, w: Math.round(r.width), h: Math.round(r.height),
+            visible: cs.visibility === 'visible' && cs.display !== 'none' && Number(cs.opacity) > .5,
+            borderAlpha: bc.length > 3 ? bc[3] : 1,
+            borderColor: cs.borderTopColor, bg: cs.backgroundColor,
+            clipped: b.scrollWidth > b.clientWidth + 1,
+          };
+        }""")
+        if not btn.get("exists"):
+            problems.append("미리보기 버튼이 없다")
+        else:
+            if not btn["visible"]:
+                problems.append("미리보기 버튼이 화면에 안 보인다")
+            if btn["clipped"]:
+                problems.append("미리보기 버튼 글자가 잘린다")
+            if btn["borderAlpha"] < 0.5:
+                problems.append(
+                    f"미리보기 버튼 테두리가 너무 흐리다 ({btn['borderColor']}) — "
+                    "흰 헤더에서 버튼으로 안 보인다. 구역 강조색(--sec)을 줘야 한다")
+
         if not a.get("open"):
             print(f"✗ {label} — 미리보기가 열리지 않았다")
             bad += 1
