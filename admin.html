@@ -276,6 +276,24 @@
     }
     .pr-chip b { color: var(--primary); font-weight: 800; margin-left: .15rem; }
 
+    /* PDF 추출 근거·후보 고르기 (RN) */
+    .pr-ev { margin-top: .35rem; }
+    .pr-ev-src {
+      font-size: .7rem; font-weight: 700; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pr-ev-pick {
+      margin-top: .25rem; width: 100%; height: 28px; padding: 0 .4rem;
+      font-family: inherit; font-size: .74rem; font-weight: 600;
+      border: 1.5px solid var(--border); background: #fff; color: var(--heading);
+    }
+    .pr-ev-pick:hover { border-color: var(--primary); }
+    .pr-warn {
+      margin: .8rem 0 0; padding: .7rem .9rem;
+      background: #FFF8E8; border-left: 3px solid #E0A100;
+      font-size: .78rem; font-weight: 700; color: #8A5A00; line-height: 1.7;
+    }
+
     /* ── 방식 A·B 고객 화면 미리보기 (RJ) ──
        ⚠ 여기 여백은 취향이 아니라 **폭 예산**이다. 미리보기 안의 카드 폭이 고객 화면과
        크게 달라지면 줄바꿈 위치가 달라져 "고객 화면에서도 저렇게 접히나?"를 헷갈리게
@@ -1202,7 +1220,14 @@
 
           <!-- 방식 ② PDF 전용 컨트롤 (PDF 모드에서만 노출) -->
           <div id="pr-pdf-block" class="hidden" style="margin-bottom:1rem;padding:.9rem 1rem;border:1.5px dashed var(--border);border-radius:10px;background:var(--bg)">
-            <p style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;line-height:1.6">PDF를 올리고 <strong style="color:var(--heading)">"PDF에서 추출"</strong>을 누르면 AI가 문서에서 찾은 항목을 아래에 자동으로 채웁니다(파일 자체는 저장되지 않음 · 텍스트가 있는 PDF만 가능, 스캔 이미지는 지원 안 함). <strong style="color:var(--heading)">추출된 값은 직접 수정할 수 없습니다.</strong></p>
+            <p style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;line-height:1.6">
+              PDF를 올리고 <strong style="color:var(--heading)">"PDF에서 추출"</strong>을 누르면
+              견적서에서 <strong style="color:var(--heading)">산술이 검산된 단가 줄</strong>만 골라 아래에 채웁니다
+              (파일 자체는 저장되지 않음 · 텍스트가 있는 PDF만 가능, 스캔 이미지는 지원 안 함 · 3.2MB 이하).<br>
+              ⚠ <strong style="color:var(--heading)">각 칸 아래 “견적서: …” 근거를 꼭 대조하세요.</strong>
+              틀렸으면 그 아래 <strong style="color:var(--heading)">후보 목록에서 1클릭으로</strong> 바꿀 수 있습니다 —
+              숫자를 직접 칠 필요는 없습니다.
+            </p>
             <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
               <input type="file" id="pr-pdf" accept="application/pdf" style="font-size:.76rem" />
               <button type="button" class="btn-act btn-outline-p" onclick="extractPdfDetails()">PDF에서 추출</button>
@@ -4783,15 +4808,102 @@
     const pdfBlock = document.getElementById('pr-pdf-block');
     if (pdfBlock) pdfBlock.classList.toggle('hidden', !isPdf);
     const fieldsLabel = document.getElementById('pr-fields-label');
-    if (fieldsLabel) fieldsLabel.textContent = isPdf ? 'PDF에서 추출된 값 (직접 수정 불가)' : '직접 입력할 값 (아는 항목만)';
+    if (fieldsLabel) fieldsLabel.textContent = isPdf
+      ? 'PDF에서 추출된 값 — 근거를 대조하고, 틀렸으면 아래 후보에서 고르세요'
+      : '직접 입력할 값 (아는 항목만)';
     /* PDF 모드면 가격 필드를 잠근다(직접 수정 불가) — 값은 extractPdfDetails가 채움 */
     PR_FIELD_IDS.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
-      el.readOnly = isPdf;
-      el.style.opacity = isPdf ? '0.7' : '';
-      el.style.cursor = isPdf ? 'not-allowed' : '';
+      /* ⚠ 예전에는 PDF 모드에서 칸을 잠갔다 (RN에서 품). 한 칸만 틀려도 '직접 입력'으로
+         바꿔 처음부터 다시 넣어야 했는데, 견적서를 수백 건 넣는 자리에서 그건 치명적이다.
+         이제는 **고쳐 쓸 수 있다.** 대신 값의 출처(견적서 어느 줄에서 왔는지)를 칸 밑에
+         적어 두고, 사람이 바꾸면 '직접 고침'으로 표시가 바뀐다. */
+      el.readOnly = false;
+      el.style.opacity = '';
+      el.style.cursor = '';
     });
+    if (!isPdf) clearPdfEvidence();
+  }
+
+  /* ── PDF 추출 근거·후보 (RN) ────────────────────────────────────────────────
+     AI가 고른 값이 왜 그 값인지 칸 밑에 적고, 틀렸으면 **후보 목록에서 1클릭으로**
+     바꾸게 한다. 담당자가 숫자를 타이핑할 일이 없고, 값은 언제나 견적서에 실제로 있는
+     (단가×수량×횟수=총액이 검산된) 줄에서만 온다. */
+  const PR_EVIDENCE_FIELDS = [
+    { key: 'airfare', input: 'pr-airfare', label: '항공료' },
+    { key: 'hotel', input: 'pr-hotel', label: '호텔단가' },
+    { key: 'meal', input: 'pr-meal', label: '식비' },
+  ];
+
+  function clearPdfEvidence() {
+    PR_EVIDENCE_FIELDS.forEach((f) => {
+      const box = document.getElementById('pr-ev-' + f.key);
+      if (box) box.remove();
+    });
+    const warn = document.getElementById('pr-warnings');
+    if (warn) warn.remove();
+  }
+
+  function renderPdfEvidence(data) {
+    clearPdfEvidence();
+    const cands = Array.isArray(data.candidates) ? data.candidates : [];
+
+    PR_EVIDENCE_FIELDS.forEach((f) => {
+      const input = document.getElementById(f.input);
+      if (!input) return;
+      const box = document.createElement('div');
+      box.className = 'pr-ev';
+      box.id = 'pr-ev-' + f.key;
+
+      const ev = (data.evidence || {})[f.key];
+      const src = document.createElement('div');
+      src.className = 'pr-ev-src';
+      src.textContent = ev ? '📄 견적서: ' + ev.calc : '📄 이 항목은 찾지 못했습니다 — 아래에서 골라 주세요';
+      if (ev) src.title = ev.line;
+      box.appendChild(src);
+
+      if (cands.length) {
+        const sel = document.createElement('select');
+        sel.className = 'pr-ev-pick';
+        const none = document.createElement('option');
+        none.value = ''; none.textContent = '— 고르지 않음 —';
+        sel.appendChild(none);
+        cands.forEach((c) => {
+          const o = document.createElement('option');
+          o.value = String(c.idx);
+          o.textContent = `${c.unit.toLocaleString()}원  (× ${c.qty} × ${c.times} = ${c.total.toLocaleString()})`;
+          o.title = c.line;
+          sel.appendChild(o);
+        });
+        const picked = (data.picked || {})[f.key];
+        sel.value = (picked === 0 || picked) ? String(picked) : '';
+        sel.addEventListener('change', () => {
+          const c = cands.find((x) => String(x.idx) === sel.value);
+          input.value = c ? c.unit : '';
+          src.textContent = c
+            ? '✏️ 직접 고름: ' + `${c.unit.toLocaleString()} × ${c.qty} × ${c.times} = ${c.total.toLocaleString()}`
+            : '📄 고르지 않음';
+          if (c) src.title = c.line;
+        });
+        box.appendChild(sel);
+      }
+      input.insertAdjacentElement('afterend', box);
+    });
+
+    const ws = Array.isArray(data.warnings) ? data.warnings : [];
+    if (ws.length) {
+      const w = document.createElement('div');
+      w.id = 'pr-warnings';
+      w.className = 'pr-warn';
+      ws.forEach((t) => {
+        const p = document.createElement('p');
+        p.textContent = '⚠ ' + t;
+        w.appendChild(p);
+      });
+      const anchor = document.getElementById('pr-msg');
+      if (anchor) anchor.insertAdjacentElement('beforebegin', w);
+    }
   }
 
   function setPriceReportMode(mode) {
@@ -4814,7 +4926,17 @@
     const msg = document.getElementById('pr-msg');
     const file = fileInput.files && fileInput.files[0];
     if (!file) { msg.style.color = 'var(--danger)'; msg.textContent = 'PDF 파일을 먼저 선택해 주세요.'; return; }
-    if (file.size > 4 * 1024 * 1024) { msg.style.color = 'var(--danger)'; msg.textContent = '파일이 너무 큽니다(4MB 이하만 가능) — 직접 입력해 주세요.'; return; }
+    /* ⚠ 한도가 3.2MB인 이유 (RN): 파일을 base64로 바꿔 보내면 크기가 **1.33배**로 불어난다.
+       Vercel 서버리스 함수의 요청 본문 한도는 4.5MB라, 예전 기준(4MB)이면 5.3MB가 되어
+       **화면 검사는 통과하고 서버에는 닿지 못한다.** 그때 뜨는 말이 "요청에 실패했습니다"라
+       담당자는 네트워크를 의심하게 된다. 3.2MB면 base64로도 4.3MB라 한도 안이다. */
+    const PDF_MAX_BYTES = 3.2 * 1024 * 1024;
+    if (file.size > PDF_MAX_BYTES) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = `파일이 너무 큽니다 (${(file.size / 1024 / 1024).toFixed(1)}MB · 3.2MB 이하만 가능). `
+        + 'PDF를 압축하거나 필요한 페이지만 잘라서 올려 주세요 — 보통 견적서는 1MB 안쪽입니다.';
+      return;
+    }
     msg.style.color = 'var(--muted)'; msg.textContent = 'PDF 분석 중... (최대 30초 정도 걸릴 수 있습니다)';
     try {
       const base64 = await new Promise((resolve, reject) => {
@@ -4844,9 +4966,21 @@
       if (data.suggestedHotel != null) { document.getElementById('pr-hotel').value = data.suggestedHotel; found.push('호텔단가'); }
       if (data.suggestedHotelName) { document.getElementById('pr-hotel-name').value = data.suggestedHotelName; found.push('호텔명'); }
       if (data.suggestedMeal != null) { document.getElementById('pr-meal').value = data.suggestedMeal; found.push('식비'); }
-      if (!found.length) { msg.style.color = 'var(--danger)'; msg.textContent = '항목을 찾지 못했습니다 — 직접 입력해 주세요.'; return; }
+      /* 근거·후보 목록을 칸 밑에 붙인다 (RN) — 찾은 게 없어도 후보가 있으면 붙여야
+         담당자가 직접 고를 수 있다. */
+      renderPdfEvidence(data);
+      const nCand = (data.candidates || []).length;
+      if (!found.length) {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = nCand
+          ? `항목을 자동으로 고르지 못했습니다 — 아래 후보 ${nCand}개 중에서 직접 골라 주세요.`
+          : '이 견적서에는 단가표가 없습니다(패키지 총액만 있는 견적서) — 직접 입력해 주세요.';
+        return;
+      }
       msg.style.color = 'var(--primary)';
-      msg.textContent = `PDF에서 ${found.join('·')} 추출됨(신뢰도: ${data.confidence}) — 값을 확인·수정한 뒤 "제출"을 눌러주세요.${data.note ? ' (' + data.note + ')' : ''}`;
+      msg.textContent = `PDF에서 ${found.join('·')} 추출(신뢰도: ${data.confidence}) — `
+        + `⚠ **각 칸 아래 근거를 견적서와 대조**하고, 틀렸으면 후보에서 다시 골라 주세요.`
+        + (nCand ? ` 후보 ${nCand}개.` : '');
     } catch (err) {
       msg.style.color = 'var(--danger)'; msg.textContent = '요청에 실패했습니다. 네트워크를 확인해 주세요.';
     }

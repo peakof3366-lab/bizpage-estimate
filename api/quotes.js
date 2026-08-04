@@ -44,26 +44,171 @@ const HOTEL_UNIT_MAX = 10000000;
 const MEAL_UNIT_MAX = 1000000;
 const HOTEL_NAME_MAX_LEN = 80;
 
-function buildExtractionPrompt(text) {
-  return `당신은 여행사 견적서에서 정보를 추출하는 어시스턴트입니다.
-아래는 실제 견적서 문서에서 추출한 텍스트입니다(형식이 문서마다 다를 수 있습니다).
+/* ═══════════════════════════════════════════════════════════════════════════
+   견적서에서 단가 뽑기 (RN) — **AI에게 숫자를 찾게 하지 않는다. 고르게만 한다.**
 
-${text.slice(0, 6000)}
+   왜 바꿨나: 예전에는 텍스트를 통째로 주고 "항공료·호텔·식비를 찾아라"고 시켰다.
+   실제 하나투어 견적서로 재 보니 **3칸 중 2칸이 틀렸고 신뢰도는 high**였다:
+     호텔 1박 → 320,000 (항공료를 그대로 복사)   실제 152,000
+     식비 1식 → 90,000  (유류할증료를 집어옴)     실제 17,100 / 33,250
+   원인은 PDF 텍스트에서 표가 납작해지는 것이다. 「항공」「호텔」「식사」 라벨은
+   숫자와 한참 떨어진 다른 블록에 있어서, AI가 위치로 추측하다 옆 줄을 가져온다.
 
-이 문서에서 아래 항목들을 찾아 다음 JSON 형식으로만 답하세요(다른 설명 없이, 못 찾은 항목은 반드시 null):
-{
-  "airfarePerPerson": 숫자(1인당 항공료, 원화, 못 찾으면 null),
-  "hotelPerRoom": 숫자(객실 1박당 숙박비, 원화, 못 찾으면 null),
-  "hotelName": 문자열(실제 이용한 호텔 이름, 못 찾으면 null),
-  "mealPerPerson": 숫자(1인당 1식 식비, 원화, 못 찾으면 null),
-  "confidence": "high"|"medium"|"low",
-  "note": "왜 이 값들을 골랐는지 1문장"
+   고친 구조 — 두 단계로 나눈다:
+     ① **산술로 후보를 만든다(코드).** 여행사 견적서의 상세 내역서는 예외 없이
+        `단가 × 수량 × 횟수 = 총금액`이다. 이 관계가 실제로 성립하는 줄만 남긴다.
+        → 이 단계에서 나온 숫자는 문서에 실제로 있는 값이고, 서로 검산까지 맞다.
+     ② **AI는 그중 몇 번 줄인지만 고른다.** 숫자를 직접 말하지 못하게 하고
+        **줄 번호**로만 답하게 한다. 서버는 그 번호로 값을 되찾는다.
+        → AI가 없는 숫자를 지어낼 수 있는 경로가 **구조적으로** 사라진다.
+
+   ⚠ 이 방식의 한계도 분명히 해 둔다: 상세 내역서가 없는 패키지 견적(총액만 있는 것)은
+   후보가 안 나온다. 그건 못 찾는 게 맞고, 화면이 "이 견적서에는 단가표가 없다"고 말한다.
+   ai-loop/test_rN_pdf_rows.js가 실제 견적서 텍스트로 이 두 단계를 고정한다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 한 줄에서 숫자만 뽑는다(₩·쉼표·괄호 제거). 0과 음수는 단가가 될 수 없어 버린다. */
+function numbersInLine(line) {
+  return (String(line).match(/\d[\d,]*/g) || [])
+    .map((s) => Number(s.replace(/,/g, '')))
+    .filter((n) => Number.isFinite(n) && n > 0);
 }
-총액과 항목별 단가, 항공료·호텔비·식비를 서로 혼동하지 마세요. 문서에 없는 항목은 억지로 추측하지 말고 null로 답하세요.`;
+
+/* 총금액이 이 값보다 작으면 단가 줄로 보지 않는다 — 날짜·인원·전화번호가
+   우연히 곱셈으로 맞아떨어지는 것을 걸러낸다. */
+const ROW_MIN_TOTAL = 10000;
+const ROW_MAX_CANDIDATES = 40;
+
+function extractUnitRows(text) {
+  const found = [];
+  String(text).split(/\r?\n/).forEach((rawLine, lineNo) => {
+    const line = rawLine.trim();
+    const ns = numbersInLine(line);
+    if (ns.length < 3 || ns.length > 12) return;   /* 12개 넘게 든 줄은 표가 아니라 문단이다 */
+    for (let a = 0; a < ns.length; a++) {
+      for (let b = 0; b < ns.length; b++) {
+        if (b === a) continue;
+        for (let d = 0; d < ns.length; d++) {
+          if (d === a || d === b) continue;
+          if (ns[d] < ROW_MIN_TOTAL) continue;
+          /* 단가 × 수량 = 총금액 */
+          if (Math.abs(ns[a] * ns[b] - ns[d]) <= 1) {
+            found.push({ lineNo, line, unit: ns[a], qty: ns[b], times: 1, total: ns[d] });
+          }
+          /* 단가 × 수량 × 횟수(박수) = 총금액 */
+          for (let c = 0; c < ns.length; c++) {
+            if (c === a || c === b || c === d) continue;
+            if (Math.abs(ns[a] * ns[b] * ns[c] - ns[d]) <= 1) {
+              found.push({ lineNo, line, unit: ns[a], qty: ns[b], times: ns[c], total: ns[d] });
+            }
+          }
+        }
+      }
+    }
+  });
+  /* 한 줄에서 여러 조합이 맞을 수 있다(152,000×7×3 과 7×3×… 등). 같은 (줄,총액)이면
+     **단가가 가장 큰 것**만 남긴다 — 우리가 찾는 것은 단가이지 수량이 아니다. */
+  const best = new Map();
+  found.forEach((r) => {
+    const k = r.lineNo + '|' + r.total;
+    const cur = best.get(k);
+    if (!cur || r.unit > cur.unit) best.set(k, r);
+  });
+  return Array.from(best.values())
+    .sort((x, y) => x.lineNo - y.lineNo)
+    .slice(0, ROW_MAX_CANDIDATES)
+    .map((r, i) => Object.assign({ idx: i }, r));
+}
+
+/* AI에게 보낼 원문 구간을 고른다 (RN).
+   ⚠ 앞에서부터 잘라 보내면 안 된다. 하나투어 견적서는 「항공·호텔·중식·석식」 같은
+   **항목 이름이 표 맨 뒤 별도 블록**에 몰려 있어서, 앞부분만 보내면 AI가 라벨을 아예
+   못 본다. 실제로 그래서 식비 자리에 입장료 줄이 들어왔다.
+   그래서 **머리(호텔명·기간이 있는 곳) + 단가 줄이 시작되는 곳부터 끝까지**를 보낸다. */
+const PROMPT_HEAD_CHARS = 1500;
+const PROMPT_TAIL_CHARS = 6500;
+function promptContext(text, rows) {
+  const s = String(text);
+  if (s.length <= PROMPT_HEAD_CHARS + PROMPT_TAIL_CHARS) return s;
+  const head = s.slice(0, PROMPT_HEAD_CHARS);
+  /* 첫 단가 줄이 있는 지점부터 뒤쪽을 가져온다 — 라벨 블록은 표 뒤에 온다 */
+  let from = 0;
+  if (rows.length) {
+    const firstLine = rows[0].line;
+    const at = s.indexOf(firstLine);
+    if (at >= 0) from = at;
+  }
+  const tail = s.slice(from, from + PROMPT_TAIL_CHARS);
+  return head + '\n…(중략)…\n' + tail;
+}
+
+function buildExtractionPrompt(text, rows) {
+  const list = rows.map((r) =>
+    `[${r.idx}] 단가 ${r.unit.toLocaleString()}원 × 수량 ${r.qty} × 횟수 ${r.times} = ${r.total.toLocaleString()}원   ← 원문: ${r.line.replace(/\s+/g, ' ').slice(0, 110)}`
+  ).join('\n');
+
+  return `당신은 여행사 견적서를 읽는 어시스턴트입니다.
+
+아래 [후보 줄]은 견적서에서 **산술이 실제로 맞는 것만** 골라낸 단가 줄입니다
+(단가 × 수량 × 횟수 = 총금액이 검산된 줄입니다).
+
+[후보 줄]
+${list || '(단가 줄을 찾지 못했습니다)'}
+
+[견적서 원문]
+⚠ 이 견적서는 표가 납작하게 펴져 있어, **항목 이름(항공·호텔·중식·석식·차량·가이드·
+입장료 등)이 숫자와 떨어진 별도 블록에 모여 있을 수 있습니다.** 그 이름 목록은 보통
+위 후보 줄과 **같은 순서**로 나열됩니다. 순서를 맞춰 보고 판단하세요.
+
+${promptContext(text, rows)}
+
+위 [후보 줄] 중에서 각 항목에 해당하는 줄을 **번호로만** 고르세요.
+⚠ 숫자를 직접 쓰지 마세요. 반드시 후보 줄의 번호를 쓰고, 해당하는 줄이 없으면 null입니다.
+⚠ 억지로 고르지 마세요. 애매하면 null이 맞습니다.
+
+판단 기준:
+- airfareRow  : 1인당 **항공 운임**. 유류할증료·택스·공항세는 항공료가 아니므로 고르지 마세요.
+- hotelRow    : **객실 1박당** 숙박비. 보통 수량이 '객실 수', 횟수가 '박 수'입니다.
+- mealRow     : **1인 1식** 식비. 중식·석식이 따로 있으면 더 대표적인 쪽 하나만 고르세요.
+- 차량·가이드·입장료·보험·쇼핑·수수료 줄은 위 셋 중 어느 것도 아닙니다.
+
+다음 JSON 형식으로만 답하세요(설명 없이):
+{
+  "airfareRow": 후보 줄 번호 또는 null,
+  "hotelRow": 후보 줄 번호 또는 null,
+  "mealRow": 후보 줄 번호 또는 null,
+  "hotelName": "실제 이용 호텔 이름" 또는 null,
+  "confidence": "high" | "medium" | "low",
+  "note": "왜 그 줄들을 골랐는지 한 문장"
+}`;
 }
 
 function validatedNumber(raw, max) {
   return (typeof raw === 'number' && Number.isFinite(raw) && raw > 0 && raw <= max) ? Math.round(raw) : null;
+}
+
+/* AI가 고른 줄 번호 → 실제 단가. **AI가 준 숫자는 절대 쓰지 않는다.**
+   번호가 범위를 벗어나거나 상한을 넘으면 버린다(없는 값을 만들어내는 경로를 막는다). */
+function pickRowValue(rows, rawIdx, max) {
+  if (typeof rawIdx !== 'number' || !Number.isInteger(rawIdx)) return null;
+  const row = rows[rawIdx];
+  if (!row) return null;
+  const val = validatedNumber(row.unit, max);
+  if (val == null) return null;
+  return { value: val, evidence: row.line.replace(/\s+/g, ' ').slice(0, 140),
+           calc: `${row.unit.toLocaleString()} × ${row.qty} × ${row.times} = ${row.total.toLocaleString()}` };
+}
+
+/* 말이 안 되는 조합을 잡는다 — AI가 같은 줄을 두 항목에 고르는 실수가 실제로 있었다
+   (호텔에 항공료를 넣었다). 사람이 눈으로 잡기 전에 화면이 먼저 말하게 한다. */
+function sanityWarnings(a, h, m) {
+  const w = [];
+  if (a && h && a.value === h.value) w.push('항공료와 호텔단가가 같은 값입니다 — 같은 줄을 골랐을 수 있습니다.');
+  if (a && m && a.value === m.value) w.push('항공료와 식비가 같은 값입니다 — 같은 줄을 골랐을 수 있습니다.');
+  if (h && m && h.value === m.value) w.push('호텔단가와 식비가 같은 값입니다 — 같은 줄을 골랐을 수 있습니다.');
+  if (m && m.value > 100000) w.push('식비가 1식 10만 원을 넘습니다 — 유류할증료·보험 줄을 골랐을 수 있습니다.');
+  if (h && a && h.value > a.value) w.push('호텔 1박이 항공료보다 비쌉니다 — 확인해 주세요.');
+  return w;
 }
 
 async function handleExtractPdf(req, res) {
@@ -105,27 +250,66 @@ async function handleExtractPdf(req, res) {
   }
   if (!text) return res.status(200).json({ error: 'no_text_found' });
 
+  /* ① 산술이 맞는 단가 줄만 남긴다 (RN). 여기서 나온 값만 결과가 될 수 있다. */
+  const rows = extractUnitRows(text);
+
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const completion = await client.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: buildExtractionPrompt(text) }],
+      messages: [{ role: 'user', content: buildExtractionPrompt(text, rows) }],
       response_format: { type: 'json_object' },
       max_tokens: 300,
     });
     const parsed = JSON.parse(completion.choices[0].message.content);
-    const airfare = validatedNumber(parsed.airfarePerPerson, AIRFARE_UNIT_MAX);
-    const hotel = validatedNumber(parsed.hotelPerRoom, HOTEL_UNIT_MAX);
-    const meal = validatedNumber(parsed.mealPerPerson, MEAL_UNIT_MAX);
+
+    /* ② AI가 준 **줄 번호**로만 값을 되찾는다. AI가 쓴 숫자는 쓰지 않는다. */
+    const a = pickRowValue(rows, parsed.airfareRow, AIRFARE_UNIT_MAX);
+    const h = pickRowValue(rows, parsed.hotelRow, HOTEL_UNIT_MAX);
+    const m = pickRowValue(rows, parsed.mealRow, MEAL_UNIT_MAX);
     const hotelName = typeof parsed.hotelName === 'string' ? parsed.hotelName.trim().slice(0, HOTEL_NAME_MAX_LEN) : '';
-    if (airfare == null && hotel == null && meal == null && !hotelName) {
-      return res.status(200).json({ error: 'not_found', note: parsed.note || '' });
+
+    /* 후보 줄을 화면에도 그대로 내려보낸다 (RN).
+       ⚠ 이게 이 기능의 핵심이다. AI의 라벨 추측은 견적서 형식에 따라 틀린다 —
+       하나투어 견적서는 항목 이름이 표와 떨어진 블록에 몰려 있어 식비 자리에
+       입장료 줄이 들어오는 일이 실제로 있었다. 그래서 **AI가 고른 것을 초안으로 두고,
+       담당자가 후보 목록에서 1클릭으로 바꿀 수 있게** 한다. 숫자를 타이핑할 일이 없어
+       대량 입력에서도 빠르고, 값은 언제나 견적서에 실제로 있는 검산된 줄에서 온다. */
+    const candidates = rows.map((r) => ({
+      idx: r.idx, unit: r.unit, qty: r.qty, times: r.times, total: r.total,
+      line: r.line.replace(/\s+/g, ' ').slice(0, 140),
+    }));
+
+    if (!a && !h && !m && !hotelName && !candidates.length) {
+      return res.status(200).json({
+        error: 'not_found',
+        note: parsed.note || '',
+        /* 왜 못 찾았는지 구분해서 말해 준다 — "단가표가 아예 없는 견적서"와
+           "표는 있는데 못 고른 것"은 담당자가 할 일이 다르다. */
+        rowCount: 0,
+      });
     }
     return res.status(200).json({
-      suggestedAirfare: airfare,
-      suggestedHotel: hotel,
+      suggestedAirfare: a ? a.value : null,
+      suggestedHotel: h ? h.value : null,
       suggestedHotelName: hotelName || null,
-      suggestedMeal: meal,
+      suggestedMeal: m ? m.value : null,
+      /* 근거를 함께 돌려준다 — 화면이 "이 숫자는 견적서 이 줄에서 왔다"를 보여줘야
+         담당자가 PDF를 다시 열지 않고 2초 만에 대조할 수 있다. 대량 입력의 핵심이다. */
+      evidence: {
+        airfare: a ? { line: a.evidence, calc: a.calc } : null,
+        hotel: h ? { line: h.evidence, calc: h.calc } : null,
+        meal: m ? { line: m.evidence, calc: m.calc } : null,
+      },
+      warnings: sanityWarnings(a, h, m),
+      /* 담당자가 고쳐 고를 수 있도록 후보 전체와 AI가 고른 번호를 함께 준다 */
+      candidates,
+      picked: {
+        airfare: a ? parsed.airfareRow : null,
+        hotel: h ? parsed.hotelRow : null,
+        meal: m ? parsed.mealRow : null,
+      },
+      rowCount: rows.length,
       confidence: parsed.confidence || 'low',
       note: parsed.note || '',
     });
@@ -216,6 +400,9 @@ async function handleDeletePriceReport(req, res) {
   }
 }
 
+/* 견적서 단가 뽑기의 **순수 함수**를 테스트가 직접 부를 수 있게 내보낸다 (RN).
+   ⚠ 핸들러(module.exports)에 얹는 형태다 — Vercel은 함수 export만 보므로 영향이 없다.
+   테스트가 이 함수를 복사해 쓰면 곧 어긋나므로, 진짜 코드를 그대로 부르게 한다. */
 module.exports = async (req, res) => {
   const action = req.query && req.query.action;
   if (action === 'extractPdf' && req.method === 'POST') return handleExtractPdf(req, res);
@@ -308,3 +495,10 @@ async function saveQuote(req, res, origin) {
     res.status(500).json({ error: 'insert_failed' });
   }
 }
+
+/* ── 테스트용 노출 (RN) — ai-loop/test_rN_pdf_rows.js가 이 함수들을 직접 검사한다.
+   ⚠ 복사해서 테스트하면 곧 어긋난다. 진짜 코드를 그대로 부르게 한다. */
+module.exports._extract = {
+  extractUnitRows, buildExtractionPrompt, pickRowValue, sanityWarnings, promptContext,
+  AIRFARE_UNIT_MAX, HOTEL_UNIT_MAX, MEAL_UNIT_MAX,
+};
