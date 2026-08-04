@@ -12,6 +12,10 @@
        서버 검증과 매뉴얼도 같은 파일을 읽는다 — 예전엔 화면이 "6자 이상"이라고
        안내하는 동안 서버는 8자를 요구했다(QO 주석 참고). -->
   <script src="limits.js"></script>
+  <!-- 방식 A·B를 비워 뒀을 때 **고객 화면이 실제로 채우는 문구** (RJ).
+       미리보기가 이 값을 그대로 보여준다 — 빈 칸을 빈 칸으로 그리면 "아무것도
+       안 나간다"고 읽히는데 실제로는 이 문구가 나간다. script.js도 같은 파일을 읽는다. -->
+  <script src="rec_fallbacks.js"></script>
   <script src="data.js"></script>
   <script src="dest_currency.js"></script>
   <!-- 고르기 후보의 **기업 연수 적합도** 등급 (QX). ai-loop/rank_activities.js가 만든다.
@@ -250,6 +254,24 @@
     .modal-close { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; line-height: 1; }
     .modal-close:hover { color: var(--heading); }
     .modal-body { padding: 1.5rem; }
+
+    /* ── 방식 A·B 고객 화면 미리보기 (RJ) ──
+       ⚠ 여기 여백은 취향이 아니라 **폭 예산**이다. 미리보기 안의 카드 폭이 고객 화면과
+       크게 달라지면 줄바꿈 위치가 달라져 "고객 화면에서도 저렇게 접히나?"를 헷갈리게
+       만든다. 껍데기(모달·본문·iframe 여백)가 먹는 만큼 카드가 좁아지므로, 좁은 화면
+       에서는 껍데기를 줄여 폭을 카드에 넘긴다.
+       ai-loop/check_rec_preview.py가 실제 브라우저로 고객 화면과 두 폭을 대조한다. */
+    /* ⚠ #recPvModal로 묶어 둔다. `.recpv-note`만 쓰면 **뒤에 나오는 `.sec-note`**가
+       같은 특이도로 이겨서 여백이 조용히 안 먹는다(실제로 그랬다). */
+    #recPvModal .recpv-note { padding: .85rem 1.25rem 0; }
+    #recPvModal .recpv-body { padding: 1rem 1.25rem 1.25rem; flex: 1; min-height: 0; }
+    #recPvModal #recPvFrame { width: 100%; height: 62vh; border: 1px solid var(--border); background: #F4F4F4; }
+    @media (max-width: 1000px) {
+      #recPvModal { padding: .4rem; }
+      #recPvModal .recpv-note { padding: .6rem .7rem 0; }
+      #recPvModal .recpv-body { padding: .6rem .7rem .7rem; }
+      #recPvModal #recPvFrame { height: 68vh; }
+    }
     .detail-field { margin-bottom: 1rem; }
     .detail-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: .3rem; }
     .detail-value { font-size: .9rem; color: var(--text); }
@@ -1347,6 +1369,9 @@
             <p>홈페이지 <strong>“연수 일정 탐색”의 두 카드</strong>와 <strong>견적서의 기대 효과 문구</strong>에 나갑니다.</p>
           </div>
           <span id="rec-state" class="iti-state"></span>
+          <!-- 미리보기는 **저장 전에도** 열린다 (RJ). 저장해야 볼 수 있으면 확인하려고
+               저장하게 되고, 그건 고객 화면에 반영된 뒤에야 본다는 뜻이다. -->
+          <button class="iti-btn" id="rec-preview">👁 고객 화면 미리보기</button>
           <button class="iti-btn danger" id="rec-revert">이 구역만 되돌리기</button>
           <button class="btn-act btn-primary" id="rec-save">방식 A·B 저장</button>
         </header>
@@ -1522,6 +1547,27 @@
 </div><!-- dashPage -->
 
 <!-- ══ 문의 상세 모달 ════════════════════════════ -->
+<!-- ══ 방식 A·B 고객 화면 미리보기 (RJ) ══
+     안쪽이 iframe인 이유는 위 recPreviewOpen 주석 참고 — 관리자 화면 CSS가 스며들면
+     '고객이 보는 그대로'가 아니게 된다. iframe 안은 고객 화면과 같은 styles.css를 읽는다. -->
+<div id="recPvModal" class="modal-overlay hidden">
+  <!-- ⚠ 폭 1252px는 눈대중이 아니다. 고객 화면의 방식 카드는 넓은 화면에서 556px씩
+       두 열인데, 이 모달 안의 여백(모달 40 + iframe 본문 40 + 구역 40 + 열 사이 20)을
+       빼고 그 폭이 나오려면 1252px이 필요하다. 좁히면 미리보기에서만 줄바꿈이 달라져
+       "고객 화면에서도 저렇게 접히나?"를 헷갈리게 만든다.
+       ai-loop/check_rec_preview.py가 실제 브라우저로 두 폭을 대조한다. -->
+  <div class="modal-box" style="width:min(1252px,100%);max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <h3>👁 고객 화면 미리보기 <span id="recPvDest" class="sec-sub"></span></h3>
+      <button id="recPvClose" class="modal-close">✕</button>
+    </div>
+    <p id="recPvNote" class="sec-note recpv-note"></p>
+    <div class="modal-body recpv-body">
+      <iframe id="recPvFrame" title="고객 화면 미리보기"></iframe>
+    </div>
+  </div>
+</div>
+
 <div id="modal" class="modal-overlay hidden">
   <div class="modal-box">
     <div class="modal-header">
@@ -7124,6 +7170,255 @@
       recSetMsg('되돌리지 못했습니다 (' + err.message + ').', 'err');
     }
   }
+
+  /* ════ 방식 A·B 고객 화면 미리보기 (RJ) ═══════════════════════════════════
+     담당자가 이 화면에서 채우는 다섯 칸은 **고객 화면 세 군데로 흩어져** 나간다.
+     편집 화면만 보고는 어느 글이 어디로 가는지 알 수 없어서, 채워 놓고도 "이게
+     어떻게 보이지?"를 확인하려면 저장해서 고객 화면을 직접 여는 수밖에 없었다.
+     그건 **고객에게 반영된 뒤에야 본다**는 뜻이다. 그래서 저장 전에 연다.
+
+     ⚠ 안쪽은 iframe이다. 관리자 화면 CSS(전역 리셋·글꼴·색)가 스며들면 '고객이 보는
+     그대로'가 아니게 되고, 그 순간 미리보기는 미리보기가 아니라 또 하나의 화면이 된다.
+     iframe 안에서는 고객 화면과 **같은 styles.css를 그대로 읽는다** — 여기서 카드
+     스타일을 다시 적지 않는다(결함 생성기 ①: 같은 것을 두 번 적으면 어긋난다).
+
+     ⚠ 담당자가 친 글자는 **전부 textContent로만** 넣는다. HTML 문자열로 조립하면
+     `<img onerror=…>` 한 줄이 그대로 실행된다(결함 생성기 ④). 아래에서 문자열로
+     쓰는 것은 뼈대(html/head/link)뿐이고 사람이 친 값은 하나도 섞이지 않는다.
+
+     ⚠ 빈 칸은 **비워서 보여주지 않는다.** 고객 화면은 빈 칸을 rec_fallbacks.js의
+     기본 문구로 채우므로, 빈 칸을 빈 채로 그리면 "아무것도 안 나간다"고 읽힌다.
+     실제로 나가는 문구를 그리고, 그게 기본 문구라는 사실을 카드 **바깥에** 적는다
+     (카드 안에 표시를 끼워 넣으면 고객이 보는 모양이 달라진다).
+     ═════════════════════════════════════════════════════════════════════ */
+  const REC_PV_PLANS = ['a', 'b'];
+
+  /* 값이 비었으면 고객 화면이 실제로 쓰는 기본값으로 바꿔 돌려준다.
+     '무엇을 그릴지'와 '기본값으로 떨어졌는지'를 함께 돌려준다 — 후자를 버리면
+     화면이 조용히 폴백한 것과 같아진다(결함 생성기 ②). */
+  function recPvText(raw, fallback) {
+    const v = String(raw == null ? '' : raw).trim();
+    return v ? { text: v, fb: false } : { text: fallback, fb: true };
+  }
+  function recPvList(raw, fallback) {
+    const v = (Array.isArray(raw) ? raw : []).map((s) => String(s || '').trim()).filter(Boolean);
+    return v.length ? { list: v, fb: false } : { list: fallback, fb: true };
+  }
+
+  /* iframe 안에 고객 화면 뼈대를 세운다. 스타일은 링크만 걸고 여기서 적지 않는다.
+     .pv-* 만 이 미리보기 전용 껍데기(어디에 나가는지 알려주는 라벨)다. */
+  function recPvBootFrame(frame) {
+    const doc = frame.contentDocument;
+    doc.open();
+    doc.write('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+      + '<meta name="viewport" content="width=device-width, initial-scale=1">'
+      + '<link rel="stylesheet" href="styles.css">'
+      + '<style>'
+      + 'body{background:#F4F4F4;padding:20px;margin:0}'
+      + '.pv-block{background:#fff;border:1px solid #E5E5E5;padding:20px;margin-bottom:18px}'
+      /* 좁은 화면에서는 껍데기 여백을 줄여 그만큼을 카드 폭에 넘긴다 — 폭 예산 (RJ) */
+      + '@media(max-width:1000px){body{padding:8px}.pv-block{padding:10px;margin-bottom:12px}}'
+      + '.pv-where{font-size:11px;font-weight:800;letter-spacing:.08em;color:#8A8A8A;'
+      + 'text-transform:uppercase;margin:0 0 4px}'
+      + '.pv-what{font-size:13px;font-weight:700;color:#1A1A1A;margin:0 0 16px}'
+      + '.pv-hint{font-size:12px;color:#6A6A6A;line-height:1.6;margin:14px 0 0}'
+      + '.pv-warn{font-size:12px;color:#8A5A00;background:#FFF8E8;border-left:3px solid #E0A100;'
+      + 'padding:8px 12px;margin:14px 0 0;line-height:1.6}'
+      + '.pv-warn b{color:#6A4400}'
+      + '.pv-plan-lbl{font-size:11px;font-weight:800;color:#8A8A8A;margin:0 0 6px}'
+      /* ⚠ 미리보기 껍데기는 **.pv-* 만 건드린다.** 고객 클래스(.plan-card 등)에
+         여백 하나라도 얹으면 그 순간 미리보기가 고객 화면과 달라진다. 자리를 벌려야
+         하면 감싸는 .pv-* 를 새로 두고 거기에 준다. */
+      + '.pv-group{margin-bottom:4px}'
+      + '</style></head><body></body></html>');
+    doc.close();
+    return doc;
+  }
+
+  /* 한 구역(카드 한 장 분량)을 만든다. 라벨 → 실제 화면 조각 → (기본값 안내) 순. */
+  function recPvBlock(doc, where, what) {
+    const sec = doc.createElement('section');
+    sec.className = 'pv-block';
+    const w = doc.createElement('p'); w.className = 'pv-where'; w.textContent = where;
+    const t = doc.createElement('p'); t.className = 'pv-what'; t.textContent = what;
+    sec.appendChild(w); sec.appendChild(t);
+    return sec;
+  }
+  function recPvNote(doc, cls, text) {
+    const p = doc.createElement('p'); p.className = cls; p.textContent = text;
+    return p;
+  }
+  /* 어떤 칸이 비어서 기본 문구로 나가는지 한 줄로 모아 적는다. 칸마다 따로 띄우면
+     경고가 너무 많아 아무도 안 읽는다. */
+  function recPvFallbackWarn(doc, fallen) {
+    if (!fallen.length) return null;
+    return recPvNote(doc, 'pv-warn',
+      '⚠ 비어 있는 칸이 있습니다 — ' + fallen.join(', ')
+      + '. 위 화면에 보이는 그 자리의 문구는 담당자가 쓴 글이 아니라 '
+      + '시스템 기본 문구이고, 이대로 두면 고객에게 그대로 나갑니다.');
+  }
+
+  /* ── 구역 ①: 홈페이지 '연수 일정 탐색'의 방식 선택 카드 (tag·desc·points) ── */
+  function recPvPlanCards(doc, rec) {
+    const sec = recPvBlock(doc, '홈페이지 · 연수 일정 탐색',
+      '고객이 방식 A와 B 중 하나를 고르는 카드입니다.');
+    const grid = doc.createElement('div');
+    grid.className = 'plan-cards';
+    const fallen = [];
+
+    REC_PV_PLANS.forEach((plan) => {
+      const p = (rec && rec[plan]) || {};
+      const label = ITI_REC_PLAN_LABEL[plan];
+      const card = doc.createElement('div');
+      card.className = 'plan-card';
+      card.setAttribute('data-plan', plan);
+
+      const hd = doc.createElement('div'); hd.className = 'plan-card-hd';
+      const badge = doc.createElement('span');
+      badge.className = 'plan-tag plan-tag-' + plan;
+      badge.textContent = label;
+      const tag = recPvText(p.tag, REC_FALLBACKS.tag[plan]);
+      if (tag.fb) fallen.push(label + '의 “방식 이름”');
+      const tagEl = doc.createElement('span');
+      tagEl.className = 'plan-type-lbl'; tagEl.textContent = tag.text;
+      hd.appendChild(badge); hd.appendChild(tagEl);
+
+      const desc = recPvText(p.desc, REC_FALLBACKS.desc);
+      if (desc.fb) fallen.push(label + '의 “한 줄 테마 설명”');
+      const descEl = doc.createElement('p');
+      descEl.className = 'plan-desc'; descEl.textContent = desc.text;
+
+      const pts = recPvList(p.points, REC_FALLBACKS.points);
+      if (pts.fb) fallen.push(label + '의 “핵심 포인트”');
+      const ul = doc.createElement('ul');
+      ul.className = 'plan-points';
+      pts.list.forEach((s) => {
+        const li = doc.createElement('li'); li.textContent = s; ul.appendChild(li);
+      });
+
+      card.appendChild(hd); card.appendChild(descEl); card.appendChild(ul);
+      grid.appendChild(card);
+    });
+
+    sec.appendChild(grid);
+    sec.appendChild(recPvNote(doc, 'pv-hint',
+      '고객이 카드를 고르면 빨간 테두리가 붙습니다. 사진은 목적지에 등록된 것이 자동으로 올라가며 여기서는 생략했습니다.'));
+    const warn = recPvFallbackWarn(doc, fallen);
+    if (warn) sec.appendChild(warn);
+    return sec;
+  }
+
+  /* ── 구역 ②: 고객 견적서의 결재 보고서 기대 효과 문구 (value) ── */
+  function recPvValueBoxes(doc, rec) {
+    const sec = recPvBlock(doc, '고객 견적서 · 결재 보고용',
+      '고객이 회사에 결재를 올릴 때 그대로 붙여 쓰는 문장입니다.');
+    const fallen = [];
+    REC_PV_PLANS.forEach((plan) => {
+      const p = (rec && rec[plan]) || {};
+      const label = ITI_REC_PLAN_LABEL[plan];
+      const v = recPvText(p.value, REC_FALLBACKS.value);
+      if (v.fb) fallen.push(label + '의 “기대 효과 문구”');
+
+      const group = doc.createElement('div'); group.className = 'pv-group';
+      const lbl = doc.createElement('p');
+      lbl.className = 'pv-plan-lbl';
+      lbl.textContent = label + '을 고른 고객이 보는 문구';
+      const box = doc.createElement('div'); box.className = 'plan-value-box';
+      const body = doc.createElement('div'); body.className = 'plan-value-body';
+      const cap = doc.createElement('p');
+      cap.className = 'plan-value-label'; cap.textContent = '결재 보고서 기대 효과 문구';
+      const txt = doc.createElement('p');
+      txt.className = 'plan-value-text'; txt.textContent = v.text;
+      body.appendChild(cap); body.appendChild(txt); box.appendChild(body);
+      group.appendChild(lbl); group.appendChild(box);
+      sec.appendChild(group);
+    });
+    const warn = recPvFallbackWarn(doc, fallen);
+    if (warn) sec.appendChild(warn);
+    return sec;
+  }
+
+  /* ── 구역 ③: 일별 주요 활동(items)이 날짜로 풀리는 자리 ──
+     ⚠ 오전·오후·저녁 **문장은 여기서 만들지 않는다.** script.js가 활동명을 바탕으로
+     조립하는데, 조립 규칙이 경로에 따라 둘이다(등록된 코스가 있을 때와 없을 때).
+     그걸 여기 옮겨 적으면 두 벌이 되고 곧 어긋난다(결함 생성기 ①). 두 경로에서
+     **똑같이 활동명이 그대로 들어가는 자리**(DAY 제목)까지만 보여주고, 나머지는
+     자동으로 만들어진다고 말한다. */
+  function recPvDayFill(doc, rec) {
+    const sec = recPvBlock(doc, '일별 일정 · 코스에 없는 날',
+      '고객이 고른 일수가 코스보다 길면, 남는 날을 이 활동 목록으로 돌아가며 채웁니다.');
+    const fallen = [];
+    REC_PV_PLANS.forEach((plan) => {
+      const p = (rec && rec[plan]) || {};
+      const label = ITI_REC_PLAN_LABEL[plan];
+      const it = recPvList(p.items, REC_FALLBACKS.items);
+      if (it.fb) fallen.push(label + '의 “일별 주요 활동”');
+
+      const lbl = doc.createElement('p');
+      lbl.className = 'pv-plan-lbl';
+      lbl.textContent = label + ' — 이 순서로 채워집니다';
+      sec.appendChild(lbl);
+
+      const wrap = doc.createElement('div');
+      wrap.className = 'day-timeline';
+      it.list.forEach((act, i) => {
+        const card = doc.createElement('div'); card.className = 'itin-day-card';
+        const head = doc.createElement('div'); head.className = 'itin-day-header';
+        const l = doc.createElement('div'); l.className = 'itin-day-hd-l';
+        const num = doc.createElement('span');
+        num.className = 'itin-day-num'; num.textContent = '남는 날 ' + (i + 1);
+        l.appendChild(num);
+        const title = doc.createElement('span');
+        title.className = 'itin-day-title'; title.textContent = act;
+        head.appendChild(l); head.appendChild(title);
+        card.appendChild(head);
+        wrap.appendChild(card);
+      });
+      sec.appendChild(wrap);
+    });
+    sec.appendChild(recPvNote(doc, 'pv-hint',
+      '실제 화면에는 DAY 번호가 붙고, 오전·오후·저녁 문구는 위 활동명을 바탕으로 자동으로 만들어집니다. '
+      + '코스 일수가 고객이 고른 일수보다 길거나 같으면 이 목록은 쓰이지 않습니다.'));
+    const warn = recPvFallbackWarn(doc, fallen);
+    if (warn) sec.appendChild(warn);
+    return sec;
+  }
+
+  function recPvRender() {
+    const frame = document.getElementById('recPvFrame');
+    const doc = recPvBootFrame(frame);
+    const rec = recState.rec;
+    doc.body.appendChild(recPvPlanCards(doc, rec));
+    doc.body.appendChild(recPvValueBoxes(doc, rec));
+    doc.body.appendChild(recPvDayFill(doc, rec));
+  }
+
+  function recPreviewOpen() {
+    if (!itiState.destKey) { recSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    document.getElementById('recPvDest').textContent = itiState.destKey;
+    /* 저장 전 내용을 보고 있다는 것을 분명히 한다 — 미리보기를 보고 "반영됐다"고
+       읽으면 저장을 건너뛴다. */
+    document.getElementById('recPvNote').textContent = recState.dirty
+      ? '지금 화면에서 고치는 중인 내용입니다 (아직 저장하지 않았습니다). 저장해야 고객에게 나갑니다.'
+      : '지금 저장되어 있는 내용입니다 — 고객이 지금 보고 있는 그대로입니다.';
+    document.getElementById('recPvModal').classList.remove('hidden');
+    recPvRender();
+  }
+  function recPreviewClose() {
+    document.getElementById('recPvModal').classList.add('hidden');
+  }
+
+  document.getElementById('rec-preview').addEventListener('click', recPreviewOpen);
+  document.getElementById('recPvClose').addEventListener('click', recPreviewClose);
+  /* 바깥을 눌러도 닫는다 — 안쪽(모달 상자)을 누른 것은 닫지 않는다. */
+  document.getElementById('recPvModal').addEventListener('click', function (e) {
+    if (e.target === this) recPreviewClose();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !document.getElementById('recPvModal').classList.contains('hidden')) {
+      recPreviewClose();
+    }
+  });
 
   document.getElementById('rec-save').addEventListener('click', recSave);
   document.getElementById('rec-revert').addEventListener('click', recRevert);

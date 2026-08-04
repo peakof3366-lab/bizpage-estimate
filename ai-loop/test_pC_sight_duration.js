@@ -11,7 +11,7 @@ const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const EXPOSE = '\n;try{window.__COEF=COEF_STATE;window.__DR=destinationRates;'
   + 'window.__SDT=SIGHT_DURATION_TIERS;window.__gsd=getSightDurationInfo;'
   + 'window.__GST=GROUND_SIGHT_TIERS;window.__tt=tieredTotal;}catch(e){}';
-const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
+const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {

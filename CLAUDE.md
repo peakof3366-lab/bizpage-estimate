@@ -86,8 +86,11 @@ node ai-loop/audit_rates.js         # 요율 '값' 점검 — ⚠ 결과는 '확
   (과거 전체 재작성이 토큰 한도로 잘려 스타일이 통째로 유실된 사고가 있었다.)
 - **검증은 소스 읽기로 끝내지 말고 jsdom으로 실제 렌더**해 볼 것. XSS 건도 코드만 봤을 때는
   "esc 있으니 괜찮겠지"로 넘어갈 뻔했다.
-  테스트는 `data.js` + `company-info.js` + `script.js`를 **한 문자열로 합쳐 한 번에 eval**해야
-  `const` 전역이 서로 보인다. `const`는 `window`에 안 붙으니 EXPOSE 문자열로 노출한다.
+  테스트는 `data.js` + `company-info.js` + **`rec_fallbacks.js`** + `script.js`를 **한 문자열로
+  합쳐 한 번에 eval**해야 `const` 전역이 서로 보인다. `const`는 `window`에 안 붙으니 EXPOSE
+  문자열로 노출한다. ⚠ `rec_fallbacks.js`를 빼면 `REC_FALLBACKS`가 undefined라 일정 탐색이
+  그 자리에서 죽는다(RJ에서 실제로 겪었다). `ai-loop/test_rJ_rec_preview.js`가 `script.js`를
+  합쳐 eval하는 픽스처 전부에 이 파일이 들어 있는지 검사하므로, 빠뜨리면 거기서 걸린다.
 - **계산식을 바꿨으면 `run_all_tests.js` 전수 실행 + 금액 영향 실측**(변경 전/후 견적을
   직접 대조해 몇 %가 움직였는지 숫자로 말한다. "불변"이라고 추측하지 말 것).
 - **요율의 진실은 `data.js`가 아니라 운영 DB(`rate_overrides`)다.** `data.js`는 폴백 기본값이라

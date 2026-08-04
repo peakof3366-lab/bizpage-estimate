@@ -10,7 +10,7 @@ const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 /* 같은 eval 스코프 끝에서 폴백 상수를 window로 노출(외부 검증용). const는 함수와 달리
    전역/window에 안 붙으므로, 같은 소스 문자열 안에서 읽어 window에 얹어야 접근 가능. */
 const EXPOSE = '\n;try{window.__SCS=SEASON_CONFIG_SOUTHERN;window.__SHD=SOUTHERN_HEMISPHERE_DESTS;}catch(e){}';
-const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
+const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {

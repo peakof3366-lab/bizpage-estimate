@@ -47,7 +47,7 @@ function bootPublic(fetchImpl) {
   /* const 전역은 window에 붙지 않는다(CLAUDE.md) — 필요한 것만 노출한다. */
   const EXPOSE = '\n;try{window.destinationRates=destinationRates;window.FX_STATE=FX_STATE;'
     + 'window.COEF_STATE=COEF_STATE;window.rateOverridesReady=rateOverridesReady;}catch(e){}\n';
-  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
+  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
   try { dom.window.eval(APP); } catch (e) { console.log('  [eval warn]', e.message); }
   return dom.window;
 }

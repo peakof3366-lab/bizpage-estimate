@@ -58,7 +58,7 @@ ok('safeId는 형식이 맞는 id를 그대로 둔다(멱등성 유지)',
 /* ── jsdom 실동작 ─────────────────────────────────────────────────── */
 const EXPOSE = '\n;try{window.__submitLead=submitLead;window.__flush=flushLeadQueue;'
   + 'window.__QKEY=LEAD_QUEUE_KEY;window.__showLeadResult=showLeadResult;}catch(e){}';
-const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
+const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
 
 /* 응답을 시나리오로 제어하는 fetch 목. 호출 기록을 남겨 재시도 횟수를 센다.
    ⚠ 페이지 로드 시 `_trackEvent`가 /api/track으로 POST를 한 건 보낸다 — 이걸 섞어 세면

@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
-const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js');
+const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {

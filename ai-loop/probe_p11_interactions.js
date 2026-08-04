@@ -8,7 +8,7 @@ const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 /* getSeasonInfo/getPeakInfo/getLeadTimeFactor를 직접 쓰기 위해 노출 */
 const EXPOSE = '\n;try{window.__gsi=getSeasonInfo;window.__gp=getPeakInfo;window.__glt=getLeadTimeFactor;window.__DR=destinationRates;window.__BIZ=BIZ_ZONE_FACTORS;}catch(e){}';
-const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
+const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
 
 (async () => {
   const dom = new JSDOM(read('index.html'), {

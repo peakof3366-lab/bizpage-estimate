@@ -144,7 +144,7 @@ const OVERRIDE_TOKYO = [{
     const EXPOSE = '\n;try{window.ITINERARY_DB=ITINERARY_DB;window.DEST_REC=DEST_REC;'
       + 'window.itineraryOverridesReady=itineraryOverridesReady;'
       + 'window.getItineraries=getItineraries;window._buildDisplayDays=_buildDisplayDays;}catch(e){}\n';
-    const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
+    const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
     try { dom.window.eval(APP); } catch (e) { console.log('  [eval warn]', e.message); }
     return dom.window;
   };

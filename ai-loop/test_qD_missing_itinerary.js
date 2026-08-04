@@ -70,7 +70,7 @@ function boot() {
   const EXPOSE = '\n' + ['ITINERARY_DB', 'DEST_REC', 'getItineraries', 'hasItineraryContent',
     'destinationRates', 'injectDestinationOption', 'renderStep3', 'scrollToStep3']
     .map(n => `;try{window.${n}=${n};}catch(e){}`).join('') + '\n';
-  try { dom.window.eval(read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE); }
+  try { dom.window.eval(read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE); }
   catch (e) { console.log('  [eval warn]', e.message); }
   return dom.window;
 }

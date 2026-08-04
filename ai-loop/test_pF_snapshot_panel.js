@@ -33,7 +33,7 @@ const ok = (name, cond, extra = '') => {
   /* ── B. 실제 계산 결과가 스냅샷 필드에 들어갈 값을 갖고 있는가 ─────────── */
   console.log('\n[2] 엔진이 해당 값을 실제로 내보내는가');
   const EXPOSE = '\n;try{window.__COEF=COEF_STATE;}catch(e){}';
-  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
+  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
   const dom = new JSDOM(read('index.html'), {
     runScripts: 'dangerously', url: 'http://localhost/',
     beforeParse(w) {

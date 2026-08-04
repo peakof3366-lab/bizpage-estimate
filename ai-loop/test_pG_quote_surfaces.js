@@ -17,7 +17,7 @@ const ok = (name, cond, extra = '') => {
 
 (async () => {
   const EXPOSE = '\n;try{window.__COEF=COEF_STATE;}catch(e){}';
-  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
+  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
   const dom = new JSDOM(read('index.html'), {
     runScripts: 'dangerously', url: 'http://localhost/',
     beforeParse(w) {

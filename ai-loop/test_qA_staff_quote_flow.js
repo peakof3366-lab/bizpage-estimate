@@ -58,7 +58,7 @@ function boot() {
       w.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
     },
   });
-  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js');
+  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js');
   try { dom.window.eval(APP); } catch (e) { console.log('  [eval warn]', e.message); }
   return { dom, window: dom.window, doc: dom.window.document, calls };
 }

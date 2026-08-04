@@ -58,7 +58,7 @@ console.log('\n[3] 실제 주입 시뮬레이션 — 커스텀 목적지가 보�
   const EXPOSE = '\n;try{window.__IZ=INSURANCE_ZONES;window.__giz=getInsuranceZone;'
     + 'window.__gii=getInsuranceInfo;window.__DR=destinationRates;window.__BZ=BIZ_ZONES;'
     + 'window.__SP=DEST_SEASON_PROFILES;window.__gsi=getSeasonInfo;}catch(e){}';
-  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
+  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
   const dom = new JSDOM(read('index.html'), {
     runScripts: 'dangerously', url: 'http://localhost/',
     beforeParse(w) {

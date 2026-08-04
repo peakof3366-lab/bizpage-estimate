@@ -17,7 +17,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const EXPOSE = '\n;try{window.__PC=PEAK_CALENDAR;window.__LP=LUNAR_PEAKS;window.__gp=getPeakInfo;}catch(e){}';
-const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js') + EXPOSE;
+const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {

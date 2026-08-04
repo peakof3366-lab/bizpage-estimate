@@ -12,7 +12,7 @@ const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
    data.js+company-info+script.js를 한 문자열로 합쳐 window.eval로 1회 실행한다.
    → 한 스코프라 파일 간 const 참조·getBreakdownData의 클로저(destinationSelect 등)가 정상.
    함수 선언은 sloppy 간접 eval로 전역에 노출되어 window.getBreakdownData로 접근 가능. */
-const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('script.js');
+const APP_SRC = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js');
 
 const INDEX = path.join(__dirname, '..', 'index.html');
 let pass = 0, fail = 0;

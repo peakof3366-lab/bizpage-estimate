@@ -1588,6 +1588,9 @@
 
 <script src="data.js"></script>
     <script src="company-info.js"></script>
+    <!-- 방식 A·B가 비었을 때 나가는 문구 (RJ) — 관리자 미리보기와 같은 값을 본다.
+         ⚠ script.js보다 먼저 실어야 한다. -->
+    <script src="rec_fallbacks.js"></script>
     <!-- 엑셀 견적서 다운로드 기능용 (되돌리려면 이 줄 삭제 + script.js의 FEATURE_EXCEL_EXPORT를 false로) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="script.js"></script>

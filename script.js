@@ -3927,11 +3927,13 @@ function _renderPlanCard(plan, data) {
     pointsEl = document.getElementById('plan' + plan.toUpperCase() + 'Points');
   }
 
-  var defaultTag   = plan === 'a' ? '역량강화형' : '동기부여·화합형';
+  /* 빈 칸에 들어가는 문구는 rec_fallbacks.js 하나가 안다 (RJ) — 관리자 화면의
+     미리보기가 **같은 값**을 보여줘야 "비워 두면 뭐가 나가는지"를 거짓 없이 말한다. */
+  var defaultTag   = REC_FALLBACKS.tag[plan];
   if (tagEl)    tagEl.textContent  = data ? data.tag  : defaultTag;
-  if (descEl)   descEl.textContent = data ? data.desc : '담당 컨설턴트가 맞춤 일정을 제안드립니다.';
+  if (descEl)   descEl.textContent = data ? data.desc : REC_FALLBACKS.desc;
   if (pointsEl) {
-    var pts = data && data.points ? data.points : ['목적지별 특화 프로그램 구성','전문 가이드·통역 동행','맞춤 일정 협의 가능'];
+    var pts = data && data.points ? data.points : REC_FALLBACKS.points;
     pointsEl.innerHTML = pts.map(function(p) { return '<li>' + p + '</li>'; }).join('');
   }
 }
@@ -4119,7 +4121,7 @@ function _renderTimeline(plan) {
     /* ── 기본 렌더: DEST_REC items 기반 ── */
     var rec   = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
     var pRec  = rec ? rec[plan] : null;
-    var items = pRec ? pRec.items : ['현지 산업 현장 탐방', '문화 체험 · 팀 활동', '전문가 강의 · 세미나', '자유 탐방 · 만찬'];
+    var items = pRec ? pRec.items : REC_FALLBACKS.items;   /* RJ: 문구는 rec_fallbacks.js가 안다 */
 
     for (var j = 1; j <= totalDays; j++) {
       var isFirst = (j === 1), isLast = (j === totalDays);
@@ -4191,7 +4193,7 @@ function _renderValueBox(plan) {
   var rec      = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
   var planData = rec ? rec[plan] : null;
   var value    = stepCourse ? stepCourse.subtitle
-               : (planData ? planData.value : '연수 목적에 맞는 맞춤 일정으로 팀 역량 강화 및 결속력 향상');
+               : (planData ? planData.value : REC_FALLBACKS.value);   /* RJ */
 
   var el = document.getElementById('planValueText');
   if (el) el.textContent = value;
