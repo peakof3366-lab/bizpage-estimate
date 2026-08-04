@@ -41,7 +41,11 @@ function tiered(unit, pax, tiers) {
   const gbd = window.getBreakdownData;
   if (typeof gbd !== 'function') { console.log('✗ 로드 실패'); process.exit(1); }
 
-  const DAYS = 4, MEALCT = DAYS * 2 - 1; // 7식
+  /* ⚠ 식사 단위가 '1식'에서 **'1인 1일'**로 바뀌었다 (RO) — 곱하는 것도 식수(2d-1)가
+     아니라 **일수**다. 예전에는 4일=7식이었고 지금은 4일=4일이다.
+     바꾼 이유: 담당자가 견적서의 하루치(중식+석식)를 그대로 넣는데 엔진이 그걸 7번
+     곱해 실제의 3.45배가 나오고 있었다. 자세한 경위는 script.js의 mealDays 주석 참고. */
+  const DAYS = 4, MEALCT = DAYS; // 4일 (예전: DAYS*2-1 = 7식)
   const bdFor = (pax) => {
     doc.getElementById('destination').value = '도쿄';
     doc.getElementById('participants').value = String(pax);
@@ -61,7 +65,7 @@ function tiered(unit, pax, tiers) {
   ok('추출 성공', mealUnit > 0 && sightUnit > 0, `meal=${mealUnit} sight=${sightUnit}`);
 
   console.log('[1] 소규모(≤9) — 볼륨 할인 없음(회귀: 선형과 동일)');
-  ok('식사 amount=단가×5×7(선형)', approx(mealAmt(b5), mealUnit * 5 * MEALCT), `${mealAmt(b5)} vs ${mealUnit*5*MEALCT}`);
+  ok(`식사 amount=단가×5×${MEALCT}일(선형)`, approx(mealAmt(b5), mealUnit * 5 * MEALCT), `${mealAmt(b5)} vs ${mealUnit*5*MEALCT}`);
   ok('관광 amount=단가×5(선형)', approx(sightAmt(b5), sightUnit * 5));
 
   console.log('[2] 대규모(50명) — 누진 할인 정확 적용');

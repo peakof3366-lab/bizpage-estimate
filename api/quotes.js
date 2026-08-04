@@ -169,14 +169,22 @@ ${promptContext(text, rows)}
 판단 기준:
 - airfareRow  : 1인당 **항공 운임**. 유류할증료·택스·공항세는 항공료가 아니므로 고르지 마세요.
 - hotelRow    : **객실 1박당** 숙박비. 보통 수량이 '객실 수', 횟수가 '박 수'입니다.
-- mealRow     : **1인 1식** 식비. 중식·석식이 따로 있으면 더 대표적인 쪽 하나만 고르세요.
+- mealRows    : **식사 줄 전부**(배열). 중식·석식·조식이 따로 있으면 **모두** 넣으세요.
+                하루치 식대를 합산할 것이므로 빠뜨리면 안 됩니다.
+                ⚠ 입장료·유류할증료·보험·쇼핑은 식사가 아닙니다.
 - 차량·가이드·입장료·보험·쇼핑·수수료 줄은 위 셋 중 어느 것도 아닙니다.
+
+**수량으로 걸러내세요 — 이게 가장 확실한 단서입니다.**
+- 항공료·식사는 **1인당** 항목이라 수량이 **인원 수와 비슷**합니다(예: 14, 15).
+- 차량·가이드·도로유류주차는 **전체 단위**라 수량이 **1**입니다. → 항공·식사가 될 수 없습니다.
+- 호텔은 수량이 **객실 수**(인원의 절반쯤), 횟수가 **박 수**입니다.
+- 식사는 보통 한 줄의 단가가 **몇만 원대**입니다. 20만 원이 넘으면 식사가 아닐 가능성이 큽니다.
 
 다음 JSON 형식으로만 답하세요(설명 없이):
 {
   "airfareRow": 후보 줄 번호 또는 null,
   "hotelRow": 후보 줄 번호 또는 null,
-  "mealRow": 후보 줄 번호 또는 null,
+  "mealRows": [후보 줄 번호, ...] 또는 [],
   "hotelName": "실제 이용 호텔 이름" 또는 null,
   "confidence": "high" | "medium" | "low",
   "note": "왜 그 줄들을 골랐는지 한 문장"
@@ -199,6 +207,34 @@ function pickRowValue(rows, rawIdx, max) {
            calc: `${row.unit.toLocaleString()} × ${row.qty} × ${row.times} = ${row.total.toLocaleString()}` };
 }
 
+/* 식사는 **하루치를 합산**한다 (RO). 견적서는 중식·석식이 따로 줄로 나오는데,
+   요율의 meal_per_person은 '1인 1일' 식대이기 때문이다.
+   ⚠ 여러 줄을 더하므로 근거도 "17,100 + 33,250 = 50,350"처럼 합산 과정을 그대로 보인다. */
+function pickMealDaily(rows, rawIdxs, max) {
+  const list = Array.isArray(rawIdxs) ? rawIdxs : (rawIdxs == null ? [] : [rawIdxs]);
+  const picked = [];
+  const seen = new Set();
+  list.forEach((i) => {
+    if (typeof i !== 'number' || !Number.isInteger(i) || seen.has(i)) return;
+    const row = rows[i];
+    if (!row) return;
+    seen.add(i);
+    picked.push(row);
+  });
+  if (!picked.length) return null;
+  const sum = picked.reduce((n, r) => n + r.unit, 0);
+  const value = validatedNumber(sum, max);
+  if (value == null) return null;
+  return {
+    value,
+    rowIdxs: picked.map((r) => r.idx),
+    evidence: picked.map((r) => r.line.replace(/\s+/g, ' ').slice(0, 70)).join('  /  ').slice(0, 200),
+    calc: picked.length > 1
+      ? picked.map((r) => r.unit.toLocaleString()).join(' + ') + ' = ' + value.toLocaleString() + ' (1인 1일)'
+      : `${picked[0].unit.toLocaleString()} (1인 1일)`,
+  };
+}
+
 /* 말이 안 되는 조합을 잡는다 — AI가 같은 줄을 두 항목에 고르는 실수가 실제로 있었다
    (호텔에 항공료를 넣었다). 사람이 눈으로 잡기 전에 화면이 먼저 말하게 한다. */
 function sanityWarnings(a, h, m) {
@@ -206,7 +242,9 @@ function sanityWarnings(a, h, m) {
   if (a && h && a.value === h.value) w.push('항공료와 호텔단가가 같은 값입니다 — 같은 줄을 골랐을 수 있습니다.');
   if (a && m && a.value === m.value) w.push('항공료와 식비가 같은 값입니다 — 같은 줄을 골랐을 수 있습니다.');
   if (h && m && h.value === m.value) w.push('호텔단가와 식비가 같은 값입니다 — 같은 줄을 골랐을 수 있습니다.');
-  if (m && m.value > 100000) w.push('식비가 1식 10만 원을 넘습니다 — 유류할증료·보험 줄을 골랐을 수 있습니다.');
+  /* ⚠ 기준이 '하루치'라 1식 기준보다 커야 정상이다. 20만 원을 넘으면 유류할증료·
+     보험 같은 다른 줄이 섞였을 가능성이 높다. */
+  if (m && m.value > 200000) w.push('식비가 하루 20만 원을 넘습니다 — 유류할증료·보험 줄이 섞였을 수 있습니다.');
   if (h && a && h.value > a.value) w.push('호텔 1박이 항공료보다 비쌉니다 — 확인해 주세요.');
   return w;
 }
@@ -266,7 +304,8 @@ async function handleExtractPdf(req, res) {
     /* ② AI가 준 **줄 번호**로만 값을 되찾는다. AI가 쓴 숫자는 쓰지 않는다. */
     const a = pickRowValue(rows, parsed.airfareRow, AIRFARE_UNIT_MAX);
     const h = pickRowValue(rows, parsed.hotelRow, HOTEL_UNIT_MAX);
-    const m = pickRowValue(rows, parsed.mealRow, MEAL_UNIT_MAX);
+    /* 식사만 여러 줄을 합산한다 (RO) — 하루치 = 중식 + 석식 (+조식). */
+    const m = pickMealDaily(rows, parsed.mealRows, MEAL_UNIT_MAX);
     const hotelName = typeof parsed.hotelName === 'string' ? parsed.hotelName.trim().slice(0, HOTEL_NAME_MAX_LEN) : '';
 
     /* 후보 줄을 화면에도 그대로 내려보낸다 (RN).
@@ -307,7 +346,8 @@ async function handleExtractPdf(req, res) {
       picked: {
         airfare: a ? parsed.airfareRow : null,
         hotel: h ? parsed.hotelRow : null,
-        meal: m ? parsed.mealRow : null,
+        /* 식사는 여러 줄이라 배열로 준다 — 화면이 체크박스로 그린다 */
+        mealRows: m ? m.rowIdxs : [],
       },
       rowCount: rows.length,
       confidence: parsed.confidence || 'low',
@@ -499,6 +539,6 @@ async function saveQuote(req, res, origin) {
 /* ── 테스트용 노출 (RN) — ai-loop/test_rN_pdf_rows.js가 이 함수들을 직접 검사한다.
    ⚠ 복사해서 테스트하면 곧 어긋난다. 진짜 코드를 그대로 부르게 한다. */
 module.exports._extract = {
-  extractUnitRows, buildExtractionPrompt, pickRowValue, sanityWarnings, promptContext,
+  extractUnitRows, buildExtractionPrompt, pickRowValue, pickMealDaily, sanityWarnings, promptContext,
   AIRFARE_UNIT_MAX, HOTEL_UNIT_MAX, MEAL_UNIT_MAX,
 };

@@ -36,7 +36,7 @@ const zoneOf = k => (DATA_MOD.DEST_CLASSIFY[k] || {}).zone
 const FIELDS = ['airfare','fuel_surcharge','hotel_per_room','meal_per_person',
                 'vehicle_large','vehicle_small','guide_fee','sightseeing_fee','margin_per_traveler'];
 const LBL = { airfare:'항공료', fuel_surcharge:'유류할증료', hotel_per_room:'호텔(1박)',
-  meal_per_person:'1인 식비', vehicle_large:'대형차량', vehicle_small:'소형차량',
+  meal_per_person:'1인 1일 식비', vehicle_large:'대형차량', vehicle_small:'소형차량',
   guide_fee:'가이드비', sightseeing_fee:'관광비', margin_per_traveler:'1인 마진' };
 
 const won = n => Math.round(n).toLocaleString('ko-KR');

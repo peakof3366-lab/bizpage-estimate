@@ -767,14 +767,25 @@ function getBreakdownData() {
     amount: hotelUnit * rooms * nights,
   });
 
-  const mealCount = days * 2 - 1;
+  /* ⚠ meal_per_person은 **1인 1일** 식대다 (RO). 예전에는 '1인 1식'으로 보고
+     `days*2-1`식을 곱했는데, 그 모델이 실제 견적서와 두 군데서 어긋났다:
+       ① 담당자는 견적서의 하루치(중식+석식)를 그대로 넣는다 — 실제로 오키나와에
+          50,000(=17,100+33,250)이 들어와 있었고, 엔진이 그걸 7번 곱해 **3.45배**가 됐다.
+       ② 식수 자체가 안 맞는다. 하나투어 오키나와 4일 견적의 유료 식사는 4끼인데
+          엔진은 7식으로 셌다 — 1식 단가를 정확히 넣어도 1.74배가 된다.
+     그래서 단위를 **하루**로 통일했다. 견적서에서 뽑을 때도 하루 통합으로 뽑는다
+     (api/quotes.js의 mealRows 합산). 실측 대조: 25,175 × 4일 = 100,700/인 = 실제와 일치.
+     ⚠ 2026-08-04 사용자 결정 — 기존 55곳의 값은 그대로 두기로 했다. 그래서 이 변경으로
+     식사비가 40~47% 줄고 견적 총액이 약 5.6% 내려간다. 지금 값들은 근거 없는 온라인
+     추정치이고 실측으로 교체될 것들이라, 뜻이 분명한 쪽으로 정리하는 편을 택했다. */
+  const mealDays = days;
   /* P10: 식사 볼륨 할인(누진). 1인당 식비에 GROUND_MEAL_TIERS를 tieredTotal로 적용해
-     인원 규모 협상력을 반영(항공보다 완만). unit은 할인 반영된 1인 1식 실효단가로 표시. */
-  const mealTotalTiered = tieredTotal(mealUnit, participants, GROUND_MEAL_TIERS) * mealCount;
-  const mealEffUnit = (participants > 0 && mealCount > 0) ? Math.round(mealTotalTiered / (participants * mealCount)) : mealUnit;
+     인원 규모 협상력을 반영(항공보다 완만). unit은 할인 반영된 1인 1일 실효단가로 표시. */
+  const mealTotalTiered = tieredTotal(mealUnit, participants, GROUND_MEAL_TIERS) * mealDays;
+  const mealEffUnit = (participants > 0 && mealDays > 0) ? Math.round(mealTotalTiered / (participants * mealDays)) : mealUnit;
   if (incMeal) rows.push({
     name:'식사', unit:mealEffUnit,
-    qty:`${participants}명×${mealCount}식`,
+    qty:`${participants}명×${mealDays}일`,
     amount: mealTotalTiered,
   });
 
@@ -865,7 +876,9 @@ function getBreakdownData() {
 
   return {
     rows, baseTotal, programFactor, orgFactor, combinedFactor, total, perPerson,
-    hiddenTotal, visibleTotal, participants, days, nights, mealCount,
+    /* ⚠ mealCount(식수) → mealDays(일수)로 바뀌었다 (RO). 이름을 그대로 두면
+       옛 견적 기록의 '7식'과 새 기록의 '4일'이 같은 칸에 섞여 구분이 안 된다. */
+    hiddenTotal, visibleTotal, participants, days, nights, mealDays,
     /* Level 1 메타 */
     paxTier, seasonInfo, hotelGrade, hotelGradeKey,
     /* v3 신규 필드 */
@@ -1213,7 +1226,7 @@ form.addEventListener('submit', (event) => {
       participants: bd.participants,
       days:         bd.days,
       nights:       bd.nights,
-      mealCount:    bd.mealCount,
+      mealDays:     bd.mealDays,
       rooms:        bd.rooms,
       programFactor:  bd.programFactor,
       orgFactor:      bd.orgFactor,
@@ -1946,7 +1959,7 @@ function submitConsult() {
       participants:  bd.participants,
       days:          bd.days,
       nights:        bd.nights,
-      mealCount:     bd.mealCount,
+      mealDays:      bd.mealDays,
       programLabel:  prgEl?.selectedOptions[0]?.textContent || '',
       orgTypeLabel:  orgEl?.selectedOptions[0]?.textContent || '',
       total:         bd.total,

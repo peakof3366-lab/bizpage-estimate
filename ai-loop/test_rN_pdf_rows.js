@@ -147,7 +147,35 @@ const PACKAGE_ONLY = `상해 2박3일
     !/parsed\.(airfarePerPerson|hotelPerRoom|mealPerPerson)/.test(code),
     '읽으면 AI가 지어낸 숫자가 그대로 들어온다');
   ok('서버는 줄 번호(parsed.*Row)로만 값을 되찾는다',
-    /parsed\.airfareRow/.test(code) && /parsed\.hotelRow/.test(code) && /parsed\.mealRow/.test(code));
+    /parsed\.airfareRow/.test(code) && /parsed\.hotelRow/.test(code) && /parsed\.mealRows/.test(code));
+
+  /* ── [2-b] 식사는 하루치로 **합산**하는가 (RO) ─────────────────────────────
+     요율의 meal_per_person이 '1인 1일'이라, 중식·석식이 따로 줄로 나오는 견적서에서
+     한 줄만 고르면 하루치가 안 된다. */
+  console.log('\n[2-b] 식사를 하루치로 합산하는가 (RO)');
+  const iLunch = rows.findIndex(r => r.unit === 17100);
+  const iDinner = rows.findIndex(r => r.unit === 33250);
+  ok('중식·석식 줄을 찾았다', iLunch >= 0 && iDinner >= 0, `${iLunch}, ${iDinner}`);
+  const daily = X.pickMealDaily(rows, [iLunch, iDinner], X.MEAL_UNIT_MAX);
+  ok('두 줄을 더해 하루치가 된다', daily && daily.value === 50350,
+    daily ? String(daily.value) : '(null)');
+  ok('근거에 합산 과정을 적는다', daily && /17,100 \+ 33,250 = 50,350/.test(daily.calc), daily && daily.calc);
+  ok('한 줄만 고르면 그 값 그대로다',
+    X.pickMealDaily(rows, [iLunch], X.MEAL_UNIT_MAX).value === 17100);
+  ok('같은 줄을 두 번 넣어도 한 번만 센다',
+    X.pickMealDaily(rows, [iLunch, iLunch], X.MEAL_UNIT_MAX).value === 17100);
+  ok('빈 배열은 null', X.pickMealDaily(rows, [], X.MEAL_UNIT_MAX) === null);
+  ok('없는 번호는 무시한다',
+    X.pickMealDaily(rows, [iLunch, 999], X.MEAL_UNIT_MAX).value === 17100);
+  ok('어느 줄에서 왔는지 번호를 돌려준다',
+    JSON.stringify(daily.rowIdxs) === JSON.stringify([iLunch, iDinner]),
+    JSON.stringify(daily.rowIdxs));
+  /* 엔진이 '1인 1일'로 계산하는지 소스로 못 박는다 — 여기가 되돌아가면 3.45배가 재현된다 */
+  const engineSrc = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
+  ok('엔진이 식사에 일수를 곱한다 (식수가 아니라)',
+    /const mealDays = days;/.test(engineSrc) && !/const mealCount = days \* 2 - 1;/.test(engineSrc),
+    '식수(2d-1)로 되돌아가면 견적서 하루치를 넣었을 때 3.45배가 된다');
+  ok('화면 라벨도 1인 1일이다', /실제 식비\(1인 1일\)/.test(adminSrc));
 
   /* ── [3] 단가표가 없는 견적서 (④) ─────────────────────────────────────── */
   console.log('\n[3] 패키지 총액만 있는 견적서는 어떻게 되는가 (④)');
@@ -161,8 +189,12 @@ const PACKAGE_ONLY = `상해 2박3일
   const v = (n) => ({ value: n });
   ok('항공료와 호텔이 같으면 경고',
     X.sanityWarnings(v(320000), v(320000), null).length > 0);
-  ok('식비가 10만 원을 넘으면 경고',
-    X.sanityWarnings(null, null, v(150000)).some(t => /식비/.test(t)));
+  /* ⚠ 기준이 '1인 1일'로 바뀌어 임계도 올렸다 (RO) — 하루치는 5만~10만이 정상이라
+     10만에서 경고하면 늘 켜져 있게 되고, 늘 켜진 경고는 아무도 안 본다. */
+  ok('식비가 하루 20만 원을 넘으면 경고',
+    X.sanityWarnings(null, null, v(250000)).some(t => /식비/.test(t)));
+  ok('하루 8만 원은 경고하지 않는다',
+    X.sanityWarnings(null, null, v(80000)).length === 0);
   ok('호텔이 항공료보다 비싸면 경고',
     X.sanityWarnings(v(300000), v(500000), null).some(t => /호텔/.test(t)));
   ok('정상 조합에는 경고가 없다',
