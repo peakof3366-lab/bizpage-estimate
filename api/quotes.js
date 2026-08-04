@@ -74,12 +74,31 @@ async function handleExtractPdf(req, res) {
 
   let text = '';
   try {
-    const { PDFParse } = require('pdf-parse');
-    const buffer = Buffer.from(pdfBase64, 'base64');
-    const parser = new PDFParse({ data: buffer });
-    const result = await parser.getText();
+    /* ⚠ pdf-parse는 **1.x를 쓴다. 2.x로 올리지 말 것.**
+       2.4.5는 내부적으로 pdfjs-dist + `@napi-rs/canvas`(네이티브 바이너리)를 쓰는데,
+       Vercel 번들에 그 모듈이 들어가지 않아 **프로덕션에서 이 기능이 한 번도 동작한 적이
+       없었다.** 로컬에서는 멀쩡해서 더 늦게 발견됐다. 실제 함수 로그:
+         Cannot load "@napi-rs/canvas": Error: Cannot find module '@napi-rs/canvas'
+         Warning: Cannot polyfill `DOMMatrix`, rendering may be broken.
+         [quotes extractPdf] pdf-parse 실패: ReferenceError: DOMMatrix is not defined
+       1.x는 순수 JS라 네이티브 의존이 없고, 같은 한글 견적서에서 오히려 더 많이 뽑는다
+       (하나투어 견적서 실측: 2.x 2,813자 → 1.x 4,025자).
+
+       ⚠ `require('pdf-parse')`가 아니라 **lib을 직접** 부른다. 1.x의 index.js에는
+       `!module.parent`일 때 테스트용 PDF를 읽는 디버그 분기가 있어, 번들러에 따라
+       로드 시점에 ENOENT로 죽는다. lib을 직접 부르면 그 분기를 아예 지난다.
+       ai-loop/test_rL_pdf_extract.js가 이 두 가지를 소스에서 지킨다. */
+    const pdf = require('pdf-parse/lib/pdf-parse.js');
+    /* ⚠ **반드시 사본으로 넘긴다.** Node의 Buffer는 공용 풀에서 잘라 쓰는 경우가 있어
+       `byteOffset`이 0이 아닐 수 있는데, 안에 들어 있는 pdf.js는 byteOffset을 무시하고
+       밑바탕 ArrayBuffer를 **0번지부터** 읽는다. 그러면 엉뚱한 바이트를 파싱해
+       'bad XRef entry'로 죽고, 화면에는 "PDF를 읽지 못했습니다(손상되었거나 지원하지 않는
+       형식)"가 뜬다 — 파일은 멀쩡한데 파일을 의심하게 되는, 제일 오래 끄는 종류의 결함이다.
+       실제로 회귀 테스트에서 byteOffset=720짜리 버퍼가 걸려 발견했다.
+       new Uint8Array(buf)는 복사본이라 언제나 byteOffset이 0이다. */
+    const raw = Buffer.from(pdfBase64, 'base64');
+    const result = await pdf(new Uint8Array(raw));
     text = (result.text || '').trim();
-    await parser.destroy();
   } catch (err) {
     console.error('[quotes extractPdf] pdf-parse 실패:', err);
     return res.status(200).json({ error: 'pdf_parse_failed' });

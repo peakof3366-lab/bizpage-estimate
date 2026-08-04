@@ -37,6 +37,9 @@ node ai-loop/audit_rates.js         # 요율 '값' 점검 — ⚠ 결과는 '확
 ```
 
 실행 시 `NODE_PATH="<프로젝트경로>/node_modules"` 필요(jsdom이 `--no-save`로 설치돼 있음).
+⚠ **`npm install`을 돌리면 jsdom이 지워진다.** package.json에 없는 패키지라 npm이 정리해
+버리고, 그러면 스위트가 통째로 크래시한다(42개 파일이 한 번에 죽어 봤다). 의존성을
+건드린 뒤에는 **`npm install jsdom --no-save`를 다시 돌릴 것.**
 **턴이 끝날 때 Stop 훅(`ai-loop/hooks/verify_on_stop.js`)이 앞의 두 개를 자동 실행**하지만,
 그건 마지막 그물이다. 고치는 중에 직접 돌려서 빨리 알아내는 게 맞다.
 
