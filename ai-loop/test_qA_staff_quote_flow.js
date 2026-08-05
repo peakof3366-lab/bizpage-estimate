@@ -190,6 +190,39 @@ const setDest = (window, doc, key) => {
   ok('공개 화면의 "새 견적" 버튼 이름은 그대로다',
     /새 견적 다시 계산하기/.test(indexSrc));
 
+  /* ── 화면 폭 (RW) ─────────────────────────────────────────────────
+     이 화면만 안쪽에서 폭이 한 번 더 잘려(1100px) 오른쪽이 크게 비어 있었다.
+     관리자의 다른 탭은 `.dash-body`(96% · 최대 1680px)까지 쓴다.
+     ⚠ 그렇다고 전부 늘리면 안 된다 — 문장을 쓰는 칸과 버튼까지 1,600px로 벌어지면
+     폭이 넓어진 만큼 오히려 쓰기 어려워진다. **넓히는 것은 목록, 묶는 것은 문장**이다.
+     실제 px는 `python ai-loop/check_quotetool_width.py`가 브라우저로 잰다. */
+  console.log('\n[8] 화면 폭이 다른 탭과 같은 기준을 쓰는가 (RW)');
+  const aqCss = read('admin-quote.html');
+  ok('관리자 안에서는 카드 폭을 끝까지 쓴다',
+    /\.aq-embedded \.aq-shell\s*\{[^}]*max-width:\s*none/.test(aqCss),
+    '카드가 이미 폭을 정한다 — 안에서 또 자르면 오른쪽이 빈다');
+  ok('예전 1100px 상한이 되살아나지 않았다',
+    !/\.aq-shell\s*\{[^}]*max-width:\s*1100px/.test(aqCss), aqCss.slice(0, 0) || '');
+  ok('단독으로 열어도 다른 탭과 같은 상한(1680px)이다',
+    /\.aq-shell\s*\{[^}]*max-width:\s*1680px/.test(aqCss));
+  ok('머리줄도 본문과 같은 폭이다',
+    /\.aq-topbar-inner\s*\{[^}]*max-width:\s*1680px/.test(aqCss),
+    '다르면 머리줄만 안쪽으로 들어가 보인다');
+  /* 늘어나면 안 되는 칸들 — 하나라도 상한이 없어지면 그 칸이 화면 끝까지 벌어진다 */
+  [['#organization', '고객사/기관명'], ['#requestDetails', '요청 사항'],
+   ['#destSearch', '목적지 검색'], ['.date-block', '연수 날짜 블록'],
+   ['.step-actions', '단계 이동 버튼']].forEach(([sel, name]) => {
+    ok(name + '에 폭 상한이 있다',
+      new RegExp('\\' + sel.replace('#', '#').replace('.', '.') + '[^{}]*\\{[^}]*max-width')
+        .test(aqCss) || new RegExp(sel.replace(/[.#]/g, '\\$&') + '[\\s,][^{}]*\\{[^}]*max-width').test(aqCss),
+      sel + '이 화면 끝까지 늘어나면 폭을 넓힌 것이 손해가 된다');
+  });
+  ok('브라우저 폭 검사 도구가 있다',
+    fs.existsSync(path.join(ROOT, 'ai-loop', 'check_quotetool_width.py')),
+    'jsdom은 폭을 계산하지 못한다 — 실제 px는 브라우저가 재야 한다');
+  ok('README가 그 도구를 안내한다', /check_quotetool_width\.py/.test(read('README.md')),
+    '문서에 없으면 아무도 안 돌린다');
+
   /* ── 러너가 이 파일을 실제로 집는가 (결함 생성기 ③) ────────────── */
   console.log('\n[8] 이 테스트가 회귀 스위트에 실제로 포함되는가');
   const runnerSrc = read(path.join('ai-loop', 'run_all_tests.js'));

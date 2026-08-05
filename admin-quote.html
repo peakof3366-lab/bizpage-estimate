@@ -36,7 +36,8 @@
   }
   .aq-topbar-inner {
     display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-    height: 56px; max-width: 1100px; margin: 0 auto; padding: 0 1.5rem;
+    /* 본문(.aq-shell)과 같은 폭으로 맞춘다 — 다르면 머리줄만 안쪽으로 들어가 보인다 */
+    height: 56px; max-width: 1680px; margin: 0 auto; padding: 0 1.5rem;
   }
   .aq-brand { display: flex; align-items: center; gap: .6rem; }
   .aq-brand-title { font-size: .84rem; font-weight: 900; color: #fff; letter-spacing: .04em; }
@@ -51,9 +52,31 @@
   .aq-back:hover { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.7); }
   .aq-embedded .aq-topbar { display: none; }
 
-  /* ── 본문 셸: 우측 실시간 결과 패널을 없앴으므로 단일 컬럼, 가독성 위한 적당한 폭 ── */
-  .aq-shell { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1.5rem 3rem; }
-  .aq-embedded .aq-shell { padding: 1.1rem 1.25rem 2.5rem; }
+  /* ── 본문 셸 ──
+     예전엔 1100px에서 잘려 있었다(우측 실시간 결과 패널을 없앤 뒤 남은 값).
+     그런데 관리자 화면의 다른 탭은 `.dash-body`(96% · 최대 1680px)까지 쓴다. 이 화면만
+     안쪽에서 한 번 더 잘리니 오른쪽이 크게 비었다(사용자 지적). 특히 목적지·포함 항목이
+     `auto-fill` 그리드라 **폭을 주면 그만큼 열이 늘어 스크롤이 줄어든다** — 비워 둘 이유가 없다.
+
+     ⚠ 그렇다고 **전부 늘리면 안 된다.** 글을 읽고 쓰는 칸(기관명·요청사항)과 버튼까지
+     1,600px로 벌어지면, 폭이 넓어진 만큼 오히려 쓰기 어려워진다.
+     넓히는 것은 **목록**이고, 묶어 두는 것은 **문장과 조작부**다. 아래 상한들이 그 경계다. */
+  .aq-shell { max-width: 1680px; margin: 0 auto; padding: 1.25rem 1.5rem 3rem; }
+  /* 관리자 안에서는 카드가 이미 폭을 정한다 — 그 안을 끝까지 쓴다(다른 탭과 오른쪽 끝이 같아진다) */
+  .aq-embedded .aq-shell { max-width: none; padding: 1.1rem 1.25rem 2.5rem; }
+
+  /* 문장을 쓰는 칸 — 읽기 좋은 폭으로 묶는다 */
+  .aq-shell #organization,
+  .aq-shell #contactName { max-width: 30rem; }
+  .aq-shell #requestDetails { max-width: 62rem; }
+  .aq-shell #destSearch { max-width: 34rem; }
+  /* 숫자 한두 자리를 넣는 칸이 800px가 될 이유가 없다 */
+  .aq-shell .fld select,
+  .aq-shell .fld input[type="number"],
+  .aq-shell .fld input[type="text"] { max-width: 20rem; }
+  /* 날짜 블록·단계 이동 버튼도 화면 끝까지 늘리지 않는다 */
+  .aq-shell .date-block { max-width: 46rem; }
+  .aq-shell .step-actions { max-width: 38rem; }
 
   .aq-controlbar {
     display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
