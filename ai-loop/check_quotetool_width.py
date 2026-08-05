@@ -61,6 +61,10 @@ INNER = r"""
 () => {
   const d = document;
   if (!d.querySelector('.aq-shell')) return { error: '내부 화면을 못 읽었다' };
+  /* ⚠ 고객 정보(기관명·요청 사항)는 STEP 2에 있고 평소엔 숨어 있다. 그대로 재면 폭이
+     0px으로 나와서 **상한 검사가 늘 통과한다** — 한 번도 실행된 적 없는 안전망이 된다
+     (결함 생성기 ③). 두 단계를 모두 펼쳐 놓고 잰다. */
+  d.querySelectorAll('.estimate-step').forEach((s) => s.classList.add('step-active'));
   const box = (sel) => {
     const el = d.querySelector(sel);
     if (!el) return null;
@@ -152,7 +156,11 @@ with sync_playwright() as p:
         # ② 늘어나면 안 되는 칸
         for key, cap, name in CAPS:
             v = r.get(key)
-            if v and v["w"] > cap:
+            # ⚠ 못 재면 '통과'가 아니라 **못 잰 것**이다. 조용히 넘기면 그 상한은
+            #   한 번도 확인된 적 없는 채로 남는다(결함 생성기 ③).
+            if not v or v["w"] < 1:
+                problems.append(f"{name}을 재지 못했다 — 화면에 안 보이는 상태다")
+            elif v["w"] > cap:
                 problems.append(f"{name}이 {v['w']}px까지 늘어났다 (상한 {cap}px) — "
                                 "폭을 넓힌 것이 오히려 쓰기 어렵게 만든다")
 
