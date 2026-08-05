@@ -3056,37 +3056,16 @@ function getItineraries(destKey, programType) {
    highlights 기반 콘텐츠로 채운다. (기존엔 5일 초과 시 DB의 5일차 "귀국" 콘텐츠가
    중간 날짜에 그대로 노출되어 "왜 갑자기 공항으로 복귀하냐"는 문제가 있었음) */
 function _buildDisplayDays(course, destKey, plan, totalDays) {
-  const baseDays = (course && Array.isArray(course.days)) ? course.days : [];
-  if (!baseDays.length) return [];
-
-  const regular   = baseDays.slice(0, -1);          /* 도착~액티비티 (귀국일 제외) */
-  const returnDay = baseDays[baseDays.length - 1];  /* 귀국일 템플릿 */
-
+  /* ⚠ 규칙은 rec_fallbacks.js가 안다 (RR). 관리자 미리보기가 **같은 함수**를 불러
+     "여기 쓴 오전·오후·저녁이 고객에게 어떻게 보이는가"를 그대로 보여준다.
+     여기 다시 적으면 두 화면이 다른 일정을 말하게 된다(결함 생성기 ①). */
   const rec  = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
   const pRec = rec ? rec[plan] : null;
-  const pool = (pRec && pRec.items && pRec.items.length) ? pRec.items : (course.highlights || []);
-
-  const out = [];
-  for (let i = 1; i <= totalDays; i++) {
-    if (i === totalDays) {
-      out.push(Object.assign({}, returnDay, { day: i }));
-      continue;
-    }
-    const regIdx = i - 1;
-    if (regIdx < regular.length) {
-      out.push(Object.assign({}, regular[regIdx], { day: i }));
-    } else {
-      const act = pool[(i - regular.length - 1) % Math.max(pool.length, 1)] || '현지 탐방 · 자유 시간';
-      out.push({
-        day: i, title: act,
-        am: act + ' — 오전 코스',
-        pm: '연계 오후 프로그램 · 현장 방문',
-        eve: '팀 석식',
-        tip: '',
-      });
-    }
-  }
-  return out;
+  /* 코스에 일자가 하나도 없으면 예전엔 **빈 배열**을 돌려줬다. 그러면 견적서는 일정
+     섹션을 제목만 남기고 텅 비게 내보내는데, 같은 목적지의 '연수 일정 탐색'은 자동
+     생성 일정을 보여줬다 — 두 고객 화면이 서로 다른 말을 했다. 이제 양쪽 다 같은
+     자동 일정으로 채운다(recBuildDisplayDays가 그 경우를 안다). */
+  return recBuildDisplayDays(course, pRec ? pRec.items : null, totalDays, destKey);
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -3289,19 +3268,27 @@ function openEstimateWindow() {
     </div>`;
   }
 
+  /* 일정 글은 담당자가 관리자 화면에서 저장한 값이다. 이 문서는 문자열로 조립되므로
+     그대로 끼워 넣으면 저장한 한 줄이 고객 견적서에서 실행된다(결함 생성기 ④).
+     ⚠ 연수 일정 탐색 쪽은 DOM(textContent)으로 붙어 이 문제가 없는데, 견적서만
+     문자열이라 여기서 막는다 — 같은 데이터가 두 화면으로 나가므로 둘 다 막아야 한다. */
+  const _e = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
   function renderDays(displayDays) {
     return displayDays.map(d => `
       <div class="day-card">
         <div class="day-hd">
-          <span class="day-num">DAY ${d.day}</span>
-          <span class="day-title">${d.title}</span>
+          <span class="day-num">DAY ${Number(d.day) || 0}</span>
+          <span class="day-title">${_e(d.title)}</span>
         </div>
         <div class="day-sched">
-          <span class="sched-t">오전</span><span>${d.am}</span>
-          <span class="sched-t">오후</span><span>${d.pm}</span>
-          <span class="sched-t">저녁</span><span>${d.eve}</span>
+          <span class="sched-t">오전</span><span>${_e(d.am)}</span>
+          <span class="sched-t">오후</span><span>${_e(d.pm)}</span>
+          <span class="sched-t">저녁</span><span>${_e(d.eve)}</span>
         </div>
-        ${d.tip ? `<div class="day-tip">현장 Tip · ${d.tip}</div>` : ''}
+        ${d.tip ? `<div class="day-tip">현장 Tip · ${_e(d.tip)}</div>` : ''}
       </div>`).join('');
   }
 
@@ -3574,16 +3561,16 @@ a{color:inherit;text-decoration:none}
     <p class="sub">${destText} · <strong style="color:#CC001A">${programText}</strong> 프로그램 유형을 기반으로, 실제 견적 입력값에 최적화된 코스 두 가지를 선별하였습니다.</p>
 
     <div class="rec-tabs">
-      <button class="rec-tab${selectedPlan!=='b'?' active':''}" onclick="showCourse('a',this)">코스 A &nbsp;·&nbsp; ${itiA.title}${selectedPlan==='a'?' <span style="color:#CC001A">· 탐색하신 일정</span>':''}</button>
-      <button class="rec-tab${selectedPlan==='b'?' active':''}" onclick="showCourse('b',this)">코스 B &nbsp;·&nbsp; ${itiB.title}${selectedPlan==='b'?' <span style="color:#CC001A">· 탐색하신 일정</span>':''}</button>
+      <button class="rec-tab${selectedPlan!=='b'?' active':''}" onclick="showCourse('a',this)">코스 A &nbsp;·&nbsp; ${_e(itiA.title)}${selectedPlan==='a'?' <span style="color:#CC001A">· 탐색하신 일정</span>':''}</button>
+      <button class="rec-tab${selectedPlan==='b'?' active':''}" onclick="showCourse('b',this)">코스 B &nbsp;·&nbsp; ${_e(itiB.title)}${selectedPlan==='b'?' <span style="color:#CC001A">· 탐색하신 일정</span>':''}</button>
     </div>
 
     <div id="course-a" class="rec-content${selectedPlan!=='b'?' active':''}">
       ${destPhotos ? `<div class="course-cover-img"><img src="${destPhotos.cover}" alt="${destText}" loading="lazy" onerror="this.parentElement.style.display='none'" /></div>` : ''}
       <div class="course-hd">
-        <div class="c-title">${itiA.title}</div>
-        <div class="c-sub">${itiA.subtitle}</div>
-        <div class="c-highlights">${itiA.highlights.map(h=>`<span class="c-hl">· ${h}</span>`).join('')}</div>
+        <div class="c-title">${_e(itiA.title)}</div>
+        <div class="c-sub">${_e(itiA.subtitle)}</div>
+        <div class="c-highlights">${(itiA.highlights||[]).map(h=>`<span class="c-hl">· ${_e(h)}</span>`).join('')}</div>
       </div>
       <div class="day-timeline">${renderDays(itiADisplayDays)}</div>
       ${renderParticipantGuide()}
@@ -3593,9 +3580,9 @@ a{color:inherit;text-decoration:none}
     <div id="course-b" class="rec-content${selectedPlan==='b'?' active':''}">
       ${destPhotos ? `<div class="course-cover-img"><img src="${destPhotos.cover}" alt="${destText}" loading="lazy" onerror="this.parentElement.style.display='none'" /></div>` : ''}
       <div class="course-hd">
-        <div class="c-title">${itiB.title}</div>
-        <div class="c-sub">${itiB.subtitle}</div>
-        <div class="c-highlights">${itiB.highlights.map(h=>`<span class="c-hl">· ${h}</span>`).join('')}</div>
+        <div class="c-title">${_e(itiB.title)}</div>
+        <div class="c-sub">${_e(itiB.subtitle)}</div>
+        <div class="c-highlights">${(itiB.highlights||[]).map(h=>`<span class="c-hl">· ${_e(h)}</span>`).join('')}</div>
       </div>
       <div class="day-timeline">${renderDays(itiBDisplayDays)}</div>
       ${renderParticipantGuide()}
@@ -4107,83 +4094,26 @@ function _renderTimeline(plan) {
   var courses  = (typeof ITINERARY_DB !== 'undefined') ? ITINERARY_DB[destKey] : null;
   var course   = _step3Courses ? (_step3Courses[planIdx] || _step3Courses[0])
                : (courses ? (courses[planIdx] || courses[0]) : null);
-  var dbDays   = (course && Array.isArray(course.days) && course.days.length > 0) ? course.days : null;
 
-  var html = '';
-
-  if (dbDays) {
-    /* ── 풍부한 렌더: ITINERARY_DB의 실제 am/pm/eve/tip 사용, 귀국일 콘텐츠는
-       항상 실제 마지막 날에만 배치(_buildDisplayDays) ── */
-    var displayDays = _buildDisplayDays(course, destKey, plan, totalDays);
-    for (var i = 1; i <= totalDays; i++) {
-      html += _renderRichDayCard(i, displayDays[i - 1], totalDays);
-    }
-  } else {
-    /* ── 기본 렌더: DEST_REC items 기반 ── */
-    var rec   = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
-    var pRec  = rec ? rec[plan] : null;
-    var items = pRec ? pRec.items : REC_FALLBACKS.items;   /* RJ: 문구는 rec_fallbacks.js가 안다 */
-
-    for (var j = 1; j <= totalDays; j++) {
-      var isFirst = (j === 1), isLast = (j === totalDays);
-      var dData;
-      if (isFirst) {
-        dData = {
-          title: '도착 · 오리엔테이션',
-          am:    '인천국제공항 출발 → ' + destKey + ' 현지 도착',
-          pm:    '호텔 체크인 · 도심 탐방 · 팀 오리엔테이션',
-          eve:   '환영 만찬 (현지 특식)',
-          tip:   '입국 후 현지 화폐 환전 및 교통카드 준비 권장'
-        };
-      } else if (isLast) {
-        dData = {
-          title: '귀국',
-          am:    '호텔 체크아웃 · 공항 이동',
-          pm:    '귀국 탑승',
-          eve:   '인천국제공항 도착',
-          tip:   '출발 3시간 전 공항 도착 권장'
-        };
-      } else {
-        var act = items[(j - 2) % Math.max(items.length, 1)];
-        dData = {
-          title: act,
-          am:    act + ' — 오전 탐방',
-          pm:    act + ' 연계 오후 프로그램',
-          eve:   '팀 석식 · 자유 시간',
-          tip:   ''
-        };
-      }
-      html += _renderRichDayCard(j, dData, totalDays);
-    }
-  }
+  /* ⚠ 예전엔 여기서 갈래가 둘이었다 — 코스가 있으면 _buildDisplayDays, 없으면 이 자리에
+     도착/귀국/채움 문구를 **다시 적은** 루프. 같은 성격의 자동 문구인데 둘이 서로 달랐고
+     (「— 오전 코스」 vs 「— 오전 탐방」), 관리자 미리보기가 오전·오후·저녁을 못 보여주던
+     이유도 "규칙이 두 벌이라 옮겨 적을 수 없다"였다. 이제 한 함수가 두 경우를 다 안다.
+     ⚠ 여기서 items를 그대로 인덱싱하지 않는다 — 비어 있으면 예전 코드는
+     "undefined — 오전 탐방"을 만들었다(결함 생성기 ②). */
+  var rec   = (typeof DEST_REC !== 'undefined') ? DEST_REC[destKey] : null;
+  var pRec  = rec ? rec[plan] : null;
+  var displayDays = recBuildDisplayDays(course, pRec ? pRec.items : null, totalDays, destKey);
 
   var timelineEl = document.getElementById('dayTimeline');
-  if (timelineEl) timelineEl.innerHTML = html;
-}
-
-/* 일별 카드 HTML 생성 */
-function _renderRichDayCard(dayNum, data, totalDays) {
-  var isFirst = (dayNum === 1);
-  var isLast  = (dayNum === totalDays);
-  var badgeHtml = '';
-  if (isFirst) badgeHtml = '<span class="itin-day-badge itin-badge-arrive">도착일</span>';
-  if (isLast)  badgeHtml = '<span class="itin-day-badge itin-badge-depart">귀국일</span>';
-
-  var slots = '';
-  if (data.am)  slots += '<div class="itin-slot"><div class="itin-slot-time am">오전</div><div class="itin-slot-content">'  + data.am  + '</div></div>';
-  if (data.pm)  slots += '<div class="itin-slot"><div class="itin-slot-time pm">오후</div><div class="itin-slot-content">'  + data.pm  + '</div></div>';
-  if (data.eve) slots += '<div class="itin-slot"><div class="itin-slot-time eve">저녁</div><div class="itin-slot-content">' + data.eve + '</div></div>';
-  var tipHtml = (data.tip && data.tip.trim())
-    ? '<div class="itin-tip"><span class="itin-tip-label">TIP&nbsp;</span>' + data.tip + '</div>'
-    : '';
-
-  return '<div class="itin-day-card">'
-    + '<div class="itin-day-header">'
-      + '<div class="itin-day-hd-l"><span class="itin-day-num">DAY ' + dayNum + '</span>' + badgeHtml + '</div>'
-      + '<span class="itin-day-title">' + (data.title || '') + '</span>'
-    + '</div>'
-    + '<div class="itin-day-body">' + slots + tipHtml + '</div>'
-    + '</div>';
+  if (!timelineEl) return;
+  /* 담당자가 친 글은 **엘리먼트로** 붙인다. 문자열로 이어 붙이면 관리자에서 저장한
+     한 줄이 고객 페이지에서 실행될 수 있다(결함 생성기 ④).
+     카드 모양을 아는 곳도 rec_fallbacks.js 하나다 — 관리자 미리보기가 같은 함수를 쓴다. */
+  timelineEl.textContent = '';
+  for (var i = 1; i <= totalDays; i++) {
+    timelineEl.appendChild(recRenderDayCard(document, i, displayDays[i - 1], totalDays));
+  }
 }
 
 /* 결재 기대 효과 박스 */

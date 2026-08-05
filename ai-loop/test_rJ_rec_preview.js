@@ -124,8 +124,10 @@ const EMPTY = {
   ok('기대 효과 박스가 A·B 둘 다 있다',
     pdoc().querySelectorAll('.plan-value-box').length === 2,
     String(pdoc().querySelectorAll('.plan-value-box').length));
-  ok('일별 주요 활동이 날짜 카드로 보인다',
-    pdoc().querySelectorAll('.itin-day-card').length === 3,   /* A 2줄 + B 1줄 */
+  /* RR: 예전엔 '활동명 목록'만 나열했다(A 2줄 + B 1줄). 이제 고객이 실제로 보는
+     **일정표 그대로**를 그린다 — 코스가 없으면 5일 기본으로 A·B 각 5장. */
+  ok('일별 일정이 고객이 보는 일수만큼 나온다',
+    pdoc().querySelectorAll('.itin-day-card').length === 10,   /* 5일 × 방식 2 */
     String(pdoc().querySelectorAll('.itin-day-card').length));
   ok('각 구역이 어디에 나가는지 적혀 있다',
     texts('.pv-where').join(' ').includes('연수 일정 탐색')
@@ -140,11 +142,20 @@ const EMPTY = {
   ok('기대 효과 문구가 보인다',
     texts('.plan-value-text').join(',') === 'A 기대효과,B 기대효과',
     texts('.plan-value-text').join(','));
+  /* 코스가 없으면 첫날·마지막날은 정해진 문구, 사이는 ✨의 '일별 주요 활동'이
+     돌아가며 들어간다 — 고객 화면(_renderTimeline)과 정확히 같은 규칙이다. */
   ok('일별 활동명이 보인다',
-    texts('.itin-day-title').join(',') === 'A활동1,A활동2,B활동1',
+    texts('.itin-day-title').join(',')
+      === '도착 · 오리엔테이션,A활동1,A활동2,A활동1,귀국,도착 · 오리엔테이션,B활동1,B활동1,B활동1,귀국',
     texts('.itin-day-title').join(','));
+  ok('오전 문장이 활동명으로 조립된다',
+    texts('.itin-slot-content').includes('A활동1 — 오전 탐방'),
+    texts('.itin-slot-content').slice(0, 6).join(' | '));
+  /* 다섯 칸을 다 채웠으므로 '기본 문구가 나갑니다' 경고는 없어야 한다.
+     ⚠ 자동 채움 경고(일수가 코스보다 길다)는 성격이 다르므로 여기서 세지 않는다. */
   ok('기본 문구 경고는 뜨지 않는다 (다 채웠다)',
-    pdoc().querySelectorAll('.pv-warn').length === 0);
+    !/기본 문구가 나갑니다/.test(texts('.pv-warn').join(' ')),
+    texts('.pv-warn').join(' | '));
 
   /* ── [5] 빈 칸을 어떻게 보여주는가 (②③) — 가장 중요 ──────────────────── */
   console.log('\n[5] 빈 칸이 고객 화면에서 어떻게 되는지 보여주는가 (②③)');
@@ -162,8 +173,10 @@ const EMPTY = {
   ok('기대 효과가 같은 기본값이다',
     texts('.plan-value-text').every((t) => t === REC_FALLBACKS.value),
     texts('.plan-value-text').join(' | '));
+  /* 5일이면 가운데 3일이 채워진다 — 목록 앞 3개가 순서대로 들어간다 */
   ok('일별 활동이 같은 기본값이다',
-    texts('.itin-day-title').join(',') === REC_FALLBACKS.items.concat(REC_FALLBACKS.items).join(','),
+    texts('.itin-day-title').filter((t) => REC_FALLBACKS.items.includes(t)).join(',')
+      === REC_FALLBACKS.items.slice(0, 3).concat(REC_FALLBACKS.items.slice(0, 3)).join(','),
     texts('.itin-day-title').join(','));
 
   const warns = texts('.pv-warn').join(' ');
@@ -209,10 +222,18 @@ const EMPTY = {
   ok('출처에 코스 제목까지 적는다', froms.includes('코스가 제목'), froms);
   ok('출처가 📅 날짜별 일정을 가리킨다', /날짜별 일정/.test(froms), froms);
 
-  /* 일별 주요 활동만은 코스가 있어도 ✨에서 온다 — 다른 넷과 출처가 다르다 */
-  ok('일별 주요 활동은 코스가 있어도 ✨ 방식 A·B에서 온다',
-    texts('.itin-day-title').join(',') === 'A활동1,A활동2,B활동1',
+  /* RR: 코스가 있으면 **코스에 쓴 일자가 그대로** 나오고, 코스보다 긴 날만 ✨의
+     '일별 주요 활동'으로 채워진다. 예전 미리보기는 코스 일자를 아예 안 보여주고
+     활동 목록만 나열해서, 담당자가 쓴 DAY 1~3이 어디로 가는지 알 수 없었다.
+     코스가 3일이라 기본 일수는 4일 — 마지막 일자(귀국)는 항상 실제 마지막 날로 밀린다. */
+  ok('코스에 쓴 일자가 그대로 보인다',
+    texts('.itin-day-title').join(',') === '첫날,가운데,A활동1,마지막,첫날,B활동1,B활동1,마지막',
     texts('.itin-day-title').join(','));
+  ok('코스의 마지막 일자가 실제 마지막 날로 밀린다',
+    texts('.itin-day-title')[3] === '마지막' && texts('.itin-day-num')[3].trim() === 'DAY 4',
+    texts('.itin-day-num').join(',') + ' / ' + texts('.itin-day-title').join(','));
+  ok('자동으로 채워진 날이 있으면 숫자로 알려준다',
+    /자동 문구/.test(texts('.pv-warn').join(' ')), texts('.pv-warn').join(' | '));
 
   /* ⚠ 코스에서 오는 값이 비면 기본 문구로 안 채워진다 — 고객 화면이 빈칸이 된다 */
   w.__setCourses([{ title: '', subtitle: '', highlights: [], days: [{ day:1, title:'ㄱ' }] }]);
@@ -303,25 +324,41 @@ const EMPTY = {
   ['plan-value-box', 'plan-value-label', 'plan-value-text'].forEach((c) => {
     ok('미리보기에 .' + c + '가 있다', !!pdoc().querySelector('.' + c));
   });
-  /* 일별 카드 클래스는 script.js의 _renderRichDayCard가 만드는 것과 같아야 한다 */
-  ['itin-day-card', 'itin-day-header', 'itin-day-hd-l', 'itin-day-num', 'itin-day-title'].forEach((c) => {
-    ok('script.js도 .' + c + '를 만든다', scriptSrc.includes(c));
+  /* 일별 카드 클래스는 rec_fallbacks.js의 recRenderDayCard가 만든다 (RR).
+     예전엔 script.js의 _renderRichDayCard가 문자열로 만들었고, 미리보기는 그 모양을
+     **따로 조립**했다 — 두 벌이라 미리보기가 오전·오후·저녁을 아예 못 보여줬다. */
+  const rfSrc = fs.readFileSync(path.join(ROOT, 'rec_fallbacks.js'), 'utf8');
+  ['itin-day-card', 'itin-day-header', 'itin-day-hd-l', 'itin-day-num', 'itin-day-title',
+   'itin-slot', 'itin-slot-time', 'itin-slot-content'].forEach((c) => {
+    ok('rec_fallbacks.js가 .' + c + '를 만든다', rfSrc.includes(c));
     ok('미리보기에 .' + c + '가 있다', !!pdoc().querySelector('.' + c));
   });
+  ok('script.js가 일별 카드 모양을 따로 적지 않는다',
+    !/itin-slot-content/.test(scriptSrc),
+    'script.js에 카드 마크업이 남아 있으면 두 벌이 된다(결함 생성기 ①)');
+  ok('admin.html도 일별 카드 모양을 따로 적지 않는다',
+    !/itin-slot-content/.test(adminSrc),
+    'admin.html이 카드를 직접 조립하면 미리보기가 다시 갈라진다');
   /* 그 클래스들이 styles.css에 실제로 정의돼 있어야 모양이 나온다 */
-  ['.plan-cards', '.plan-card', '.plan-desc', '.plan-points', '.plan-value-box', '.itin-day-card']
+  ['.plan-cards', '.plan-card', '.plan-desc', '.plan-points', '.plan-value-box', '.itin-day-card',
+   '.itin-slot', '.itin-tip']
     .forEach((c) => ok('styles.css에 ' + c + '가 정의돼 있다',
       new RegExp('\\' + c + '\\s*[,{]').test(stylesSrc)));
 
-  /* ⚠ 오전·오후·저녁 문장은 미리보기가 만들지 않는다 — script.js에 조립 규칙이 둘이라
-     여기 옮겨 적으면 두 벌이 된다. 그 사실을 대신 말해 주는지 본다. */
-  ok('미리보기가 오전·오후 문장을 지어내지 않는다',
-    pdoc().querySelectorAll('.itin-slot').length === 0,
-    String(pdoc().querySelectorAll('.itin-slot').length));
-  ok('그 대신 자동으로 만들어진다고 말해 준다',
-    /자동으로 만들어집니다/.test(texts('.pv-hint').join(' ')), texts('.pv-hint').join(' | '));
-  ok('언제 이 목록이 안 쓰이는지도 말해 준다',
-    /쓰이지 않습니다/.test(texts('.pv-hint').join(' ')), texts('.pv-hint').join(' | '));
+  /* ⚠ 이제는 오전·오후·저녁을 **보여줘야 한다** (RR). 담당자가 가장 많은 시간을 쓰는
+     칸인데 미리보기에 한 글자도 안 나오던 것이 이 화면의 가장 큰 구멍이었다. */
+  const slotTimes = texts('.itin-slot-time');
+  ok('미리보기가 오전·오후·저녁을 보여준다', slotTimes.length > 0, String(slotTimes.length));
+  ok('시간 라벨이 고객 화면과 같다',
+    ['오전', '오후', '저녁'].every((t) => slotTimes.includes(t)),
+    slotTimes.slice(0, 6).join(', '));
+  ok('DAY 번호가 붙는다', /^DAY\s*1$/.test((texts('.itin-day-num')[0] || '').trim()),
+    texts('.itin-day-num').slice(0, 3).join(' | '));
+  ok('도착일·귀국일 배지가 고객 화면과 같이 붙는다',
+    texts('.itin-day-badge').includes('도착일') && texts('.itin-day-badge').includes('귀국일'),
+    texts('.itin-day-badge').join(', '));
+  ok('일수를 바꿔 볼 수 있다', !!d.getElementById('recPvDays'),
+    '고객이 코스보다 긴 일수를 고르면 자동 문구가 섞인다 — 고정하면 그걸 못 본다');
 
   /* ── [9] 담당자가 친 글자가 코드가 되지 않는가 (⑥) ────────────────────── */
   console.log('\n[9] 담당자가 친 글자가 코드로 해석되지 않는가 (⑥)');

@@ -77,8 +77,149 @@ function recPlanFromCourse(course) {
   };
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   고객이 보는 **일자별 내용**을 만드는 규칙 (RR)
+
+   왜 여기로 왔는가: 관리자 미리보기가 오전·오후·저녁을 보여주지 못하고 있었다.
+   이유가 "조립 규칙이 script.js 안에 있고, 그나마 경로에 따라 두 벌이라 옮겨 적으면
+   어긋난다"였다. 실제로 두 벌이었고 문구도 서로 달랐다 —
+     · 코스가 있을 때  : "… — 오전 코스" / "연계 오후 프로그램 · 현장 방문" / "팀 석식"
+     · 코스가 없을 때  : "… — 오전 탐방" / "… 연계 오후 프로그램" / "팀 석식 · 자유 시간"
+   같은 성격의 자동 생성 문구인데 고객이 어느 경로로 들어왔느냐로 갈렸다(결함 생성기 ①).
+   한 벌로 합치고, **뒤쪽(활동명이 오후에도 들어가는 쪽)**을 남겼다.
+
+   ⚠ 이 문구는 담당자가 쓴 글이 아니라 **시스템이 만들어 고객에게 내보내는 글**이다.
+   여기를 고치면 고객 견적서의 일정표와 연수 일정 탐색 타임라인이 함께 바뀐다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const REC_DAY_FILL = {
+  /* 채울 활동명조차 없을 때 마지막으로 쓰는 이름 */
+  act: '현지 탐방 · 자유 시간',
+
+  /* 활동명 하나로 하루를 만든다 */
+  make: function (act) {
+    const a = String(act || '').trim() || REC_DAY_FILL.act;
+    return { title: a, am: a + ' — 오전 탐방', pm: a + ' 연계 오후 프로그램',
+             eve: '팀 석식 · 자유 시간', tip: '' };
+  },
+
+  /* 코스 자체가 없는 목적지의 첫날·마지막날 (코스가 있으면 코스의 일자를 쓴다) */
+  arrival: function (destKey) {
+    return { title: '도착 · 오리엔테이션',
+             am:  '인천국제공항 출발 → ' + String(destKey || '현지') + ' 현지 도착',
+             pm:  '호텔 체크인 · 도심 탐방 · 팀 오리엔테이션',
+             eve: '환영 만찬 (현지 특식)',
+             tip: '입국 후 현지 화폐 환전 및 교통카드 준비 권장' };
+  },
+  departure: function () {
+    return { title: '귀국', am: '호텔 체크아웃 · 공항 이동', pm: '귀국 탑승',
+             eve: '인천국제공항 도착', tip: '출발 3시간 전 공항 도착 권장' };
+  },
+};
+
+/* 코스에 없는 날을 채울 활동 목록. ✨ 방식 A·B의 '일별 주요 활동'이 우선이고,
+   비어 있으면 **그 방식이 실제로 쓰는 코스의** 핵심 하이라이트로 물러난다.
+   ⚠ 관리자 미리보기가 이걸 courses[0]으로 잘못 잡고 있었다 — 방식 B는 보통 코스 B에서
+   오는데 미리보기만 코스 A의 하이라이트를 보여줬다. 그래서 이 함수를 둘 다 부른다. */
+function recDayPool(course, planItems) {
+  const clean = function (arr) {
+    return (Array.isArray(arr) ? arr : [])
+      .map(function (s) { return String(s == null ? '' : s).trim(); })
+      .filter(Boolean);
+  };
+  const items = clean(planItems);
+  if (items.length) return items;
+  return clean(course && course.highlights);
+}
+
+/* 코스 + 고객이 고른 일수 → 고객 화면에 실제로 그려지는 일자 배열.
+   코스는 전부 "마지막 날 = 귀국"으로 작성되어 있어, 고객이 더 긴 일수를 고르면
+   귀국일이 항상 **실제 마지막 날**에만 오도록 재배치하고 사이는 활동 목록으로 채운다.
+   (예전엔 5일 초과 시 코스의 5일차 '귀국'이 중간에 그대로 나왔다.) */
+function recBuildDisplayDays(course, planItems, totalDays, destKey) {
+  const n = Math.max(1, Number(totalDays) || 5);
+  const baseDays = (course && Array.isArray(course.days)) ? course.days : [];
+  const pool = recDayPool(course, planItems);
+  const out = [];
+
+  /* 코스가 없는(또는 일자가 하나도 없는) 목적지 — 도착·귀국은 정해진 문구를 쓴다.
+     ⚠ 여기서 pool이 비면 REC_FALLBACKS.items로 채운다. 예전 코드는 빈 배열을 그대로
+     인덱싱해 **"undefined — 오전 탐방"**을 만들 수 있었다(결함 생성기 ②). */
+  if (!baseDays.length) {
+    const p = pool.length ? pool : REC_FALLBACKS.items;
+    for (let i = 1; i <= n; i++) {
+      if (i === 1)      out.push(Object.assign({ day: i }, REC_DAY_FILL.arrival(destKey)));
+      else if (i === n) out.push(Object.assign({ day: i }, REC_DAY_FILL.departure()));
+      else              out.push(Object.assign({ day: i }, REC_DAY_FILL.make(p[(i - 2) % p.length])));
+    }
+    return out;
+  }
+
+  const regular   = baseDays.slice(0, -1);            /* 도착~액티비티 (귀국일 제외) */
+  const returnDay = baseDays[baseDays.length - 1];    /* 귀국일 템플릿 */
+  for (let i = 1; i <= n; i++) {
+    if (i === n) { out.push(Object.assign({}, returnDay, { day: i })); continue; }
+    const regIdx = i - 1;
+    if (regIdx < regular.length) {
+      out.push(Object.assign({}, regular[regIdx], { day: i }));
+    } else {
+      const act = pool.length ? pool[(i - regular.length - 1) % pool.length] : '';
+      out.push(Object.assign({ day: i }, REC_DAY_FILL.make(act)));
+    }
+  }
+  return out;
+}
+
+/* 일자 하나 → 화면에 붙는 카드 **엘리먼트**.
+   ⚠ 문자열 HTML이 아니라 DOM으로 만든다. 담당자가 친 글(제목·오전·오후·저녁·TIP)이
+   그대로 innerHTML에 들어가고 있었다 — 관리자에서 저장한 한 줄이 고객 페이지에서
+   실행될 수 있는 구조였다(결함 생성기 ④). textContent로 넣으면 그 경로가 닫힌다.
+   ⚠ 관리자 미리보기도 이 함수를 부른다. 카드 모양을 두 곳에 적으면 어긋난다. */
+function recRenderDayCard(doc, dayNum, data, totalDays) {
+  const d = data || {};
+  const el = function (tag, cls, text) {
+    const n = doc.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+
+  const card = el('div', 'itin-day-card');
+  const head = el('div', 'itin-day-header');
+  const left = el('div', 'itin-day-hd-l');
+  left.appendChild(el('span', 'itin-day-num', 'DAY ' + dayNum));
+  if (dayNum === 1) left.appendChild(el('span', 'itin-day-badge itin-badge-arrive', '도착일'));
+  else if (dayNum === totalDays) left.appendChild(el('span', 'itin-day-badge itin-badge-depart', '귀국일'));
+  head.appendChild(left);
+  head.appendChild(el('span', 'itin-day-title', String(d.title || '')));
+  card.appendChild(head);
+
+  const body = el('div', 'itin-day-body');
+  [['am', '오전'], ['pm', '오후'], ['eve', '저녁']].forEach(function (pair) {
+    const v = String(d[pair[0]] || '').trim();
+    if (!v) return;                                   /* 빈 칸은 줄 자체를 안 그린다 */
+    const slot = el('div', 'itin-slot');
+    slot.appendChild(el('div', 'itin-slot-time ' + pair[0], pair[1]));
+    slot.appendChild(el('div', 'itin-slot-content', v));
+    body.appendChild(slot);
+  });
+  const tip = String(d.tip || '').trim();
+  if (tip) {
+    const t = el('div', 'itin-tip');
+    t.appendChild(el('span', 'itin-tip-label', 'TIP '));
+    t.appendChild(doc.createTextNode(tip));
+    body.appendChild(t);
+  }
+  card.appendChild(body);
+  return card;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = REC_FALLBACKS;
   module.exports.recResolvePlanCourseIdx = recResolvePlanCourseIdx;
   module.exports.recPlanFromCourse = recPlanFromCourse;
+  module.exports.REC_DAY_FILL = REC_DAY_FILL;
+  module.exports.recDayPool = recDayPool;
+  module.exports.recBuildDisplayDays = recBuildDisplayDays;
+  module.exports.recRenderDayCard = recRenderDayCard;
 }
