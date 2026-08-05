@@ -100,13 +100,13 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 3px solid #111; padding-bottom: 20px; margin-bottom: 28px;
 }
 .brand-name { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
-.brand-sub { font-size: 11px; color: #9A9A9A; margin-top: 3px; }
+.brand-sub { font-size: 11px; color: #6E6E6E; margin-top: 3px; }
 .meta-blk { text-align: right; font-size: 12px; color: #5A5A5A; line-height: 1.8; }
 .meta-blk .issue { font-size: 14px; font-weight: 700; color: #0D0D0D; }
 
 .sec-title {
   font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-  color: #9A9A9A; border-bottom: 1px solid #F0F0F0;
+  color: #6E6E6E; border-bottom: 1px solid #F0F0F0;
   padding-bottom: 6px; margin-bottom: 10px; margin-top: 24px;
 }
 /* ── 정보 박스 (수신처 정보 / 연수 계획) ──
@@ -114,7 +114,7 @@ a { color: inherit; text-decoration: none; }
    박스 카드로 분리해 크고 또렷하게 보이도록 재구성. */
 .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 14px 0 6px; }
 .field-box { background: #FAFAFA; border: 1px solid #EFEFEF; border-left: 4px solid #CC001A; padding: 18px 22px; }
-.field-box-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #9A9A9A; margin-bottom: 8px; }
+.field-box-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #6E6E6E; margin-bottom: 8px; }
 .field-box-value { font-size: 16.5px; font-weight: 700; color: #0D0D0D; line-height: 1.4; word-break: keep-all; }
 
 /* ── 요청사항 박스: 자유 서술형이라 더 길고 넉넉하게 ── */
@@ -138,10 +138,10 @@ a { color: inherit; text-decoration: none; }
 .totals-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
 .t-card { padding: 18px 22px; background: #F4F4F4; border-left: 4px solid #111; }
 .t-card.per { background: #FEF0F2; border-left-color: #CC001A; }
-.t-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: #9A9A9A; margin-bottom: 6px; }
+.t-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: #6E6E6E; margin-bottom: 6px; }
 .t-amount { font-size: 22px; font-weight: 800; color: #0D0D0D; letter-spacing: -.02em; }
 .t-card.per .t-amount { color: #CC001A; }
-.t-note { font-size: 11px; color: #9A9A9A; margin-top: 3px; }
+.t-note { font-size: 11px; color: #6E6E6E; margin-top: 3px; }
 
 .inc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
 .inc-tag {
@@ -204,7 +204,7 @@ a { color: inherit; text-decoration: none; }
 .day-num { font-size: 11px; font-weight: 800; letter-spacing: .08em; color: #CC001A; flex-shrink: 0; }
 .day-title { font-size: 15px; font-weight: 700; color: #0D0D0D; }
 .day-sched { display: grid; grid-template-columns: 44px 1fr; gap: 6px 10px; font-size: 13px; color: #333; }
-.sched-t { font-weight: 700; color: #9A9A9A; font-size: 11px; }
+.sched-t { font-weight: 700; color: #6E6E6E; font-size: 11px; }
 .day-tip { margin-top: 12px; padding: 9px 12px; background: #FEF0F2; font-size: 12px; color: #8F0B20; }
 
 /* ── CTA SECTION ── */
@@ -585,7 +585,7 @@ function renderPage(d) {
 
       ${reqHtml}
 
-      <div style="margin-top:24px;padding:14px 16px;background:#FAFAFA;border:1px solid #F0F0F0;font-size:12px;color:#9A9A9A;line-height:1.8">
+      <div style="margin-top:24px;padding:14px 16px;background:#FAFAFA;border:1px solid #F0F0F0;font-size:12px;color:#6E6E6E;line-height:1.8">
         본 견적서는 견적 요청 기준일의 항공·호텔 요율 기준으로 산출되었습니다.
         실제 계약 시 환율 변동 및 항공권 시세에 따라 최종 금액이 달라질 수 있습니다.
       </div>
@@ -596,7 +596,7 @@ function renderPage(d) {
     <!-- 추천 일정 -->
     ${d.itiA || d.itiB ? `
     <div style="margin-bottom:12px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.12em;color:#9A9A9A;margin-bottom:6px">RECOMMENDED ITINERARY</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.12em;color:#6E6E6E;margin-bottom:6px">RECOMMENDED ITINERARY</div>
       <div style="font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px">맞춤 일정 추천</div>
       <div style="font-size:13px;color:#5A5A5A">${esc(d.dt)} · <strong style="color:#CC001A">${esc(d.ptx)}</strong> 프로그램 유형에 최적화된 코스입니다.</div>
     </div>
@@ -643,7 +643,7 @@ function renderPage(d) {
   const d = await loadShareData();
   if (!d) {
     document.getElementById('error-wrap').innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6E6E6E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <h2>견적서를 불러올 수 없습니다</h2>
       <p style="margin-top:10px">${legacyLinkUsed()
         ? '이전 방식으로 만들어진 링크입니다.<br>보안 강화를 위해 지원이 종료되었습니다 — 담당자에게 새 링크를 요청해 주세요.'

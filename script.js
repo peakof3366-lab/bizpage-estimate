@@ -3339,10 +3339,10 @@ a{color:inherit;text-decoration:none}
 .quote-doc{background:#fff;border-radius:0;padding:48px;box-shadow:0 4px 24px rgba(0,0,0,.07);margin-bottom:40px}
 .quote-hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #111111;padding-bottom:20px;margin-bottom:28px}
 .brand-name{font-size:20px;font-weight:800;color:#0D0D0D;letter-spacing:-.02em}
-.brand-sub{font-size:11px;color:#9A9A9A;margin-top:2px}
+.brand-sub{font-size:11px;color:#6E6E6E;margin-top:2px}
 .meta-blk{text-align:right;font-size:12px;color:#5A5A5A;line-height:1.8}
 .meta-blk .issue{font-size:14px;font-weight:700;color:#0D0D0D}
-.sec-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9A9A9A;border-bottom:1px solid #F0F0F0;padding-bottom:6px;margin-bottom:10px;margin-top:22px}
+.sec-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6E6E6E;border-bottom:1px solid #F0F0F0;padding-bottom:6px;margin-bottom:10px;margin-top:22px}
 .info-tbl{width:100%;border-collapse:collapse;margin-bottom:4px}
 .info-tbl td{padding:7px 10px;font-size:13px;border-bottom:1px solid #FAFAFA}
 .info-tbl td:first-child{width:110px;font-weight:600;color:#5A5A5A;white-space:nowrap}
@@ -3351,7 +3351,7 @@ a{color:inherit;text-decoration:none}
 .totals-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0}
 .t-card{padding:18px 22px;border-radius:0;background:#F4F4F4;border-left:4px solid #111111}
 .t-card.per{background:#FEF0F2;border-left-color:#CC001A}
-.t-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#9A9A9A;margin-bottom:3px}
+.t-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#6E6E6E;margin-bottom:3px}
 .t-amt{font-size:24px;font-weight:800;color:#0D0D0D;letter-spacing:-.02em}
 .t-card.per .t-amt{color:#CC001A}
 .q-disc{background:#FAFAF8;border-radius:0;padding:14px 18px;margin-top:14px;font-size:12px;color:#5A5A5A;line-height:1.75}
@@ -3365,7 +3365,7 @@ a{color:inherit;text-decoration:none}
 .pg-section .sub{font-size:14px;color:#5A5A5A;margin-bottom:20px}
 /* ── TABS ── */
 .rec-tabs{display:flex;border-bottom:2px solid #EBEBEB;margin-bottom:28px}
-.rec-tab{padding:12px 24px;border:none;border-bottom:3px solid transparent;background:transparent;color:#9A9A9A;font-size:13px;font-weight:700;cursor:pointer;transition:color .2s,border-color .2s;margin-bottom:-2px;letter-spacing:.01em;white-space:nowrap}
+.rec-tab{padding:12px 24px;border:none;border-bottom:3px solid transparent;background:transparent;color:#6E6E6E;font-size:13px;font-weight:700;cursor:pointer;transition:color .2s,border-color .2s;margin-bottom:-2px;letter-spacing:.01em;white-space:nowrap}
 .rec-tab.active{color:#0D0D0D;border-bottom-color:#CC001A}
 .rec-tab:hover{color:#5A5A5A}
 .rec-content{display:none}.rec-content.active{display:block}
@@ -3383,7 +3383,7 @@ a{color:inherit;text-decoration:none}
 .day-num{background:#111111;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:0}
 .day-title{font-size:15px;font-weight:700;color:#0D0D0D}
 .day-sched{display:grid;grid-template-columns:44px 1fr;gap:5px 10px;font-size:13px}
-.sched-t{color:#9A9A9A;font-size:11px;font-weight:700;text-transform:uppercase;padding-top:2px}
+.sched-t{color:#6E6E6E;font-size:11px;font-weight:700;text-transform:uppercase;padding-top:2px}
 .day-tip{margin-top:10px;padding:8px 12px;background:#FEF0F2;border-radius:0;font-size:12px;color:#8F0B20}
 /* ── COURSE COVER IMAGE ── */
 .course-cover-img{border-radius:0;overflow:hidden;height:300px;margin-bottom:18px}
@@ -3394,10 +3394,10 @@ a{color:inherit;text-decoration:none}
 .dest-gallery .g-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s}
 .dest-gallery .g-item:hover img{transform:scale(1.05)}
 /* ── GALLERY TITLE ── */
-.gallery-label{font-size:10px;font-weight:700;letter-spacing:.12em;color:#9A9A9A;margin-top:26px;margin-bottom:8px;text-transform:uppercase}
+.gallery-label{font-size:10px;font-weight:700;letter-spacing:.12em;color:#6E6E6E;margin-top:26px;margin-bottom:8px;text-transform:uppercase}
 /* ── PARTICIPANT GUIDE ── */
 .participant-guide{background:#F8F7F5;border-left:4px solid #111111;padding:20px 24px;margin-top:22px}
-.pg-eyebrow{font-size:10px;font-weight:700;letter-spacing:.12em;color:#9A9A9A;margin-bottom:6px;text-transform:uppercase}
+.pg-eyebrow{font-size:10px;font-weight:700;letter-spacing:.12em;color:#6E6E6E;margin-bottom:6px;text-transform:uppercase}
 .pg-title{font-size:14px;font-weight:800;color:#0D0D0D;margin-bottom:12px}
 .pg-note{background:#fff;border:1px solid #E5E2DC;padding:10px 14px;font-size:12px;color:#5A5A5A;line-height:1.7;margin-bottom:12px}
 .pg-tips{padding-left:0;list-style:none;display:flex;flex-direction:column;gap:7px}
@@ -3460,7 +3460,7 @@ a{color:inherit;text-decoration:none}
 <!-- 공유 모달 (no-print) -->
 <div id="share-modal" class="no-print" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.7);align-items:center;justify-content:center">
   <div style="background:#fff;width:min(560px,92vw);padding:36px 32px;position:relative">
-    <button onclick="document.getElementById('share-modal').style.display='none'" style="position:absolute;top:16px;right:20px;background:none;border:none;font-size:20px;cursor:pointer;color:#9A9A9A">&times;</button>
+    <button onclick="document.getElementById('share-modal').style.display='none'" style="position:absolute;top:16px;right:20px;background:none;border:none;font-size:20px;cursor:pointer;color:#6E6E6E">&times;</button>
     <div style="font-size:11px;font-weight:700;letter-spacing:.12em;color:#CC001A;margin-bottom:8px">SHARE</div>
     <h3 style="font-size:18px;font-weight:800;margin-bottom:6px">고객 견적서 링크 공유</h3>
     <p style="font-size:13px;color:#5A5A5A;margin-bottom:20px">아래 링크를 고객에게 카카오톡·이메일로 전달하세요.<br>고객은 링크에서 견적 확인·출력·상담 신청을 바로 할 수 있습니다.</p>
