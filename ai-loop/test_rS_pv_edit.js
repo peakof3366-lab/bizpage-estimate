@@ -183,8 +183,94 @@ const COURSES = [
   ok('줄을 비우면 그 줄이 없어진다', w.__rec().a.points.length === 2,
     w.__rec().a.points.join(','));
 
+  /* ── [5-b] 줄을 늘릴 수 있는가 (RV) ────────────────────────────────────
+     글자는 고쳐지는데 **줄을 추가할 수가 없었다**(사용자 지적). Enter가 편집을 끝내기만
+     했다. 목록에서는 Enter가 아래에 줄을 하나 만들고, 카드 바깥의 손잡이로도 만든다
+     (목록이 통째로 비면 누를 줄 자체가 없어서 Enter만으로는 못 늘린다). */
+  console.log('\n[5-b] 줄을 늘릴 수 있는가');
+  w.__select('도쿄'); w.__setCourses([]); w.__setRec(REC); btn.click(); await tick();
+  const li = (i) => Array.from(pdoc().querySelectorAll('.plan-points li'))[i];
+  ok('처음 방식 A 포인트는 두 줄이다', w.__rec().a.points.length === 2,
+    w.__rec().a.points.join(','));
+  /* 가운데(첫) 줄에서 Enter — 끝이 아니라 **그 줄 바로 아래**에 생겨야 찾을 수 있다 */
+  li(0).dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  await tick();
+  ok('Enter로 줄이 하나 늘어난다', w.__rec().a.points.length === 3,
+    w.__rec().a.points.join(','));
+  ok('누른 줄 바로 아래에 생긴다',
+    w.__rec().a.points[0] === 'A포인트1' && w.__rec().a.points[1] === ''
+    && w.__rec().a.points[2] === 'A포인트2',
+    JSON.stringify(w.__rec().a.points));
+  ok('새 줄이 화면에도 나온다', pdoc().querySelectorAll('.plan-points li').length === 3,
+    String(pdoc().querySelectorAll('.plan-points li').length));
+  ok('커서가 새 줄로 간다',
+    (pdoc().activeElement || {}).dataset && pdoc().activeElement.dataset.pvid === 'point:a:1',
+    (pdoc().activeElement || {}).dataset ? pdoc().activeElement.dataset.pvid : '(없음)');
+  /* 새 줄에 글을 넣으면 그 자리에 저장된다 */
+  await edit(li(1), '끼워 넣은 줄');
+  ok('새 줄에 쓴 글이 그 자리에 저장된다',
+    w.__rec().a.points.join(',') === 'A포인트1,끼워 넣은 줄,A포인트2',
+    w.__rec().a.points.join(','));
+
+  /* 손잡이로도 늘어난다 — 목록이 비어 있을 때 유일한 길이다 */
+  const addBtn = () => pdoc().querySelector('.pv-addbtn');
+  ok('카드 바깥에 줄 추가 손잡이가 있다', !!addBtn());
+  ok('손잡이가 카드 안에 들어가 있지 않다', !addBtn().closest('.plan-card'),
+    '카드 안에 넣으면 고객이 보는 카드 높이가 달라진다');
+  addBtn().click(); await tick();
+  ok('손잡이로 맨 끝에 줄이 붙는다', w.__rec().a.points.length === 4,
+    w.__rec().a.points.join(','));
+  /* 목록이 통째로 빈 상태(코스 하이라이트 없음)에서도 늘어나야 한다 */
+  w.__select('도쿄');
+  w.__setCourses([{ title: 'ㄱ', subtitle: '', highlights: [], days: [{ day: 1, title: 'ㄱ' }] }]);
+  w.__setRec(REC); btn.click(); await tick();
+  ok('하이라이트가 없으면 줄이 하나도 안 보인다',
+    pdoc().querySelectorAll('.plan-points li').length === 0,
+    String(pdoc().querySelectorAll('.plan-points li').length));
+  addBtn().click(); await tick();
+  ok('그 상태에서도 손잡이로 줄을 만들 수 있다',
+    w.__courses()[0].highlights.length === 1, JSON.stringify(w.__courses()[0].highlights));
+  ok('만든 줄이 화면에 보인다 (빈 줄도 그려야 쓸 수 있다)',
+    pdoc().querySelectorAll('.plan-points li').length === 1,
+    String(pdoc().querySelectorAll('.plan-points li').length));
+
+  /* 고객 카드가 코스에서는 앞 3개만 쓴다 — 못 보여줄 줄은 만들지 않고, 왜인지 적는다 */
+  w.__setCourses([{ title: 'ㄱ', subtitle: '', highlights: ['1', '2', '3'],
+                    days: [{ day: 1, title: 'ㄱ' }] }]);
+  btn.click(); await tick();
+  ok('코스 하이라이트가 3줄이면 손잡이가 잠긴다', addBtn().disabled === true);
+  addBtn().click(); await tick();
+  ok('잠긴 손잡이를 눌러도 늘어나지 않는다', w.__courses()[0].highlights.length === 3,
+    JSON.stringify(w.__courses()[0].highlights));
+  ok('왜 못 늘리는지, 어디로 가야 하는지 적는다',
+    /3줄까지 나옵니다/.test(pdoc().querySelector('.pv-addtip').textContent)
+    && /핵심 하이라이트/.test(pdoc().querySelector('.pv-addtip').textContent),
+    pdoc().querySelector('.pv-addtip').textContent);
+
+  /* ── [5-c] 점선을 묶을 곳은 묶었는가 (RV) ────────────────────────────── */
+  console.log('\n[5-c] 같은 칸의 여러 줄은 점선 한 겹인가');
+  w.__select('도쿄'); w.__setCourses(COURSES); w.__setRec(REC); btn.click(); await tick();
+  ok('포인트 목록이 한 겹으로 묶인다',
+    !!pdoc().querySelector('.plan-points.pv-egroup'),
+    '줄마다 점선이면 세 겹으로 겹쳐 보인다');
+  ok('일자 본문(오전·오후·저녁)도 한 겹으로 묶인다',
+    !!pdoc().querySelector('.itin-day-body.pv-egroup'));
+  /* 서로 다른 값인 칸은 묶지 않는다 — 묶으면 어디를 고치는지 다시 모르게 된다 */
+  ['plan-type-lbl', 'plan-desc', 'plan-value-text', 'itin-day-title'].forEach((c) => {
+    const el = pick('.' + c);
+    ok('.' + c + '은 따로 둔다', !!el && !el.className.includes('pv-egroup'),
+      el ? el.className : '(없음)');
+  });
+  ok('묶음 안쪽 줄은 평소에 점선을 감춘다',
+    /\.pv-egroup \.pv-edit\{outline-color:transparent\}/.test(adminSrc),
+    '안쪽까지 점선이면 묶은 의미가 없다');
+  ok('가리키면 그 줄만 뜬다', /\.pv-egroup \.pv-edit:hover\{/.test(adminSrc));
+
   /* ── [6] 저장이 고친 구역만 부르는가 (④) ────────────────────────────── */
   console.log('\n[6] 저장 버튼');
+  /* 앞 단계에서 상태를 새로 세웠으므로 여기서 한 번 고쳐 놓고 본다 */
+  w.__select('도쿄'); w.__setCourses([]); w.__setRec(REC); btn.click(); await tick();
+  await edit(pick('.plan-desc.pv-edit'), '저장 버튼 확인용');
   const save = d.getElementById('recPvSave');
   ok('저장 버튼이 있다', !!save);
   ok('고친 구역을 이름으로 말해 준다', /방식 A·B/.test(save.textContent), save.textContent);

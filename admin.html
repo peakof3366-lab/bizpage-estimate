@@ -7923,6 +7923,24 @@
       + '.pv-edit{outline:1px dashed #9A9A9A;outline-offset:2px;cursor:text}'
       + '.pv-edit:hover{outline-color:#CC001A;outline-style:solid}'
       + '.pv-edit:focus{outline:2px solid #CC001A}'
+      /* ── 묶을 것은 묶는다 (RV) ──
+         한 칸에 한 점선이면, 포인트 세 줄짜리 목록은 점선이 세 겹으로 겹쳐 보인다.
+         사용자가 "합칠 곳은 합쳐 달라"고 한 자리다. **같은 칸의 여러 줄**(포인트 목록,
+         한 일자의 오전·오후·저녁)은 겉을 한 겹으로 두르고, 안쪽 줄은 가리킬 때만 뜬다.
+         ⚠ 서로 다른 값인 칸(방식 이름·한 줄 설명·기대 효과)은 묶지 않는다 — 묶으면
+         "이게 한 칸인가?"가 되어 어디를 고치는지 다시 모르게 된다. */
+      + '.pv-egroup{outline:1px dashed #9A9A9A;outline-offset:5px}'
+      + '.pv-egroup .pv-edit{outline-color:transparent}'
+      + '.pv-egroup .pv-edit:hover{outline-color:#CC001A;outline-style:solid}'
+      + '.pv-egroup .pv-edit:focus{outline:2px solid #CC001A}'
+      /* 줄을 늘리는 손잡이 — 카드 **바깥**에 둔다(카드 안에 넣으면 고객 화면이 달라진다) */
+      + '.pv-addrow{display:flex;align-items:center;gap:10px;margin:14px 0 0;flex-wrap:wrap}'
+      + '.pv-addbtn{font:inherit;font-size:12px;font-weight:800;color:#CC001A;cursor:pointer;'
+      + 'background:#fff;border:1.5px solid #CC001A;padding:5px 12px}'
+      + '.pv-addbtn:hover{background:#CC001A;color:#fff}'
+      + '.pv-addbtn:disabled{color:#8A8A8A;border-color:#C9C9C9;background:#F7F7F5;cursor:default}'
+      + '.pv-addbtn:disabled:hover{background:#F7F7F5;color:#8A8A8A}'
+      + '.pv-addtip{font-size:11px;color:#6A6A6A}'
       /* 빈 칸 안내도 색만 쓴다 — 밝은 바탕·어두운 바탕 어디서나 읽히는 중간 회색 */
       + '.pv-edit:empty::before{content:"(비어 있음 — 눌러서 입력)";color:#9A9A9A;font-weight:400}'
       /* 자동으로 만들어진 날은 고칠 것이 없다 — 눌러도 되는 곳과 눈으로 구분한다.
@@ -8076,46 +8094,57 @@
       const c = (itiState.courses || [])[src.courseIdx];
       if (!c) return null;
       const at = '📅 코스 ' + String.fromCharCode(65 + src.courseIdx);
-      if (key === 'tag') return recPvText2(c, 'title', at + '의 제목', itiMarkDirty);
+      if (key === 'tag') return recPvText2(c, 'title', at + '의 제목', itiMarkDirty, 'tag:' + plan);
       /* ⚠ 한 줄 설명과 기대 효과 문구는 코스에서 올 때 **같은 값**이다(코스의 한 줄
          설명). 하나를 고치면 둘 다 바뀐다 — 숨기면 "왜 저기까지 바뀌지"가 된다. */
       if (key === 'desc' || key === 'value') {
-        return recPvText2(c, 'subtitle', at + '의 한 줄 설명 (카드 설명과 견적서 문구가 함께 바뀝니다)', itiMarkDirty);
+        return recPvText2(c, 'subtitle',
+          at + '의 한 줄 설명 (카드 설명과 견적서 문구가 함께 바뀝니다)', itiMarkDirty, key + ':' + plan);
       }
       if (key === 'point') {
         if (!Array.isArray(c.highlights)) c.highlights = [];
-        return recPvItem(c.highlights, idx, at + '의 핵심 하이라이트 ' + (idx + 1) + '번째', itiMarkDirty, seed);
+        return recPvItem(c.highlights, idx, at + '의 핵심 하이라이트 ' + (idx + 1) + '번째',
+          itiMarkDirty, seed, 'point:' + plan + ':' + idx);
       }
       return null;
     }
     const p = (recState.rec && recState.rec[plan]) || null;
     if (!p) return null;
     const at = '✨ ' + label;
-    if (key === 'tag')   return recPvText2(p, 'tag',   at + '의 방식 이름', recMarkDirty);
-    if (key === 'desc')  return recPvText2(p, 'desc',  at + '의 한 줄 테마 설명', recMarkDirty);
-    if (key === 'value') return recPvText2(p, 'value', at + '의 기대 효과 문구', recMarkDirty);
+    if (key === 'tag')   return recPvText2(p, 'tag',   at + '의 방식 이름', recMarkDirty, 'tag:' + plan);
+    if (key === 'desc')  return recPvText2(p, 'desc',  at + '의 한 줄 테마 설명', recMarkDirty, 'desc:' + plan);
+    if (key === 'value') return recPvText2(p, 'value', at + '의 기대 효과 문구', recMarkDirty, 'value:' + plan);
     if (key === 'point') {
       if (!Array.isArray(p.points)) p.points = [];
-      return recPvItem(p.points, idx, at + '의 핵심 포인트 ' + (idx + 1) + '번째', recMarkDirty, seed);
+      return recPvItem(p.points, idx, at + '의 핵심 포인트 ' + (idx + 1) + '번째',
+        recMarkDirty, seed, 'point:' + plan + ':' + idx);
     }
     return null;
   }
-  function recPvText2(obj, field, where, dirty) {
-    return { get: () => String(obj[field] == null ? '' : obj[field]),
+  function recPvText2(obj, field, where, dirty, id) {
+    return { id, get: () => String(obj[field] == null ? '' : obj[field]),
              set: (v) => { obj[field] = v; }, where, dirty };
   }
   /* 목록 한 줄. 비우면 그 줄을 **없앤다** — 빈 줄을 남기면 고객 카드에 빈 항목이 뜬다.
      ⚠ 카드에는 앞 3개만 보이지만 배열에는 더 있을 수 있다. 통째로 갈아끼우지 말 것. */
-  function recPvItem(arr, idx, where, dirty, seed) {
+  function recPvItem(arr, idx, where, dirty, seed, id) {
+    /* ⚠ 기본 문구가 보이던 자리는 **배열이 비어 있다.** 둘째 줄만 고치고 넘어가면
+       배열에 구멍이 생겨(`[비어있음, "값"]`) 저장이 거절되고, 화면에 보이던 다른
+       줄들은 조용히 사라진다. 그래서 첫 손질에서 **보이던 목록을 그대로 앉힌다** —
+       화면에 보이는 것이 곧 저장되는 것이 된다. */
+    const materialize = () => {
+      if (seed && seed.length && !arr.length) seed.forEach((s, i) => { arr[i] = s; });
+    };
     return {
+      id,
       get: () => String(arr[idx] == null ? '' : arr[idx]),
-      set: (v) => {
-        /* ⚠ 기본 문구가 보이던 자리는 **배열이 비어 있다.** 둘째 줄만 고치고 넘어가면
-           배열에 구멍이 생겨(`[비어있음, "값"]`) 저장이 거절되고, 화면에 보이던 다른
-           줄들은 조용히 사라진다. 그래서 첫 수정에서 **보이던 목록을 그대로 앉힌 뒤**
-           그 줄을 고친다 — 화면에 보이는 것이 곧 저장되는 것이 된다. */
-        if (seed && seed.length && !arr.length) seed.forEach((s, i) => { arr[i] = s; });
-        if (v) arr[idx] = v; else arr.splice(idx, 1);
+      set: (v) => { materialize(); if (v) arr[idx] = v; else arr.splice(idx, 1); },
+      /* 이 줄 **바로 아래**에 빈 줄을 하나 넣는다 (RV). 끝에 붙이지 않는 이유:
+         가운데 줄에서 Enter를 눌렀는데 맨 끝에 생기면 어디에 생겼는지 못 찾는다. */
+      insertAfter: () => {
+        materialize();
+        arr.splice(idx + 1, 0, '');
+        return idx + 1;
       },
       where, dirty,
     };
@@ -8143,6 +8172,10 @@
     }
     const t = card.querySelector('.itin-day-title');
     if (t) recPvEditable(t, recPvDaySetter(src, dayData, 'title', '그날의 제목'));
+    /* 오전·오후·저녁은 한 일자의 세 줄이다 — 점선을 줄마다 치지 않고 본문에 한 겹 (RV).
+       ⚠ 제목은 검은 머리줄에 따로 있으므로 이 묶음에 넣지 않는다. */
+    const body = card.querySelector('.itin-day-body');
+    if (body) body.className += ' pv-egroup';
     const slots = card.querySelectorAll('.itin-slot');
     const MAP = [['am', '오전'], ['pm', '오후'], ['eve', '저녁']];
     /* ⚠ 빈 칸은 줄 자체가 안 그려진다(recRenderDayCard). 그래서 슬롯 순서로 짐작하지
@@ -8165,54 +8198,82 @@
     if (!day) return null;
     return recPvText2(day, field,
       '📅 코스 ' + String.fromCharCode(65 + src.courseIdx) + '의 ' + (dayData._i + 1) + '번째 일자 · ' + fieldLabel,
-      itiMarkDirty);
+      itiMarkDirty, 'day:' + src.courseIdx + ':' + dayData._i + ':' + field);
   }
 
-  let recPvKeySeq = 0;
   /* 엘리먼트 하나를 고칠 수 있게 만든다. setter가 null이면 아무것도 하지 않는다. */
   function recPvEditable(el, setter) {
     if (!setter) return el;
     el.className = (el.className ? el.className + ' ' : '') + 'pv-edit';
     el.setAttribute('contenteditable', 'plaintext-only');
-    el.setAttribute('title', '눌러서 고칩니다 — ' + setter.where);
-    el.dataset.pvKey = 'k' + (++recPvKeySeq);
+    el.setAttribute('title', '눌러서 고칩니다 — ' + setter.where
+      + (setter.insertAfter ? ' (Enter를 누르면 아래에 줄이 하나 생깁니다)' : ''));
+    /* ⚠ 자리 이름은 **무엇을 고치는가**로 짓는다(`point:a:2`). 화면을 다시 그려도 같은
+       자리를 찾을 수 있어야 방금 만든 줄로 커서를 돌려놓을 수 있다. 그리는 순서로 매기면
+       줄을 하나 넣는 순간 뒤 번호가 전부 밀려 엉뚱한 칸에 커서가 간다. */
+    el.dataset.pvid = setter.id || '';
     /* 서식이 붙은 붙여넣기는 글자만 남긴다 */
     el.addEventListener('paste', function (e) {
       e.preventDefault();
       const t = (e.clipboardData || el.ownerDocument.defaultView.clipboardData).getData('text/plain');
       el.ownerDocument.execCommand('insertText', false, String(t || '').replace(/\s*\n\s*/g, ' '));
     });
+    const commit = () => {
+      const next = String(el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (next === setter.get()) return false;
+      setter.set(next);
+      setter.dirty();
+      return true;
+    };
     el.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        /* 목록 줄이면 **줄을 하나 늘린다** (RV). 예전엔 Enter가 편집을 끝내기만 해서
+           "글자는 고쳐지는데 내용을 추가할 수가 없다"는 상태였다(사용자 지적).
+           ⚠ 지금 줄을 먼저 저장하고 나서 넣는다 — 순서를 바꾸면 방금 친 글이 날아간다. */
+        if (setter.insertAfter) {
+          commit();
+          const at = setter.insertAfter();
+          setter.dirty();
+          recPvAfterEdit(recPvSiblingId(setter.id, at));
+          return;
+        }
+        el.blur();
+        return;
+      }
       if (e.key === 'Escape') { e.preventDefault(); el.textContent = setter.get(); el.blur(); }
     });
     el.addEventListener('blur', function () {
-      const next = String(el.textContent || '').replace(/\s+/g, ' ').trim();
-      if (next === setter.get()) return;
-      setter.set(next);
-      setter.dirty();
-      recPvAfterEdit();
+      if (commit()) recPvAfterEdit();
     });
     return el;
+  }
+
+  /* `point:a:2` → `point:a:3` — 같은 목록의 다른 줄 자리 이름. */
+  function recPvSiblingId(id, idx) {
+    const parts = String(id || '').split(':');
+    if (parts.length < 3) return null;
+    parts[parts.length - 1] = String(idx);
+    return parts.join(':');
   }
 
   /* 고친 뒤 — 저장 버튼 상태를 맞추고, 화면을 다시 그린다.
      ⚠ blur 안에서 바로 다시 그리면 **지금 누르고 있던 다음 칸이 사라져** 포커스가
      날아간다. 한 박자 미뤄서 새로 포커스가 잡힌 뒤에 그리고, 그 칸으로 되돌린다
      (itiRenderBodyFocus가 일자 순서 바꾸기에서 쓰는 것과 같은 방법). */
-  function recPvAfterEdit() {
+  function recPvAfterEdit(focusId) {
     setTimeout(function () {
       const frame = document.getElementById('recPvFrame');
       const doc = frame && frame.contentDocument;
-      const key = doc && doc.activeElement && doc.activeElement.dataset
-        ? doc.activeElement.dataset.pvKey : null;
+      const want = focusId || (doc && doc.activeElement && doc.activeElement.dataset
+        ? doc.activeElement.dataset.pvid : null);
       /* 아래 편집 칸도 같은 값을 보고 있다 — 함께 갱신하지 않으면 두 화면이 갈라진다 */
       recRenderBody();
       itiRenderBody();
       recPvRender();
-      if (key) {
-        const next = Array.from(frame.contentDocument.querySelectorAll('[data-pv-key]'))
-          .find((n) => n.dataset.pvKey === key);
+      if (want) {
+        const next = Array.from(frame.contentDocument.querySelectorAll('[data-pvid]'))
+          .find((n) => n.dataset.pvid === want);
         if (next) next.focus();
       }
     }, 0);
@@ -8266,6 +8327,7 @@
     grid.className = 'plan-cards';
     const fallen = [];
     const froms = [];
+    let pointCap = null;
 
     [only].forEach((plan) => {
       const src = recPvSource(plan);
@@ -8295,15 +8357,17 @@
       descEl.className = 'plan-desc'; descEl.textContent = desc.text;
       recPvEditable(descEl, recPvSetter(src, plan, 'desc'));
 
-      const pts = recPvFill(src, 'points', REC_FALLBACKS.points);
+      const pts = recPvPointRows(src, plan);
       if (pts.empty) fallen.push({ label, field: '핵심 포인트 / 하이라이트', fb: pts.fb, src });
+      pointCap = pts;
       const ul = doc.createElement('ul');
-      ul.className = 'plan-points';
-      pts.list.forEach((s, i) => {
+      /* 여러 줄이 한 칸이다 — 점선을 줄마다 치지 않고 목록 전체에 한 겹 두른다 (RV) */
+      ul.className = 'plan-points pv-egroup';
+      pts.rows.forEach((s, i) => {
         const li = doc.createElement('li'); li.textContent = s;
         /* 기본 문구로 채워진 상태면 **보이는 목록 전체**를 씨앗으로 넘긴다 — 첫 수정에서
            보이던 줄들이 그대로 저장된다(recPvItem 주석 참고). */
-        recPvEditable(li, recPvSetter(src, plan, 'point', i, pts.fb ? pts.list : null));
+        recPvEditable(li, recPvSetter(src, plan, 'point', i, pts.fb ? pts.rows : null));
         ul.appendChild(li);
       });
 
@@ -8341,6 +8405,30 @@
     grid.appendChild(ghost);
 
     sec.appendChild(grid);
+
+    /* 줄을 늘리는 손잡이 (RV). Enter로도 되지만 **보이지 않는 손잡이는 없는 것과 같다** —
+       특히 목록이 통째로 비어 있으면(코스 하이라이트가 없는 경우) 누를 줄 자체가 없다.
+       ⚠ 카드 **바깥**에 둔다. 카드 안에 넣으면 고객이 보는 카드 높이가 달라진다. */
+    const addRow = doc.createElement('div');
+    addRow.className = 'pv-addrow';
+    const addBtn = doc.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'pv-addbtn';
+    addBtn.textContent = '＋ 핵심 포인트 줄 추가';
+    const full = !!(pointCap && pointCap.cap && pointCap.live.length >= pointCap.cap);
+    if (full) { addBtn.disabled = true; addBtn.className += ' is-full'; }
+    addBtn.addEventListener('click', () => recPvAddPoint(only));
+    const tip = doc.createElement('span');
+    tip.className = 'pv-addtip';
+    /* 상한에 걸렸을 때 조용히 안 늘어나면 "눌렀는데 아무 일도 안 일어난다"가 된다.
+       왜 못 늘리는지, 그래도 넣고 싶으면 어디로 가야 하는지까지 적는다. */
+    tip.textContent = full
+      ? '고객 카드에는 ' + pointCap.cap + '줄까지 나옵니다. 더 넣으려면 📅 날짜별 일정의 '
+        + '「핵심 하이라이트」에 넣으세요 — 카드에는 안 나오지만 남는 날을 채우는 데 쓰입니다.'
+      : '줄 끝에서 Enter를 눌러도 아래에 줄이 생깁니다. 줄을 비우고 나가면 그 줄이 없어집니다.';
+    addRow.appendChild(addBtn); addRow.appendChild(tip);
+    sec.appendChild(addRow);
+
     froms.forEach((f) => sec.appendChild(recPvNote(doc, 'pv-from', f)));
     sec.appendChild(recPvNote(doc, 'pv-hint',
       '고객 화면에서는 이 카드가 다른 방식 카드와 **나란히 두 장** 놓입니다. 카드 폭은 그때와 같게 맞춰 두었습니다. '
@@ -8470,6 +8558,42 @@
   /* 탭에 **그 방식이 어디서 오는지**를 적는다 (RU).
      탭 이름만 있으면 "방식 A가 코스 A인가?"를 매번 다시 확인해야 한다 — 프로그램
      유형에 따라 짝이 바뀌기 때문이다(RK). 탭에 적어 두면 그 질문이 사라진다. */
+  /* 카드에 그릴 포인트 줄 (RV).
+     ⚠ 화면에는 **빈 줄도 그린다.** 방금 만든 줄이 안 보이면 거기에 쓸 수가 없다
+     (`recPvFill`은 고객이 보는 결과를 내므로 빈 줄을 걸러 낸다 — 그게 맞지만 편집에는 못 쓴다).
+     빈 줄은 저장할 때 서버가 지운다(normalizeRec·normalizeCourses).
+     ⚠ 코스에서 올 때 고객 카드는 **앞 3개만** 쓴다(recPlanFromCourse). 그래서 4번째를
+     넣어도 카드에는 안 나온다 — 여기서 상한을 알려 주지 않으면 "넣었는데 왜 안 보이지"가 된다. */
+  function recPvPointRows(src, plan) {
+    const shown = recPvFill(src, 'points', REC_FALLBACKS.points);   /* 경고 판단은 이쪽이 안다 */
+    const live = src.from === 'course'
+      ? (((itiState.courses || [])[src.courseIdx] || {}).highlights || [])
+      : (((recState.rec || {})[plan] || {}).points || []);
+    const cap = src.from === 'course' ? 3 : 0;    /* 0이면 상한 없음 */
+    if (!live.length) {
+      return { rows: shown.list, fb: shown.fb, empty: shown.empty, cap, live };
+    }
+    return { rows: cap ? live.slice(0, cap) : live.slice(), fb: false, empty: shown.empty, cap, live };
+  }
+
+  /* 목록 맨 끝에 빈 줄을 하나 붙이고 그 줄로 커서를 옮긴다 (RV).
+     ⚠ 목록이 통째로 비어 있을 때도 동작해야 한다 — 그때가 이 손잡이가 꼭 필요한 때다.
+     ⚠ 화면에 기본 문구가 보이고 있었다면 그 문구부터 배열에 앉힌다(recPvItem과 같은 규칙).
+        안 그러면 보이던 세 줄이 사라지고 빈 줄 하나만 남는다. */
+  function recPvAddPoint(plan) {
+    const src = recPvSource(plan);
+    const arr = src.from === 'course'
+      ? (((itiState.courses || [])[src.courseIdx] || {}).highlights)
+      : (((recState.rec || {})[plan] || {}).points);
+    if (!Array.isArray(arr)) return;
+    const rows = recPvPointRows(src, plan);
+    if (rows.cap && arr.length >= rows.cap) return;   /* 카드가 못 보여주는 줄은 안 만든다 */
+    if (!arr.length && rows.fb) rows.rows.forEach((s, i) => { arr[i] = s; });
+    arr.push('');
+    (src.from === 'course' ? itiMarkDirty : recMarkDirty)();
+    recPvAfterEdit('point:' + plan + ':' + (arr.length - 1));
+  }
+
   /* 탭을 옮기는 **유일한 경로** (RU). 탭 단추도, 미리보기 안의 안내도 이걸 부른다 —
      고르는 곳이 둘인데 표시를 각자 바꾸면 언젠가 어긋난다. */
   function recPvGoPlan(plan) {
