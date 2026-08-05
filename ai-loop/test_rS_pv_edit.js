@@ -226,11 +226,29 @@ const COURSES = [
   console.log('\n[9] 손잡이가 고객 화면 배치를 건드리지 않는가');
   /* outline·background는 자리를 차지하지 않는다. border·padding·margin을 주면
      그 순간 카드 폭이 고객 화면과 달라진다(check_rec_preview.py가 실제 브라우저로 잰다). */
-  const pvEditCss = (adminSrc.match(/\.pv-edit\{[^}]*\}/g) || []).join(' ');
+  /* 일자 제목은 **코스에서 온 날**에만 고칠 수 있다 — 코스를 세워 두고 본다 */
+  w.__select('도쿄'); w.__setCourses(COURSES); w.__setRec(REC); btn.click(); await tick();
+  const pvEditCss = (adminSrc.match(/\.pv-edit[^{]*\{[^}]*\}/g) || []).join(' ');
   ok('.pv-edit 규칙이 있다', pvEditCss.length > 0);
   ok('.pv-edit이 자리를 차지하는 속성을 안 쓴다',
     !/(^|[;{])\s*(border|padding|margin|width|font-size)\s*:/.test(pvEditCss),
     pvEditCss);
+  /* ⚠ 고칠 수 있는 자리 중에는 **검은 박스 위의 흰 글자**가 있다 — 견적서의 기대 효과
+     문구(.plan-value-box)와 일자 제목(.itin-day-header). 거기에 배경을 칠하면 글자가
+     사라진다. 실제로 그렇게 배포됐고 사용자가 빈 흰 칸 사진을 보냈다. */
+  ok('.pv-edit이 배경을 칠하지 않는다',
+    !/background/.test(pvEditCss),
+    '어두운 박스 위 흰 글자가 배경에 묻힌다: ' + pvEditCss);
+  const darkText = ['.plan-value-text', '.itin-day-title'];
+  darkText.forEach((sel) => {
+    const el = pick(sel);
+    ok('어두운 박스의 ' + sel + '도 고칠 수 있는 자리다',
+      !!el && /\bpv-edit\b/.test(el.className || ''), el ? el.className : '(없음)');
+  });
+  const stylesCss = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
+  ok('그 자리들이 실제로 흰 글자다 (배경을 칠하면 안 되는 이유)',
+    /\.plan-value-text\s*\{[^}]*color:\s*#fff/.test(stylesCss),
+    '고객 CSS가 바뀌면 이 판단도 다시 봐야 한다');
 
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   dom.window.close();

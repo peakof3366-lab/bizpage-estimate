@@ -7862,10 +7862,17 @@
          ⚠ outline·background만 쓴다. border·padding·margin을 주면 **그 순간 카드 폭이
          고객 화면과 달라진다**(check_rec_preview.py가 세 폭에서 대조한다). outline은
          자리를 차지하지 않으므로 고객 클래스에 얹어도 배치가 그대로다. */
-      + '.pv-edit{outline:1px dashed #C9C9C9;outline-offset:2px;cursor:text}'
-      + '.pv-edit:hover{outline-color:#CC001A;background:#FFF7F7}'
-      + '.pv-edit:focus{outline:2px solid #CC001A;background:#fff}'
-      + '.pv-edit:empty::before{content:"(비어 있음 — 눌러서 입력)";color:#B0B0B0}'
+      /* ⚠ **배경색을 칠하지 말 것.** 고칠 수 있는 자리 중에는 검은 박스 위의 흰 글자가
+         있다(.plan-value-box의 기대 효과 문구, .itin-day-header의 일자 제목).
+         거기에 흰 배경을 칠하면 **글자가 사라진다** — 실제로 그렇게 배포됐고 사용자가
+         "수정하려면 이렇게 보인다"며 빈 흰 칸 사진을 보냈다.
+         손잡이는 outline으로만 표시한다. outline은 배경을 가리지도, 자리를 차지하지도
+         않아서 밝은 바탕과 어두운 바탕 양쪽에서 똑같이 동작한다. */
+      + '.pv-edit{outline:1px dashed #9A9A9A;outline-offset:2px;cursor:text}'
+      + '.pv-edit:hover{outline-color:#CC001A;outline-style:solid}'
+      + '.pv-edit:focus{outline:2px solid #CC001A}'
+      /* 빈 칸 안내도 색만 쓴다 — 밝은 바탕·어두운 바탕 어디서나 읽히는 중간 회색 */
+      + '.pv-edit:empty::before{content:"(비어 있음 — 눌러서 입력)";color:#9A9A9A;font-weight:400}'
       /* 자동으로 만들어진 날은 고칠 것이 없다 — 눌러도 되는 곳과 눈으로 구분한다 */
       + '.pv-auto{opacity:.72}'
       + '.pv-auto-tag{display:inline-block;font-size:10px;font-weight:800;color:#8A5A00;'
