@@ -621,9 +621,19 @@
     .rec-reality-b { font-size: .8rem; color: var(--muted); line-height: 1.65; margin-top: .3rem; }
     .rec-reality-b .iti-btn { margin-top: .5rem; }
     /* 안 쓰이는 칸은 흐리게 — 지우지는 않는다. 코스를 다 지우면 다시 쓰이고,
-       예전에 써 둔 글도 그대로 남아 있어야 한다. */
-    .rec-fld-idle { opacity: .55; }
-    .rec-fld-idle:focus-within { opacity: 1; }
+       예전에 써 둔 글도 그대로 남아 있어야 한다.
+       ⚠ 예전엔 칸 **전체**에 opacity를 걸어서 담당자가 써 넣은 글까지 흐려졌다.
+       "안 쓰이는 칸"이라는 신호는 맞았지만, 그 대가로 **읽을 수가 없었다**
+       (사용자가 "글자가 회색으로 보인다"고 지적). 신호는 라벨과 테두리에만 걸고,
+       사람이 쓴 글은 늘 또렷하게 둔다 — 지금 안 나가더라도 읽고 고칠 값이다. */
+    .rec-fld-idle > .iti-lbl,
+    .rec-fld-idle > .iti-lbl-row { opacity: .6; }
+    .rec-fld-idle > .iti-inp,
+    .rec-fld-idle > .iti-ta { background: #FAFAF8; border-style: dashed; }
+    .rec-fld-idle:focus-within > .iti-lbl,
+    .rec-fld-idle:focus-within > .iti-lbl-row { opacity: 1; }
+    .rec-fld-idle:focus-within > .iti-inp,
+    .rec-fld-idle:focus-within > .iti-ta { background: #fff; border-style: solid; }
 
     .iti-day {
       border: 1px solid var(--border); border-left: 3px solid var(--primary);
@@ -697,7 +707,13 @@
       border: 1.5px solid var(--border); background: #fff; color: var(--heading);
     }
     .recpv-map { font-weight: 800; color: #5B21B6; background: #EDE9FE; padding: .15rem .5rem; }
-    @media (max-width: 1000px) { .recpv-bar { padding: .5rem .7rem 0; } }
+    /* '설명 보기' 체크 — 라벨 굵기를 바 기본값(800)에서 되돌린다. 손잡이가 아니라 곁가지다. */
+    .recpv-chk { display: inline-flex; align-items: center; gap: .3rem; font-weight: 600 !important; }
+    .recpv-chk input { width: 14px; height: 14px; }
+    /* 저장은 바의 오른쪽 끝으로 밀어 둔다 — 손잡이(유형·일수)와 섞이면 잘못 누른다. */
+    #recPvSave { margin-left: auto; }
+    #recPvSave:disabled { opacity: .45; cursor: default; }
+    @media (max-width: 1000px) { .recpv-bar { padding: .5rem .7rem 0; } #recPvSave { margin-left: 0; } }
     .iti-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem; }
     .iti-msg { font-size: .82rem; font-weight: 700; margin-top: .5rem; }
     .iti-msg.ok  { color: #15803d; }
@@ -1746,7 +1762,13 @@
            가장 크게 갈리는 자리다. -->
       <label for="recPvDays">고객이 고른 일수</label>
       <select id="recPvDays"></select>
+      <!-- RS: 기본은 **고객이 보는 그대로**다. 예전엔 자리마다 "이 자리는 어디에서
+           오는가" 설명이 늘 붙어 있어서, 직원 입장에서는 고객 화면이 아니라 설명서로
+           보였다("머가먼지 모르겠다"). 설명은 필요할 때만 켠다. -->
+      <label class="recpv-chk"><input type="checkbox" id="recPvExplain" /> 설명 보기</label>
       <span id="recPvMap" class="recpv-map"></span>
+      <!-- 미리보기 안에서 고쳤으면 여기서 바로 저장한다 — 닫고 찾아 내려가지 않게. -->
+      <button type="button" class="btn-act btn-primary" id="recPvSave" disabled>저장</button>
     </div>
     <div class="modal-body recpv-body">
       <iframe id="recPvFrame" title="고객 화면 미리보기"></iframe>
@@ -7836,6 +7858,24 @@
          여백 하나라도 얹으면 그 순간 미리보기가 고객 화면과 달라진다. 자리를 벌려야
          하면 감싸는 .pv-* 를 새로 두고 거기에 준다. */
       + '.pv-group{margin-bottom:4px}'
+      /* ── 여기서 바로 고치기 (RS) ──
+         ⚠ outline·background만 쓴다. border·padding·margin을 주면 **그 순간 카드 폭이
+         고객 화면과 달라진다**(check_rec_preview.py가 세 폭에서 대조한다). outline은
+         자리를 차지하지 않으므로 고객 클래스에 얹어도 배치가 그대로다. */
+      + '.pv-edit{outline:1px dashed #C9C9C9;outline-offset:2px;cursor:text}'
+      + '.pv-edit:hover{outline-color:#CC001A;background:#FFF7F7}'
+      + '.pv-edit:focus{outline:2px solid #CC001A;background:#fff}'
+      + '.pv-edit:empty::before{content:"(비어 있음 — 눌러서 입력)";color:#B0B0B0}'
+      /* 자동으로 만들어진 날은 고칠 것이 없다 — 눌러도 되는 곳과 눈으로 구분한다 */
+      + '.pv-auto{opacity:.72}'
+      + '.pv-auto-tag{display:inline-block;font-size:10px;font-weight:800;color:#8A5A00;'
+      + 'background:#FFF8E8;border:1px solid #E8D9B0;padding:1px 5px;margin-left:6px}'
+      /* ── 설명은 필요할 때만 (RS) ──
+         기본은 고객이 보는 그대로다. 자리 이름(.pv-where)과 방식 구분(.pv-plan-lbl)은
+         남긴다 — 그것까지 지우면 "이 카드가 고객 화면 어디인지"를 알 수 없다. */
+      + 'body:not(.pv-explain) .pv-what,'
+      + 'body:not(.pv-explain) .pv-hint,'
+      + 'body:not(.pv-explain) .pv-from{display:none}'
       + '</style></head><body></body></html>');
     doc.close();
     return doc;
@@ -7949,6 +7989,206 @@
     return src.from === 'rec' ? { text: fallback, empty: true, fb: true } : { text: '', empty: true, fb: false };
   }
 
+  /* ════ 미리보기 안에서 바로 고치기 (RS) ═══════════════════════════════════
+     직원 입장에서 예전 미리보기는 고객 화면이 아니라 **설명서**였다. 자리마다
+     "이 자리는 어디에서 오는가"가 붙어 있어서 정작 고객이 보는 모양이 안 보였고,
+     고치려면 창을 닫고 아래 편집 칸에서 그 자리에 해당하는 칸을 **찾아야** 했다.
+     찾는 일 자체가 이 화면의 원래 문제였다(RK).
+
+     그래서 뒤집었다 — **고객 화면을 그대로 보여주고, 그 위에서 바로 고친다.**
+     담당자는 '카드 배지'를 고칠 뿐이고, 그것이 코스 제목인지 ✨의 방식 이름인지는
+     아래 recPvSetter가 판단한다. 그 판단은 RK에서 정리한 규칙 그대로다.
+
+     ⚠ 값은 **textContent로만** 읽는다. innerHTML로 읽으면 붙여넣기 한 번에 서식이
+     상태로 들어가고, 그게 그대로 고객 화면에 나간다(결함 생성기 ④).
+     ⚠ 자동으로 만들어진 날은 고칠 것이 없다 — 편집 손잡이를 아예 달지 않는다.
+     달아 두면 고쳐 놓고 저장했는데 아무 데도 안 남는다(결함 생성기 ②의 반대 방향).
+     ═════════════════════════════════════════════════════════════════════ */
+
+  /* 이 자리를 고치면 **실제로 어느 값이 바뀌는가.** null이면 고칠 수 없는 자리다. */
+  function recPvSetter(src, plan, key, idx, seed) {
+    const label = ITI_REC_PLAN_LABEL[plan];
+    if (src.from === 'course') {
+      const c = (itiState.courses || [])[src.courseIdx];
+      if (!c) return null;
+      const at = '📅 코스 ' + String.fromCharCode(65 + src.courseIdx);
+      if (key === 'tag') return recPvText2(c, 'title', at + '의 제목', itiMarkDirty);
+      /* ⚠ 한 줄 설명과 기대 효과 문구는 코스에서 올 때 **같은 값**이다(코스의 한 줄
+         설명). 하나를 고치면 둘 다 바뀐다 — 숨기면 "왜 저기까지 바뀌지"가 된다. */
+      if (key === 'desc' || key === 'value') {
+        return recPvText2(c, 'subtitle', at + '의 한 줄 설명 (카드 설명과 견적서 문구가 함께 바뀝니다)', itiMarkDirty);
+      }
+      if (key === 'point') {
+        if (!Array.isArray(c.highlights)) c.highlights = [];
+        return recPvItem(c.highlights, idx, at + '의 핵심 하이라이트 ' + (idx + 1) + '번째', itiMarkDirty, seed);
+      }
+      return null;
+    }
+    const p = (recState.rec && recState.rec[plan]) || null;
+    if (!p) return null;
+    const at = '✨ ' + label;
+    if (key === 'tag')   return recPvText2(p, 'tag',   at + '의 방식 이름', recMarkDirty);
+    if (key === 'desc')  return recPvText2(p, 'desc',  at + '의 한 줄 테마 설명', recMarkDirty);
+    if (key === 'value') return recPvText2(p, 'value', at + '의 기대 효과 문구', recMarkDirty);
+    if (key === 'point') {
+      if (!Array.isArray(p.points)) p.points = [];
+      return recPvItem(p.points, idx, at + '의 핵심 포인트 ' + (idx + 1) + '번째', recMarkDirty, seed);
+    }
+    return null;
+  }
+  function recPvText2(obj, field, where, dirty) {
+    return { get: () => String(obj[field] == null ? '' : obj[field]),
+             set: (v) => { obj[field] = v; }, where, dirty };
+  }
+  /* 목록 한 줄. 비우면 그 줄을 **없앤다** — 빈 줄을 남기면 고객 카드에 빈 항목이 뜬다.
+     ⚠ 카드에는 앞 3개만 보이지만 배열에는 더 있을 수 있다. 통째로 갈아끼우지 말 것. */
+  function recPvItem(arr, idx, where, dirty, seed) {
+    return {
+      get: () => String(arr[idx] == null ? '' : arr[idx]),
+      set: (v) => {
+        /* ⚠ 기본 문구가 보이던 자리는 **배열이 비어 있다.** 둘째 줄만 고치고 넘어가면
+           배열에 구멍이 생겨(`[비어있음, "값"]`) 저장이 거절되고, 화면에 보이던 다른
+           줄들은 조용히 사라진다. 그래서 첫 수정에서 **보이던 목록을 그대로 앉힌 뒤**
+           그 줄을 고친다 — 화면에 보이는 것이 곧 저장되는 것이 된다. */
+        if (seed && seed.length && !arr.length) seed.forEach((s, i) => { arr[i] = s; });
+        if (v) arr[idx] = v; else arr.splice(idx, 1);
+      },
+      where, dirty,
+    };
+  }
+
+  /* 이미 만들어진 일자 카드에 편집 손잡이를 단다.
+     ⚠ 카드 자체는 rec_fallbacks.js의 recRenderDayCard가 만든다 — 여기서 다시 조립하면
+     고객 화면과 두 벌이 된다(RR에서 합친 것을 도로 가르는 셈). 만들어진 것에 손잡이만
+     얹는다. 그래서 클래스로 찾는다. */
+  function recPvWireDayCard(doc, card, src, dayData) {
+    if (dayData && dayData._auto) {
+      /* 자동으로 만들어진 날 — 고칠 값이 없다. 눌러도 아무 데도 안 남으므로 손잡이를
+         달지 않고, 대신 **왜 못 고치는지**를 그 자리에서 말한다. */
+      card.className += ' pv-auto';
+      const num = card.querySelector('.itin-day-num');
+      if (num) {
+        const tag = doc.createElement('span');
+        tag.className = 'pv-auto-tag';
+        tag.textContent = '자동';
+        tag.title = '코스에 없는 날이라 시스템이 만들었습니다. 고치려면 코스에 일자를 '
+          + '추가하거나 ✨ 방식 A·B의 “일별 주요 활동”을 채우세요.';
+        num.parentNode.insertBefore(tag, num.nextSibling);
+      }
+      return card;
+    }
+    const t = card.querySelector('.itin-day-title');
+    if (t) recPvEditable(t, recPvDaySetter(src, dayData, 'title', '그날의 제목'));
+    const slots = card.querySelectorAll('.itin-slot');
+    const MAP = [['am', '오전'], ['pm', '오후'], ['eve', '저녁']];
+    /* ⚠ 빈 칸은 줄 자체가 안 그려진다(recRenderDayCard). 그래서 슬롯 순서로 짐작하지
+       말고 **시간 라벨을 읽어** 무엇인지 판단한다. 순서로 세면 오후가 비었을 때
+       저녁 문장을 오후 칸에 저장하게 된다. */
+    slots.forEach((slot) => {
+      const time = slot.querySelector('.itin-slot-time');
+      const body = slot.querySelector('.itin-slot-content');
+      const hit = MAP.find((m) => time && time.textContent.trim() === m[1]);
+      if (hit && body) recPvEditable(body, recPvDaySetter(src, dayData, hit[0], hit[1]));
+    });
+    return card;
+  }
+
+  /* 일자 한 칸(제목·오전·오후·저녁·TIP). 자동으로 만들어진 날은 null. */
+  function recPvDaySetter(src, dayData, field, fieldLabel) {
+    if (!dayData || dayData._auto || src.from !== 'course') return null;
+    const c = (itiState.courses || [])[src.courseIdx];
+    const day = c && Array.isArray(c.days) ? c.days[dayData._i] : null;
+    if (!day) return null;
+    return recPvText2(day, field,
+      '📅 코스 ' + String.fromCharCode(65 + src.courseIdx) + '의 ' + (dayData._i + 1) + '번째 일자 · ' + fieldLabel,
+      itiMarkDirty);
+  }
+
+  let recPvKeySeq = 0;
+  /* 엘리먼트 하나를 고칠 수 있게 만든다. setter가 null이면 아무것도 하지 않는다. */
+  function recPvEditable(el, setter) {
+    if (!setter) return el;
+    el.className = (el.className ? el.className + ' ' : '') + 'pv-edit';
+    el.setAttribute('contenteditable', 'plaintext-only');
+    el.setAttribute('title', '눌러서 고칩니다 — ' + setter.where);
+    el.dataset.pvKey = 'k' + (++recPvKeySeq);
+    /* 서식이 붙은 붙여넣기는 글자만 남긴다 */
+    el.addEventListener('paste', function (e) {
+      e.preventDefault();
+      const t = (e.clipboardData || el.ownerDocument.defaultView.clipboardData).getData('text/plain');
+      el.ownerDocument.execCommand('insertText', false, String(t || '').replace(/\s*\n\s*/g, ' '));
+    });
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+      if (e.key === 'Escape') { e.preventDefault(); el.textContent = setter.get(); el.blur(); }
+    });
+    el.addEventListener('blur', function () {
+      const next = String(el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (next === setter.get()) return;
+      setter.set(next);
+      setter.dirty();
+      recPvAfterEdit();
+    });
+    return el;
+  }
+
+  /* 고친 뒤 — 저장 버튼 상태를 맞추고, 화면을 다시 그린다.
+     ⚠ blur 안에서 바로 다시 그리면 **지금 누르고 있던 다음 칸이 사라져** 포커스가
+     날아간다. 한 박자 미뤄서 새로 포커스가 잡힌 뒤에 그리고, 그 칸으로 되돌린다
+     (itiRenderBodyFocus가 일자 순서 바꾸기에서 쓰는 것과 같은 방법). */
+  function recPvAfterEdit() {
+    setTimeout(function () {
+      const frame = document.getElementById('recPvFrame');
+      const doc = frame && frame.contentDocument;
+      const key = doc && doc.activeElement && doc.activeElement.dataset
+        ? doc.activeElement.dataset.pvKey : null;
+      /* 아래 편집 칸도 같은 값을 보고 있다 — 함께 갱신하지 않으면 두 화면이 갈라진다 */
+      recRenderBody();
+      itiRenderBody();
+      recPvRender();
+      if (key) {
+        const next = Array.from(frame.contentDocument.querySelectorAll('[data-pv-key]'))
+          .find((n) => n.dataset.pvKey === key);
+        if (next) next.focus();
+      }
+    }, 0);
+  }
+
+  function recPvExplainOn() {
+    const c = document.getElementById('recPvExplain');
+    return !!(c && c.checked);
+  }
+
+  /* 저장은 **고친 구역만** 부른다 — 두 구역은 서로 다른 저장 경로다(QU).
+     안 고친 쪽까지 보내면 동료가 방금 고친 것을 조용히 되돌린다. */
+  function recPvSyncSave() {
+    const btn = document.getElementById('recPvSave');
+    if (!btn) return;
+    const parts = [];
+    if (itiState.dirty) parts.push('📅 날짜별 일정');
+    if (recState.dirty) parts.push('✨ 방식 A·B');
+    btn.disabled = parts.length === 0;
+    btn.textContent = parts.length ? '저장 (' + parts.join(' + ') + ')' : '저장';
+  }
+  async function recPvSave() {
+    const note = document.getElementById('recPvNote');
+    const btn = document.getElementById('recPvSave');
+    if (btn) btn.disabled = true;
+    if (note) note.textContent = '저장 중…';
+    try {
+      if (itiState.dirty) await itiSave();
+      if (recState.dirty) await recSave();
+    } finally {
+      recPvSyncSave();
+      recPvRender();
+      if (note) {
+        note.textContent = (itiState.dirty || recState.dirty)
+          ? '저장하지 못했습니다 — 창을 닫고 아래 구역의 빨간 안내를 확인하세요.'
+          : '저장했습니다 — 지금 고객이 보고 있는 그대로입니다.';
+      }
+    }
+  }
+
   /* ── 구역 ①: 홈페이지 '연수 일정 탐색'의 방식 선택 카드 (tag·desc·points) ── */
   function recPvPlanCards(doc, rec) {
     const sec = recPvBlock(doc, '홈페이지 · 연수 일정 탐색',
@@ -7974,19 +8214,28 @@
       if (tag.empty) fallen.push({ label, field: '방식 이름', fb: tag.fb, src });
       const tagEl = doc.createElement('span');
       tagEl.className = 'plan-type-lbl'; tagEl.textContent = tag.text;
+      /* ⚠ 기본 문구가 보이는 자리는 **빈 칸**이다. 그대로 고치게 두면 담당자는 남의 글을
+         고치는 줄 알지만 실제로는 빈 칸을 채우는 것이다 — 눌러서 지우고 쓰면 그게 맞다.
+         값을 비워 두면 다시 기본 문구로 돌아간다. */
+      recPvEditable(tagEl, recPvSetter(src, plan, 'tag'));
       hd.appendChild(badge); hd.appendChild(tagEl);
 
       const desc = recPvFill(src, 'desc', REC_FALLBACKS.desc);
       if (desc.empty) fallen.push({ label, field: '한 줄 (테마) 설명', fb: desc.fb, src });
       const descEl = doc.createElement('p');
       descEl.className = 'plan-desc'; descEl.textContent = desc.text;
+      recPvEditable(descEl, recPvSetter(src, plan, 'desc'));
 
       const pts = recPvFill(src, 'points', REC_FALLBACKS.points);
       if (pts.empty) fallen.push({ label, field: '핵심 포인트 / 하이라이트', fb: pts.fb, src });
       const ul = doc.createElement('ul');
       ul.className = 'plan-points';
-      pts.list.forEach((s) => {
-        const li = doc.createElement('li'); li.textContent = s; ul.appendChild(li);
+      pts.list.forEach((s, i) => {
+        const li = doc.createElement('li'); li.textContent = s;
+        /* 기본 문구로 채워진 상태면 **보이는 목록 전체**를 씨앗으로 넘긴다 — 첫 수정에서
+           보이던 줄들이 그대로 저장된다(recPvItem 주석 참고). */
+        recPvEditable(li, recPvSetter(src, plan, 'point', i, pts.fb ? pts.list : null));
+        ul.appendChild(li);
       });
 
       card.appendChild(hd); card.appendChild(descEl); card.appendChild(ul);
@@ -8028,6 +8277,7 @@
       cap.className = 'plan-value-label'; cap.textContent = '결재 보고서 기대 효과 문구';
       const txt = doc.createElement('p');
       txt.className = 'plan-value-text'; txt.textContent = v.text;
+      recPvEditable(txt, recPvSetter(src, plan, 'value'));
       body.appendChild(cap); body.appendChild(txt); box.appendChild(body);
       group.appendChild(lbl); group.appendChild(box);
       sec.appendChild(group);
@@ -8068,7 +8318,11 @@
       const list = recBuildDisplayDays(course, items, days, itiState.destKey);
       const wrap = doc.createElement('div');
       wrap.className = 'day-timeline';
-      list.forEach((d, i) => wrap.appendChild(recRenderDayCard(doc, i + 1, d, days)));
+      list.forEach((d, i) => {
+        const card = recRenderDayCard(doc, i + 1, d, days);
+        recPvWireDayCard(doc, card, src, d);
+        wrap.appendChild(card);
+      });
       sec.appendChild(wrap);
 
       /* 담당자가 쓴 일자가 몇 개고, 자동으로 채워진 날이 몇 개인지 숫자로 말한다.
@@ -8099,11 +8353,14 @@
   function recPvRender() {
     const frame = document.getElementById('recPvFrame');
     const doc = recPvBootFrame(frame);
+    /* 설명을 켜고 끄는 것은 **CSS 한 줄**이다 — 두 벌로 그리면 한쪽만 고치게 된다 */
+    doc.body.className = recPvExplainOn() ? 'pv-explain' : '';
     const rec = recState.rec;
     doc.body.appendChild(recPvPlanCards(doc, rec));
     doc.body.appendChild(recPvValueBoxes(doc, rec));
     doc.body.appendChild(recPvDayCards(doc));
     recPvRenderMap();
+    recPvSyncSave();
   }
 
   /* 지금 고른 유형에서 코스 ↔ 방식이 어떻게 짝지어지는지 한 줄로 (RK). */
@@ -8140,9 +8397,10 @@
        읽으면 저장을 건너뛴다. ⚠ 두 구역 중 **어느 쪽이라도** 저장 전이면 말해야 한다.
        미리보기가 이제 코스(📅)도 함께 보여주기 때문이다. */
     const unsaved = recState.dirty || itiState.dirty;
-    document.getElementById('recPvNote').textContent = unsaved
+    document.getElementById('recPvNote').textContent = (unsaved
       ? '지금 화면에서 고치는 중인 내용입니다 (아직 저장하지 않았습니다). 저장해야 고객에게 나갑니다.'
-      : '지금 저장되어 있는 내용입니다 — 고객이 지금 보고 있는 그대로입니다.';
+      : '지금 저장되어 있는 내용입니다 — 고객이 지금 보고 있는 그대로입니다.')
+      + ' 아래 글을 눌러 바로 고칠 수 있습니다.';
     document.getElementById('recPvModal').classList.remove('hidden');
     recPvRender();
   }
@@ -8155,6 +8413,8 @@
   document.getElementById('rec-preview').addEventListener('click', recPreviewOpen);
   document.getElementById('iti-preview').addEventListener('click', recPreviewOpen);
   document.getElementById('recPvClose').addEventListener('click', recPreviewClose);
+  document.getElementById('recPvExplain').addEventListener('change', recPvRender);
+  document.getElementById('recPvSave').addEventListener('click', recPvSave);
   /* 바깥을 눌러도 닫는다 — 안쪽(모달 상자)을 누른 것은 닫지 않는다. */
   document.getElementById('recPvModal').addEventListener('click', function (e) {
     if (e.target === this) recPreviewClose();

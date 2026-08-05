@@ -336,9 +336,12 @@ const EMPTY = {
   ok('script.js가 일별 카드 모양을 따로 적지 않는다',
     !/itin-slot-content/.test(scriptSrc),
     'script.js에 카드 마크업이 남아 있으면 두 벌이 된다(결함 생성기 ①)');
-  ok('admin.html도 일별 카드 모양을 따로 적지 않는다',
-    !/itin-slot-content/.test(adminSrc),
-    'admin.html이 카드를 직접 조립하면 미리보기가 다시 갈라진다');
+  /* ⚠ admin.html은 만들어진 카드에 **편집 손잡이만 얹는다**(RS) — 찾기 위해 클래스
+     이름을 쓰는 것은 정상이고, 그 클래스를 **직접 만드는 것**이 두 벌이 되는 신호다. */
+  ok('admin.html이 일별 카드를 직접 조립하지 않는다',
+    !/className\s*=\s*['"]itin-/.test(adminSrc)
+    && !/createElement\([^)]*\)[^;]*itin-day-card/.test(adminSrc),
+    'admin.html이 itin-* 클래스를 만들어 붙이면 카드가 두 벌이 된다');
   /* 그 클래스들이 styles.css에 실제로 정의돼 있어야 모양이 나온다 */
   ['.plan-cards', '.plan-card', '.plan-desc', '.plan-points', '.plan-value-box', '.itin-day-card',
    '.itin-slot', '.itin-tip']

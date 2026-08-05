@@ -145,12 +145,18 @@ function recBuildDisplayDays(course, planItems, totalDays, destKey) {
   /* 코스가 없는(또는 일자가 하나도 없는) 목적지 — 도착·귀국은 정해진 문구를 쓴다.
      ⚠ 여기서 pool이 비면 REC_FALLBACKS.items로 채운다. 예전 코드는 빈 배열을 그대로
      인덱싱해 **"undefined — 오전 탐방"**을 만들 수 있었다(결함 생성기 ②). */
+  /* ⚠ 각 날에 **출처**를 함께 실어 보낸다 (RS):
+       `_i`    = 코스의 몇 번째 일자에서 왔는가 (담당자가 쓴 날)
+       `_auto` = 시스템이 만들어 낸 날 (담당자가 쓴 글이 아니다)
+     관리자 미리보기가 "이 칸을 고치면 어디가 바뀌는가"를 이걸로 판단한다. 여기서
+     안 주면 관리자가 같은 배치 규칙을 **다시 계산**해야 하고, 그 순간 두 벌이 된다
+     (결함 생성기 ①). 고객 화면은 이 두 키를 읽지 않는다. */
   if (!baseDays.length) {
     const p = pool.length ? pool : REC_FALLBACKS.items;
     for (let i = 1; i <= n; i++) {
-      if (i === 1)      out.push(Object.assign({ day: i }, REC_DAY_FILL.arrival(destKey)));
-      else if (i === n) out.push(Object.assign({ day: i }, REC_DAY_FILL.departure()));
-      else              out.push(Object.assign({ day: i }, REC_DAY_FILL.make(p[(i - 2) % p.length])));
+      if (i === 1)      out.push(Object.assign({ day: i, _auto: true }, REC_DAY_FILL.arrival(destKey)));
+      else if (i === n) out.push(Object.assign({ day: i, _auto: true }, REC_DAY_FILL.departure()));
+      else              out.push(Object.assign({ day: i, _auto: true }, REC_DAY_FILL.make(p[(i - 2) % p.length])));
     }
     return out;
   }
@@ -158,13 +164,16 @@ function recBuildDisplayDays(course, planItems, totalDays, destKey) {
   const regular   = baseDays.slice(0, -1);            /* 도착~액티비티 (귀국일 제외) */
   const returnDay = baseDays[baseDays.length - 1];    /* 귀국일 템플릿 */
   for (let i = 1; i <= n; i++) {
-    if (i === n) { out.push(Object.assign({}, returnDay, { day: i })); continue; }
+    if (i === n) {
+      out.push(Object.assign({}, returnDay, { day: i, _i: baseDays.length - 1 }));
+      continue;
+    }
     const regIdx = i - 1;
     if (regIdx < regular.length) {
-      out.push(Object.assign({}, regular[regIdx], { day: i }));
+      out.push(Object.assign({}, regular[regIdx], { day: i, _i: regIdx }));
     } else {
       const act = pool.length ? pool[(i - regular.length - 1) % pool.length] : '';
-      out.push(Object.assign({ day: i }, REC_DAY_FILL.make(act)));
+      out.push(Object.assign({ day: i, _auto: true }, REC_DAY_FILL.make(act)));
     }
   }
   return out;
