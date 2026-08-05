@@ -81,10 +81,26 @@ const baseTab  = (docSrc.match(/\.rec-tab\{[^}]*\}/) || [''])[0];
     /renderDays\(itiADisplayDays\)/.test(docSrc) && /renderDays\(itiBDisplayDays\)/.test(docSrc));
   ok('참고 팁도 함께 나간다', /day-tip/.test(docSrc));
 
-  console.log('\n[6] 점검 도구가 기록돼 있는가');
+  /* ── [6] 머리줄 브랜드 글자가 보이는가 ──────────────────────────────────
+     검은 머리줄(#0A0A0A) 위에 인라인 `color:inherit`이 붙어 있어서 .nav-brand{color:#fff}를
+     덮어썼고, 본문 검정(#0D0D0D)이 찍혀 **대비 1.02:1 — 사실상 안 보였다.**
+     고객이 받아 보는 문서인데 데스크톱에서도 안 보이는 상태였다.
+     ai-loop/check_contrast.py(브라우저)가 찾아냈고, 여기서 원인 구조를 막는다. */
+  console.log('\n[6] 머리줄 브랜드 글자가 배경에 묻히지 않는가');
+  const brandTag = (docSrc.match(/<a[^>]*class="nav-brand"[^>]*>/) || [''])[0];
+  ok('머리줄 브랜드가 있다', !!brandTag, brandTag);
+  ok('인라인 style로 색을 덮어쓰지 않는다',
+    !/style="[^"]*\bcolor\s*:/.test(brandTag),
+    '인라인 color는 .nav-brand{color:#fff}를 이겨서 검은 바탕에 검은 글자를 만든다: ' + brandTag);
+  ok('클래스가 흰 글자를 지정한다', /\.nav-brand\{[^}]*color:\s*#fff/.test(docSrc));
+
+  console.log('\n[7] 점검 도구가 기록돼 있는가');
   ok('README가 견적서 모양 검사를 안내한다',
     /check_quote_doc_layout\.py/.test(readme),
     '브라우저 검사는 스위트에 못 넣으므로, 있다는 사실이 문서에 남아야 실제로 돌아간다');
+  ok('README가 글자 대비 검사도 안내한다',
+    /check_contrast\.py/.test(readme),
+    '눈으로만 보이는 결함이라 사람이 돌려야 한다 — 문서에 없으면 아무도 안 돌린다');
 
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   if (fail) process.exit(1);

@@ -7873,8 +7873,13 @@
       + '.pv-edit:focus{outline:2px solid #CC001A}'
       /* 빈 칸 안내도 색만 쓴다 — 밝은 바탕·어두운 바탕 어디서나 읽히는 중간 회색 */
       + '.pv-edit:empty::before{content:"(비어 있음 — 눌러서 입력)";color:#9A9A9A;font-weight:400}'
-      /* 자동으로 만들어진 날은 고칠 것이 없다 — 눌러도 되는 곳과 눈으로 구분한다 */
-      + '.pv-auto{opacity:.72}'
+      /* 자동으로 만들어진 날은 고칠 것이 없다 — 눌러도 되는 곳과 눈으로 구분한다.
+         ⚠ **opacity로 흐리게 하지 말 것.** 예전엔 `.pv-auto{opacity:.72}`였는데, 이 카드의
+         머리줄은 검은 바탕에 빨간 "DAY N"이라 흐려지는 순간 대비가 1.75:1로 떨어졌다
+         (ai-loop/check_contrast.py가 찾아냈다). 이번 세션에서 같은 실수를 두 번 했다 —
+         칸 전체 opacity(방식 A·B 편집 칸)와 배경 덮어쓰기(편집 손잡이).
+         자리를 안 차지하는 outline으로 표시하고, 글자는 건드리지 않는다. */
+      + '.pv-auto{outline:2px dashed #E0A100;outline-offset:-2px}'
       + '.pv-auto-tag{display:inline-block;font-size:10px;font-weight:800;color:#8A5A00;'
       + 'background:#FFF8E8;border:1px solid #E8D9B0;padding:1px 5px;margin-left:6px}'
       /* ── 설명은 필요할 때만 (RS) ──

@@ -3445,7 +3445,11 @@ a{color:inherit;text-decoration:none}
 
 <!-- NAV (no-print) -->
 <nav class="top-nav no-print">
-  <a href="${base}" class="nav-brand" style="text-decoration:none;color:inherit;cursor:pointer">비즈페이지 · 해외연수 견적서</a>
+  <!-- ⚠ 인라인 style에 color를 두지 말 것. 예전엔 여기 \`color:inherit\`이 있어서
+     .nav-brand{color:#fff}를 덮어썼고, 검은 머리줄(#0A0A0A) 위에 본문 검정(#0D0D0D)이
+     찍혀 **글자가 안 보였다**(대비 1.02:1). 고객이 받아 보는 문서다.
+     ai-loop/check_contrast.py가 이걸 찾아냈다. -->
+<a href="${base}" class="nav-brand" style="text-decoration:none;cursor:pointer">비즈페이지 · 해외연수 견적서</a>
   <div class="nav-btns">
     <button class="btn-share" onclick="document.getElementById('share-modal').style.display='flex'"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>고객 링크 공유</button>
     <button class="btn-print" onclick="window.print()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>견적서 인쇄</button>

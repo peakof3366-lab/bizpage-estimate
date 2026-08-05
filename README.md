@@ -49,7 +49,16 @@ python ai-loop/check_manual_layout.py           # 매뉴얼 줄맞춤 (데스크
 python ai-loop/check_editor_layout.py           # 일정 편집 화면 (5폭 + 화면 세로 길이)
 python ai-loop/check_quote_doc_layout.py        # 고객 견적서 — 고객이 하는 그대로 뽑아 잰다
 python ai-loop/check_manual_layout.py --shots   # 스크린샷도 저장 (--shots는 셋 다 있다)
+
+python ai-loop/check_contrast.py                # 안 읽히는 글자 — 29개 화면을 전부 훑는다
+python ai-loop/check_contrast.py --all          # 확인 대상(흐린 글자)까지 전부
 ```
+
+⚠ **`check_contrast.py`는 '보이는데 안 읽히는 글자'를 찾는다.** 같은 결과를 내는 사고가
+서로 다른 원인으로 두 번 났다 — 칸 전체에 건 `opacity`가 담당자가 쓴 글까지 흐리게 했고,
+편집 손잡이의 흰 배경이 **검은 박스 위 흰 글자**를 지웠다. 둘 다 스위트를 통과했다
+(jsdom은 색을 계산하지 않는다). 색·투명도·배경을 건드렸으면 이걸 돌린다.
+장식용 글자와 비활성 버튼은 빼되 **몇 건인지 항상 적는다**(조용히 빼면 그게 거짓말이다).
 
 ⚠ **고객이 보는 쪽도 재 볼 것.** 지금까지 잡힌 모양 결함은 전부 관리자 화면 밖에서도
 났다 — 견적서가 휴대폰에서 가로로 289px 삐져나가고 있었는데(RH) 데스크톱에서는 0px라
