@@ -253,9 +253,14 @@ with sync_playwright() as p:
             b.pop("grid-template-columns", None)
             problems += diff(a, b, group)
 
-        # ③ 카드 두 장이 서로 같은 폭으로 나란히
-        if prev["cards"] != 2:
-            problems.append(f"미리보기 카드가 {prev['cards']}장이다 (2장이어야 한다)")
+        # ③ 카드가 고객 화면과 **같은 폭**으로 놓이는가
+        #    RU에서 미리보기를 방식 A·B 탭으로 나눴다 — 한 번에 한 장만 그린다.
+        #    ⚠ 그래도 `.plan-cards` 2열 그리드는 남겨 둔다. 그 그리드가 카드 폭을
+        #    고객 화면과 같게 만든다. 아래 두 검사가 그것을 지킨다:
+        #      · 카드는 정확히 한 장(탭이 갈렸는지)
+        #      · 그리드는 여전히 같은 폭 2열(폭이 두 배로 벌어지지 않았는지)
+        if prev["cards"] != 1:
+            problems.append(f"미리보기 카드가 {prev['cards']}장이다 (탭당 1장이어야 한다)")
         if "grid" not in prev["grid"]["display"]:
             problems.append(f"카드가 나란히 놓이지 않는다 (display: {prev['grid']['display']})")
         cols = prev["grid"]["grid-template-columns"].split()

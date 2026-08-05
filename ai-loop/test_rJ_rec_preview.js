@@ -120,34 +120,73 @@ const EMPTY = {
   /* ── [4] 세 군데가 다 나오는가 ─────────────────────────────────────────── */
   console.log('\n[4] 다섯 칸이 나가는 자리를 다 보여주는가 (코스 없는 목적지)');
   w.__select('도쿄'); w.__setCourses([]); w.__setRec(FULL); btn.click();
-  ok('방식 선택 카드 두 장이 있다', cards().length === 2, String(cards().length));
-  ok('기대 효과 박스가 A·B 둘 다 있다',
-    pdoc().querySelectorAll('.plan-value-box').length === 2,
+  /* RU: 미리보기가 방식 A·B **탭**으로 갈렸다. 한 번에 한 방식만 그린다 —
+     예전엔 카드는 나란히, 기대 효과는 위아래, 일정표는 A 다음 B로 한 화면에 섞여 있어
+     "지금 보는 게 어느 방식인지"가 계속 흐릿했다(사용자 지적). */
+  ok('고른 탭의 카드 한 장만 나온다', cards().length === 1, String(cards().length));
+  ok('기대 효과 박스도 한 장이다',
+    pdoc().querySelectorAll('.plan-value-box').length === 1,
     String(pdoc().querySelectorAll('.plan-value-box').length));
-  /* RR: 예전엔 '활동명 목록'만 나열했다(A 2줄 + B 1줄). 이제 고객이 실제로 보는
-     **일정표 그대로**를 그린다 — 코스가 없으면 5일 기본으로 A·B 각 5장. */
   ok('일별 일정이 고객이 보는 일수만큼 나온다',
-    pdoc().querySelectorAll('.itin-day-card').length === 10,   /* 5일 × 방식 2 */
+    pdoc().querySelectorAll('.itin-day-card').length === 5,   /* 5일 × 방식 1 */
     String(pdoc().querySelectorAll('.itin-day-card').length));
+  /* ⚠ 카드 폭은 고객 화면과 같아야 한다 — `.plan-cards` 2열 그리드를 남겨 둔 이유다.
+     그리드를 빼면 한 장이 두 배 폭이 되어 줄바꿈이 달라진다(실제 px는 브라우저 검사). */
+  ok('카드 폭을 잡아 주는 2열 그리드는 그대로다', !!pdoc().querySelector('.plan-cards'));
   ok('각 구역이 어디에 나가는지 적혀 있다',
     texts('.pv-where').join(' ').includes('연수 일정 탐색')
     && texts('.pv-where').join(' ').includes('견적서'),
     texts('.pv-where').join(' | '));
 
-  ok('방식 이름이 카드에 보인다', texts('.plan-type-lbl').join(',') === '역량강화,화합형',
+  ok('방식 이름이 카드에 보인다', texts('.plan-type-lbl').join(',') === '역량강화',
     texts('.plan-type-lbl').join(','));
   ok('핵심 포인트가 목록으로 보인다',
-    texts('.plan-points li').join(',') === 'A포인트1,A포인트2,B포인트1',
+    texts('.plan-points li').join(',') === 'A포인트1,A포인트2',
     texts('.plan-points li').join(','));
   ok('기대 효과 문구가 보인다',
-    texts('.plan-value-text').join(',') === 'A 기대효과,B 기대효과',
+    texts('.plan-value-text').join(',') === 'A 기대효과',
     texts('.plan-value-text').join(','));
   /* 코스가 없으면 첫날·마지막날은 정해진 문구, 사이는 ✨의 '일별 주요 활동'이
      돌아가며 들어간다 — 고객 화면(_renderTimeline)과 정확히 같은 규칙이다. */
   ok('일별 활동명이 보인다',
     texts('.itin-day-title').join(',')
-      === '도착 · 오리엔테이션,A활동1,A활동2,A활동1,귀국,도착 · 오리엔테이션,B활동1,B활동1,B활동1,귀국',
+      === '도착 · 오리엔테이션,A활동1,A활동2,A활동1,귀국',
     texts('.itin-day-title').join(','));
+
+  /* ── [4-b] 탭을 옮기면 화면이 통째로 그 방식으로 바뀌는가 (RU) ─────────── */
+  console.log('\n[4-b] 탭을 옮기면 세 구역이 다 그 방식으로 바뀌는가');
+  const tab = (p) => Array.from(d.querySelectorAll('.recpv-tab'))
+    .find((x) => x.dataset.pvplan === p);
+  ok('방식 A·B 탭이 있다', !!tab('a') && !!tab('b'));
+  ok('처음에는 방식 A가 켜져 있다', tab('a').classList.contains('active'));
+  tab('b').click();
+  ok('탭을 옮기면 그 탭이 켜진다',
+    tab('b').classList.contains('active') && !tab('a').classList.contains('active'));
+  ok('카드가 B로 바뀐다', texts('.plan-type-lbl').join(',') === '화합형',
+    texts('.plan-type-lbl').join(','));
+  ok('기대 효과도 B로 바뀐다', texts('.plan-value-text').join(',') === 'B 기대효과',
+    texts('.plan-value-text').join(','));
+  ok('일정표도 B로 바뀐다',
+    texts('.itin-day-title').join(',') === '도착 · 오리엔테이션,B활동1,B활동1,B활동1,귀국',
+    texts('.itin-day-title').join(','));
+  ok('B 탭에서는 A 내용이 하나도 안 남는다',
+    !texts('.plan-type-lbl').includes('역량강화')
+    && !texts('.plan-points li').some((t) => t.startsWith('A포인트')),
+    texts('.plan-points li').join(','));
+  /* 탭 이름만으로는 "방식 A가 코스 A인가"를 매번 다시 확인해야 한다 — 유형에 따라
+     짝이 바뀌기 때문이다(RK). 탭에 출처를 적어 그 질문을 없앤다. */
+  ok('탭이 그 방식의 출처를 적는다',
+    /방식 A·B|코스/.test(d.getElementById('recPvTabSubA').textContent),
+    d.getElementById('recPvTabSubA').textContent);
+  /* 카드 옆 빈자리가 "고객은 두 장을 나란히 본다"를 말해 주는가 — 그냥 비워 두면
+     "고객도 한 장만 보나?"로 읽힌다. 그리고 눌러서 그 탭으로 넘어갈 수 있어야 한다. */
+  const ghost = () => pdoc().querySelector('.pv-ghost');
+  ok('카드 옆에 다른 방식 자리가 표시된다', !!ghost());
+  ok('고객은 두 장을 나란히 본다고 적는다', /나란히/.test(ghost().textContent), ghost().textContent);
+  ok('그 자리가 카드로 세어지지 않는다', cards().length === 1, String(cards().length));
+  ghost().click();
+  ok('빈자리를 누르면 그 방식 탭으로 넘어간다',
+    tab('a').classList.contains('active'), '지금 B 탭이므로 A로 넘어가야 한다');
   ok('오전 문장이 활동명으로 조립된다',
     texts('.itin-slot-content').includes('A활동1 — 오전 탐방'),
     texts('.itin-slot-content').slice(0, 6).join(' | '));
@@ -163,12 +202,12 @@ const EMPTY = {
   ok('빈 칸을 빈 채로 두지 않는다',
     texts('.plan-desc').every((t) => t.trim().length > 0), texts('.plan-desc').join(' | '));
   ok('방식 이름이 고객 화면과 같은 기본값이다',
-    texts('.plan-type-lbl').join(',') === REC_FALLBACKS.tag.a + ',' + REC_FALLBACKS.tag.b,
+    texts('.plan-type-lbl').join(',') === REC_FALLBACKS.tag.a,
     texts('.plan-type-lbl').join(','));
   ok('한 줄 설명이 같은 기본값이다',
     texts('.plan-desc').every((t) => t === REC_FALLBACKS.desc), texts('.plan-desc').join(' | '));
   ok('핵심 포인트가 같은 기본값이다',
-    texts('.plan-points li').join(',') === REC_FALLBACKS.points.concat(REC_FALLBACKS.points).join(','),
+    texts('.plan-points li').join(',') === REC_FALLBACKS.points.join(','),
     texts('.plan-points li').join(','));
   ok('기대 효과가 같은 기본값이다',
     texts('.plan-value-text').every((t) => t === REC_FALLBACKS.value),
@@ -176,15 +215,24 @@ const EMPTY = {
   /* 5일이면 가운데 3일이 채워진다 — 목록 앞 3개가 순서대로 들어간다 */
   ok('일별 활동이 같은 기본값이다',
     texts('.itin-day-title').filter((t) => REC_FALLBACKS.items.includes(t)).join(',')
-      === REC_FALLBACKS.items.slice(0, 3).concat(REC_FALLBACKS.items.slice(0, 3)).join(','),
+      === REC_FALLBACKS.items.slice(0, 3).join(','),
     texts('.itin-day-title').join(','));
+  /* B 탭도 같은 기본값이어야 한다 — 탭이 갈리면서 한쪽만 확인하게 되기 쉽다 */
+  Array.from(d.querySelectorAll('.recpv-tab')).find((x) => x.dataset.pvplan === 'b').click();
+  ok('B 탭도 같은 기본값이다',
+    texts('.plan-type-lbl').join(',') === REC_FALLBACKS.tag.b
+    && texts('.plan-desc').every((t) => t === REC_FALLBACKS.desc),
+    texts('.plan-type-lbl').join(',') + ' / ' + texts('.plan-desc').join(' | '));
+  Array.from(d.querySelectorAll('.recpv-tab')).find((x) => x.dataset.pvplan === 'a').click();
 
   const warns = texts('.pv-warn').join(' ');
+  /* 탭당 세 구역이므로 경고도 그 방식 것만 뜬다 */
   ok('비어 있다는 것을 경고로 알린다', pdoc().querySelectorAll('.pv-warn').length === 3,
     String(pdoc().querySelectorAll('.pv-warn').length));
   ok('어느 칸이 비었는지 이름을 적는다',
     warns.includes('한 줄') && warns.includes('기대 효과 문구'), warns);
-  ok('A와 B를 구분해서 적는다', warns.includes('방식 A') && warns.includes('방식 B'), warns);
+  ok('어느 방식인지 적는다', warns.includes('방식 A'), warns);
+  ok('보고 있지 않은 방식은 섞이지 않는다', !warns.includes('방식 B'), warns);
   ok('이대로 두면 고객에게 나간다고 못 박는다', /고객에게 그대로 나갑니다/.test(warns), warns);
   /* ⚠ 경고는 카드 바깥이어야 한다 — 안에 넣으면 고객이 보는 모양이 달라진다 */
   ok('경고가 카드 안에 들어가 있지 않다',
@@ -205,29 +253,44 @@ const EMPTY = {
       days: [{ day:1, title:'첫날' }, { day:2, title:'마지막' }] },
   ];
   w.__select('도쿄'); w.__setCourses(COURSES); w.__setRec(FULL); btn.click();
-  ok('카드 배지가 코스 제목이다 (방식 이름이 아니다)',
-    texts('.plan-type-lbl').join(',') === '코스가 제목,코스나 제목', texts('.plan-type-lbl').join(','));
-  ok('설명이 코스의 한 줄 설명이다',
-    texts('.plan-desc').join(',') === '코스가 한 줄,코스나 한 줄', texts('.plan-desc').join(','));
+  const pvTab = (p) => Array.from(d.querySelectorAll('.recpv-tab'))
+    .find((x) => x.dataset.pvplan === p);
+  ok('A 탭 배지가 코스 A의 제목이다 (방식 이름이 아니다)',
+    texts('.plan-type-lbl').join(',') === '코스가 제목', texts('.plan-type-lbl').join(','));
+  ok('A 탭 설명이 코스 A의 한 줄 설명이다',
+    texts('.plan-desc').join(',') === '코스가 한 줄', texts('.plan-desc').join(','));
   ok('포인트가 코스 하이라이트 **앞 3개**다',
-    texts('.plan-points li').join(',') === '하이가1,하이가2,하이가3,하이나1',
+    texts('.plan-points li').join(',') === '하이가1,하이가2,하이가3',
     texts('.plan-points li').join(','));
   ok('기대 효과도 코스의 한 줄 설명이다',
-    texts('.plan-value-text').join(',') === '코스가 한 줄,코스나 한 줄', texts('.plan-value-text').join(','));
+    texts('.plan-value-text').join(',') === '코스가 한 줄', texts('.plan-value-text').join(','));
   ok('✨에 써 둔 방식 이름은 카드에 안 나온다',
     !texts('.plan-type-lbl').includes('역량강화'), texts('.plan-type-lbl').join(','));
+  /* B 탭은 **다른 코스**에서 와야 한다 — 탭이 갈렸어도 짝은 그대로다 */
+  pvTab('b').click();
+  ok('B 탭은 코스 B에서 온다',
+    texts('.plan-type-lbl').join(',') === '코스나 제목'
+    && texts('.plan-points li').join(',') === '하이나1',
+    texts('.plan-type-lbl').join(',') + ' / ' + texts('.plan-points li').join(','));
+  ok('B 탭의 출처 표시도 코스 B다', /코스 B/.test(texts('.pv-from').join(' | ')),
+    texts('.pv-from').join(' | '));
+  pvTab('a').click();
   /* 어디를 고쳐야 이 자리가 바뀌는지 말해 준다 — 이게 없으면 또 못 찾는다 */
   const froms = texts('.pv-from').join(' | ');
-  ok('각 카드의 출처를 적는다', /코스 A/.test(froms) && /코스 B/.test(froms), froms);
+  ok('보고 있는 카드의 출처를 적는다', /코스 A/.test(froms), froms);
   ok('출처에 코스 제목까지 적는다', froms.includes('코스가 제목'), froms);
   ok('출처가 📅 날짜별 일정을 가리킨다', /날짜별 일정/.test(froms), froms);
+  ok('탭에도 어느 코스인지 적힌다',
+    d.getElementById('recPvTabSubA').textContent.includes('코스 A')
+    && d.getElementById('recPvTabSubB').textContent.includes('코스 B'),
+    d.getElementById('recPvTabSubA').textContent + ' / ' + d.getElementById('recPvTabSubB').textContent);
 
   /* RR: 코스가 있으면 **코스에 쓴 일자가 그대로** 나오고, 코스보다 긴 날만 ✨의
      '일별 주요 활동'으로 채워진다. 예전 미리보기는 코스 일자를 아예 안 보여주고
      활동 목록만 나열해서, 담당자가 쓴 DAY 1~3이 어디로 가는지 알 수 없었다.
      코스가 3일이라 기본 일수는 4일 — 마지막 일자(귀국)는 항상 실제 마지막 날로 밀린다. */
   ok('코스에 쓴 일자가 그대로 보인다',
-    texts('.itin-day-title').join(',') === '첫날,가운데,A활동1,마지막,첫날,B활동1,B활동1,마지막',
+    texts('.itin-day-title').join(',') === '첫날,가운데,A활동1,마지막',
     texts('.itin-day-title').join(','));
   ok('코스의 마지막 일자가 실제 마지막 날로 밀린다',
     texts('.itin-day-title')[3] === '마지막' && texts('.itin-day-num')[3].trim() === 'DAY 4',
@@ -315,11 +378,20 @@ const EMPTY = {
   console.log('\n[8] 미리보기 클래스가 실제 고객 화면과 같은가 (⑤)');
   /* index.html의 진짜 카드가 쓰는 클래스를 그대로 쓰는지 본다 — 여기가 갈라지면
      styles.css는 그대로인데 미리보기만 모양이 달라진다. */
+  /* ⚠ RU 이후 미리보기는 **한 번에 한 방식**만 그린다. 그래서 A 전용·B 전용 클래스는
+     각자의 탭에서 확인한다 — 한 탭만 보고 "B 클래스가 없다"고 하면 오탐이다. */
+  const onTab = (p, fn) => {
+    Array.from(d.querySelectorAll('.recpv-tab')).find((x) => x.dataset.pvplan === p).click();
+    const r = fn();
+    Array.from(d.querySelectorAll('.recpv-tab')).find((x) => x.dataset.pvplan === 'a').click();
+    return r;
+  };
   ['plan-cards', 'plan-card', 'plan-card-hd', 'plan-tag', 'plan-tag-a', 'plan-tag-b',
    'plan-type-lbl', 'plan-desc', 'plan-points'].forEach((c) => {
     ok('index.html도 .' + c + '를 쓴다', indexSrc.includes('class="' + c)
       || new RegExp('class="[^"]*\\b' + c + '\\b').test(indexSrc));
-    ok('미리보기에 .' + c + '가 있다', !!pdoc().querySelector('.' + c));
+    const plan = c === 'plan-tag-b' ? 'b' : 'a';
+    ok('미리보기에 .' + c + '가 있다', onTab(plan, () => !!pdoc().querySelector('.' + c)));
   });
   ['plan-value-box', 'plan-value-label', 'plan-value-text'].forEach((c) => {
     ok('미리보기에 .' + c + '가 있다', !!pdoc().querySelector('.' + c));

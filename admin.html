@@ -696,6 +696,35 @@
     }
     #rec-preview:hover, #iti-preview:hover { background: var(--sec); color: #fff; border-color: var(--sec); }
 
+    /* ── 방식 A·B 탭 (RU) ──
+       한 번에 한 방식만 보여준다. 탭이 손잡이라는 것이 한눈에 보여야 하므로
+       '고른 탭이 아래 내용과 이어져 보이는' 고전적인 모양을 쓴다(아래 테두리를 지운다). */
+    .recpv-tabs {
+      display: flex; gap: .35rem; padding: .7rem 1.25rem 0;
+      border-bottom: 1.5px solid var(--border); margin-bottom: -1.5px;
+    }
+    .recpv-tab {
+      font: inherit; font-size: .86rem; font-weight: 800; line-height: 1.25;
+      padding: .5rem 1.1rem .55rem; cursor: pointer; text-align: left;
+      background: #F4F4F2; color: var(--muted);
+      border: 1.5px solid var(--border); border-bottom: 1.5px solid var(--border);
+    }
+    .recpv-tab:hover { background: #EDEDEA; }
+    .recpv-tab.active {
+      background: #fff; color: var(--heading);
+      border-bottom-color: #fff;               /* 고른 탭만 아래 선을 지운다 */
+      box-shadow: inset 0 3px 0 var(--pvtab);
+      border-top-color: var(--pvtab);
+    }
+    .recpv-tab.is-a { --pvtab: #7C3AED; }      /* 아래 편집 구역의 A·B 색과 같다 */
+    .recpv-tab.is-b { --pvtab: #DB2777; }
+    .recpv-tab-sub {
+      display: block; font-size: .72rem; font-weight: 600; color: var(--muted);
+      margin-top: .1rem; white-space: nowrap;
+    }
+    .recpv-tab.active .recpv-tab-sub { color: var(--pvtab); }
+    @media (max-width: 1000px) { .recpv-tabs { padding: .5rem .7rem 0; } }
+
     /* 미리보기 창 위쪽의 프로그램 유형 줄 (RK) */
     .recpv-bar {
       display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
@@ -1750,6 +1779,19 @@
       <button id="recPvClose" class="modal-close">✕</button>
     </div>
     <p id="recPvNote" class="sec-note recpv-note"></p>
+    <!-- 방식 A·B를 **탭으로 나눈다** (RU). 예전엔 한 화면에 A·B가 섞여 있었다 —
+         카드는 나란히, 기대 효과는 위아래, 일정표는 A 다음 B. 직원 입장에서
+         "지금 보는 게 어느 방식인지"가 계속 흐릿했다. 한 번에 한 방식만 보여준다.
+         ⚠ 색은 아래 편집 구역의 A·B 색(#7C3AED / #DB2777)과 같게 둔다 — 다르면
+         같은 것을 가리키는 표시가 화면마다 달라진다. -->
+    <div class="recpv-tabs" role="tablist">
+      <button type="button" class="recpv-tab is-a active" data-pvplan="a" role="tab">
+        방식 A<span class="recpv-tab-sub" id="recPvTabSubA"></span>
+      </button>
+      <button type="button" class="recpv-tab is-b" data-pvplan="b" role="tab">
+        방식 B<span class="recpv-tab-sub" id="recPvTabSubB"></span>
+      </button>
+    </div>
     <!-- 프로그램 유형 (RK) — 고객이 STEP1에서 고른 유형에 따라 **어느 코스가 방식 A로
          나갈지가 바뀐다.** 고정해 두면 미리보기가 한 경우만 보여주게 되고, 담당자는
          나머지 경우에 무엇이 나가는지 여전히 모른다. -->
@@ -7854,6 +7896,16 @@
       + '.pv-from{font-size:11px;font-weight:700;color:#5B21B6;background:#F5F3FF;'
       + 'border:1px solid #DDD6FE;padding:4px 8px;margin:6px 0 0;line-height:1.5}'
       + '.pv-plan-lbl{font-size:11px;font-weight:800;color:#8A8A8A;margin:0 0 6px}'
+      /* 옆 칸의 '여기에 다른 방식이 놓입니다' 안내 (RU) — 카드가 아니라 빈자리 설명이다 */
+      + '.pv-ghost{display:flex;flex-direction:column;align-items:center;justify-content:center;'
+      + 'gap:4px;min-height:120px;padding:20px;cursor:pointer;text-align:center;font:inherit;'
+      + 'background:transparent;border:1px dashed #C9C9C9}'
+      + '.pv-ghost:hover{border-color:#CC001A;background:#FFFCFC}'
+      /* ⚠ #9A9A9A는 흰 바탕에서 2.81:1이라 check_contrast.py가 잡는다. 안내문은 읽으라고
+         둔 글자다 — 옅게 하고 싶어도 #6A6A6A 아래로 내리지 말 것. */
+      + '.pv-ghost-t{font-size:11px;color:#6A6A6A}'
+      + '.pv-ghost-b{font-size:13px;font-weight:700;color:#6A6A6A}'
+      + '.pv-ghost-go{font-size:12px;font-weight:800;color:#CC001A;margin-top:6px}'
       /* ⚠ 미리보기 껍데기는 **.pv-* 만 건드린다.** 고객 클래스(.plan-card 등)에
          여백 하나라도 얹으면 그 순간 미리보기가 고객 화면과 달라진다. 자리를 벌려야
          하면 감싸는 .pv-* 를 새로 두고 거기에 준다. */
@@ -8201,16 +8253,21 @@
     }
   }
 
-  /* ── 구역 ①: 홈페이지 '연수 일정 탐색'의 방식 선택 카드 (tag·desc·points) ── */
-  function recPvPlanCards(doc, rec) {
+  /* ── 구역 ①: 홈페이지 '연수 일정 탐색'의 방식 선택 카드 (tag·desc·points) ──
+     RU: 고른 방식 **한 장만** 그린다.
+     ⚠ 그래도 `.plan-cards` 그리드는 그대로 둔다. 이 그리드가 2열이라 카드 폭이
+     고객 화면과 같아진다(556px). 그리드를 빼고 카드만 놓으면 폭이 두 배가 되어
+     줄바꿈 위치가 달라지고, 그 순간 미리보기가 "고객 화면에서도 저렇게 접히나?"를
+     헷갈리게 만든다. ai-loop/check_rec_preview.py가 이 폭을 실제 브라우저로 잰다. */
+  function recPvPlanCards(doc, rec, only) {
     const sec = recPvBlock(doc, '홈페이지 · 연수 일정 탐색',
-      '고객이 방식 A와 B 중 하나를 고르는 카드입니다.');
+      '고객은 방식 A와 B 카드를 나란히 놓고 그중 하나를 고릅니다. 여기서는 고른 탭의 한 장만 보여줍니다.');
     const grid = doc.createElement('div');
     grid.className = 'plan-cards';
     const fallen = [];
     const froms = [];
 
-    REC_PV_PLANS.forEach((plan) => {
+    [only].forEach((plan) => {
       const src = recPvSource(plan);
       const p = src.data || {};
       const label = ITI_REC_PLAN_LABEL[plan];
@@ -8259,21 +8316,46 @@
         + (src.from === 'course' ? ' “' + src.courseTitle + '”' : ''));
     });
 
+    /* 빈 두 번째 칸에 **고객이 실제로 보는 배치**를 알려 둔다 (RU).
+       탭으로 나누면서 카드 오른쪽이 비는데, 그냥 두면 "고객도 한 장만 보나?"로 읽힌다.
+       고객은 두 장을 나란히 놓고 고른다 — 그 사실이 이 자리에서 보여야 한다.
+       ⚠ `.pv-*` 이므로 고객 클래스가 아니다. `.plan-card`가 아니라서 카드 개수·폭
+       검사에도 걸리지 않는다(check_rec_preview.py). */
+    const other = only === 'a' ? 'b' : 'a';
+    const ghost = doc.createElement('button');
+    ghost.type = 'button';
+    ghost.className = 'pv-ghost';
+    const g1 = doc.createElement('span');
+    g1.className = 'pv-ghost-t';
+    g1.textContent = '고객 화면에서는 여기에';
+    const g2 = doc.createElement('span');
+    g2.className = 'pv-ghost-b';
+    g2.textContent = ITI_REC_PLAN_LABEL[other] + ' 카드가 나란히 놓입니다';
+    const g3 = doc.createElement('span');
+    g3.className = 'pv-ghost-go';
+    g3.textContent = ITI_REC_PLAN_LABEL[other] + ' 보기 →';
+    ghost.appendChild(g1); ghost.appendChild(g2); ghost.appendChild(g3);
+    /* 눌러서 그 탭으로 넘어간다 — 같은 창 안에서 오가는 것이 이 화면의 목적이다.
+       iframe이지만 우리가 만든 엘리먼트라 부모 코드에 그대로 이어 붙일 수 있다. */
+    ghost.addEventListener('click', () => recPvGoPlan(other));
+    grid.appendChild(ghost);
+
     sec.appendChild(grid);
     froms.forEach((f) => sec.appendChild(recPvNote(doc, 'pv-from', f)));
     sec.appendChild(recPvNote(doc, 'pv-hint',
-      '고객이 카드를 고르면 빨간 테두리가 붙습니다. 사진은 목적지에 등록된 것이 자동으로 올라가며 여기서는 생략했습니다.'));
+      '고객 화면에서는 이 카드가 다른 방식 카드와 **나란히 두 장** 놓입니다. 카드 폭은 그때와 같게 맞춰 두었습니다. '
+      + '고객이 카드를 고르면 빨간 테두리가 붙습니다. 사진은 목적지에 등록된 것이 자동으로 올라가며 여기서는 생략했습니다.'));
     const warn = recPvFallbackWarn(doc, fallen);
     if (warn) sec.appendChild(warn);
     return sec;
   }
 
   /* ── 구역 ②: 고객 견적서의 결재 보고서 기대 효과 문구 (value) ── */
-  function recPvValueBoxes(doc, rec) {
+  function recPvValueBoxes(doc, rec, only) {
     const sec = recPvBlock(doc, '고객 견적서 · 결재 보고용',
       '고객이 회사에 결재를 올릴 때 그대로 붙여 쓰는 문장입니다.');
     const fallen = [];
-    REC_PV_PLANS.forEach((plan) => {
+    [only].forEach((plan) => {
       const src = recPvSource(plan);
       const label = ITI_REC_PLAN_LABEL[plan];
       const v = recPvFill(src, 'value', REC_FALLBACKS.value);
@@ -8306,14 +8388,14 @@
      였는데, 그 두 벌을 rec_fallbacks.js 하나로 합쳤다(RR). 이제 고객 화면과
      **같은 함수**(recBuildDisplayDays·recRenderDayCard)를 불러 그대로 그린다.
      ⚠ 여기서 카드를 직접 조립하지 말 것 — 그 순간 다시 두 벌이 된다(결함 생성기 ①). */
-  function recPvDayCards(doc) {
+  function recPvDayCards(doc, only) {
     const days = recPvDayCount();
     const sec = recPvBlock(doc, '홈페이지 · 연수 일정 탐색 → 선택 플랜 일정',
       '고객이 ' + days + '일을 고르면 이 일정이 그대로 보입니다. '
       + '같은 내용이 고객 견적서의 일정표에도 나갑니다(모양만 다릅니다).');
 
     const fallen = [];
-    REC_PV_PLANS.forEach((plan) => {
+    [only].forEach((plan) => {
       const src = recPvSource(plan);
       const label = ITI_REC_PLAN_LABEL[plan];
       /* 코스가 있으면 **그 방식이 실제로 쓰는 코스**로 그린다. 예전 미리보기는 A·B 모두
@@ -8366,13 +8448,45 @@
     const frame = document.getElementById('recPvFrame');
     const doc = recPvBootFrame(frame);
     /* 설명을 켜고 끄는 것은 **CSS 한 줄**이다 — 두 벌로 그리면 한쪽만 고치게 된다 */
-    doc.body.className = recPvExplainOn() ? 'pv-explain' : '';
+    const plan = recPvPlan();
+    doc.body.className = (recPvExplainOn() ? 'pv-explain ' : '') + 'pv-plan-' + plan;
     const rec = recState.rec;
-    doc.body.appendChild(recPvPlanCards(doc, rec));
-    doc.body.appendChild(recPvValueBoxes(doc, rec));
-    doc.body.appendChild(recPvDayCards(doc));
+    doc.body.appendChild(recPvPlanCards(doc, rec, plan));
+    doc.body.appendChild(recPvValueBoxes(doc, rec, plan));
+    doc.body.appendChild(recPvDayCards(doc, plan));
     recPvRenderMap();
+    recPvRenderTabs();
     recPvSyncSave();
+  }
+
+  /* 지금 보고 있는 방식 (RU). 탭이 없으면 A로 본다 — 이 함수를 부르는 곳이 모두
+     "한 방식"을 전제하므로, 못 찾았을 때 둘 다 그리는 상태로 돌아가면 안 된다. */
+  function recPvPlan() {
+    const on = document.querySelector('.recpv-tab.active');
+    const v = on && on.dataset ? on.dataset.pvplan : '';
+    return v === 'b' ? 'b' : 'a';
+  }
+
+  /* 탭에 **그 방식이 어디서 오는지**를 적는다 (RU).
+     탭 이름만 있으면 "방식 A가 코스 A인가?"를 매번 다시 확인해야 한다 — 프로그램
+     유형에 따라 짝이 바뀌기 때문이다(RK). 탭에 적어 두면 그 질문이 사라진다. */
+  /* 탭을 옮기는 **유일한 경로** (RU). 탭 단추도, 미리보기 안의 안내도 이걸 부른다 —
+     고르는 곳이 둘인데 표시를 각자 바꾸면 언젠가 어긋난다. */
+  function recPvGoPlan(plan) {
+    const t = Array.from(document.querySelectorAll('.recpv-tab'))
+      .find((x) => x.dataset.pvplan === plan);
+    if (t) t.click();
+  }
+
+  function recPvRenderTabs() {
+    REC_PV_PLANS.forEach((plan) => {
+      const el = document.getElementById('recPvTabSub' + plan.toUpperCase());
+      if (!el) return;
+      const src = recPvSource(plan);
+      el.textContent = src.from === 'course'
+        ? '코스 ' + String.fromCharCode(65 + src.courseIdx)
+        : '✨ 방식 A·B 소개';
+    });
   }
 
   /* 지금 고른 유형에서 코스 ↔ 방식이 어떻게 짝지어지는지 한 줄로 (RK). */
@@ -8427,6 +8541,16 @@
   document.getElementById('recPvClose').addEventListener('click', recPreviewClose);
   document.getElementById('recPvExplain').addEventListener('change', recPvRender);
   document.getElementById('recPvSave').addEventListener('click', recPvSave);
+  /* 탭 전환 (RU). 고른 탭 표시는 여기 한 곳에서만 바꾼다 — 두 곳에서 바꾸면 어긋난다. */
+  document.querySelectorAll('.recpv-tab').forEach((t) => {
+    t.addEventListener('click', function () {
+      document.querySelectorAll('.recpv-tab').forEach((x) => {
+        x.classList.toggle('active', x === t);
+        x.setAttribute('aria-selected', x === t ? 'true' : 'false');
+      });
+      recPvRender();
+    });
+  });
   /* 바깥을 눌러도 닫는다 — 안쪽(모달 상자)을 누른 것은 닫지 않는다. */
   document.getElementById('recPvModal').addEventListener('click', function (e) {
     if (e.target === this) recPreviewClose();

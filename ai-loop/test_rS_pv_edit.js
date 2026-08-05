@@ -72,8 +72,9 @@ const COURSES = [
   await tick();
   ok('방식 이름을 고칠 수 있다', !!pick('.plan-type-lbl.pv-edit'));
   ok('한 줄 설명을 고칠 수 있다', !!pick('.plan-desc.pv-edit'));
+  /* RU: 탭이 갈려 한 번에 한 방식만 나온다 — 방식 A의 포인트는 두 줄이다 */
   ok('핵심 포인트를 줄마다 고칠 수 있다',
-    pdoc().querySelectorAll('.plan-points li.pv-edit').length === 3,
+    pdoc().querySelectorAll('.plan-points li.pv-edit').length === 2,
     String(pdoc().querySelectorAll('.plan-points li.pv-edit').length));
   ok('기대 효과 문구를 고칠 수 있다', !!pick('.plan-value-text.pv-edit'));
   ok('어디를 고치는 것인지 알려준다',
@@ -200,14 +201,17 @@ const COURSES = [
   const chk = d.getElementById('recPvExplain');
   ok('설명 보기 스위치가 있다', !!chk);
   ok('기본은 꺼져 있다', chk.checked === false);
-  ok('꺼져 있으면 본문에 설명 표시가 없다', pdoc().body.className === '', pdoc().body.className);
+  /* ⚠ body 클래스에는 지금 보고 있는 방식(pv-plan-a/b)도 함께 붙는다(RU).
+     정확히 같은지 보지 말고 **설명 표시가 있는지**만 본다. */
+  ok('꺼져 있으면 본문에 설명 표시가 없다',
+    !/\bpv-explain\b/.test(pdoc().body.className), pdoc().body.className);
   ok('설명은 CSS로 숨긴다 (그리는 코드는 하나다)',
     /body:not\(\.pv-explain\) \.pv-what/.test(adminSrc),
     '두 벌로 그리면 한쪽만 고치게 된다');
   chk.checked = true;
   chk.dispatchEvent(new w.Event('change'));
   await tick();
-  ok('켜면 설명이 살아난다', pdoc().body.className === 'pv-explain', pdoc().body.className);
+  ok('켜면 설명이 살아난다', /\bpv-explain\b/.test(pdoc().body.className), pdoc().body.className);
   ok('자리 이름은 끄든 켜든 남는다', pdoc().querySelectorAll('.pv-where').length === 3,
     String(pdoc().querySelectorAll('.pv-where').length));
 
