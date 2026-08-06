@@ -7,6 +7,8 @@ const destinationRates = require('../data');
 const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key));
 const { safeId, payloadTooLarge, toNumberOrNull, trimText } = require('./_lib/public_input');
 const { verifyQuote } = require('./_lib/quote_verify');
+/* 견적서 PDF 층 구조 추출 (RZ) — 왜 이렇게 나눴는지는 그 파일 머리말에 있다 */
+const pdfExtract = require('./_lib/pdf_extract');
 
 /* 검증에 필요한 권위 데이터(요율 오버라이드·계수 노브·커스텀 목적지)를 모은다.
    조회에 실패하면 unavailable로 표시한다 — 빈 값으로 통과시키면 '검증했다'는
@@ -373,125 +375,187 @@ function sanityWarnings(a, h, m) {
   return w;
 }
 
+/* 견적서 PDF 추출 (RZ에서 층 구조로 다시 씀 — api/_lib/pdf_extract.js 머리말 참조)
+   여기는 **입출력만** 맡는다: 업로드를 받고, 층 구조 추출기를 돌리고, 규칙이 못 채운
+   칸만 AI에게 물어보고(L5), 화면이 쓸 모양으로 내려보낸다. */
 async function handleExtractPdf(req, res) {
   if (!(await requireAdmin(req, res))) return;
-  if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'openai_not_configured' });
-  const { pdfBase64 } = req.body || {};
+  const { pdfBase64, fxRate } = req.body || {};
   if (!pdfBase64 || typeof pdfBase64 !== 'string') return res.status(400).json({ error: 'invalid_body' });
 
-  let text = '';
+  /* 담당자가 넣어 준 환율 — 문서가 환율을 안 밝힌 외화 견적서에서만 쓰인다.
+     통화 코드는 3자 대문자, 값은 상식적인 범위만 받는다(공개 입력은 아니지만 같은 원칙). */
+  const userFx = {};
+  if (fxRate && typeof fxRate === 'object') {
+    Object.keys(fxRate).slice(0, 6).forEach((k) => {
+      const v = Number(fxRate[k]);
+      if (/^[A-Z]{3}$/.test(k) && Number.isFinite(v) && v > 0 && v <= 100000) userFx[k] = v;
+    });
+  }
+
+  let out;
   try {
     /* ⚠ pdf-parse는 **1.x를 쓴다. 2.x로 올리지 말 것.**
        2.4.5는 내부적으로 pdfjs-dist + `@napi-rs/canvas`(네이티브 바이너리)를 쓰는데,
        Vercel 번들에 그 모듈이 들어가지 않아 **프로덕션에서 이 기능이 한 번도 동작한 적이
        없었다.** 로컬에서는 멀쩡해서 더 늦게 발견됐다. 실제 함수 로그:
          Cannot load "@napi-rs/canvas": Error: Cannot find module '@napi-rs/canvas'
-         Warning: Cannot polyfill `DOMMatrix`, rendering may be broken.
          [quotes extractPdf] pdf-parse 실패: ReferenceError: DOMMatrix is not defined
-       1.x는 순수 JS라 네이티브 의존이 없고, 같은 한글 견적서에서 오히려 더 많이 뽑는다
-       (하나투어 견적서 실측: 2.x 2,813자 → 1.x 4,025자).
 
        ⚠ `require('pdf-parse')`가 아니라 **lib을 직접** 부른다. 1.x의 index.js에는
        `!module.parent`일 때 테스트용 PDF를 읽는 디버그 분기가 있어, 번들러에 따라
        로드 시점에 ENOENT로 죽는다. lib을 직접 부르면 그 분기를 아예 지난다.
-       ai-loop/test_rL_pdf_extract.js가 이 두 가지를 소스에서 지킨다. */
+       ai-loop/test_rL_pdf_extract.js가 이 두 가지를 소스에서 지킨다.
+
+       ⚠ **반드시 사본(new Uint8Array)으로 넘긴다.** Node Buffer는 공용 풀에서 잘라 쓰므로
+       byteOffset이 0이 아닐 수 있는데 pdf.js는 그걸 무시하고 0번지부터 읽어
+       'bad XRef entry'로 죽는다. 간헐적으로만 터져서 찾기 어렵다. */
     const pdf = require('pdf-parse/lib/pdf-parse.js');
-    /* ⚠ **반드시 사본으로 넘긴다.** Node의 Buffer는 공용 풀에서 잘라 쓰는 경우가 있어
-       `byteOffset`이 0이 아닐 수 있는데, 안에 들어 있는 pdf.js는 byteOffset을 무시하고
-       밑바탕 ArrayBuffer를 **0번지부터** 읽는다. 그러면 엉뚱한 바이트를 파싱해
-       'bad XRef entry'로 죽고, 화면에는 "PDF를 읽지 못했습니다(손상되었거나 지원하지 않는
-       형식)"가 뜬다 — 파일은 멀쩡한데 파일을 의심하게 되는, 제일 오래 끄는 종류의 결함이다.
-       실제로 회귀 테스트에서 byteOffset=720짜리 버퍼가 걸려 발견했다.
-       new Uint8Array(buf)는 복사본이라 언제나 byteOffset이 0이다. */
     const raw = Buffer.from(pdfBase64, 'base64');
-    const result = await pdf(new Uint8Array(raw));
-    text = (result.text || '').trim();
+    out = await pdfExtract.extractQuote(new Uint8Array(raw), pdf, { fxRate: userFx });
   } catch (err) {
-    console.error('[quotes extractPdf] pdf-parse 실패:', err);
+    console.error('[quotes extractPdf] pdf 읽기 실패:', err);
     return res.status(200).json({ error: 'pdf_parse_failed' });
   }
-  if (!text) return res.status(200).json({ error: 'no_text_found' });
+  if (!out || !out.text) return res.status(200).json({ error: 'no_text_found' });
 
-  /* ① 산술이 맞는 단가 줄만 남긴다 (RN). 여기서 나온 값만 결과가 될 수 있다.
-     ②' 그 줄들을 견적서의 **소계**로 묶는다 (RP) — 식사처럼 여러 줄을 더해야 하는
-        항목을 담당자가 묶음 하나로 고를 수 있게 한다. */
-  const rows = extractUnitRows(text);
-  const groups = extractRowGroups(text, rows);
-
-  try {
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: buildExtractionPrompt(text, rows, groups) }],
-      response_format: { type: 'json_object' },
-      max_tokens: 300,
-    });
-    const parsed = JSON.parse(completion.choices[0].message.content);
-
-    /* ② AI가 준 **줄 번호**로만 값을 되찾는다. AI가 쓴 숫자는 쓰지 않는다. */
-    const a = pickRowValue(rows, parsed.airfareRow, AIRFARE_UNIT_MAX);
-    const h = pickRowValue(rows, parsed.hotelRow, HOTEL_UNIT_MAX);
-    /* 식사만 여러 줄을 합산한다 (RO) — 하루치 = 중식 + 석식 (+조식).
-       묶음(소계로 잡힌 덩어리)을 우선 쓰고, 없으면 줄 목록으로 물러난다 (RP). */
-    const m = pickMealGroup(rows, groups, parsed.mealGroup, MEAL_UNIT_MAX)
-      || pickMealDaily(rows, parsed.mealRows, MEAL_UNIT_MAX);
-    const hotelName = typeof parsed.hotelName === 'string' ? parsed.hotelName.trim().slice(0, HOTEL_NAME_MAX_LEN) : '';
-
-    /* 후보 줄을 화면에도 그대로 내려보낸다 (RN).
-       ⚠ 이게 이 기능의 핵심이다. AI의 라벨 추측은 견적서 형식에 따라 틀린다 —
-       하나투어 견적서는 항목 이름이 표와 떨어진 블록에 몰려 있어 식비 자리에
-       입장료 줄이 들어오는 일이 실제로 있었다. 그래서 **AI가 고른 것을 초안으로 두고,
-       담당자가 후보 목록에서 1클릭으로 바꿀 수 있게** 한다. 숫자를 타이핑할 일이 없어
-       대량 입력에서도 빠르고, 값은 언제나 견적서에 실제로 있는 검산된 줄에서 온다. */
-    const candidates = rows.map((r) => ({
-      idx: r.idx, unit: r.unit, qty: r.qty, times: r.times, total: r.total,
-      line: r.line.replace(/\s+/g, ' ').slice(0, 140),
-    }));
-
-    if (!a && !h && !m && !hotelName && !candidates.length) {
-      return res.status(200).json({
-        error: 'not_found',
-        note: parsed.note || '',
-        /* 왜 못 찾았는지 구분해서 말해 준다 — "단가표가 아예 없는 견적서"와
-           "표는 있는데 못 고른 것"은 담당자가 할 일이 다르다. */
-        rowCount: 0,
-      });
+  /* ── L2 예비 경로 ─────────────────────────────────────────────────────────
+     좌표가 아예 안 나오는 PDF가 있을 수 있다(글자를 이미지로 그리는 생성기 등).
+     그때는 예전(RN) **납작한 텍스트** 추출기로 물러난다. 정확도는 낮지만 0건보다는 낫고,
+     무엇보다 이 경로가 **살아 있는 코드**로 남아 회귀 테스트가 실제로 뭔가를 지킨다.
+     ⚠ 여기서 나온 줄에는 항목 이름이 없다 — 그래서 분류는 못 하고 후보 목록만 준다. */
+  let fallbackUsed = false;
+  let fallbackGroups = [];
+  if (!out.candidates.length) {
+    const flatRows = extractUnitRows(out.text);
+    if (flatRows.length) {
+      fallbackUsed = true;
+      fallbackGroups = extractRowGroups(out.text, flatRows);
+      out.candidates = flatRows.map((r) => ({
+        idx: r.idx, unit: r.unit, qty: r.qty, times: r.times, total: r.total,
+        label: '', note: '', category: null, line: String(r.line).slice(0, 140),
+        converted: null, unconvertible: false, currency: null,
+      }));
+      /* 예비 경로에서는 항목 이름이 없으므로 **예전처럼 AI가 줄 번호를 고른다.**
+         숫자는 여전히 서버가 번호로 되찾는다(pickRowValue) — 지어낼 경로는 없다. */
+      if (process.env.OPENAI_API_KEY) {
+        try {
+          const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+          const completion = await client.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: buildExtractionPrompt(out.text, flatRows, fallbackGroups) }],
+            response_format: { type: 'json_object' }, max_tokens: 300,
+          });
+          const parsed = JSON.parse(completion.choices[0].message.content);
+          const a = pickRowValue(flatRows, parsed.airfareRow, pdfExtract.LIMITS.airfare);
+          const h = pickRowValue(flatRows, parsed.hotelRow, pdfExtract.LIMITS.hotel);
+          const m = pickMealGroup(flatRows, fallbackGroups, parsed.mealGroup, pdfExtract.LIMITS.meal)
+            || pickMealDaily(flatRows, parsed.mealRows, pdfExtract.LIMITS.meal);
+          if (a) { out.values.airfare = a.value; out.evidence.airfare = { rowIdx: parsed.airfareRow, line: a.evidence, calc: a.calc, label: '예비 경로 · AI가 고름' }; }
+          if (h) { out.values.hotel = h.value; out.evidence.hotel = { rowIdx: parsed.hotelRow, line: h.evidence, calc: h.calc, label: '예비 경로 · AI가 고름' }; }
+          if (m) { out.values.meal = m.value; out.evidence.meal = { rowIdxs: m.rowIdxs, calc: m.calc, label: '예비 경로 · AI가 고름' }; }
+          if (typeof parsed.hotelName === 'string' && parsed.hotelName.trim()) {
+            out.values.hotelName = parsed.hotelName.trim().slice(0, pdfExtract.LIMITS.hotelNameLen);
+          }
+          out.fallbackWarnings = sanityWarnings(a, h, m);
+        } catch (err) {
+          console.error('[quotes extractPdf] 예비 경로 AI 실패:', err.message);
+        }
+      }
     }
-    return res.status(200).json({
-      suggestedAirfare: a ? a.value : null,
-      suggestedHotel: h ? h.value : null,
-      suggestedHotelName: hotelName || null,
-      suggestedMeal: m ? m.value : null,
-      /* 근거를 함께 돌려준다 — 화면이 "이 숫자는 견적서 이 줄에서 왔다"를 보여줘야
-         담당자가 PDF를 다시 열지 않고 2초 만에 대조할 수 있다. 대량 입력의 핵심이다. */
-      evidence: {
-        airfare: a ? { line: a.evidence, calc: a.calc } : null,
-        hotel: h ? { line: h.evidence, calc: h.calc } : null,
-        meal: m ? { line: m.evidence, calc: m.calc } : null,
-      },
-      warnings: sanityWarnings(a, h, m),
-      /* 담당자가 고쳐 고를 수 있도록 후보 전체와 AI가 고른 번호를 함께 준다 */
-      candidates,
-      /* 소계로 묶은 덩어리 (RP) — 식사는 이걸로 고르는 게 가장 빠르고 확실하다 */
-      groups: groups.map((g) => ({
-        idx: g.idx, rowIdxs: g.rowIdxs, unitSum: g.unitSum,
-        subtotal: g.subtotal, lines: g.lines, hint: g.hint || '', perPerson: !!g.perPerson,
-      })),
-      picked: {
-        airfare: a ? parsed.airfareRow : null,
-        hotel: h ? parsed.hotelRow : null,
-        mealGroup: m && m.groupIdx != null ? m.groupIdx : null,
-        /* 묶음으로 안 잡혔을 때를 위한 줄 목록 */
-        mealRows: m ? m.rowIdxs : [],
-      },
-      rowCount: rows.length,
-      confidence: parsed.confidence || 'low',
-      note: parsed.note || '',
-    });
-  } catch (err) {
-    console.error('[quotes extractPdf] openai 실패:', err);
-    return res.status(500).json({ error: 'analysis_failed' });
   }
+
+  const values = Object.assign({}, out.values);
+  const evidence = Object.assign({}, out.evidence);
+  const picked = {};
+  Object.keys(evidence).forEach((k) => {
+    const e = evidence[k];
+    if (e && typeof e.rowIdx === 'number') picked[k] = e.rowIdx;
+  });
+  if (evidence.meal && Array.isArray(evidence.meal.rowIdxs)) picked.mealRows = evidence.meal.rowIdxs;
+
+  /* ── L5: 규칙이 못 채운 칸만 AI에게 물어본다 ──────────────────────────────
+     ⚠ 9칸을 통째로 AI에게 시키지 않는다. 라벨 추측이 흔들려 여러 칸이 한꺼번에
+     틀리는 것을 이미 겪었다(RN). 좌표 덕에 이제 줄마다 **자기 항목 이름**이 붙어 있어
+     규칙이 대부분을 정하고, AI는 이름이 없는 줄만 본다. 여기서도 AI는 **줄 번호**로만
+     답한다 — 숫자를 지어낼 경로는 그대로 막혀 있다. */
+  const missing = ['airfare', 'hotel', 'meal'].filter((k) => values[k] == null);
+  const usableCands = (out.candidates || []).filter((c) => !c.unconvertible);
+  let aiNote = '';
+  if (missing.length && usableCands.length && process.env.OPENAI_API_KEY) {
+    try {
+      const list = usableCands.map((c) =>
+        `[${c.idx}] ${c.label ? c.label + ' — ' : ''}단가 ${c.unit.toLocaleString()} × 수량 ${c.qty} × 횟수 ${c.times} = ${c.total.toLocaleString()}`
+        + (c.note ? `  (비고: ${c.note.slice(0, 40)})` : '')).join('\n');
+      const prompt = `여행사 견적서에서 뽑은 **산술이 검산된 단가 줄** 목록입니다.\n`
+        + `줄마다 그 줄의 항목 이름이 앞에 붙어 있습니다(없는 줄도 있습니다).\n\n${list}\n\n`
+        + `아래 항목 중 **아직 못 채운 것**만 골라 주세요: ${missing.join(', ')}\n`
+        + `⚠ 숫자를 쓰지 마세요. 줄 번호만 쓰고, 해당하는 줄이 없으면 null입니다.\n`
+        + `⚠ 억지로 고르지 마세요. 애매하면 null이 맞습니다.\n`
+        + `- airfare: 1인당 항공 운임(유류할증료·택스는 제외)\n`
+        + `- hotel: 객실 1박당 숙박비\n`
+        + `- meal: 1인 1끼 식사 줄 번호들(배열)\n\n`
+        + `JSON으로만 답하세요: {"airfare": 번호|null, "hotel": 번호|null, "mealRows": [번호,...]}`;
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const completion = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' }, max_tokens: 200,
+      });
+      const parsed = JSON.parse(completion.choices[0].message.content);
+      const byIdx = (i) => usableCands.find((c) => c.idx === i);
+      const take = (key, max) => {
+        if (values[key] != null) return;
+        const c = byIdx(parsed[key]);
+        if (!c || !(c.unit > 0 && c.unit <= max)) return;
+        values[key] = Math.round(c.unit);
+        evidence[key] = { rowIdx: c.idx, line: c.line, label: (c.label || '') + ' · AI가 고름', calc: `${c.unit.toLocaleString()} × ${c.qty} × ${c.times} = ${c.total.toLocaleString()}` };
+        picked[key] = c.idx;
+        aiNote = 'AI 보조';
+      };
+      take('airfare', pdfExtract.LIMITS.airfare);
+      take('hotel', pdfExtract.LIMITS.hotel);
+      if (values.meal == null && Array.isArray(parsed.mealRows) && parsed.mealRows.length && out.pax) {
+        const rows = parsed.mealRows.map(byIdx).filter(Boolean);
+        const sum = rows.reduce((n, c) => n + c.unit, 0);
+        if (sum > 0 && sum <= pdfExtract.LIMITS.meal) {
+          values.meal = Math.round(sum);
+          evidence.meal = { rowIdxs: rows.map((c) => c.idx), label: 'AI가 고름', calc: rows.map((c) => c.unit.toLocaleString()).join(' + ') + ' = ' + sum.toLocaleString() + ' (1인 1일)' };
+          picked.mealRows = rows.map((c) => c.idx);
+          aiNote = 'AI 보조';
+        }
+      }
+    } catch (err) {
+      /* AI가 실패해도 규칙이 뽑은 값은 그대로 쓴다 — 여기서 500을 내면 멀쩡한 결과가 버려진다 */
+      console.error('[quotes extractPdf] AI 보조 실패(규칙 결과는 유지):', err.message);
+    }
+  }
+
+  const warnings = (out.fallbackWarnings || []).slice();
+  if (fallbackUsed) warnings.push('이 PDF는 표 좌표를 읽을 수 없어 예전 방식으로 물러났습니다 — 항목 이름이 없으니 후보에서 직접 골라 주세요.');
+  if (values.meal != null && values.meal > 200000) warnings.push('식비가 하루 20만 원을 넘습니다 — 다른 항목이 섞였는지 확인해 주세요.');
+  if (values.hotel != null && values.airfare != null && values.hotel > values.airfare) warnings.push('호텔 1박이 항공료보다 비쌉니다 — 확인해 주세요.');
+  if (out.blockCount > 1) warnings.push(`이 PDF에 견적이 ${out.blockCount}개 들어 있습니다 — 아래에서 어느 것을 읽을지 골라 주세요.`);
+  if (out.needsFxRate) warnings.push(`${out.needsFxRate.currency} 기준 견적서인데 문서에 환율이 없습니다 — 환율을 넣으면 ${out.needsFxRate.rowCount}줄이 살아납니다.`);
+  (out.reconciliation.checks || []).filter((c) => !c.ok).forEach((c) => {
+    warnings.push(`문서 검산 불일치: ${c.name} (${c.detail})`);
+  });
+
+  return res.status(200).json({
+    kind: out.kind,
+    values, evidence, picked, warnings,
+    candidates: out.candidates,
+    rowCount: (out.candidates || []).length,
+    pax: out.pax, grandTotal: out.grandTotal, perPerson: out.perPerson,
+    mealDays: (out.evidence.meal && out.evidence.meal.dayCount) || null,
+    reconciliation: out.reconciliation,
+    blockCount: out.blockCount, selectedBlock: out.selectedBlock, blocks: out.blocks,
+    needsFxRate: out.needsFxRate, fxRates: out.fxRates, fxFromDocument: out.fxFromDocument,
+    source: aiNote || '규칙',
+    /* 좌표가 안 나와 예전 방식으로 물러났는가 — 화면이 "항목 이름이 없어 직접 고르셔야
+       합니다"라고 말할 수 있어야 한다(조용히 품질이 떨어지지 않게). */
+    fallbackUsed,
+  });
 }
 
 async function handlePriceReport(req, res) {

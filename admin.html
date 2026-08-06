@@ -5127,15 +5127,18 @@
      **후보 목록만 붙여** 담당자가 직접 고르게 한다 (RQ) — AI에게 9개를 다 시키면
      식사에서 겪은 것처럼 라벨 추측이 흔들리고, 틀린 값이 여러 칸에 한꺼번에 들어간다.
      후보는 어차피 산술 검증된 줄이라 고르기만 하면 되고, 안 고르면 비어 있을 뿐이다. */
+  /* RZ: 좌표로 표를 복원하면서 **줄마다 자기 항목 이름**이 붙었다. 그래서 이제 9칸을
+     전부 규칙이 채운다(AI는 못 채운 칸만 본다). pickOnly 구분은 없어졌고, 대신 값이
+     어디서 왔는지(규칙/AI/예비경로)와 계산식을 칸 밑에 그대로 적는다. */
   const PR_EVIDENCE_FIELDS = [
     { key: 'airfare', input: 'pr-airfare', label: '항공료' },
     { key: 'hotel', input: 'pr-hotel', label: '호텔단가' },
     { key: 'meal', input: 'pr-meal', label: '식비' },
-    { key: 'fuel', input: 'pr-fuel', label: '유류할증료', pickOnly: true },
-    { key: 'vehicle', input: 'pr-vehicle', label: '차량비', pickOnly: true },
-    { key: 'guide', input: 'pr-guide', label: '가이드비', pickOnly: true },
-    { key: 'sight', input: 'pr-sight', label: '관광·입장료', pickOnly: true },
-    { key: 'sell', input: 'pr-sell', label: '최종 판매가', pickOnly: true },
+    { key: 'fuel', input: 'pr-fuel', label: '유류할증료' },
+    { key: 'vehicle', input: 'pr-vehicle', label: '차량비' },
+    { key: 'guide', input: 'pr-guide', label: '가이드비' },
+    { key: 'sight', input: 'pr-sight', label: '관광·입장료' },
+    { key: 'sell', input: 'pr-sell', label: '최종 판매가' },
   ];
 
   function clearPdfEvidence() {
@@ -5145,21 +5148,37 @@
     });
     const warn = document.getElementById('pr-warnings');
     if (warn) warn.remove();
+    const sum = document.getElementById('pr-pdf-summary');
+    if (sum) sum.remove();
   }
 
-  /* 줄 단위 체크박스 (RP) — 소계 묶음이 안 잡히는 견적서를 위한 예비 수단. */
+  /* 식사 줄 고르기 (RZ) — 요율의 식비는 **1인 1일**이다.
+     ⚠ 예전에는 고른 줄의 **단가를 그냥 더했다.** 그건 '식사 소계 = 하루치'인 견적서에서만
+     맞고, 전 일정 식대를 한 소계로 묶는 견적서에서는 **4배 넘게 부푼다**(한화 뉴퍼스트에서
+     343,650원이 나왔다 — 실제 하루치는 9만 원대). 그래서 서버와 **똑같은 식**으로 계산한다:
+         고른 줄의 총액 합 ÷ 인원 ÷ 식사 일수
+     인원·일수는 서버가 문서에서 읽어 함께 내려준다. 화면이 그 식을 그대로 보여주므로
+     담당자가 결과만이 아니라 **왜 그 값인지**를 보고 고칠 수 있다. */
   function buildMealChecks(cands, data, input, src) {
     const wrap = document.createElement('div');
     wrap.className = 'pr-ev-checks';
     const chosen = new Set((data.picked || {}).mealRows || []);
+    const pax = Number(data.pax) || 0;
+    const days = Number(data.mealDays) || 0;
     const recalc = () => {
       const picked = cands.filter((c) => chosen.has(c.idx));
-      const sum = picked.reduce((n, c) => n + c.unit, 0);
-      input.value = sum || '';
-      src.textContent = picked.length
-        ? '✏️ 하루치 합계: ' + picked.map((c) => c.unit.toLocaleString()).join(' + ')
-          + ' = ' + sum.toLocaleString()
-        : '📄 고르지 않음';
+      if (!picked.length) { input.value = ''; src.textContent = '📄 고르지 않음'; return; }
+      const totalCost = picked.reduce((n, c) => n + c.total, 0);
+      if (pax > 0 && days > 0) {
+        const v = Math.round(totalCost / pax / days);
+        input.value = v;
+        src.textContent = `✏️ ${picked.length}줄 총액 ${totalCost.toLocaleString()} ÷ 인원 ${pax} ÷ ${days}일 = ${v.toLocaleString()} (1인 1일)`;
+      } else {
+        /* 인원·일수를 못 읽었으면 나눌 근거가 없다 — 단가 합만 보이고 **왜 못 나눴는지 말한다** */
+        const sum = picked.reduce((n, c) => n + c.unit, 0);
+        input.value = sum;
+        src.textContent = `✏️ 단가 합 ${sum.toLocaleString()} — 인원/일수를 못 읽어 하루치로 나누지 못했습니다. 직접 확인해 주세요.`;
+      }
     };
     cands.forEach((c) => {
       const lab = document.createElement('label');
@@ -5173,10 +5192,106 @@
         recalc();
       });
       lab.appendChild(cb);
-      lab.append(' ' + c.unit.toLocaleString() + ' (×' + c.qty + '×' + c.times + ')');
+      lab.append(' ' + (c.label ? c.label.slice(0, 14) + ' ' : '') + c.unit.toLocaleString() + ' (×' + c.qty + '×' + c.times + ')');
       wrap.appendChild(lab);
     });
     return wrap;
+  }
+
+  /* 후보 한 줄을 사람이 읽을 수 있는 한 문장으로 (RZ).
+     ⚠ 항목 이름과 통화 환산을 반드시 함께 보인다 — "130,000원"만 보여주면 그게
+     ¥13,000을 환산한 값인지 알 수 없고, 담당자가 대조할 방법이 없다. */
+  function prCandLabel(c) {
+    const head = c.label ? c.label.slice(0, 22) + ' — ' : '';
+    const conv = c.converted
+      ? `  [${c.converted.from} ${c.converted.originalUnit.toLocaleString()} × ${c.converted.rate}]`
+      : (c.unconvertible ? '  [환율을 몰라 환산 못 함]' : '');
+    return `${head}${c.unit.toLocaleString()}원 (× ${c.qty} × ${c.times} = ${c.total.toLocaleString()})${conv}`;
+  }
+
+  /* 읽은 결과의 '머리말' (RZ) — 값을 보기 전에 담당자가 알아야 하는 세 가지를 먼저 말한다:
+       ① 이 문서가 어떤 종류인가 (단가표가 없는 문서면 아무리 해도 못 뽑는다)
+       ② 문서 자체 검산이 맞는가 (총계 ÷ 인원 = 1인당 — 맞으면 제대로 읽었다는 증거)
+       ③ 손이 필요한 것 — 견적이 여러 장이거나, 외화인데 환율이 없거나
+     ⚠ 이걸 안 보여주면 "왜 비어 있지?"를 담당자가 추측하게 된다. 그게 지금까지의 문제였다. */
+  let prLastPdfBase64 = null;   /* 환율을 넣고 다시 계산할 때 파일을 다시 읽지 않으려고 */
+
+  function renderPdfSummary(data) {
+    const old = document.getElementById('pr-pdf-summary');
+    if (old) old.remove();
+    const anchor = document.getElementById('pr-fields-label');
+    if (!anchor) return;
+
+    const box = document.createElement('div');
+    box.id = 'pr-pdf-summary';
+    box.className = 'pr-ev';
+    box.style.cssText = 'margin-bottom:.75rem;padding:.6rem .8rem;border:1.5px solid var(--border);background:var(--bg)';
+
+    const line = (html) => { const p = document.createElement('div'); p.style.cssText = 'font-size:.76rem;line-height:1.7'; p.innerHTML = html; box.appendChild(p); return p; };
+
+    const kind = data.kind || {};
+    line(`📄 <strong>${esc(kind.label || '문서 종류를 판별하지 못했습니다')}</strong>`
+      + (data.rowCount ? ` · 검산된 단가 줄 <strong>${Number(data.rowCount)}개</strong>` : '')
+      + (data.pax ? ` · 인원 <strong>${Number(data.pax)}명</strong>` : ''));
+
+    const rec = data.reconciliation || {};
+    if (rec.total) {
+      const allOk = rec.passed === rec.total;
+      line(`${allOk ? '✅' : '⚠️'} 문서 자체 검산 <strong>${Number(rec.passed)}/${Number(rec.total)}</strong> 통과`
+        + (allOk ? ' — 견적서의 총계·1인당과 앞뒤가 맞습니다(제대로 읽었다는 뜻입니다).'
+                 : ' — 아래 경고를 확인해 주세요.'));
+    }
+
+    /* 견적이 여러 장이면 **고르게 한다.** 어느 것이 맞는지는 사람만 안다. */
+    if (Number(data.blockCount) > 1 && Array.isArray(data.blocks)) {
+      const p = line(`📑 이 PDF에 견적이 <strong>${Number(data.blockCount)}개</strong> 들어 있습니다 — 지금은 단가 줄이 가장 많은 것을 읽었습니다(최신이라는 뜻은 아닙니다):`);
+      const ul = document.createElement('div');
+      ul.style.cssText = 'font-size:.74rem;color:var(--muted);padding-left:1rem';
+      data.blocks.forEach((b) => {
+        const d = document.createElement('div');
+        d.textContent = `${b.selected ? '▶ ' : '· '}총계 ${b.total ? Number(b.total).toLocaleString() : '—'}원`
+          + (b.perPerson ? ` · 1인당 ${Number(b.perPerson).toLocaleString()}원` : '')
+          + ` · 단가 줄 ${Number(b.rows)}개`;
+        ul.appendChild(d);
+      });
+      p.appendChild(ul);
+    }
+
+    /* 외화 견적서인데 문서에 환율이 없을 때 — **딱 한 칸만** 물어본다. */
+    if (data.needsFxRate && data.needsFxRate.currency) {
+      const cur = String(data.needsFxRate.currency);
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'margin-top:.5rem;padding:.5rem .7rem;border:1.5px solid var(--danger,#dc2626);display:flex;gap:.5rem;align-items:center;flex-wrap:wrap';
+      const lab = document.createElement('span');
+      lab.style.cssText = 'font-size:.76rem;font-weight:700;color:var(--danger,#dc2626)';
+      lab.textContent = `💱 ${cur} 기준 견적서인데 문서에 환율이 없습니다 — 1 ${cur} =`;
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.className = 'pw-input'; inp.id = 'pr-fx-input';
+      inp.style.cssText = 'max-width:110px'; inp.placeholder = '예: 1450'; inp.step = 'any';
+      const unit = document.createElement('span');
+      unit.style.cssText = 'font-size:.76rem'; unit.textContent = '원';
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'btn-act btn-primary'; btn.textContent = '이 환율로 다시 읽기';
+      btn.addEventListener('click', () => {
+        const v = Number(inp.value);
+        if (!(v > 0)) { alert('환율을 숫자로 넣어 주세요.'); return; }
+        const fx = {}; fx[cur] = v;
+        extractPdfDetails({ fxRate: fx });
+      });
+      const note = document.createElement('div');
+      note.style.cssText = 'font-size:.72rem;color:var(--muted);width:100%';
+      note.textContent = `넣으면 ${Number(data.needsFxRate.rowCount)}줄이 원화로 환산되어 빈 칸이 채워집니다. `
+        + '오늘 환율로 임의 환산하지 않는 이유는, 견적 시점과 다른 값이 실측으로 굳으면 요율이 틀어지기 때문입니다.';
+      wrap.appendChild(lab); wrap.appendChild(inp); wrap.appendChild(unit); wrap.appendChild(btn); wrap.appendChild(note);
+      box.appendChild(wrap);
+    }
+
+    if (data.fxFromDocument && Object.keys(data.fxFromDocument).length) {
+      line('💱 문서에 적힌 환율을 그대로 썼습니다 — '
+        + esc(Object.keys(data.fxFromDocument).map((k) => `1 ${k} = ${data.fxFromDocument[k]}원`).join(' · ')));
+    }
+
+    anchor.insertAdjacentElement('beforebegin', box);
   }
 
   function renderPdfEvidence(data) {
@@ -5194,13 +5309,21 @@
       const ev = (data.evidence || {})[f.key];
       const src = document.createElement('div');
       src.className = 'pr-ev-src';
-      src.textContent = ev ? '📄 견적서: ' + ev.calc
-        : (f.pickOnly ? '📄 아래 후보에서 골라 주세요 (선택)'
-                      : '📄 이 항목은 찾지 못했습니다 — 아래에서 골라 주세요');
-      if (ev) src.title = ev.line;
+      /* ⚠ calc(계산식)만 보여주면 안 된다. label에는 담당자가 꼭 알아야 할 것이 들어 있다 —
+         "골프 12,944,404원은 뺌", "식사 13줄 · 라벨의 'N일' 3개", "AI가 고름", "예비 경로".
+         예전에는 calc만 찍어서 이 사실들이 화면에 한 번도 나오지 않았다. */
+      src.textContent = ev
+        ? '📄 견적서: ' + (ev.calc || '') + (ev.label ? '  [' + ev.label + ']' : '')
+        : '📄 이 항목은 찾지 못했습니다 — 아래에서 골라 주세요';
+      if (ev) src.title = ev.line || '';
       box.appendChild(src);
 
-      if (f.key === 'meal' && groups.length) {
+      /* RZ: 식사는 분류된 '식사' 줄만 체크박스로 보여준다 — 후보 40개를 다 늘어놓으면
+         무엇을 체크할지 매번 판단해야 한다. 분류가 없으면(예비 경로) 전체를 보여준다. */
+      const mealCands = cands.filter((c) => c.category === 'meal');
+      if (f.key === 'meal' && !groups.length) {
+        box.appendChild(buildMealChecks(mealCands.length ? mealCands : cands, data, input, src));
+      } else if (f.key === 'meal' && groups.length) {
         /* ⚠ 식사는 **묶음으로 고른다** (RP). 요율의 식비는 '1인 1일'이라 중식+석식을
            더해야 하는데, 후보 15개를 매번 판단하는 건 수백 건을 넣는 자리에서 너무 무겁다.
            견적서의 **소계 줄**로 묶으면 "식사 묶음" 하나를 고르는 일이 되고,
@@ -5250,27 +5373,38 @@
         const none = document.createElement('option');
         none.value = ''; none.textContent = '— 고르지 않음 —';
         sel.appendChild(none);
-        cands.forEach((c) => {
+        /* 그 항목으로 분류된 줄을 먼저 보여주고, 나머지는 뒤에 붙인다 (RZ) —
+           40개를 그냥 늘어놓으면 고를 수가 없다. 분류가 틀렸을 수 있으니 숨기지는 않는다. */
+        const mine = cands.filter((c) => c.category === f.key);
+        const rest = cands.filter((c) => c.category !== f.key);
+        const addOpt = (c, prefix) => {
           const o = document.createElement('option');
           o.value = String(c.idx);
-          o.textContent = `${c.unit.toLocaleString()}원  (× ${c.qty} × ${c.times} = ${c.total.toLocaleString()})`;
+          o.textContent = (prefix || '') + prCandLabel(c);
           o.title = c.line;
           sel.appendChild(o);
-        });
+        };
+        mine.forEach((c) => addOpt(c, '● '));
+        if (mine.length && rest.length) {
+          const sep = document.createElement('option');
+          sep.disabled = true; sep.textContent = '─── 다른 항목으로 분류된 줄 ───';
+          sel.appendChild(sep);
+        }
+        rest.forEach((c) => addOpt(c, ''));
         const picked = (data.picked || {})[f.key];
         sel.value = (picked === 0 || picked) ? String(picked) : '';
         sel.addEventListener('change', () => {
           const c = cands.find((x) => String(x.idx) === sel.value);
           input.value = c ? c.unit : '';
-          src.textContent = c
-            ? '✏️ 직접 고름: ' + `${c.unit.toLocaleString()} × ${c.qty} × ${c.times} = ${c.total.toLocaleString()}`
-            : '📄 고르지 않음';
+          src.textContent = c ? '✏️ 직접 고름: ' + prCandLabel(c) : '📄 고르지 않음';
           if (c) src.title = c.line;
         });
         box.appendChild(sel);
       }
       input.insertAdjacentElement('afterend', box);
     });
+
+    renderPdfSummary(data);
 
     const ws = Array.isArray(data.warnings) ? data.warnings : [];
     if (ws.length) {
@@ -5302,11 +5436,15 @@
   /* PDF에서 항공료·호텔단가·호텔명·식비 추출 시도 — 결과는 찾은 항목만 입력창에
      채워 넣고 저장은 안 함(사람이 확인 후 "제출"을 눌러야 실제 반영됨). 텍스트
      없는 스캔 PDF나 AI 미설정 등 실패 사유별로 알아보기 쉬운 안내를 보여준다. */
-  async function extractPdfDetails() {
+  async function extractPdfDetails(opts) {
     const fileInput = document.getElementById('pr-pdf');
     const msg = document.getElementById('pr-msg');
     const file = fileInput.files && fileInput.files[0];
-    if (!file) { msg.style.color = 'var(--danger)'; msg.textContent = 'PDF 파일을 먼저 선택해 주세요.'; return; }
+    /* 환율을 넣고 '다시 읽기'를 누른 경우 — 파일을 다시 고르게 하지 않는다.
+       앞서 읽어 둔 base64를 그대로 쓴다(수백 건을 넣는 자리에서 재선택은 치명적이다). */
+    const reusing = !!(opts && opts.fxRate && prLastPdfBase64);
+    if (!file && !reusing) { msg.style.color = 'var(--danger)'; msg.textContent = 'PDF 파일을 먼저 선택해 주세요.'; return; }
+    if (reusing) return runPdfExtract(prLastPdfBase64, opts.fxRate);
     /* ⚠ 한도가 3.2MB인 이유 (RN): 파일을 base64로 바꿔 보내면 크기가 **1.33배**로 불어난다.
        Vercel 서버리스 함수의 요청 본문 한도는 4.5MB라, 예전 기준(4MB)이면 5.3MB가 되어
        **화면 검사는 통과하고 서버에는 닿지 못한다.** 그때 뜨는 말이 "요청에 실패했습니다"라
@@ -5319,16 +5457,42 @@
       return;
     }
     msg.style.color = 'var(--muted)'; msg.textContent = 'PDF 분석 중... (최대 30초 정도 걸릴 수 있습니다)';
+    let base64;
     try {
-      const base64 = await new Promise((resolve, reject) => {
+      base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
+    } catch (err) {
+      msg.style.color = 'var(--danger)'; msg.textContent = '파일을 읽지 못했습니다 — 다시 선택해 주세요.';
+      return;
+    }
+    prLastPdfBase64 = base64;
+    return runPdfExtract(base64, (opts && opts.fxRate) || null);
+  }
+
+  /* 추출 요청 한 번 (RZ) — 파일 읽기와 분리했다. 환율을 넣고 '다시 읽기'를 누를 때
+     같은 파일을 다시 고르지 않아도 되게 하기 위해서다. */
+  const PR_VALUE_TO_INPUT = {
+    airfare: 'pr-airfare', fuel: 'pr-fuel', hotel: 'pr-hotel', hotelName: 'pr-hotel-name',
+    meal: 'pr-meal', vehicle: 'pr-vehicle', guide: 'pr-guide', sight: 'pr-sight', sell: 'pr-sell',
+  };
+  const PR_VALUE_LABEL = {
+    airfare: '항공료', fuel: '유류할증료', hotel: '호텔단가', hotelName: '호텔명',
+    meal: '식비', vehicle: '차량비', guide: '가이드비', sight: '관광·입장료', sell: '판매가',
+  };
+
+  async function runPdfExtract(base64, fxRate) {
+    const msg = document.getElementById('pr-msg');
+    msg.style.color = 'var(--muted)'; msg.textContent = 'PDF 분석 중... (최대 30초 정도 걸릴 수 있습니다)';
+    try {
+      const body = { pdfBase64: base64 };
+      if (fxRate) body.fxRate = fxRate;
       const res = await fetch('/api/quotes?action=extractPdf', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfBase64: base64 }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -5342,11 +5506,17 @@
         msg.style.color = 'var(--danger)'; msg.textContent = reasons[data.error] || '추출에 실패했습니다 — 직접 입력해 주세요.';
         return;
       }
+      /* RZ: 9칸을 한 번에 채운다. 예전에는 4칸만 채우고 나머지는 담당자가 후보에서
+         직접 골라야 했다 — 좌표 덕에 줄마다 항목 이름이 붙어 규칙으로 정할 수 있게 됐다. */
+      const values = data.values || {};
       const found = [];
-      if (data.suggestedAirfare != null) { document.getElementById('pr-airfare').value = data.suggestedAirfare; found.push('항공료'); }
-      if (data.suggestedHotel != null) { document.getElementById('pr-hotel').value = data.suggestedHotel; found.push('호텔단가'); }
-      if (data.suggestedHotelName) { document.getElementById('pr-hotel-name').value = data.suggestedHotelName; found.push('호텔명'); }
-      if (data.suggestedMeal != null) { document.getElementById('pr-meal').value = data.suggestedMeal; found.push('식비'); }
+      Object.keys(PR_VALUE_TO_INPUT).forEach((k) => {
+        const el = document.getElementById(PR_VALUE_TO_INPUT[k]);
+        if (!el) return;
+        if (values[k] == null || values[k] === '') { el.value = ''; return; }
+        el.value = values[k];
+        found.push(PR_VALUE_LABEL[k]);
+      });
       /* 근거·후보 목록을 칸 밑에 붙인다 (RN) — 찾은 게 없어도 후보가 있으면 붙여야
          담당자가 직접 고를 수 있다. */
       renderPdfEvidence(data);
@@ -5355,12 +5525,14 @@
         msg.style.color = 'var(--danger)';
         msg.textContent = nCand
           ? `항목을 자동으로 고르지 못했습니다 — 아래 후보 ${nCand}개 중에서 직접 골라 주세요.`
-          : '이 견적서에는 단가표가 없습니다(패키지 총액만 있는 견적서) — 직접 입력해 주세요.';
+          : ((data.kind && data.kind.kind === 'summary')
+            ? '이 문서에는 단가표가 없습니다(총액·일정만 있는 견적서) — 직접 입력해 주세요.'
+            : '단가 줄을 찾지 못했습니다 — 직접 입력해 주세요.');
         return;
       }
       msg.style.color = 'var(--primary)';
-      msg.textContent = `PDF에서 ${found.join('·')} 추출(신뢰도: ${data.confidence}) — `
-        + `⚠ **각 칸 아래 근거를 견적서와 대조**하고, 틀렸으면 후보에서 다시 골라 주세요.`
+      msg.textContent = `PDF에서 ${found.length}칸 채웠습니다 (${found.join('·')}) — `
+        + '⚠ 각 칸 아래 근거를 견적서와 대조하고, 틀렸으면 후보에서 다시 골라 주세요.'
         + (nCand ? ` 후보 ${nCand}개.` : '');
     } catch (err) {
       msg.style.color = 'var(--danger)'; msg.textContent = '요청에 실패했습니다. 네트워크를 확인해 주세요.';

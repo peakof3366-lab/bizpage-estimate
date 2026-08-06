@@ -110,7 +110,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
     String((r2.text || '').trim().length));
   /* 서버가 실제로 그 사본 변환을 하고 있는가 */
   ok('api/quotes.js가 사본으로 넘긴다',
-    /pdf\(new Uint8Array\(/.test(quotesSrc),
+    /new Uint8Array\(raw\)/.test(quotesSrc),
     'Buffer를 그대로 넘기면 큰 PDF에서 간헐적으로 bad XRef entry가 난다');
   ok('왜 사본이어야 하는지 주석이 있다',
     /byteOffset/.test(quotesSrc) && /bad XRef/.test(quotesSrc));
@@ -123,7 +123,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
   ok('서버가 그 예외를 pdf_parse_failed로 옮긴다',
     /catch[\s\S]{0,200}pdf_parse_failed/.test(quotesSrc));
   ok('텍스트가 비면 no_text_found로 따로 말한다',
-    /if \(!text\)[\s\S]{0,60}no_text_found/.test(quotesSrc),
+    /no_text_found/.test(quotesSrc) && /out\.text/.test(quotesSrc),
     '둘을 뭉치면 "스캔 PDF"와 "라이브러리 고장"을 구분할 수 없다');
   ok('실패 사유를 서버 로그에 남긴다', /console\.error\('\[quotes extractPdf\]/.test(quotesSrc),
     '이번 원인도 이 로그 한 줄로 찾았다');

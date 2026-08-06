@@ -48,6 +48,9 @@ const quotes = require('../api/quotes.js');
 const X = quotes._extract;
 const adminSrc = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
 const quotesSrc = fs.readFileSync(path.join(ROOT, 'api', 'quotes.js'), 'utf8');
+/* RZ: 뽑아내는 알맹이는 api/_lib/pdf_extract.js로 옮겼다(층 구조). 여기도 함께 본다. */
+const libSrc = fs.readFileSync(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'), 'utf8');
+const LIB = require('../api/_lib/pdf_extract.js');
 
 /* 실제 하나투어 견적서에서 pdf-parse가 뽑아낸 **모양 그대로**를 옮긴 표본.
    ⚠ 고객 이름·연락처는 뺐다. 숫자와 배치만 실제와 같게 둔다 — 이 결함이 바로
@@ -148,8 +151,14 @@ const PACKAGE_ONLY = `상해 2박3일
   ok('서버가 parsed.airfarePerPerson 같은 숫자를 읽지 않는다',
     !/parsed\.(airfarePerPerson|hotelPerRoom|mealPerPerson)/.test(code),
     '읽으면 AI가 지어낸 숫자가 그대로 들어온다');
-  ok('서버는 줄 번호(parsed.*Row)로만 값을 되찾는다',
-    /parsed\.airfareRow/.test(code) && /parsed\.hotelRow/.test(code) && /parsed\.mealRows/.test(code));
+  /* RZ: 규칙(어휘 분류)이 대부분을 정하고 AI는 **못 채운 칸만** 본다. 그때도 답은
+     여전히 **줄 번호**다 — 숫자를 지어낼 경로는 그대로 막혀 있다. */
+  ok('AI는 못 채운 칸만 본다',
+    /const missing = \['airfare', 'hotel', 'meal'\]\.filter/.test(code), 'AI에게 9칸을 통째로 시키지 않는다');
+  ok('AI 답은 여전히 줄 번호다',
+    /줄 번호만 쓰고/.test(code) && /byIdx\(parsed\[key\]\)/.test(code));
+  ok('AI가 준 번호도 상한을 넘으면 버린다',
+    /c\.unit > 0 && c\.unit <= max/.test(code));
 
   /* ── [2-b] 식사는 하루치로 **합산**하는가 (RO) ─────────────────────────────
      요율의 meal_per_person이 '1인 1일'이라, 중식·석식이 따로 줄로 나오는 견적서에서
@@ -218,9 +227,11 @@ const PACKAGE_ONLY = `상해 2박3일
   const gPrompt = X.buildExtractionPrompt(HANATOUR_LIKE, rows, groups);
   ok('프롬프트에 묶음 목록이 들어간다', /\{0\} 줄/.test(gPrompt));
   ok('프롬프트에 수량 패턴 힌트도 들어간다', /수량 패턴/.test(gPrompt));
-  ok('서버가 묶음을 화면에 내려보낸다', /groups: groups\.map/.test(code));
-  ok('화면이 묶음으로 고르게 한다', /mealGroup/.test(adminSrc));
-  ok('화면이 소계 일치를 알려준다', /✅ 소계 /.test(adminSrc) && /원과 일치/.test(adminSrc));
+  /* RZ: 소계 묶음 대신 **줄마다 붙은 항목 이름**으로 식사를 모으고, 하루치로 나눈다.
+     소계 묶음은 '식사 소계 = 전 일정 합'인 견적서에서 4배 틀렸다(한화 뉴퍼스트 실측). */
+  ok('식사는 하루치로 나눈다', /÷ 인원 \$\{pax\} ÷ \$\{dayCount\}일/.test(libSrc));
+  ok('며칠치인지 근거를 남긴다', /basis/.test(libSrc) && /라벨의 'N일'/.test(libSrc));
+  ok('화면이 계산식을 그대로 보여준다', /ev-src/.test(adminSrc));
 
   /* ── [3] 단가표가 없는 견적서 (④) ─────────────────────────────────────── */
   console.log('\n[3] 패키지 총액만 있는 견적서는 어떻게 되는가 (④)');
@@ -266,7 +277,7 @@ const PACKAGE_ONLY = `상해 2박3일
   /* ── [6] 화면이 후보·근거를 보여주는가 (③⑦) ──────────────────────────── */
   console.log('\n[6] 화면이 후보에서 고르게 해 주는가 (③⑦)');
   ok('서버가 후보 목록을 내려보낸다', /candidates,/.test(code) || /candidates:/.test(code));
-  ok('AI가 고른 번호도 함께 내려보낸다', /picked:/.test(code));
+  ok('고른 줄 번호도 함께 내려보낸다', /picked,/.test(code) || /picked:/.test(code));
   ok('근거(evidence)도 내려보낸다', /evidence:/.test(code));
   ok('화면이 후보 드롭다운을 만든다', /pr-ev-pick/.test(adminSrc));
   ok('화면이 근거 문장을 보여준다', /pr-ev-src/.test(adminSrc));
