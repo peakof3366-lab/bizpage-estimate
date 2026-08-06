@@ -230,6 +230,12 @@ async function main() {
      둘 다 nullable — 기존 커스텀 목적지 행은 값이 없어도 종전대로 안전하게 동작. */
   await sql`alter table custom_destinations add column if not exists currency text`;
   await sql`alter table custom_destinations add column if not exists region text`;
+  /* 나라 (RY) — region과 별개 축이다. region은 요율 일괄조정 단위(가격 축), country는
+     '실제 이용 호텔' 목록을 가르는 실물 축이다('동남아' 하나에 베트남·태국·필리핀이
+     다 들어 있어 체인 호텔이 구분되지 않았다). 가격 계산에는 전혀 쓰이지 않는다.
+     ⚠ createDestination의 INSERT가 이 컬럼을 쓴다 — **배포보다 이 마이그레이션이 먼저**여야
+     새 목적지 추가가 500으로 깨지지 않는다. 조회(GET)는 `select *`라 순서에 무관하다. */
+  await sql`alter table custom_destinations add column if not exists country text`;
 
   /* 실제 계약 항공료 (신규) — 항공료는 인원별 협상 견적이라 공개 API로 자동 갱신할
      수 없지만, 계약완료된 견적의 진짜 최종 항공료를 담당자가 한 번 입력해 두면

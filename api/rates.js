@@ -106,6 +106,9 @@ function isValidNewDestination(body) {
       (typeof body.currency !== 'string' || !/^[A-Z]{3}$/.test(body.currency))) return 'invalid_currency';
   /* 지역(선택) — REGION_MAP 분류용 자유 문자열(길이만 제한). */
   if (body.region != null && (typeof body.region !== 'string' || body.region.length > 40)) return 'invalid_region';
+  /* 나라(선택, RY) — 지역과 별개 축이다. '실제 이용 호텔' 목록을 나라 단위로 가르는 데만
+     쓰이고 가격에는 전혀 들어가지 않는다. 비면 화면에서 '나라 미지정'으로 드러난다. */
+  if (body.country != null && (typeof body.country !== 'string' || body.country.length > 40)) return 'invalid_country';
   /* 보험 권역 — 없으면 견적 엔진이 계수 1.00(중립)으로 조용히 폴백한다. 권역별
      0.85~1.80이라 최대 80% 어긋나는데 콘솔 경고만 남았다. 빈 값은 기준 권역으로 본다. */
   if (body.insuranceZone != null && body.insuranceZone !== ''
@@ -227,6 +230,10 @@ module.exports = async (req, res) => {
         margin_per_traveler: Number(r.margin_per_traveler),
         rateDate: r.rate_date, notes: r.notes, season_note: r.season_note,
         currency: r.currency || null, region: r.region || null,
+        /* 나라 (RY) — admin.html DEST_COUNTRY에 편입돼 '실제 이용 호텔' 목록을 가른다.
+           ⚠ 위 조회가 `select *`라 컬럼이 아직 없으면 undefined → null로 내려가고
+           화면은 '나라 미지정'으로 표시한다(500이 나지는 않는다). */
+        country: r.country || null,
         /* 보험 권역 — script.js가 INSURANCE_ZONES에 편입해야 계수가 제대로 붙는다.
            안 내려보내면 엔진이 중립값 1.00으로 조용히 폴백한다. */
         insurance_zone: r.insurance_zone || 'asiaMid',
@@ -275,6 +282,7 @@ module.exports = async (req, res) => {
     const f = body.fields;
     const currency = (body.currency && body.currency !== '') ? body.currency : null;
     const region = (body.region && body.region !== '') ? body.region : null;
+    const country = (body.country && body.country.trim() !== '') ? body.country.trim() : null;
     /* 빈 문자열이 아니라 null로 저장한다 — GET이 `|| null`로 내려보내므로 어느 쪽이든
        엔진 동작은 같지만, DB에서 '안 고름'과 ''이 섞이면 나중에 집계·감사가 갈린다. */
     const seasonProfile = (body.seasonProfile && body.seasonProfile !== '') ? body.seasonProfile : null;
@@ -284,12 +292,12 @@ module.exports = async (req, res) => {
           destination_key, label, zone, southern_hemisphere,
           airfare, fuel_surcharge, hotel_per_room, meal_per_person,
           vehicle_large, vehicle_small, guide_fee, sightseeing_fee, margin_per_traveler,
-          rate_date, notes, season_note, created_by, currency, region, insurance_zone, season_profile
+          rate_date, notes, season_note, created_by, currency, region, country, insurance_zone, season_profile
         ) values (
           ${key}, ${body.label.trim()}, ${body.zone}, ${body.southernHemisphere},
           ${f.airfare}, ${f.fuel_surcharge}, ${f.hotel_per_room}, ${f.meal_per_person},
           ${f.vehicle_large}, ${f.vehicle_small}, ${f.guide_fee}, ${f.sightseeing_fee}, ${f.margin_per_traveler},
-          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${req.user.displayName}, ${currency}, ${region}, ${body.insuranceZone || 'asiaMid'}, ${seasonProfile}
+          ${rateDate}, ${body.notes || ''}, ${body.seasonNote || ''}, ${req.user.displayName}, ${currency}, ${region}, ${country}, ${body.insuranceZone || 'asiaMid'}, ${seasonProfile}
         )
         on conflict (destination_key) do nothing
         returning destination_key

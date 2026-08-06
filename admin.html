@@ -1260,7 +1260,7 @@
         <div class="card-body">
           <div style="font-size:.8rem;color:var(--muted);margin-bottom:.9rem;line-height:1.7">
             <p style="margin-bottom:.5rem">계약이 성사된 실제 항공료·호텔단가·식비를 남겨주세요(전부 채울 필요 없이 아는 항목만 채우면 됩니다) — 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다. <strong style="color:var(--heading)">아래 두 방식 중 하나만</strong> 골라서 사용합니다.</p>
-            <p style="margin-bottom:0">🔒 <strong>실제 이용 호텔명</strong>은 가격에는 반영되지 않는 관리자 전용 참고 정보입니다 — 고객이 보는 견적서·공개 페이지에는 절대 표시되지 않습니다.</p>
+            <p style="margin-bottom:0"><strong>실제 이용 호텔명</strong>은 다른 항목과 똑같이 담당자 누구나 넣고 볼 수 있습니다(가격에는 반영되지 않는 참고 정보입니다). 아래 <strong style="color:var(--heading)">🏨 실제 이용 호텔</strong>에 <strong style="color:var(--heading)">지역 → 나라 → 도시</strong> 순으로 정리되어 쌓입니다 — 같은 이름의 체인 호텔이라도 어느 나라 것인지 구분됩니다. 고객이 보는 견적서·공개 페이지에는 나가지 않습니다.</p>
           </div>
 
           <!-- 공통: 목적지 선택 -->
@@ -1293,7 +1293,10 @@
 
           <!-- 가격 필드: 직접입력 모드=편집 가능 / PDF 모드=읽기전용(추출값) -->
           <div id="pr-fields-label" class="detail-label" style="margin-bottom:.5rem">직접 입력할 값 (아는 항목만)</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;align-items:end">
+          <!-- ⚠ align-items를 end → start로 바꿨다 (RY). 호텔명 칸만 아래에 안내 줄이
+               하나 더 붙는데, 아래 맞춤이면 그 줄 높이만큼 **호텔명 입력칸만 위로 밀린다**.
+               다른 칸은 전부 라벨+입력 한 쌍이라 위 맞춤으로 바꿔도 보이는 모양이 같다. -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;align-items:start">
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 항공료(1인당)</div>
               <input type="number" id="pr-airfare" class="pw-input" min="0" placeholder="예: 420000" />
@@ -1303,8 +1306,12 @@
               <input type="number" id="pr-hotel" class="pw-input" min="0" placeholder="예: 130000" />
             </div>
             <div>
-              <div class="detail-label" style="margin-bottom:.3rem">실제 이용 호텔명 🔒<span style="font-weight:400;text-transform:none;letter-spacing:0"> (관리자 전용)</span></div>
+              <div class="detail-label" style="margin-bottom:.3rem">실제 이용 호텔명</div>
               <input type="text" id="pr-hotel-name" class="pw-input" maxlength="80" placeholder="예: OO 호텔" />
+              <!-- 어느 나라로 정리되는지 입력 순간에 보여준다 (RY) — 호텔 체인은 이름만으로는
+                   나라를 알 수 없어서, 목적지를 잘못 고른 채 넣으면 나중에 목록에서 찾을 수
+                   없다. 저장 뒤에 확인하는 게 아니라 넣기 전에 보이게 한다. -->
+              <div id="pr-hotel-scope" style="font-size:.72rem;color:var(--muted);margin-top:.3rem"></div>
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 식비(1인 1일)</div>
@@ -1343,15 +1350,25 @@
       </div>
 
       <!-- 실제 이용 호텔 — 가격 비교/제안이 아니라 "이 목적지에 실제로 어느 호텔을
-           썼는지" 순수 참고 정보. 요율 계산에는 전혀 반영되지 않고, 데이터도 requireAdmin
-           API로만 조회되므로 공개 견적 계산기·고객에게는 절대 노출되지 않는다.
+           썼는지" 순수 참고 정보. 요율 계산에는 전혀 반영되지 않고, 데이터도 로그인한
+           담당자만 부를 수 있는 API로 조회되므로 공개 견적 계산기·고객에게는 노출되지 않는다.
            ⚠ 요율 관리가 아니라 **여기** 둔다 (RM) — 이 값을 만드는 곳이 여기이고,
-           요율 표에서는 쓰이지 않는다. -->
+           요율 표에서는 쓰이지 않는다.
+
+           RY에서 바뀐 것 — 예전에는 "목적지별 최근 1건"만 한 줄씩 흘려보여서, 쌓여도
+           정리가 안 되고 같은 이름의 체인 호텔이 어느 나라 것인지 구분되지 않았다.
+           이제 **지역 → 나라 → 도시**로 접어서 보여주고, 같은 호텔은 한 줄로 묶어
+           사용 횟수와 최근 사용일을 단다. 담당자 누구나 보는 화면이다(권한 제한 없음). -->
       <div class="card hidden" id="hotel-reference-card" style="margin-bottom:1.25rem">
-        <div class="card-header"><span class="card-title">🏨 실제 이용 호텔 (관리자 전용 참고 정보)</span></div>
+        <div class="card-header"><span class="card-title">🏨 실제 이용 호텔</span></div>
         <div class="card-body">
-          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">목적지별 최근 제보 1건만 표시됩니다. 요율(가격)에는 반영되지 않으며, 고객에게는 노출되지 않습니다.</p>
-          <div id="hotel-reference-list" style="display:grid;gap:.4rem"></div>
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">지금까지 넣은 <strong style="color:var(--heading)">실제 이용 호텔명</strong>을 <strong style="color:var(--heading)">지역 → 나라 → 도시</strong>로 묶어 보여줍니다. 같은 호텔은 한 줄로 합치고 사용 횟수·최근 사용일을 답니다. 요율(가격)에는 반영되지 않으며, 고객에게는 나가지 않습니다.</p>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem">
+            <input type="text" id="hotel-ref-search" class="pw-input" style="max-width:300px" placeholder="호텔명·나라·지역·도시로 찾기" oninput="renderHotelReference()" />
+            <button type="button" class="btn-act btn-outline-p" onclick="exportHotelReferenceCsv()">⤓ CSV 내보내기</button>
+            <span id="hotel-ref-count" style="font-size:.76rem;color:var(--muted)"></span>
+          </div>
+          <div id="hotel-reference-list" style="display:grid;gap:.6rem"></div>
         </div>
       </div>
 
@@ -2219,6 +2236,13 @@
             <option value="북미">북미</option>
             <option value="중앙아시아">중앙아시아</option>
           </select>
+        </div>
+        <!-- 나라 (RY) — 지역과 별개 축이다. 지역은 요율 일괄조정 단위고, 나라는
+             "실제 이용 호텔" 목록을 가르는 실물 축이다. 비워 두면 그 목적지의 호텔이
+             '나라 미지정'으로 모여 화면에서 빨갛게 드러난다(조용히 묻히지 않게). -->
+        <div>
+          <div class="detail-label" style="margin-bottom:.3rem">나라 (호텔 정리용)</div>
+          <input type="text" id="new-dest-country" class="pw-input" maxlength="40" placeholder="예: 베트남" />
         </div>
       </div>
       <div id="new-dest-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:1rem"></div>
@@ -4235,6 +4259,17 @@
      ⚠ 런타임에 커스텀 목적지가 여기 추가되므로(아래 loadRates) 매번 새 객체여야 한다. */
   const REGION_MAP = destFieldMap('region');
 
+  /* 나라 분류 맵 (RY) — 같은 방식으로 DEST_CLASSIFY(country)에서 파생한다.
+     ⚠ 지역(region)과 역할이 다르다. region은 **요율 일괄조정 단위**(가격 축)이고
+     country는 **실물 축**이다. '동남아' 하나에 베트남·태국·필리핀·인도네시아가 다 들어
+     있어서, 같은 이름의 체인 호텔이 어느 나라 것인지 실제 이용 호텔 목록에서 구분되지
+     않았다. 가격 계산에는 전혀 쓰이지 않는다 — 목록을 가르는 데만 쓴다.
+     ⚠ REGION_MAP과 마찬가지로 런타임에 커스텀 목적지가 추가되므로 매번 새 객체여야 한다. */
+  const DEST_COUNTRY = destFieldMap('country');
+  /* 커스텀 목적지가 나라를 안 골랐을 때 쓰는 말 — 빈칸으로 두면 목록에서 "나라가 없는
+     호텔"이 조용히 섞여 들어간다(결함 생성기 ②). 화면에 그대로 보여 채우게 만든다. */
+  const COUNTRY_UNSET = '나라 미지정';
+
   const REGION_ORDER = ['일본','홍콩·마카오','중국','몽골·대만','동남아','오세아니아·태평양','유럽','북미','중앙아시아'];
 
   let rateFilter = 'all';
@@ -4481,6 +4516,9 @@
           /* 지역 분류를 REGION_MAP에 편입 — 안 하면 label이 REGION_MAP에 없어 '기타'로
              빠지고 요율 일괄조정(지역 단위)에서 조용히 누락된다. region이 비면 종전대로 '기타'. */
           if (row.region) REGION_MAP[row.label] = row.region;
+          /* 나라 분류도 같이 편입 (RY) — 안 하면 커스텀 목적지의 호텔이 '나라 미지정'으로
+             빠진다. 값이 없으면 일부러 넣지 않는다(아래 화면이 COUNTRY_UNSET으로 드러낸다). */
+          if (row.country) DEST_COUNTRY[destFields.destination_key] = row.country;
           /* 통화를 클라이언트 DEST_CURRENCY에 편입 — adminGetFxDrift가 이 맵을 보므로,
              안 하면 커스텀 목적지는 환율 변동 감지(💱)가 안 뜬다. 서버는 이미
              custom_destinations.currency로 rate_fx_baseline을 심어 FX 계산은 동작한다. */
@@ -4822,31 +4860,139 @@
     }).join('');
   }
 
-  /* 실제 이용 호텔 참고 카드 (신규) — 가격 비교가 아니라 "최근에 어느 호텔을
-     썼는지" 순수 참고 정보. 요율 계산에는 전혀 반영되지 않으므로 임계값/신뢰도
-     없이 목적지별 최신 제보 1건만 그대로 보여준다. */
+  /* 실제 이용 호텔 목록 (RY) — 가격 비교가 아니라 "어느 나라 어느 도시에서 어느 호텔을
+     썼는지"를 담당자 누구나 정리해 볼 수 있게 하는 화면. 요율 계산에는 전혀 반영되지 않는다.
+
+     ⚠ 예전(RM)에는 "목적지별 최신 1건"만 한 줄씩 보여줬다. 두 가지가 문제였다:
+       ① 같은 목적지에 두 번째 호텔을 넣으면 첫 번째가 화면에서 사라졌다 — 쌓아도 안 보였다.
+       ② 지역·나라 구분이 없어 체인 호텔(같은 브랜드가 여러 나라에 있다)이 뒤섞였다.
+     그래서 **전부** 보여주되 같은 호텔은 한 줄로 묶고, 지역 → 나라 → 도시로 접는다.
+     나라는 DEST_COUNTRY(=data.js DEST_CLASSIFY 파생)에서 오고 여기서 따로 정하지 않는다.
+
+     ⚠ 호텔명은 인증된 담당자가 넣은 값이지만 그대로 innerHTML에 들어가므로 반드시 esc().
+     접기는 <details>로 해서 인라인 onclick에 문자열을 끼워 넣지 않는다(결함 생성기 ④). */
+  function hotelReferenceGroups() {
+    /* 같은 도시·같은 호텔은 한 줄로 합친다. 표기 흔들림(공백·대소문자)까지 같은 것으로
+       보되, 화면에는 **가장 최근에 적힌 표기**를 쓴다(담당자가 고쳐 적었으면 그쪽이 맞다). */
+    const merged = {};
+    priceReportsCache.forEach(r => {
+      const name = (r.hotelName || '').trim();
+      if (!name) return;
+      const norm = name.replace(/\s+/g, ' ').toLowerCase();
+      const k = r.destinationKey + '|' + norm;
+      const at = r.createdAt ? new Date(r.createdAt).getTime() : 0;
+      const cur = merged[k];
+      if (!cur) merged[k] = { destKey: r.destinationKey, name, count: 1, latestAt: at, author: r.author || '' };
+      else {
+        cur.count++;
+        if (at >= cur.latestAt) { cur.latestAt = at; cur.name = name; cur.author = r.author || ''; }
+      }
+    });
+
+    const q = (document.getElementById('hotel-ref-search')?.value || '').trim().toLowerCase();
+    const rows = Object.values(merged).map(h => {
+      const dest = destinationRates.find(d => d.destination_key === h.destKey);
+      return Object.assign({}, h, {
+        label: dest ? dest.label : h.destKey,
+        country: destCountryOf(h.destKey) || COUNTRY_UNSET,
+        region: destRegionOf(h.destKey),
+      });
+    }).filter(h => !q || [h.name, h.country, h.region, h.label].some(v => v.toLowerCase().includes(q)));
+
+    /* 지역 → 나라 → 도시. 지역은 요율표와 같은 순서(REGION_ORDER)를 쓰고, 나머지는 가나다순. */
+    const byRegion = {};
+    rows.forEach(h => {
+      const rg = byRegion[h.region] || (byRegion[h.region] = {});
+      const ct = rg[h.country] || (rg[h.country] = {});
+      (ct[h.label] || (ct[h.label] = [])).push(h);
+    });
+    const regionKeys = Object.keys(byRegion).sort((a, b) => {
+      const ia = REGION_ORDER.indexOf(a), ib = REGION_ORDER.indexOf(b);
+      return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || a.localeCompare(b, 'ko');
+    });
+    return { rows, byRegion, regionKeys };
+  }
+
   function renderHotelReference() {
     const card = document.getElementById('hotel-reference-card');
     const list = document.getElementById('hotel-reference-list');
+    const countEl = document.getElementById('hotel-ref-count');
     if (!card || !list || typeof destinationRates === 'undefined') return;
-    const latest = {};
-    priceReportsCache.forEach(r => {
-      if (!r.hotelName) return;
-      const prev = latest[r.destinationKey];
-      if (!prev || new Date(r.createdAt) > new Date(prev.createdAt)) latest[r.destinationKey] = r;
-    });
-    const entries = Object.entries(latest);
-    if (!entries.length) { card.classList.add('hidden'); return; }
+
+    /* 검색어 때문에 0건이 됐을 때 카드까지 사라지면 "검색을 지울 곳"이 없어진다.
+       카드를 숨기는 건 **호텔 제보 자체가 하나도 없을 때**뿐이다. */
+    const anyHotel = priceReportsCache.some(r => (r.hotelName || '').trim());
+    if (!anyHotel) { card.classList.add('hidden'); return; }
     card.classList.remove('hidden');
-    list.innerHTML = entries.map(([destKey, r]) => {
-      const dest = destinationRates.find(d => d.destination_key === destKey);
-      const label = dest ? dest.label : destKey;
-      const date = new Date(r.createdAt).toISOString().slice(0, 10);
-      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.5rem .75rem;border:1px solid var(--border);font-size:.82rem;flex-wrap:wrap">
-        <span><strong>${esc(label)}</strong> — ${esc(r.hotelName)}</span>
-        <span style="color:var(--muted);font-size:.76rem">${esc(r.author || '')} · ${date}</span>
-      </div>`;
+
+    const { rows, byRegion, regionKeys } = hotelReferenceGroups();
+    if (countEl) {
+      const cities = new Set(rows.map(h => h.label)).size;
+      const countries = new Set(rows.map(h => h.country)).size;
+      countEl.textContent = `호텔 ${rows.length}곳 · ${countries}개 나라 · ${cities}개 도시`;
+    }
+    if (!rows.length) {
+      list.innerHTML = `<div style="color:var(--muted);font-size:.82rem;padding:1rem 0">검색 조건에 맞는 호텔이 없습니다.</div>`;
+      return;
+    }
+
+    const dateOf = ms => ms ? new Date(ms).toISOString().slice(0, 10) : '—';
+    list.innerHTML = regionKeys.map(region => {
+      const countries = Object.keys(byRegion[region]).sort((a, b) => {
+        /* '나라 미지정'은 채워야 할 것이므로 맨 위로 올려 눈에 띄게 한다. */
+        if (a === COUNTRY_UNSET) return -1;
+        if (b === COUNTRY_UNSET) return 1;
+        return a.localeCompare(b, 'ko');
+      });
+      const regionCount = countries.reduce((n, c) => n + Object.values(byRegion[region][c]).reduce((m, arr) => m + arr.length, 0), 0);
+      const body = countries.map(country => {
+        const cities = Object.keys(byRegion[region][country]).sort((a, b) => a.localeCompare(b, 'ko'));
+        const unset = country === COUNTRY_UNSET;
+        const cityRows = cities.map(city => {
+          const hotels = byRegion[region][country][city].sort((a, b) => b.latestAt - a.latestAt);
+          return `<div style="display:grid;grid-template-columns:minmax(90px,110px) 1fr;gap:.5rem;padding:.35rem 0;border-top:1px solid var(--border)">
+            <div style="font-weight:700;font-size:.8rem">${esc(city)}</div>
+            <div style="display:grid;gap:.25rem">${hotels.map(h => `
+              <div style="display:flex;justify-content:space-between;gap:.75rem;flex-wrap:wrap;font-size:.82rem">
+                <span>${esc(h.name)}${h.count > 1 ? ` <span style="color:var(--muted);font-size:.74rem">×${h.count}회</span>` : ''}</span>
+                <span style="color:var(--muted);font-size:.74rem">${esc(h.author || '—')} · ${dateOf(h.latestAt)}</span>
+              </div>`).join('')}</div>
+          </div>`;
+        }).join('');
+        return `<div style="padding:.5rem .75rem;border:1px solid ${unset ? 'var(--danger,#dc2626)' : 'var(--border)'};margin-top:.4rem">
+          <div style="font-size:.78rem;font-weight:800;color:${unset ? 'var(--danger,#dc2626)' : 'var(--heading)'}">
+            ${esc(country)}${unset ? " — 목적지를 추가할 때 '나라' 칸이 비어 있던 곳입니다 (나라는 목적지를 만들 때만 정합니다)" : ''}
+          </div>
+          ${cityRows}
+        </div>`;
+      }).join('');
+      return `<details open style="border:1px solid var(--border);padding:.5rem .75rem">
+        <summary style="cursor:pointer;font-weight:800;font-size:.85rem">${esc(region)} <span style="color:var(--muted);font-weight:400;font-size:.76rem">호텔 ${regionCount}곳</span></summary>
+        ${body}
+      </details>`;
     }).join('');
+  }
+
+  /* CSV 내보내기 (RY) — 화면에서 접어 보는 것과 별개로, 엑셀에 옮겨 정리하고 싶을 때.
+     요율표 CSV(exportRatesCsv)와 같은 방식(BOM + 따옴표 이스케이프)이라 한글이 깨지지 않는다.
+     지금 걸린 검색어 그대로 내보낸다 — 화면에 보이는 것과 파일이 다르면 안 된다. */
+  function exportHotelReferenceCsv() {
+    if (typeof destinationRates === 'undefined') return;
+    const { rows } = hotelReferenceGroups();
+    if (!rows.length) { alert('내보낼 호텔이 없습니다.'); return; }
+    const sorted = [...rows].sort((a, b) =>
+      a.region.localeCompare(b.region, 'ko') || a.country.localeCompare(b.country, 'ko') ||
+      a.label.localeCompare(b.label, 'ko') || b.latestAt - a.latestAt);
+    const out = [['지역', '나라', '도시', '호텔명', '사용횟수', '최근사용일', '최근작성자']];
+    sorted.forEach(h => out.push([h.region, h.country, h.label, h.name, h.count,
+      h.latestAt ? new Date(h.latestAt).toISOString().slice(0, 10) : '', h.author || '']));
+    const csv = out.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `hotels_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   /* 확인 1클릭 적용 (신규) — 완전 자동 반영은 아니고, 표본이 충분히 쌓였을 때
@@ -4891,8 +5037,50 @@
   function populatePriceReportDestSelect() {
     const sel = document.getElementById('pr-dest');
     if (!sel || prDestSelectBuilt || typeof destinationRates === 'undefined') return;
-    sel.innerHTML = destinationRates.map(d => `<option value="${esc(d.destination_key)}">${esc(d.label)}</option>`).join('');
+    /* 목적지 이름만으로는 어느 나라인지 모르는 것이 많다(가오슝·나트랑·보홀·코타키나발루…).
+       호텔명을 넣는 화면이라 나라를 옵션에 같이 적어 둔다 — 고르는 순간 이미 보이게. */
+    sel.innerHTML = destinationRates.map(d => {
+      const c = destCountryOf(d.destination_key);
+      const suffix = (c && c !== d.label) ? ` (${c})` : '';
+      return `<option value="${esc(d.destination_key)}">${esc(d.label + suffix)}</option>`;
+    }).join('');
+    sel.addEventListener('change', updateHotelScopeHint);
     prDestSelectBuilt = true;
+    updateHotelScopeHint();
+  }
+
+  /* 목적지 → 나라/지역 (RY). 내장은 DEST_CLASSIFY 파생, 커스텀은 loadRates에서 편입된다.
+     ⚠ REGION_MAP은 label로, DEST_COUNTRY는 destination_key로 색인된다(각각 만들어진
+     방식 그대로다). 여기서 한 번에 흡수해 호출부가 그 차이를 몰라도 되게 한다. */
+  function destCountryOf(destKey) {
+    return (typeof DEST_COUNTRY !== 'undefined' && DEST_COUNTRY[destKey]) || '';
+  }
+  function destRegionOf(destKey) {
+    const d = (typeof destinationRates !== 'undefined')
+      ? destinationRates.find(x => x.destination_key === destKey) : null;
+    return (typeof REGION_MAP !== 'undefined' && REGION_MAP[d ? d.label : destKey]) || '기타';
+  }
+
+  /* 호텔명 입력칸 아래 "어디로 정리되는지" 안내 (RY) */
+  function updateHotelScopeHint() {
+    const el = document.getElementById('pr-hotel-scope');
+    const sel = document.getElementById('pr-dest');
+    if (!el || !sel) return;
+    const key = sel.value;
+    if (!key) { el.textContent = ''; return; }
+    const dest = (typeof destinationRates !== 'undefined')
+      ? destinationRates.find(d => d.destination_key === key) : null;
+    const country = destCountryOf(key);
+    const region = destRegionOf(key);
+    /* ⚠ "…다낭 로 정리됩니다"처럼 조사를 붙이지 않는다 — 도시 이름마다 받침이 달라
+       '으로/로'가 틀린다. 목록에서 실제로 접히는 순서를 그대로 보여주는 편이 짧고 정확하다. */
+    const path = `${region} › ${country || COUNTRY_UNSET} › ${dest ? dest.label : key}`;
+    /* ⚠ "요율 관리에서 지정하세요"라고 쓰지 않는다 — 나라는 **목적지를 추가할 때만** 받고
+       나중에 고치는 화면이 아직 없다. 할 수 없는 일을 안내하면 그게 더 나쁜 결함이다. */
+    el.textContent = country
+      ? `정리되는 자리: ${path}`
+      : `정리되는 자리: ${path} — 이 목적지는 추가될 때 '나라' 칸이 비어 있었습니다`;
+    el.style.color = country ? 'var(--muted)' : 'var(--danger)';
   }
 
   /* 실제 계약가 입력 방식 (신규) — "직접 입력"과 "PDF 제출"을 상호배타로 분리한다.
@@ -5276,7 +5464,12 @@
     tbody.innerHTML = rows.map(r => `
       <tr>
         <td style="white-space:nowrap">${r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 10) : '—'}</td>
-        <td style="white-space:nowrap"><strong>${esc(optLabel(r.destinationKey))}</strong></td>
+        <td style="white-space:nowrap"><strong>${esc(optLabel(r.destinationKey))}</strong>${(() => {
+          /* 나라를 함께 보여준다 (RY) — 호텔명 칸이 바로 옆이라, 도시 이름만으로는
+             어느 나라 호텔인지 모르는 줄이 이 표에서 제일 자주 나온다. */
+          const c = destCountryOf(r.destinationKey);
+          return c && c !== optLabel(r.destinationKey) ? `<br><span style="font-size:.7rem;color:var(--muted);font-weight:400">${esc(c)}</span>` : '';
+        })()}</td>
         <td style="text-align:right">${cell(r.airfareUnit)}</td>
         <td style="text-align:right">${cell(r.hotelUnit)}</td>
         <td style="text-align:right">${cell(r.mealUnit)}</td>
@@ -5829,6 +6022,7 @@
     document.getElementById('new-dest-southern').checked = false;
     document.getElementById('new-dest-currency').value = '';
     document.getElementById('new-dest-region').value = '';
+    document.getElementById('new-dest-country').value = '';
     document.getElementById('new-dest-notes').value = '';
     document.getElementById('new-dest-season').value = '';
     /* 시즌 프로파일 선택지 (PQ) — data.js의 DEST_SEASON_PROFILES로 매번 다시 만든다.
@@ -5894,6 +6088,7 @@
           seasonNote: document.getElementById('new-dest-season').value.trim(),
           currency: document.getElementById('new-dest-currency').value,
           region: document.getElementById('new-dest-region').value,
+          country: document.getElementById('new-dest-country').value.trim(),
           insuranceZone: document.getElementById('new-dest-insurance').value,
           seasonProfile,
           author,

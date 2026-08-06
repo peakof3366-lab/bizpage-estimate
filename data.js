@@ -71,9 +71,21 @@ const SEASON_CONFIG = [
      script.js  BIZ_ZONES                 ← zone
      script.js  INSURANCE_ZONES           ← ins
      admin.html REGION_MAP                ← region
+     admin.html DEST_COUNTRY              ← country
      dest_currency.js DEST_CURRENCY       ← currency
      data.js    DEST_SEASON_PROFILES[].keys ← season
      data.js    SOUTHERN_HEMISPHERE_DESTS ← hemi:'S'
+
+   ⚠ country는 **가격에 전혀 쓰이지 않는다**(RY). 요율·계수·시즌 어디에도 안 들어가고,
+   관리자 화면에서 "이 호텔이 어느 나라 것인가"를 가르는 데만 쓴다. 지역(region)만으로는
+   부족해서 생겼다 — '동남아' 하나에 베트남·태국·필리핀·인도네시아가 다 들어 있어,
+   같은 이름의 체인 호텔(예: 롯데·인터컨티넨탈)이 어느 나라 것인지 목록에서 구분되지
+   않았다. region은 요율 일괄조정 단위(가격 축)이고 country는 실물 축이라 서로 대체할 수
+   없다 — 그래서 region을 잘게 쪼개지 않고 축을 하나 더 뒀다.
+   ⚠ '서유럽'·'북유럽'·'동유럽'은 애초에 여러 나라를 묶은 **광역 목적지**라 나라가 하나로
+   정해지지 않는다. 없는 나라 이름을 지어내지 않고 목적지 이름을 그대로 쓴다(그 목록에서
+   "이건 나라 단위가 아니다"가 보이는 편이 낫다). 괌·사이판은 미국령이지만 호텔 시장이
+   미국 본토와 완전히 별개라 따로 둔다.
 
    ⚠ 이 표가 생긴 이유 — 예전엔 같은 목적지 목록이 파일 넷에 따로 적혀 있었고,
    목적지를 추가하며 한 곳을 빠뜨리는 사고가 **여섯 번** 났다(동유럽 통화·지역,
@@ -87,60 +99,60 @@ const SEASON_CONFIG = [
    같은 이름 컬럼들이 이 역할을 한다. script.js가 런타임에 파생 목록으로 편입한다.
    ===================================================================== */
 const DEST_CLASSIFY = {
-  '도쿄':     { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
-  '오사카':    { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
-  '후쿠오카':   { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
-  '나고야':    { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
-  '삿포로':    { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
-  '오키나와':   { zone:'short', ins:'asiaShort', region:'일본',        currency:'JPY', season:'japan'         },
-  '홍콩':     { zone:'short', ins:'asiaShort', region:'홍콩·마카오',    currency:'HKD', season:'hkmo'          },
-  '마카오':    { zone:'short', ins:'asiaShort', region:'홍콩·마카오',    currency:'MOP', season:'hkmo'          },
-  '상해':     { zone:'short', ins:'asiaShort', region:'중국',        currency:'CNY', season:'china'         },
-  '장가계':    { zone:'short', ins:'asiaShort', region:'중국',        currency:'CNY', season:'china'         },
-  '청도':     { zone:'short', ins:'asiaShort', region:'중국',        currency:'CNY', season:'china'         },
-  '연태':     { zone:'short', ins:'asiaShort', region:'중국',        currency:'CNY', season:'china'         },
-  '몽골':     { zone:'short', ins:'evac'     , region:'몽골·대만',     currency:'MNT', season:'mongolia'      },
-  '대만':     { zone:'short', ins:'asiaShort', region:'몽골·대만',     currency:'TWD', season:'taiwan'        },
-  '가오슝':    { zone:'short', ins:'asiaShort', region:'몽골·대만',     currency:'TWD', season:'taiwan'        },
-  '라오스':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'LAK', season:'seasia'        },
-  '싱가포르':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'SGD', season:'seasia'        },
-  '하노이':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'VND', season:'seasia'        },
-  '호치민':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'VND', season:'seasia'        },
-  '다낭':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'VND', season:'seasia'        },
-  '나트랑':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'VND', season:'seasia'        },
-  '푸꾸옥':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'VND', season:'seasia'        },
-  '세부':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'PHP', season:'seasia'        },
-  '마닐라':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'PHP', season:'seasia'        },
-  '보홀':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'PHP', season:'seasia'        },
-  '코타키나발루': { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'MYR', season:'seasia'        },
-  '캄보디아':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'KHR', season:'seasia'        },
-  '방콕':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'THB', season:'seasia'        },
-  '푸켓':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'THB', season:'seasia'        },
-  '치앙마이':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'THB', season:'seasia'        },
-  '발리':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       currency:'IDR', season:'seasia'        },
-  '괌':      { zone:'mid'  , ins:'highCost' , region:'오세아니아·태평양', currency:'USD', season:'guamSaipan'    },
-  '사이판':    { zone:'mid'  , ins:'highCost' , region:'오세아니아·태평양', currency:'USD', season:'guamSaipan'    },
-  '시드니':    { zone:'mid'  , ins:'oceania'  , region:'오세아니아·태평양', currency:'AUD', season:'southern',     hemi:'S' },
-  '멜버른':    { zone:'mid'  , ins:'oceania'  , region:'오세아니아·태평양', currency:'AUD', season:'southern',     hemi:'S' },
-  '오클랜드':   { zone:'mid'  , ins:'oceania'  , region:'오세아니아·태평양', currency:'NZD', season:'southern',     hemi:'S' },
-  '서유럽':    { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
-  '로마':     { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
-  '파리':     { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
-  '영국':     { zone:'long' , ins:'highCost' , region:'유럽',        currency:'GBP', season:'europe'        },
-  '스페인':    { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
-  '독일':     { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
-  '네덜란드':   { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
-  '북유럽':    { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
-  '로스앤젤레스': { zone:'long' , ins:'highCost' , region:'북미',        currency:'USD', season:'northAmerica'  },
-  '샌프란시스코': { zone:'long' , ins:'highCost' , region:'북미',        currency:'USD', season:'northAmerica'  },
-  '워싱턴':    { zone:'long' , ins:'highCost' , region:'북미',        currency:'USD', season:'northAmerica'  },
-  '뉴욕':     { zone:'long' , ins:'highCost' , region:'북미',        currency:'USD', season:'northAmerica'  },
-  '하와이':    { zone:'long' , ins:'highCost' , region:'북미',        currency:'USD', season:'northAmerica'  },
-  '밴쿠버':    { zone:'long' , ins:'highCost' , region:'북미',        currency:'CAD', season:'northAmerica'  },
-  '토론토':    { zone:'long' , ins:'highCost' , region:'북미',        currency:'CAD', season:'northAmerica'  },
-  '호주':     { zone:'long' , ins:'oceania'  , region:'오세아니아·태평양', currency:'AUD', season:'southern',     hemi:'S' },
-  '카자흐스탄':  { zone:'mid'  , ins:'evac'     , region:'중앙아시아',     currency:'KZT', season:'centralAsia'   },
-  '우즈베키스탄': { zone:'mid'  , ins:'evac'     , region:'중앙아시아',     currency:'UZS', season:'centralAsia'   },
+  '도쿄':     { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
+  '오사카':    { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
+  '후쿠오카':   { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
+  '나고야':    { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
+  '삿포로':    { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
+  '오키나와':   { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
+  '홍콩':     { zone:'short', ins:'asiaShort', region:'홍콩·마카오',    country:'홍콩',      currency:'HKD', season:'hkmo'          },
+  '마카오':    { zone:'short', ins:'asiaShort', region:'홍콩·마카오',    country:'마카오',     currency:'MOP', season:'hkmo'          },
+  '상해':     { zone:'short', ins:'asiaShort', region:'중국',        country:'중국',      currency:'CNY', season:'china'         },
+  '장가계':    { zone:'short', ins:'asiaShort', region:'중국',        country:'중국',      currency:'CNY', season:'china'         },
+  '청도':     { zone:'short', ins:'asiaShort', region:'중국',        country:'중국',      currency:'CNY', season:'china'         },
+  '연태':     { zone:'short', ins:'asiaShort', region:'중국',        country:'중국',      currency:'CNY', season:'china'         },
+  '몽골':     { zone:'short', ins:'evac'     , region:'몽골·대만',     country:'몽골',      currency:'MNT', season:'mongolia'      },
+  '대만':     { zone:'short', ins:'asiaShort', region:'몽골·대만',     country:'대만',      currency:'TWD', season:'taiwan'        },
+  '가오슝':    { zone:'short', ins:'asiaShort', region:'몽골·대만',     country:'대만',      currency:'TWD', season:'taiwan'        },
+  '라오스':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'라오스',     currency:'LAK', season:'seasia'        },
+  '싱가포르':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'싱가포르',    currency:'SGD', season:'seasia'        },
+  '하노이':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
+  '호치민':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
+  '다낭':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
+  '나트랑':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
+  '푸꾸옥':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
+  '세부':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'seasia'        },
+  '마닐라':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'seasia'        },
+  '보홀':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'seasia'        },
+  '코타키나발루': { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'말레이시아',   currency:'MYR', season:'seasia'        },
+  '캄보디아':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'캄보디아',    currency:'KHR', season:'seasia'        },
+  '방콕':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
+  '푸켓':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
+  '치앙마이':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
+  '발리':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'인도네시아',   currency:'IDR', season:'seasia'        },
+  '괌':      { zone:'mid'  , ins:'highCost' , region:'오세아니아·태평양', country:'괌',       currency:'USD', season:'guamSaipan'    },
+  '사이판':    { zone:'mid'  , ins:'highCost' , region:'오세아니아·태평양', country:'사이판',     currency:'USD', season:'guamSaipan'    },
+  '시드니':    { zone:'mid'  , ins:'oceania'  , region:'오세아니아·태평양', country:'호주',      currency:'AUD', season:'southern',     hemi:'S' },
+  '멜버른':    { zone:'mid'  , ins:'oceania'  , region:'오세아니아·태평양', country:'호주',      currency:'AUD', season:'southern',     hemi:'S' },
+  '오클랜드':   { zone:'mid'  , ins:'oceania'  , region:'오세아니아·태평양', country:'뉴질랜드',    currency:'NZD', season:'southern',     hemi:'S' },
+  '서유럽':    { zone:'long' , ins:'highCost' , region:'유럽',        country:'서유럽',     currency:'EUR', season:'europe'        },
+  '로마':     { zone:'long' , ins:'highCost' , region:'유럽',        country:'이탈리아',    currency:'EUR', season:'europe'        },
+  '파리':     { zone:'long' , ins:'highCost' , region:'유럽',        country:'프랑스',     currency:'EUR', season:'europe'        },
+  '영국':     { zone:'long' , ins:'highCost' , region:'유럽',        country:'영국',      currency:'GBP', season:'europe'        },
+  '스페인':    { zone:'long' , ins:'highCost' , region:'유럽',        country:'스페인',     currency:'EUR', season:'europe'        },
+  '독일':     { zone:'long' , ins:'highCost' , region:'유럽',        country:'독일',      currency:'EUR', season:'europe'        },
+  '네덜란드':   { zone:'long' , ins:'highCost' , region:'유럽',        country:'네덜란드',    currency:'EUR', season:'europe'        },
+  '북유럽':    { zone:'long' , ins:'highCost' , region:'유럽',        country:'북유럽',     currency:'EUR', season:'europe'        },
+  '로스앤젤레스': { zone:'long' , ins:'highCost' , region:'북미',        country:'미국',      currency:'USD', season:'northAmerica'  },
+  '샌프란시스코': { zone:'long' , ins:'highCost' , region:'북미',        country:'미국',      currency:'USD', season:'northAmerica'  },
+  '워싱턴':    { zone:'long' , ins:'highCost' , region:'북미',        country:'미국',      currency:'USD', season:'northAmerica'  },
+  '뉴욕':     { zone:'long' , ins:'highCost' , region:'북미',        country:'미국',      currency:'USD', season:'northAmerica'  },
+  '하와이':    { zone:'long' , ins:'highCost' , region:'북미',        country:'미국',      currency:'USD', season:'northAmerica'  },
+  '밴쿠버':    { zone:'long' , ins:'highCost' , region:'북미',        country:'캐나다',     currency:'CAD', season:'northAmerica'  },
+  '토론토':    { zone:'long' , ins:'highCost' , region:'북미',        country:'캐나다',     currency:'CAD', season:'northAmerica'  },
+  '호주':     { zone:'long' , ins:'oceania'  , region:'오세아니아·태평양', country:'호주',      currency:'AUD', season:'southern',     hemi:'S' },
+  '카자흐스탄':  { zone:'mid'  , ins:'evac'     , region:'중앙아시아',     country:'카자흐스탄',   currency:'KZT', season:'centralAsia'   },
+  '우즈베키스탄': { zone:'mid'  , ins:'evac'     , region:'중앙아시아',     country:'우즈베키스탄',  currency:'UZS', season:'centralAsia'   },
   /* '동유럽' region은 2026-07-28까지 '중앙아시아'였다. 요율은 명백히 유럽 티어인데
      (항공 120만·대형차량 110만 — 로마와 같은 수준, 카자흐스탄 80만과는 딴판) 그룹만
      중앙아시아라 지역별 일괄조정에서 유럽에는 빠지고 중앙아시아에 잘못 딸려갔다.
@@ -148,7 +160,7 @@ const DEST_CLASSIFY = {
      축이 파일마다 흩어져 있으면 한 축만 낡는다는 증거라 이 표를 만든 이유이기도 하다.
      currency는 EUR 근사(실제는 PLN/CZK/HUF지만 EUR과 함께 움직인다. 2026-07-28까지는
      아예 비어 있어 '동유럽만 환율 보정을 못 받는' 가격 불일치였다). */
-  '동유럽':    { zone:'long' , ins:'highCost' , region:'유럽',        currency:'EUR', season:'europe'        },
+  '동유럽':    { zone:'long' , ins:'highCost' , region:'유럽',        country:'동유럽',     currency:'EUR', season:'europe'        },
 };
 
 /* 파생 실패 기록 — 분류표에 값이 비었거나 아무도 모르는 구간명이면 여기 쌓인다.
@@ -396,9 +408,9 @@ const RATE_META = {
               → 특이사항 없으면 빈 문자열로 유지
 
    ⚠ 목적지를 추가/삭제할 때 함께 고칠 곳 (PY 이후로 두 곳이다):
-     ① 위 DEST_CLASSIFY에 한 줄 — 좌석 구간·보험 권역·지역·통화·시즌·반구.
-        BIZ_ZONES·INSURANCE_ZONES·REGION_MAP·DEST_CURRENCY·시즌 프로파일 keys는
-        전부 여기서 파생되므로 따로 손댈 필요가 없다.
+     ① 위 DEST_CLASSIFY에 한 줄 — 좌석 구간·보험 권역·지역·나라·통화·시즌·반구.
+        BIZ_ZONES·INSURANCE_ZONES·REGION_MAP·DEST_COUNTRY·DEST_CURRENCY·시즌 프로파일
+        keys는 전부 여기서 파생되므로 따로 손댈 필요가 없다.
      ② index.html의 <select id="destination"> 옵션 목록 — 여기만 아직 별도다
         (optgroup·표기가 화면 구성이라 자동 생성 대상이 아니다).
    한 곳만 바꾸면 getDestinationByKey()가 조용히 undefined를 반환하거나,

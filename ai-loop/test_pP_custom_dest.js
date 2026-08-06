@@ -28,7 +28,10 @@ const migrateSrc = read(path.join('ai-loop', 'db_migrate.js'));
 
 console.log('[1] 보험 권역이 세 곳에 모두 연결됐는가 (하나만 빠져도 조용히 틀어진다)');
 ok('DB 컬럼 존재', /alter table custom_destinations add column if not exists insurance_zone/.test(migrateSrc));
-ok('생성 시 저장한다', /insurance_zone\n\s*\) values \(/.test(ratesSrc) || /region, insurance_zone/.test(ratesSrc));
+/* ⚠ 예전엔 `region, insurance_zone`처럼 **바로 앞 컬럼 이름까지** 박아뒀다. RY에서 그
+   사이에 country가 들어가자 실제로는 멀쩡한데 이 단언만 깨졌다 — 검사하려는 건
+   "INSERT 컬럼 목록에 insurance_zone이 있는가"이지 이웃이 누구인가가 아니다. */
+ok('생성 시 저장한다', /insert into custom_destinations \([^)]*\binsurance_zone\b/.test(ratesSrc));
 ok('생성 API가 값을 검증한다', /INSURANCE_ZONE_KEYS\.has\(body\.insuranceZone\)/.test(ratesSrc));
 ok('GET이 값을 내려보낸다', /insurance_zone: r\.insurance_zone \|\| 'asiaMid'/.test(ratesSrc));
 ok('엔진이 INSURANCE_ZONES에 편입한다', /INSURANCE_ZONES\[insZone\]\.push\(row\.destination_key\)/.test(scriptSrc));
