@@ -278,9 +278,14 @@
 
     /* PDF 추출 근거·후보 고르기 (RN) */
     .pr-ev { margin-top: .35rem; }
+    /* ⚠ 예전엔 `nowrap + ellipsis`로 한 줄에 우겨넣었다. 그러면 정작 담당자가 대조해야 할
+       근거가 "견적서: 700,000 × 19 × 1 = 1…"처럼 **잘린 채로** 끝난다 (2026-08-06 사장님
+       화면에서 확인). 근거는 읽으라고 있는 것이므로 줄바꿈시킨다 — 칸이 몇 줄 길어지는
+       것보다 값을 못 믿는 쪽이 훨씬 비싸다. 대신 너무 길어지지 않게 4줄에서 자른다. */
     .pr-ev-src {
       font-size: .7rem; font-weight: 700; color: var(--muted);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.5; word-break: break-word;
+      display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
     }
     .pr-ev-pick {
       margin-top: .25rem; width: 100%; height: 28px; padding: 0 .4rem;
@@ -1295,8 +1300,18 @@
           <div id="pr-fields-label" class="detail-label" style="margin-bottom:.5rem">직접 입력할 값 (아는 항목만)</div>
           <!-- ⚠ align-items를 end → start로 바꿨다 (RY). 호텔명 칸만 아래에 안내 줄이
                하나 더 붙는데, 아래 맞춤이면 그 줄 높이만큼 **호텔명 입력칸만 위로 밀린다**.
-               다른 칸은 전부 라벨+입력 한 쌍이라 위 맞춤으로 바꿔도 보이는 모양이 같다. -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;align-items:start">
+               다른 칸은 전부 라벨+입력 한 쌍이라 위 맞춤으로 바꿔도 보이는 모양이 같다.
+               ⚠ 최소 폭을 170px → 300px로 넓혔다 (RZ 후속). 9칸을 한 줄에 늘어놓으니
+               칸마다 110px밖에 안 돌아가서 **근거와 후보 이름이 전부 잘렸다**
+               ("견적서: 700,000 × 19 × 1 = 1…", "● 항공료 - — 700,000원 (× …").
+               줄바꿈되어 세 줄이 되는 편이 낫다 — 담당자가 대조하지 못하면 이 화면은
+               있으나 마나다(2026-08-06 사장님 지시). -->
+          <!-- ⚠ 280px인 이유는 취향이 아니라 **폭 예산**이다(실측):
+               데스크톱 1280px → 카드 1018px → 3열 x 3행
+               태블릿  860px → 카드  566px → 2열 (280px 이상이면 1열로 떨어진다)
+               모바일  420px → 1열
+               바꾸려면 ai-loop/check_pr_fields로 다시 재고 바꿀 것. -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem 1rem;align-items:start">
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 항공료(1인당)</div>
               <input type="number" id="pr-airfare" class="pw-input" min="0" placeholder="예: 420000" />
@@ -5373,6 +5388,23 @@
         const none = document.createElement('option');
         none.value = ''; none.textContent = '— 고르지 않음 —';
         sel.appendChild(none);
+        /* ⚠ 관광비·판매가처럼 **한 줄이 아니라 계산으로 나온 값**은 고를 줄 번호가 없다.
+           그런데 목록이 '고르지 않음'에 멈춰 있으면 값이 채워져 있는데도 "아무것도 안
+           골랐다"로 읽힌다(2026-08-06 사장님 화면에서 그렇게 보였다). 그 경우
+           **계산 결과를 목록의 첫 항목으로** 넣어 지금 무엇이 들어 있는지 보이게 한다. */
+        const evPicked = (data.picked || {})[f.key];
+        /* ⚠ 입력칸 값이 아니라 **서버가 준 값**을 본다. 입력칸을 읽으면 "채우기 → 그리기"
+           순서에 매달리게 되고, 순서가 바뀌면 조용히 안 나온다(테스트에서 실제로 걸렸다). */
+        const serverVal = (data.values || {})[f.key];
+        const computed = (ev && evPicked == null && serverVal != null && serverVal !== '')
+          ? String(serverVal) : null;
+        if (computed) {
+          const o = document.createElement('option');
+          o.value = '__calc__';
+          o.textContent = `▣ 계산으로 나온 값 — ${Number(computed).toLocaleString()}원`;
+          o.title = ev.calc || '';
+          sel.appendChild(o);
+        }
         /* 그 항목으로 분류된 줄을 먼저 보여주고, 나머지는 뒤에 붙인다 (RZ) —
            40개를 그냥 늘어놓으면 고를 수가 없다. 분류가 틀렸을 수 있으니 숨기지는 않는다. */
         const mine = cands.filter((c) => c.category === f.key);
@@ -5392,8 +5424,14 @@
         }
         rest.forEach((c) => addOpt(c, ''));
         const picked = (data.picked || {})[f.key];
-        sel.value = (picked === 0 || picked) ? String(picked) : '';
+        sel.value = (picked === 0 || picked) ? String(picked) : (computed ? '__calc__' : '');
         sel.addEventListener('change', () => {
+          if (sel.value === '__calc__') {
+            /* 계산 결과로 되돌린다 — 줄을 하나 골랐다가 무르고 싶을 때가 있다 */
+            input.value = computed;
+            src.textContent = '📄 견적서: ' + (ev.calc || '') + (ev.label ? '  [' + ev.label + ']' : '');
+            return;
+          }
           const c = cands.find((x) => String(x.idx) === sel.value);
           input.value = c ? c.unit : '';
           src.textContent = c ? '✏️ 직접 고름: ' + prCandLabel(c) : '📄 고르지 않음';

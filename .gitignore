@@ -4,6 +4,7 @@
 ai-loop/logs/
 ai-loop/tmp_prompt.txt
 ai-loop/tmp_shots/
+ai-loop/shot_*.png
 
 .vercel
 .env*

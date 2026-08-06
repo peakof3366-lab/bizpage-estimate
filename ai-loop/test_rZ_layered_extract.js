@@ -268,6 +268,8 @@ const line = (cells) => {
       airfare: { rowIdx: 0, line: '항공료 700,000 …', calc: '700,000 × 19 × 1 = 13,300,000', label: '항공료' },
       meal: { rowIdxs: [1], calc: '식사 총액 7,049,936 ÷ 인원 26 ÷ 3일 = 90,384 (1인 1일)', label: '식사 13줄' },
       sight: { rowIdxs: [2], calc: '관광 총액 …', label: '관광 3줄 · 골프 12,944,404원은 뺌(요율의 관광비와 성격이 다름)' },
+      /* 판매가는 단가 줄이 아니라 **문서에 적힌 1인당 금액**이라 고를 줄 번호가 없다 */
+      sell: { calc: '문서에 적힌 1인당 금액 3,303,009', label: '1인당' },
     },
     picked: { airfare: 0, mealRows: [1] },
     candidates: [
@@ -323,6 +325,32 @@ const line = (cells) => {
       d.getElementById('pr-meal').value);
     ok('화면에도 그 식이 적힌다', /÷ 인원 26 ÷ 3일/.test(d.getElementById('pr-ev-meal').textContent));
   }
+
+  /* ── [12] 근거가 잘리지 않는가 (2026-08-06 사장님 화면 지적) ──────────── */
+  console.log('\n[12] 근거를 한 줄에 우겨넣어 자르지 않는가');
+  /* ⚠ 배포된 화면에서 9칸을 한 줄에 늘어놓아 칸마다 110px밖에 안 돌아갔고,
+     정작 대조해야 할 근거가 "견적서: 700,000 × 19 × 1 = 1…"로 잘려 있었다.
+     근거는 읽으라고 있는 것이다 — 줄바꿈되는 편이 낫다. */
+  ok('근거 줄이 nowrap+말줄임이 아니다',
+    !/\.pr-ev-src\s*\{[^}]*white-space:\s*nowrap/.test(adminSrc), '한 줄로 자르면 대조를 못 한다');
+  ok('근거 줄이 줄바꿈된다', /\.pr-ev-src\s*\{[^}]*word-break/.test(adminSrc));
+  ok('칸 최소 폭이 넓어졌다 (170px → 260px)',
+    /repeat\(auto-fit,minmax\(260px,1fr\)\)/.test(adminSrc),
+    '170px면 근거도 후보 이름도 전부 잘린다');
+  ok('폭을 왜 그 값으로 정했는지 실측 근거가 적혀 있다',
+    /폭 예산.*[\s\S]{0,200}카드 1018px → 3열/.test(adminSrc));
+  ok('브라우저로 재는 도구가 저장소에 있다',
+    fs.existsSync(path.join(ROOT, 'ai-loop', 'check_pr_fields.py')));
+
+  /* 계산으로 나온 값(관광비·판매가)은 고를 줄 번호가 없다 — 그래도 '고르지 않음'으로
+     보이면 안 된다. 값이 채워져 있는데 안 골랐다고 읽힌다. */
+  const sightSel = d.querySelector('#pr-ev-sight select');
+  ok('계산으로 나온 값도 목록에 보인다',
+    !!sightSel && /계산으로 나온 값/.test(sightSel.textContent), sightSel && sightSel.textContent.slice(0, 60));
+  ok('그 값이 선택된 상태다 (고르지 않음으로 안 보인다)',
+    !!sightSel && sightSel.value === '__calc__', sightSel && sightSel.value);
+  const sellSel = d.querySelector('#pr-ev-sell select');
+  ok('판매가도 마찬가지다', !!sellSel && sellSel.value === '__calc__', sellSel && sellSel.value);
 
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   dom.window.close();
