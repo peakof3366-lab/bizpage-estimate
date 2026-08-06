@@ -550,6 +550,7 @@ async function handleExtractPdf(req, res) {
     rowCount: (out.candidates || []).length,
     pax: out.pax, grandTotal: out.grandTotal, perPerson: out.perPerson,
     mealDays: (out.evidence.meal && out.evidence.meal.dayCount) || null,
+    dates: out.dates,
     reconciliation: out.reconciliation,
     blockCount: out.blockCount, selectedBlock: out.selectedBlock, blocks: out.blocks,
     needsFxRate: out.needsFxRate, fxRates: out.fxRates, fxFromDocument: out.fxFromDocument,
@@ -564,6 +565,7 @@ async function handlePriceReport(req, res) {
   if (!(await requireAdmin(req, res))) return;
   const { destinationKey, airfareUnit, hotelUnit, hotelName, mealUnit,
           fuelUnit, vehicleUnit, guideUnit, sightUnit, sellPriceUnit,
+          departDate, quoteDate, nights,
           author, source } = req.body || {};
   if (typeof destinationKey !== 'string' || !destinationKey.trim() || destinationKey.length > 100) {
     return res.status(400).json({ error: 'invalid_body' });
@@ -586,6 +588,24 @@ async function handlePriceReport(req, res) {
   const parsed = [airfare, hotel, meal, fuel, vehicle, guide, sight, sell];
   if (parsed.some((p) => !p.ok)) return res.status(400).json({ error: 'invalid_body' });
   const safeHotelName = typeof hotelName === 'string' ? hotelName.trim().slice(0, HOTEL_NAME_MAX_LEN) : '';
+  /* 출발일·견적 작성일 (RZ 후속) — 시즌·리드타임 계수를 실측으로 검증하려면 필요하다.
+     ⚠ 형식이 틀리면 **조용히 버리지 않고 거절**한다. 날짜가 어긋난 채 쌓이면
+     "9월 출발 견적"을 모을 때 엉뚱한 게 섞이는데, 그건 나중에 찾기 아주 어렵다. */
+  const parseDate = (v) => {
+    if (v === undefined || v === null || v === '') return { ok: true, value: null };
+    if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return { ok: false, value: null };
+    const t = Date.parse(v + 'T00:00:00Z');
+    if (!Number.isFinite(t)) return { ok: false, value: null };
+    const y = Number(v.slice(0, 4));
+    return (y >= 2000 && y <= 2100) ? { ok: true, value: v } : { ok: false, value: null };
+  };
+  const depart = parseDate(departDate);
+  const quoted = parseDate(quoteDate);
+  if (!depart.ok || !quoted.ok) return res.status(400).json({ error: 'invalid_date' });
+  const nightsN = (nights === undefined || nights === null || nights === '') ? null : Number(nights);
+  if (nightsN !== null && !(Number.isInteger(nightsN) && nightsN >= 0 && nightsN <= 60)) {
+    return res.status(400).json({ error: 'invalid_nights' });
+  }
   if (parsed.every((p) => p.value == null) && !safeHotelName) {
     return res.status(400).json({ error: 'invalid_body' });
   }
@@ -610,9 +630,11 @@ async function handlePriceReport(req, res) {
     await sql`
       insert into actual_price_reports
         (destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
-         fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit, author, source)
+         fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
+         depart_date, quote_date, nights, author, source)
       values (${destinationKey}, ${airfare.value}, ${hotel.value}, ${safeHotelName || null}, ${meal.value},
               ${fuel.value}, ${vehicle.value}, ${guide.value}, ${sight.value}, ${sell.value},
+              ${depart.value}, ${quoted.value}, ${nightsN},
               ${safeAuthor}, ${source === 'pdf' ? 'pdf' : 'manual'})
     `;
     return res.status(200).json({ ok: true });
@@ -627,6 +649,7 @@ async function handlePriceReports(req, res) {
   try {
     const rows = await sql`select id, destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
                                   fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
+                                  depart_date, quote_date, nights,
                                   author, source, created_at
                            from actual_price_reports order by created_at desc limit 1000`;
     const num = (v) => (v != null ? Number(v) : null);
@@ -643,6 +666,11 @@ async function handlePriceReports(req, res) {
       guideUnit: num(r.guide_unit),
       sightUnit: num(r.sight_unit),
       sellPriceUnit: num(r.sell_price_unit),
+      /* 날짜는 화면이 그대로 쓰도록 YYYY-MM-DD 문자열로 내린다(타임존 때문에 하루가
+         밀리는 사고를 막는다 — Date로 넘기면 브라우저가 현지시각으로 해석한다). */
+      departDate: r.depart_date ? String(r.depart_date).slice(0, 10) : null,
+      quoteDate: r.quote_date ? String(r.quote_date).slice(0, 10) : null,
+      nights: r.nights == null ? null : Number(r.nights),
       author: r.author || '', source: r.source, createdAt: r.created_at,
     })));
   } catch (err) {

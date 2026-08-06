@@ -1306,10 +1306,30 @@
             <p style="margin-bottom:0"><strong>실제 이용 호텔명</strong>은 다른 항목과 똑같이 담당자 누구나 넣고 볼 수 있습니다(가격에는 반영되지 않는 참고 정보입니다). 아래 <strong style="color:var(--heading)">🏨 실제 이용 호텔</strong>에 <strong style="color:var(--heading)">지역 → 나라 → 도시</strong> 순으로 정리되어 쌓입니다 — 같은 이름의 체인 호텔이라도 어느 나라 것인지 구분됩니다. 고객이 보는 견적서·공개 페이지에는 나가지 않습니다.</p>
           </div>
 
-          <!-- 공통: 목적지 선택 -->
-          <div style="max-width:280px;margin-bottom:1rem">
-            <div class="detail-label" style="margin-bottom:.3rem">목적지</div>
-            <select id="pr-dest" class="status-select" style="width:100%"></select>
+          <!-- 공통: 목적지 + 날짜 -->
+          <!-- ⚠ 출발일은 '있으면 좋은 것'이 아니다 (RZ 후속, 2026-08-06 사장님 지시).
+               요율 엔진은 시즌(월별)과 리드타임으로 금액을 움직이는데, 그 계수를 검증할
+               실측이 지금 하나도 없다. 출발일이 붙어야 "9월 출발 견적은 실제로 얼마였나"를
+               답할 수 있고, 그게 곧 고객이 원하는 출발일 기준 견적의 근거가 된다. -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem 1rem;margin-bottom:1rem;max-width:760px">
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">목적지</div>
+              <select id="pr-dest" class="status-select" style="width:100%"></select>
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">출발일 📅</div>
+              <input type="date" id="pr-depart" class="pw-input" style="width:100%" />
+              <div id="pr-depart-note" style="font-size:.7rem;color:var(--muted);margin-top:.25rem"></div>
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">견적 작성일</div>
+              <input type="date" id="pr-quote-date" class="pw-input" style="width:100%" />
+              <div id="pr-lead-note" style="font-size:.7rem;color:var(--muted);margin-top:.25rem"></div>
+            </div>
+            <div>
+              <div class="detail-label" style="margin-bottom:.3rem">박 수</div>
+              <input type="number" id="pr-nights" class="pw-input" min="0" max="60" style="width:100%" placeholder="예: 3" />
+            </div>
           </div>
 
           <!-- 입력 방식 선택 (직접 입력 ↔ PDF 제출, 상호배타) -->
@@ -5142,7 +5162,8 @@
                하고, extractPdfDetails가 채운 값 그대로만 제출된다.
      방식 전환 시에는 값을 초기화해 한 방식의 입력이 다른 방식으로 섞이지 않게 한다. */
   const PR_FIELD_IDS = ['pr-airfare', 'pr-hotel', 'pr-hotel-name', 'pr-meal',
-    'pr-fuel', 'pr-vehicle', 'pr-guide', 'pr-sight', 'pr-sell'];
+    'pr-fuel', 'pr-vehicle', 'pr-guide', 'pr-sight', 'pr-sell',
+    'pr-depart', 'pr-quote-date', 'pr-nights'];
   let priceReportMode = 'manual';
 
   function applyPriceReportModeUI() {
@@ -5342,17 +5363,29 @@
                  : ' — 아래 경고를 확인해 주세요.'));
     }
 
-    /* 견적이 여러 장이면 **고르게 한다.** 어느 것이 맞는지는 사람만 안다. */
+    /* 견적이 여러 장이면 **실제로 골라 바꿀 수 있게** 한다 (RZ 후속).
+       ⚠ 예전엔 목록만 보여주고 바꿀 방법이 없었다 — "2개 들어 있습니다"라고 말해 놓고
+       다른 쪽을 볼 수가 없으니 안내가 아니라 약만 올리는 셈이었다.
+       ⚠ 어느 것이 맞는지는 **사람만 안다.** 한화 상하이 건은 출발일이 11/08·11/15·11/22로
+       갈리는 **차수별 견적 3건**이고, 뉴퍼스트 건은 같은 날짜의 **일정 A/B 2건**이다.
+       그래서 출발일·인원·총계를 나란히 보여주고 담당자가 고르게 한다. */
     if (Number(data.blockCount) > 1 && Array.isArray(data.blocks)) {
-      const p = line(`📑 이 PDF에 견적이 <strong>${Number(data.blockCount)}개</strong> 들어 있습니다 — 지금은 단가 줄이 가장 많은 것을 읽었습니다(최신이라는 뜻은 아닙니다):`);
+      const p = line(`📑 이 PDF에 <strong>견적이 ${Number(data.blockCount)}개</strong> 들어 있습니다 — 어느 것을 넣을지 골라 주세요:`);
       const ul = document.createElement('div');
-      ul.style.cssText = 'font-size:.74rem;color:var(--muted);padding-left:1rem';
+      ul.style.cssText = 'display:grid;gap:.3rem;margin-top:.35rem';
       data.blocks.forEach((b) => {
-        const d = document.createElement('div');
-        d.textContent = `${b.selected ? '▶ ' : '· '}총계 ${b.total ? Number(b.total).toLocaleString() : '—'}원`
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-act ' + (b.selected ? 'btn-primary' : 'btn-outline-p');
+        btn.style.cssText = 'text-align:left;font-size:.74rem;padding:.35rem .6rem;line-height:1.5';
+        const dt = (b.dates && b.dates.departDate) ? b.dates.departDate : '출발일 모름';
+        btn.textContent = `${b.selected ? '▶ ' : ''}${dt} 출발`
+          + ` · 총계 ${b.total ? Number(b.total).toLocaleString() : '—'}원`
           + (b.perPerson ? ` · 1인당 ${Number(b.perPerson).toLocaleString()}원` : '')
+          + (b.pax ? ` · ${Number(b.pax)}명` : '')
           + ` · 단가 줄 ${Number(b.rows)}개`;
-        ul.appendChild(d);
+        btn.addEventListener('click', () => selectQuoteBlock(data, b.idx));
+        ul.appendChild(btn);
       });
       p.appendChild(ul);
     }
@@ -5392,6 +5425,44 @@
     }
 
     anchor.insertAdjacentElement('beforebegin', box);
+  }
+
+  /* 다른 견적으로 갈아 끼운다 (RZ 후속).
+     서버가 블록마다 **전체 결과**를 함께 내려주므로 PDF를 다시 올리지 않아도 된다
+     (수백 건을 넣는 자리에서 재업로드는 치명적이다). */
+  function selectQuoteBlock(data, idx) {
+    const b = (data.blocks || []).find((x) => x.idx === idx);
+    if (!b) return;
+    const merged = Object.assign({}, data, {
+      values: b.values, evidence: b.evidence, candidates: b.candidates,
+      reconciliation: b.reconciliation, rowCount: (b.candidates || []).length,
+      pax: b.pax, dates: b.dates, kind: b.kind || data.kind,
+      mealDays: (b.evidence && b.evidence.meal && b.evidence.meal.dayCount) || null,
+      grandTotal: b.total, perPerson: b.perPerson,
+      /* 고른 줄 번호를 다시 만든다 — 블록마다 후보 번호가 따로 매겨져 있다 */
+      picked: (() => {
+        const pk = {};
+        Object.keys(b.evidence || {}).forEach((k) => {
+          const e = b.evidence[k];
+          if (e && typeof e.rowIdx === 'number') pk[k] = e.rowIdx;
+        });
+        if (b.evidence && b.evidence.meal && Array.isArray(b.evidence.meal.rowIdxs)) pk.mealRows = b.evidence.meal.rowIdxs;
+        return pk;
+      })(),
+      blocks: (data.blocks || []).map((x) => Object.assign({}, x, { selected: x.idx === idx })),
+      selectedBlock: idx,
+    });
+    Object.keys(PR_VALUE_TO_INPUT).forEach((k) => {
+      const el = document.getElementById(PR_VALUE_TO_INPUT[k]);
+      if (el) el.value = (merged.values || {})[k] == null ? '' : merged.values[k];
+    });
+    applyPdfDates(merged.dates);
+    renderPdfEvidence(merged);
+    const msg = document.getElementById('pr-msg');
+    if (msg) {
+      msg.style.color = 'var(--primary)';
+      msg.textContent = `${(b.dates && b.dates.departDate) || ''} 출발 견적으로 바꿨습니다 — 값을 다시 확인해 주세요.`;
+    }
   }
 
   function renderPdfEvidence(data) {
@@ -5645,6 +5716,42 @@
     return runPdfExtract(base64, (opts && opts.fxRate) || null);
   }
 
+  /* 견적서에서 읽은 날짜를 칸에 채운다 (RZ 후속).
+     ⚠ '일정표에서 읽고 연도는 추정한' 날짜는 그렇다고 **말한다.** 견적서 절반은 머리글에
+     기간이 없고 일정표에 「02월 04일」처럼 연도 없이 적혀 있어, 연도를 견적 작성일에서
+     끌어와야 한다. 맞을 때가 많지만 틀릴 수도 있으므로 담당자가 보고 넘어가야 한다. */
+  function applyPdfDates(dates) {
+    const dep = document.getElementById('pr-depart');
+    const qd = document.getElementById('pr-quote-date');
+    const nt = document.getElementById('pr-nights');
+    const depNote = document.getElementById('pr-depart-note');
+    const leadNote = document.getElementById('pr-lead-note');
+    if (!dep || !qd || !nt) return;
+    const d = dates || {};
+    dep.value = d.departDate || '';
+    qd.value = d.quoteDate || '';
+    nt.value = d.nights == null ? '' : d.nights;
+
+    if (depNote) {
+      if (!d.departDate) {
+        depNote.textContent = '견적서에서 출발일을 못 찾았습니다 — 직접 넣어 주세요';
+        depNote.style.color = 'var(--danger)';
+      } else if (d.departVia === 'itinerary') {
+        depNote.textContent = '⚠ 일정표에서 읽었고 연도는 추정했습니다 — 맞는지 봐 주세요';
+        depNote.style.color = '#8A5A00';
+      } else {
+        depNote.textContent = '견적서 머리글에서 읽었습니다'
+          + (d.returnDate ? ` (~ ${d.returnDate}${d.returnEstimated ? ', 귀국일은 박수로 계산' : ''})` : '');
+        depNote.style.color = 'var(--muted)';
+      }
+    }
+    if (leadNote) {
+      leadNote.textContent = d.leadDays == null
+        ? '' : `출발 ${d.leadDays}일 전에 뽑은 견적입니다 (리드타임)`;
+      leadNote.style.color = 'var(--muted)';
+    }
+  }
+
   /* 추출 요청 한 번 (RZ) — 파일 읽기와 분리했다. 환율을 넣고 '다시 읽기'를 누를 때
      같은 파일을 다시 고르지 않아도 되게 하기 위해서다. */
   const PR_VALUE_TO_INPUT = {
@@ -5689,6 +5796,7 @@
         el.value = values[k];
         found.push(PR_VALUE_LABEL[k]);
       });
+      applyPdfDates(data.dates);
       /* 근거·후보 목록을 칸 밑에 붙인다 (RN) — 찾은 게 없어도 후보가 있으면 붙여야
          담당자가 직접 고를 수 있다. */
       renderPdfEvidence(data);
@@ -5763,6 +5871,9 @@
         body: JSON.stringify(Object.assign({
           destinationKey: destKey, airfareUnit: airfare.value, hotelUnit: hotel.value,
           hotelName, mealUnit: meal.value, author, source,
+          departDate: (document.getElementById('pr-depart') || {}).value || null,
+          quoteDate: (document.getElementById('pr-quote-date') || {}).value || null,
+          nights: (document.getElementById('pr-nights') || {}).value || null,
         }, Object.keys(extra).reduce((o, k) => { o[k] = extra[k].value; return o; }, {}))),
       });
       const data = await res.json();

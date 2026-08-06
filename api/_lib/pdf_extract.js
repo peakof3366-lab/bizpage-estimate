@@ -122,16 +122,37 @@ function splitQuoteBlocks(lines) {
   const blocks = [];
   let cur = [];
   let lastTotal = null;
+  let tableRows = 0;   /* 이번 장에 단가표가 실제로 있었는가 */
   lines.forEach((ln) => {
     cur.push(ln);
+    /* 단가표의 한 줄인가 — 정확할 필요는 없다. "이 장에 표가 있었나"만 알면 된다.
+       ⚠ '큰 숫자 3개'로 세면 안 된다. 표 한 줄은 `단가 수량 횟수 총금액`이라
+       **수량·횟수가 작은 수**다(가이드 140 196,000 2 3 1,176,000 → 1000 넘는 건 2개뿐).
+       그렇게 셌더니 표를 한 줄도 못 찾아 3장짜리 문서가 1장으로 붙었다(실측). */
+    const ns0 = numbersIn(ln.text);
+    if (ns0.length >= 4 && ns0.filter((n) => n >= 1000).length >= 2) tableRows++;
     if (!TOTAL_RE.test(ln.text)) return;
     const ns = numbersIn(ln.text).filter((n) => n >= 100000);
     if (!ns.length) return;
     const v = Math.max.apply(null, ns);
-    if (lastTotal != null && v === lastTotal) return;   /* 같은 총계의 반복 줄 — 안 끊는다 */
+    /* ⚠ 총계 줄이 **연달아 세 줄** 나오는 양식이 있다(실측, 한화 상하이):
+           총 금액                    114,057,720
+           총 견적가                  114,057,720
+           총 견적가 (백원 단위 절삭)  114,057,000   ← 값이 다르다!
+       값이 정확히 같을 때만 안 끊으면 절삭 줄에서 장이 하나 더 생긴다(3장 → 6장).
+       그래서 두 가지로 막는다:
+         ① 앞 총계와 **1만 원 안쪽**이면 같은 장의 다시 쓴 총계로 본다
+         ② 마지막 경계 이후 **단가표가 없었으면** 장이 아니다 — 견적서 한 장에는
+            반드시 단가표가 있다
+       ⚠ ①을 비율(1%)로 잡으면 안 된다. 같은 문서의 다른 차수 견적이 114,057,720과
+       112,934,220으로 **0.98% 차이**여서 통째로 삼켜졌다(3장 → 2장). 절삭은 백원·천원
+       단위라 차이가 1만 원을 넘지 않으므로 **절대값**으로 재는 게 맞다. */
+    if (lastTotal != null && Math.abs(v - lastTotal) <= 10000) return;
+    if (tableRows < 3) return;
     lastTotal = v;
     blocks.push({ lines: cur, total: v });
     cur = [];
+    tableRows = 0;
   });
   if (cur.length) {
     /* 총계 없이 끝난 꼬리 — 앞 장의 부록(안내문 등)이면 마지막 장에 붙이고,
@@ -364,16 +385,21 @@ function findPax(lines, rows) {
 const PER_PERSON_MIN = 100000;
 const PER_PERSON_MAX = 20000000;
 
-function findTotals(lines, pax) {
-  let grand = null, perPerson = null;
+function findTotals(lines, pax, preferGrand) {
+  let grand = preferGrand || null, perPerson = null;
   lines.forEach((ln) => {
     const t = ln.text;
+    /* ⚠ '총액'이라는 말이 견적 총액이 아닌 곳에 쓰인다 — 실측에서
+       「최종 투찰금(총액) 320,000,000」(입찰 상한)을 견적 총계로 집어
+       1인당 검산이 통째로 깨졌다. 이런 줄은 처음부터 뺀다. */
+    if (/투찰|입찰|예산|한도|가입\s*금액|보상|보장/.test(t)) return;
     /* ⚠ '입금가'는 총액이 아니라 **1인 원가**로 쓰는 양식이 있다(대림벧엘 큐슈).
        총액으로 잘못 잡으면 그보다 큰 판매가가 "총액보다 크다"는 이유로 버려진다 —
        실제로 그래서 판매가가 비어 있었다. 총액 후보에서 뺀다. */
     if (/총\s*견\s*적\s*가|총\s*금\s*액|총\s*계|합\s*계\s*금액|총액/.test(t)) {
       const ns = numbersIn(t).filter((n) => n >= 100000);
-      if (ns.length) { const v = Math.max.apply(null, ns); if (grand == null || v > grand) grand = v; }
+      /* 블록 경계에서 읽은 총계가 있으면 그걸 믿는다 — 그 줄이 곧 '총 견적가'다 */
+      if (ns.length && !preferGrand) { const v = Math.max.apply(null, ns); if (grand == null || v > grand) grand = v; }
     }
     /* '판매가·상품가·객단가'도 1인 기준으로 쓰는 양식이 많다(대림벧엘 큐슈: 판매가 1,251,350).
        ⚠ 총액에 같은 말을 쓰는 양식도 있어, **1인 범위 안이고 총액보다 작을 때만** 받는다. */
@@ -388,9 +414,9 @@ function findTotals(lines, pax) {
   return { grand, perPerson };
 }
 
-function reconcile(lines, rows) {
+function reconcile(lines, rows, preferGrand) {
   const pax = findPax(lines, rows);
-  const { grand, perPerson } = findTotals(lines, pax);
+  const { grand, perPerson } = findTotals(lines, pax, preferGrand);
   const checks = [];
   const near = (a, b, tolPct) => a > 0 && b > 0 && Math.abs(a - b) / b <= tolPct;
 
@@ -416,6 +442,176 @@ function reconcile(lines, rows) {
 
   const done = checks.filter((c) => c.ok).length;
   return { pax, grand, perPerson, checks, passed: done, total: checks.length };
+}
+
+/* ═══ L4b — 날짜 (견적 작성일 · 출발일) ════════════════════════════════════
+   왜 필요한가 — 실측 단가에 **"언제 출발하는 여행이었나"**가 안 붙으면 그 숫자는
+   반쪽이다. 요율 엔진은 시즌(월별)과 리드타임(얼마나 미리 잡았나)으로 금액을 움직이는데
+   (data.js DEST_SEASON_PROFILES는 스스로 "도메인 초안"이라고 적어 두었다),
+   그 계수를 **실측으로 검증할 방법이 지금 없다.** 출발일이 붙으면:
+     · 같은 목적지의 2월 견적과 8월 견적을 실제 단가로 비교 → 시즌 계수 검증
+     · 출발일 − 작성일 = 리드타임 → 리드타임 계수 검증
+     · 고객이 "9월 출발"을 물으면 9월에 실제로 나간 견적을 근거로 댈 수 있다
+
+   ⚠ 그리고 이게 **견적 블록을 가르는 근거**이기도 하다. 한화 상하이 건은 2쪽이
+   2025.11.08 출발, 3쪽이 2025.11.15 출발이다 — 같은 문서에 든 **서로 다른 두 견적**이다.
+   블록마다 따로 읽어야 그 사실이 보인다.
+
+   ⚠ 억지로 채우지 않는다. 46건 중 날짜가 아예 안 적힌 견적서가 있고, 그건 없는 게 맞다. */
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/* 2자리 연도는 2000년대로 본다(견적서에 1900년대가 나올 일은 없다) */
+function yr(y) {
+  const n = Number(y);
+  return n < 100 ? 2000 + n : n;
+}
+const ymd = (y, m, d) => `${yr(y)}-${pad2(m)}-${pad2(d)}`;
+const validYmd = (s) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+  if (!m) return null;
+  const y = +m[1], mo = +m[2], d = +m[3];
+  if (y < 2000 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return s;
+};
+
+/* 견적 작성일 — "날짜 2026-08-06", "견적서 작성일 2026-08-05", "작성일 2026.08.05" */
+function findQuoteDate(lines) {
+  for (const ln of lines) {
+    const t = ln.text;
+    /* ⚠ `\b날짜\b`로 쓰면 **한 건도 안 걸린다** — 자바스크립트의 \b는 한글을 낱말
+       문자로 안 봐서 한글 앞뒤에서는 경계가 성립하지 않는다. 실측에서 한화 건의
+       「수신 … 날짜 2026-08-04」가 통째로 빠졌고, 테스트를 쓰고서야 드러났다. */
+    if (!/작성일|발행일|견적일|날짜/.test(t)) continue;
+    const m = t.match(/(\d{4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/);
+    if (m) { const v = validYmd(ymd(m[1], m[2], m[3])); if (v) return v; }
+  }
+  return null;
+}
+
+/* 여행 기간 — 표기가 제각각이라 실측에서 본 모양을 전부 받는다:
+     "일정 2026.02.04~02.08"          (연도 한 번, 뒤는 월.일)
+     "일정 2025.11.08 (2박3일)"        (출발일만 + 박수)
+     "행사기간 2025. 11. 8 ~ 11. 12(3박 5일)"
+     "여행기간 25.03.12∼25.03.17 (4박6일)"
+     "26.07.09 출발 기준"
+   ⚠ 물결표가 `~`·`∼`·`-` 세 가지로 나온다. 하나만 받으면 그 양식이 통째로 빠진다. */
+const TILDE = '[~∼〜～\\-–—]';
+function findTripDates(lines) {
+  let depart = null, ret = null, nights = null, days = null;
+
+  const takeNightsDays = (t) => {
+    const m = t.match(/(\d{1,2})\s*박\s*(\d{1,2})\s*일/);
+    if (m) { nights = +m[1]; days = +m[2]; }
+    else {
+      const m2 = t.match(/(\d{1,2})\s*박/);
+      if (m2) nights = +m2[1];
+    }
+  };
+
+  for (const ln of lines) {
+    const t = ln.text.replace(/\s+/g, ' ');
+    if (!/일정|기간|출발|출국|여행일/.test(t)) continue;
+
+    /* ① 연도.월.일 ~ 연도.월.일 */
+    let m = t.match(new RegExp(`(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*${TILDE}\\s*(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})`));
+    if (m) {
+      depart = validYmd(ymd(m[1], m[2], m[3])) || depart;
+      ret = validYmd(ymd(m[4], m[5], m[6])) || ret;
+      takeNightsDays(t);
+      if (depart) break;
+    }
+    /* ② 연도.월.일 ~ 월.일 (뒤쪽에 연도 생략) */
+    m = t.match(new RegExp(`(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*${TILDE}\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})(?!\\s*[.\\-\\/]\\s*\\d)`));
+    if (m) {
+      depart = validYmd(ymd(m[1], m[2], m[3])) || depart;
+      ret = validYmd(ymd(m[1], m[4], m[5])) || ret;
+      takeNightsDays(t);
+      if (depart) break;
+    }
+    /* ③ 출발일 하나만 (+ 박수) */
+    m = t.match(/(\d{2,4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/);
+    if (m) {
+      const v = validYmd(ymd(m[1], m[2], m[3]));
+      if (v) { depart = v; takeNightsDays(t); break; }
+    }
+  }
+
+  /* 귀국일이 없고 박수를 알면 채운다 — 다만 **추정한 값임을 표시**한다(조용히 섞지 않게) */
+  let returnEstimated = false;
+  if (depart && !ret && nights) {
+    const d = new Date(depart + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + nights);
+    ret = d.toISOString().slice(0, 10);
+    returnEstimated = true;
+  }
+  /* 반대로 둘 다 알면 박수를 센다 */
+  if (depart && ret && !nights) {
+    const a = new Date(depart + 'T00:00:00Z'), b = new Date(ret + 'T00:00:00Z');
+    const diff = Math.round((b - a) / 86400000);
+    if (diff > 0 && diff < 60) { nights = diff; days = diff + 1; }
+  }
+  return { depart, ret, nights, days, returnEstimated };
+}
+
+/* 머리글에 기간이 안 적힌 견적서가 절반이 넘는다(실측 46건 중 28건). 그런 문서도
+   **일정표에는** 날짜가 있다 — 다만 「02월 04일」처럼 **연도가 없다.**
+   그래서 연도를 다른 데서 데려온다:
+     ① 견적 작성일의 연도 (그 날짜보다 앞서면 이듬해로 본다 — 여행은 견적 뒤에 간다)
+     ② 문서 어딘가의 4자리 연도가 딱 하나면 그것
+     ③ 둘 다 없으면 **추정하지 않는다**
+   ⚠ 이렇게 얻은 날짜는 `departVia:'itinerary'`로 표시해 화면이 "일정표에서 추정"이라고
+   말한다. 담당자가 제출 전에 눈으로 확인하는 칸이므로, 비워 두는 것보다 낫다. */
+function findItineraryDepart(lines, quoteDate) {
+  let md = null;
+  for (const ln of lines) {
+    const m = ln.text.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+    if (m) { md = { mo: +m[1], d: +m[2] }; break; }
+  }
+  if (!md || md.mo < 1 || md.mo > 12 || md.d < 1 || md.d > 31) return null;
+
+  let year = null;
+  if (quoteDate) {
+    year = Number(quoteDate.slice(0, 4));
+    const cand = ymd(year, md.mo, md.d);
+    if (cand < quoteDate) year += 1;      /* 견적보다 앞선 날짜면 이듬해 여행이다 */
+  } else {
+    const years = new Set();
+    lines.forEach((ln) => {
+      const g = ln.text.match(/\b(20\d{2})\b/g);
+      if (g) g.forEach((y) => years.add(y));
+    });
+    if (years.size === 1) year = Number([...years][0]);
+  }
+  if (!year) return null;
+  return validYmd(ymd(year, md.mo, md.d));
+}
+
+function findDates(lines) {
+  const quoteDate = findQuoteDate(lines);
+  const trip = findTripDates(lines);
+  let departVia = trip.depart ? 'header' : null;
+  if (!trip.depart) {
+    const guess = findItineraryDepart(lines, quoteDate);
+    if (guess) { trip.depart = guess; departVia = 'itinerary'; }
+  }
+  /* 리드타임 = 출발일 − 견적 작성일. 요율의 리드타임 계수를 실측으로 재려면 이 값이 있어야 한다.
+     ⚠ 음수면(작성일이 출발일보다 뒤) 계산하지 않는다 — 지난 여행을 정산한 문서일 수 있다. */
+  let leadDays = null;
+  if (quoteDate && trip.depart) {
+    const d = Math.round((new Date(trip.depart + 'T00:00:00Z') - new Date(quoteDate + 'T00:00:00Z')) / 86400000);
+    if (d >= 0 && d < 1000) leadDays = d;
+  }
+  return {
+    quoteDate,
+    departDate: trip.depart,
+    /* 'header' = 문서가 기간을 명시했다 · 'itinerary' = 일정표에서 읽고 연도는 추정했다 */
+    departVia,
+    returnDate: trip.ret,
+    returnEstimated: trip.returnEstimated,
+    nights: trip.nights,
+    days: trip.days,
+    leadDays,
+  };
 }
 
 /* ═══ L0 — 문서 종류 판별 ═══════════════════════════════════════════════════
@@ -553,11 +749,12 @@ function applyFx(rows, fx) {
 }
 
 /* ═══ 견적 한 장을 읽는다 ══════════════════════════════════════════════════ */
-function readOneBlock(lines, fx) {
+function readOneBlock(lines, fx, blockTotal) {
   const rawRows = applyFx(findUnitRows(lines, fx), fx || {});
   const rows = rawRows.map((r) => Object.assign({}, r, { category: classifyRow(r) }));
-  const rec = reconcile(lines, rows);
+  const rec = reconcile(lines, rows, blockTotal || null);
   const kind = triage(lines, rows, rows);
+  const dates = findDates(lines);   /* 블록마다 따로 읽는다 — 출발일이 서로 다를 수 있다 */
   const pax = rec.pax;
 
   /* 항공료: 1인당 운임. 여러 출발지(인천·김해)로 줄이 갈리면 **수량이 가장 많은 줄**이
@@ -592,6 +789,7 @@ function readOneBlock(lines, fx) {
   return {
     kind, lineCount: lines.length,
     pax, grandTotal: rec.grand, perPerson: rec.perPerson,
+    dates,
     reconciliation: rec,
     values: {
       airfare: airfare ? capped(airfare.unit, LIMITS.airfare) : null,
@@ -647,7 +845,7 @@ async function extractQuote(buffer, pdfParse, opts) {
   const userFx = (opts && opts.fxRate) || {};
   const fx = Object.assign({}, userFx, docFx);   /* 문서 값이 덮어쓴다 = 문서 우선 */
   const rawBlocks = splitQuoteBlocks(lines);
-  const blocks = rawBlocks.map((b) => Object.assign({ idx: b.idx, blockTotal: b.total }, readOneBlock(b.lines, fx)));
+  const blocks = rawBlocks.map((b) => Object.assign({ idx: b.idx, blockTotal: b.total }, readOneBlock(b.lines, fx, b.total)));
 
   /* 기본으로 보여줄 장 — **단가 줄이 가장 많은**(표가 가장 온전한) 장이다.
      ⚠ '최신'이나 '맞는' 장이라는 뜻이 아니다. 코드는 그걸 알 수 없다.
@@ -683,16 +881,22 @@ async function extractQuote(buffer, pdfParse, opts) {
     /* 여러 장이 든 문서인지 — 화면이 반드시 이걸 보여줘야 한다(조용히 하나 고르지 않는다) */
     blockCount: blocks.length,
     selectedBlock: selected,
+    /* ⚠ 블록마다 **전체 결과**를 함께 준다. 화면이 "다른 견적으로 바꾸기"를 눌렀을 때
+       PDF를 다시 올리지 않고 그 자리에서 갈아 끼울 수 있어야 한다(수백 건을 넣는 자리다). */
     blocks: blocks.map((b, i) => ({
       idx: i, total: b.grandTotal || b.blockTotal || null, perPerson: b.perPerson || null,
       rows: b.candidates.length, named: b.namedCount, pax: b.pax,
+      dates: b.dates, kind: b.kind,
       selected: i === selected,
+      values: b.values, evidence: b.evidence, candidates: b.candidates,
+      reconciliation: b.reconciliation,
     })),
   });
 }
 
 module.exports = {
   LIMITS, extractQuote, readOneBlock, readLayout, splitQuoteBlocks, findUnitRows,
+  findDates, findQuoteDate, findTripDates,
   classifyRow, classifyLabel, reconcile, triage, mealPerDay, sightPerPerson,
   splitLabel, numbersIn, VOCAB,
 };

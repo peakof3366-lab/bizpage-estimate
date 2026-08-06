@@ -297,6 +297,21 @@ async function main() {
      얼마나 맞았는지 재는 기준선이 된다(회의록의 '오차 ±5%' 판정에 직결). */
   await sql`alter table actual_price_reports add column if not exists sell_price_unit numeric`;
 
+  /* 언제 출발하는 여행이었나 (RZ 후속) — 실측 단가에 이게 안 붙으면 숫자가 반쪽이다.
+     요율 엔진은 **시즌(월별)**과 **리드타임(얼마나 미리 잡았나)**으로 금액을 움직이는데
+     (data.js DEST_SEASON_PROFILES는 스스로 "도메인 초안"이라고 적어 두었다),
+     그 계수를 검증할 방법이 지금 없다. 출발일이 쌓이면:
+       · 같은 목적지의 2월 견적과 8월 견적을 실제 단가로 비교 → 시즌 계수 검증
+       · 출발일 − 견적 작성일 = 리드타임 → 리드타임 계수 검증
+       · 고객이 "9월 출발"을 물으면 9월에 실제로 나간 견적을 근거로 댈 수 있다
+     ⚠ 리드타임은 저장하지 않는다 — depart_date − quote_date로 언제든 나온다.
+     같은 사실을 두 곳에 적으면 반드시 어긋난다(결함 생성기 ①). */
+  await sql`alter table actual_price_reports add column if not exists depart_date date`;
+  await sql`alter table actual_price_reports add column if not exists quote_date date`;
+  await sql`alter table actual_price_reports add column if not exists nights int`;
+  /* 출발일로 모아 보는 조회가 곧 주 용도라 인덱스를 함께 둔다 */
+  await sql`create index if not exists actual_price_reports_depart_idx on actual_price_reports (depart_date)`;
+
   /* P2b: 전역 앱 설정 KV (신규) — 견적 계수 스칼라 노브(coefficients) 등 사이트 전역 설정을
      key→jsonb로 저장. 공개 계산기는 /api/rates GET이 이 중 'coefficients' 행을 코드 기본값 위에
      폴백-우선 병합한다(행이 없으면 기본값=현재 동작). content_overrides와 같은 KV 형태이되 값이

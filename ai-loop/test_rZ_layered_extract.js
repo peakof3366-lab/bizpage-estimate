@@ -37,6 +37,8 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const adminSrc = read('admin.html');
 const quotesSrc = read(path.join('api', 'quotes.js'));
 const X = require('../api/_lib/pdf_extract.js');
+const libSrcRZ = read(path.join('api', '_lib', 'pdf_extract.js'));
+const migrateSrcRZ = read(path.join('ai-loop', 'db_migrate.js'));
 
 /* 합성 표 — **실제 견적서를 쓰지 않는다.** 견적서 모음에는 참가자 실명과 거래처 단가가
    들어 있어 저장소에 넣을 수 없다. 대신 실측에서 겪은 **모양만** 그대로 옮긴다. */
@@ -184,11 +186,18 @@ const line = (cells) => {
   ln = 0;
   const twoBlocks = [
     line(['인 원', '26']),
+    line(['기준 환율 ($) 1,450 일정 2026.02.04~02.08']),
     line(['항공료', '700,000', '19', '1', '13,300,000']),
+    line(['호텔', '224,750', '26', '3', '17,530,500']),
+    line(['차량', '797,500', '1', '4', '3,190,000']),
     line(['총 금액', '81,887,120']),
-    line(['총 견적가', '81,887,120']),          /* 같은 값 반복 — 여기서 끊으면 안 된다 */
+    line(['총 견적가', '81,887,120']),                    /* 같은 값 반복 — 안 끊는다 */
+    line(['총 견적가 (백원 단위 절삭)', '81,887,000']),      /* 절삭 줄 — 값이 다르지만 안 끊는다 */
     line(['인 원', '26']),
+    line(['기준 환율 ($) 1,450 일정 2026.03.11~03.15']),
     line(['항공료', '750,000', '19', '1', '14,250,000']),
+    line(['호텔', '230,000', '26', '3', '17,940,000']),
+    line(['차량', '800,000', '1', '4', '3,200,000']),
     line(['총 금액', '85,878,235']),
   ];
   const blocks = X.splitQuoteBlocks(twoBlocks);
@@ -196,8 +205,16 @@ const line = (cells) => {
   ok('같은 총계가 두 줄 이어져도 한 벌로 본다',
     blocks[0].total === 81887120 && blocks[1].total === 85878235,
     blocks.map((x) => x.total).join(' / '));
+  /* ⚠ 실측에서 겪은 것: 「총 견적가 (백원 단위 절삭)」이 값이 달라 장이 하나 더 생겨
+     3장짜리 문서가 6장이 됐다. 절삭 줄로는 끊기지 않아야 한다. */
+  ok('절삭 줄로는 장이 더 생기지 않는다', blocks.length === 2);
   ok('나눈 뒤 줄이 섞이지 않는다',
-    X.findUnitRows(blocks[0].lines, {}).length === 1 && X.findUnitRows(blocks[1].lines, {}).length === 1);
+    X.findUnitRows(blocks[0].lines, {}).length === 3 && X.findUnitRows(blocks[1].lines, {}).length === 3,
+    `${X.findUnitRows(blocks[0].lines, {}).length} / ${X.findUnitRows(blocks[1].lines, {}).length}`);
+  /* 장마다 **자기 출발일**을 갖는다 — 한화 상하이는 차수별로 11/08·11/15·11/22이었다 */
+  const d0 = X.findDates(blocks[0].lines), d1 = X.findDates(blocks[1].lines);
+  ok('장마다 출발일이 따로 읽힌다', d0.departDate === '2026-02-04' && d1.departDate === '2026-03-11',
+    `${d0.departDate} / ${d1.departDate}`);
 
   /* ── [8] L4 — 문서가 스스로 채점표가 되는가 ───────────────────────────── */
   console.log('\n[8] L4 — 문서 자체 검산 (정답지 없이 정확도를 재는 방법)');
@@ -257,7 +274,10 @@ const line = (cells) => {
   ok('화면이 문서 종류·검산을 보여준다', /renderPdfSummary/.test(adminSrc) && /문서 자체 검산/.test(adminSrc));
   ok('화면이 환율을 물어본다', /pr-fx-input/.test(adminSrc) && /이 환율로 다시 읽기/.test(adminSrc));
   ok('환율 넣고 다시 읽을 때 파일을 다시 고르지 않는다', /prLastPdfBase64/.test(adminSrc));
-  ok('화면이 견적 여러 벌을 알려준다', /견적이 <strong>\$\{Number\(data\.blockCount\)\}/.test(adminSrc));
+  ok('화면이 견적 여러 벌을 알려준다', /견적이 \$\{Number\(data\.blockCount\)\}개<\/strong> 들어 있습니다/.test(adminSrc));
+  ok('그중 하나를 실제로 고를 수 있다', /selectQuoteBlock\(data, b\.idx\)/.test(adminSrc),
+    '목록만 보여주고 바꿀 방법이 없으면 안내가 아니라 약만 올린다');
+  ok('바꿀 때 PDF를 다시 올리지 않는다', /서버가 블록마다 \*\*전체 결과\*\*를 함께 내려주므로/.test(adminSrc));
   ok('화면 식비 계산도 서버와 같은 식이다', /÷ 인원 \$\{pax\} ÷ \$\{days\}일/.test(adminSrc));
   ok('환산 근거를 후보 목록에 보인다', /converted\.originalUnit/.test(adminSrc));
 
@@ -402,6 +422,62 @@ const line = (cells) => {
   ok('계산식에 monospace를 쓰지 않는다',
     !/\.pr-ev-calc\s*\{[^}]*monospace/.test(adminSrc), '한글이 "식 사  총 액"처럼 벌어진다');
   ok('대신 숫자 폭만 고정한다', /\.pr-ev-calc\s*\{[^}]*tabular-nums/.test(adminSrc));
+
+  /* ── [14] 날짜 — 언제 만들고 언제 출발하는 견적인가 ────────────────────── */
+  console.log('\n[14] L4b — 견적 작성일·출발일을 읽는가 (시즌·리드타임 검증의 재료)');
+  ln = 0;
+  const dated = [
+    line(['수신 한화손해보험 GA영업지원파트 날짜 2026-08-06']),
+    line(['기준 환율 ($) 1,400 일정 2026.11.08 (2박3일)']),
+    line(['인 원', '70']),
+    line(['항공료', '360,000', '70', '1', '25,200,000']),
+  ];
+  const dd = X.findDates(dated);
+  ok('견적 작성일을 읽는다', dd.quoteDate === '2026-08-06', String(dd.quoteDate));
+  /* ⚠ `\b날짜\b`로 쓰면 한 건도 안 걸린다 — 자바스크립트의 \b는 한글을 낱말로 안 본다 */
+  ok('한글 낱말 경계(\\b)에 기대지 않는다', !/\\\\b날짜\\\\b/.test(libSrcRZ));
+  ok('출발일을 읽는다', dd.departDate === '2026-11-08', String(dd.departDate));
+  ok('박수·일수를 읽는다', dd.nights === 2 && dd.days === 3, `${dd.nights}박${dd.days}일`);
+  ok('귀국일을 박수로 계산하고 추정임을 밝힌다',
+    dd.returnDate === '2026-11-10' && dd.returnEstimated === true, `${dd.returnDate}/${dd.returnEstimated}`);
+  ok('리드타임을 센다', dd.leadDays === 94, String(dd.leadDays));
+  ok('머리글에서 읽었음을 표시한다', dd.departVia === 'header', String(dd.departVia));
+
+  /* 기간이 머리글에 없고 일정표에만 「02월 04일」처럼 연도 없이 있는 견적서가 절반이 넘는다 */
+  ln = 0;
+  const itin = [
+    line(['견적서 작성일 2025-12-20']),
+    line(['제1일 인천 OZ755 18:45 인천 국제공항 출발']),
+    line(['02월 04일 다낭 21:45 다낭 국제공항 도착']),
+    line(['인 원', '26']),
+  ];
+  const di = X.findDates(itin);
+  ok('일정표에서도 출발일을 읽는다', di.departDate === '2026-02-04', String(di.departDate));
+  ok('연도는 견적 작성일에서 끌어오되 여행이 뒤임을 안다', di.departDate > di.quoteDate);
+  ok('추정이라고 표시한다 (사람이 보고 넘어가게)', di.departVia === 'itinerary', String(di.departVia));
+  /* 연도를 알 길이 없으면 **지어내지 않는다** */
+  ln = 0;
+  const noYear = [line(['제1일 출발']), line(['02월 04일 도착']), line(['인 원', '26'])];
+  ok('연도를 모르면 날짜를 지어내지 않는다', X.findDates(noYear).departDate == null,
+    String(X.findDates(noYear).departDate));
+
+  console.log('\n  — 서버·화면 연결');
+  ok('서버가 날짜를 함께 내려보낸다', /dates: out\.dates/.test(quotesSrc));
+  ok('제보 저장이 출발일을 받는다', /departDate, quoteDate, nights/.test(quotesSrc));
+  ok('날짜 형식이 틀리면 거절한다', /invalid_date/.test(quotesSrc));
+  ok('박수 범위도 검사한다', /invalid_nights/.test(quotesSrc));
+  ok('DB 컬럼이 있다',
+    /add column if not exists depart_date date/.test(migrateSrcRZ)
+    && /add column if not exists quote_date date/.test(migrateSrcRZ));
+  ok('출발일로 모아 보는 인덱스도 만든다', /actual_price_reports_depart_idx/.test(migrateSrcRZ));
+  /* ⚠ 리드타임은 저장하지 않는다 — depart_date − quote_date로 언제든 나온다 */
+  ok('리드타임을 따로 저장하지 않는다 (같은 사실을 두 곳에 안 적는다)',
+    !/add column if not exists lead_days/.test(migrateSrcRZ));
+  ok('화면에 출발일 칸이 있다', /id="pr-depart"/.test(adminSrc) && /id="pr-quote-date"/.test(adminSrc));
+  ok('추출한 날짜를 칸에 채운다', /function applyPdfDates/.test(adminSrc));
+  ok('추정한 날짜라고 화면이 말한다', /일정표에서 읽었고 연도는 추정했습니다/.test(adminSrc));
+  ok('리드타임을 화면에 보여준다', /리드타임/.test(adminSrc));
+  ok('제출할 때 날짜를 함께 보낸다', /departDate: \(document\.getElementById\('pr-depart'\)/.test(adminSrc));
 
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   dom.window.close();
