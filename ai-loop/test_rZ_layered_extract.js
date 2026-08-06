@@ -144,8 +144,13 @@ const line = (cells) => {
   console.log('\n[5] 골프를 관광비에 섞지 않는가 (요율 왜곡 방지)');
   ok('관광비가 나온다', b.values.sight != null, String(b.values.sight));
   ok('골프 총액이 관광비에 안 들어갔다', b.values.sight < 232000 * 24 * 2 / 26, String(b.values.sight));
-  ok('뺀 금액을 화면에 남긴다', b.evidence.sight && /골프 [\d,]+원은 뺌/.test(b.evidence.sight.label),
-    b.evidence.sight && b.evidence.sight.label);
+  /* ⚠ 뺀 금액은 label이 아니라 **note**로 따로 준다 — label에 문장으로 이어 붙이면
+     화면에서 잘리거나 다른 문구에 묻힌다(실제로 그랬다). */
+  ok('뺀 금액을 따로 남긴다', b.evidence.sight && /골프 [\d,]+원은 뺐습니다/.test(b.evidence.sight.note || ''),
+    b.evidence.sight && (b.evidence.sight.note || '(note 없음)'));
+  ok('출처를 값으로 표시한다 (문구를 정규식으로 찾지 않게)',
+    b.evidence.sight.via === 'calc' && b.evidence.airfare.via === 'rule',
+    `${b.evidence.sight.via} / ${b.evidence.airfare.via}`);
 
   /* ── [6] 1인당 거름망 — 수량/횟수 열 순서가 뒤바뀌어도 ─────────────────── */
   console.log('\n[6] 수량·횟수 열 순서가 양식마다 달라도 되는가');
@@ -265,11 +270,12 @@ const line = (cells) => {
     values: { airfare: 700000, fuel: 135300, hotel: 224750, hotelName: '노보텔',
       meal: 90384, vehicle: 797500, guide: 217500, sight: 139722, sell: 3303009 },
     evidence: {
-      airfare: { rowIdx: 0, line: '항공료 700,000 …', calc: '700,000 × 19 × 1 = 13,300,000', label: '항공료' },
-      meal: { rowIdxs: [1], calc: '식사 총액 7,049,936 ÷ 인원 26 ÷ 3일 = 90,384 (1인 1일)', label: '식사 13줄' },
-      sight: { rowIdxs: [2], calc: '관광 총액 …', label: '관광 3줄 · 골프 12,944,404원은 뺌(요율의 관광비와 성격이 다름)' },
+      airfare: { rowIdx: 0, line: '항공료 700,000 …', calc: '700,000 × 19 × 1 = 13,300,000', label: '항공료', via: 'rule' },
+      meal: { rowIdxs: [1], calc: '식사 총액 7,049,936 ÷ 인원 26 ÷ 3일 = 90,384 (1인 1일)', label: "식사 13줄 · 라벨의 'N일' 3개", via: 'calc' },
+      sight: { rowIdxs: [2], calc: '관광 총액 3,632,782 ÷ 인원 26 = 139,722', label: '관광 3줄', via: 'calc',
+        note: '골프 12,944,404원은 뺐습니다 — 요율의 관광비와 성격이 다릅니다' },
       /* 판매가는 단가 줄이 아니라 **문서에 적힌 1인당 금액**이라 고를 줄 번호가 없다 */
-      sell: { calc: '문서에 적힌 1인당 금액 3,303,009', label: '1인당' },
+      sell: { calc: '문서에 적힌 1인당 금액 3,303,009원', label: '1인당', via: 'doc' },
     },
     picked: { airfare: 0, mealRows: [1] },
     candidates: [
@@ -304,7 +310,8 @@ const line = (cells) => {
   const evMeal = d.getElementById('pr-ev-meal');
   ok('식비 계산식이 그대로 보인다', !!evMeal && /÷ 인원 26 ÷ 3일/.test(evMeal.textContent), evMeal && evMeal.textContent.slice(0, 90));
   const evSight = d.getElementById('pr-ev-sight');
-  ok('골프를 뺐다는 사실이 보인다', !!evSight && /골프 12,944,404원은 뺌/.test(evSight.textContent));
+  ok('골프를 뺐다는 사실이 보인다', !!evSight && /골프 12,944,404원은 뺐습니다/.test(evSight.textContent),
+    evSight && evSight.textContent.slice(0, 90));
   /* 환산 근거가 후보 목록에 보이는가 — "130,000원"만 보면 대조할 방법이 없다 */
   const opts = Array.from(d.querySelectorAll('#pr-ev-hotel option')).map((o) => o.textContent).join(' | ');
   ok('후보에 환산 근거가 적힌다', /JPY 9,500 × 9.5/.test(opts), opts.slice(0, 140));
@@ -351,6 +358,50 @@ const line = (cells) => {
     !!sightSel && sightSel.value === '__calc__', sightSel && sightSel.value);
   const sellSel = d.querySelector('#pr-ev-sell select');
   ok('판매가도 마찬가지다', !!sellSel && sellSel.value === '__calc__', sellSel && sellSel.value);
+
+  /* ── [13] 어느 칸을 확인해야 하는지 한눈에 보이는가 ────────────────────── */
+  console.log('\n[13] 값의 출처가 칸마다 보이는가 (확인이 필요한 칸이 눈에 띄게)');
+  /* ⚠ 앞 절에서 식사 체크박스를 눌러 배지가 '직접 고침'으로 바뀌어 있다 — 그건 정상
+     동작이다. 여기서는 **갓 추출한 상태**를 봐야 하므로 다시 그린다. */
+  w.__renderEvidence(fixture);
+  const badgeOf = (inputId) => {
+    const el = d.getElementById(inputId);
+    const b = el && el.previousElementSibling && el.previousElementSibling.querySelector('.pr-badge');
+    return b ? { text: b.textContent, cls: b.className } : null;
+  };
+  ok('견적서 한 줄에서 온 값은 "견적서"', (badgeOf('pr-airfare') || {}).text === '견적서',
+    JSON.stringify(badgeOf('pr-airfare')));
+  ok('여러 줄을 합친 값은 "계산"', (badgeOf('pr-meal') || {}).text === '계산',
+    JSON.stringify(badgeOf('pr-meal')));
+  ok('계산 배지는 색이 다르다', /via-calc/.test((badgeOf('pr-meal') || {}).cls || ''));
+  ok('호텔명에도 배지가 붙는다', !!badgeOf('pr-hotel-name'), JSON.stringify(badgeOf('pr-hotel-name')));
+  /* ⚠ 출처는 **값(via)**으로 판단해야 한다. 문구를 정규식으로 찾으면 문구가 바뀔 때
+     표시만 조용히 틀린다 — 그게 이 저장소가 반복해서 당한 유형이다. */
+  ok('출처를 문구가 아니라 값으로 읽는다',
+    /const via = ev \? \(ev\.via \|\| 'rule'\) : 'none'/.test(adminSrc));
+  ok('근거 상자에도 같은 출처가 붙는다',
+    /via-rule/.test(d.getElementById('pr-ev-airfare').className), d.getElementById('pr-ev-airfare').className);
+
+  /* 후보 목록은 접어 둔다 — 9칸 전부 펼쳐져 있으면 손봐야 할 칸이 안 보인다 */
+  const air = d.getElementById('pr-ev-airfare');
+  ok('후보 목록이 접혀 있다', !!air.querySelector('details') && !air.querySelector('details').open);
+  ok('접힌 채로도 몇 개인지는 보인다', /다른 줄로 바꾸기 \(\d+개\)/.test(air.textContent), air.textContent.slice(0, 80));
+
+  /* 사람이 값을 바꾸면 배지도 함께 바뀌어야 한다 —
+     화면엔 '견적서'라고 적혀 있는데 값은 사람이 바꾼 것, 같은 상태를 만들면 안 된다 */
+  const airSel = air.querySelector('select');
+  airSel.value = '1';
+  airSel.dispatchEvent(new w.Event('change'));
+  ok('직접 고르면 배지가 "직접 고침"으로 바뀐다', (badgeOf('pr-airfare') || {}).text === '직접 고침',
+    JSON.stringify(badgeOf('pr-airfare')));
+  ok('근거 상자 색도 함께 바뀐다', /via-manual/.test(d.getElementById('pr-ev-airfare').className));
+  ok('고른 줄의 값이 들어간다', d.getElementById('pr-airfare').value === '29000',
+    d.getElementById('pr-airfare').value);
+
+  /* ⚠ 계산식에 고정폭 글꼴을 쓰면 한글이 한 글자씩 벌어진다(실측에서 확인) */
+  ok('계산식에 monospace를 쓰지 않는다',
+    !/\.pr-ev-calc\s*\{[^}]*monospace/.test(adminSrc), '한글이 "식 사  총 액"처럼 벌어진다');
+  ok('대신 숫자 폭만 고정한다', /\.pr-ev-calc\s*\{[^}]*tabular-nums/.test(adminSrc));
 
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   dom.window.close();

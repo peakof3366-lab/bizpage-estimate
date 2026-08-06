@@ -277,15 +277,53 @@
     .pr-chip b { color: var(--primary); font-weight: 800; margin-left: .15rem; }
 
     /* PDF 추출 근거·후보 고르기 (RN) */
-    .pr-ev { margin-top: .35rem; }
+    /* ── 추출 결과 읽기 (RZ 후속) ──────────────────────────────────────────
+       칸마다 값만 보여주면 담당자는 **어느 칸을 확인해야 하는지** 알 수 없다.
+       그래서 값의 출처를 배지로 못박고(견적서/계산/AI/예비), 근거는 왼쪽 색 띠로
+       입력칸과 묶고, 후보 목록은 접어 둔다 — 기본 화면이 조용해야 이상한 칸이 보인다. */
+    .pr-ev {
+      margin-top: .4rem; padding-left: .55rem;
+      border-left: 3px solid var(--border);
+    }
+    .pr-ev.via-rule { border-left-color: #2E7D32; }   /* 견적서 한 줄 그대로 — 가장 믿을 만하다 */
+    .pr-ev.via-calc { border-left-color: #1565C0; }   /* 여러 줄을 합쳐 계산 — 식을 봐야 한다 */
+    .pr-ev.via-doc  { border-left-color: #2E7D32; }
+    .pr-ev.via-ai,
+    .pr-ev.via-fallback { border-left-color: #E0A100; }  /* 사람이 꼭 봐야 한다 */
+    .pr-ev.via-none { border-left-color: #C8102E; }
+    .pr-ev.via-manual { border-left-color: #6A1B9A; }
+    /* 출처 배지 — 라벨 줄 오른쪽에 붙는다 */
+    .pr-badge {
+      float: right; font-size: .64rem; font-weight: 800; letter-spacing: 0;
+      text-transform: none; padding: .05rem .35rem; border: 1px solid;
+      border-radius: 2px; line-height: 1.5;
+    }
+    .pr-badge.via-rule, .pr-badge.via-doc { color: #2E7D32; border-color: #A5D6A7; background: #F1F8F2; }
+    .pr-badge.via-calc { color: #1565C0; border-color: #A9CBEA; background: #F0F6FC; }
+    .pr-badge.via-ai, .pr-badge.via-fallback { color: #8A5A00; border-color: #E8C97A; background: #FFF8E8; }
+    .pr-badge.via-none { color: #C8102E; border-color: #F0B5BE; background: #FDF2F4; }
+    .pr-badge.via-manual { color: #6A1B9A; border-color: #D5BCE5; background: #F8F2FB; }
     /* ⚠ 예전엔 `nowrap + ellipsis`로 한 줄에 우겨넣었다. 그러면 정작 담당자가 대조해야 할
        근거가 "견적서: 700,000 × 19 × 1 = 1…"처럼 **잘린 채로** 끝난다 (2026-08-06 사장님
        화면에서 확인). 근거는 읽으라고 있는 것이므로 줄바꿈시킨다 — 칸이 몇 줄 길어지는
        것보다 값을 못 믿는 쪽이 훨씬 비싸다. 대신 너무 길어지지 않게 4줄에서 자른다. */
     .pr-ev-src {
-      font-size: .7rem; font-weight: 700; color: var(--muted);
-      line-height: 1.5; word-break: break-word;
-      display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+      font-size: .73rem; font-weight: 700; color: var(--heading);
+      line-height: 1.55; word-break: break-word;
+    }
+    /* 계산식 — 숫자가 줄줄이라 자릿수가 맞아야 읽힌다.
+       ⚠ 고정폭 글꼴(monospace)을 쓰면 안 된다. "식 사  총 액  7,049,936 ÷ 인 원  26"처럼
+       **한글이 한 글자씩 벌어진다**(2026-08-06 실측 스크린샷에서 확인). 대신 본문 글꼴을
+       그대로 쓰고 `tabular-nums`로 숫자 폭만 고정한다 — 한글은 멀쩡하고 자릿수는 맞는다. */
+    .pr-ev-calc {
+      font-variant-numeric: tabular-nums;
+      font-size: .71rem; font-weight: 600; color: var(--muted);
+      line-height: 1.6; word-break: break-word; margin-top: .1rem;
+    }
+    /* 담당자가 꼭 알아야 하는 한 줄(골프 제외 등) — 흐리게 두면 안 읽힌다 */
+    .pr-ev-note {
+      font-size: .7rem; font-weight: 700; color: #8A5A00;
+      line-height: 1.55; margin-top: .15rem; word-break: break-word;
     }
     .pr-ev-pick {
       margin-top: .25rem; width: 100%; height: 28px; padding: 0 .4rem;
@@ -5156,7 +5194,37 @@
     { key: 'sell', input: 'pr-sell', label: '최종 판매가' },
   ];
 
+  /* 값의 출처를 한 낱말로 (RZ 후속) — 담당자가 **어느 칸을 확인해야 하는지**를
+     칸마다 보게 한다. 배지가 없으면 9칸이 전부 똑같아 보여서, 결국 아무것도 확인 안 하거나
+     전부 다시 대조하게 된다. */
+  const PR_VIA = {
+    rule: { text: '견적서', title: '견적서의 한 줄을 그대로 집었습니다 (항목 이름까지 일치)' },
+    doc: { text: '견적서', title: '문서에 그대로 적힌 값입니다' },
+    calc: { text: '계산', title: '여러 줄을 합쳐 계산했습니다 — 아래 식을 확인해 주세요' },
+    ai: { text: 'AI 추정', title: '규칙이 못 채워 AI가 골랐습니다 — 꼭 확인해 주세요' },
+    fallback: { text: '예비 경로', title: '표 좌표를 못 읽어 예전 방식으로 물러났습니다 — 꼭 확인해 주세요' },
+    none: { text: '못 찾음', title: '이 항목을 찾지 못했습니다 — 후보에서 고르거나 직접 넣어 주세요' },
+    manual: { text: '직접 고침', title: '담당자가 직접 고른 값입니다' },
+  };
+
+  function setFieldBadge(inputId, via) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const label = input.previousElementSibling;
+    if (!label || !label.classList.contains('detail-label')) return;
+    const old = label.querySelector('.pr-badge');
+    if (old) old.remove();
+    const info = PR_VIA[via];
+    if (!info) return;
+    const b = document.createElement('span');
+    b.className = 'pr-badge via-' + via;
+    b.textContent = info.text;
+    b.title = info.title;
+    label.appendChild(b);
+  }
+
   function clearPdfEvidence() {
+    document.querySelectorAll('.detail-label .pr-badge').forEach((b) => b.remove());
     PR_EVIDENCE_FIELDS.forEach((f) => {
       const box = document.getElementById('pr-ev-' + f.key);
       if (box) box.remove();
@@ -5174,7 +5242,7 @@
          고른 줄의 총액 합 ÷ 인원 ÷ 식사 일수
      인원·일수는 서버가 문서에서 읽어 함께 내려준다. 화면이 그 식을 그대로 보여주므로
      담당자가 결과만이 아니라 **왜 그 값인지**를 보고 고칠 수 있다. */
-  function buildMealChecks(cands, data, input, src) {
+  function buildMealChecks(cands, data, input, onUpdate) {
     const wrap = document.createElement('div');
     wrap.className = 'pr-ev-checks';
     const chosen = new Set((data.picked || {}).mealRows || []);
@@ -5182,17 +5250,19 @@
     const days = Number(data.mealDays) || 0;
     const recalc = () => {
       const picked = cands.filter((c) => chosen.has(c.idx));
-      if (!picked.length) { input.value = ''; src.textContent = '📄 고르지 않음'; return; }
+      if (!picked.length) { input.value = ''; onUpdate('식사 줄을 고르지 않았습니다', ''); return; }
       const totalCost = picked.reduce((n, c) => n + c.total, 0);
       if (pax > 0 && days > 0) {
         const v = Math.round(totalCost / pax / days);
         input.value = v;
-        src.textContent = `✏️ ${picked.length}줄 총액 ${totalCost.toLocaleString()} ÷ 인원 ${pax} ÷ ${days}일 = ${v.toLocaleString()} (1인 1일)`;
+        onUpdate(`식사 ${picked.length}줄을 직접 골랐습니다`,
+          `${totalCost.toLocaleString()} ÷ 인원 ${pax} ÷ ${days}일 = ${v.toLocaleString()} (1인 1일)`);
       } else {
         /* 인원·일수를 못 읽었으면 나눌 근거가 없다 — 단가 합만 보이고 **왜 못 나눴는지 말한다** */
         const sum = picked.reduce((n, c) => n + c.unit, 0);
         input.value = sum;
-        src.textContent = `✏️ 단가 합 ${sum.toLocaleString()} — 인원/일수를 못 읽어 하루치로 나누지 못했습니다. 직접 확인해 주세요.`;
+        onUpdate('인원·일수를 못 읽어 하루치로 나누지 못했습니다 — 직접 확인해 주세요',
+          `단가 합 ${sum.toLocaleString()}`);
       }
     };
     cands.forEach((c) => {
@@ -5211,6 +5281,21 @@
       wrap.appendChild(lab);
     });
     return wrap;
+  }
+
+  /* 후보 고르기는 **접어 둔다** (RZ 후속, 사장님 지시).
+     9칸 전부에 드롭다운·체크박스가 펼쳐져 있으면 화면이 시끄러워서, 정작 손봐야 할
+     칸("AI 추정"·"못 찾음")이 안 보인다. 값을 못 찾았거나 확인이 필요한 칸만 펼쳐 두고
+     나머지는 "다른 줄로 바꾸기"로 접는다 — 필요할 때 한 번 누르면 된다. */
+  function wrapPicker(summaryText, inner, openByDefault) {
+    const det = document.createElement('details');
+    det.className = 'pr-ev-more';
+    if (openByDefault) det.open = true;
+    const sm = document.createElement('summary');
+    sm.textContent = summaryText;
+    det.appendChild(sm);
+    det.appendChild(inner);
+    return det;
   }
 
   /* 후보 한 줄을 사람이 읽을 수 있는 한 문장으로 (RZ).
@@ -5322,22 +5407,56 @@
       box.id = 'pr-ev-' + f.key;
 
       const ev = (data.evidence || {})[f.key];
+      /* 출처를 배지와 왼쪽 색 띠 양쪽에 표시한다 — 배지는 훑을 때, 띠는 어느 근거가
+         어느 칸에 속하는지 볼 때 쓰인다. */
+      const via = ev ? (ev.via || 'rule') : 'none';
+      box.classList.add('via-' + via);
+      setFieldBadge(f.input, via);
+
+      /* 한 줄에 다 쓰지 않는다 (RZ 후속, 사장님 지시). 세 줄로 나눈다:
+           ① 무엇에서 왔는가 — 견적서의 항목 이름
+           ② 어떻게 나온 값인가 — 계산식(고정폭이라 숫자가 읽힌다)
+           ③ 꼭 알아야 할 것 — 골프 제외 같은 판단 근거 */
       const src = document.createElement('div');
       src.className = 'pr-ev-src';
-      /* ⚠ calc(계산식)만 보여주면 안 된다. label에는 담당자가 꼭 알아야 할 것이 들어 있다 —
-         "골프 12,944,404원은 뺌", "식사 13줄 · 라벨의 'N일' 3개", "AI가 고름", "예비 경로".
-         예전에는 calc만 찍어서 이 사실들이 화면에 한 번도 나오지 않았다. */
       src.textContent = ev
-        ? '📄 견적서: ' + (ev.calc || '') + (ev.label ? '  [' + ev.label + ']' : '')
-        : '📄 이 항목은 찾지 못했습니다 — 아래에서 골라 주세요';
+        ? (ev.label || PR_VIA[via].text)
+        : '이 항목을 찾지 못했습니다 — 아래에서 골라 주세요';
       if (ev) src.title = ev.line || '';
       box.appendChild(src);
+
+      if (ev && ev.calc) {
+        const calc = document.createElement('div');
+        calc.className = 'pr-ev-calc';
+        calc.textContent = ev.calc;
+        box.appendChild(calc);
+      }
+      if (ev && ev.note) {
+        const note = document.createElement('div');
+        note.className = 'pr-ev-note';
+        note.textContent = '⚠ ' + ev.note;
+        box.appendChild(note);
+      }
+      /* 값을 바꿀 때마다 배지와 근거를 함께 갱신하는 도우미 —
+         화면에는 '견적서'라고 적혀 있는데 값은 사람이 바꾼 것, 같은 상태를 막는다. */
+      const showManual = (title, calcText) => {
+        box.className = 'pr-ev via-manual';
+        box.id = 'pr-ev-' + f.key;
+        setFieldBadge(f.input, 'manual');
+        src.textContent = title;
+        const c = box.querySelector('.pr-ev-calc');
+        if (calcText) {
+          if (c) c.textContent = calcText;
+          else { const n = document.createElement('div'); n.className = 'pr-ev-calc'; n.textContent = calcText; src.insertAdjacentElement('afterend', n); }
+        } else if (c) c.remove();
+      };
 
       /* RZ: 식사는 분류된 '식사' 줄만 체크박스로 보여준다 — 후보 40개를 다 늘어놓으면
          무엇을 체크할지 매번 판단해야 한다. 분류가 없으면(예비 경로) 전체를 보여준다. */
       const mealCands = cands.filter((c) => c.category === 'meal');
       if (f.key === 'meal' && !groups.length) {
-        box.appendChild(buildMealChecks(mealCands.length ? mealCands : cands, data, input, src));
+        box.appendChild(wrapPicker(`식사 줄 고르기 (${(mealCands.length ? mealCands : cands).length}개)`,
+          buildMealChecks(mealCands.length ? mealCands : cands, data, input, showManual), !ev));
       } else if (f.key === 'meal' && groups.length) {
         /* ⚠ 식사는 **묶음으로 고른다** (RP). 요율의 식비는 '1인 1일'이라 중식+석식을
            더해야 하는데, 후보 15개를 매번 판단하는 건 수백 건을 넣는 자리에서 너무 무겁다.
@@ -5378,10 +5497,11 @@
         const sum = document.createElement('summary');
         sum.textContent = '묶음이 안 맞으면 — 줄을 직접 고르기';
         det.appendChild(sum);
-        det.appendChild(buildMealChecks(cands, data, input, src));
+        det.appendChild(buildMealChecks(cands, data, input, showManual));
         box.appendChild(det);
       } else if (f.key === 'meal' && cands.length) {
-        box.appendChild(buildMealChecks(cands, data, input, src));
+        box.appendChild(wrapPicker(`식사 줄 고르기 (${cands.length}개)`,
+          buildMealChecks(cands, data, input, showManual), !ev));
       } else if (cands.length) {
         const sel = document.createElement('select');
         sel.className = 'pr-ev-pick';
@@ -5429,18 +5549,32 @@
           if (sel.value === '__calc__') {
             /* 계산 결과로 되돌린다 — 줄을 하나 골랐다가 무르고 싶을 때가 있다 */
             input.value = computed;
-            src.textContent = '📄 견적서: ' + (ev.calc || '') + (ev.label ? '  [' + ev.label + ']' : '');
+            box.className = 'pr-ev via-' + via;
+            box.id = 'pr-ev-' + f.key;
+            setFieldBadge(f.input, via);
+            src.textContent = ev.label || PR_VIA[via].text;
+            const c0 = box.querySelector('.pr-ev-calc');
+            if (c0) c0.textContent = ev.calc || '';
             return;
           }
           const c = cands.find((x) => String(x.idx) === sel.value);
           input.value = c ? c.unit : '';
-          src.textContent = c ? '✏️ 직접 고름: ' + prCandLabel(c) : '📄 고르지 않음';
-          if (c) src.title = c.line;
+          if (c) {
+            showManual(c.label || '직접 고른 줄', prCandLabel(c));
+            src.title = c.line;
+          } else {
+            showManual('고르지 않았습니다', '');
+          }
         });
-        box.appendChild(sel);
+        box.appendChild(wrapPicker(`다른 줄로 바꾸기 (${cands.length}개)`, sel, !ev));
       }
       input.insertAdjacentElement('afterend', box);
     });
+
+    /* 호텔명은 숫자가 아니라 고를 후보가 없다 — 배지만 붙인다.
+       배지가 빠지면 그 칸만 출처를 알 수 없어 "왜 이건 표시가 없지?"가 된다. */
+    const nameEv = (data.evidence || {}).hotelName;
+    setFieldBadge('pr-hotel-name', nameEv ? (nameEv.via || 'rule') : 'none');
 
     renderPdfSummary(data);
 

@@ -451,9 +451,9 @@ async function handleExtractPdf(req, res) {
           const h = pickRowValue(flatRows, parsed.hotelRow, pdfExtract.LIMITS.hotel);
           const m = pickMealGroup(flatRows, fallbackGroups, parsed.mealGroup, pdfExtract.LIMITS.meal)
             || pickMealDaily(flatRows, parsed.mealRows, pdfExtract.LIMITS.meal);
-          if (a) { out.values.airfare = a.value; out.evidence.airfare = { rowIdx: parsed.airfareRow, line: a.evidence, calc: a.calc, label: '예비 경로 · AI가 고름' }; }
-          if (h) { out.values.hotel = h.value; out.evidence.hotel = { rowIdx: parsed.hotelRow, line: h.evidence, calc: h.calc, label: '예비 경로 · AI가 고름' }; }
-          if (m) { out.values.meal = m.value; out.evidence.meal = { rowIdxs: m.rowIdxs, calc: m.calc, label: '예비 경로 · AI가 고름' }; }
+          if (a) { out.values.airfare = a.value; out.evidence.airfare = { rowIdx: parsed.airfareRow, line: a.evidence, calc: a.calc, label: '', via: 'fallback' }; }
+          if (h) { out.values.hotel = h.value; out.evidence.hotel = { rowIdx: parsed.hotelRow, line: h.evidence, calc: h.calc, label: '', via: 'fallback' }; }
+          if (m) { out.values.meal = m.value; out.evidence.meal = { rowIdxs: m.rowIdxs, calc: m.calc, label: '', via: 'fallback' }; }
           if (typeof parsed.hotelName === 'string' && parsed.hotelName.trim()) {
             out.values.hotelName = parsed.hotelName.trim().slice(0, pdfExtract.LIMITS.hotelNameLen);
           }
@@ -509,7 +509,8 @@ async function handleExtractPdf(req, res) {
         const c = byIdx(parsed[key]);
         if (!c || !(c.unit > 0 && c.unit <= max)) return;
         values[key] = Math.round(c.unit);
-        evidence[key] = { rowIdx: c.idx, line: c.line, label: (c.label || '') + ' · AI가 고름', calc: `${c.unit.toLocaleString()} × ${c.qty} × ${c.times} = ${c.total.toLocaleString()}` };
+        evidence[key] = { rowIdx: c.idx, line: c.line, label: c.label || '', via: 'ai',
+          calc: `${c.unit.toLocaleString()} × ${c.qty} × ${c.times} = ${c.total.toLocaleString()}` };
         picked[key] = c.idx;
         aiNote = 'AI 보조';
       };
@@ -520,7 +521,8 @@ async function handleExtractPdf(req, res) {
         const sum = rows.reduce((n, c) => n + c.unit, 0);
         if (sum > 0 && sum <= pdfExtract.LIMITS.meal) {
           values.meal = Math.round(sum);
-          evidence.meal = { rowIdxs: rows.map((c) => c.idx), label: 'AI가 고름', calc: rows.map((c) => c.unit.toLocaleString()).join(' + ') + ' = ' + sum.toLocaleString() + ' (1인 1일)' };
+          evidence.meal = { rowIdxs: rows.map((c) => c.idx), label: `식사 ${rows.length}줄`, via: 'ai',
+            calc: rows.map((c) => c.unit.toLocaleString()).join(' + ') + ' = ' + sum.toLocaleString() + ' (1인 1일)' };
           picked.mealRows = rows.map((c) => c.idx);
           aiNote = 'AI 보조';
         }

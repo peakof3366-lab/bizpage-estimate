@@ -517,6 +517,14 @@ function sightPerPerson(rows, pax) {
 
 const capped = (v, max) => (typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= max ? Math.round(v) : null);
 
+/* 근거 한 덩어리. `via`가 **값의 출처**다 — 화면이 이걸로 "확인이 필요한 칸"을 표시한다.
+   ⚠ 문구(label)에서 'AI가 고름' 같은 말을 정규식으로 찾아 쓰지 말 것. 문구는 바뀌고
+   그러면 표시가 조용히 틀린다. 출처는 값으로 넘긴다.
+     rule     견적서의 한 줄을 규칙(어휘 분류)이 그대로 집었다  — 가장 믿을 만하다
+     calc     여러 줄을 합쳐 계산했다(식비·관광비)             — 식을 보여줘야 한다
+     doc      문서에 그대로 적힌 값(1인당 금액)
+     ai       규칙이 못 채워 AI가 골랐다                       — 사람이 꼭 봐야 한다
+     fallback 좌표를 못 읽어 예전 방식으로 물러났다            — 사람이 꼭 봐야 한다 */
 function ev(row, extra) {
   if (!row) return null;
   return Object.assign({
@@ -524,6 +532,7 @@ function ev(row, extra) {
     line: String(row.line).slice(0, 140),
     calc: `${row.unit.toLocaleString()} × ${row.qty} × ${row.times} = ${row.total.toLocaleString()}`,
     label: row.label || '',
+    via: 'rule',
   }, extra || {});
 }
 
@@ -598,13 +607,20 @@ function readOneBlock(lines, fx) {
     evidence: {
       airfare: ev(airfare), fuel: ev(fuel), hotel: ev(hotel),
       vehicle: ev(vehicle), guide: ev(guide),
-      meal: meal ? { rowIdxs: meal.rowIdxs, calc: meal.calc, label: `식사 ${meal.rowIdxs.length}줄 · ${meal.basis}`, dayCount: meal.dayCount } : null,
-      sight: sight ? {
-        rowIdxs: sight.rowIdxs, calc: sight.calc,
-        label: `관광 ${sight.rowIdxs.length}줄`
-          + (sight.golfExcluded ? ` · 골프 ${sight.golfExcluded.toLocaleString()}원은 뺌(요율의 관광비와 성격이 다름)` : ''),
+      meal: meal ? {
+        rowIdxs: meal.rowIdxs, calc: meal.calc, dayCount: meal.dayCount, via: 'calc',
+        label: `식사 ${meal.rowIdxs.length}줄 · ${meal.basis}`,
       } : null,
-      sell: rec.perPerson ? { calc: `문서에 적힌 1인당 금액 ${rec.perPerson.toLocaleString()}`, label: '1인당' } : null,
+      sight: sight ? {
+        rowIdxs: sight.rowIdxs, calc: sight.calc, via: 'calc',
+        label: `관광 ${sight.rowIdxs.length}줄`,
+        /* 뺀 골프비는 **따로** 준다 — label에 문장으로 이어 붙이면 화면에서 잘리거나 묻힌다 */
+        note: sight.golfExcluded
+          ? `골프 ${sight.golfExcluded.toLocaleString()}원은 뺐습니다 — 요율의 관광비와 성격이 다릅니다`
+          : '',
+      } : null,
+      sell: rec.perPerson ? { calc: `문서에 적힌 1인당 금액 ${rec.perPerson.toLocaleString()}원`, label: '1인당', via: 'doc' } : null,
+      hotelName: hotelName ? { calc: hotelName, label: hotel ? (hotel.label || '') : '', via: 'rule' } : null,
     },
     /* 화면이 1클릭 정정에 쓰는 후보 목록 — 분류까지 함께 준다 */
     candidates: rows.map((r) => ({
