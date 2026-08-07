@@ -15,4 +15,8 @@ node_modules/
 bizpage_backup_*.json
 비즈페이지_백업/
 
+# 역검증 캐시 — 견적서 코퍼스에서 뽑은 값이라 **거래처 단가와 인원**이 그대로 들어 있다.
+# 코퍼스 PDF 자체도 저장소에 넣지 않는다(참가자 실명). backtest_quotes.js가 만든다.
+ai-loop/.backtest_cache.json
+
 .env*

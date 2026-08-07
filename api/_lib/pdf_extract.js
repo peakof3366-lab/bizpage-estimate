@@ -496,6 +496,39 @@ function findQuoteDate(lines) {
      "26.07.09 출발 기준"
    ⚠ 물결표가 `~`·`∼`·`-` 세 가지로 나온다. 하나만 받으면 그 양식이 통째로 빠진다. */
 const TILDE = '[~∼〜～\\-–—]';
+
+/* 「N박 M일」을 **문서 전체에서** 찾는다 (SA).
+   ⚠ 예전에는 이 표기를 아래 관문(`일정|기간|출발…`)을 통과한 줄에서만 읽었다.
+   그런데 실제 견적서에서 박수는 대개 **제목 줄**에 있고 그 줄에는 그런 낱말이 없다:
+       「키움에셋플래너 해외연수 (북해도) | 3박 4일」
+       「대림벧엘교회 해외여행 (큐슈) | 2박 3일」
+   그래서 46건 중 **19건이 '일수 불명'**으로 빠졌고, 역검증 대조가 4건밖에 안 됐다.
+
+   박수는 날짜와 달리 문서 전체에서 찾아도 안전하다 — 「N박 M일」은 여행 기간 말고
+   쓰일 데가 없는 표기다. 다만 두 가지를 지킨다:
+     · 일수가 박수+1 또는 +2일 때만 받는다(4박 6일은 야간 비행으로 실제 있다.
+       그 밖의 조합은 표를 잘못 읽은 것이다).
+     · 문서에 **서로 다른 값이 여럿**이면(차수·옵션이 섞인 견적서) 가장 많이 나온 것을
+       쓰고, 최다가 동점이면 **고르지 않고 비워 둔다.** 둘 중 하나를 찍으면 그 절반은
+       조용히 틀린 일수로 요율과 대조된다. */
+function findNightsDays(lines) {
+  const tally = new Map();
+  lines.forEach((ln) => {
+    const m = ln.text.replace(/\s+/g, ' ').match(/(\d{1,2})\s*박\s*(\d{1,2})\s*일/);
+    if (!m) return;
+    const n = +m[1], d = +m[2];
+    if (n < 1 || n > 30) return;
+    if (d !== n + 1 && d !== n + 2) return;
+    const k = n + '/' + d;
+    tally.set(k, (tally.get(k) || 0) + 1);
+  });
+  if (!tally.size) return { nights: null, days: null };
+  const ranked = Array.from(tally.entries()).sort((a, b) => b[1] - a[1]);
+  if (ranked.length > 1 && ranked[0][1] === ranked[1][1]) return { nights: null, days: null };
+  const [n, d] = ranked[0][0].split('/').map(Number);
+  return { nights: n, days: d };
+}
+
 function findTripDates(lines) {
   let depart = null, ret = null, nights = null, days = null;
 
@@ -508,31 +541,80 @@ function findTripDates(lines) {
     }
   };
 
-  for (const ln of lines) {
-    const t = ln.text.replace(/\s+/g, ' ');
-    if (!/일정|기간|출발|출국|여행일/.test(t)) continue;
+  /* 관문을 **두 번** 돈다. 1차는 예전 그대로(낱말이 있는 줄만) — 기존 동작을 그대로 둔다.
+     2차는 낱말 없이 **기간 범위 표기만** 다시 훑는다. 「2026. 06. 19 ~ 06. 22」처럼
+     날짜 두 개를 물결표로 이은 표기는 그 자체로 충분히 특이해서 오탐이 잘 안 난다
+     (실측: 「행 2026. 06. 19 ~ 06. 22 (3박 4일)」 — 세로쓰기 '여행기간'이 잘려
+     '행'만 남는 바람에 1차 관문에서 통째로 버려지던 줄이다).
+     ⚠ 단일 날짜(③)는 2차에서 쓰지 않는다 — 문서 아무 데나 있는 날짜가 출발일로
+     둔갑한다. 범위 표기만 믿는다. */
+  for (const pass of [1, 2]) {
+    if (depart) break;
+    for (const ln of lines) {
+      const t = ln.text.replace(/\s+/g, ' ');
+      const gated = /일정|기간|출발|출국|여행일/.test(t);
+      if (pass === 1 && !gated) continue;
+      if (pass === 2 && gated) continue;   /* 1차에서 이미 봤다 */
 
-    /* ① 연도.월.일 ~ 연도.월.일 */
-    let m = t.match(new RegExp(`(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*${TILDE}\\s*(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})`));
-    if (m) {
-      depart = validYmd(ymd(m[1], m[2], m[3])) || depart;
-      ret = validYmd(ymd(m[4], m[5], m[6])) || ret;
-      takeNightsDays(t);
-      if (depart) break;
+      /* ① 연도.월.일 ~ 연도.월.일 */
+      let m = t.match(new RegExp(`(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*${TILDE}\\s*(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})`));
+      if (m) {
+        depart = validYmd(ymd(m[1], m[2], m[3])) || depart;
+        ret = validYmd(ymd(m[4], m[5], m[6])) || ret;
+        takeNightsDays(t);
+        if (depart) break;
+      }
+      /* ② 연도.월.일 ~ 월.일 (뒤쪽에 연도 생략) */
+      m = t.match(new RegExp(`(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*${TILDE}\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})(?!\\s*[.\\-\\/]\\s*\\d)`));
+      if (m) {
+        depart = validYmd(ymd(m[1], m[2], m[3])) || depart;
+        ret = validYmd(ymd(m[1], m[4], m[5])) || ret;
+        takeNightsDays(t);
+        if (depart) break;
+      }
+      /* ③ 출발일 하나만 (+ 박수) — 낱말 관문을 통과한 줄에서만 */
+      if (pass !== 1) continue;
+      m = t.match(/(\d{2,4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/);
+      if (m) {
+        const v = validYmd(ymd(m[1], m[2], m[3]));
+        if (v) { depart = v; takeNightsDays(t); break; }
+      }
     }
-    /* ② 연도.월.일 ~ 월.일 (뒤쪽에 연도 생략) */
-    m = t.match(new RegExp(`(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*${TILDE}\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})(?!\\s*[.\\-\\/]\\s*\\d)`));
-    if (m) {
-      depart = validYmd(ymd(m[1], m[2], m[3])) || depart;
-      ret = validYmd(ymd(m[1], m[4], m[5])) || ret;
-      takeNightsDays(t);
-      if (depart) break;
-    }
-    /* ③ 출발일 하나만 (+ 박수) */
-    m = t.match(/(\d{2,4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/);
-    if (m) {
-      const v = validYmd(ymd(m[1], m[2], m[3]));
-      if (v) { depart = v; takeNightsDays(t); break; }
+  }
+
+  /* 위에서 박수·일수를 못 얻었으면 문서 전체에서 찾는다(제목 줄에 있는 경우).
+     ⚠ 「4박」만 있고 일수가 없을 때 5일로 채우지 않는다 — 4박 6일이 실제로 있다
+     (야간 비행). 일수는 「N박 M일」로 **함께 적힌 것**만 받는다. */
+  const labelled = findNightsDays(lines);
+
+  /* 날짜 범위로 센 박수 — 출발일과 귀국일이 둘 다 있을 때만 */
+  let fromDates = null;
+  if (depart && ret) {
+    const diff = Math.round((new Date(ret + 'T00:00:00Z') - new Date(depart + 'T00:00:00Z')) / 86400000);
+    if (diff > 0 && diff < 60) fromDates = diff;
+  }
+
+  /* ⚠ 문서가 **스스로 모순되는** 일이 있다. 실측(대림벧엘교회 큐슈):
+         제목  「대림벧엘교회 해외여행 (큐슈) | 2박 3일」
+         기간  「2026. 03. 10 ~ 03. 13 (예정)」  → 3박 4일
+     둘 중 하나를 조용히 고르면 그 문서의 일수가 통째로 틀린 채 요율과 대조된다
+     (일수는 엔진 금액에 정비례로 들어가는 값이라 그대로 견적 오차가 된다).
+     그래서 **날짜 범위를 쓰되(구체적인 증거다) 어긋났다는 사실을 남긴다.**
+     화면이 이 표시를 보고 담당자에게 한 칸 물어볼 수 있다 — 조용한 폴백을 만들지 않는다. */
+  let nightsConflict = null;
+  if (fromDates != null && labelled.nights && labelled.nights !== fromDates) {
+    nightsConflict = { fromDates, labelled: labelled.nights, labelledDays: labelled.days };
+  }
+
+  if (fromDates != null) {
+    nights = fromDates;
+    days = nightsConflict ? fromDates + 1 : (labelled.days && labelled.nights === fromDates ? labelled.days : fromDates + 1);
+  } else if (!nights || !days) {
+    /* 날짜로 못 세면 제목의 「N박 M일」을 쓴다.
+       ⚠ 「4박」만 있고 일수가 없을 때 5일로 채우지 않는다 — 4박 6일이 실제로 있다
+       (야간 비행). 일수는 「N박 M일」로 **함께 적힌 것**만 받는다. */
+    if (labelled.nights && (!nights || labelled.nights === nights)) {
+      nights = labelled.nights; days = labelled.days;
     }
   }
 
@@ -544,13 +626,7 @@ function findTripDates(lines) {
     ret = d.toISOString().slice(0, 10);
     returnEstimated = true;
   }
-  /* 반대로 둘 다 알면 박수를 센다 */
-  if (depart && ret && !nights) {
-    const a = new Date(depart + 'T00:00:00Z'), b = new Date(ret + 'T00:00:00Z');
-    const diff = Math.round((b - a) / 86400000);
-    if (diff > 0 && diff < 60) { nights = diff; days = diff + 1; }
-  }
-  return { depart, ret, nights, days, returnEstimated };
+  return { depart, ret, nights, days, returnEstimated, nightsConflict };
 }
 
 /* 머리글에 기간이 안 적힌 견적서가 절반이 넘는다(실측 46건 중 28건). 그런 문서도
@@ -610,6 +686,8 @@ function findDates(lines) {
     returnEstimated: trip.returnEstimated,
     nights: trip.nights,
     days: trip.days,
+    /* 문서 안에서 기간 표기가 서로 어긋났다 — 화면이 한 칸 물어야 한다(null이면 이상 없음) */
+    nightsConflict: trip.nightsConflict || null,
     leadDays,
   };
 }
