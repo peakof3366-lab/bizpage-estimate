@@ -412,18 +412,128 @@ const VOCAB = [
   { key: 'etc', re: /현수막|기념품|피켓|명찰|네임텐트|프로젝터|공동경비|현장추가|패스트\s*트랙|비자|인쇄|디자인|\bAV\b/i },
 ];
 
-function classifyLabel(text) {
+/* ⚠ **여러 항목을 한 줄로 묶은 줄**이 있다 — 「지상 차량, 관광지, 식사 등」·
+   「호텔+식사+차량 일체」. 어휘 분류는 먼저 걸리는 것 하나를 고르므로 이런 줄이
+   그중 한 칸의 대표값이 된다. 실측(굿리치 아오모리): 지상비 일괄 296,000/인이
+   **식비**로 분류돼 1인 1일 식비가 98,667원으로 나갔다(일본 요율 25,000의 4배).
+   낱말이 **셋 이상 다른 분류**를 가리키면 그건 항목이 아니라 묶음이다 — 고르지 않는다.
+   ⚠ 둘로 낮추면 안 된다. 「인솔/가이드 공동경비」(guide+etc)·「기타 알선 수수료」처럼
+   정상적인 줄이 둘까지는 흔하다. */
+const BUNDLE_MIN_CATS = 3;
+
+function labelCategories(text) {
   const s = String(text || '');
-  if (!s.trim()) return null;
-  for (const v of VOCAB) if (v.re.test(s)) return v.key;
-  return null;
+  if (!s.trim()) return [];
+  return VOCAB.filter((v) => v.re.test(s)).map((v) => v.key);
+}
+
+function classifyLabel(text) {
+  const cats = labelCategories(text);
+  if (!cats.length) return null;
+  if (cats.length >= BUNDLE_MIN_CATS) return null;
+  return cats[0];
 }
 
 /* 줄 하나의 분류 — 라벨을 먼저 보고, 없으면 비고를 본다.
    ⚠ 라벨과 비고를 한 덩어리로 합쳐서 보면 안 된다. 비고에 "항공,숙박,식비 등 일체"처럼
-   **다른 항목 이름이 나열된** 줄이 실제로 있다(공동경비). 라벨이 이길 수 있게 나눠 본다. */
+   **다른 항목 이름이 나열된** 줄이 실제로 있다(공동경비). 라벨이 이길 수 있게 나눠 본다.
+   ⚠ 라벨과 비고 **사이에** 구분 열이 들어간다(L3.5) — readOneBlock을 볼 것.
+      이 함수는 구분 열을 모르는 자리(예전 예비 경로·테스트)에서 쓰는 기본형이다. */
 function classifyRow(row) {
   return classifyLabel(row.label) || classifyLabel(row.note) || null;
+}
+
+/* ═══ L3.5 — 구분 열 상속 (SE) ══════════════════════════════════════════════
+   어휘 분류가 못 잡는 것이 하나 있다. **브랜드명뿐인 줄**이다 —
+   「메트로폴리탄 이케부쿠로(토)」·「쉐라톤 가든뷰」·「도야 만세각」에는 호텔이라는
+   낱말이 없다. 실측(코퍼스 46건): 검산줄 960개 중 **224개(23.3%)가 분류 없음**이고,
+   그래서 **46건 중 22건이 객실 단가를 아예 못 낸다.** 어휘를 늘려 브랜드명을 쫓는 것은
+   끝이 없다(호텔 브랜드는 계속 생긴다).
+
+   그런데 견적서 표에는 답이 이미 그려져 있다. 맨 왼쪽에 **구분 열**이 있고 거기에
+   '항공·호텔·식사·차량·가이드'가 적혀 있다. 다만 그 칸이 **병합 셀**이라 글자가
+   묶음의 **한 줄에만** 떨어진다. 그 한 줄이 어디냐는 양식마다 다르다:
+     · BSI 도쿄  — 묶음의 **가운데** 줄에 떨어진다 (호텔 묶음 3줄 중 2번째)
+     · 글로벌 세부 — 묶음의 **첫** 줄에 떨어진다
+   ⚠ 그래서 「앞 줄의 분류를 물려받는다」로는 못 푼다. BSI에서는 호텔 묶음 바로 위가
+     「항공사 패널티」라 **패널티를 물려받는다.** 방향을 가정하면 반드시 틀린다.
+
+   대신 **소계 줄**을 경계로 쓴다. 견적서 표는 묶음마다 소계로 끝난다(코퍼스 36/46건).
+   소계와 소계 사이가 한 묶음이고, 그 안에 구분 글자가 **하나만** 있으면 그게 그 묶음의
+   분류다. 둘 이상이면 고르지 않는다.
+
+   지켜야 할 것:
+   - 구분 열은 **좌표로** 찾는다. 낱말만 보면 라벨('중식'·'대형버스')도 걸린다.
+     표 줄들의 첫 셀 x보다 왼쪽에 있는 x 무리, 그것이 구분 열이다.
+   - **자기 라벨이 이긴다.** 「호텔 패널티」는 penalty로 남는다 — 상속으로 되살아나면
+     SB에서 고친 것이 그대로 풀린다(패널티가 대표 객실 단가가 됐던 그 결함).
+   - 구분 열은 **비고보다 강하다.** 비고는 옆 표에서 흘러든 글자일 수 있다(SB의 줄 병합
+     오염). 실측: 북해도 「도야 만세각」 줄이 오른쪽 원가표의 '인솔자'·'가이드' 글자에
+     걸려 가이드로 분류됐다 — 구분 열은 '호텔'이라고 적혀 있는데도.
+   - 구조가 안 보이면 **상속하지 않는다.** 왜 못 했는지는 `why`로 남긴다(조용한 폴백 금지). */
+const SUBTOTAL_CELL_RE = /^(소\s*계|합\s*계|계)$/;
+const GROUP_X_TOL = 4;        /* 같은 열로 볼 x 오차(pt) */
+const GROUP_MARK_MAXLEN = 10; /* 구분 글자는 짧다 — 긴 것은 라벨이다 */
+/* 첫 묶음의 구분 글자는 **첫 검산줄보다 위**에 있을 수 있다(세부 건: 2줄 위. 그 묶음의
+   첫 줄들이 단가 '-'라 검산줄이 아니다). 표 머리글 언저리까지만 위로 훑는다. */
+const GROUP_LOOKBACK = 12;
+
+function groupColumn(lines, rows) {
+  const no = (why) => ({ byLine: null, marks: [], why });
+  if (!lines || !lines.length || !rows || rows.length < 2) return no('표 줄이 부족합니다');
+
+  const byIdx = new Map();
+  lines.forEach((ln) => byIdx.set(ln.idx, ln));
+  const rowLines = rows.map((r) => byIdx.get(r.lineIdx)).filter((ln) => ln && ln.cells.length);
+  if (!rowLines.length) return no('좌표가 없습니다');
+  const from = Math.min.apply(null, rows.map((r) => r.lineIdx));
+  const to = Math.max.apply(null, rows.map((r) => r.lineIdx));
+  const rowMinX = Math.min.apply(null, rowLines.map((ln) => ln.cells[0].x));
+
+  /* 마크 후보 — 첫 셀이 **짧고 숫자가 없는 분류 낱말**인 줄 */
+  const cands = [];
+  for (let i = Math.max(0, from - GROUP_LOOKBACK); i <= to; i++) {
+    const ln = byIdx.get(i);
+    if (!ln || !ln.cells.length) continue;
+    const t = String(ln.cells[0].s).trim();
+    if (!t || t.length > GROUP_MARK_MAXLEN || /\d/.test(t)) continue;
+    const cat = classifyLabel(t);
+    if (cat) cands.push({ lineIdx: i, x: ln.cells[0].x, text: t, cat });
+  }
+  if (!cands.length) return no('구분 낱말이 없습니다');
+
+  /* 가장 왼쪽 x 무리만 구분 열로 본다. 그 무리가 표 줄의 첫 셀보다 오른쪽이면
+     그건 구분 열이 아니라 그냥 라벨이다(구분 열이 없는 양식). */
+  const markX = Math.min.apply(null, cands.map((c) => c.x));
+  if (markX > rowMinX + GROUP_X_TOL) return no('구분 열이 표 왼쪽에 없습니다');
+  /* ⚠ **구분 열은 라벨 열과 다른 열이어야 한다.** 구분 열이 없는 양식에서는 라벨이
+     맨 왼쪽이라, 위 검사만으로는 「항공료」·「차량」 같은 **라벨을 구분 글자로 착각**한다.
+     구분 열이 진짜로 있다면 그 열이 비어 라벨부터 시작하는 표 줄이 반드시 있다
+     (병합 셀이라 글자가 묶음의 한 줄에만 떨어지므로). 그 줄이 하나도 없으면 그만둔다. */
+  if (!rowLines.some((ln) => ln.cells[0].x > markX + GROUP_X_TOL)) return no('구분 열과 라벨 열이 같습니다');
+  const marks = cands.filter((c) => c.x <= markX + GROUP_X_TOL);
+  const catCount = new Set(marks.map((m) => m.cat)).size;
+  if (marks.length < 2 || catCount < 2) return no('구분 열로 볼 마크가 부족합니다');
+
+  /* 경계 = 소계 줄. 없으면 묶음을 끊을 수 없다 — 마크가 묶음의 위에 있는지 가운데
+     있는지 알 방법이 사라지므로, 가정하지 않고 그만둔다. */
+  const segStart = Math.min(from, marks[0].lineIdx);
+  const bounds = [];
+  for (let i = segStart; i <= to; i++) {
+    const ln = byIdx.get(i);
+    if (ln && ln.cells.some((c) => SUBTOTAL_CELL_RE.test(String(c.s).trim()))) bounds.push(i);
+  }
+  if (!bounds.length) return no('소계 줄이 없어 묶음을 끊을 수 없습니다');
+
+  const byLine = new Map();
+  let start = segStart, assigned = 0, ambiguous = 0;
+  bounds.concat([to + 1]).forEach((end) => {
+    const cats = Array.from(new Set(marks.filter((m) => m.lineIdx >= start && m.lineIdx < end).map((m) => m.cat)));
+    if (cats.length === 1) { for (let i = start; i < end; i++) byLine.set(i, cats[0]); assigned++; }
+    else if (cats.length > 1) ambiguous++;
+    start = end + 1;
+  });
+  return { byLine, marks, groups: assigned, ambiguous, why: '' };
 }
 
 /* ═══ L4 — 문서 자체 검산 ═══════════════════════════════════════════════════
@@ -809,9 +919,19 @@ function triage(lines, rows, classified) {
    화면의 후보 목록에는 남으므로 담당자가 보고 직접 넣을 수는 있다. */
 const usable = (r) => !r.unconvertible;
 
-function pickBy(rows, category, how) {
+/* 부수 비용 줄 — 그 묶음에 딸린 잔비용이지 그 항목의 단가가 아니다.
+   ⚠ **'팁'·'경비'·'일비'를 넣지 말 것.** 본 단가 줄 이름에도 그대로 붙는다 —
+   「가이드 인건비 &팁」·「기사일비/팁」·「인솔/가이드 공동경비」가 전부 진짜 대표 줄이다.
+   넣어 봤더니 고친 것 1건에 **없애 버린 것 4건**이었다(실측). 식대 계열만 남긴다. */
+const INCIDENTAL_RE = /식대|식사|간식|통신비/;
+const notIncidental = (r) => !INCIDENTAL_RE.test(String(r.label || ''));
+
+function pickBy(rows, category, how, prefer) {
   const list = rows.filter((r) => r.category === category && usable(r));
   if (!list.length) return null;
+  /* 거름망이 있으면 먼저 그것으로 고른다. 다 걸러지면 **비운다** —
+     남은 것이 부수 줄뿐인데 그것을 단가로 내보내면 틀린 값이 '실측'으로 굳는다. */
+  if (prefer) { const kept = list.filter(prefer); return kept.length ? how(kept) : null; }
   return how(list);
 }
 
@@ -837,7 +957,7 @@ const headCount = (r) => Math.max(r.qty, r.times);
 const perHeadRows = (rows, category) =>
   rows.filter((r) => r.category === category && usable(r) && headCount(r) >= PER_HEAD_MIN_QTY);
 
-function mealPerDay(rows, pax) {
+function mealPerDay(rows, pax, trip) {
   const meals = perHeadRows(rows, 'meal');
   if (!meals.length || !pax) return null;
   const totalCost = meals.reduce((n, r) => n + r.total, 0);
@@ -849,6 +969,15 @@ function mealPerDay(rows, pax) {
   });
   let dayCount = days.size;
   let basis = `라벨의 'N일' ${dayCount}개`;
+  /* ⚠ **문서가 밝힌 일수가 호텔 줄보다 정확하다.** 호텔 묶음은 한 숙박이 여러 줄로
+     쪼개진다 — 「하버그랜드 주중 4박」+「주말 1박」, 「메트로폴리탄(금) 1박」+「(토) 1박」.
+     `max(박수)`는 그 경우 실제보다 **적게** 세고, 식비는 그만큼 부푼다(실측: BSI 도쿄가
+     2박을 1박으로 세어 1인 1일 식비가 38,978 — 실제 일수로 나누면 25,985다).
+     일수는 금액에 거의 정비례하므로 조용히 고르면 안 된다. 그래서 문서 → 호텔 줄 순. */
+  if (!dayCount && trip && trip.days >= 2 && trip.days <= 30) {
+    dayCount = trip.days;
+    basis = `문서의 ${trip.nights ? trip.nights + '박 ' : ''}${trip.days}일`;
+  }
   if (!dayCount) {
     const hotel = rows.filter((r) => r.category === 'hotel');
     const nights = hotel.length ? Math.max.apply(null, hotel.map((r) => r.times)) : 0;
@@ -911,6 +1040,9 @@ function ev(row, extra) {
       ? `${row.total.toLocaleString()} — 수량·횟수가 없어 검산되지 않았습니다 (1인 단가인지 전 일정 총액인지 확인해 주세요)`
       : `${row.unit.toLocaleString()} × ${row.qty} × ${row.times} = ${row.total.toLocaleString()}`,
     label: row.label || '',
+    /* 이 줄이 **왜 이 항목으로 분류됐는가** (L3.5). 브랜드명뿐인 줄은 라벨만 봐서는
+       담당자가 왜 호텔로 잡혔는지 알 수 없다 — 표의 구분 열에서 왔다고 말해 준다. */
+    categoryFrom: row.categoryFrom || null,
     via: unchecked ? 'unchecked' : 'rule',
   }, extra || {});
 }
@@ -934,7 +1066,19 @@ function applyFx(rows, fx) {
 /* ═══ 견적 한 장을 읽는다 ══════════════════════════════════════════════════ */
 function readOneBlock(lines, fx, blockTotal) {
   const rawRows = applyFx(findUnitRows(lines, fx), fx || {});
-  const rows = rawRows.map((r) => Object.assign({}, r, { category: classifyRow(r) }));
+  /* 분류 우선순위 — **자기 라벨 → 구분 열 → 비고** (L3.5 머리말에 이유가 있다).
+     비고가 구분 열보다 뒤인 것이 핵심이다: 비고에는 옆 표에서 흘러든 글자가 섞인다. */
+  const grp = groupColumn(lines, rawRows);
+  const rows = rawRows.map((r) => {
+    const own = classifyLabel(r.label);
+    const fromGroup = grp.byLine ? (grp.byLine.get(r.lineIdx) || null) : null;
+    const category = own || fromGroup || classifyLabel(r.note) || null;
+    return Object.assign({}, r, {
+      category,
+      /* 어디서 온 분류인지 남긴다 — 화면이 근거를 말할 수 있어야 한다 */
+      categoryFrom: !category ? null : own ? 'label' : (fromGroup === category ? 'group' : 'note'),
+    });
+  });
   const rec = reconcile(lines, rows, blockTotal || null);
   const kind = triage(lines, rows, rows);
   const dates = findDates(lines);   /* 블록마다 따로 읽는다 — 출발일이 서로 다를 수 있다 */
@@ -946,10 +1090,15 @@ function readOneBlock(lines, fx, blockTotal) {
   const fuel = pickBy(rows, 'fuel', byMaxQty);
   /* 호텔은 총액이 가장 큰 줄 = 본 숙소. 단가가 '객실 1박'이다. */
   const hotel = pickBy(rows, 'hotel', byMaxTotal);
-  /* 차량·가이드는 '대당 1일'·'1일'이라 **가장 비싼 줄**이 기준선이다(대형차·한국인 가이드). */
-  const vehicle = pickBy(rows, 'vehicle', byMaxUnit);
-  const guide = pickBy(rows, 'guide', byMaxUnit);
-  const meal = mealPerDay(rows, pax);
+  /* 차량·가이드는 '대당 1일'·'1일'이라 **가장 비싼 줄**이 기준선이다(대형차·한국인 가이드).
+     ⚠ 그 묶음에는 **부수 비용 줄**이 섞여 있다(기사 팁·기사 식대·가이드 통신비).
+     본 단가 줄이 있으면 더 비싸니 문제가 없지만, 본 줄이 검산에서 빠지면 부수 줄이
+     그대로 대표가 된다 — 실측(키움 카자흐스탄): 진짜 차량 줄은 수량이 `4.5`라 검산이
+     안 돼 빠지고, 「차량 기사 식사 22,500」이 차량 1일 단가로 나갔다(실제 1,200,000).
+     그래서 부수 줄은 빼고 고른다. **다 빼면 비운다** — 부수 줄을 단가라 우기지 않는다. */
+  const vehicle = pickBy(rows, 'vehicle', byMaxUnit, notIncidental);
+  const guide = pickBy(rows, 'guide', byMaxUnit, notIncidental);
+  const meal = mealPerDay(rows, pax, dates);
   const sight = sightPerPerson(rows, pax);
 
   /* 호텔명 — 호텔 줄의 라벨이 곧 호텔명이다(예: '노보텔'). 라벨이 비면 비고에서 찾는다. */
@@ -971,6 +1120,8 @@ function readOneBlock(lines, fx, blockTotal) {
 
   return {
     kind, lineCount: lines.length,
+    /* 구분 열을 읽었는가 — 못 읽었으면 **왜 못 읽었는지**를 남긴다(감사기가 센다) */
+    groupColumn: { used: !!grp.byLine, groups: grp.groups || 0, ambiguous: grp.ambiguous || 0, why: grp.why || '' },
     pax, grandTotal: rec.grand, perPerson: rec.perPerson,
     /* 우리 1인 원가 — 원가 시트에만 있다. 판매가(perPerson)와 섞지 말 것 (SC) */
     depositPerPerson: rec.deposit, depositCandidates: rec.depositAll || [],
@@ -1011,6 +1162,8 @@ function readOneBlock(lines, fx, blockTotal) {
     candidates: rows.map((r) => ({
       idx: r.idx, unit: r.unit, qty: r.qty, times: r.times, total: r.total,
       label: r.label || '', note: r.note || '', category: r.category,
+      /* 'label' 자기 라벨 · 'group' 표의 구분 열 · 'note' 비고 (L3.5) */
+      categoryFrom: r.categoryFrom || null,
       line: String(r.line).slice(0, 140),
       /* 외화였던 줄은 화면이 "¥2,000 × 9.5 = 19,000원"처럼 보여줘야 담당자가 믿을 수 있다 */
       converted: r.converted || null,
@@ -1084,6 +1237,6 @@ async function extractQuote(buffer, pdfParse, opts) {
 module.exports = {
   LIMITS, extractQuote, readOneBlock, readLayout, splitQuoteBlocks, findUnitRows,
   findDates, findQuoteDate, findTripDates,
-  classifyRow, classifyLabel, reconcile, triage, mealPerDay, sightPerPerson,
+  classifyRow, classifyLabel, groupColumn, reconcile, triage, mealPerDay, sightPerPerson,
   splitLabel, numbersIn, VOCAB,
 };

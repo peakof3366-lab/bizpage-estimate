@@ -5493,8 +5493,10 @@
            ③ 꼭 알아야 할 것 — 골프 제외 같은 판단 근거 */
       const src = document.createElement('div');
       src.className = 'pr-ev-src';
+      /* 브랜드명뿐인 줄(「메트로폴리탄 이케부쿠로」)은 라벨만 보면 왜 호텔로 잡혔는지
+         알 수 없다 — 표의 구분 열에서 온 분류라고 밝힌다(SE). */
       src.textContent = ev
-        ? (ev.label || PR_VIA[via].text)
+        ? (ev.label || PR_VIA[via].text) + (ev.categoryFrom === 'group' ? ' · 표의 구분 열' : '')
         : '이 항목을 찾지 못했습니다 — 아래에서 골라 주세요';
       if (ev) src.title = ev.line || '';
       box.appendChild(src);
