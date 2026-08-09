@@ -1,5 +1,9 @@
 /* PE 검증: 자동 차량 선택 임계를 소형 정원(VEHICLE_CAPACITY.small)에 정렬.
-   ① ~25명 소형 1대 / 26~45명 대형 1대 / 46명~ 대형 ceil(인원/45)대
+   ① ~소형정원 소형 1대 / 그 위 대형 ceil(인원/대형정원)대
+   ⚠ 기대값을 숫자로 박지 말 것 — 전부 VEHICLE_CAPACITY에서 파생시킨다(SD에서 고침).
+     예전엔 여기 45가 박혀 있어, 정원을 실측대로 38로 고치자 테스트 4개가 깨졌다.
+     테스트가 정작 자기가 경계하는 하드코딩을 하고 있었다. 지키려던 것은 '45'가 아니라
+     **대수·가이드가 정원에서 파생되고 경계에서 역전이 없다**는 성질이다.
    ② 임계값이 상수에서 파생되는지(숫자 하드코딩 재발 방지)
    ③ 인원 증가 시 총액 단조성 유지 — 경계에서 역전 없음
    ④ 가이드 인원(=차량 대수)이 함께 맞게 움직이는지
@@ -48,7 +52,13 @@ const ok = (name, cond, extra = '') => {
   reset();
 
   console.log('[0] 정원 상수');
-  ok('소형 정원 25 · 대형 정원 45', CAP.small === 25 && CAP.large === 45, JSON.stringify(CAP));
+  /* 값 자체를 고정하지 않는다. 정원은 실측으로 바뀔 수 있는 값이다
+     (audit_bus_capacity.js가 견적서에서 1대당 실제 탑승 인원을 센다).
+     대신 **말이 되는 범위**만 지킨다 — 소형 < 대형이고 둘 다 상식 범위 안. */
+  ok('소형 < 대형', CAP.small < CAP.large, JSON.stringify(CAP));
+  ok('소형 정원이 상식 범위(5~30)', CAP.small >= 5 && CAP.small <= 30, String(CAP.small));
+  ok('대형 정원이 상식 범위(20~50)', CAP.large >= 20 && CAP.large <= 50, String(CAP.large));
+  const L = CAP.large, S = CAP.small;
 
   console.log('[1] 임계값이 상수에서 파생 — 숫자 하드코딩 재발 방지');
   const src = read('script.js');
@@ -57,7 +67,14 @@ const ok = (name, cond, extra = '') => {
   ok('자동 선택 조건에 매직넘버 없음', !/participants\s*>=?\s*\d+/.test(line || ''), (line || '').trim());
 
   console.log('[2] 인원 구간별 차량 선택');
-  const cases = [[1,'소형',1],[9,'소형',1],[10,'소형',1],[25,'소형',1],[26,'대형',1],[45,'대형',1],[46,'대형',2],[90,'대형',2],[91,'대형',3]];
+  /* 기대 대수는 엔진과 **같은 식**으로 파생시킨다: ceil(인원 ÷ 대형정원) */
+  const big = (pax) => Math.max(1, Math.ceil(pax / L));
+  const cases = [
+    [1, '소형', 1], [Math.floor(S / 2), '소형', 1], [S, '소형', 1],
+    [S + 1, '대형', big(S + 1)],
+    [L, '대형', big(L)], [L + 1, '대형', big(L + 1)],
+    [L * 2, '대형', big(L * 2)], [L * 2 + 1, '대형', big(L * 2 + 1)],
+  ];
   for (const [pax, kind, count] of cases) {
     const bd = setForm(pax);
     const r = vRow(bd);
@@ -77,7 +94,7 @@ const ok = (name, cond, extra = '') => {
   ok('소형 단가 < 대형 단가', vRow(b15).unit < vRow(b26).unit, `${vRow(b15).unit} vs ${vRow(b26).unit}`);
 
   console.log('[4] 가이드 대수 동행 — 가이드는 차량 대수 기준(P13)');
-  for (const [pax, expected] of [[25,1],[26,1],[45,1],[46,2],[91,3]]) {
+  for (const [pax, expected] of [[S, 1], [S + 1, big(S + 1)], [L, big(L)], [L + 1, big(L + 1)], [L * 2 + 1, big(L * 2 + 1)]]) {
     const bd = setForm(pax);
     const g = gRow(bd), v = vRow(bd);
     const vCount = Math.round(v.amount / (v.unit * 5));
@@ -85,7 +102,7 @@ const ok = (name, cond, extra = '') => {
        vCount === expected && Math.round(g.amount / (g.unit * 5)) === expected, `차량 ${vCount} / 가이드 ${Math.round(g.amount/(g.unit*5))}`);
   }
 
-  console.log('[5] 총액 단조성 — 경계(25→26, 45→46)에서 역전 없음');
+  console.log('[5] 총액 단조성 — 정원 경계에서 역전 없음 (' + S + '→' + (S+1) + ', ' + L + '→' + (L+1) + ')');
   let mono = true, prev = -1, at = '';
   for (let p = 1; p <= 120; p++) {
     const t = setForm(p).total;
