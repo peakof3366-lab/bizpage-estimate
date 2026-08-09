@@ -309,17 +309,71 @@ function findUnitRows(lines, fx) {
   });
 
   /* 한 줄에서 여러 조합이 맞을 수 있다. 같은 (줄,총액)이면 **단가가 가장 큰 것**만
-     남긴다 — 우리가 찾는 것은 단가이지 수량이 아니다. */
+     남긴다 — 우리가 찾는 것은 단가이지 수량이 아니다.
+     ⚠ 단, 그 앞에 **검산이 실제로 이뤄졌는지**를 먼저 본다(SB). 아래 vacuous 참고. */
   const best = new Map();
   found.forEach((r) => {
     const k = r.lineIdx + '|' + r.total;
     const cur = best.get(k);
-    if (!cur || r.unit > cur.unit) best.set(k, r);
+    if (!cur || rank(r) > rank(cur) || (rank(r) === rank(cur) && r.unit > cur.unit)) best.set(k, r);
   });
-  return Array.from(best.values())
+  return pruneVacuous(Array.from(best.values()))
     .sort((x, y) => x.lineIdx - y.lineIdx)
     .slice(0, ROW_MAX_CANDIDATES)
     .map((r, i) => Object.assign({ idx: i }, r));
+}
+
+/* ═══ 공허한 검산 줄 (SB) ═══════════════════════════════════════════════════
+   `단가 × 1 × 1 = 총금액`은 **곱셈이 아무것도 증명하지 않는다.** 한 줄에 같은 숫자가
+   두 번 나오기만 하면 통과한다. 즉 이 줄은 "검산에 통과한 줄"이 아니라 **검산이 없었던
+   줄**이다. 그런데 지금까지 검산된 줄과 똑같이 취급했고, 그래서 두 가지가 터졌다.
+
+   ① **줄 병합 오염.** L1은 "같은 높이 = 같은 줄"로 묶는데, 견적서 오른쪽에 딴 표(원가
+      요약)가 있으면 그 숫자가 같은 높이로 딸려 들어온다. 실측(글로벌 금융판매 북해도):
+        「가이드 가이드 일비 ¥ 10,000 4 1 ¥ 40,000 **지상 720,609 746,210** 지상 814,4」
+      왼쪽이 진짜 가이드 줄(¥10,000×4)이고 오른쪽 746,210은 **지상비**다. 그런데
+      `746,210 × 1 × 1 = 746,210`이 검산을 통과해 같은 라벨('가이드')을 물려받고,
+      단가가 더 크다는 이유로 **대표 가이드 일당이 됐다** — 실제 95,000의 7.9배.
+   ② 같은 줄에 `단가 × 수량`과 `총금액 × 1 × 1`이 둘 다 성립하면 총금액이 단가 자리를
+      차지한다(같은 총액이라 ①의 dedup에서 만난다).
+
+   그래서 **검산된 조합이 공허한 조합을 이긴다.** 다만 공허한 줄을 통째로 버리지는
+   않는다 — 「항공 320,000 1 1 320,000」처럼 **진짜 1인 단가**가 그 모양인 양식이 많고
+   (실측 46건 중 여러 건), 버리면 그 칸이 통째로 빈다. 대신 같은 줄에 검산된 조합이
+   있을 때만 물러나게 하고, 살아남은 공허한 값은 `ev()`가 신뢰도를 낮춰 내보낸다.
+
+   ⚠ **나눗셈으로 단가를 복원하지 않는다.** 「현지 차량 590 885,000」의 몫 1500은
+   개수가 아니라 **환율**이다(타이베이 건 — 그 문서는 전 줄이 USD열·원화열 쌍이다).
+   몫이 개수라는 보장이 없으면 복원은 10배 틀린 값을 '실측'으로 굳힌다. */
+/* ⚠ '검산됐다'는 곱수가 **개수로 말이 되는** 곱셈이었다는 뜻이다. 이 단서를 빠뜨렸다가
+   회귀 테스트에 바로 걸렸다: 「항공 320,000 1 1 320,000」에서 `1 × 320,000 = 320,000`도
+   성립하므로(수량이 320,000!) 그쪽이 '검산된 조합'으로 이겨 **단가가 1**이 됐다.
+   곱셈은 순서를 안 가리므로 크기로 가려야 한다 — 인원·박수·대수는 2,000을 넘지 않는다
+   (findPax가 인원을 셀 때 쓰는 범위와 같은 뜻이다). */
+const COUNT_MAX = 2000;
+const isCount = (n) => Number.isInteger(n) && n >= 1 && n <= COUNT_MAX;
+const checkedRow = (r) => isCount(r.qty) && isCount(r.times) && (r.qty > 1 || r.times > 1);
+const vacuous = (r) => !checkedRow(r);
+const rank = (r) => (vacuous(r) ? 0 : 1);
+
+function pruneVacuous(rows) {
+  const byLine = new Map();
+  rows.forEach((r) => {
+    const l = byLine.get(r.lineIdx) || [];
+    l.push(r); byLine.set(r.lineIdx, l);
+  });
+  const keep = [];
+  byLine.forEach((list) => {
+    /* 그 줄이 검산된 조합을 내놓았다면, 검산 안 된 조합은 그 줄의 값이 아니다. */
+    const checked = list.filter((r) => !vacuous(r));
+    if (checked.length) { keep.push.apply(keep, checked); return; }
+    /* 전부 공허하면 — **통화 기호가 붙은 쪽**이 그 줄의 값이다. 기호가 없는 숫자는
+       옆 표에서 흘러든 것일 가능성이 높다(위 ①에서 746,210·450,000이 정확히 그랬다).
+       ⚠ 그 줄에 기호가 하나도 없으면 이 판단을 하지 않는다 — 원화 전용 양식이다. */
+    const marked = list.filter((r) => r.currency);
+    keep.push.apply(keep, marked.length ? marked : list);
+  });
+  return keep;
 }
 
 /* ═══ L3 — 어휘 분류 ════════════════════════════════════════════════════════
@@ -331,6 +385,14 @@ function findUnitRows(lines, fx) {
    AI에게 맡기면 같은 문서에서도 답이 흔들린다(실측으로 확인한 성질이다). */
 const VOCAB = [
   /* [분류, 맞으면 그 분류, 아니면 제외할 패턴] */
+  /* ⚠ 패널티·취소료는 **단가가 아니라 사고 비용**이다. 가장 먼저 걸러야 한다(SB).
+     실측: 「호텔 패널티 180,000」(1명 취소)이 그 문서의 유일한 'hotel' 줄이라
+     **대표 객실 단가로 채택**됐고, 호텔명이 `패널티`로 화면에 나갔다(BSI 도쿄).
+     「항공 취소패널티 50,000」도 항공료 후보에 들어가 있었다(EnBT 타이베이).
+     그 목적지의 요율 기준이 통째로 뒤집히는 값이라 조용히 두면 안 된다.
+     ⚠ 버리지 않고 **분류만 따로 준다** — 화면 후보 목록에는 그대로 보이고,
+     담당자가 정말 필요하면 1클릭으로 고를 수 있다(조용히 버리지 않는다). */
+  { key: 'penalty', re: /패널티|penalty|취소료|취소\s*수수료|위약금|노\s*쇼|no.?show/i },
   { key: 'fuel', re: /유류|할증|택스|TAX|공항세|인두세|출국납부금|관광진흥/i },
   { key: 'insurance', re: /보험/ },
   { key: 'fee', re: /수수료|알선|대행료|커미션/ },
@@ -794,19 +856,29 @@ const capped = (v, max) => (typeof v === 'number' && Number.isFinite(v) && v > 0
 /* 근거 한 덩어리. `via`가 **값의 출처**다 — 화면이 이걸로 "확인이 필요한 칸"을 표시한다.
    ⚠ 문구(label)에서 'AI가 고름' 같은 말을 정규식으로 찾아 쓰지 말 것. 문구는 바뀌고
    그러면 표시가 조용히 틀린다. 출처는 값으로 넘긴다.
-     rule     견적서의 한 줄을 규칙(어휘 분류)이 그대로 집었다  — 가장 믿을 만하다
-     calc     여러 줄을 합쳐 계산했다(식비·관광비)             — 식을 보여줘야 한다
-     doc      문서에 그대로 적힌 값(1인당 금액)
-     ai       규칙이 못 채워 AI가 골랐다                       — 사람이 꼭 봐야 한다
-     fallback 좌표를 못 읽어 예전 방식으로 물러났다            — 사람이 꼭 봐야 한다 */
+     rule      견적서의 한 줄을 규칙(어휘 분류)이 그대로 집었다  — 가장 믿을 만하다
+     calc      여러 줄을 합쳐 계산했다(식비·관광비)             — 식을 보여줘야 한다
+     doc       문서에 그대로 적힌 값(1인당 금액)
+     unchecked 검산이 없었던 줄이다(수량·횟수가 둘 다 1)        — 사람이 꼭 봐야 한다
+     ai        규칙이 못 채워 AI가 골랐다                       — 사람이 꼭 봐야 한다
+     fallback  좌표를 못 읽어 예전 방식으로 물러났다            — 사람이 꼭 봐야 한다 */
+/* ⚠ `단가 × 1 × 1`은 검산을 **통과한** 게 아니라 검산이 **없었던** 것이다(SB).
+   같은 줄에 검산된 조합이 없어 살아남았을 뿐이므로, 이 값이 1인 단가인지 전 일정
+   총액인지 코드는 모른다. 실측(EnBT 싱가포르): 「싱가포르 가이드 1,600 1,840,000」은
+   6일치 총액인데 **가이드 1일 단가** 자리에 들어간다(실제 일당의 6배).
+   반대로 「항공 320,000 1 1 320,000」은 진짜 1인 운임이다 — 둘이 같은 모양이라
+   코드가 가를 수 없다. 그래서 **고르지 않고, 확실한 척도 하지 않는다.** */
 function ev(row, extra) {
   if (!row) return null;
+  const unchecked = vacuous(row);
   return Object.assign({
     rowIdx: row.idx,
     line: String(row.line).slice(0, 140),
-    calc: `${row.unit.toLocaleString()} × ${row.qty} × ${row.times} = ${row.total.toLocaleString()}`,
+    calc: unchecked
+      ? `${row.total.toLocaleString()} — 수량·횟수가 없어 검산되지 않았습니다 (1인 단가인지 전 일정 총액인지 확인해 주세요)`
+      : `${row.unit.toLocaleString()} × ${row.qty} × ${row.times} = ${row.total.toLocaleString()}`,
     label: row.label || '',
-    via: 'rule',
+    via: unchecked ? 'unchecked' : 'rule',
   }, extra || {});
 }
 
@@ -896,7 +968,9 @@ function readOneBlock(lines, fx, blockTotal) {
           : '',
       } : null,
       sell: rec.perPerson ? { calc: `문서에 적힌 1인당 금액 ${rec.perPerson.toLocaleString()}원`, label: '1인당', via: 'doc' } : null,
-      hotelName: hotelName ? { calc: hotelName, label: hotel ? (hotel.label || '') : '', via: 'rule' } : null,
+      /* 호텔명은 호텔 줄에서 나온다 — 그 줄이 검산 안 된 줄이면 이름도 같은 신뢰도다.
+         (실측: 검산 안 된 「호텔 패널티」 줄이 대표가 되어 호텔명이 '패널티'로 나갔다) */
+      hotelName: hotelName ? { calc: hotelName, label: hotel ? (hotel.label || '') : '', via: hotel && vacuous(hotel) ? 'unchecked' : 'rule' } : null,
     },
     /* 화면이 1클릭 정정에 쓰는 후보 목록 — 분류까지 함께 준다 */
     candidates: rows.map((r) => ({

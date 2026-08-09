@@ -42,6 +42,13 @@ node ai-loop/audit_consistency.js   # 목적지 목록 교차 정합성 (오류 
 node ai-loop/audit_rates.js         # 요율 '값' 점검 — 결과는 '확인 대상'이지 '오류'가 아니다
 ```
 
+**견적서 PDF 추출을 손댔으면 코퍼스로 재 본다** (읽기 전용, 코퍼스는 저장소 밖).
+
+```bash
+node ai-loop/audit_vacuous_rows.js  # 검산 안 된 줄이 대표 단가가 되는가 — 신뢰도까지 본다
+node ai-loop/backtest_quotes.js     # 고객이 보는 금액의 오차 (--cache = 추출 결과 재사용)
+```
+
 **보이는 모양을 손댔으면 하나 더** — 실제 브라우저로 띄워 좌표를 잰다.
 
 ```bash
