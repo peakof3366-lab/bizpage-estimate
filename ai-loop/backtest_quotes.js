@@ -41,6 +41,20 @@ const USE_CACHE = args.includes('--cache');
 const CORPUS = args.find((a) => !a.startsWith('--')) || process.env.BIZPAGE_CORPUS || DEFAULT_CORPUS;
 const CACHE = path.join(__dirname, '.backtest_cache.json');
 
+/* ── 무엇을 정답지로 삼는가 (SC) ──────────────────────────────────────────
+   `--basis=cost` 를 주면 **우리 원가(입금가)** 와 대조한다. 기본은 판매가다.
+
+   ⚠ 이 구분이 결론을 뒤집는다. 하나투어 원가 시트는 두 숫자를 나란히 찍는다:
+       입금가 1,347,276 (우리가 내는 돈)   판매가 1,490,000 (권장 고객가)
+   기본(판매가) 대조에서 「엔진이 10% 낮다」는 **하나투어 권장가보다 싸다**는 뜻이고,
+   원가 대조에서 「엔진이 낮다」는 **팔면 손해**라는 뜻이다. 전혀 다른 말이다.
+   그래서 어느 쪽으로 쟀는지 표 머리에 항상 찍는다 — 숫자만 옮겨 적으면 뜻이 사라진다. */
+const BASIS = (args.find((a) => a.startsWith('--basis=')) || '').split('=')[1] || 'sell';
+if (!['sell', 'cost'].includes(BASIS)) { console.log('--basis 는 sell 또는 cost'); process.exit(1); }
+/* ⚠ 캐시에 새 칸(입금가)이 생겼다. 판이 다르면 **조용히 재사용하지 않는다** —
+   안 그러면 원가가 undefined라 전건이 '제외'로 빠지고 그게 '해당 없음'처럼 보인다. */
+const CACHE_VERSION = 2;
+
 /* ── 파일 이름 → 목적지 키 ────────────────────────────────────────────────
    ⚠ 이 표는 **도메인 지식**이다. 코드가 추측하면 안 된다.
    견적서 파일 이름에 목적지가 들어 있는 것이 이 회사의 관행이라 그걸 쓴다.
@@ -90,8 +104,12 @@ function destFromName(name) {
 /* ── 코퍼스 추출 ─────────────────────────────────────────────────────────── */
 async function extractCorpus() {
   if (USE_CACHE && fs.existsSync(CACHE)) {
-    console.log('캐시 사용: ' + CACHE + '  (--cache 빼면 다시 추출)');
-    return JSON.parse(fs.readFileSync(CACHE, 'utf8'));
+    const cached = JSON.parse(fs.readFileSync(CACHE, 'utf8'));
+    if (cached && cached.version === CACHE_VERSION) {
+      console.log('캐시 사용: ' + CACHE + '  (--cache 빼면 다시 추출)');
+      return cached.rows;
+    }
+    console.log('캐시가 낡았습니다(판 ' + (cached && cached.version) + ' ≠ ' + CACHE_VERSION + ') — 다시 추출합니다.');
   }
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
@@ -104,13 +122,14 @@ async function extractCorpus() {
       const r = await X.extractQuote(buf, pdfParse, {});
       out.push({
         file: f, pax: r.pax, perPerson: r.perPerson, grand: r.grandTotal,
+        deposit: r.depositPerPerson || null, depositAll: r.depositCandidates || [],
         dates: r.dates, kind: r.kind && r.kind.kind, values: r.values,
       });
     } catch (e) {
       out.push({ file: f, error: String(e.message).slice(0, 120) });
     }
   }
-  fs.writeFileSync(CACHE, JSON.stringify(out, null, 1), 'utf8');
+  fs.writeFileSync(CACHE, JSON.stringify({ version: CACHE_VERSION, rows: out }, null, 1), 'utf8');
   return out;
 }
 
@@ -171,7 +190,14 @@ function quantile(sorted, q) {
     if (c.error) { skipped.push({ f: c.file, why: '추출 오류: ' + c.error }); continue; }
     const { key, why } = destFromName(c.file);
     if (!key) { skipped.push({ f: c.file, why }); continue; }
-    if (!c.perPerson) { skipped.push({ f: c.file, why: '견적서에서 1인당 금액을 못 읽음' }); continue; }
+    /* 정답지 — 판매가(기본)인가 우리 원가(입금가)인가. 섞지 않는다 (SC). */
+    const actual = BASIS === 'cost' ? c.deposit : c.perPerson;
+    if (!actual) {
+      skipped.push({ f: c.file, why: BASIS === 'cost'
+        ? '「입금가」가 없음 (원가 시트가 아니다 — 고객용 견적서로 보인다)'
+        : '견적서에서 1인당 금액을 못 읽음' });
+      continue;
+    }
     if (!c.pax || c.pax < 2) { skipped.push({ f: c.file, why: '인원 불명' }); continue; }
     const days = (c.dates && (c.dates.days || (c.dates.nights ? c.dates.nights + 1 : 0))) || 0;
     if (!days) { skipped.push({ f: c.file, why: '일수 불명(출발·도착일이 없음)' }); continue; }
@@ -194,18 +220,49 @@ function quantile(sorted, q) {
 
     rows.push({
       file: c.file, dest: key, pax: c.pax, days, date: c.dates.departDate,
-      actual: c.perPerson, engine: bd.perPerson,
-      ratio: bd.perPerson / c.perPerson,
-      err: (bd.perPerson - c.perPerson) / c.perPerson,
+      actual, engine: bd.perPerson,
+      ratio: bd.perPerson / actual,
+      err: (bd.perPerson - actual) / actual,
       conflict: c.dates.nightsConflict || null,
+      /* 원가 시트면 판매가도 같이 들고 있는다 — 하나투어가 권한 마진을 함께 보여준다 */
+      sell: c.perPerson || null, deposit: c.deposit || null,
+      /* 입금가 열이 여러 벌인 문서 — 가장 낮은 원가로 재도 같은 결론인지 봐야 한다 */
+      depLow: (c.depositAll && c.depositAll.length > 1) ? c.depositAll[c.depositAll.length - 1] : null,
+      depositAllText: (c.depositAll || []).map((n) => n.toLocaleString()).join(' / '),
     });
   }
 
   console.log('\n════ 역검증 결과 ════');
+  console.log(BASIS === 'cost'
+    ? '정답지: **우리 원가(입금가)** — 「엔진이 낮다」는 곧 **팔면 손해**라는 뜻이다.'
+    : '정답지: 견적서의 1인당 판매가 — 「엔진이 낮다」는 **그 견적서보다 싸다**는 뜻이다.');
   console.log('코퍼스 ' + corpus.length + '건 중 대조 가능 ' + rows.length + '건, 제외 ' + skipped.length + '건\n');
 
   if (rows.length) {
     rows.sort((a, b) => a.err - b.err);
+    if (BASIS === 'cost') {
+      const under = rows.filter((r) => r.err < 0);
+      /* ⚠ 입금가 열이 여러 벌인 문서는 **가장 낮은 원가로 재도** 여전히 아래인지 봐야 한다.
+         한 열만 보고 「손해」라고 말하면 열을 잘못 고른 것일 수 있다 — 그 구분을 표에 남긴다. */
+      const firm = under.filter((r) => !r.depLow || r.engine < r.depLow);
+      const soft = under.filter((r) => r.depLow && r.engine >= r.depLow);
+      console.log('🔴 엔진 금액이 **우리 원가보다 낮은** 건: ' + under.length + ' / ' + rows.length + '건'
+        + (soft.length ? '  (그중 ' + soft.length + '건은 입금가 열이 여러 벌이라 확정 못 함)' : ''));
+      const show = (r, mark) => console.log('     ' + mark + ' ' + r.dest.padEnd(8) +
+        ' 원가 ' + r.actual.toLocaleString().padStart(11) +
+        ' → 엔진 ' + r.engine.toLocaleString().padStart(11) +
+        '  ' + pct(r.err).padStart(7) +
+        '  (1인 ' + Math.round(r.actual - r.engine).toLocaleString() + '원' +
+        (r.pax ? ' · ' + r.pax + '명이면 ' + Math.round((r.actual - r.engine) * r.pax / 10000).toLocaleString() + '만원' : '') +
+        ')  ' + r.file.slice(0, 28));
+      firm.forEach((r) => show(r, '·'));
+      soft.forEach((r) => {
+        show(r, '?');
+        console.log('        ↑ 이 문서엔 입금가가 여러 개다(' + r.depositAllText + '). 가장 낮은 ' +
+          r.depLow.toLocaleString() + '로 재면 원가 위다 — 어느 열이 기준인지 사람이 봐야 한다.');
+      });
+      console.log('');
+    }
     /* ⚠ 파일 이름을 반드시 함께 찍는다. 목적지 매칭이 틀려도 표만 보면 그럴듯해 보인다
        (세부내역서→세부 사고가 정확히 그랬다). 이름이 있어야 사람이 눈으로 잡는다. */
     console.log('목적지     인원 일수 출발일      견적서 1인당    엔진 1인당    차이  파일');

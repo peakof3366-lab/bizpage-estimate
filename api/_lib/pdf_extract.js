@@ -473,12 +473,45 @@ function findTotals(lines, pax, preferGrand) {
   });
   /* 인원을 아는데 1인당 × 인원이 총액과 딴판이면 잘못 집은 것이다 — 버린다(조용히 쓰지 않는다). */
   if (perPerson && grand && pax && Math.abs(perPerson * pax - grand) / grand > 0.25) perPerson = null;
-  return { grand, perPerson };
+  return Object.assign({ grand, perPerson }, findDeposit(lines));
+}
+
+/* 「입금가」 = **우리가 랜드사·홀세일러에 내는 1인 원가**다 (SC).
+   ⚠ 이건 판매가가 아니다. 하나투어 원가 시트는 두 숫자를 나란히 찍는다:
+        입금가 1,347,276   판매가 1,490,000   HNT 수익 50,000
+     · 입금가 = 우리가 하나투어에 내는 돈  (= 우리 원가)
+     · 판매가 = 하나투어가 권하는 고객가   (판매가 − 입금가 = 하나투어가 권하는 **우리** 마진)
+     · HNT 수익 = 하나투어 자기 몫 (입금가 안에 이미 들어 있다)
+   실측: 코퍼스 46건 중 23건이 이 원가 시트다. 원가를 읽을 수 있으면 **엔진 금액이 원가
+   아래인지**를 목적지별로 잴 수 있다 — 요율을 올릴지 내릴지가 거기서 나온다.
+   ⚠ `perPerson`(판매가)과 **절대 섞지 않는다.** 섞으면 마진이 통째로 사라진 채
+   '실측'으로 굳는다. 그래서 칸을 따로 둔다. */
+function findDeposit(lines) {
+  const cands = [];
+  lines.forEach((ln) => {
+    if (!/입\s*금\s*가/.test(ln.text)) return;
+    /* ⚠ 같은 줄에 판매가·수익이 함께 오는 양식이 있다(「입금가 1,347,276 판매가 1,490,000」).
+       '입금가' 뒤에 오는 숫자만 본다 — 줄 전체에서 최댓값을 집으면 판매가를 원가로 읽는다. */
+    const after = ln.text.slice(ln.text.search(/입\s*금\s*가/));
+    const cut = after.search(/판\s*매\s*가|권장|수익/);
+    const seg = cut > 0 ? after.slice(0, cut) : after;
+    numbersIn(seg).filter((n) => n >= PER_PERSON_MIN && n <= PER_PERSON_MAX).forEach((n) => cands.push(n));
+  });
+  if (!cands.length) return { deposit: null, depositAll: [] };
+  /* ⚠ **입금가 열이 여러 벌인 문서가 있다.** 실측:
+       「소계 ¥ 77,000 입금가 1,347,276 1,313,952 입금가 1,449,409 1,373,952」(북해도)
+       「입금가 1,007,000 977,000 1,007,000 1,083,320」(마카오)
+     출발지(인천/김해)나 등급이 갈리면 원가도 갈린다. **어느 열이 기준인지는 사람만 안다.**
+     큰 쪽을 쓴다 — 원가를 크게 잡으면 「원가 아래」 판정이 더 잘 나오므로 **놓치는 쪽으로
+     틀리지 않는다.** 다만 조용히 고르지 않고 후보를 전부 넘겨, 흩어져 있으면 화면·감사가
+     말할 수 있게 한다(결함 생성기 ② — 폴백은 흔적을 남긴다). */
+  const uniq = Array.from(new Set(cands)).sort((a, b) => b - a);
+  return { deposit: uniq[0], depositAll: uniq };
 }
 
 function reconcile(lines, rows, preferGrand) {
   const pax = findPax(lines, rows);
-  const { grand, perPerson } = findTotals(lines, pax, preferGrand);
+  const { grand, perPerson, deposit, depositAll } = findTotals(lines, pax, preferGrand);
   const checks = [];
   const near = (a, b, tolPct) => a > 0 && b > 0 && Math.abs(a - b) / b <= tolPct;
 
@@ -503,7 +536,7 @@ function reconcile(lines, rows, preferGrand) {
   }
 
   const done = checks.filter((c) => c.ok).length;
-  return { pax, grand, perPerson, checks, passed: done, total: checks.length };
+  return { pax, grand, perPerson, deposit, depositAll, checks, passed: done, total: checks.length };
 }
 
 /* ═══ L4b — 날짜 (견적 작성일 · 출발일) ════════════════════════════════════
@@ -939,6 +972,8 @@ function readOneBlock(lines, fx, blockTotal) {
   return {
     kind, lineCount: lines.length,
     pax, grandTotal: rec.grand, perPerson: rec.perPerson,
+    /* 우리 1인 원가 — 원가 시트에만 있다. 판매가(perPerson)와 섞지 말 것 (SC) */
+    depositPerPerson: rec.deposit, depositCandidates: rec.depositAll || [],
     dates,
     reconciliation: rec,
     values: {
