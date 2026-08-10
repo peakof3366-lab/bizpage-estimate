@@ -978,6 +978,19 @@ function findNightsDays(lines) {
   return { nights: n, days: d };
 }
 
+/* 「연도 월 일」 한 덩어리 (SQ에서 넓혔다).
+   ⚠ 실측으로 걸린 두 가지 —
+     ① **연도와 월 사이가 공백**인 양식: 「행사기간 2026 06. 09 ~ 06. 13」.
+        예전엔 구분자(`.`·`-`·`/`)를 요구해 이 줄을 통째로 놓쳤다.
+     ② **요일이 날짜와 물결표 사이에 낀다**: 「2026. 4. 7 (화) ~ 4. 11 (토)」.
+        날짜와 `~` 사이에 공백만 허용해서 `(화)`에 막혔다.
+   이 둘 때문에 **출발일을 못 읽는 문서가 5건**이었고, 출발일이 없으면 역검증에서
+   시즌 계수를 맞출 수 없어 그 견적서는 채점에서 통째로 빠진다.
+   ⚠ 괄호 안은 **3글자까지만** 받는다 — 요일·「확정」 같은 짧은 표시만 건너뛰려는 것이지
+      아무 괄호나 넘으라는 뜻이 아니다(긴 괄호를 넘기면 엉뚱한 날짜 둘이 이어진다). */
+const DOW = '(?:\\s*\\([^)]{1,3}\\))?';
+const YMD = `(\\d{2,4})\\s*(?:[.\\-\\/]\\s*|\\s+)(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})${DOW}`;
+
 function findTripDates(lines) {
   let depart = null, ret = null, nights = null, days = null;
 
@@ -1006,7 +1019,7 @@ function findTripDates(lines) {
       if (pass === 2 && gated) continue;   /* 1차에서 이미 봤다 */
 
       /* ① 연도.월.일 ~ 연도.월.일 */
-      let m = t.match(new RegExp(`(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*${TILDE}\\s*(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})`));
+      let m = t.match(new RegExp(`${YMD}\\s*${TILDE}\\s*${YMD}`));
       if (m) {
         depart = validYmd(ymd(m[1], m[2], m[3])) || depart;
         ret = validYmd(ymd(m[4], m[5], m[6])) || ret;
@@ -1014,7 +1027,7 @@ function findTripDates(lines) {
         if (depart) break;
       }
       /* ② 연도.월.일 ~ 월.일 (뒤쪽에 연도 생략) */
-      m = t.match(new RegExp(`(\\d{2,4})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})\\s*${TILDE}\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})(?!\\s*[.\\-\\/]\\s*\\d)`));
+      m = t.match(new RegExp(`${YMD}\\s*${TILDE}\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})(?!\\s*[.\\-\\/]\\s*\\d)`));
       if (m) {
         depart = validYmd(ymd(m[1], m[2], m[3])) || depart;
         ret = validYmd(ymd(m[1], m[4], m[5])) || ret;
