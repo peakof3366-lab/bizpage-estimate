@@ -348,7 +348,10 @@ function lineNumbers(cells) {
       return;
     }
     const cur = own || pending;
-    numbersIn(s).forEach((n) => { out.push({ n, cur: cur || null }); });
+    /* ⚠ **x를 함께 들고 다닌다**(SL). 견적서 한 장에 표가 **좌우로 둘** 있는 양식이 있어
+       (오키나와 바모스: 왼쪽 관광조 48명 · 오른쪽 골프조 20명), L1이 「같은 높이 = 같은 줄」로
+       묶으면 두 표의 숫자가 한 줄에 섞인다. 어느 표의 숫자인지는 **x로만** 알 수 있다. */
+    numbersIn(s).forEach((n) => { out.push({ n, cur: cur || null, x: c.x }); });
     pending = null;   /* 기호는 한 숫자만 물들인다 */
   });
   return out;
@@ -386,6 +389,9 @@ function findUnitRows(lines, fx) {
         lineIdx: ln.idx, page: ln.page, line: ln.text, label, note,
         unit: ns[a], qty: ns[b], times: c == null ? 1 : ns[c], total: ns[d],
         currency: cur,
+        /* 이 조합이 줄의 **어디쯤**에서 나왔나 — 좌우로 나란한 표를 가르는 데 쓴다(SL).
+           총액 칸은 표마다 한 열이라 가장 안정적인 기준점이다. */
+        xTotal: toks[d].x, xUnit: toks[a].x,
       });
     };
 
@@ -563,6 +569,54 @@ function classifyLabel(text) {
       이 함수는 구분 열을 모르는 자리(예전 예비 경로·테스트)에서 쓰는 기본형이다. */
 function classifyRow(row) {
   return classifyLabel(row.label) || classifyLabel(row.note) || null;
+}
+
+/* ═══ L2.7 — 좌우로 나란한 표 가르기 (SL) ═══════════════════════════════════
+   견적서 한 장에 표가 **좌우로 둘** 들어가는 양식이 있다. 실측(글로벌 바모스 오키나와):
+   왼쪽은 **관광조 48명**, 오른쪽은 **골프조 20명**이고 항목 이름이 그대로 겹친다
+   (조식·중식·석식이 두 벌씩). L1은 「같은 높이에 그려진 글자는 같은 줄」이라는 기하학만
+   쓰므로 **두 표가 한 줄로 합쳐진다.**
+
+   왜 고쳐야 하나 — 단가를 고르는 칸(호텔·차량·가이드)은 '가장 비싼 줄' 하나를 뽑으니
+   티가 안 나지만, **식비·관광비는 합을 인원으로 나눈다.** 두 조의 식사를 다 더한 뒤
+   한 조의 인원으로만 나누면 그대로 부푼다:
+     · 바모스 오키나와 1인 1일 식비 **99,177원** (요율표 25,000의 4배)
+     · 줄 커버리지 **153%** — 총계보다 많이 읽었다는 뜻이다
+   그리고 그 부푼 값이 **목적지 중앙값을 끌어올려**, 정작 맞는 값(하나투어 오키나와
+   26,973)이 감사기에서 '이상값'으로 뜨게 만든다. 다수 쪽이 틀린 상태가 된다.
+
+   가르는 방법 — **총액 칸의 x**로 무리를 짓는다. 총액은 표마다 한 열이라 가장 안정적이다.
+   무리 사이에 진짜 틈이 있고 양쪽 다 줄이 여럿이면 그건 두 표다.
+   ⚠ **두 표 다 진짜 견적이다.** 오른쪽을 '오염'이라 부르면 안 된다 — 골프조도 이 행사의
+     일부다. 다만 **한 조를 골라 그 조로만 계산**해야 1인당이 맞는다. 큰 쪽(줄이 많은 쪽)을
+     쓰고, 나머지는 **후보 목록에는 그대로 남긴다**(담당자가 1클릭으로 고를 수 있다).
+   ⚠ SB의 「줄 병합 오염」과 같은 뿌리다. 그때는 옆 표의 숫자 하나가 단가를 물들였고
+     (가이드 746,210 — 실제 95,000), 여기서는 표 전체가 합에 섞인다. */
+const SIDE_TABLE_GAP = 80;      /* 총액 열 사이가 이보다 벌어지면 다른 표다(실측 106~237pt) */
+const SIDE_TABLE_MIN_ROWS = 2;  /* 양쪽 다 이만큼은 있어야 '표'라고 부를 수 있다 */
+
+function splitSideTables(rows) {
+  if (!rows || rows.length < 4) return { rows, info: null };
+  const xs = rows.map((r) => r.xTotal).filter((n) => Number.isFinite(n));
+  if (xs.length !== rows.length) return { rows, info: null };
+  const sorted = xs.slice().sort((a, b) => a - b);
+  /* 가장 큰 틈에서 한 번만 자른다 — 표가 셋인 양식은 아직 겪지 않았다 */
+  let gap = 0, cut = null;
+  for (let i = 1; i < sorted.length; i++) {
+    const d = sorted[i] - sorted[i - 1];
+    if (d > gap) { gap = d; cut = (sorted[i] + sorted[i - 1]) / 2; }
+  }
+  if (gap < SIDE_TABLE_GAP || cut == null) return { rows, info: null };
+  const left = rows.filter((r) => r.xTotal < cut);
+  const right = rows.filter((r) => r.xTotal >= cut);
+  if (left.length < SIDE_TABLE_MIN_ROWS || right.length < SIDE_TABLE_MIN_ROWS) return { rows, info: null };
+  /* 큰 쪽을 본 표로 본다. 같으면 왼쪽 — 읽는 순서가 그렇고, 오른쪽은 대개 부속 표다. */
+  const main = right.length > left.length ? right : left;
+  const other = main === left ? right : left;
+  return {
+    rows: rows.map((r) => (main.indexOf(r) >= 0 ? r : Object.assign({}, r, { otherTable: true }))),
+    info: { tables: 2, mainSide: main === left ? 'left' : 'right', mainRows: main.length, otherRows: other.length, cutX: Math.round(cut) },
+  };
 }
 
 /* ═══ L3.5 — 구분 열 상속 (SE) ══════════════════════════════════════════════
@@ -1073,7 +1127,9 @@ function triage(lines, rows, classified) {
    기준은 항목마다 다르고, 그 이유를 각각 적어 둔다 — 나중에 바꿀 때 근거가 필요하다. */
 /* ⚠ 환산하지 못한 외화 줄은 값 후보에서 뺀다 — 원화인 척 들어가면 10배 틀린다.
    화면의 후보 목록에는 남으므로 담당자가 보고 직접 넣을 수는 있다. */
-const usable = (r) => !r.unconvertible;
+/* ⚠ 좌우로 나란한 다른 표의 줄은 **자동 선택에서 뺀다**(SL) — 다른 조의 값이라
+   1인당 계산이 어긋난다. 후보 목록에는 그대로 남아 담당자가 고를 수 있다. */
+const usable = (r) => !r.unconvertible && !r.otherTable;
 
 /* 부수 비용 줄 — 그 묶음에 딸린 잔비용이지 그 항목의 단가가 아니다.
    ⚠ **'팁'·'경비'·'일비'를 넣지 말 것.** 본 단가 줄 이름에도 그대로 붙는다 —
@@ -1150,7 +1206,7 @@ function mealPerDay(rows, pax, trip) {
     if (times.length) { dayCount = Math.max.apply(null, times); basis = `끼니 ${dayCount}회`; }
   }
   if (!dayCount) {
-    const hotel = rows.filter((r) => r.category === 'hotel');
+    const hotel = rows.filter((r) => r.category === 'hotel' && usable(r));
     /* ⚠ **박수는 여행 길이를 넘을 수 없다.** 호텔 줄의 '횟수' 열이 양식에 따라 인원일 때가
        있어(「€380 × 2 × 85」의 85는 사람 수다) 그대로 믿으면 86일로 나눈다 — 실측(굿리치
        체코)에서 1인 1일 식비가 4,702원으로 나왔다. 30박을 넘는 기업연수는 없다. */
@@ -1262,7 +1318,8 @@ function applyFx(rows, fx) {
 
 /* ═══ 견적 한 장을 읽는다 ══════════════════════════════════════════════════ */
 function readOneBlock(lines, fx, blockTotal) {
-  const rawRows = applyFx(findUnitRows(lines, fx), fx || {});
+  const sided = splitSideTables(applyFx(findUnitRows(lines, fx), fx || {}));
+  const rawRows = sided.rows;
   /* 분류 우선순위 — **자기 라벨 → 구분 열 → 비고** (L3.5 머리말에 이유가 있다).
      비고가 구분 열보다 뒤인 것이 핵심이다: 비고에는 옆 표에서 흘러든 글자가 섞인다. */
   const grp = groupColumn(lines, rawRows);
@@ -1320,6 +1377,8 @@ function readOneBlock(lines, fx, blockTotal) {
 
   return {
     kind, lineCount: lines.length,
+    /* 좌우로 나란한 표를 갈랐는가 (SL) — 화면과 감사기가 「다른 조 N줄은 뺐다」를 말할 수 있게 */
+    sideTables: sided.info,
     /* 구분 열을 읽었는가 — 못 읽었으면 **왜 못 읽었는지**를 남긴다(감사기가 센다) */
     groupColumn: { used: !!grp.byLine, groups: grp.groups || 0, ambiguous: grp.ambiguous || 0, why: grp.why || '' },
     pax, grandTotal: rec.grand, perPerson: rec.perPerson,
@@ -1368,6 +1427,8 @@ function readOneBlock(lines, fx, blockTotal) {
       label: r.label || '', note: r.note || '', category: r.category,
       /* 'label' 자기 라벨 · 'group' 표의 구분 열 · 'note' 비고 (L3.5) */
       categoryFrom: r.categoryFrom || null,
+      /* 좌우로 나란한 **다른 표**의 줄인가 (SL) — 자동 선택에서 빠졌지만 고를 수는 있다 */
+      otherTable: !!r.otherTable,
       line: String(r.line).slice(0, 140),
       /* 외화였던 줄은 화면이 "¥2,000 × 9.5 = 19,000원"처럼 보여줘야 담당자가 믿을 수 있다 */
       converted: r.converted || null,
