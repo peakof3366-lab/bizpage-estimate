@@ -312,6 +312,22 @@ async function main() {
   /* 출발일로 모아 보는 조회가 곧 주 용도라 인덱스를 함께 둔다 */
   await sql`create index if not exists actual_price_reports_depart_idx on actual_price_reports (depart_date)`;
 
+  /* SG: **어느 환율로 환산된 값인가.** 안 남기면 그 원화값은 견적서 시점 환율이 박힌 채
+     실측으로 굳는다. 요율표 단가는 「오늘 환율 기준」이라는 약속 위에 서 있고
+     (`rate_fx_baseline`), 엔진이 `오늘 ÷ 기준`으로 보정한다. 견적서에서 뽑은 값은
+     **그 견적서의 환율**이 박혀 있으므로 두 환율의 차이만큼 처음부터 어긋난다.
+     실측(코퍼스 34건, 2026-08-10 환율 대비): 어긋남 **중앙값 5.1% · 최대 12.1%**
+     (BSI 도쿄 ¥10 vs 8.92 · 일본 견적서 10건이 전부 9.5). 트랙 A 목표가 ±5%다.
+     ⚠ `rate_fx_baseline`을 이 환율로 심는 방법은 **쓸 수 없다** — 그 표는 목적지당 한 줄인데
+     항공은 원화, 호텔은 달러처럼 **항목마다 환율이 다르다.** 그래서 값을 고치지 않고
+     "이 값은 이 환율로 환산됐다"만 남기고, 요율과 비교할 때 오늘 기준으로 되돌린다.
+     ⚠ fx_fields가 필요한 이유 — 한 견적서 안에서도 **환산된 항목과 원화 항목이 섞인다**
+     (키움 하노이: 항공 420,000원은 원화, 차량 $600은 환산). 전부 되돌리면 원화 항목이
+     엉뚱하게 움직인다. 되돌릴 항목 이름만 쉼표로 적는다. */
+  await sql`alter table actual_price_reports add column if not exists fx_currency text`;
+  await sql`alter table actual_price_reports add column if not exists fx_rate numeric`;
+  await sql`alter table actual_price_reports add column if not exists fx_fields text`;
+
   /* P2b: 전역 앱 설정 KV (신규) — 견적 계수 스칼라 노브(coefficients) 등 사이트 전역 설정을
      key→jsonb로 저장. 공개 계산기는 /api/rates GET이 이 중 'coefficients' 행을 코드 기본값 위에
      폴백-우선 병합한다(행이 없으면 기본값=현재 동작). content_overrides와 같은 KV 형태이되 값이

@@ -4728,6 +4728,41 @@
     return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
   }
   const RATE_SUGGEST_REPORT_FIELDS = { airfare: 'airfareUnit', hotel_per_room: 'hotelUnit', meal_per_person: 'mealUnit' };
+
+  /* ── SG: 제보 금액을 **오늘 환율 기준으로 되돌린다** ──────────────────────────
+     요율표 단가는 「오늘 환율 기준」이라는 약속 위에 서 있다 — `rate_fx_baseline`에
+     기준 환율을 적어 두고, 견적 엔진이 `오늘 ÷ 기준`으로 보정한다(getFxAdjust).
+     그런데 견적서에서 뽑은 제보 금액에는 **그 견적서의 환율**이 박혀 있다.
+     그대로 기준가와 비교하면 두 환율의 차이가 통째로 '오차'로 둔갑한다.
+     실측(코퍼스 34건, 2026-08-10 환율 대비): 중앙값 5.1% · 최대 12.1%
+     (BSI 도쿄 ¥10 vs 8.92 · 일본 견적서 10건이 전부 9.5). 트랙 A 목표가 ±5%라
+     이것 하나로 갱신 제안이 통째로 흔들린다.
+     ⚠ **제보의 fxFields에 적힌 항목만** 되돌린다. 한 견적서 안에서도 원화로 적힌 항목이
+        섞인다(키움 하노이: 항공은 원화, 차량은 달러). 전부 되돌리면 원화 항목이 엉뚱하게 움직인다.
+     ⚠ 오늘 환율을 모르면 **손대지 않는다.** 모르는 채로 고치는 것보다 그대로 두는 게 낫다.
+     ⚠ 이 함수를 거치지 않고 `r.airfareUnit`을 직접 쓰면 그 자리만 조용히 옛 환율로
+        비교된다. 제보 금액을 기준가와 견주는 곳은 **전부 이 함수를 통한다**(세 곳: 갱신
+        제안 · 기준가 이상 경고 · 견적 정확도). */
+  const REPORT_FX_KEY = {
+    airfare: 'airfare', fuel_surcharge: 'fuel', hotel_per_room: 'hotel',
+    meal_per_person: 'meal', vehicle_large: 'vehicle', guide_fee: 'guide',
+    sightseeing_fee: 'sight',
+  };
+  const REPORT_VALUE_KEY = {
+    airfare: 'airfareUnit', fuel_surcharge: 'fuelUnit', hotel_per_room: 'hotelUnit',
+    meal_per_person: 'mealUnit', vehicle_large: 'vehicleUnit', guide_fee: 'guideUnit',
+    sightseeing_fee: 'sightUnit',
+  };
+  function reportValueToday(report, rateField) {
+    const v = report ? report[REPORT_VALUE_KEY[rateField]] : null;
+    if (v == null || !isFinite(v)) return null;
+    const cur = report.fxCurrency, rate = Number(report.fxRate);
+    if (!cur || !(rate > 0)) return v;                                    // 원화 제보다
+    if ((report.fxFields || []).indexOf(REPORT_FX_KEY[rateField]) < 0) return v;  // 이 항목은 원화였다
+    const today = Number(fxRatesCache[cur]);
+    if (!(today > 0)) return v;                                           // 오늘 환율을 모른다
+    return v * (today / rate);
+  }
   /* 오타 방어(신규) — 제보/편집 시 입력값이 기준가에서 이 배율 밖으로 벗어나면
      오타(예: 420,000→4,200,000)일 확률이 높으니 확인창을 띄운다. base가 없으면(신규
      등) 비교 불가 → 통과. 반환 true면 진행해도 됨. */
@@ -4862,8 +4897,9 @@
       const dest = destinationRates.find(d => d.destination_key === r.destinationKey);
       if (!dest) return;
       const eff = effectiveRate(dest);
-      Object.entries(RATE_SUGGEST_REPORT_FIELDS).forEach(([field, reportKey]) => {
-        const reported = r[reportKey];
+      Object.keys(RATE_SUGGEST_REPORT_FIELDS).forEach((field) => {
+        /* 옛 환율이 박힌 금액을 그대로 기준가와 견주면 환율 차이가 '오차'로 둔갑한다(SG) */
+        const reported = reportValueToday(r, field);
         if (reported == null) return;
         const currentBase = eff[field];
         if (!currentBase) return;
@@ -5247,7 +5283,16 @@
     label.appendChild(b);
   }
 
+  /* SG: **이 칸의 값이 어느 환율로 환산됐는가.** 견적서에서 뽑은 원화값에는 그 견적서의
+     환율이 박혀 있는데, 요율표 단가는 「오늘 환율 기준」이라는 약속 위에 서 있다
+     (rate_fx_baseline). 그대로 넣으면 두 환율의 차이만큼 처음부터 어긋난다 —
+     실측으로 중앙값 5.1%, 최대 12.1%였다. 값은 고치지 않고 **되돌릴 수단**을 함께 보낸다.
+     ⚠ 담당자가 칸을 직접 고쳐 쓰면 그 값은 더 이상 환산값이 아니다. 그래서 추출 당시의
+     값을 함께 기억해 두고, **바뀌지 않은 칸만** 되돌릴 대상으로 보낸다. */
+  let PR_FX_BY_FIELD = {};
+
   function clearPdfEvidence() {
+    PR_FX_BY_FIELD = {};
     document.querySelectorAll('.detail-label .pr-badge').forEach((b) => b.remove());
     PR_EVIDENCE_FIELDS.forEach((f) => {
       const box = document.getElementById('pr-ev-' + f.key);
@@ -5481,6 +5526,10 @@
       box.id = 'pr-ev-' + f.key;
 
       const ev = (data.evidence || {})[f.key];
+      /* 환산된 칸이면 그 환율과 **추출 당시의 값**을 함께 기억한다(SG) */
+      if (ev && ev.fx && ev.fx.currency && ev.fx.rate > 0) {
+        PR_FX_BY_FIELD[f.key] = { currency: ev.fx.currency, rate: ev.fx.rate, value: input.value };
+      }
       /* 출처를 배지와 왼쪽 색 띠 양쪽에 표시한다 — 배지는 훑을 때, 띠는 어느 근거가
          어느 칸에 속하는지 볼 때 쓰인다. */
       const via = ev ? (ev.via || 'rule') : 'none';
@@ -5495,8 +5544,13 @@
       src.className = 'pr-ev-src';
       /* 브랜드명뿐인 줄(「메트로폴리탄 이케부쿠로」)은 라벨만 보면 왜 호텔로 잡혔는지
          알 수 없다 — 표의 구분 열에서 온 분류라고 밝힌다(SE). */
+      /* 환산된 값이면 **어느 환율로 바꾼 것인지** 그 자리에 적는다(SG) — 담당자가
+         「이 금액은 그때 환율 기준」이라는 걸 알아야 요율에 넣을 때 판단이 선다. */
+      const fxNote = ev && ev.fx && ev.fx.rate
+        ? ` · ${ev.fx.currency} 1 = ${Number(ev.fx.rate).toLocaleString()}원으로 환산${ev.fx.partial ? '(일부)' : ''}`
+        : '';
       src.textContent = ev
-        ? (ev.label || PR_VIA[via].text) + (ev.categoryFrom === 'group' ? ' · 표의 구분 열' : '')
+        ? (ev.label || PR_VIA[via].text) + (ev.categoryFrom === 'group' ? ' · 표의 구분 열' : '') + fxNote
         : '이 항목을 찾지 못했습니다 — 아래에서 골라 주세요';
       if (ev) src.title = ev.line || '';
       box.appendChild(src);
@@ -5870,6 +5924,29 @@
     if (!confirmPlausibleValue('식비', meal.value, prEff.meal_per_person)) return;
 
     const source = priceReportMode; // 'manual' | 'pdf' — 선택한 방식 그대로 기록
+    /* SG: 환산된 칸만 골라 「어느 환율로 바꾼 값인가」를 함께 보낸다.
+       ⚠ **담당자가 손으로 고친 칸은 뺀다** — 그 값은 더 이상 환산값이 아니라서,
+         나중에 오늘 기준으로 되돌리면 엉뚱하게 움직인다.
+       ⚠ 통화·환율이 섞이면 하나로 말할 수 없다 — 가장 많은 쪽만 남기고 나머지는 뺀다
+         (짐작해서 뭉뚱그리지 않는다). */
+    const fxPayload = (() => {
+      const live = Object.keys(PR_FX_BY_FIELD).filter((k) => {
+        const f = PR_EVIDENCE_FIELDS.find((x) => x.key === k);
+        const el = f && document.getElementById(f.input);
+        if (!el || el.value === '') return false;
+        return String(el.value) === String(PR_FX_BY_FIELD[k].value);   // 손대지 않은 칸만
+      });
+      if (!live.length) return {};
+      const tally = {};
+      live.forEach((k) => {
+        const s = PR_FX_BY_FIELD[k].currency + '|' + PR_FX_BY_FIELD[k].rate;
+        tally[s] = (tally[s] || 0) + 1;
+      });
+      const top = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0];
+      const [cur, rate] = top.split('|');
+      const fields = live.filter((k) => PR_FX_BY_FIELD[k].currency === cur && String(PR_FX_BY_FIELD[k].rate) === rate);
+      return { fxCurrency: cur, fxRate: Number(rate), fxFields: fields.join(',') };
+    })();
     try {
       const res = await fetch('/api/quotes?action=priceReport', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -5879,7 +5956,7 @@
           departDate: (document.getElementById('pr-depart') || {}).value || null,
           quoteDate: (document.getElementById('pr-quote-date') || {}).value || null,
           nights: (document.getElementById('pr-nights') || {}).value || null,
-        }, Object.keys(extra).reduce((o, k) => { o[k] = extra[k].value; return o; }, {}))),
+        }, fxPayload, Object.keys(extra).reduce((o, k) => { o[k] = extra[k].value; return o; }, {}))),
       });
       const data = await res.json();
       if (!res.ok) { msg.style.color = 'var(--danger)'; msg.textContent = '제출 실패: ' + (data.error || ''); return; }
@@ -5975,15 +6052,14 @@
     };
     (priceReportsCache || []).forEach(r => {
       const ts = new Date(r.createdAt).getTime();
-      if (r.airfareUnit != null) put(r.destinationKey, 'airfare', ts, r.airfareUnit);
-      if (r.hotelUnit != null) put(r.destinationKey, 'hotel_per_room', ts, r.hotelUnit);
-      if (r.mealUnit != null) put(r.destinationKey, 'meal_per_person', ts, r.mealUnit);
       /* RQ: 새로 받기 시작한 항목들도 실측 근거로 센다 — 그래야 요율표 배지와
-         '실측 전환' 진행률이 실제로 채워진 만큼 올라간다. */
-      if (r.fuelUnit != null) put(r.destinationKey, 'fuel_surcharge', ts, r.fuelUnit);
-      if (r.vehicleUnit != null) put(r.destinationKey, 'vehicle_large', ts, r.vehicleUnit);
-      if (r.guideUnit != null) put(r.destinationKey, 'guide_fee', ts, r.guideUnit);
-      if (r.sightUnit != null) put(r.destinationKey, 'sightseeing_fee', ts, r.sightUnit);
+         '실측 전환' 진행률이 실제로 채워진 만큼 올라간다.
+         ⚠ 값은 **오늘 환율 기준으로 되돌려서** 넣는다(SG). 이 값이 기준가 중앙값과
+         비교되므로, 옛 환율 그대로면 환율 차이가 '기준가가 이상하다'로 둔갑한다. */
+      Object.keys(REPORT_VALUE_KEY).forEach((field) => {
+        const v = reportValueToday(r, field);
+        if (v != null) put(r.destinationKey, field, ts, v);
+      });
     });
     getEstsFull().filter(e => e.status === 'contracted' && e.destKey).forEach(e => {
       const ts = new Date(e.ts).getTime();
@@ -6085,8 +6161,8 @@
       const dest = destinationRates.find(d => d.destination_key === r.destinationKey);
       if (!dest) return;
       const eff = effectiveRate(dest);
-      Object.entries(RATE_SUGGEST_REPORT_FIELDS).forEach(([field, reportKey]) => {
-        const reported = r[reportKey];
+      Object.keys(RATE_SUGGEST_REPORT_FIELDS).forEach((field) => {
+        const reported = reportValueToday(r, field);   /* 오늘 환율 기준으로 되돌린다(SG) */
         if (reported == null || !eff[field]) return;
         add(r.destinationKey, field, dest.label, reported / eff[field]);
       });

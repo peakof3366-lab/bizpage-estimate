@@ -566,6 +566,7 @@ async function handlePriceReport(req, res) {
   const { destinationKey, airfareUnit, hotelUnit, hotelName, mealUnit,
           fuelUnit, vehicleUnit, guideUnit, sightUnit, sellPriceUnit,
           departDate, quoteDate, nights,
+          fxCurrency, fxRate, fxFields,
           author, source } = req.body || {};
   if (typeof destinationKey !== 'string' || !destinationKey.trim() || destinationKey.length > 100) {
     return res.status(400).json({ error: 'invalid_body' });
@@ -609,6 +610,30 @@ async function handlePriceReport(req, res) {
   if (parsed.every((p) => p.value == null) && !safeHotelName) {
     return res.status(400).json({ error: 'invalid_body' });
   }
+  /* SG: **이 값들이 어느 환율로 환산됐는가.** 값을 고치지 않고 되돌릴 수단만 남긴다 —
+     요율과 비교할 때 화면이 `오늘환율 ÷ fx_rate`로 오늘 기준으로 되돌린다.
+     ⚠ 셋이 **함께** 와야 뜻이 생긴다. 통화만 있고 환율이 없으면 되돌릴 수 없고,
+       환율만 있고 항목 목록이 없으면 원화 항목까지 잘못 되돌린다. 하나라도 빠지면 거절한다
+       — 조용히 버리면 그 제보는 영영 되돌릴 수 없는 값으로 남는다.
+     ⚠ 자릿수 검사는 추출기와 **같은 함수**를 쓴다(`fxPlausible`). 두 곳에 다른 기준을 적으면
+       화면은 통과시키고 서버가 거절하거나 그 반대가 된다(결함 생성기 ①). */
+  const FX_FIELD_KEYS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'sell'];
+  let fxCur = null, fxR = null, fxF = null;
+  const fxGiven = [fxCurrency, fxRate, fxFields].filter((v) => v !== undefined && v !== null && v !== '');
+  if (fxGiven.length) {
+    if (fxGiven.length !== 3) return res.status(400).json({ error: 'invalid_fx' });
+    fxCur = String(fxCurrency).trim().toUpperCase().slice(0, 8);
+    fxR = Number(fxRate);
+    if (!/^[A-Z]{3}$/.test(fxCur)) return res.status(400).json({ error: 'invalid_fx' });
+    if (!Number.isFinite(fxR) || fxR <= 0 || !pdfExtract.fxPlausible(fxCur, fxR)) {
+      return res.status(400).json({ error: 'invalid_fx' });
+    }
+    const list = String(fxFields).split(',').map((s) => s.trim()).filter(Boolean);
+    if (!list.length || list.some((k) => FX_FIELD_KEYS.indexOf(k) < 0)) {
+      return res.status(400).json({ error: 'invalid_fx' });
+    }
+    fxF = Array.from(new Set(list)).join(',');
+  }
   /* destinationKey 유효성 — 내장 목적지가 아니면 커스텀 목적지 존재 확인. 오타/미존재
      키로 실측 통계(갱신제안·정확도)가 오염되는 것을 막는다. */
   if (!BUILTIN_DEST_KEYS.has(destinationKey)) {
@@ -631,10 +656,10 @@ async function handlePriceReport(req, res) {
       insert into actual_price_reports
         (destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
          fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
-         depart_date, quote_date, nights, author, source)
+         depart_date, quote_date, nights, fx_currency, fx_rate, fx_fields, author, source)
       values (${destinationKey}, ${airfare.value}, ${hotel.value}, ${safeHotelName || null}, ${meal.value},
               ${fuel.value}, ${vehicle.value}, ${guide.value}, ${sight.value}, ${sell.value},
-              ${depart.value}, ${quoted.value}, ${nightsN},
+              ${depart.value}, ${quoted.value}, ${nightsN}, ${fxCur}, ${fxR}, ${fxF},
               ${safeAuthor}, ${source === 'pdf' ? 'pdf' : 'manual'})
     `;
     return res.status(200).json({ ok: true });
@@ -650,6 +675,7 @@ async function handlePriceReports(req, res) {
     const rows = await sql`select id, destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
                                   fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
                                   depart_date, quote_date, nights,
+                                  fx_currency, fx_rate, fx_fields,
                                   author, source, created_at
                            from actual_price_reports order by created_at desc limit 1000`;
     const num = (v) => (v != null ? Number(v) : null);
@@ -671,6 +697,12 @@ async function handlePriceReports(req, res) {
       departDate: r.depart_date ? String(r.depart_date).slice(0, 10) : null,
       quoteDate: r.quote_date ? String(r.quote_date).slice(0, 10) : null,
       nights: r.nights == null ? null : Number(r.nights),
+      /* SG: 이 제보의 금액이 **어느 환율로 환산된 것인가.** 화면이 요율과 비교할 때
+         `오늘환율 ÷ fxRate`로 오늘 기준으로 되돌린다. fxFields에 적힌 항목만 되돌린다 —
+         같은 제보 안에서도 원화로 적힌 항목이 섞여 있다. */
+      fxCurrency: r.fx_currency || null,
+      fxRate: num(r.fx_rate),
+      fxFields: r.fx_fields ? String(r.fx_fields).split(',').filter(Boolean) : [],
       author: r.author || '', source: r.source, createdAt: r.created_at,
     })));
   } catch (err) {

@@ -1097,6 +1097,7 @@ function mealPerDay(rows, pax, trip) {
     calc: `식사 총액 ${totalCost.toLocaleString()} ÷ 인원 ${pax} ÷ ${dayCount}일 = ${value.toLocaleString()} (1인 1일)`,
     basis,
     dayCount,
+    fx: fxOf(meals),   /* 어느 환율로 환산된 합인가 (SG) */
   };
 }
 
@@ -1115,6 +1116,7 @@ function sightPerPerson(rows, pax) {
     calc: `관광 총액 ${totalCost.toLocaleString()} ÷ 인원 ${pax} = ${value.toLocaleString()} (1인당 전 일정)`,
     golfExcluded: golfCost || 0,
     golfRowIdxs: golf.map((r) => r.idx),
+    fx: fxOf(list),   /* 어느 환율로 환산된 합인가 (SG) */
   };
 }
 
@@ -1135,10 +1137,29 @@ const capped = (v, max) => (typeof v === 'number' && Number.isFinite(v) && v > 0
    6일치 총액인데 **가이드 1일 단가** 자리에 들어간다(실제 일당의 6배).
    반대로 「항공 320,000 1 1 320,000」은 진짜 1인 운임이다 — 둘이 같은 모양이라
    코드가 가를 수 없다. 그래서 **고르지 않고, 확실한 척도 하지 않는다.** */
+/* 이 값이 **어느 환율로 환산된 것인가** (SG).
+   ⚠ 이걸 안 남기면 그 원화값은 **견적서 시점 환율이 박힌 채** 실측으로 굳는다.
+   요율표 단가는 「오늘 환율 기준」이라는 약속 위에 서 있고(`rate_fx_baseline`), 엔진은
+   거기서 `오늘 ÷ 기준`으로 보정한다. 그런데 견적서에서 뽑은 값은 **그 견적서의 환율**이
+   박혀 있으므로, 두 환율의 차이만큼 처음부터 어긋난 채 요율에 들어간다.
+   실측(코퍼스 34건, 2026-08-10 환율 대비): 어긋남 **중앙값 5.1% · 최대 12.1%**
+   (BSI 도쿄 ¥10 vs 8.92). 트랙 A 목표가 ±5%라 이것 하나로 목표가 깨진다.
+   → 값을 고치지 않는다. **어느 환율로 환산했는지를 함께 넘겨** 쓰는 쪽이 되돌리게 한다.
+   ⚠ 원화로 적힌 줄에는 붙지 않는다(환산한 적이 없으므로 되돌릴 것도 없다). */
+const fxOf = (rows) => {
+  const conv = (rows || []).filter((r) => r && r.converted);
+  if (!conv.length) return null;
+  const cur = conv[0].converted.from, rate = conv[0].converted.rate;
+  /* 통화가 섞인 묶음은 하나로 말할 수 없다 — 말하지 않는다(짐작하지 않는다) */
+  if (conv.some((r) => r.converted.from !== cur || r.converted.rate !== rate)) return null;
+  return { currency: cur, rate, partial: conv.length !== rows.length };
+};
+
 function ev(row, extra) {
   if (!row) return null;
   const unchecked = vacuous(row);
   return Object.assign({
+    fx: fxOf([row]),
     rowIdx: row.idx,
     line: String(row.line).slice(0, 140),
     calc: unchecked
@@ -1252,10 +1273,12 @@ function readOneBlock(lines, fx, blockTotal) {
       meal: meal ? {
         rowIdxs: meal.rowIdxs, calc: meal.calc, dayCount: meal.dayCount, via: 'calc',
         label: `식사 ${meal.rowIdxs.length}줄 · ${meal.basis}`,
+        fx: meal.fx || null,
       } : null,
       sight: sight ? {
         rowIdxs: sight.rowIdxs, calc: sight.calc, via: 'calc',
         label: `관광 ${sight.rowIdxs.length}줄`,
+        fx: sight.fx || null,
         /* 뺀 골프비는 **따로** 준다 — label에 문장으로 이어 붙이면 화면에서 잘리거나 묻힌다 */
         note: sight.golfExcluded
           ? `골프 ${sight.golfExcluded.toLocaleString()}원은 뺐습니다 — 요율의 관광비와 성격이 다릅니다`
@@ -1362,7 +1385,7 @@ async function extractQuote(buffer, pdfParse, opts) {
 
 module.exports = {
   LIMITS, extractQuote, readOneBlock, readLayout, splitQuoteBlocks, findUnitRows,
-  findDates, findQuoteDate, findTripDates, findFxRates, bindBareFx,
+  findDates, findQuoteDate, findTripDates, findFxRates, bindBareFx, fxPlausible,
   classifyRow, classifyLabel, groupColumn, reconcile, triage, mealPerDay, sightPerPerson,
   splitLabel, numbersIn, VOCAB,
 };
