@@ -197,9 +197,14 @@ console.log('\n[7] 일괄 줄이 한 칸의 단가가 되지 않는가');
   ok('세 분류를 가리키는 라벨은 고르지 않는다',
     X.classifyLabel('지상 차량, 관광지, 식사 등') === null,
     String(X.classifyLabel('지상 차량, 관광지, 식사 등')));
-  ok('둘까지는 그대로 고른다(「인솔/가이드 공동경비」)',
-    X.classifyLabel('인솔/가이드 공동경비') === 'guide',
-    String(X.classifyLabel('인솔/가이드 공동경비')));
+  ok('둘까지는 그대로 고른다(「인솔자 항공」 → 항공료)',
+    X.classifyLabel('인솔자 항공') === 'airfare',
+    String(X.classifyLabel('인솔자 항공')));
+  /* ⚠ 공동경비는 **일부러** 기타로 뺐다(SF) — 여러 항목을 묶어 인원수로 나눈 돈이라
+     어느 칸의 단가도 아니다. 「공동경비&인두세」가 '인두세' 때문에 유류·택스 칸의
+     대표가 되어 진짜 유류/택스 줄을 밀어내고 있었다. */
+  ok('공동경비는 유류·택스보다 먼저 기타로 빠진다',
+    X.classifyLabel('공동경비&인두세') === 'etc', String(X.classifyLabel('공동경비&인두세')));
   ok('평범한 줄은 그대로다', X.classifyLabel('현지 가이드 일비') === 'guide');
   ok('구분 글자 자체는 그대로 분류된다', X.classifyLabel('호텔') === 'hotel');
 }

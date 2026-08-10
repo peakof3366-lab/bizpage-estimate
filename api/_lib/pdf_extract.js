@@ -202,31 +202,104 @@ function cellCurrency(s) {
   return null;
 }
 
-/* 문서가 밝힌 환율을 찾는다. 여러 표기를 겪었다:
-     "급격한 환율 변동시 … (현재 1JPY = 9.5원 기준)"
-     "기준 환율 ($) 1,450"
-     "100엔 = 950원" */
+/* 문서가 밝힌 환율을 찾는다 (SF에서 넓혔다).
+   ⚠ 이 함수가 한 칸을 못 읽으면 그 견적서의 **외화 줄이 통째로 버려진다** — 환율 없이는
+   환산하지 않는다는 원칙 때문이다(그 원칙 자체는 옳다. 오늘 환율로 때우면 견적 시점과
+   어긋난 값이 '실측'으로 굳는다). 실측: 코퍼스 46건 중 17건이 여기 걸려 있었는데,
+   **그중 12건은 문서가 환율을 적어 두고 있었다.** 우리 패턴이 못 잡았을 뿐이다.
+
+   겪은 표기 — 앞의 셋은 통화를 밝히고, 넷째는 밝히지 않는다:
+     ① "급격한 환율 변동시 … (현재 1JPY = 9.5원 기준)"   통화가 숫자 **앞**
+     ② "현재 환율 ($1 = 1,430원 기준)"                  기호가 숫자 앞 — ①과 어순이 다르다
+     ③ "기준 환율 ($) 1,450" · "환율(달러) 1,390" · "환율(VND) 23,000"   ← 「기준」이 없기도 하다
+     ④ "환율 ₩ 1,740"                                 **통화를 안 밝힌다** — 아래 참고 */
+const FX_SYMBOL = { $: 'USD', '€': 'EUR', '¥': 'JPY', '￥': 'JPY', '₫': 'VND' };
+const FX_WORD = { 엔: 'JPY', 달러: 'USD', 유로: 'EUR', 동: 'VND', 위안: 'CNY' };
+/* ⚠ 실측된 **문서의 오타**다(KS두레: 「현재 1JYP = 9.5원 기준」). 사람이 쓴 문서라
+   오타가 있고, 그것 하나로 그 견적서 25줄이 통째로 버려졌다. 겪은 것만 적는다 —
+   짐작으로 늘리지 말 것. */
+const FX_TYPO = { JYP: 'JPY' };
+const FX_CODE = '(?:JPY|USD|EUR|VND|CNY|JYP)';
+const fxNorm = (raw) => {
+  const s = String(raw).trim();
+  return FX_SYMBOL[s] || FX_WORD[s] || FX_TYPO[s.toUpperCase()] || s.toUpperCase();
+};
+
+/* 1단위가 몇 원인가 — **자릿수만** 본다. 튜닝 값이 아니라 통화에 대한 사실이다.
+   ⚠ 이게 없으면 문서의 오기를 그대로 믿는다. 실측 두 건:
+     · 호남 북해도 「환율(달러) 9.7」 — 값은 **엔** 환율인데 라벨이 달러다(문서가 틀렸다).
+     · 다낭 「환율(VND) 23,000」 — 이건 원화 환율이 아니라 **1달러 = 23,000동**이다.
+       그대로 믿으면 동화 줄이 23,000배가 된다. 겉으로는 아무 문제 없어 보이는 종류다.
+   범위는 넉넉하게 잡는다 — 걸러내려는 것은 '요즘 시세와 다름'이 아니라 **자릿수가 말이
+   안 되는 값**이다. 애매하면 통과시키고 사람이 화면에서 본다. */
+const FX_PLAUSIBLE = {
+  JPY: [3, 30], USD: [500, 3000], EUR: [500, 4000], CNY: [50, 500], VND: [0.01, 0.5],
+};
+const fxPlausible = (code, v) => {
+  const band = FX_PLAUSIBLE[code];
+  if (!band) return true;              /* 모르는 통화는 판단하지 않는다 */
+  return v >= band[0] && v <= band[1];
+};
+
 function findFxRates(lines) {
-  const out = {};
+  const named = {};   /* 통화를 밝힌 표기 — 언제나 이쪽이 이긴다 */
+  const bare = [];    /* 통화를 안 밝힌 「환율 ₩ N」 */
+  const rejected = [];/* 자릿수가 말이 안 돼 버린 것 — 조용히 버리지 않는다 */
   const put = (code, v) => {
-    if (code && Number.isFinite(v) && v > 0 && !out[code]) out[code] = v;
+    if (!code || !Number.isFinite(v) || v <= 0 || named[code]) return;
+    if (!fxPlausible(code, v)) { rejected.push({ code, value: v }); return; }
+    named[code] = v;
   };
+  const num = (s) => Number(String(s).replace(/,/g, ''));
+
   lines.forEach((ln) => {
     const t = ln.text;
     let m;
-    if ((m = t.match(/1\s*(JPY|USD|EUR|VND|CNY|엔|달러|유로|동)\s*[=:]\s*([\d,.]+)\s*원/i))) {
-      const map = { 엔: 'JPY', 달러: 'USD', 유로: 'EUR', 동: 'VND' };
-      put(map[m[1]] || m[1].toUpperCase(), Number(m[2].replace(/,/g, '')));
+    /* ① 통화가 숫자 앞:  1JPY = 9.5원 / 1 달러 = 1,430원 */
+    if ((m = t.match(new RegExp('1\\s*(' + FX_CODE + '|엔|달러|유로|동|위안)\\s*[=:]\\s*([\\d,.]+)\\s*원', 'i')))) {
+      put(fxNorm(m[1]), num(m[2]));
+    }
+    /* ② 기호가 숫자 앞:  $1 = 1,430원 / US$1 = … — ①과 어순이 반대라 따로 봐야 한다 */
+    if ((m = t.match(/(?:US)?([$€¥￥₫])\s*1\s*[=:]\s*([\d,.]+)\s*원/i))) {
+      put(fxNorm(m[1]), num(m[2]));
     }
     if ((m = t.match(/100\s*(엔|JPY)\s*[=:]\s*([\d,.]+)\s*원/i))) {
-      put('JPY', Number(m[2].replace(/,/g, '')) / 100);
+      put('JPY', num(m[2]) / 100);
     }
-    if ((m = t.match(/기준\s*환율\s*\(?\s*([$€¥￥]|USD|JPY|EUR|VND|CNY)\s*\)?\s*[:=]?\s*([\d,.]+)/i))) {
-      const sym = { $: 'USD', '€': 'EUR', '¥': 'JPY', '￥': 'JPY' };
-      put(sym[m[1]] || m[1].toUpperCase(), Number(m[2].replace(/,/g, '')));
+    /* ③ 「(기준) 환율 (통화) 값」 — ⚠ 「기준」은 있을 수도 없을 수도 있다.
+       그것 하나 때문에 「환율($) 1,385」·「환율(달러) 1,390」을 못 읽고 있었다. */
+    if ((m = t.match(new RegExp('환\\s*율\\s*\\(?\\s*([$€¥￥₫]|' + FX_CODE + '|달러|엔|유로|동|위안)\\s*\\)?\\s*[:=]?\\s*([\\d,.]+)', 'i')))) {
+      put(fxNorm(m[1]), num(m[2]));
+    }
+    /* ④ 통화를 안 밝힌 「환율 ₩ 1,740」. 원화 기호는 '얼마짜리냐'를 말할 뿐 무슨 통화의
+       환율인지는 말하지 않는다 — 그래서 여기서 바로 쓰지 않고 모아만 둔다. */
+    if ((m = t.match(/환\s*율\s*[₩원]\s*([\d,.]+)/))) {
+      const v = num(m[1]);
+      if (Number.isFinite(v) && v > 0) bare.push(v);
     }
   });
-  return out;
+  return { named, bare, rejected };
+}
+
+/* 통화를 안 밝힌 환율을 **어느 통화의 것으로 볼지** 정한다.
+   ⚠ 짐작이 아니다. 견적서에 외화가 **한 종류뿐이면** 그 환율은 그 통화의 것일 수밖에 없다.
+      두 종류 이상이면(₫와 $를 함께 쓰는 양식이 있다) 어느 쪽인지 알 수 없으므로 쓰지 않는다.
+   ⚠ 통화를 밝힌 표기가 이미 있으면 **그쪽이 이긴다.** 실측(키움 북해도): 안내문은
+      「1JPY = 9.5원」인데 아래 요약표는 「환율 ₩ 9.39」다. 둘이 다르고, 어느 쪽이 실제
+      계약 환율인지는 코드가 모른다 — 통화를 밝힌 쪽이 더 분명한 진술이므로 그것을 쓴다.
+   ⚠ 모아 둔 값끼리 어긋나면 쓰지 않는다. 하나로 모일 때만 그 문서의 환율이다. */
+function bindBareFx(bare, currencies) {
+  if (!bare.length) return { rate: null, why: '' };
+  const lo = Math.min.apply(null, bare), hi = Math.max.apply(null, bare);
+  if (hi - lo > lo * 0.001) return { rate: null, why: '환율 표기가 서로 다릅니다(' + bare.join(' / ') + ')' };
+  if (currencies.length !== 1) {
+    return { rate: null, why: currencies.length ? '외화가 ' + currencies.join('·') + ' 여러 종류라 어느 환율인지 알 수 없습니다' : '' };
+  }
+  /* 묶어 놓고 보니 자릿수가 말이 안 되면 그 환율은 그 통화의 것이 아니다 */
+  if (!fxPlausible(currencies[0], bare[0])) {
+    return { rate: null, why: '「환율 ' + bare[0] + '」은 ' + currencies[0] + ' 환율로 볼 수 없는 자릿수입니다' };
+  }
+  return { rate: { code: currencies[0], value: bare[0] }, why: '' };
 }
 
 /* 한 줄에서 라벨(앞쪽 글자)과 비고(뒤쪽 글자)를 갈라낸다.
@@ -257,7 +330,16 @@ function lineNumbers(cells) {
     const s = String(c.s).trim();
     if (!s) return;
     const own = cellCurrency(s);
-    if (!/\d/.test(s)) { if (own) pending = own; return; }
+    if (!/\d/.test(s)) {
+      if (own) { pending = own; return; }
+      /* ⚠ **줄표는 「금액 없음」이다.** 그 칸이 비었다는 뜻이므로 앞의 통화 기호를
+         여기서 **써 버린다** — 안 그러면 기호가 훌쩍 건너뛰어 **다음 칸의 다른 통화**
+         숫자를 물들인다. 실측(신한 썸머페스티벌 푸꾸옥): 「인솔자 경비 $ - 200,000 6명」에서
+         `$`가 동화 200,000을 달러로 물들여 200,000 × 1,390 = **2억 7,800만원**이 되고,
+         상한에 걸려 그 칸이 통째로 비었다(원래 값 236,300원이 사라졌다). */
+      if (/^[-–—]+$/.test(s)) pending = null;
+      return;
+    }
     const cur = own || pending;
     numbersIn(s).forEach((n) => { out.push({ n, cur: cur || null }); });
     pending = null;   /* 기호는 한 숫자만 물들인다 */
@@ -293,6 +375,14 @@ function findUnitRows(lines, fx) {
     };
 
     for (let a = 0; a < ns.length; a++) {
+      /* ⚠ **단가가 1인 조합은 단가가 아니다.** 1원·1달러짜리 항목은 없다 — 그 1은
+         수량 열이나 횟수 열을 단가 자리로 잘못 읽은 것이다. SB가 「곱수는 2,000 이하
+         정수만 개수로 본다」로 막았지만 그 상한은 **원화 기준**이라, 숫자가 작은 외화
+         견적서에서는 통째로 새어 나간다. 실측(글로벌 푸켓·세부, 환율을 읽게 된 뒤 드러남):
+         「40인승 버스 $ 777 1 1 $ 777」에서 `1 × 777 = 777`이 검산된 조합으로 이겨
+         단가가 **1**이 됐고, 화면에는 1 × 환율 = **1,430원**이 대형버스 1일 단가로 나갔다
+         (문서가 같은 줄에 적어 둔 원화는 1,118,447원이다). */
+      if (ns[a] === 1) continue;
       for (let b = 0; b < ns.length; b++) {
         if (b === a) continue;
         for (let d = 0; d < ns.length; d++) {
@@ -393,6 +483,12 @@ const VOCAB = [
      ⚠ 버리지 않고 **분류만 따로 준다** — 화면 후보 목록에는 그대로 보이고,
      담당자가 정말 필요하면 1클릭으로 고를 수 있다(조용히 버리지 않는다). */
   { key: 'penalty', re: /패널티|penalty|취소료|취소\s*수수료|위약금|노\s*쇼|no.?show/i },
+  /* ⚠ **공동경비는 유류·택스보다 먼저 본다.** 「공동경비&인두세」는 '인두세' 때문에
+     유류·택스 칸의 대표가 되어 **진짜 「유류/택스 100,000원」 줄을 밀어냈다**(실측:
+     글로벌 베스트 푸꾸옥 100,000 → 152,440, 키움 하노이 125,000 → 99,400).
+     공동경비는 여러 항목을 한데 묶어 인원수로 나눈 돈이라 어느 칸의 단가도 아니다 —
+     기타로 두면 그 칸들이 각자 제 줄을 찾아간다. */
+  { key: 'etc', re: /공동\s*경비/ },
   { key: 'fuel', re: /유류|할증|택스|TAX|공항세|인두세|출국납부금|관광진흥/i },
   { key: 'insurance', re: /보험/ },
   { key: 'fee', re: /수수료|알선|대행료|커미션/ },
@@ -409,7 +505,10 @@ const VOCAB = [
   /* ⚠ 라틴 문자가 섞인 낱말은 대소문자를 무시해야 한다 — '다낭/몽고메리 GOLF'가
      '골프'에 안 걸려 관광비에서 통째로 빠지던 것을 실측에서 잡았다. */
   { key: 'sight', re: /입장|관광|스파|마사지|케이블카|티켓|투어|체험|공연|박물관|수족관|테마파크|유람|크루즈|요트/i },
-  { key: 'etc', re: /현수막|기념품|피켓|명찰|네임텐트|프로젝터|공동경비|현장추가|패스트\s*트랙|비자|인쇄|디자인|\bAV\b/i },
+  /* ⚠ 공동경비는 **위로 올라갔다**(유류·택스보다 먼저). 여기 남겨 두면 같은 낱말이
+     두 번 세어져 「공동경비&인두세」가 세 분류로 보이고, 일괄 줄로 오해받아 통째로
+     분류가 빈다(회귀 테스트가 잡았다). 어휘를 옮길 때는 옛 자리를 지울 것. */
+  { key: 'etc', re: /현수막|기념품|피켓|명찰|네임텐트|프로젝터|현장추가|패스트\s*트랙|비자|인쇄|디자인|\bAV\b/i },
 ];
 
 /* ⚠ **여러 항목을 한 줄로 묶은 줄**이 있다 — 「지상 차량, 관광지, 식사 등」·
@@ -953,6 +1052,7 @@ const byMaxUnit = (list) => list.slice().sort((a, b) => b.unit - a.unit)[0];
    산술 검산은 어느 쪽이 어느 열인지 모른다(곱셈은 순서를 안 가린다). 그래서
    '사람 수만큼 곱해진 줄인가'는 **둘 중 큰 쪽**으로 판단한다. */
 const PER_HEAD_MIN_QTY = 2;
+const MAX_NIGHTS = 30;   /* 기업연수 일정의 상한 — 이보다 크면 박수 열이 아니다 */
 const headCount = (r) => Math.max(r.qty, r.times);
 const perHeadRows = (rows, category) =>
   rows.filter((r) => r.category === category && usable(r) && headCount(r) >= PER_HEAD_MIN_QTY);
@@ -980,7 +1080,12 @@ function mealPerDay(rows, pax, trip) {
   }
   if (!dayCount) {
     const hotel = rows.filter((r) => r.category === 'hotel');
-    const nights = hotel.length ? Math.max.apply(null, hotel.map((r) => r.times)) : 0;
+    /* ⚠ **박수는 여행 길이를 넘을 수 없다.** 호텔 줄의 '횟수' 열이 양식에 따라 인원일 때가
+       있어(「€380 × 2 × 85」의 85는 사람 수다) 그대로 믿으면 86일로 나눈다 — 실측(굿리치
+       체코)에서 1인 1일 식비가 4,702원으로 나왔다. 30박을 넘는 기업연수는 없다. */
+    const nights = hotel.length
+      ? Math.max.apply(null, [0].concat(hotel.map((r) => r.times).filter((n) => n <= MAX_NIGHTS)))
+      : 0;
     if (nights >= 1) { dayCount = nights + 1; basis = `호텔 ${nights}박 + 1`; }
   }
   if (!dayCount) return null;
@@ -1072,6 +1177,9 @@ function readOneBlock(lines, fx, blockTotal) {
   const rows = rawRows.map((r) => {
     const own = classifyLabel(r.label);
     const fromGroup = grp.byLine ? (grp.byLine.get(r.lineIdx) || null) : null;
+    /* ⚠ 라벨이 이길 때 **구분 열로 뒤집지 말 것.** 구분 열이 항목 종류가 아니라 *누구의*
+       비용인지를 적는 양식이 있다 — 「인솔자」 묶음 안의 「인솔자 항공 380,000」은
+       항공료이지 가이드비가 아니다. 뒤집게 했더니 정확히 그 줄이 가이드 일당이 됐다. */
     const category = own || fromGroup || classifyLabel(r.note) || null;
     return Object.assign({}, r, {
       category,
@@ -1181,7 +1289,19 @@ function readOneBlock(lines, fx, blockTotal) {
 async function extractQuote(buffer, pdfParse, opts) {
   const { lines, text, pageCount } = await readLayout(buffer, pdfParse);
   /* 환율은 문서 전체에서 찾는다 — 보통 1쪽 안내문에 있고 단가표는 2쪽에 있다. */
-  const docFx = findFxRates(lines);
+  const found = findFxRates(lines);
+  const docFx = Object.assign({}, found.named);
+  /* 어떻게 알아낸 환율인지 남긴다 — 화면이 「통화를 밝히지 않은 표기라 이렇게 봤다」를
+     말할 수 있어야 한다(조용한 폴백을 만들지 않는다). */
+  const fxHow = {};
+  Object.keys(docFx).forEach((k) => { fxHow[k] = 'named'; });
+  /* 통화를 안 밝힌 「환율 ₩ N」 — 견적서의 외화가 한 종류뿐일 때만 그 통화로 본다.
+     ⚠ 통화 판별은 **단가표의 셀**로 한다. 안내문에 섞여 나오는 기호를 세면 안 된다. */
+  const rowCurrencies = Array.from(new Set(
+    findUnitRows(lines, {}).map((r) => r.currency).filter(Boolean)
+  )).sort();
+  const bound = bindBareFx(found.bare, rowCurrencies.filter((c) => !docFx[c]));
+  if (bound.rate) { docFx[bound.rate.code] = bound.rate.value; fxHow[bound.rate.code] = 'bare'; }
   const userFx = (opts && opts.fxRate) || {};
   const fx = Object.assign({}, userFx, docFx);   /* 문서 값이 덮어쓴다 = 문서 우선 */
   const rawBlocks = splitQuoteBlocks(lines);
@@ -1215,6 +1335,12 @@ async function extractQuote(buffer, pdfParse, opts) {
   return Object.assign({}, chosen, {
     pageCount, text,
     fxRates: fx, fxFromDocument: docFx, fxFromUser: userFx,
+    /* 통화별로 **어떻게** 알아낸 환율인가 — 'named'(통화를 밝힌 표기) / 'bare'(통화를
+       안 밝힌 「환율 ₩ N」을 견적서의 유일한 외화로 묶었다). bareFxWhy는 못 묶은 이유. */
+    fxHow, bareFxWhy: bound.why || '',
+    /* 자릿수가 말이 안 돼 **쓰지 않은** 환율 표기 — 문서의 오기다. 조용히 버리지 않는다
+       (실측: 「환율(달러) 9.7」은 엔 환율이고, 「환율(VND) 23,000」은 1달러당 동화다). */
+    fxRejected: found.rejected || [],
     needsFxRate,
     /* 환율을 못 찾아 손대지 못한 외화 줄이 몇 개인가 — 화면이 이유를 말할 수 있게 */
     unconvertible: chosen.candidates.filter((c) => c.unconvertible).length,
@@ -1236,7 +1362,7 @@ async function extractQuote(buffer, pdfParse, opts) {
 
 module.exports = {
   LIMITS, extractQuote, readOneBlock, readLayout, splitQuoteBlocks, findUnitRows,
-  findDates, findQuoteDate, findTripDates,
+  findDates, findQuoteDate, findTripDates, findFxRates, bindBareFx,
   classifyRow, classifyLabel, groupColumn, reconcile, triage, mealPerDay, sightPerPerson,
   splitLabel, numbersIn, VOCAB,
 };
