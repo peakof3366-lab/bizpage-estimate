@@ -49,6 +49,7 @@ node ai-loop/audit_vacuous_rows.js  # 검산 안 된 줄이 대표 단가가 되
 node ai-loop/audit_row_categories.js # 검산줄이 어느 항목인지 알아냈는가 — 못 알아낸 이유까지 센다
 node ai-loop/audit_coverage.js      # 우리가 읽은 줄이 총계의 몇 %를 설명하는가 — 덜 읽은 것을 잡는다
 node ai-loop/audit_extract_sanity.js # 뽑아낸 값이 요율표 분포에서 벗어나는가 — 틀린 값을 잡는다
+node ai-loop/audit_cross_quotes.js  # 같은 목적지 견적서끼리 대조 — 문서가 쌓일수록 강해진다
 node ai-loop/backtest_quotes.js     # 고객이 보는 금액의 오차 (--cache = 추출 결과 재사용)
 ```
 

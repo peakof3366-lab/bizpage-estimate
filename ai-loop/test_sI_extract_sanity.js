@@ -142,11 +142,22 @@ console.log('\n[4] 「× 8회」라고 적힌 끼니를 2일로 세지 않는가
 console.log('\n[5] 감사기가 README에 등록돼 있는가');
 {
   const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
-  ['audit_row_categories.js', 'audit_coverage.js', 'audit_extract_sanity.js'].forEach((f) => {
+  ['audit_row_categories.js', 'audit_coverage.js', 'audit_extract_sanity.js',
+    'audit_cross_quotes.js'].forEach((f) => {
     ok(f + ' 가 README에 있다', readme.indexOf(f) >= 0);
   });
   ok('감사기 파일이 실제로 있다',
-    fs.existsSync(path.join(__dirname, 'audit_extract_sanity.js')));
+    fs.existsSync(path.join(__dirname, 'audit_extract_sanity.js')) &&
+    fs.existsSync(path.join(__dirname, 'audit_cross_quotes.js')));
+  /* ⚠ 목적지 판정표는 **한 곳**에만 있어야 한다(결함 생성기 ①) — 역검증과 교차 대조가
+     서로 다른 표를 쓰면 한쪽에서 빠진 건이 다른 쪽에서 엉뚱한 목적지로 세어진다. */
+  const shared = fs.readFileSync(path.join(__dirname, '_dest_from_name.js'), 'utf8');
+  ok('목적지 판정표가 공용 모듈에 있다', /const DEST_ALIAS = \[/.test(shared));
+  ['backtest_quotes.js', 'audit_cross_quotes.js'].forEach((f) => {
+    const src = fs.readFileSync(path.join(__dirname, f), 'utf8');
+    ok(f + ' 가 그 모듈을 쓴다', /require\('\.\/_dest_from_name'\)/.test(src));
+    ok(f + ' 안에 표를 다시 적지 않았다', !/const DEST_ALIAS = \[/.test(src));
+  });
 }
 
 /* ⚠ 이 요약 줄의 형식은 run_all_tests.js가 정규식으로 읽는다(「결과: N pass / M fail」). */
