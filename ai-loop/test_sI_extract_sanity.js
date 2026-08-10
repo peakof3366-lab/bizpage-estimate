@@ -142,22 +142,35 @@ console.log('\n[4] 「× 8회」라고 적힌 끼니를 2일로 세지 않는가
 console.log('\n[5] 감사기가 README에 등록돼 있는가');
 {
   const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
-  ['audit_row_categories.js', 'audit_coverage.js', 'audit_extract_sanity.js',
-    'audit_cross_quotes.js'].forEach((f) => {
+  ['audit_row_categories.js', 'audit_coverage.js', 'audit_extract_sanity.js'].forEach((f) => {
     ok(f + ' 가 README에 있다', readme.indexOf(f) >= 0);
   });
   ok('감사기 파일이 실제로 있다',
-    fs.existsSync(path.join(__dirname, 'audit_extract_sanity.js')) &&
-    fs.existsSync(path.join(__dirname, 'audit_cross_quotes.js')));
-  /* ⚠ 목적지 판정표는 **한 곳**에만 있어야 한다(결함 생성기 ①) — 역검증과 교차 대조가
+    fs.existsSync(path.join(__dirname, 'audit_extract_sanity.js')));
+  /* ⚠ 목적지 판정표는 **한 곳**에만 있어야 한다(결함 생성기 ①) — 역검증과 타당성 감사가
      서로 다른 표를 쓰면 한쪽에서 빠진 건이 다른 쪽에서 엉뚱한 목적지로 세어진다. */
   const shared = fs.readFileSync(path.join(__dirname, '_dest_from_name.js'), 'utf8');
   ok('목적지 판정표가 공용 모듈에 있다', /const DEST_ALIAS = \[/.test(shared));
-  ['backtest_quotes.js', 'audit_cross_quotes.js'].forEach((f) => {
+  ['backtest_quotes.js', 'audit_extract_sanity.js'].forEach((f) => {
     const src = fs.readFileSync(path.join(__dirname, f), 'utf8');
     ok(f + ' 가 그 모듈을 쓴다', /require\('\.\/_dest_from_name'\)/.test(src));
     ok(f + ' 안에 표를 다시 적지 않았다', !/const DEST_ALIAS = \[/.test(src));
   });
+  /* ⚠ **기준은 그 지역 것이어야 한다**(2026-08-10 대표 지시) — 전 목적지를 한 통에 넣고
+     재면 비싼 지역이 통째로 이상값이 된다. 감사기가 목적지별로 모으는지 검사한다. */
+  const aud = fs.readFileSync(path.join(__dirname, 'audit_extract_sanity.js'), 'utf8');
+  ok('목적지별로 모아서 잰다', /const byDest = \{\}/.test(aud) && /byDest\[d\.dest\]/.test(aud));
+  ok('동료가 없으면 그 값을 기준선으로 둔다(어긋났다고 하지 않는다)',
+    /vals\.length === 1/.test(aud) && /noPeer\.push/.test(aud));
+  ok('오독 후보와 요율 갱신 후보를 갈라서 낸다',
+    /misread/.test(aud) && /rateGap/.test(aud));
+  /* 화면(갱신 제안)도 같은 원칙을 따라야 한다 — 1건이어도 그 목적지의 기준이 된다.
+     ⚠ 집계 키에 목적지가 들어 있어야 지역이 섞이지 않는다. */
+  const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  ok('1건짜리 목적지도 갱신 제안에 뜬다', /RATE_SUGGEST_MIN_COUNT = 1/.test(html));
+  ok('자동 적용은 여전히 5건 이상만', /RATE_SUGGEST_CONFIDENT_COUNT = 5/.test(html));
+  ok('1건일 때 「첫 실측」이라고 밝힌다', /이 목적지의 첫 실측/.test(html));
+  ok('제안 집계가 목적지별로 묶인다', /\$\{r\.destinationKey\}\|\$\{field\}/.test(html));
 }
 
 /* ⚠ 이 요약 줄의 형식은 run_all_tests.js가 정규식으로 읽는다(「결과: N pass / M fail」). */

@@ -4704,7 +4704,15 @@
      "요율 편집하기"로 사람이 한 번 더 들여다보게 하고, 그 이상 쌓인 것만 확인
      1클릭으로 바로 반영 가능한 "지금 바로 적용" 버튼을 보여준다(완전 자동
      반영은 하지 않음 — 논의 후 절충). */
-  const RATE_SUGGEST_MIN_COUNT = 2;
+  /* ⚠ **1건이어도 제안한다**(2026-08-10 대표 지시). 예전엔 2건 미만이면 아무것도 안
+     띄웠는데, 그러면 **그 목적지의 첫 견적서가 통째로 묻힌다** — 지시는 이렇다:
+     「특정 지역에 견적이 하나뿐이면 우선 그걸 기준으로 잡고, 이후 그 지역 견적이 쌓이면
+      그 지역 것들끼리만 평균을 내면서 오차를 줄여라.」
+     ⚠ 안전장치는 그대로다 — 이건 **제안**이고 사람이 눌러야 반영된다. 「지금 바로 적용」
+       버튼은 여전히 5건 이상 + 계수 보정된 EM 소스에만 붙는다(confident).
+     ⚠ 집계는 **언제나 목적지별**이다(`${destKey}|${field}` 키). 지역을 섞어 평균 내면
+       발리 가이드 99,000과 시드니 400,000이 한 통에 들어간다 — 그건 기준이 아니다. */
+  const RATE_SUGGEST_MIN_COUNT = 1;
   const RATE_SUGGEST_CONFIDENT_COUNT = 5;
   /* 최근성(신규) — 이 개월 수 이내 데이터만 집계에 쓴다. 오래된 계약가가 계속 평균을
      붙잡아 최신 시세 반영을 늦추는 문제를 막는다. 요율 검토 주기가 분기라 12개월이면
@@ -4958,7 +4966,9 @@
       <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.6rem .8rem;border:1px solid ${frameColor};border-left-width:${s.confident ? '4px' : '1px'};background:${frameBg};flex-wrap:wrap">
         <div style="font-size:.85rem">
           ${confBadge}${srcBadge}
-          <strong>${esc(s.label)} · ${esc(s.fieldLabel)}</strong> · 최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 ${isReport ? '실측 제보' : '실제 계약'} ${s.count}건 중앙값이 기준 대비
+          <!-- ⚠ 1건일 때 '중앙값'이라 쓰면 여러 건을 모은 것처럼 읽힌다. 그 목적지의
+               **첫 실측**이라는 사실이 판단에 중요하다(대표 지시로 1건도 제안한다). -->
+          <strong>${esc(s.label)} · ${esc(s.fieldLabel)}</strong> · 최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 ${isReport ? '실측 제보' : '실제 계약'} ${s.count === 1 ? '<b>1건</b>(이 목적지의 첫 실측)이' : `${s.count}건 중앙값이`} 기준 대비
           <strong>${s.diffPct > 0 ? '+' : ''}${s.diffPct.toFixed(1)}%</strong>
           — 기준 ${fmtWon(s.currentBase)} → 제안 ${fmtWon(s.suggestedBase)}${s.outlierCount ? ` <span style="color:var(--danger);font-weight:700">· 이상치 ${s.outlierCount}건 제외</span>` : ''}
           ${isReport ? '<div style="color:var(--muted);font-size:.72rem;margin-top:.25rem">※ 제보값은 성수기·피크 프리미엄이 섞여 있어 참고용입니다 — 값을 확인하고 <b>요율 편집하기</b>로 판단해 반영하세요(자동 적용 대상 아님).</div>' : ''}
