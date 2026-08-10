@@ -1217,13 +1217,40 @@ const headCount = (r) => Math.max(r.qty, r.times);
 const perHeadRows = (rows, category) =>
   rows.filter((r) => r.category === category && usable(r) && headCount(r) >= PER_HEAD_MIN_QTY);
 
+/* 요율표의 `meal_per_person`은 **여행자 1인 1일 조·중·석식**이다. 그 정의 밖의 줄은
+   합에서 뺀다 — 관광비에서 골프를 빼는 것과 같은 이유이고, 같은 방식으로 **얼마를
+   뺐는지 화면에 남긴다**(조용히 버리지 않는다).
+   ⚠ **인솔진 식사**(가이드·기사·인솔자·스텝)는 여행자 식비가 아니다. 그 사람들 밥값은
+      가이드비·기사비 쪽에 속한다. 실측(글로벌 카자흐스탄): 「기사 식사 262,800」과
+      「가이드 식사 262,800」이 여행자 식비 합에 들어가 있었다 — 라벨에 '식사'가 있어
+      어휘 순서상 meal이 먼저 걸린다.
+   ⚠ **끼니가 아닌 것**(음료·주류·간식·다과·룸드랍)도 뺀다. 실측: 다낭 「미케비치 음료」
+      (1잔씩 제공) 3,462,500원, 키움 카자흐스탄 「룸드랍」(객실당 라면 2개) 210,000원.
+      요율표 식비는 끼니 기준이라, 이런 것이 섞이면 그 목적지 기준이 조용히 올라간다.
+   ⚠ **라벨만 본다.** 비고에 「주류/음료 제공」이 적힌 정상 중식 줄이 있다(키움 카자흐스탄) —
+      비고까지 보면 그 끼니가 통째로 빠진다. */
+const MEAL_STAFF_RE = /가이드|기사|인솔|스텝|스태프|TC/i;
+const MEAL_NOT_A_MEAL_RE = /음료|주류|간식|야식|스낵|다과|커피|룸\s*드랍|룸서비스/;
+
 function mealPerDay(rows, pax, trip) {
-  const meals = perHeadRows(rows, 'meal');
-  if (!meals.length || !pax) return null;
+  const all = perHeadRows(rows, 'meal');
+  if (!all.length || !pax) return null;
+  const isStaff = (r) => MEAL_STAFF_RE.test(String(r.label || ''));
+  const isNotMeal = (r) => MEAL_NOT_A_MEAL_RE.test(String(r.label || ''));
+  const meals = all.filter((r) => !isStaff(r) && !isNotMeal(r));
+  /* 전부 빠지면 **비운다** — 여행자 끼니가 하나도 없는데 인솔진 밥값을 식비라 우기지 않는다 */
+  if (!meals.length) return null;
+  const staffCost = all.filter(isStaff).reduce((n, r) => n + r.total, 0);
+  const notMealCost = all.filter((r) => !isStaff(r) && isNotMeal(r)).reduce((n, r) => n + r.total, 0);
   const totalCost = meals.reduce((n, r) => n + r.total, 0);
 
+  /* ⚠ **일수는 뺀 줄까지 포함해 센다.** 인솔진 식사도 「× 5회」처럼 며칠짜리 일정인지를
+     말해 주기 때문이다 — 금액에서 뺐다고 일수 단서까지 버리면 안 된다.
+     실측(굿리치 체코): 「기사식사 × 5」·「가이드식사 × 5」를 빼자 남은 줄이 「중식 × 2」뿐이라
+     일수가 5 → 2로 떨어졌고, 1인 1일 식비가 80,877 → 193,382(+139%)로 뛰었다.
+     **금액과 일수는 다른 문제다.** */
   const days = new Set();
-  meals.forEach((r) => {
+  all.forEach((r) => {
     const m = (r.label + ' ' + r.note).match(/(\d{1,2})\s*일\s*차?/g);
     if (m) m.forEach((t) => days.add(t.replace(/\D/g, '')));
   });
@@ -1249,7 +1276,7 @@ function mealPerDay(rows, pax, trip) {
         끼니 횟수는 그 줄 안에서 완결된다. 실측(KT CES참관): 조·중·석식이 전부 `× 8회`인데
         호텔이 1박짜리 줄 여럿이라 2일로 세어 1인 1일 식비가 630,000원이었다. */
   if (!dayCount) {
-    const times = meals.map((r) => Math.min(r.qty, r.times)).filter((n) => n >= 2 && n <= MAX_NIGHTS + 1);
+    const times = all.map((r) => Math.min(r.qty, r.times)).filter((n) => n >= 2 && n <= MAX_NIGHTS + 1);
     if (times.length) { dayCount = Math.max.apply(null, times); basis = `끼니 ${dayCount}회`; }
   }
   if (!dayCount) {
@@ -1272,6 +1299,9 @@ function mealPerDay(rows, pax, trip) {
     basis,
     dayCount,
     fx: fxOf(meals),   /* 어느 환율로 환산된 합인가 (SG) */
+    /* 뺀 것들 — 화면이 「얼마를 왜 뺐는지」 말할 수 있게 (골프비와 같은 방식) */
+    staffExcluded: staffCost || 0,
+    notMealExcluded: notMealCost || 0,
   };
 }
 
@@ -1458,6 +1488,11 @@ function readOneBlock(lines, fx, blockTotal) {
         rowIdxs: meal.rowIdxs, calc: meal.calc, dayCount: meal.dayCount, via: 'calc',
         label: `식사 ${meal.rowIdxs.length}줄 · ${meal.basis}`,
         fx: meal.fx || null,
+        /* 뺀 것은 **따로** 준다 — label에 이어 붙이면 화면에서 잘리거나 묻힌다(골프와 같다) */
+        note: [
+          meal.staffExcluded ? `인솔진 식사 ${meal.staffExcluded.toLocaleString()}원은 뺐습니다 — 여행자 식비가 아닙니다` : '',
+          meal.notMealExcluded ? `음료·간식류 ${meal.notMealExcluded.toLocaleString()}원은 뺐습니다 — 끼니가 아닙니다` : '',
+        ].filter(Boolean).join(' · '),
       } : null,
       sight: sight ? {
         rowIdxs: sight.rowIdxs, calc: sight.calc, via: 'calc',
