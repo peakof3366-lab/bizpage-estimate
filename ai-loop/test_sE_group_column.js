@@ -262,8 +262,11 @@ console.log('\n[9] 쪼개진 호텔 줄 때문에 식비가 부풀지 않는가'
   ok('그 근거를 화면 문구에 적는다',
     /문서의/.test(String(withTrip.evidence.meal && withTrip.evidence.meal.label)),
     String(withTrip.evidence.meal && withTrip.evidence.meal.label));
-  ok('없으면 예전대로 호텔 박수를 쓴다',
-    /호텔/.test(String(noTrip.evidence.meal && noTrip.evidence.meal.label)),
+  /* ⚠ SI에서 순서가 바뀌었다 — 문서 일수가 없으면 **끼니 횟수**를 먼저 본다.
+     호텔은 한 숙박이 여러 줄로 쪼개져 박수를 적게 세지만 끼니 횟수는 그 줄 안에서
+     완결되기 때문이다. 호텔 박수는 그다음이다. */
+  ok('문서 일수가 없으면 끼니 횟수를 쓴다',
+    /끼니/.test(String(noTrip.evidence.meal && noTrip.evidence.meal.label)),
     String(noTrip.evidence.meal && noTrip.evidence.meal.label));
   ok('쪼개진 호텔 줄로 식비가 부풀지 않는다',
     withTrip.values.meal < noTrip.values.meal,
