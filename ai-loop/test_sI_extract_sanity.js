@@ -161,9 +161,19 @@ console.log('\n[5] 감사기가 README에 등록돼 있는가');
   const aud = fs.readFileSync(path.join(__dirname, 'audit_extract_sanity.js'), 'utf8');
   ok('목적지별로 모아서 잰다', /const byDest = \{\}/.test(aud) && /byDest\[d\.dest\]/.test(aud));
   ok('동료가 없으면 그 값을 기준선으로 둔다(어긋났다고 하지 않는다)',
-    /vals\.length === 1/.test(aud) && /noPeer\.push/.test(aud));
+    /all\.length === 1/.test(aud) && /noPeer\.push/.test(aud));
   ok('오독 후보와 요율 갱신 후보를 갈라서 낸다',
     /misread/.test(aud) && /rateGap/.test(aud));
+  /* ⚠ **검산 안 된 값으로 요율을 논하지 않는다**(SN). 화면은 그런 값에 「검산 안 됨」
+     배지를 붙여 사람에게 확인을 요청하는데, 감사기가 그걸 무시하고 집계하면 화면과
+     감사기가 서로 다른 말을 한다. 실측: 카자흐스탄 가이드가 「$1,100 1 1 전일정」
+     (전 일정 총액)을 일당으로 세어 요율표 대비 **+352%**로 나왔다. 검산된 값만 쓰면
+     345,000(+60%)이다 — 전혀 다른 결론이다. */
+  ok('기준을 만들 때 검산된 값만 쓴다', /const TRUSTED_VIA = \['rule', 'calc', 'doc'\]/.test(aud));
+  ok('검산 안 된 값을 빼되 개수를 밝힌다', /skipped/.test(aud) && /검산 안 된 '/.test(aud));
+  ok('검산된 값이 하나도 없으면 요율을 논하지 않는다', /unverified\.push/.test(aud));
+  /* 재는 대상은 전부여야 한다 — 검산 안 된 값도 오독일 수 있으니 🔴에서는 봐야 한다 */
+  ok('오독 후보는 검산 안 된 값도 재 본다', /all\.forEach\(\(x\) => \{/.test(aud));
   /* 화면(갱신 제안)도 같은 원칙을 따라야 한다 — 1건이어도 그 목적지의 기준이 된다.
      ⚠ 집계 키에 목적지가 들어 있어야 지역이 섞이지 않는다. */
   const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');

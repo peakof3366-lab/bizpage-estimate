@@ -65,6 +65,14 @@ const PEER_SPREAD = 2.5;
 const RATE_SPREAD = 2.5;
 /* 동료가 최소 둘은 있어야 중앙값이 뜻을 갖는다(둘이 다르면 누가 이상한지 알 수 없다) */
 const MIN_PEERS = 2;
+/* ⚠ **검산 안 된 값으로 요율을 논하지 않는다**(SN). 화면은 그런 값에 「검산 안 됨」 배지를
+   붙여 사람에게 확인을 요청하는데, 감사기가 그걸 무시하고 집계하면 **화면과 감사기가
+   서로 다른 말을 한다.** 실측(카자흐스탄 가이드 +352%): 한 문서의 「$1,100 1 1 **전일정**」이
+   전 일정 총액인데 일당 자리에 들어가 1,606,000이 됐고, 그것이 중앙값을 끌어올렸다.
+   같은 목적지의 검산된 값은 345,000(요율표 216,000 대비 +60%)이다 — 전혀 다른 결론이다.
+   그래서 **기준을 만들 때는 검산된 값만** 쓴다. 뺀 개수는 항상 밝힌다(조용히 빼지 않는다). */
+const TRUSTED_VIA = ['rule', 'calc', 'doc'];
+const isTrusted = (ev) => TRUSTED_VIA.indexOf((ev && ev.via) || '') >= 0;
 /* 목적지를 못 정한 문서에만 쓰는 마지막 그물 — 전 목적지 분포를 이만큼 벌린다 */
 const WIDEN = 4;
 
@@ -112,6 +120,7 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
   docs.forEach((d) => { if (d.dest) (byDest[d.dest] || (byDest[d.dest] = [])).push(d); });
 
   const misread = [];   /* 🔴 동료와 어긋난다 = 오독 후보 */
+  const unverified = []; /* 검산된 값이 하나도 없어 기준을 못 세운 목적지·항목 */
   const rateGap = [];   /* 🟡 동료끼리는 맞는데 요율표와 어긋난다 = 요율 갱신 후보 */
   const noPeer = [];    /* ⚪ 그 목적지의 첫 견적서 — 이 값이 기준선이 된다 */
   const noDest = [];    /* 목적지를 못 정한 문서 (마지막 그물) */
@@ -121,21 +130,27 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
     const list = byDest[dest];
     const drow = rates.find((x) => x.destination_key === dest);
     Object.keys(FIELD_MAP).forEach((f) => {
-      const vals = list.map((d) => ({ d, v: d.values[f] })).filter((x) => x.v > 0 && isFinite(x.v));
-      if (!vals.length) return;
+      const all = list.map((d) => ({ d, v: d.values[f] })).filter((x) => x.v > 0 && isFinite(x.v));
+      if (!all.length) return;
+      /* **기준을 만드는 데 쓰는 값** — 검산된 것만. 나머지는 셈에서 빼되 개수를 남긴다. */
+      const vals = all.filter((x) => isTrusted(x.d.evidence[f]));
+      const skipped = all.length - vals.length;
+      if (!vals.length) { unverified.push({ dest, field: f, n: skipped }); return; }
       const base = drow ? Number(drow[FIELD_MAP[f]]) : 0;
 
-      if (vals.length === 1) {
+      if (all.length === 1) {
         /* ⚠ **하나뿐이면 그것이 기준이 된다**(대표 지시) — '어긋났다'고 말하지 않는다.
            다만 요율표와 얼마나 다른지는 적어 둔다. 다음 견적서가 오면 둘이 서로 잰다. */
-        const x = vals[0];
+        const x = all[0];
         noPeer.push({ dest, field: f, file: x.d.file, value: x.v, rate: base || null,
           gap: base ? x.v / base - 1 : null, via: (x.d.evidence[f] || {}).via || '?' });
         return;
       }
 
-      /* ① 동료 중앙값과 견준다 — 자기를 뺀다 */
-      vals.forEach((x) => {
+      /* ① 동료 중앙값과 견준다 — 자기를 뺀다.
+         ⚠ **재는 대상은 전부**(검산 안 된 값도 오독일 수 있으니 봐야 한다),
+            **자는 검산된 값만**(기준이 흔들리면 아무것도 못 잰다). */
+      all.forEach((x) => {
         const peers = vals.filter((y) => y !== x).map((y) => y.v);
         if (peers.length < MIN_PEERS) return;
         const med = median(peers);
@@ -154,7 +169,7 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
         const ratio = med > base ? med / base : base / med;
         if (ratio >= RATE_SPREAD) {
           rateGap.push({ dest, field: f, docMedian: med, rate: base, ratio, high: med > base,
-            n: vals.length, gap: med / base - 1 });
+            n: vals.length, skipped, gap: med / base - 1 });
         }
       }
     });
@@ -206,7 +221,8 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
     console.log('─'.repeat(88));
     rateGap.forEach((x) => console.log(
       x.dest.padEnd(10) + x.field.padEnd(9) + Math.round(x.docMedian).toLocaleString().padStart(13) + '  ' +
-      x.rate.toLocaleString().padStart(13) + '  ' + pct(x.gap).padStart(7) + '   ' + x.n + '건'));
+      x.rate.toLocaleString().padStart(13) + '  ' + pct(x.gap).padStart(7) + '   ' + x.n + '건' +
+      (x.skipped ? '  (검산 안 된 ' + x.skipped + '건 제외)' : '')));
     console.log('─'.repeat(88));
   }
 
@@ -227,6 +243,12 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
         '      ' + x.field.padEnd(9) + x.value.toLocaleString().padStart(12) +
         '  vs 요율표 ' + x.rate.toLocaleString().padStart(10) + '  ' + pct(x.gap).padStart(7)));
     });
+  }
+
+  if (unverified.length) {
+    console.log('\n⚪ 검산된 값이 하나도 없어 기준을 못 세운 ' + unverified.length + '개');
+    console.log('   (전부 「검산 안 됨」이라 요율을 논할 수 없다 — 담당자가 화면에서 확인해야 채워진다.)');
+    unverified.forEach((x) => console.log('  ' + x.dest.padEnd(10) + x.field.padEnd(9) + x.n + '건 전부 검산 안 됨'));
   }
 
   if (noDest.length) {
