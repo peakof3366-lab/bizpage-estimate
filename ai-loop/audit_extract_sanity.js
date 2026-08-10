@@ -57,30 +57,24 @@ const FIELD_MAP = {
   meal: 'meal_per_person', vehicle: 'vehicle_large', guide: 'guide_fee',
   sight: 'sightseeing_fee',
 };
-/* 동료들과 이 배수 넘게 벌어지면 오독 후보. 같은 지역·같은 항목이라도 성수기·등급으로
-   2배까지는 실제로 벌어지므로 그보다 넉넉히 잡는다. */
-const PEER_SPREAD = 2.5;
-/* 요율표와 이 배수 넘게 벌어지면 요율 갱신 후보. 요율표는 '기준가'라 실제 견적이
-   1.5배쯤 되는 것은 흔하다 — 그보다 확실히 벌어질 때만 말한다. */
-const RATE_SPREAD = 2.5;
-/* 동료가 최소 둘은 있어야 중앙값이 뜻을 갖는다(둘이 다르면 누가 이상한지 알 수 없다) */
-const MIN_PEERS = 2;
+/* ⚠ **잣대는 `plausibility.js` 한 곳에서 온다**(SO). 화면(admin.html)도 같은 파일을 읽는다 —
+   여기에 배수를 다시 적으면 담당자가 화면에서 본 판정과 이 표가 서로 다른 말을 하게 된다
+   (결함 생성기 ①, limits.js가 만들어진 이유와 같다). */
+const P = require(path.join(ROOT, 'plausibility.js'));
+const PEER_SPREAD = P.PEER_SPREAD;
+const RATE_SPREAD = P.RATE_SPREAD;
+const MIN_PEERS = P.MIN_PEERS;
 /* ⚠ **검산 안 된 값으로 요율을 논하지 않는다**(SN). 화면은 그런 값에 「검산 안 됨」 배지를
    붙여 사람에게 확인을 요청하는데, 감사기가 그걸 무시하고 집계하면 **화면과 감사기가
    서로 다른 말을 한다.** 실측(카자흐스탄 가이드 +352%): 한 문서의 「$1,100 1 1 **전일정**」이
    전 일정 총액인데 일당 자리에 들어가 1,606,000이 됐고, 그것이 중앙값을 끌어올렸다.
    같은 목적지의 검산된 값은 345,000(요율표 216,000 대비 +60%)이다 — 전혀 다른 결론이다.
    그래서 **기준을 만들 때는 검산된 값만** 쓴다. 뺀 개수는 항상 밝힌다(조용히 빼지 않는다). */
-const TRUSTED_VIA = ['rule', 'calc', 'doc'];
-const isTrusted = (ev) => TRUSTED_VIA.indexOf((ev && ev.via) || '') >= 0;
+const isTrusted = (ev) => P.isTrusted(ev && ev.via);
 /* 목적지를 못 정한 문서에만 쓰는 마지막 그물 — 전 목적지 분포를 이만큼 벌린다 */
 const WIDEN = 4;
 
-const median = (arr) => {
-  const s = arr.slice().sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-};
+const median = P.median;
 const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
 
 (async () => {

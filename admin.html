@@ -12,6 +12,9 @@
        서버 검증과 매뉴얼도 같은 파일을 읽는다 — 예전엔 화면이 "6자 이상"이라고
        안내하는 동안 서버는 8자를 요구했다(QO 주석 참고). -->
   <script src="limits.js"></script>
+  <!-- 추출값 타당성 판정 — 감사기(ai-loop)와 **같은 잣대**를 쓴다(SO). 화면에 규칙을
+       다시 적으면 반드시 어긋난다(결함 생성기 ①) — limits.js와 같은 이유다. -->
+  <script src="plausibility.js"></script>
   <!-- 방식 A·B를 비워 뒀을 때 **고객 화면이 실제로 채우는 문구** (RJ).
        미리보기가 이 값을 그대로 보여준다 — 빈 칸을 빈 칸으로 그리면 "아무것도
        안 나간다"고 읽히는데 실제로는 이 문구가 나간다. script.js도 같은 파일을 읽는다. -->
@@ -292,6 +295,10 @@
     .pr-ev.via-unchecked,
     .pr-ev.via-fallback { border-left-color: #E0A100; }  /* 사람이 꼭 봐야 한다 */
     .pr-ev.via-none { border-left-color: #C8102E; }
+    /* 타당성 확인 대상 — 출처(via) 색을 덮어쓴다. 「값은 제대로 읽었는데 금액이
+       그 지역 기준과 크게 다르다」는 뜻이라 출처보다 먼저 눈에 들어와야 한다(SO). */
+    .pr-ev.via-check { border-left-color: #E0A100; border-left-width: 4px; }
+    .pr-ev-plaus { color: #8A6100; font-weight: 600; }
     .pr-ev.via-manual { border-left-color: #6A1B9A; }
     /* 출처 배지 — 라벨 줄 오른쪽에 붙는다 */
     .pr-badge {
@@ -5263,6 +5270,35 @@
     { key: 'sell', input: 'pr-sell', label: '최종 판매가' },
   ];
 
+  /* 추출된 한 칸이 그 목적지 기준과 견줘 타당한가 (SO).
+     ⚠ 잣대·문구는 전부 `plausibility.js`에서 온다 — 여기서 다시 정하지 않는다.
+     ⚠ 기존 실측은 **검산된 것만** 기준이 된다(plausibility.isTrusted). 제보 테이블에는
+        신뢰도가 없지만, 제보는 담당자가 화면에서 확인하고 저장한 값이라 신뢰한다.
+     ⚠ 요율 항목 이름과 추출 항목 이름이 다르다 — REPORT_VALUE_KEY의 역방향이다. */
+  const PLAUS_RATE_FIELD = {
+    airfare: 'airfare', fuel: 'fuel_surcharge', hotel: 'hotel_per_room',
+    meal: 'meal_per_person', vehicle: 'vehicle_large', guide: 'guide_fee',
+    sight: 'sightseeing_fee',
+  };
+  function judgePdfValue(key, rawValue, ev) {
+    if (typeof PLAUSIBILITY === 'undefined') return null;   /* 파일을 못 불러왔으면 조용히 넘어간다 */
+    const rateField = PLAUS_RATE_FIELD[key];
+    if (!rateField) return null;                            /* sell은 요율 항목이 아니다 */
+    const v = Number(String(rawValue || '').replace(/[^\d.-]/g, ''));
+    if (!(v > 0)) return null;
+    const destKey = (document.getElementById('pr-dest') || {}).value || '';
+    if (!destKey) return null;                              /* 목적지를 아직 안 골랐다 */
+    const dest = (typeof destinationRates !== 'undefined')
+      ? destinationRates.find((d) => d.destination_key === destKey) : null;
+    const base = dest ? (effectiveRate(dest) || {})[rateField] : 0;
+    /* 같은 목적지의 기존 실측 — **오늘 환율 기준으로 되돌려서** 견준다(SG) */
+    const peers = (priceReportsCache || [])
+      .filter((r) => r.destinationKey === destKey)
+      .map((r) => reportValueToday(r, rateField))
+      .filter((n) => n > 0);
+    return PLAUSIBILITY.judge(v, peers, base);
+  }
+
   /* 값의 출처를 한 낱말로 (RZ 후속) — 담당자가 **어느 칸을 확인해야 하는지**를
      칸마다 보게 한다. 배지가 없으면 9칸이 전부 똑같아 보여서, 결국 아무것도 확인 안 하거나
      전부 다시 대조하게 된다. */
@@ -5536,6 +5572,15 @@
       box.id = 'pr-ev-' + f.key;
 
       const ev = (data.evidence || {})[f.key];
+      /* ── 타당성 검토 (SO) — **올리는 견적서마다** 그 자리에서 한다 ──────────
+         감사기(ai-loop/audit_extract_sanity.js)는 코퍼스를 한 번에 훑는 개발 도구라
+         담당자가 한 장 올릴 때는 아무 판정도 하지 않았다. 사장님 지시로 화면에서도
+         같이 돈다. ⚠ 잣대는 `plausibility.js` **한 곳**에서 온다(감사기와 같은 파일).
+         ⚠ 기준은 **그 목적지 것**만 쓴다 — 지역을 섞으면 비싼 지역이 통째로 이상값이 된다.
+         ⚠ 기존 실측은 **오늘 환율로 되돌려서** 견준다(SG) — 안 그러면 환율 차이가
+            그대로 '이상하다'로 둔갑한다. */
+      const plaus = judgePdfValue(f.key, input.value, ev);
+      if (plaus && plaus.level === 'check') box.classList.add('via-check');
       /* 환산된 칸이면 그 환율과 **추출 당시의 값**을 함께 기억한다(SG) */
       if (ev && ev.fx && ev.fx.currency && ev.fx.rate > 0) {
         PR_FX_BY_FIELD[f.key] = { currency: ev.fx.currency, rate: ev.fx.rate, value: input.value };
@@ -5576,6 +5621,13 @@
         note.className = 'pr-ev-note';
         note.textContent = '⚠ ' + ev.note;
         box.appendChild(note);
+      }
+      /* 타당성 한 줄 — 문구는 plausibility.js가 만든다(화면마다 다시 짓지 않는다) */
+      if (plaus && plaus.level === 'check') {
+        const warn = document.createElement('div');
+        warn.className = 'pr-ev-note pr-ev-plaus';
+        warn.textContent = '🔍 ' + PLAUSIBILITY.describe(plaus, f.label);
+        box.appendChild(warn);
       }
       /* 값을 바꿀 때마다 배지와 근거를 함께 갱신하는 도우미 —
          화면에는 '견적서'라고 적혀 있는데 값은 사람이 바꾼 것, 같은 상태를 막는다. */

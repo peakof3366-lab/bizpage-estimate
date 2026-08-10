@@ -169,7 +169,14 @@ console.log('\n[5] 감사기가 README에 등록돼 있는가');
      감사기가 서로 다른 말을 한다. 실측: 카자흐스탄 가이드가 「$1,100 1 1 전일정」
      (전 일정 총액)을 일당으로 세어 요율표 대비 **+352%**로 나왔다. 검산된 값만 쓰면
      345,000(+60%)이다 — 전혀 다른 결론이다. */
-  ok('기준을 만들 때 검산된 값만 쓴다', /const TRUSTED_VIA = \['rule', 'calc', 'doc'\]/.test(aud));
+  /* ⚠ **잣대는 `plausibility.js` 한 곳**에 있어야 한다(SO) — 화면과 감사기가 같은 파일을
+     읽어야 담당자가 화면에서 본 판정과 감사표가 같은 말을 한다(결함 생성기 ①). */
+  const PL = require(path.join(__dirname, '..', 'plausibility.js'));
+  ok('잣대가 공용 파일에 있다', PL.PEER_SPREAD > 1 && PL.RATE_SPREAD > 1 && PL.MIN_PEERS >= 2);
+  ok('감사기가 그 파일을 쓴다', /require\(path\.join\(ROOT, 'plausibility\.js'\)\)/.test(aud));
+  ok('감사기 안에 배수를 다시 적지 않았다', !/PEER_SPREAD = [\d.]/.test(aud));
+  ok('기준을 만들 때 검산된 값만 쓴다',
+    PL.isTrusted('rule') && PL.isTrusted('calc') && !PL.isTrusted('unchecked') && !PL.isTrusted('ai'));
   ok('검산 안 된 값을 빼되 개수를 밝힌다', /skipped/.test(aud) && /검산 안 된 '/.test(aud));
   ok('검산된 값이 하나도 없으면 요율을 논하지 않는다', /unverified\.push/.test(aud));
   /* 재는 대상은 전부여야 한다 — 검산 안 된 값도 오독일 수 있으니 🔴에서는 봐야 한다 */
@@ -181,6 +188,18 @@ console.log('\n[5] 감사기가 README에 등록돼 있는가');
   ok('자동 적용은 여전히 5건 이상만', /RATE_SUGGEST_CONFIDENT_COUNT = 5/.test(html));
   ok('1건일 때 「첫 실측」이라고 밝힌다', /이 목적지의 첫 실측/.test(html));
   ok('제안 집계가 목적지별로 묶인다', /\$\{r\.destinationKey\}\|\$\{field\}/.test(html));
+  /* ── SO: **올리는 견적서마다** 화면에서도 타당성을 본다 ──────────────────
+     ⚠ 감사기는 코퍼스를 한 번에 훑는 개발 도구라, 담당자가 한 장 올릴 때는 아무 판정도
+       하지 않았다. 화면에 붙이지 않으면 「자를 만들어 놓고 아무도 안 쓰는」 상태다
+       (결함 생성기 ③). */
+  ok('화면이 공용 잣대를 불러온다', /<script src="plausibility\.js"><\/script>/.test(html));
+  ok('추출한 칸마다 타당성을 잰다', /judgePdfValue\(f\.key, input\.value, ev\)/.test(html));
+  ok('기준을 그 목적지 것으로만 만든다',
+    /r\.destinationKey === destKey/.test(html) && /effectiveRate\(dest\)/.test(html));
+  ok('기존 실측을 오늘 환율로 되돌려 견준다', /reportValueToday\(r, rateField\)/.test(html));
+  ok('확인 대상이면 그 자리에 이유를 적는다',
+    /PLAUSIBILITY\.describe\(plaus, f\.label\)/.test(html));
+  ok('확인 대상 색 띠가 정의돼 있다', /\.pr-ev\.via-check/.test(html));
 }
 
 /* ⚠ 이 요약 줄의 형식은 run_all_tests.js가 정규식으로 읽는다(「결과: N pass / M fail」). */

@@ -12,6 +12,8 @@
 # ⚠ 여기에 추가할 때는 런타임에 필요한 파일을 빼지 않도록 주의할 것.
 #   필요: index.html·admin.html·admin-quote.html·estimate-view.html·styles.css·script.js
 #         data.js·dest_currency.js·company-info.js (브라우저가 직접 로드)
+#         limits.js·plausibility.js (admin.html이 <script src>로 읽는 단일 출처 파일들 —
+#                  빼면 화면이 조용히 판정 없이 돌아간다)
 #         이미지/ ← 폴더 이름이 한글이다. 'images/'가 아니다(예전 주석이 그렇게 적혀
 #                  있었는데, 그 이름으로 규칙을 쓰면 아무것도 안 걸러 조용히 통과한다)
 #         api/** (서버리스 함수 — api/rates.js가 ../data와 ../dest_currency를 require한다)
