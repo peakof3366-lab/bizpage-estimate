@@ -175,6 +175,13 @@ function numbersIn(s) {
 
 const isMoneyish = (s) => /^[\d,]+$/.test(String(s).trim().replace(/[₩원]/g, ''));
 
+/* 견적서의 **요약 줄** — 항목이 아니라 총계·1인당을 풀어 쓴 줄이다.
+   ⚠ '소계'는 여기 넣지 않는다. 소계 줄은 숫자가 둘뿐이라 어차피 단가 줄이 안 되고,
+      L3.5가 **묶음 경계**로 쓰고 있다(빼면 구분 열 상속이 통째로 죽는다).
+   ⚠ '1인'만으로 거르면 안 된다 — 「가이드 1인」·「기사 1인」 같은 진짜 항목 줄이 걸린다.
+      실제 요약 줄의 모양(성인/아동 (1인), N인 요금, 1인당)만 좁혀서 적는다. */
+const SUMMARY_LINE_RE = /총\s*견\s*적\s*가|총\s*금\s*액|합\s*계\s*요금|합\s*계\s*금액|1\s*인\s*당|1\s*인\s*요금|1\s*인\s*상품가|(성인|아동)\s*\(\s*1\s*인\s*\)/;
+
 /* ═══ L2.5 — 통화 판별 ══════════════════════════════════════════════════════
    ⚠ 이것을 안 하면 **10배 틀린 값이 조용히 요율에 들어간다.** 실측에서 발견:
      대림벧엘교회(큐슈) — 표 전체가 엔화다.
@@ -359,6 +366,14 @@ function findUnitRows(lines, fx) {
   };
   const found = [];
   lines.forEach((ln) => {
+    /* ⚠ **요약 줄은 단가 줄이 아니다.** 견적서 머리에는 「성인 (1인) ₩3,020,000 x 10명
+       ₩ 30,200,000」처럼 **총계를 풀어 쓴 줄**이 있는데, 이것이 `3,020,000 × 10 =
+       30,200,000`으로 산술 검산을 그대로 통과한다. 그러면 그 문서의 금액이 **두 번**
+       세어져(실측: 좋은친구 양식 4건이 전부 커버리지 200%), 「뽑은 줄 합계 ≤ 총계」
+       검산이 깨지고 우리가 얼마나 읽었는지도 알 수 없게 된다.
+       ⚠ 게다가 그 줄은 **1인당 금액을 단가 자리에** 들고 있어, 분류만 붙으면 곧바로
+       엉뚱한 항목의 대표 단가가 된다. 처음부터 뺀다. */
+    if (SUMMARY_LINE_RE.test(ln.text)) return;
     const toks = lineNumbers(ln.cells);
     if (toks.length < 3 || toks.length > 14) return;
     const ns = toks.map((t) => t.n);
@@ -656,8 +671,27 @@ function findPax(lines, rows) {
 const PER_PERSON_MIN = 100000;
 const PER_PERSON_MAX = 20000000;
 
-function findTotals(lines, pax, preferGrand) {
-  let grand = preferGrand || null, perPerson = null;
+function findTotals(lines, pax, preferGrand, fx) {
+  let grand = preferGrand || null, perPerson = null, itemsTotal = null;
+  const rates = fx || {};
+  /* 그 줄에 적힌 금액을 **원화로** 읽는다 (SH).
+     ⚠ 총계를 외화로만 적는 양식이 많다(「합계 ¥ 2,557,000」·「합계 $ 16,135」).
+        엔·달러 숫자를 원화로 착각하면 총계가 1/10~1/1500이 되고, 그러면 「뽑은 줄 합계
+        ≤ 총계」 검산이 통째로 뒤집힌다. 환율을 모르면 **읽지 않는다**(추측하지 않는다).
+     ⚠ 통화가 붙지 않은 숫자는 예전대로 원화로 본다 — 원화 전용 양식이 다수다. */
+  /* ⚠ **코드는 금액이 아니다.** 견적서 아래쪽에는 「상품코드 APQ221260609PR9」·
+     「예약코드 QA00664748001」·「견적번호 QJ00666408001」이 있고, 그 줄에 합계가 함께
+     그려져 **한 줄로 합쳐진다**(L1은 같은 높이를 한 줄로 본다). 코드 속 숫자를 금액으로
+     읽으면 총계가 **23억**이 된다(실측: 대림벧엘 보홀 2,322,603,097 — 실제는 1,700만 원대).
+     글자와 숫자가 한 칸에 섞여 있으면 그건 코드다. 통화 표기(원·₩·$·¥·€)는 예외다. */
+  const isCodeCell = (s) => /\d/.test(s) &&
+    /[A-Za-z가-힣]/.test(String(s).replace(/원|₩|¥|￥|\$|€|₫|USD|JPY|EUR|VND|CNY/gi, ''));
+  const wonNumbers = (ln) => lineNumbers(ln.cells.filter((c) => !isCodeCell(String(c.s).trim()))).map((tk) => {
+    if (!tk.cur) return tk.n;
+    const rate = rates[tk.cur];
+    return rate ? tk.n * rate : null;
+  }).filter((n) => n != null);
+
   lines.forEach((ln) => {
     const t = ln.text;
     /* ⚠ '총액'이라는 말이 견적 총액이 아닌 곳에 쓰인다 — 실측에서
@@ -668,9 +702,20 @@ function findTotals(lines, pax, preferGrand) {
        총액으로 잘못 잡으면 그보다 큰 판매가가 "총액보다 크다"는 이유로 버려진다 —
        실제로 그래서 판매가가 비어 있었다. 총액 후보에서 뺀다. */
     if (/총\s*견\s*적\s*가|총\s*금\s*액|총\s*계|합\s*계\s*금액|총액/.test(t)) {
-      const ns = numbersIn(t).filter((n) => n >= 100000);
+      const ns = wonNumbers(ln).filter((n) => n >= 100000);
       /* 블록 경계에서 읽은 총계가 있으면 그걸 믿는다 — 그 줄이 곧 '총 견적가'다 */
       if (ns.length && !preferGrand) { const v = Math.max.apply(null, ns); if (grand == null || v > grand) grand = v; }
+    }
+    /* ⚠ **「합계」와 「총 견적가」는 같은 말이 아니다.** 하나투어·글로벌 원가 시트는
+       항목을 다 더한 줄을 그냥 「합계 ¥ 2,557,000」이라고 적는데, 그건 **원가 합계**이고
+       고객에게 나가는 총 견적가가 아니다(마진이 빠져 있다).
+       처음엔 이것도 `grand`로 받았다가 **1인 판매가가 14건에서 통째로 사라졌다** —
+       「1인당 × 인원 ≈ 총액」 검사가 원가 합계를 기준으로 도니 판매가가 전부 탈락했다.
+       그래서 칸을 나눈다: `grand`는 견적 총액, `itemsTotal`은 항목 합계.
+       ⚠ '소계'는 걸리지 않는다(`합\s*계`는 '소계'에 매칭되지 않는다). */
+    if (/합\s*계/.test(t)) {
+      const ns = wonNumbers(ln).filter((n) => n >= 100000);
+      if (ns.length) { const v = Math.max.apply(null, ns); if (itemsTotal == null || v > itemsTotal) itemsTotal = v; }
     }
     /* '판매가·상품가·객단가'도 1인 기준으로 쓰는 양식이 많다(대림벧엘 큐슈: 판매가 1,251,350).
        ⚠ 총액에 같은 말을 쓰는 양식도 있어, **1인 범위 안이고 총액보다 작을 때만** 받는다. */
@@ -682,7 +727,7 @@ function findTotals(lines, pax, preferGrand) {
   });
   /* 인원을 아는데 1인당 × 인원이 총액과 딴판이면 잘못 집은 것이다 — 버린다(조용히 쓰지 않는다). */
   if (perPerson && grand && pax && Math.abs(perPerson * pax - grand) / grand > 0.25) perPerson = null;
-  return Object.assign({ grand, perPerson }, findDeposit(lines));
+  return Object.assign({ grand, perPerson, itemsTotal }, findDeposit(lines));
 }
 
 /* 「입금가」 = **우리가 랜드사·홀세일러에 내는 1인 원가**다 (SC).
@@ -718,9 +763,9 @@ function findDeposit(lines) {
   return { deposit: uniq[0], depositAll: uniq };
 }
 
-function reconcile(lines, rows, preferGrand) {
+function reconcile(lines, rows, preferGrand, fx) {
   const pax = findPax(lines, rows);
-  const { grand, perPerson, deposit, depositAll } = findTotals(lines, pax, preferGrand);
+  const { grand, perPerson, deposit, depositAll, itemsTotal } = findTotals(lines, pax, preferGrand, fx);
   const checks = [];
   const near = (a, b, tolPct) => a > 0 && b > 0 && Math.abs(a - b) / b <= tolPct;
 
@@ -734,18 +779,22 @@ function reconcile(lines, rows, preferGrand) {
     });
   }
 
-  /* ② 뽑아낸 줄들의 총액 합이 총계를 넘지 않는가 — 넘으면 같은 줄을 두 번 셌다는 뜻 */
-  if (grand && rows.length) {
-    const sum = rows.reduce((n, r) => n + r.total, 0);
+  /* ② 뽑아낸 줄들의 총액 합이 총계를 넘지 않는가 — 넘으면 같은 줄을 두 번 셌다는 뜻.
+     ⚠ 견적 총액이 없으면 **항목 합계**로 잰다(SH) — 원가 시트는 「합계」만 적는 양식이
+     많아서, 견적 총액만 보면 46건 중 27건에서 이 검산이 아예 돌지 않았다.
+     ⚠ 외화 줄은 환산되지 못했으면 원화가 아니다 — 합에서 뺀다(자릿수가 뒤섞인다). */
+  const scale = grand || itemsTotal;
+  if (scale && rows.length) {
+    const sum = rows.filter((r) => !r.unconvertible).reduce((n, r) => n + r.total, 0);
     checks.push({
       name: '뽑은 줄 합계 ≤ 총계',
-      ok: sum <= grand * 1.02,
-      detail: `${sum.toLocaleString()} vs 총계 ${grand.toLocaleString()}`,
+      ok: sum <= scale * 1.02,
+      detail: `${sum.toLocaleString()} vs ${grand ? '총계' : '항목 합계'} ${scale.toLocaleString()}`,
     });
   }
 
   const done = checks.filter((c) => c.ok).length;
-  return { pax, grand, perPerson, deposit, depositAll, checks, passed: done, total: checks.length };
+  return { pax, grand, perPerson, deposit, depositAll, itemsTotal, checks, passed: done, total: checks.length };
 }
 
 /* ═══ L4b — 날짜 (견적 작성일 · 출발일) ════════════════════════════════════
@@ -1208,7 +1257,7 @@ function readOneBlock(lines, fx, blockTotal) {
       categoryFrom: !category ? null : own ? 'label' : (fromGroup === category ? 'group' : 'note'),
     });
   });
-  const rec = reconcile(lines, rows, blockTotal || null);
+  const rec = reconcile(lines, rows, blockTotal || null, fx);
   const kind = triage(lines, rows, rows);
   const dates = findDates(lines);   /* 블록마다 따로 읽는다 — 출발일이 서로 다를 수 있다 */
   const pax = rec.pax;
@@ -1252,6 +1301,8 @@ function readOneBlock(lines, fx, blockTotal) {
     /* 구분 열을 읽었는가 — 못 읽었으면 **왜 못 읽었는지**를 남긴다(감사기가 센다) */
     groupColumn: { used: !!grp.byLine, groups: grp.groups || 0, ambiguous: grp.ambiguous || 0, why: grp.why || '' },
     pax, grandTotal: rec.grand, perPerson: rec.perPerson,
+    /* 항목을 다 더한 줄(「합계」) — 견적 총액과 다르다(SH). 커버리지 측정의 분모다. */
+    itemsTotal: rec.itemsTotal || null,
     /* 우리 1인 원가 — 원가 시트에만 있다. 판매가(perPerson)와 섞지 말 것 (SC) */
     depositPerPerson: rec.deposit, depositCandidates: rec.depositAll || [],
     dates,
