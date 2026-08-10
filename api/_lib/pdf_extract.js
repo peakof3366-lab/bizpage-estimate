@@ -357,7 +357,14 @@ function lineNumbers(cells) {
   return out;
 }
 
-function findUnitRows(lines, fx) {
+/* cutX — 좌우로 나란한 두 표의 **경계 x**(SL 후속). 주어지면 한 조합의 숫자가 그 선을
+   넘나들지 못하게 한다.
+   ⚠ 이 선은 **짐작이 아니라 그 문서에서 찾아낸 것**이다. 1차로 줄을 뽑아 총액 칸의 x가
+      두 무리로 갈리는지 보고(splitSideTables), 갈렸으면 그 경계로 2차를 돌린다.
+   ⚠ 「숫자 사이 간격이 넓으면 다른 표」로는 못 가른다 — 실측해 보니 **정상 조합의
+      단가↔총액 거리가 중앙값 104pt**로, 표 사이 틈(90~99pt)보다 오히려 넓다.
+      한 줄 안의 간격만 보고는 절대 구분되지 않는다. */
+function findUnitRows(lines, fx, cutX) {
   const rates = fx || {};
   /* 총금액 하한 — 날짜·인원·전화번호가 우연히 곱셈으로 맞는 것을 걸러낸다.
      ⚠ 외화 줄은 자릿수가 작다(¥2,000 = 19,000원). 원화 기준으로 재야 한다.
@@ -384,6 +391,18 @@ function findUnitRows(lines, fx) {
     /* 단가와 총금액이 **같은 통화**여야 그 줄의 통화로 인정한다. 둘 중 하나만 기호가
        붙어 있으면 그 기호를 따른다(양식에 따라 합계에만 기호를 찍는 곳이 있다). */
     const push = (a, b, c, d) => {
+      /* ⚠ **한 조합의 숫자는 같은 표에서 나와야 한다.** 실측(글로벌 웰스 푸꾸옥):
+           「호텔 풀만 트윈 $150 3 55 $24,750 … 호텔 풀만 트윈 $150 1 3 $450 선발대 3」
+         왼쪽은 본 행사(55룸 3박), 오른쪽은 **선발대 3명**이다. 그런데 오른쪽 총액 450과
+         왼쪽 수량 55가 묶여 `450 × 55 = 24,750`이 성립했고, **1박 단가 자리에 3박 총액**이
+         들어가 객실 단가가 643,500원이 됐다(동료 견적서들은 214,825원).
+         ⚠ 줄 단위 가르기만으로는 못 막는다 — 그건 완성된 조합이 어느 표에 속하는지만 보는데,
+           이 사고는 **조합이 만들어지는 순간** 일어난다. */
+      if (cutX != null) {
+        const side = (i) => (toks[i].x < cutX ? 0 : 1);
+        const s0 = side(a);
+        if (side(b) !== s0 || side(d) !== s0 || (c != null && side(c) !== s0)) return;
+      }
       const cur = toks[a].cur || toks[d].cur || null;
       found.push({
         lineIdx: ln.idx, page: ln.page, line: ln.text, label, note,
@@ -1318,7 +1337,12 @@ function applyFx(rows, fx) {
 
 /* ═══ 견적 한 장을 읽는다 ══════════════════════════════════════════════════ */
 function readOneBlock(lines, fx, blockTotal) {
-  const sided = splitSideTables(applyFx(findUnitRows(lines, fx), fx || {}));
+  /* 1차로 뽑아 좌우 두 표인지 본다. 갈렸으면 **그 경계로 다시 뽑는다** — 조합이 두 표에
+     걸쳐 만들어지는 것을 그때서야 막을 수 있다(경계를 알아야 막을 수 있기 때문이다). */
+  const first = splitSideTables(applyFx(findUnitRows(lines, fx), fx || {}));
+  const sided = first.info
+    ? splitSideTables(applyFx(findUnitRows(lines, fx, first.info.cutX), fx || {}))
+    : first;
   const rawRows = sided.rows;
   /* 분류 우선순위 — **자기 라벨 → 구분 열 → 비고** (L3.5 머리말에 이유가 있다).
      비고가 구분 열보다 뒤인 것이 핵심이다: 비고에는 옆 표에서 흘러든 글자가 섞인다. */
