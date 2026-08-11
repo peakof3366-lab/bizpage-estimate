@@ -300,6 +300,10 @@
     .pr-ev.via-check { border-left-color: #E0A100; border-left-width: 4px; }
     .pr-ev-plaus { color: #8A6100; font-weight: 600; }
     .pr-ev.via-manual { border-left-color: #6A1B9A; }
+    /* SW: 담당자가 견적서를 보고 **직접 확정**한 칸 — 추출값보다 믿을 수 있다는 뜻이라
+       초록 계열로 둔다(via-rule과 같은 무게). 되돌리기 줄은 흐리게. */
+    .pr-ev.via-confirmed { border-left-color: #1B5E20; border-left-width: 4px; }
+    .pr-ev-revert { color: #5F6B7A; font-weight: 600; }
     /* 출처 배지 — 라벨 줄 오른쪽에 붙는다 */
     .pr-badge {
       float: right; font-size: .64rem; font-weight: 800; letter-spacing: 0;
@@ -5257,8 +5261,10 @@
     const pdfBlock = document.getElementById('pr-pdf-block');
     if (pdfBlock) pdfBlock.classList.toggle('hidden', !isPdf);
     const fieldsLabel = document.getElementById('pr-fields-label');
+    /* ⚠ SW: 「후보에서 고르세요」만 적혀 있어서 담당자가 **직접 쳐도 된다는 것을 몰랐다.**
+       실무자가 올리는 자리라 이 한 줄이 곧 사용법이다. */
     if (fieldsLabel) fieldsLabel.textContent = isPdf
-      ? 'PDF에서 추출된 값 — 근거를 대조하고, 틀렸으면 아래 후보에서 고르세요'
+      ? 'PDF에서 추출된 값 — 근거를 대조하세요. 틀렸으면 후보에서 고르거나 칸에 직접 넣으면 됩니다(「담당자 확정 ✓」로 바뀝니다)'
       : '직접 입력할 값 (아는 항목만)';
     /* PDF 모드면 가격 필드를 잠근다(직접 수정 불가) — 값은 extractPdfDetails가 채움 */
     PR_FIELD_IDS.forEach(id => {
@@ -5358,7 +5364,10 @@
     ai: { text: 'AI 추정', title: '규칙이 못 채워 AI가 골랐습니다 — 꼭 확인해 주세요' },
     fallback: { text: '예비 경로', title: '표 좌표를 못 읽어 예전 방식으로 물러났습니다 — 꼭 확인해 주세요' },
     none: { text: '못 찾음', title: '이 항목을 찾지 못했습니다 — 후보에서 고르거나 직접 넣어 주세요' },
-    manual: { text: '직접 고침', title: '담당자가 직접 고른 값입니다' },
+    manual: { text: '직접 고침', title: '담당자가 후보에서 고른 값입니다' },
+    /* SW: 담당자가 견적서를 보면서 **직접 넣은** 값 — 추출값보다 믿을 수 있고,
+       「검산 안 됨」·타당성 경고를 닫는다(다시 묻지 않는다). */
+    confirmed: { text: '담당자 확정 ✓', title: '담당자가 견적서를 보고 직접 확정한 값입니다 — 추출값이 아닙니다' },
   };
 
   function setFieldBadge(inputId, via) {
@@ -5383,10 +5392,26 @@
      실측으로 중앙값 5.1%, 최대 12.1%였다. 값은 고치지 않고 **되돌릴 수단**을 함께 보낸다.
      ⚠ 담당자가 칸을 직접 고쳐 쓰면 그 값은 더 이상 환산값이 아니다. 그래서 추출 당시의
      값을 함께 기억해 두고, **바뀌지 않은 칸만** 되돌릴 대상으로 보낸다. */
+  /* ── SW: 담당자가 그 자리에서 확정한 칸 ─────────────────────────────────────
+     2026-08-11 대표 방침 — **앞으로 실무자가 직접 견적서를 올린다.** 그러면 오류를
+     사장님이 뒤에서 잡는 게 아니라, **문서를 손에 든 사람이 그 자리에서 확정**해야 한다.
+
+     ⚠ 칸은 예전부터 편집 가능했는데(RN에서 잠갔다가 품) **입력을 듣는 곳이 없었다.**
+       그래서 담당자가 숫자를 그냥 치면:
+         · 배지가 「견적서」로 남아 다음 사람이 AI가 읽은 값으로 믿고
+         · 근거 줄이 옛 계산식을 그대로 보여주며(화면이 거짓말을 한다)
+         · 타당성 검토(SO)가 새 값에 안 돌아 오타 방어가 사라졌다.
+       후보 목록으로 고를 때만 막히고 **타이핑은 안 막혔다.** 실무자에게 넘기기 전에
+       반드시 닫아야 하는 구멍이다.
+     ⚠ 확정한 칸은 **다시 묻지 않는다** — 「검산 안 됨」·타당성 경고를 닫는다.
+       그래야 실무자가 확정한 것을 사장님이 또 확인하지 않는다.
+       다만 **닫기 전에 한 번은 보여준다**(오타를 확정으로 굳히지 않게). */
+  let PR_MANUAL_FIELDS = {};   /* { key: { how } } — 무엇을 어떻게 정했는지 */
   let PR_FX_BY_FIELD = {};
 
   function clearPdfEvidence() {
     PR_FX_BY_FIELD = {};
+    PR_MANUAL_FIELDS = {};
     document.querySelectorAll('.detail-label .pr-badge').forEach((b) => b.remove());
     PR_EVIDENCE_FIELDS.forEach((f) => {
       const box = document.getElementById('pr-ev-' + f.key);
@@ -5852,6 +5877,107 @@
         wrap.appendChild(btn);
         box.appendChild(wrap);
       }
+      /* ── SW: 담당자가 **직접 타이핑**해도 화면이 따라온다 ─────────────────
+         ⚠ 예전에는 후보 목록으로 고를 때만 배지가 바뀌었다. 숫자를 그냥 치면 화면은
+           「견적서」라고 적힌 채 옛 계산식을 계속 보여줬다 — 화면이 거짓말을 하는 상태다.
+         ⚠ **타당성 검토를 새 값으로 다시 돌린다.** 안 그러면 오타(4,200,000)를 잡던
+           방어가 담당자가 손댄 순간 사라진다. */
+      /* ⚠ 원래값은 **추출 결과**에서 읽는다. 입력칸에서 읽으면 그리는 순서에 따라
+         비어 있을 수 있고, 그러면 되돌리기가 조용히 사라진다(테스트에서 실제로 걸렸다). */
+      const origValue = (data.values && data.values[f.key] != null)
+        ? String(data.values[f.key]) : String(input.value || '');
+      const confirmField = (how) => {
+        PR_MANUAL_FIELDS[f.key] = { how: how || '담당자가 직접 넣은 값' };
+        box.className = 'pr-ev via-confirmed';
+        box.id = 'pr-ev-' + f.key;
+        setFieldBadge(f.input, 'confirmed');
+        src.textContent = how || '담당자가 견적서를 보고 직접 넣은 값입니다';
+        /* ⚠ **옛 계산식을 반드시 지운다.** 안 지우면 값은 담당자 것인데 근거는 추출값의
+           식이 남아 화면이 거짓말을 한다 — 이 커밋이 없애려던 바로 그 상태다. */
+        const oldCalc = box.querySelector('.pr-ev-calc');
+        if (oldCalc) oldCalc.remove();
+        const oldNote = box.querySelector('.pr-ev-note:not(.pr-ev-plaus):not(.pr-ev-revert)');
+        if (oldNote && /^⚠/.test(oldNote.textContent)) oldNote.remove();
+        /* 원래 추출값을 남긴다 — 되돌릴 수 있어야 손대는 것이 무섭지 않다 */
+        let back = box.querySelector('.pr-ev-revert');
+        if (!back && origValue !== '') {
+          back = document.createElement('div');
+          back.className = 'pr-ev-note pr-ev-revert';
+          const t = document.createElement('span');
+          t.textContent = `추출값은 ${Number(origValue).toLocaleString()}원이었습니다 · `;
+          const a = document.createElement('button');
+          a.type = 'button'; a.className = 'btn-detail';
+          a.style.cssText = 'padding:.05rem .35rem;font-size:.7rem';
+          a.textContent = '되돌리기';
+          a.addEventListener('click', () => { input.value = origValue; renderPdfEvidence(data); });
+          back.appendChild(t); back.appendChild(a);
+          box.appendChild(back);
+        }
+        /* 확정한 값도 **한 번은** 타당성을 본다 — 오타를 확정으로 굳히지 않게 */
+        const old = box.querySelector('.pr-ev-plaus');
+        if (old) old.remove();
+        const re = judgePdfValue(f.key, input.value, ev);
+        if (re && re.level === 'check') {
+          const w = document.createElement('div');
+          w.className = 'pr-ev-note pr-ev-plaus';
+          w.textContent = '🔍 ' + PLAUSIBILITY.describe(re, f.label) + ' (확정하신 값입니다 — 맞으면 그대로 두세요)';
+          box.appendChild(w);
+        }
+      };
+      /* 값이 실제로 **달라졌을 때만** 확정으로 본다 — 칸을 눌렀다 뗀 것은 확정이 아니다.
+         ⚠ **칸을 비운 것도 확정이 아니다.** 지운 칸에 「담당자 확정 ✓」이 붙으면
+           없는 값에 근거가 달린다. 확정 기록도 함께 지운다.
+         ⚠ 숫자로 견준다 — 「700000」과 「0700000」이 다른 값으로 잡히면 안 된다. */
+      input.addEventListener('change', () => {
+        if (String(input.value).trim() === '') { delete PR_MANUAL_FIELDS[f.key]; return; }
+        if (origValue !== '' && Number(input.value) === Number(origValue)) return;
+        confirmField();
+      });
+
+      /* ── SW: 식비·관광비 계산 도우미 ─────────────────────────────────────
+         이 둘은 「1인 1일」·「1인 전 일정」 값인데 **견적서에는 총액만 있다.**
+         화면이 `총액 ÷ 인원 ÷ 일수` 식을 보여주기만 해서, 담당자가 일수가 틀린 것을
+         알아채도 **암산해서 결과만** 쳐야 했다. 세 칸을 열어 준다 —
+         추출값으로 미리 채워 두므로 보통 **일수 한 칸만** 고치면 된다. */
+      if ((f.key === 'meal' || f.key === 'sight') && ev) {
+        const helper = document.createElement('div');
+        helper.className = 'pr-ev-note';
+        helper.style.cssText = 'display:flex;gap:.3rem;align-items:center;flex-wrap:wrap;margin-top:.25rem';
+        const num = (ph, val) => {
+          const i = document.createElement('input');
+          i.type = 'number'; i.className = 'pw-input'; i.placeholder = ph;
+          i.style.cssText = 'max-width:96px;padding:.15rem .3rem;font-size:.72rem';
+          if (val != null) i.value = String(val);
+          return i;
+        };
+        const total = num('총액', null);
+        const pax = num('인원', data.pax || null);
+        const days = num('일수', f.key === 'meal' ? (ev.dayCount || null) : null);
+        const lab = document.createElement('span');
+        lab.style.cssText = 'font-size:.71rem;font-weight:700';
+        lab.textContent = f.key === 'meal' ? '계산: 총액 ÷ 인원 ÷ 일수 =' : '계산: 총액 ÷ 인원 =';
+        const go = document.createElement('button');
+        go.type = 'button'; go.className = 'btn-act btn-outline-p';
+        go.style.cssText = 'padding:.12rem .45rem;font-size:.72rem';
+        go.textContent = '넣기';
+        go.addEventListener('click', () => {
+          const t = Number(total.value); const p = Number(pax.value);
+          const d = f.key === 'meal' ? Number(days.value) : 1;
+          if (!(t > 0) || !(p > 0) || !(d > 0)) { alert('총액·인원' + (f.key === 'meal' ? '·일수' : '') + '을 넣어 주세요.'); return; }
+          const v = Math.round(t / p / d);
+          input.value = String(v);
+          /* **어떻게 나온 값인지 그대로 저장한다** — 비워 두면 나중에 근거를 잃는다 */
+          confirmField(f.key === 'meal'
+            ? `담당자 계산 · 총액 ${t.toLocaleString()} ÷ 인원 ${p} ÷ ${d}일 = ${v.toLocaleString()} (1인 1일)`
+            : `담당자 계산 · 총액 ${t.toLocaleString()} ÷ 인원 ${p} = ${v.toLocaleString()} (1인당 전 일정)`);
+        });
+        helper.appendChild(lab); helper.appendChild(total);
+        helper.appendChild(pax);
+        if (f.key === 'meal') helper.appendChild(days);
+        helper.appendChild(go);
+        box.appendChild(helper);
+      }
+
       /* 값을 바꿀 때마다 배지와 근거를 함께 갱신하는 도우미 —
          화면에는 '견적서'라고 적혀 있는데 값은 사람이 바꾼 것, 같은 상태를 막는다. */
       const showManual = (title, calcText) => {
@@ -6241,12 +6367,21 @@
           departDate: (document.getElementById('pr-depart') || {}).value || null,
           quoteDate: (document.getElementById('pr-quote-date') || {}).value || null,
           nights: (document.getElementById('pr-nights') || {}).value || null,
+          /* SW: **어느 칸을 담당자가 확정했는가.** 값이 비어 있는 칸은 뺀다 —
+             고쳤다가 지운 칸을 '확정'으로 보내면 없는 값에 근거가 붙는다. */
+          manualFields: Object.keys(PR_MANUAL_FIELDS).reduce((o, k) => {
+            const fld = PR_EVIDENCE_FIELDS.find((x) => x.key === k);
+            const el = fld && document.getElementById(fld.input);
+            if (el && el.value !== '') o[k] = PR_MANUAL_FIELDS[k];
+            return o;
+          }, {}),
         }, fxPayload, Object.keys(extra).reduce((o, k) => { o[k] = extra[k].value; return o; }, {}))),
       });
       const data = await res.json();
       if (!res.ok) { msg.style.color = 'var(--danger)'; msg.textContent = '제출 실패: ' + (data.error || ''); return; }
       msg.style.color = 'var(--success)'; msg.textContent = '제출되었습니다 — 갱신 제안에 반영됩니다.';
       PR_FIELD_IDS.forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+      PR_MANUAL_FIELDS = {};
       pdfInput.value = '';
       clearPdfEvidence();
       await loadPriceReports();

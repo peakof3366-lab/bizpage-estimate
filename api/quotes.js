@@ -569,7 +569,7 @@ async function handlePriceReport(req, res) {
   const { destinationKey, airfareUnit, hotelUnit, hotelName, mealUnit,
           fuelUnit, vehicleUnit, guideUnit, sightUnit, sellPriceUnit,
           departDate, quoteDate, nights,
-          fxCurrency, fxRate, fxFields,
+          fxCurrency, fxRate, fxFields, manualFields,
           author, source } = req.body || {};
   if (typeof destinationKey !== 'string' || !destinationKey.trim() || destinationKey.length > 100) {
     return res.status(400).json({ error: 'invalid_body' });
@@ -651,6 +651,36 @@ async function handlePriceReport(req, res) {
   /* author는 클라이언트 값이 아니라 세션에서 검증된 실사용자 표시명을 쓴다(위조 방지) —
      요율 PATCH(api/rates.js)와 동일 원칙. requireAdmin이 req.user를 세팅한다. */
   const safeAuthor = String((req.user && req.user.displayName) || '').slice(0, 40);
+
+  /* SW: **칸별로 담당자가 확정한 값인가.** 실무자가 견적서를 보면서 그 자리에서 고친 칸을
+     추출값과 갈라 둔다 — 그래야 「담당자가 확정한 칸은 다시 묻지 않는다」가 성립한다.
+     ⚠ `by`는 클라이언트 값을 믿지 않고 **세션의 표시명**으로 덮어쓴다(author와 같은 원칙).
+     ⚠ `how`(어떻게 나온 값인가)를 안 받으면 나중에 근거를 잃는다 — 화면이 채워 보낸다.
+     ⚠ 모르는 항목 키는 **버리지 않고 거절**한다. 조용히 버리면 화면은 저장됐다고 믿는다. */
+  const MANUAL_FIELD_KEYS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'sell'];
+  let manualJson = null;
+  if (manualFields !== undefined && manualFields !== null && manualFields !== '') {
+    if (typeof manualFields !== 'object' || Array.isArray(manualFields)) {
+      return res.status(400).json({ error: 'invalid_manual_fields' });
+    }
+    const keys = Object.keys(manualFields);
+    if (keys.some((k) => MANUAL_FIELD_KEYS.indexOf(k) < 0)) {
+      return res.status(400).json({ error: 'invalid_manual_fields' });
+    }
+    if (keys.length) {
+      const out = {};
+      keys.forEach((k) => {
+        const v = manualFields[k] || {};
+        out[k] = {
+          by: safeAuthor,
+          at: new Date().toISOString(),
+          how: String(v.how || '').slice(0, 200),
+        };
+      });
+      manualJson = JSON.stringify(out);
+    }
+  }
+
   try {
     /* ⚠ 새 컬럼(fuel/vehicle/guide/sight/sell_price)은 **마이그레이션이 먼저** 돌아야 한다.
        배포가 앞서면 여기서 500이 난다 — CLAUDE.md의 순서 규칙 그대로다.
@@ -659,10 +689,11 @@ async function handlePriceReport(req, res) {
       insert into actual_price_reports
         (destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
          fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
-         depart_date, quote_date, nights, fx_currency, fx_rate, fx_fields, author, source)
+         depart_date, quote_date, nights, fx_currency, fx_rate, fx_fields, manual_fields, author, source)
       values (${destinationKey}, ${airfare.value}, ${hotel.value}, ${safeHotelName || null}, ${meal.value},
               ${fuel.value}, ${vehicle.value}, ${guide.value}, ${sight.value}, ${sell.value},
               ${depart.value}, ${quoted.value}, ${nightsN}, ${fxCur}, ${fxR}, ${fxF},
+              ${manualJson}::jsonb,
               ${safeAuthor}, ${source === 'pdf' ? 'pdf' : 'manual'})
     `;
     return res.status(200).json({ ok: true });
@@ -678,7 +709,7 @@ async function handlePriceReports(req, res) {
     const rows = await sql`select id, destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
                                   fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
                                   depart_date, quote_date, nights,
-                                  fx_currency, fx_rate, fx_fields, excluded_fields,
+                                  fx_currency, fx_rate, fx_fields, excluded_fields, manual_fields,
                                   author, source, created_at
                            from actual_price_reports order by created_at desc limit 1000`;
     const num = (v) => (v != null ? Number(v) : null);
@@ -709,6 +740,9 @@ async function handlePriceReports(req, res) {
       /* SU: 담당자가 **평균에서 뺀** 항목과 그 이유. {항목키: 사유}.
          ⚠ 화면은 이 항목을 집계에서 빼되 **값은 그대로 보여준다** — 참고자료로는 쓴다. */
       excludedFields: (r.excluded_fields && typeof r.excluded_fields === 'object') ? r.excluded_fields : {},
+      /* SW: 담당자가 그 자리에서 확정한 칸 {항목: {by, at, how}}. 추출값과 갈라서 본다 —
+         이 칸은 「확인 대상」에서 빠지고, 요율 집계에서 더 믿을 수 있는 값이다. */
+      manualFields: (r.manual_fields && typeof r.manual_fields === 'object') ? r.manual_fields : {},
       author: r.author || '', source: r.source, createdAt: r.created_at,
     })));
   } catch (err) {

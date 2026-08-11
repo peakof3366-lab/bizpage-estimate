@@ -342,6 +342,16 @@ async function main() {
      값은 **왜 뺐는지**다. 사유 없이 빼면 나중에 아무도 이유를 모른다. */
   await sql`alter table actual_price_reports add column if not exists excluded_fields jsonb`;
 
+  /* SW: **칸별로 누가 정한 값인가** (2026-08-11 대표 방침 — 앞으로는 실무자가 직접 올린다).
+     지금은 행 단위 `source`('pdf' | 'manual') 하나뿐이라, 9칸 중 3칸만 담당자가 문서를 보고
+     고친 경우를 **구분할 수 없다.** 그러면 요율을 집계할 때 「사람이 확정한 값」과
+     「AI가 읽은 값」이 같은 무게로 섞인다.
+     ⚠ 이 구분이 있어야 실무자에게 넘길 수 있다 — 담당자가 확정한 칸은 **다시 묻지 않고**,
+       추출 그대로인 칸만 확인 대상으로 남길 수 있다.
+     모양: {"meal": {"by": "김실무", "at": "2026-08-11T...", "how": "총액 6,056,650 ÷ 26명 ÷ 4일"}}
+     `how`는 **어떻게 그 값이 나왔는지**다 — 비워 두면 나중에 근거를 잃는다. */
+  await sql`alter table actual_price_reports add column if not exists manual_fields jsonb`;
+
   /* P2b: 전역 앱 설정 KV (신규) — 견적 계수 스칼라 노브(coefficients) 등 사이트 전역 설정을
      key→jsonb로 저장. 공개 계산기는 /api/rates GET이 이 중 'coefficients' 행을 코드 기본값 위에
      폴백-우선 병합한다(행이 없으면 기본값=현재 동작). content_overrides와 같은 KV 형태이되 값이
