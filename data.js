@@ -102,6 +102,7 @@ const DEST_CLASSIFY = {
   '도쿄':     { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
   '오사카':    { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
   '후쿠오카':   { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
+  '가고시마':   { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
   '나고야':    { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
   '삿포로':    { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
   '오키나와':   { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
@@ -128,6 +129,7 @@ const DEST_CLASSIFY = {
   '캄보디아':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'캄보디아',    currency:'KHR', season:'seasia'        },
   '방콕':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
   '푸켓':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
+  '후아힌':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
   '치앙마이':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
   '발리':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'인도네시아',   currency:'IDR', season:'seasia'        },
   '괌':      { zone:'mid'  , ins:'highCost' , region:'오세아니아·태평양', country:'괌',       currency:'USD', season:'guamSaipan'    },
@@ -425,6 +427,7 @@ const destinationRates = [
   {"destination_key":"도쿄",        "label":"도쿄",        "airfare":380000, "fuel_surcharge":180000,"hotel_per_room":300000,"meal_per_person":25000, "vehicle_large":1200000,"vehicle_small":840000, "guide_fee":300000,"sightseeing_fee":30000, "margin_per_traveler":130000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 3~4월(벚꽃)·9~11월(단풍) · 평시: 5월·10월 · 비수기: 1~2월·장마(6월중~7월초)·혹서기(7~8월)"},
   {"destination_key":"오사카",       "label":"오사카",       "airfare":360000, "fuel_surcharge":180000,"hotel_per_room":250000,"meal_per_person":25000, "vehicle_large":1100000,"vehicle_small":770000, "guide_fee":300000,"sightseeing_fee":30000, "margin_per_traveler":130000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 3~4월(벚꽃)·9~11월(단풍) · 평시: 5월·10월 · 비수기: 1~2월·장마(6월중~7월초)·혹서기(7~8월)"},
   {"destination_key":"후쿠오카",     "label":"후쿠오카",     "airfare":330000, "fuel_surcharge":180000,"hotel_per_room":250000,"meal_per_person":25000, "vehicle_large":1000000,"vehicle_small":700000, "guide_fee":300000,"sightseeing_fee":30000, "margin_per_traveler":130000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 3~4월(벚꽃)·9~11월(단풍) · 평시: 5월·10월 · 비수기: 1~2월·장마(6월중~7월초)·혹서기(7~8월)"},
+  {"destination_key":"가고시마",     "label":"가고시마",     "airfare":330000, "fuel_surcharge":180000,"hotel_per_room":250000,"meal_per_person":25000, "vehicle_large":1000000,"vehicle_small":700000, "guide_fee":300000,"sightseeing_fee":30000, "margin_per_traveler":130000, "rateDate":"2026-08", "notes":"단가는 같은 규슈인 후쿠오카를 복사한 출발점입니다 — 견적서가 쌓이면 갱신 제안이 알려줍니다.", "season_note":"성수기: 3~4월(벚꽃)·9~11월(단풍) · 평시: 5월·10월 · 비수기: 1~2월·장마(6월중~7월초)·혹서기(7~8월)"},
   {"destination_key":"나고야",       "label":"나고야",       "airfare":350000, "fuel_surcharge":180000,"hotel_per_room":250000,"meal_per_person":25000, "vehicle_large":1050000,"vehicle_small":730000, "guide_fee":300000,"sightseeing_fee":30000, "margin_per_traveler":130000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 3~4월(벚꽃)·9~11월(단풍) · 평시: 5월·10월 · 비수기: 1~2월·장마(6월중~7월초)·혹서기(7~8월)"},
   {"destination_key":"삿포로",       "label":"삿포로",       "airfare":380000, "fuel_surcharge":180000,"hotel_per_room":250000,"meal_per_person":25000, "vehicle_large":1150000,"vehicle_small":800000, "guide_fee":300000,"sightseeing_fee":30000, "margin_per_traveler":130000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 7~8월(선선한 여름)·12~2월(눈축제·스키) · 평시: 9~10월(단풍) · 비수기: 3~4월(잔설)·5월"},
   {"destination_key":"오키나와",     "label":"오키나와",     "airfare":360000, "fuel_surcharge":180000,"hotel_per_room":250000,"meal_per_person":25000, "vehicle_large":1100000,"vehicle_small":770000, "guide_fee":300000,"sightseeing_fee":30000, "margin_per_traveler":130000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 7~9월(해변) · 평시: 4~6월·10월 · 비수기: 12~2월. 태풍 8~9월 주의"},
@@ -455,6 +458,7 @@ const destinationRates = [
   {"destination_key":"캄보디아",     "label":"캄보디아",     "airfare":500000, "fuel_surcharge":280000,"hotel_per_room":180000,"meal_per_person":12000, "vehicle_large":180000, "vehicle_small":110000, "guide_fee":202500,"sightseeing_fee":80000, "margin_per_traveler":150000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 11~2월(건기·선선) · 평시: 3~4월 · 비수기: 5~10월(우기)"},
   {"destination_key":"방콕",         "label":"방콕",         "airfare":500000, "fuel_surcharge":280000,"hotel_per_room":200000,"meal_per_person":20000, "vehicle_large":300000, "vehicle_small":110000, "guide_fee":255000,"sightseeing_fee":50000, "margin_per_traveler":150000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 12~2월(건기·최적) · 평시: 11월·3월(혹서기 시작) · 비수기: 6~10월(우기)"},
   {"destination_key":"푸켓",         "label":"푸켓",         "airfare":500000, "fuel_surcharge":280000,"hotel_per_room":200000,"meal_per_person":20000, "vehicle_large":300000, "vehicle_small":110000, "guide_fee":255000,"sightseeing_fee":50000, "margin_per_traveler":150000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 11~4월(건기) · 평시: 3월 · 비수기: 5~10월(안다만해 스콜성 우기)"},
+  {"destination_key":"후아힌",         "label":"후아힌",         "airfare":500000, "fuel_surcharge":280000,"hotel_per_room":200000,"meal_per_person":20000, "vehicle_large":300000, "vehicle_small":110000, "guide_fee":255000,"sightseeing_fee":50000, "margin_per_traveler":150000, "rateDate":"2026-08", "notes":"단가는 같은 태국인 방콕·푸켓을 복사한 출발점입니다 — 견적서가 쌓이면 갱신 제안이 알려줍니다.", "season_note":"성수기: 11~4월(건기) · 평시: 5월·10월 · 비수기: 6~9월(우기)"},
   {"destination_key":"치앙마이",     "label":"치앙마이",     "airfare":500000, "fuel_surcharge":280000,"hotel_per_room":200000,"meal_per_person":20000, "vehicle_large":300000, "vehicle_small":110000, "guide_fee":255000,"sightseeing_fee":50000, "margin_per_traveler":150000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 11~2월(건기·쾌적) · 평시: 3~4월(스모그 시즌 주의) · 비수기: 5~10월(우기)"},
   {"destination_key":"발리",         "label":"발리",         "airfare":600000, "fuel_surcharge":320000,"hotel_per_room":280000,"meal_per_person":40000, "vehicle_large":250000, "vehicle_small":170000, "guide_fee":99000, "sightseeing_fee":80000, "margin_per_traveler":220000, "rateDate":"2026-06", "notes":"환율(IDR)·호텔 단가 변동성 높음. 분기별 재확인 권장.", "season_note":"성수기: 4~10월(건기, 한국 방학 겹치는 7~9월 최성수기) · 비수기: 11~3월(우기, 한낮 34℃ 이상)"},
   /* ── 오세아니아 & 태평양 ── */
@@ -551,6 +555,16 @@ const DEST_REC = {
          points:['후쿠오카 야타이 포장마차 팀 저녁','유후인·벳부 온천 체험','하카타 전통 거리 탐방'],
          items:['야타이 포장마차 팀 저녁','유후인 온천 반나절 투어','다자이후 신사 방문','모모치 해변 팀 활동'],
          value:'온천·자연·미식의 조화로 완벽한 재충전, 팀 친밀감 극대화' },
+  },
+  '가고시마': {
+    a: { tag:'역량강화형', desc:'활화산과 공존하는 도시의 방재·지열에너지 산업 탐구',
+         points:['사쿠라지마 화산 방재센터 견학','이부스키 지열 발전 현장 시찰','근대 산업유산 쇼코슈세이칸 탐방'],
+         items:['화산 방재 시스템·도시 대응 체계 브리핑','지열 에너지 활용 현장 견학','규슈 소재·전자부품 클러스터 방문','가고시마항 물류 인프라 시찰'],
+         value:'재난 위험을 도시 경쟁력으로 바꾼 가고시마의 방재·에너지 운영 모델을 현장에서 학습' },
+    b: { tag:'동기부여·화합형', desc:'화산과 온천, 규슈 남단에서 몰입하는 팀 연수',
+         points:['이부스키 모래찜질 온천 체험','사쿠라지마 트레킹 팀 활동','사쓰마 도자기 공예 체험'],
+         items:['이부스키 천연 모래찜질 온천','사쿠라지마 화산 트레킹·조별 미션','사쓰마 도자기 만들기 체험','흑돼지 샤부샤부 팀 만찬'],
+         value:'온천 리조트를 거점으로 자연 속 팀 활동과 휴식을 함께 가져가는 몰입형 연수' },
   },
   '나고야': {
     a: { tag:'역량강화형', desc:'세계 제조업의 심장 나고야에서 생산혁신을 배우다',
@@ -809,6 +823,16 @@ const DEST_REC = {
          points:['피피 섬 스노클링·보트 투어','팡아만 카약·절벽 투어','빠통 비치 선셋 팀 만찬'],
          items:['피피 섬 아일랜드 호핑 투어','팡아만 카약·에메랄드 동굴 탐험','빠통 비치 자유 수영·선셋 만찬','태국 요리 쿠킹 클래스'],
          value:'안다만해 청록빛 바다와 섬 투어로 팀 전원이 꿈꾸는 완벽한 리조트 연수' },
+  },
+  '후아힌': {
+    a: { tag:'역량강화형', desc:'태국 왕실 휴양지의 리조트 운영·서비스 품질 관리 학습',
+         points:['리조트 운영 브리핑(객실·F&B·인력)','왕실 별궁·기차역 도시계획 탐방','후아힌 힐즈 와이너리 농식품 견학'],
+         items:['리조트 운영·서비스 품질 관리 세션','왕실 휴양지 도시계획 현장 탐방','시카다 마켓 로컬 상권 조사','와이너리·농식품 가공 브리핑'],
+         value:'100년 넘게 이어진 왕실 휴양지의 호스피탈리티 운영 노하우를 현장에서 직접 확인' },
+    b: { tag:'동기부여·화합형', desc:'방콕에서 3시간, 조용한 해변 리조트에서 갖는 팀 인센티브',
+         points:['해변 팀빌딩 액티비티','타이 요리 클래스 체험','나이트마켓 자유 저녁'],
+         items:['해변 팀빌딩 게임·조별 미션','타이 요리 쿠킹 클래스','시카다 마켓·나이트마켓 탐방','스파 인센티브·시상 만찬'],
+         value:'번잡한 관광지를 피해 팀 전원이 집중과 휴식을 함께 가져가는 인센티브 연수' },
   },
   '치앙마이': {
     a: { tag:'역량강화형', desc:'태국 북부 창업·수공예·농업 혁신의 도시 치앙마이',
@@ -1202,6 +1226,34 @@ const ITINERARY_DB = {
       ],
     },
   ],
+
+  '가고시마': [
+    {
+      title: '가고시마 화산·에너지 산업 벤치마킹 코스',
+      subtitle: '활화산과 공존하는 도시의 방재·지열에너지·소재산업 현장 탐방',
+      highlights: ['사쿠라지마 화산 방재센터','이부스키 지열 활용 현장','가고시마항 물류 인프라','현지 제조업 클러스터 견학'],
+      days: [
+        { day:1, title:'입국 · 오리엔테이션', am:'가고시마공항 도착, 호텔 체크인', pm:'덴몬칸 시내 도보 탐방, 오리엔테이션 미팅', eve:'흑돼지 샤부샤부 환영 만찬', tip:'공항-시내 리무진 약 40분 — 단체 예약 권장' },
+        { day:2, title:'화산 방재 · 도시 인프라', am:'사쿠라지마 페리 이동 · 화산 방재센터 견학', pm:'유노히라 전망대에서 도시 방재 구조 브리핑', eve:'현지식 팀 만찬', tip:'화산재 대비 마스크·안경 준비 권장' },
+        { day:3, title:'지열 에너지 · 소재산업', am:'이부스키 지열 발전·모래찜질 현장 시찰', pm:'현지 제조업(전자부품·소재) 클러스터 견학', eve:'온천 료칸 숙박 및 휴식', tip:'료칸 만찬은 인원 확정 2주 전 통보 필요' },
+        { day:4, title:'역사 · 산업유산', am:'센간엔 · 쇼코슈세이칸(근대 산업유산) 견학', pm:'가고시마항 물류 인프라 시찰', eve:'덴몬칸 팀 저녁 · 자유 시간', tip:'산업유산은 단체 해설 사전 신청 시 이해도가 크게 오른다' },
+        { day:5, title:'정리 · 귀국', am:'연수 성과 공유 세션', pm:'특산품 쇼핑 · 공항 이동', eve:'귀국', tip:'흑초·소주는 기내 반입 제한 확인' },
+      ],
+    },
+    {
+      title: '가고시마 조직문화 · 팀빌딩 연수 코스',
+      subtitle: '온천 리조트를 거점으로 한 몰입형 워크숍과 자연 속 팀 활동',
+      highlights: ['이부스키 온천 리조트 워크숍','사쿠라지마 야외 팀 활동','현지 기업 교류 세션','지역 전통 공예 체험'],
+      days: [
+        { day:1, title:'입국 · 아이스브레이킹', am:'가고시마공항 도착 · 호텔 체크인', pm:'아이스브레이킹 워크숍 (퍼실리테이터 진행)', eve:'환영 만찬', tip:'워크숍 강사 2개월 전 컨펌 권장' },
+        { day:2, title:'몰입 워크숍', am:'이부스키 이동 · 리조트 컨퍼런스룸 세션', pm:'조별 과제 워크숍 · 중간 발표', eve:'온천 후 팀 만찬', tip:'리조트 회의실은 성수기 3개월 전 선점 필요' },
+        { day:3, title:'야외 팀 활동', am:'사쿠라지마 트레킹 · 조별 미션', pm:'지역 전통 공예(사쓰마 도자기) 체험', eve:'현지식 저녁', tip:'야외 활동 우천 대체안 사전 확보' },
+        { day:4, title:'현지 교류', am:'현지 기업 방문 · 인사담당자 교류', pm:'조별 성과 정리 세션', eve:'덴몬칸 자유 저녁', tip:'사전 질문지 준비 시 교류 효과가 크게 오른다' },
+        { day:5, title:'성과 공유 · 귀국', am:'팀별 성과 발표 (3분)', pm:'쇼핑 · 공항 이동', eve:'귀국', tip:'발표 자료는 출국 전 미리 준비' },
+      ],
+    },
+  ],
+
 
   /* ─── 나고야 ────────────────────────────────────────────────────── */
   '나고야': [
@@ -1670,6 +1722,34 @@ const ITINERARY_DB = {
       ],
     },
   ],
+
+  '후아힌': [
+    {
+      title: '후아힌 호스피탈리티 · 리조트 운영 벤치마킹 코스',
+      subtitle: '태국 왕실 휴양지의 리조트 운영과 서비스 품질 관리 현장 학습',
+      highlights: ['후아힌 리조트 운영 브리핑','왕실 휴양지 도시계획 탐방','시카다 마켓 로컬 상권 조사','후아힌 힐즈 와이너리 견학'],
+      days: [
+        { day:1, title:'입국 · 이동', am:'수완나품공항 도착 후 후아힌 이동 (약 3시간)', pm:'리조트 체크인 · 오리엔테이션', eve:'해변 환영 만찬', tip:'방콕-후아힌 전용버스 이동 — 휴게 1회 포함 일정 권장' },
+        { day:2, title:'리조트 운영 벤치마킹', am:'리조트 운영 브리핑 (객실·F&B·인력 운영)', pm:'서비스 품질 관리 사례 세션', eve:'씨푸드 팀 만찬', tip:'브리핑은 호텔 세일즈팀에 4주 전 요청' },
+        { day:3, title:'도시계획 · 로컬 상권', am:'후아힌 기차역 · 왕실 별궁(클라이깡원) 도시계획 탐방', pm:'시카다 마켓 로컬 상권 조사', eve:'나이트마켓 자유 저녁', tip:'시카다 마켓은 금~일 저녁만 운영 — 일정 배치 주의' },
+        { day:4, title:'농식품 · 관광산업', am:'후아힌 힐즈 와이너리 견학 · 농식품 가공 브리핑', pm:'스위스 십 · 산토린 파크 관광 인프라 시찰', eve:'만찬 및 성과 정리', tip:'와이너리 단체 투어는 2주 전 예약' },
+        { day:5, title:'귀국 이동', am:'체크아웃 후 방콕 이동', pm:'방콕 시내 경유 · 공항 이동', eve:'귀국 탑승', tip:'방콕 시내 정체를 감안해 출발 4시간 전 여유' },
+      ],
+    },
+    {
+      title: '후아힌 워크숍 · 인센티브 연수 코스',
+      subtitle: '해변 리조트를 거점으로 한 집중 워크숍과 팀 인센티브 프로그램',
+      highlights: ['리조트 컨퍼런스 세션','해변 팀빌딩 액티비티','타이 요리·문화 체험','조별 성과 발표'],
+      days: [
+        { day:1, title:'입국 · 오리엔테이션', am:'수완나품공항 도착 후 후아힌 이동', pm:'체크인 · 아이스브레이킹', eve:'환영 만찬 (해변 BBQ)', tip:'대형 단체는 버스 배차 간격을 미리 확정' },
+        { day:2, title:'집중 워크숍', am:'리조트 컨퍼런스룸 전략 세션', pm:'조별 과제 워크숍', eve:'팀 만찬 · 자유 시간', tip:'회의실 음향·스크린은 전날 리허설 권장' },
+        { day:3, title:'팀빌딩', am:'해변 팀빌딩 액티비티', pm:'타이 요리 클래스 · 문화 체험', eve:'나이트마켓 자유 저녁', tip:'야외 활동은 오전 배치(오후 스콜 대비)' },
+        { day:4, title:'인센티브 · 정리', am:'조별 성과 정리 세션', pm:'스파·자유 시간 (인센티브)', eve:'시상 만찬', tip:'스파는 인원수만큼 사전 예약 필요' },
+        { day:5, title:'귀국 이동', am:'체크아웃 후 방콕 이동', pm:'공항 이동', eve:'귀국', tip:'교통 상황에 따라 이동 시간이 크게 달라진다' },
+      ],
+    },
+  ],
+
 
   /* ─── 발리 ─────────────────────────────────────────────────────── */
   '발리': [

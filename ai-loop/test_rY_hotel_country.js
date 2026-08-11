@@ -221,9 +221,16 @@ const report = (destKey, hotelName, over) => Object.assign({
 
   /* 입력칸 아래 안내 — 넣기 전에 어느 나라로 정리되는지 보여준다 */
   const sel = d.getElementById('pr-dest');
-  ok('목적지 선택지에 나라가 함께 적혀 있다',
-    Array.from(sel.options).some((o) => o.value === '가오슝' && /대만/.test(o.textContent)),
-    (Array.from(sel.options).find((o) => o.value === '가오슝') || {}).textContent);
+  /* ⚠ TD에서 **나라가 optgroup 머리줄로 올라갔다**(대표 요청: 나라별로 분리).
+     옵션에 「(대만)」을 또 붙이면 같은 말이 두 번 나온다. 재는 것은 여전히
+     「고르기 전에 어느 나라인지 보이는가」다 — 자리만 바뀌었다. */
+  const kaoOpt = Array.from(sel.options).find((o) => o.value === '가오슝');
+  ok('목적지 선택지가 나라별로 묶여 있다',
+    !!kaoOpt && kaoOpt.parentElement.tagName === 'OPTGROUP' && /대만/.test(kaoOpt.parentElement.label),
+    kaoOpt && kaoOpt.parentElement && kaoOpt.parentElement.label);
+  ok('나라를 모르는 목적지도 빠지지 않는다 (「기타」로 모인다)',
+    Array.from(sel.options).length === Array.from(sel.querySelectorAll('optgroup option')).length,
+    sel.options.length + ' vs ' + sel.querySelectorAll('optgroup option').length);
   sel.value = '다낭';
   sel.dispatchEvent(new w.Event('change'));
   const hint = d.getElementById('pr-hotel-scope').textContent;

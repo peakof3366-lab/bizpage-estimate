@@ -5346,14 +5346,43 @@
     if (!sel || prDestSelectBuilt || typeof destinationRates === 'undefined') return;
     /* 목적지 이름만으로는 어느 나라인지 모르는 것이 많다(가오슝·나트랑·보홀·코타키나발루…).
        호텔명을 넣는 화면이라 나라를 옵션에 같이 적어 둔다 — 고르는 순간 이미 보이게. */
-    sel.innerHTML = destinationRates.map(d => {
-      const c = destCountryOf(d.destination_key);
-      const suffix = (c && c !== d.label) ? ` (${c})` : '';
-      return `<option value="${esc(d.destination_key)}">${esc(d.label + suffix)}</option>`;
-    }).join('');
+    /* TD: **나라별로 묶는다.** 예전엔 57곳이 한 줄로 늘어서 있었다.
+       나라가 머리줄에 있으므로 옵션에 「(나라)」를 또 붙이지 않는다(같은 말이 두 번 나온다). */
+    sel.textContent = '';
+    appendDestOptionsByCountry(sel, destinationRates.map((d) => d.destination_key), (k) => {
+      const d = destinationRates.find((x) => x.destination_key === k);
+      const o = document.createElement('option');
+      o.value = k; o.textContent = (d && d.label) || k;
+      return o;
+    });
     sel.addEventListener('change', updateHotelScopeHint);
     prDestSelectBuilt = true;
     updateHotelScopeHint();
+  }
+
+  /* ── TD: 목적지 드롭다운을 **나라별로 묶는다** (2026-08-11 대표 요청) ──────
+     고객 화면(index.html·admin-quote.html)은 이미 나라별 optgroup인데, **관리자 화면은
+     평평한 목록**이었다 — 57곳이 한 줄로 늘어서서 원하는 곳을 눈으로 찾아야 했다.
+     ⚠ 나라는 `DEST_COUNTRY`(DEST_CLASSIFY 파생)에서만 온다. 여기서 목적지→나라 표를
+       다시 적으면 목록이 두 벌이 된다(결함 생성기 ①).
+     ⚠ 나라를 모르는 목적지(커스텀 등)는 **버리지 않고** 「기타」로 모은다 — 빠뜨리면
+       담당자는 그 목적지를 아예 고를 수 없다.
+     ⚠ 나라 안 순서와 나라 순서는 **원래 목록 순서**를 따른다. 가나다순으로 다시 정렬하면
+       요율표·고객 화면과 순서가 어긋나 같은 것을 찾는 자리가 둘로 갈린다. */
+  function appendDestOptionsByCountry(sel, keys, makeOption) {
+    const groups = [];
+    const byName = {};
+    keys.forEach((k) => {
+      const c = destCountryOf(k) || '기타';
+      if (!byName[c]) { byName[c] = []; groups.push(c); }
+      byName[c].push(k);
+    });
+    groups.forEach((c) => {
+      const g = document.createElement('optgroup');
+      g.label = c + ' (' + byName[c].length + ')';
+      byName[c].forEach((k) => g.appendChild(makeOption(k)));
+      sel.appendChild(g);
+    });
   }
 
   /* 목적지 → 나라/지역 (RY). 내장은 DEST_CLASSIFY 파생, 커스텀은 loadRates에서 편입된다.
@@ -9163,7 +9192,8 @@
     const blank = document.createElement('option');
     blank.value = ''; blank.textContent = '목적지를 선택하세요';
     sel.appendChild(blank);
-    itiDestKeys().forEach((k) => {
+    /* TD: 여기도 나라별로 묶는다 — 일정 관리도 57곳을 훑는 자리다 */
+    appendDestOptionsByCountry(sel, itiDestKeys(), (k) => {
       const o = document.createElement('option');
       o.value = k;
       const hasDefault = (typeof ITINERARY_DB !== 'undefined') && Array.isArray(ITINERARY_DB[k]);
@@ -9176,7 +9206,7 @@
       o.textContent = k
         + (edited ? '  ✏️ ' + edited : '')
         + (hasDefault || itiState.overrides[k] ? '' : '  (일정 없음)');
-      sel.appendChild(o);
+      return o;
     });
     if (prev) sel.value = prev;
   }

@@ -55,7 +55,9 @@ const OVERRIDE_TOKYO = [{
 
   const destKeys = require(path.join(ROOT, 'data.js')).map(d => d.destination_key);
   const itiKeys = [...dataSrc.matchAll(/^  '([^']+)': \[/gm)].map(m => m[1]);
-  ok('목적지 55곳 일정이 그대로 있다', itiKeys.length === 55, String(itiKeys.length));
+  /* ⚠ 목적지를 늘리면 여기서 걸린다 — 일부러 그렇게 해 뒀다(일정을 빠뜨리면 그
+     목적지 견적서에 일정이 통째로 빈다). 2026-08-11 TD에서 57곳이 됐다. */
+  ok('요율표 목적지 수만큼 일정이 있다', itiKeys.length === 57, String(itiKeys.length));
   ok('요율표에 있는 목적지가 전부 일정에도 있다',
     destKeys.every(k => itiKeys.includes(k)),
     destKeys.filter(k => !itiKeys.includes(k)).join(','));
@@ -324,9 +326,13 @@ const OVERRIDE_TOKYO = [{
   /* ── [7] QC: 추천 콘텐츠(DEST_REC)도 같은 화면에서 고쳐지는가 ────────── */
   console.log('\n[7] 추천 콘텐츠(방식 A/B) 편집 (QC)');
   ok('data.js가 DEST_REC를 갖고 있다', /^const DEST_REC = \{/m.test(dataSrc));
-  ok('55곳 전부 방식 A·B가 있다(전제)',
-    (dataSrc.match(/^\s+a: \{ tag:/gm) || []).length === 55
-    && (dataSrc.match(/^\s+b: \{ tag:/gm) || []).length === 55);
+  /* ⚠ **코스(ITINERARY_DB)와 방식 A·B(DEST_REC)는 다른 목록이다.** 하나만 넣으면
+     활동 고르기 후보가 0이 되고 방식 카드가 일반 문구로 떨어진다(결함 생성기 ②).
+     실제로 TD에서 코스만 먼저 넣었다가 test_qL이 그것을 잡았다. */
+  ok('모든 목적지에 방식 A·B가 있다(전제)',
+    (dataSrc.match(/^\s+a: \{ tag:/gm) || []).length === 57
+    && (dataSrc.match(/^\s+b: \{ tag:/gm) || []).length === 57,
+    (dataSrc.match(/^\s+a: \{ tag:/gm) || []).length + ' / ' + (dataSrc.match(/^\s+b: \{ tag:/gm) || []).length);
 
   ok('rec을 안 보내면 기존 값을 건드리지 않는다', content.normalizeRec(undefined).rec === undefined);
   ok('방식 A가 빠지면 거부', errOf(content.normalizeRec({ b: { tag: 'x' } })) === 'rec_missing_a');

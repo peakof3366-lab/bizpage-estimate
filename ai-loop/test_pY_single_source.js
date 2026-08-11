@@ -37,6 +37,7 @@ const EXPECT = {
   '도쿄':     'short|asiaShort|일본|JPY|japan|',
   '오사카':    'short|asiaShort|일본|JPY|japan|',
   '후쿠오카':   'short|asiaShort|일본|JPY|japan|',
+  '가고시마':   'short|asiaShort|일본|JPY|japan|',
   '나고야':    'short|asiaShort|일본|JPY|japan|',
   '삿포로':    'short|asiaShort|일본|JPY|japan|',
   '오키나와':   'short|asiaShort|일본|JPY|japan|',
@@ -63,6 +64,7 @@ const EXPECT = {
   '캄보디아':   'mid|asiaMid|동남아|KHR|seasia|',
   '방콕':     'mid|asiaMid|동남아|THB|seasia|',
   '푸켓':     'mid|asiaMid|동남아|THB|seasia|',
+  '후아힌':    'mid|asiaMid|동남아|THB|seasia|',
   '치앙마이':   'mid|asiaMid|동남아|THB|seasia|',
   '발리':     'mid|asiaMid|동남아|IDR|seasia|',
   '괌':      'mid|highCost|오세아니아·태평양|USD|guamSaipan|',
@@ -91,7 +93,10 @@ const EXPECT = {
   '우즈베키스탄': 'mid|evac|중앙아시아|UZS|centralAsia|',
 };
 
-console.log('[1] 분류표가 리팩터 이전 값과 정확히 같은가 (목적지 55개 × 6축)');
+console.log('[1] 분류표가 리팩터 이전 값과 정확히 같은가 (목적지 57개 × 6축)');
+/* ⚠ 이 표는 **스냅샷**이다. 목적지를 늘리면 여기서 걸리는 것이 정상이고, 늘린 사람이
+   여기에도 한 줄을 적어야 통과한다 — 그게 「목적지를 추가할 때 한 곳을 빠뜨린다」를
+   막는 장치다(결함 생성기 ①). 2026-08-11 TD에서 가고시마·후아힌을 넣어 57개가 됐다. */
 const DC = DATA.DEST_CLASSIFY;
 const dcKeys = Object.keys(DC).sort();
 const expKeys = Object.keys(EXPECT).sort();
@@ -104,7 +109,7 @@ for (const k of expKeys) {
   const actual = [r.zone, r.ins, r.region, r.currency, r.season, r.hemi || ''].join('|');
   if (actual !== EXPECT[k]) mismatched.push(`${k}: ${EXPECT[k]} → ${actual}`);
 }
-ok('55개 목적지의 6축 분류가 모두 이전과 동일', mismatched.length === 0, mismatched.slice(0, 5).join(' / '));
+ok('모든 목적지의 6축 분류가 스냅샷과 동일', mismatched.length === 0, mismatched.slice(0, 5).join(' / '));
 
 console.log('\n[2] 요율표와 분류표가 1:1인가 (한쪽에만 있으면 조용히 폴백된다)');
 const RATE_KEYS = DATA.map((d) => d.destination_key);
