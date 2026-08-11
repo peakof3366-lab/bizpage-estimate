@@ -50,7 +50,12 @@ node ai-loop/audit_row_categories.js # 검산줄이 어느 항목인지 알아�
 node ai-loop/audit_coverage.js      # 우리가 읽은 줄이 총계의 몇 %를 설명하는가 — 덜 읽은 것을 잡는다
 node ai-loop/audit_extract_sanity.js # 뽑아낸 값이 요율표 분포에서 벗어나는가 — 틀린 값을 잡는다
 node ai-loop/backtest_quotes.js     # 고객이 보는 금액의 오차 (--cache = 추출 결과 재사용)
+node ai-loop/audit_itinerary.js     # 일정표를 얼마나 읽어냈는가 (트랙 B — 금액과 무관)
 ```
+
+⚠ **일정표(L7)는 금액과 완전히 분리된 층이다.** `audit_itinerary.js`가 좋아져도 고객이
+보는 금액은 1원도 안 바뀐다. 거꾸로 단가 쪽을 고칠 때 이 자를 근거로 삼지 말 것.
+`--show "북해도"`로 그 문서에서 읽은 일정을 눈으로 확인할 수 있다.
 
 **보이는 모양을 손댔으면 하나 더** — 실제 브라우저로 띄워 좌표를 잰다.
 
