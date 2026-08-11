@@ -80,7 +80,7 @@ const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key)
 const CUSTOM_ZONES = new Set(['short', 'mid', 'long']);
 /* script.js INSURANCE_ZONES의 키와 동일해야 한다 — 한쪽만 늘리면 저장은 되는데
    엔진이 못 찾아 중립값으로 폴백한다(ai-loop/test_pP가 두 목록을 대조한다). */
-const INSURANCE_ZONE_KEYS = new Set(['asiaShort', 'asiaMid', 'evac', 'oceania', 'highCost']);
+const INSURANCE_ZONE_KEYS = new Set(['domestic', 'asiaShort', 'asiaMid', 'evac', 'oceania', 'highCost']);
 /* 시즌 프로파일 허용 id (PQ) — 보험 권역처럼 여기 손으로 적지 않고 data.js가 내보낸
    DEST_SEASON_PROFILES에서 뽑는다. 목록을 두 번 적으면 프로파일을 새로 추가했을 때
    서버만 모르는 상태가 되어 저장이 400으로 막히거나(또는 그 반대로) 조용히 폴백한다. */

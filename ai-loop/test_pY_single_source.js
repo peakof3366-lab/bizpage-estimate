@@ -34,6 +34,8 @@ const dataSrc = read('data.js');
    ⚠ 이 값을 고칠 일이 생겼다면 그건 '분류를 바꾸는 도메인 판단'이다 — 리팩터 중에
    슬쩍 바뀌는 것과 구별하려고 일부러 여기 박아둔다. */
 const EXPECT = {
+  /* TE: 유일한 국내 목적지 — 보험 domestic · 통화 KRW · 시즌 korea로 축이 셋 다 새것이다 */
+  '제주도':    'short|domestic|국내|KRW|korea|',
   '도쿄':     'short|asiaShort|일본|JPY|japan|',
   '오사카':    'short|asiaShort|일본|JPY|japan|',
   '후쿠오카':   'short|asiaShort|일본|JPY|japan|',
@@ -93,7 +95,7 @@ const EXPECT = {
   '우즈베키스탄': 'mid|evac|중앙아시아|UZS|centralAsia|',
 };
 
-console.log('[1] 분류표가 리팩터 이전 값과 정확히 같은가 (목적지 57개 × 6축)');
+console.log('[1] 분류표가 리팩터 이전 값과 정확히 같은가 (목적지 58개 × 6축)');
 /* ⚠ 이 표는 **스냅샷**이다. 목적지를 늘리면 여기서 걸리는 것이 정상이고, 늘린 사람이
    여기에도 한 줄을 적어야 통과한다 — 그게 「목적지를 추가할 때 한 곳을 빠뜨린다」를
    막는 장치다(결함 생성기 ①). 2026-08-11 TD에서 가고시마·후아힌을 넣어 57개가 됐다. */

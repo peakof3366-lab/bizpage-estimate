@@ -2344,6 +2344,8 @@
                1.00(중립)으로 조용히 폴백한다. 권역별로 0.85~1.80이라 최대 80% 어긋난다. -->
           <div class="detail-label" style="margin-bottom:.3rem">보험 권역</div>
           <select id="new-dest-insurance" class="status-select">
+            <!-- TE: 국내(제주도) 구간. 국내여행자보험은 해외와 성격이 다르다 -->
+            <option value="domestic">국내 (×0.15)</option>
             <option value="asiaShort">아시아 단거리 (×0.85)</option>
             <option value="asiaMid" selected>동남아 (×1.00 기준)</option>
             <option value="evac">의료후송 위험권 (×1.20)</option>

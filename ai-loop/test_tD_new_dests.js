@@ -68,9 +68,10 @@ NEW.forEach(({ key, peer, country, currency, season }) => {
   ok(`${key} 행에 「복사한 출발점」이라고 적혀 있다`, /복사한 출발점/.test(row.notes || ''), row.notes);
 });
 
-/* ⚠ 제주도는 이번에 안 넣었다 — 넣었다고 착각하지 않게 못 박는다 */
-ok('제주도는 아직 안 넣었다 (국내 축은 대표 판단)',
-  !RATES.some((d) => d.destination_key === '제주도'));
+/* TE: 제주도는 **대표 지시로 온라인 취합값을 먼저 넣었다**(「나중에 손으로 고치겠다」).
+   ⚠ 국내라 축 셋이 새것이다 — 보험 domestic · 통화 KRW · 시즌 korea.
+     그 셋이 실제로 걸려 있는지는 test_tE가 따로 잰다. */
+ok('제주도가 들어갔다', RATES.some((d) => d.destination_key === '제주도'));
 
 /* ── [2] 목록이 서로 어긋나지 않는가 ─────────────────────────────────── */
 console.log('\n[2] 목록끼리 어긋나지 않는가');

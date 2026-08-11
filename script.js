@@ -311,9 +311,14 @@ function getBizFactor(destKey) {
       아래 구간명 목록은 INSURANCE_ZONE_FACTORS·INSURANCE_ZONE_LABELS와 짝이므로
       권역을 새로 만들 때만 세 곳을 함께 늘린다(계수·라벨 없는 권역은 존재할 수 없다). */
 const INSURANCE_BASE = 18000; /* 기준: 동남아 권역 · 4~5일 · 기업단체 1인 (2026 실거래 기준) */
-const INSURANCE_ZONES = destGroupsBy('ins', ['asiaShort', 'asiaMid', 'evac', 'oceania', 'highCost']);
-const INSURANCE_ZONE_FACTORS = { asiaShort: 0.85, asiaMid: 1.00, evac: 1.20, oceania: 1.50, highCost: 1.80 };
-const INSURANCE_ZONE_LABELS  = { asiaShort: '아시아 단거리', asiaMid: '동남아', evac: '의료후송 위험권', oceania: '오세아니아', highCost: '미주·유럽' };
+/* TE: **국내(domestic)** 구간을 더했다 — 국내여행자보험은 해외여행자보험과 성격이 다르다.
+   시장가 기준 3박4일 1인 2,000~3,500원대라, 기준가 18,000(동남아 4~5일)의 0.15로 둔다(≈2,700원).
+   ⚠ **온라인 취합값이다** — 대표가 손으로 고칠 자리다(결정대기열 7-d-1).
+   ⚠ 구간 이름을 여기 목록에 안 넣으면 그 목적지가 어느 권역에도 안 들어가고
+     보험 계수가 **조용히 1.00으로 폴백**한다(결함 생성기 ②). */
+const INSURANCE_ZONES = destGroupsBy('ins', ['domestic', 'asiaShort', 'asiaMid', 'evac', 'oceania', 'highCost']);
+const INSURANCE_ZONE_FACTORS = { domestic: 0.15, asiaShort: 0.85, asiaMid: 1.00, evac: 1.20, oceania: 1.50, highCost: 1.80 };
+const INSURANCE_ZONE_LABELS  = { domestic: '국내', asiaShort: '아시아 단거리', asiaMid: '동남아', evac: '의료후송 위험권', oceania: '오세아니아', highCost: '미주·유럽' };
 
 /* 일수 구간 — 일수 정비례가 아니라 완만한 체감형(초기 며칠이 고정비 성격이고 이후
    일당 증분이 작다). 기준 구간은 4~5일 = 1.00. MICE 연수는 3~5일이 압도적이라

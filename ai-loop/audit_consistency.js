@@ -119,6 +119,7 @@ console.log('\n■ 분류 모순 — REGION_MAP 그룹명과 다른 목록의 �
 const insZoneOf = k => Object.keys(INS_ZONES).find(z => INS_ZONES[z].includes(k));
 /* REGION_MAP 그룹명 → 그 그룹이 실제로 어느 보험권역이어야 하는지의 기대값 */
 const REGION_EXPECT = {
+  '국내': 'domestic',
   '유럽': 'highCost', '북미': 'highCost',
   '일본': 'asiaShort', '중국': 'asiaShort', '홍콩·마카오': 'asiaShort',
   '동남아': 'asiaMid',

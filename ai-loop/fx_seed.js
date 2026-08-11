@@ -21,7 +21,14 @@
    동유럽은 안 되는 불일치가 그대로 남는다. 동료가 없을 때만 오늘 환율로 시작한다. */
 require('./_load_env')();
 const { neon } = require('@neondatabase/serverless');
-const DEST_CURRENCY = require('../dest_currency');
+const DEST_CURRENCY_ALL = require('../dest_currency');
+/* TE: **원화는 환율 보정 대상이 아니다.** 제주도(KRW)가 들어오면서 생긴 것 —
+   그대로 두면 KRW→KRW 기준선 1.0을 만들어 두고 '보정하고 있다'는 착각을 준다.
+   ⚠ 조용히 거르지 않고 아래에서 몇 곳을 뺐는지 찍는다. */
+const DEST_CURRENCY = Object.fromEntries(
+  Object.entries(DEST_CURRENCY_ALL).filter(([, c]) => String(c).toUpperCase() !== 'KRW'));
+const KRW_SKIPPED = Object.keys(DEST_CURRENCY_ALL).length - Object.keys(DEST_CURRENCY).length;
+if (KRW_SKIPPED) console.log('[fx_seed] 원화(KRW) 목적지 ' + KRW_SKIPPED + '곳은 환율 대상이 아니라 건너뜁니다.');
 
 async function fetchRateToKrw(currency) {
   const code = currency.toLowerCase();

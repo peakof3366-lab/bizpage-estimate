@@ -99,6 +99,11 @@ const SEASON_CONFIG = [
    같은 이름 컬럼들이 이 역할을 한다. script.js가 런타임에 파생 목록으로 편입한다.
    ===================================================================== */
 const DEST_CLASSIFY = {
+  /* TE: 유일한 **국내** 목적지. 해외와 축이 다르다 —
+     ins 'domestic'(국내여행자보험) · season 'korea'(휴가철 성수기) · currency 'KRW'(환율 보정 없음).
+     ⚠ zone은 'short'로 둔다 — 국내선은 비즈니스석이 거의 없어 좌석 배수를 쓸 일이 드물고,
+       구간을 새로 만들면 BIZ_ZONES 전체에 파급된다. 비즈니스를 실제로 팔게 되면 그때 나눈다. */
+  '제주도':    { zone:'short', ins:'domestic'  , region:'국내',        country:'대한민국',   currency:'KRW', season:'korea'         },
   '도쿄':     { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
   '오사카':    { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
   '후쿠오카':   { zone:'short', ins:'asiaShort', region:'일본',        country:'일본',      currency:'JPY', season:'japan'         },
@@ -250,6 +255,17 @@ const SEASON_CONFIG_SOUTHERN = [
    문구로 그대로 쓰이므로(admin.html이 이 배열로 select를 만든다) 프로파일을 추가하면
    폼에도 자동으로 나타난다 — 목록을 두 번 적지 않기 위한 것. */
 const DEST_SEASON_PROFILES = [
+  {
+    /* TE: 국내(제주) — **여름 휴가철(7~8월)**이 성수기, 2~3월·6월(장마)·11~12월이 비수기.
+       해외 프로파일 어느 것과도 안 맞아 새로 만들었다(일본은 벚꽃·단풍 기준이다).
+       ⚠ 온라인 취합값이다 — 대표가 손으로 고칠 자리다(결정대기열 7-d-1). */
+    id: 'korea', name: '국내 (여름 7~8월 성수기 / 2~3월·6월·11~12월 비수기)',
+    config: [
+      { id:'peak',    months:[7,8],         factor:1.18, label:'여름 휴가철', badge:'여름 휴가철 +18%' },
+      { id:'offpeak', months:[2,3,6,11,12], factor:0.90, label:'비수기',      badge:'비수기 −10%' },
+      { id:'normal',  months:[],            factor:1.00, label:'평시',        badge:'평시' },
+    ],
+  },
   {
     /* 동남아 — 건기(11~3월) 성수기 / 우기(5~9월) 비수기. 공용표(여름 성수기)와 정반대 */
     id: 'seasia', name: '동남아 (건기 11~3월 성수기 / 우기 5~9월 비수기)',
@@ -424,6 +440,7 @@ const RATE_META = {
    ===================================================================== */
 const destinationRates = [
   /* ── 동북아시아 : 일본 ── */
+  {"destination_key":"제주도",      "label":"제주도",      "airfare":189400, "fuel_surcharge":20000, "hotel_per_room":170000,"meal_per_person":60000, "vehicle_large":550000, "vehicle_small":250000, "guide_fee":250000,"sightseeing_fee":170000, "margin_per_traveler":80000, "rateDate":"2026-08", "notes":"국내 — 항공·호텔·차량·관광은 견적서 실측, 유류·식비·가이드·마진은 온라인 취합 추정입니다. 견적서가 쌓이면 갱신 제안이 알려줍니다.", "season_note":"성수기: 7~8월(여름 휴가철) · 평시: 4~5월·9~10월(연수 최적기) · 비수기: 2~3월·6월(장마)·11~12월"},
   {"destination_key":"도쿄",        "label":"도쿄",        "airfare":380000, "fuel_surcharge":180000,"hotel_per_room":300000,"meal_per_person":25000, "vehicle_large":1200000,"vehicle_small":840000, "guide_fee":300000,"sightseeing_fee":30000, "margin_per_traveler":130000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 3~4월(벚꽃)·9~11월(단풍) · 평시: 5월·10월 · 비수기: 1~2월·장마(6월중~7월초)·혹서기(7~8월)"},
   {"destination_key":"오사카",       "label":"오사카",       "airfare":360000, "fuel_surcharge":180000,"hotel_per_room":250000,"meal_per_person":25000, "vehicle_large":1100000,"vehicle_small":770000, "guide_fee":300000,"sightseeing_fee":30000, "margin_per_traveler":130000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 3~4월(벚꽃)·9~11월(단풍) · 평시: 5월·10월 · 비수기: 1~2월·장마(6월중~7월초)·혹서기(7~8월)"},
   {"destination_key":"후쿠오카",     "label":"후쿠오카",     "airfare":330000, "fuel_surcharge":180000,"hotel_per_room":250000,"meal_per_person":25000, "vehicle_large":1000000,"vehicle_small":700000, "guide_fee":300000,"sightseeing_fee":30000, "margin_per_traveler":130000, "rateDate":"2026-06", "notes":"", "season_note":"성수기: 3~4월(벚꽃)·9~11월(단풍) · 평시: 5월·10월 · 비수기: 1~2월·장마(6월중~7월초)·혹서기(7~8월)"},
@@ -526,6 +543,16 @@ if (typeof module !== 'undefined' && module.exports) {
 const DEST_REC = {
 
   /* ── 일본 ── */
+  '제주도': {
+    a: { tag:'역량강화형', desc:'국내에서 배우는 친환경 에너지·관광산업 운영 모델',
+         points:['제주에너지공사·풍력단지 견학','제주테크노파크 입주기업 교류','관광 인프라 운영 브리핑'],
+         items:['카본프리 아일랜드 정책 브리핑','풍력·태양광 발전단지 현장 견학','제주테크노파크 창업 생태계 탐방','리조트·컨벤션 운영 사례 세션'],
+         value:'해외로 나가지 않고도 에너지 전환과 관광산업 운영을 현장에서 확인하는 국내 연수' },
+    b: { tag:'동기부여·화합형', desc:'이동 부담 없이 몰입하는 국내 거점형 팀 워크숍',
+         points:['리조트 컨퍼런스 워크숍','오름 트레킹 팀 활동','해녀문화·로컬 공방 체험'],
+         items:['리조트 컨퍼런스룸 집중 세션','오름 트레킹·조별 미션','해녀문화 체험·로컬 공방','흑돼지 만찬·성과 발표'],
+         value:'출입국 없이 오전 출발·오후 시작이 가능해 짧은 일정에도 몰입도가 높은 연수' },
+  },
   '도쿄': {
     a: { tag:'역량강화형', desc:'일본 제조·IT 혁신 현장 벤치마킹',
          points:['도요타·소니 공장 견학','도쿄대·와세다대 방문·강의','스타트업 허브 투어'],
@@ -1132,6 +1159,31 @@ const DEST_REC = {
 const ITINERARY_DB = {
 
   /* ─── 일본 도쿄 ────────────────────────────────────────────────── */
+  '제주도': [
+    {
+      title: '제주 친환경 에너지 · 관광산업 벤치마킹 코스',
+      subtitle: '카본프리 아일랜드 정책과 관광 인프라 운영을 국내에서 학습',
+      highlights: ['제주에너지공사·풍력단지 견학','제주테크노파크 방문','관광 인프라 운영 브리핑','제주 로컬 브랜드 상권 조사'],
+      days: [
+        { day:1, title:'입도 · 오리엔테이션', am:'김포/김해 출발 · 제주공항 도착', pm:'제주시 시내 이동 · 오리엔테이션 미팅', eve:'환영 만찬 (흑돼지)', tip:'국내선은 출발 1시간 전 도착으로 충분 — 일정에 여유가 생긴다' },
+        { day:2, title:'친환경 에너지 정책', am:'제주에너지공사 브리핑 · 풍력발전단지 견학', pm:'카본프리 아일랜드 정책 세션', eve:'현지식 팀 만찬', tip:'공공기관 방문은 공문 3주 전 발송 권장' },
+        { day:3, title:'산업 · 창업 생태계', am:'제주테크노파크 방문 · 입주기업 교류', pm:'제주 로컬 브랜드 상권(원도심) 조사', eve:'자유 저녁', tip:'로컬 브랜드 인터뷰는 사전 섭외 시 깊이가 달라진다' },
+        { day:4, title:'관광 인프라 · 정리', am:'관광 인프라 운영 브리핑 (리조트·컨벤션)', pm:'연수 성과 공유 세션 · 공항 이동', eve:'귀가', tip:'성수기 항공은 좌석 확보가 관건 — 인원 확정을 서두른다' },
+      ],
+    },
+    {
+      title: '제주 조직문화 · 워크숍 연수 코스',
+      subtitle: '이동 부담 없이 몰입할 수 있는 국내 거점형 워크숍과 팀 활동',
+      highlights: ['리조트 컨퍼런스 세션','오름 트레킹 팀 활동','해녀문화·로컬 체험','조별 성과 발표'],
+      days: [
+        { day:1, title:'입도 · 아이스브레이킹', am:'제주공항 도착 · 숙소 체크인', pm:'아이스브레이킹 워크숍', eve:'환영 만찬', tip:'국내라 당일 오전 출발·오후 세션 시작이 가능하다' },
+        { day:2, title:'집중 워크숍', am:'리조트 컨퍼런스룸 전략 세션', pm:'조별 과제 워크숍 · 중간 발표', eve:'팀 만찬', tip:'회의실 음향·스크린은 전날 확인' },
+        { day:3, title:'야외 팀 활동', am:'오름 트레킹 · 조별 미션', pm:'해녀문화·로컬 공방 체험', eve:'자유 저녁', tip:'우천 대체안(실내 체험) 미리 확보' },
+        { day:4, title:'성과 공유 · 귀가', am:'팀별 성과 발표 (3분)', pm:'공항 이동', eve:'귀가', tip:'렌터카가 아니면 버스 배차를 미리 확정' },
+      ],
+    },
+  ],
+
   '도쿄': [
     {
       title: '도쿄 혁신 산업 · IT 벤치마킹 코스',

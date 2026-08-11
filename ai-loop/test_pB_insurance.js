@@ -53,7 +53,10 @@ const ok = (name, cond, extra = '') => {
 
   console.log('[0] 상수 노출·형태 확인');
   ok('INSURANCE_BASE = 18000(동남아 4~5일 실거래 기준가)', BASE === 18000, 'got ' + BASE);
-  ok('권역 계수 5구간', Object.keys(ZF).length === 5, Object.keys(ZF).join(','));
+  /* ⚠ TE에서 국내(domestic) 구간이 늘어 6구간이 됐다 — 제주도가 유일한 국내 목적지다.
+     구간을 늘리면 **엔진·서버·관리자 폼 세 곳**을 다 고쳐야 한다(test_pP가 대조한다). */
+  ok('권역 계수 6구간', Object.keys(ZF).length === 6, Object.keys(ZF).join(','));
+  ok('국내 구간이 가장 낮다', ZF.domestic < ZF.asiaShort, ZF.domestic + ' vs ' + ZF.asiaShort);
   ok('기준 권역 asiaMid = 1.00', ZF.asiaMid === 1.00);
   ok('권역 계수 순서 asiaShort<asiaMid<evac<oceania<highCost',
      ZF.asiaShort < ZF.asiaMid && ZF.asiaMid < ZF.evac && ZF.evac < ZF.oceania && ZF.oceania < ZF.highCost);
