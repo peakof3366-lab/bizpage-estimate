@@ -328,6 +328,20 @@ async function main() {
   await sql`alter table actual_price_reports add column if not exists fx_rate numeric`;
   await sql`alter table actual_price_reports add column if not exists fx_fields text`;
 
+  /* SU: 항목별 **평균에서 빼기** (2026-08-11 대표 지시).
+     한 견적서가 **두 도시**를 도는 일이 실제로 있다 — 「(주)좋은친구 경기신용보증재단
+     (홍콩,심천)」은 목적지가 홍콩인데 호텔이 **선전(심천)**이다. 그 호텔값을 홍콩 평균에
+     넣으면 홍콩 기준가가 엉뚱하게 내려간다. 대표 판단: 「지역이 달라지니 심천 호텔비는
+     홍콩 평균에 넣지 말 것.」
+     ⚠ **행을 지우지 않는다.** 나머지 항목(항공·차량·가이드)은 홍콩 것이라 그대로 쓴다.
+       그래서 삭제가 아니라 **항목 단위**로 뺀다.
+     ⚠ **어느 항목이 어느 도시 것인지는 사람만 안다.** 호텔 이름에 '선전'이 들어 있다고
+       코드가 판단하게 만들면, 이름을 그렇게 안 적은 문서에서 조용히 틀린다.
+       그래서 자동 판정이 아니라 담당자가 표시한다(이 저장소의 규칙 그대로).
+     모양: {"hotel": "심천 호텔 — 홍콩과 다른 도시"} — 키는 화면의 항목 키,
+     값은 **왜 뺐는지**다. 사유 없이 빼면 나중에 아무도 이유를 모른다. */
+  await sql`alter table actual_price_reports add column if not exists excluded_fields jsonb`;
+
   /* P2b: 전역 앱 설정 KV (신규) — 견적 계수 스칼라 노브(coefficients) 등 사이트 전역 설정을
      key→jsonb로 저장. 공개 계산기는 /api/rates GET이 이 중 'coefficients' 행을 코드 기본값 위에
      폴백-우선 병합한다(행이 없으면 기본값=현재 동작). content_overrides와 같은 KV 형태이되 값이

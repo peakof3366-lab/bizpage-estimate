@@ -678,7 +678,7 @@ async function handlePriceReports(req, res) {
     const rows = await sql`select id, destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
                                   fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
                                   depart_date, quote_date, nights,
-                                  fx_currency, fx_rate, fx_fields,
+                                  fx_currency, fx_rate, fx_fields, excluded_fields,
                                   author, source, created_at
                            from actual_price_reports order by created_at desc limit 1000`;
     const num = (v) => (v != null ? Number(v) : null);
@@ -706,6 +706,9 @@ async function handlePriceReports(req, res) {
       fxCurrency: r.fx_currency || null,
       fxRate: num(r.fx_rate),
       fxFields: r.fx_fields ? String(r.fx_fields).split(',').filter(Boolean) : [],
+      /* SU: 담당자가 **평균에서 뺀** 항목과 그 이유. {항목키: 사유}.
+         ⚠ 화면은 이 항목을 집계에서 빼되 **값은 그대로 보여준다** — 참고자료로는 쓴다. */
+      excludedFields: (r.excluded_fields && typeof r.excluded_fields === 'object') ? r.excluded_fields : {},
       author: r.author || '', source: r.source, createdAt: r.created_at,
     })));
   } catch (err) {
@@ -731,6 +734,34 @@ async function handleDeletePriceReport(req, res) {
   }
 }
 
+/* SU: 제보의 한 항목을 **평균에서 빼거나 되돌린다** (2026-08-11 대표 지시).
+   ⚠ 행을 지우지 않는다 — 같은 견적서의 나머지 항목은 그 목적지 것이라 그대로 쓴다.
+   ⚠ **사유를 반드시 받는다.** 사유 없이 빠진 값은 나중에 아무도 이유를 몰라
+     "왜 이 견적서만 빠졌지"가 되고, 결국 누군가 되돌려 놓는다.
+   reason이 비어 있으면 **해제**(다시 평균에 넣는다)로 본다. */
+const EXCLUDABLE = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight'];
+async function handleExcludeReportField(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  const body = req.body || {};
+  const id = Number(body.id);
+  const field = String(body.field || '');
+  const reason = String(body.reason || '').trim().slice(0, 200);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'invalid_id' });
+  if (EXCLUDABLE.indexOf(field) < 0) return res.status(400).json({ error: 'invalid_field' });
+  try {
+    const cur = await sql`select excluded_fields from actual_price_reports where id = ${id}`;
+    if (!cur.length) return res.status(404).json({ error: 'not_found' });
+    const map = (cur[0].excluded_fields && typeof cur[0].excluded_fields === 'object')
+      ? Object.assign({}, cur[0].excluded_fields) : {};
+    if (reason) map[field] = reason; else delete map[field];
+    await sql`update actual_price_reports set excluded_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+    return res.status(200).json({ ok: true, id, excludedFields: map });
+  } catch (err) {
+    console.error('[quotes excludeReportField] 저장 실패:', err);
+    return res.status(500).json({ error: 'update_failed' });
+  }
+}
+
 /* 견적서 단가 뽑기의 **순수 함수**를 테스트가 직접 부를 수 있게 내보낸다 (RN).
    ⚠ 핸들러(module.exports)에 얹는 형태다 — Vercel은 함수 export만 보므로 영향이 없다.
    테스트가 이 함수를 복사해 쓰면 곧 어긋나므로, 진짜 코드를 그대로 부르게 한다. */
@@ -740,6 +771,8 @@ module.exports = async (req, res) => {
   if (action === 'priceReport' && req.method === 'POST') return handlePriceReport(req, res);
   if (action === 'priceReports' && req.method === 'GET') return handlePriceReports(req, res);
   if (action === 'deletePriceReport' && req.method === 'DELETE') return handleDeletePriceReport(req, res);
+  /* ⚠ Vercel Hobby 함수 12개 제한에 도달해 있다 — 새 파일이 아니라 ?action= 분기다 */
+  if (action === 'excludeReportField' && req.method === 'POST') return handleExcludeReportField(req, res);
 
   /* 내부 산출 저장 (PX) — 담당자 신원을 **서버가** 찍는다.
      예전에는 공개 POST 하나뿐이었고 `channel:'internal'`·`createdBy`를 클라이언트가

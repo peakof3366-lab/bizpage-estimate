@@ -2204,13 +2204,16 @@
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem">
         <div class="detail-label" style="margin:0">목적지 필터</div>
         <select id="pr-list-filter" class="status-select" style="min-width:180px" onchange="renderPriceReportsList()"></select>
-        <span style="font-size:.76rem;color:var(--muted)">잘못 입력된 제보는 🗑 삭제하면 갱신제안·검증에서 즉시 빠집니다.</span>
+        <span style="font-size:.76rem;color:var(--muted)">잘못 입력된 제보는 🗑 삭제하면 갱신제안·검증에서 즉시 빠집니다.<br>
+          값을 <strong>남겨 두되 평균에만 안 넣고</strong> 싶으면 그 숫자를 눌러 <strong>제외</strong>하세요 —
+          두 도시를 도는 일정에서 다른 도시 값이 섞일 때 씁니다.</span>
       </div>
       <div style="max-height:56vh;overflow:auto;border:1px solid var(--border);border-radius:8px">
         <table class="rate-table" style="width:100%;font-size:.8rem">
           <thead>
             <tr>
               <th style="text-align:left">일시</th><th style="text-align:left">목적지</th>
+              <th style="text-align:left">출발 · 견적작성</th>
               <th style="text-align:right">항공료</th><th style="text-align:right">호텔단가</th>
               <th style="text-align:right">식비</th><th style="text-align:left">호텔명</th>
               <th style="text-align:left">작성자</th><th style="text-align:left">출처</th><th></th>
@@ -4768,7 +4771,20 @@
     meal_per_person: 'mealUnit', vehicle_large: 'vehicleUnit', guide_fee: 'guideUnit',
     sightseeing_fee: 'sightUnit',
   };
+  /* SU: 담당자가 「평균에서 빼기」로 표시한 항목 (2026-08-11 대표 지시).
+     ⚠ **여기 한 곳에서만 뺀다.** 이 함수가 제보 금액을 기준가와 견주는 **유일한 관문**이라
+       (갱신 제안 · 기준가 경고 · 견적 정확도 · 실측 N건 배지 네 곳이 전부 여기를 지난다)
+       여기서 빼면 네 곳이 한 번에 빠진다. 화면마다 따로 거르면 반드시 한 곳을 빠뜨린다
+       (결함 생성기 ①).
+     ⚠ **값을 지우는 것이 아니다.** 제보 목록에는 그대로 보이고 사유가 함께 뜬다 —
+       참고자료로는 쓴다. 평균에만 안 들어간다. */
+  const reportFieldExcluded = (report, rateField) =>
+    !!(report && report.excludedFields && report.excludedFields[REPORT_FX_KEY[rateField]]);
+  const reportExcludeReason = (report, rateField) =>
+    (report && report.excludedFields && report.excludedFields[REPORT_FX_KEY[rateField]]) || '';
+
   function reportValueToday(report, rateField) {
+    if (reportFieldExcluded(report, rateField)) return null;
     const v = report ? report[REPORT_VALUE_KEY[rateField]] : null;
     if (v == null || !isFinite(v)) return null;
     const cur = report.fxCurrency, rate = Number(report.fxRate);
@@ -4869,6 +4885,8 @@
   function computeRateSuggestions() {
     if (typeof destinationRates === 'undefined') return [];
     const byKey = {}; // `${destKey}|${field}` -> { destKey, field, label, ratios }
+    /* SU: 담당자가 평균에서 뺀 건수 — 조용히 빼지 않고 표에 적는다 */
+    const excludedByKey = {};
 
     /* 최근성 필터(신규) — 최근 RATE_SUGGEST_RECENT_MONTHS개월 이내 데이터만 집계.
        날짜가 없거나 파싱 안 되는 건 데이터 유실 방지를 위해 배제하지 않는다. */
@@ -4913,6 +4931,14 @@
       if (!dest) return;
       const eff = effectiveRate(dest);
       Object.keys(RATE_SUGGEST_REPORT_FIELDS).forEach((field) => {
+        /* SU: 담당자가 평균에서 뺀 항목은 **몇 건인지 세어 화면에 적는다.**
+           조용히 빼면 "왜 3건인데 2건이라 하지"가 되고, 그러면 아무도 이 표를 못 믿는다
+           (SN에서 「검산 안 된 N건 제외」를 표에 찍기로 한 것과 같은 이유다). */
+        if (reportFieldExcluded(r, field)) {
+          const ek = `${r.destinationKey}|${field}|report`;
+          excludedByKey[ek] = (excludedByKey[ek] || 0) + 1;
+          return;
+        }
         /* 옛 환율이 박힌 금액을 그대로 기준가와 견주면 환율 차이가 '오차'로 둔갑한다(SG) */
         const reported = reportValueToday(r, field);
         if (reported == null) return;
@@ -4940,6 +4966,7 @@
       suggestions.push({
         destKey: data.destKey, field: data.field, fieldLabel: RATE_FIELD_LABELS[data.field] || data.field,
         label: data.label, count: clean.length, outlierCount, diffPct, source: data.source,
+        excludedCount: excludedByKey[`${data.destKey}|${data.field}|report`] || 0,
         currentBase, suggestedBase: Math.round(currentBase * medRatio),
         /* 자동적용(지금 바로 적용)은 계수 보정된 EM 소스에만 부여. 제보 소스는 계수 미보정
            이라 기준가를 밀어올리면 견적에서 시즌·피크가 이중 반영되므로 confident 불가. */
@@ -4977,7 +5004,7 @@
                **첫 실측**이라는 사실이 판단에 중요하다(대표 지시로 1건도 제안한다). -->
           <strong>${esc(s.label)} · ${esc(s.fieldLabel)}</strong> · 최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 ${isReport ? '실측 제보' : '실제 계약'} ${s.count === 1 ? '<b>1건</b>(이 목적지의 첫 실측)이' : `${s.count}건 중앙값이`} 기준 대비
           <strong>${s.diffPct > 0 ? '+' : ''}${s.diffPct.toFixed(1)}%</strong>
-          — 기준 ${fmtWon(s.currentBase)} → 제안 ${fmtWon(s.suggestedBase)}${s.outlierCount ? ` <span style="color:var(--danger);font-weight:700">· 이상치 ${s.outlierCount}건 제외</span>` : ''}
+          — 기준 ${fmtWon(s.currentBase)} → 제안 ${fmtWon(s.suggestedBase)}${s.outlierCount ? ` <span style="color:var(--danger);font-weight:700">· 이상치 ${s.outlierCount}건 제외</span>` : ''}${s.excludedCount ? ` <span style="color:var(--muted);font-weight:700">· 평균에서 뺀 ${s.excludedCount}건 제외</span>` : ''}
           ${isReport ? '<div style="color:var(--muted);font-size:.72rem;margin-top:.25rem">※ 제보값은 성수기·피크 프리미엄이 섞여 있어 참고용입니다 — 값을 확인하고 <b>요율 편집하기</b>로 판단해 반영하세요(자동 적용 대상 아님).</div>' : ''}
         </div>
         <div style="display:flex;gap:.4rem;flex-shrink:0">
@@ -6198,8 +6225,33 @@
     const filterKey = document.getElementById('pr-list-filter')?.value || '';
     const rows = priceReportsCache.filter(r => !filterKey || r.destinationKey === filterKey);
     const optLabel = k => { const d = destinationRates.find(x => x.destination_key === k); return d ? d.label : k; };
-    const cell = v => v != null ? fmtWon(v) : '<span style="color:var(--muted)">—</span>';
-    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.5rem">제보가 없습니다.</td></tr>`; return; }
+    /* SU: 숫자를 누르면 「평균에서 빼기」를 걸고 풀 수 있다. 뺀 값은 **지우지 않는다** —
+       취소선과 사유를 붙여 그대로 보여준다(참고자료로는 쓴다). */
+    const cell = (r, rateField, v) => {
+      if (v == null) return '<span style="color:var(--muted)">—</span>';
+      const off = reportFieldExcluded(r, rateField);
+      const why = reportExcludeReason(r, rateField);
+      return `<button type="button" class="btn-detail" style="padding:.1rem .35rem;font-weight:700;`
+        + (off ? 'text-decoration:line-through;color:var(--muted)' : '')
+        + `" title="${off ? esc('평균에서 뺌 — ' + why + ' (눌러서 되돌리기)') : '눌러서 평균에서 빼기'}"`
+        + ` onclick="togglePriceReportExclude(${Number(r.id)},'${REPORT_FX_KEY[rateField]}')">${fmtWon(v)}</button>`
+        + (off ? `<div style="font-size:.66rem;color:var(--muted);font-weight:700">평균 제외 · ${esc(why)}</div>` : '');
+    };
+    /* 출발일·견적 작성일 — **참고자료**다(2026-08-11 대표 지시로 그대로 저장한다).
+       ⚠ 작성일이 출발일보다 **뒤**면 그건 견적을 낸 날이 아니라 **문서를 PDF로 뽑은 날**일
+         수 있다(코퍼스 실측: 작성일을 읽은 10건 중 6건이 그랬고, 그 날짜가 2026-08-04·06
+         두 날에 몰려 있었다). 값은 지우지 않고 **참고용이라고 밝힌다** — 리드타임은
+         원래부터 이런 건에서 계산되지 않는다(음수라 버려진다). */
+    const dateCell = (r) => {
+      const dep = r.departDate || '—';
+      const q = r.quoteDate || '—';
+      const suspect = r.departDate && r.quoteDate && r.quoteDate > r.departDate;
+      return `<span style="white-space:nowrap">${esc(dep)}</span>`
+        + `<br><span style="font-size:.7rem;color:var(--muted);white-space:nowrap">작성 ${esc(q)}`
+        + (suspect ? ` <span title="작성일이 출발일보다 뒤입니다 — 견적을 낸 날이 아니라 문서를 뽑은 날일 수 있어 리드타임 계산에는 쓰지 않습니다" style="color:#b45309;font-weight:700">· 참고용</span>` : '')
+        + `</span>`;
+    };
+    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:1.5rem">제보가 없습니다.</td></tr>`; return; }
     tbody.innerHTML = rows.map(r => `
       <tr>
         <td style="white-space:nowrap">${r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 10) : '—'}</td>
@@ -6209,14 +6261,54 @@
           const c = destCountryOf(r.destinationKey);
           return c && c !== optLabel(r.destinationKey) ? `<br><span style="font-size:.7rem;color:var(--muted);font-weight:400">${esc(c)}</span>` : '';
         })()}</td>
-        <td style="text-align:right">${cell(r.airfareUnit)}</td>
-        <td style="text-align:right">${cell(r.hotelUnit)}</td>
-        <td style="text-align:right">${cell(r.mealUnit)}</td>
+        <td>${dateCell(r)}</td>
+        <td style="text-align:right">${cell(r, 'airfare', r.airfareUnit)}</td>
+        <td style="text-align:right">${cell(r, 'hotel_per_room', r.hotelUnit)}</td>
+        <td style="text-align:right">${cell(r, 'meal_per_person', r.mealUnit)}</td>
         <td>${r.hotelName ? esc(r.hotelName) : '<span style="color:var(--muted)">—</span>'}</td>
         <td>${esc(r.author || '—')}</td>
         <td><span style="font-size:.7rem;color:var(--muted)">${r.source === 'pdf' ? 'PDF' : '직접'}</span></td>
         <td style="text-align:right"><button class="btn-detail" onclick="deletePriceReportById(${r.id})">🗑 삭제</button></td>
       </tr>`).join('');
+  }
+
+  /* SU: 한 항목을 평균에서 빼거나 되돌린다 (2026-08-11 대표 지시).
+     ⚠ **사유를 반드시 받는다.** 사유 없이 빠진 값은 나중에 아무도 이유를 몰라
+       "왜 이 견적서만 빠졌지"가 되고 결국 누군가 되돌려 놓는다.
+     ⚠ 행을 지우는 것이 아니다 — 같은 견적서의 나머지 항목은 그 목적지 것이라 그대로 쓴다. */
+  const PR_EXCLUDE_LABEL = { airfare: '항공료', fuel: '유류할증', hotel: '호텔단가',
+    meal: '식비', vehicle: '차량', guide: '가이드', sight: '관광비' };
+  async function togglePriceReportExclude(id, fieldKey) {
+    const msg = document.getElementById('pr-list-msg');
+    const row = (priceReportsCache || []).find((r) => Number(r.id) === Number(id));
+    if (!row) return;
+    const on = !!(row.excludedFields && row.excludedFields[fieldKey]);
+    const label = PR_EXCLUDE_LABEL[fieldKey] || fieldKey;
+    let reason = '';
+    if (on) {
+      if (!confirm(`이 제보의 ${label}을(를) 다시 평균에 넣을까요?\n(지금 사유: ${row.excludedFields[fieldKey]})`)) return;
+    } else {
+      reason = (prompt(`이 제보의 ${label}을(를) 평균에서 뺍니다.\n왜 빼는지 적어 주세요 (예: 심천 호텔 — 홍콩과 다른 도시).`,
+        '') || '').trim();
+      if (!reason) { if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = '사유를 적어야 뺄 수 있습니다 — 나중에 이유를 알 수 없으면 누군가 되돌려 놓습니다.'; } return; }
+    }
+    try {
+      const res = await fetch('/api/quotes?action=excludeReportField', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, field: fieldKey, reason }),
+      });
+      if (!res.ok) { if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = '저장에 실패했습니다.'; } return; }
+      await loadPriceReports();
+      renderPriceReportsList();
+      renderRates();
+      if (msg) {
+        msg.style.color = 'var(--success)';
+        msg.textContent = on ? `${label}을(를) 다시 평균에 넣었습니다.`
+          : `${label}을(를) 평균에서 뺐습니다 — 값은 그대로 남아 참고자료로 보입니다.`;
+      }
+    } catch (err) {
+      if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = '요청에 실패했습니다. 네트워크를 확인해 주세요.'; }
+    }
   }
 
   async function deletePriceReportById(id) {
