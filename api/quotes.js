@@ -569,7 +569,7 @@ async function handlePriceReport(req, res) {
   const { destinationKey, airfareUnit, hotelUnit, hotelName, mealUnit,
           fuelUnit, vehicleUnit, guideUnit, sightUnit, sellPriceUnit,
           departDate, quoteDate, nights,
-          fxCurrency, fxRate, fxFields, manualFields,
+          fxCurrency, fxRate, fxFields, manualFields, fieldSources,
           author, source } = req.body || {};
   if (typeof destinationKey !== 'string' || !destinationKey.trim() || destinationKey.length > 100) {
     return res.status(400).json({ error: 'invalid_body' });
@@ -681,6 +681,26 @@ async function handlePriceReport(req, res) {
     }
   }
 
+  /* SX: **칸마다 그 값이 어떻게 나왔는가.** 제출과 함께 버려지던 정보다 —
+     이게 없으면 나중에 「어느 칸이 확인 대상인가」를 물었을 때 값만 보고는 답할 수 없다.
+     ⚠ 모르는 항목 키·모르는 출처는 **거절**한다(조용히 버리면 화면은 저장됐다고 믿는다). */
+  const VIA_KEYS = ['rule', 'calc', 'doc', 'unchecked', 'ai', 'fallback', 'manual', 'confirmed', 'none'];
+  let sourcesJson = null;
+  if (fieldSources !== undefined && fieldSources !== null && fieldSources !== '') {
+    if (typeof fieldSources !== 'object' || Array.isArray(fieldSources)) {
+      return res.status(400).json({ error: 'invalid_field_sources' });
+    }
+    const keys = Object.keys(fieldSources);
+    if (keys.some((k) => MANUAL_FIELD_KEYS.indexOf(k) < 0 || VIA_KEYS.indexOf(String(fieldSources[k])) < 0)) {
+      return res.status(400).json({ error: 'invalid_field_sources' });
+    }
+    if (keys.length) {
+      const out = {};
+      keys.forEach((k) => { out[k] = String(fieldSources[k]); });
+      sourcesJson = JSON.stringify(out);
+    }
+  }
+
   try {
     /* ⚠ 새 컬럼(fuel/vehicle/guide/sight/sell_price)은 **마이그레이션이 먼저** 돌아야 한다.
        배포가 앞서면 여기서 500이 난다 — CLAUDE.md의 순서 규칙 그대로다.
@@ -689,11 +709,11 @@ async function handlePriceReport(req, res) {
       insert into actual_price_reports
         (destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
          fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
-         depart_date, quote_date, nights, fx_currency, fx_rate, fx_fields, manual_fields, author, source)
+         depart_date, quote_date, nights, fx_currency, fx_rate, fx_fields, manual_fields, field_sources, author, source)
       values (${destinationKey}, ${airfare.value}, ${hotel.value}, ${safeHotelName || null}, ${meal.value},
               ${fuel.value}, ${vehicle.value}, ${guide.value}, ${sight.value}, ${sell.value},
               ${depart.value}, ${quoted.value}, ${nightsN}, ${fxCur}, ${fxR}, ${fxF},
-              ${manualJson}::jsonb,
+              ${manualJson}::jsonb, ${sourcesJson}::jsonb,
               ${safeAuthor}, ${source === 'pdf' ? 'pdf' : 'manual'})
     `;
     return res.status(200).json({ ok: true });
@@ -709,7 +729,7 @@ async function handlePriceReports(req, res) {
     const rows = await sql`select id, destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
                                   fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
                                   depart_date, quote_date, nights,
-                                  fx_currency, fx_rate, fx_fields, excluded_fields, manual_fields,
+                                  fx_currency, fx_rate, fx_fields, excluded_fields, manual_fields, field_sources,
                                   author, source, created_at
                            from actual_price_reports order by created_at desc limit 1000`;
     const num = (v) => (v != null ? Number(v) : null);
@@ -743,6 +763,8 @@ async function handlePriceReports(req, res) {
       /* SW: 담당자가 그 자리에서 확정한 칸 {항목: {by, at, how}}. 추출값과 갈라서 본다 —
          이 칸은 「확인 대상」에서 빠지고, 요율 집계에서 더 믿을 수 있는 값이다. */
       manualFields: (r.manual_fields && typeof r.manual_fields === 'object') ? r.manual_fields : {},
+      /* SX: 칸마다 그 값이 어떻게 나왔는가 — 「확인 필요」 목록이 이걸로 고른다 */
+      fieldSources: (r.field_sources && typeof r.field_sources === 'object') ? r.field_sources : {},
       author: r.author || '', source: r.source, createdAt: r.created_at,
     })));
   } catch (err) {
@@ -796,6 +818,69 @@ async function handleExcludeReportField(req, res) {
   }
 }
 
+/* SX: 「확인 필요」 목록에서 **나중에** 한 칸을 확정한다 (2026-08-11).
+   제출할 때 확정하지 못하고 넘어간 칸을, 목록에서 값을 고치거나 그대로 확인하고 닫는다.
+   ⚠ 값을 함께 받는다(`value`) — 목록에서 고쳐 넣는 것이 이 화면의 절반이다.
+     값이 없으면 **지금 값 그대로 「확인했다」**는 뜻이다(그것도 확정이다).
+   ⚠ `by`는 세션 표시명으로 덮어쓴다. `how`가 없으면 그 자리에서 만든다 — 근거 없는
+     확정을 남기지 않는다(SW와 같은 원칙). */
+const REPORT_VALUE_COL = {
+  airfare: 'airfare_unit', fuel: 'fuel_unit', hotel: 'hotel_unit', meal: 'meal_unit',
+  vehicle: 'vehicle_unit', guide: 'guide_unit', sight: 'sight_unit', sell: 'sell_price_unit',
+};
+const REPORT_VALUE_MAX = {
+  airfare: AIRFARE_UNIT_MAX, fuel: FUEL_UNIT_MAX, hotel: HOTEL_UNIT_MAX, meal: MEAL_UNIT_MAX,
+  vehicle: VEHICLE_UNIT_MAX, guide: GUIDE_UNIT_MAX, sight: SIGHT_UNIT_MAX, sell: SELL_UNIT_MAX,
+};
+async function handleConfirmReportField(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  const body = req.body || {};
+  const id = Number(body.id);
+  const field = String(body.field || '');
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'invalid_id' });
+  if (!REPORT_VALUE_COL[field]) return res.status(400).json({ error: 'invalid_field' });
+
+  let newValue = null;
+  if (body.value !== undefined && body.value !== null && body.value !== '') {
+    const n = Number(body.value);
+    if (!Number.isFinite(n) || n <= 0 || n > REPORT_VALUE_MAX[field]) {
+      return res.status(400).json({ error: 'value_out_of_range' });
+    }
+    newValue = n;
+  }
+  const safeAuthor = String((req.user && req.user.displayName) || '').slice(0, 40);
+  try {
+    const cur = await sql`select manual_fields from actual_price_reports where id = ${id}`;
+    if (!cur.length) return res.status(404).json({ error: 'not_found' });
+    const map = (cur[0].manual_fields && typeof cur[0].manual_fields === 'object')
+      ? Object.assign({}, cur[0].manual_fields) : {};
+    map[field] = {
+      by: safeAuthor,
+      at: new Date().toISOString(),
+      how: String(body.how || (newValue == null ? '목록에서 값을 확인했습니다' : '목록에서 값을 고쳤습니다')).slice(0, 200),
+    };
+    /* ⚠ 컬럼 이름을 문자열로 조립하지 않는다 — 항목마다 명시적으로 쓴다.
+       (neon 태그드 템플릿에 식별자를 끼워 넣을 수 없고, 넣으면 주입 경로가 된다.) */
+    if (newValue != null) {
+      const v = newValue;
+      if (field === 'airfare') await sql`update actual_price_reports set airfare_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+      else if (field === 'fuel') await sql`update actual_price_reports set fuel_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+      else if (field === 'hotel') await sql`update actual_price_reports set hotel_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+      else if (field === 'meal') await sql`update actual_price_reports set meal_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+      else if (field === 'vehicle') await sql`update actual_price_reports set vehicle_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+      else if (field === 'guide') await sql`update actual_price_reports set guide_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+      else if (field === 'sight') await sql`update actual_price_reports set sight_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+      else await sql`update actual_price_reports set sell_price_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+    } else {
+      await sql`update actual_price_reports set manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+    }
+    return res.status(200).json({ ok: true, id, field, value: newValue, manualFields: map });
+  } catch (err) {
+    console.error('[quotes confirmReportField] 저장 실패:', err);
+    return res.status(500).json({ error: 'update_failed' });
+  }
+}
+
 /* 견적서 단가 뽑기의 **순수 함수**를 테스트가 직접 부를 수 있게 내보낸다 (RN).
    ⚠ 핸들러(module.exports)에 얹는 형태다 — Vercel은 함수 export만 보므로 영향이 없다.
    테스트가 이 함수를 복사해 쓰면 곧 어긋나므로, 진짜 코드를 그대로 부르게 한다. */
@@ -807,6 +892,7 @@ module.exports = async (req, res) => {
   if (action === 'deletePriceReport' && req.method === 'DELETE') return handleDeletePriceReport(req, res);
   /* ⚠ Vercel Hobby 함수 12개 제한에 도달해 있다 — 새 파일이 아니라 ?action= 분기다 */
   if (action === 'excludeReportField' && req.method === 'POST') return handleExcludeReportField(req, res);
+  if (action === 'confirmReportField' && req.method === 'POST') return handleConfirmReportField(req, res);
 
   /* 내부 산출 저장 (PX) — 담당자 신원을 **서버가** 찍는다.
      예전에는 공개 POST 하나뿐이었고 `channel:'internal'`·`createdBy`를 클라이언트가

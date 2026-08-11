@@ -352,6 +352,17 @@ async function main() {
      `how`는 **어떻게 그 값이 나왔는지**다 — 비워 두면 나중에 근거를 잃는다. */
   await sql`alter table actual_price_reports add column if not exists manual_fields jsonb`;
 
+  /* SX: **칸마다 그 값이 어떻게 나왔는가** — 'rule'(견적서 한 줄) · 'calc'(여러 줄 합산) ·
+     'doc'(문서에 그대로) · 'unchecked'(검산 안 됨) · 'ai' · 'fallback' · 'manual'.
+     지금은 이 정보가 **추출 화면에만 있다가 제출과 함께 버려진다.** 그래서 나중에
+     「이 제보의 어느 칸이 확인이 필요한가」를 물으면 답할 수 없다 — 값만 남아 있어서
+     담당자가 견적서를 다시 열어 봐야 한다(대표가 오늘 그 일을 했다).
+     ⚠ 특히 `unchecked`(1인 단가인지 전 일정 총액인지 모르는 값)를 잃는 것이 크다.
+     실측: BSI 도쿄의 차량 1,450,000·가이드 360,000이 그 상태로 DB에 들어가 있는데,
+     지금은 그게 검산된 값인지 아닌지 구분할 방법이 없다.
+     모양: {"vehicle": "unchecked", "airfare": "rule", "meal": "calc"} */
+  await sql`alter table actual_price_reports add column if not exists field_sources jsonb`;
+
   /* P2b: 전역 앱 설정 KV (신규) — 견적 계수 스칼라 노브(coefficients) 등 사이트 전역 설정을
      key→jsonb로 저장. 공개 계산기는 /api/rates GET이 이 중 'coefficients' 행을 코드 기본값 위에
      폴백-우선 병합한다(행이 없으면 기본값=현재 동작). content_overrides와 같은 KV 형태이되 값이

@@ -1430,6 +1430,8 @@
           <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
             <button type="button" class="btn-act btn-primary" onclick="submitPriceReport()">제출</button>
             <button type="button" class="btn-act btn-outline-p" onclick="openPriceReportsModal()">📋 제보 내역·삭제</button>
+            <!-- SX: 확정 안 하고 넘어간 칸을 한 곳에 모은다. 건수가 곧 할 일의 양이다. -->
+            <button type="button" class="btn-act btn-outline-p" onclick="openNeedCheckModal()">⚠ 확인 필요 <span id="pr-need-count"></span></button>
           </div>
           <p id="pr-msg" style="font-size:.78rem;font-weight:700;margin-top:.6rem"></p>
         </div>
@@ -2196,6 +2198,44 @@
 <!-- ══ 새 목적지 추가 모달 (신규) ══ 내장 56개 목적지가 아닌, 관리자가 직접 등록하는
      커스텀 목적지 전용. 저장되면 destinationRates에 push되어 위 편집 모달로도
      똑같이 편집 가능해진다(별도 편집 경로 불필요). -->
+<!-- ⚠ 확인 필요 (SX) — **확정 안 하고 넘어간 칸**을 한 곳에 모은다.
+     SW로 「그 자리에서 확정」하는 길은 생겼지만, 확정 안 한 칸이 어디 있는지는
+     아무도 못 봤다. 견적서를 하나씩 열어 봐야 알 수 있었고, 그게 대표가 하던 일이다. -->
+<div id="needCheckModal" class="modal-overlay hidden">
+  <div class="modal-box" style="width:min(900px,100%)">
+    <div class="modal-header">
+      <h3>⚠ 확인 필요</h3>
+      <button onclick="document.getElementById('needCheckModal').classList.add('hidden')" class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.7rem">
+        <div class="detail-label" style="margin:0">목적지</div>
+        <select id="nc-filter" class="status-select" style="min-width:170px" onchange="renderNeedCheck()"></select>
+        <label style="font-size:.76rem;display:flex;align-items:center;gap:.3rem">
+          <input type="checkbox" id="nc-only-risky" checked onchange="renderNeedCheck()"> 확인이 필요한 것만
+        </label>
+      </div>
+      <p style="font-size:.75rem;color:var(--muted);line-height:1.7;margin-bottom:.7rem">
+        담당자가 확정하지 않은 칸입니다. 값을 고치거나, 맞으면 <strong>확인</strong>을 눌러 닫으세요.<br>
+        ⚠ 확인하지 않아도 <strong>요율은 오염되지 않습니다</strong> — 검산 안 된 값은 애초에 기준을 만들지 못합니다.
+        다만 오래 남아 있으면 그 견적서는 <strong>절반만 쓰이는 셈</strong>입니다.
+      </p>
+      <div style="max-height:56vh;overflow:auto;border:1px solid var(--border);border-radius:8px">
+        <table class="rate-table" style="width:100%;font-size:.8rem">
+          <thead>
+            <tr>
+              <th style="text-align:left">목적지 · 넣은 날</th><th style="text-align:left">항목</th>
+              <th style="text-align:right">값</th><th style="text-align:left">왜 확인해야 하나</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="nc-tbody"></tbody>
+        </table>
+      </div>
+      <p id="nc-msg" style="font-size:.78rem;font-weight:700;margin-top:.6rem"></p>
+    </div>
+  </div>
+</div>
+
 <!-- 실제 계약가 제보 내역·삭제 (신규) — 잘못 입력된 제보를 찾아 지울 수 있게 한다.
      삭제 즉시 갱신제안·검증배지가 재계산된다. -->
 <div id="priceReportsModal" class="modal-overlay hidden">
@@ -6369,6 +6409,16 @@
           nights: (document.getElementById('pr-nights') || {}).value || null,
           /* SW: **어느 칸을 담당자가 확정했는가.** 값이 비어 있는 칸은 뺀다 —
              고쳤다가 지운 칸을 '확정'으로 보내면 없는 값에 근거가 붙는다. */
+          /* SX: **칸마다 그 값이 어떻게 나왔는가**를 함께 보낸다. 지금까지는 이 정보가
+             추출 화면에만 있다가 제출과 함께 버려져서, 나중에 「어느 칸이 확인 대상인가」를
+             물으면 값만 보고는 답할 수 없었다(특히 「검산 안 됨」을 잃는 것이 크다). */
+          fieldSources: PR_EVIDENCE_FIELDS.reduce((o, f) => {
+            const el = document.getElementById(f.input);
+            if (!el || el.value === '') return o;
+            o[f.key] = PR_MANUAL_FIELDS[f.key] ? 'confirmed'
+              : (priceReportMode === 'manual' ? 'manual' : (PR_LAST_EVIDENCE && PR_LAST_EVIDENCE[f.key] ? (PR_LAST_EVIDENCE[f.key].via || 'rule') : 'none'));
+            return o;
+          }, {}),
           manualFields: Object.keys(PR_MANUAL_FIELDS).reduce((o, k) => {
             const fld = PR_EVIDENCE_FIELDS.find((x) => x.key === k);
             const el = fld && document.getElementById(fld.input);
@@ -6395,6 +6445,149 @@
   /* 제보 내역·삭제 모달(신규) — 잘못 입력된 제보를 찾아 지운다. priceReportsCache를
      최근순 그대로 목록화하고 목적지 필터를 건다. 삭제 후 캐시 재적재 + 요율표(갱신제안·
      검증배지·참고카드 포함) 재렌더. */
+  /* ════ SX: 확인 필요 목록 ═══════════════════════════════════════════════════
+     ⚠ **판정 규칙을 여기 새로 적지 않는다.** 타당성은 `plausibility.js`(SO·SK),
+       「검산 안 됨」은 제출 때 저장한 `fieldSources`(SX)에서 온다. 화면이 규칙을
+       다시 지으면 감사기와 어긋난다(결함 생성기 ①).
+     ⚠ 이미 **평균에서 뺀 칸**은 확인할 이유가 없다 — 어차피 기준에 안 들어간다. */
+  const NC_FIELDS = [
+    { key: 'airfare', rate: 'airfare', label: '항공료' },
+    { key: 'fuel', rate: 'fuel_surcharge', label: '유류할증' },
+    { key: 'hotel', rate: 'hotel_per_room', label: '호텔단가' },
+    { key: 'meal', rate: 'meal_per_person', label: '식비' },
+    { key: 'vehicle', rate: 'vehicle_large', label: '차량비' },
+    { key: 'guide', rate: 'guide_fee', label: '가이드비' },
+    { key: 'sight', rate: 'sightseeing_fee', label: '관광비' },
+  ];
+  const NC_VALUE_KEY = {
+    airfare: 'airfareUnit', fuel: 'fuelUnit', hotel: 'hotelUnit', meal: 'mealUnit',
+    vehicle: 'vehicleUnit', guide: 'guideUnit', sight: 'sightUnit',
+  };
+
+  /* 한 칸이 왜 확인 대상인가 — 이유가 없으면 null(그 칸은 목록에 안 뜬다) */
+  function ncReason(report, f) {
+    const v = report[NC_VALUE_KEY[f.key]];
+    if (v == null || !(v > 0)) return null;
+    if (report.manualFields && report.manualFields[f.key]) return null;      /* 이미 확정 */
+    if (report.excludedFields && report.excludedFields[f.key]) return null;  /* 평균에서 뺐다 */
+    const via = (report.fieldSources || {})[f.key];
+    if (via === 'unchecked') return { level: 'high', why: '검산 안 됨 — 1인 단가인지 전 일정 총액인지 모릅니다' };
+    if (via === 'ai') return { level: 'high', why: 'AI가 고른 값입니다' };
+    if (via === 'fallback') return { level: 'high', why: '표 좌표를 못 읽어 예전 방식으로 물러났습니다' };
+    /* 타당성 — 기준은 그 목적지 것만 쓴다(SK). 동료는 오늘 환율로 되돌려 견준다(SG). */
+    if (typeof PLAUSIBILITY !== 'undefined') {
+      const dest = destinationRates.find((d) => d.destination_key === report.destinationKey);
+      const base = dest ? (effectiveRate(dest) || {})[f.rate] : 0;
+      const peers = (priceReportsCache || [])
+        .filter((r) => r.id !== report.id && r.destinationKey === report.destinationKey)
+        .map((r) => reportValueToday(r, f.rate)).filter((n) => n > 0);
+      const res = PLAUSIBILITY.judge(v, peers, base);
+      if (res && res.level === 'check') return { level: 'high', why: PLAUSIBILITY.describe(res, f.label) };
+    }
+    return { level: 'low', why: '추출값 그대로입니다 (담당자가 확인하지 않았습니다)' };
+  }
+
+  function ncRows() {
+    const out = [];
+    (priceReportsCache || []).forEach((r) => {
+      NC_FIELDS.forEach((f) => {
+        const reason = ncReason(r, f);
+        if (reason) out.push({ report: r, f, reason, value: r[NC_VALUE_KEY[f.key]] });
+      });
+    });
+    /* 위험한 것부터, 그다음 오래된 것부터 — 방치가 위로 올라와야 눈에 띈다 */
+    return out.sort((a, b) => (a.reason.level === b.reason.level ? 0 : a.reason.level === 'high' ? -1 : 1)
+      || new Date(a.report.createdAt) - new Date(b.report.createdAt));
+  }
+
+  function updateNeedCheckCount() {
+    const el = document.getElementById('pr-need-count');
+    if (!el) return;
+    const n = ncRows().filter((x) => x.reason.level === 'high').length;
+    el.textContent = n ? '(' + n + ')' : '';
+    el.style.cssText = n ? 'color:var(--danger);font-weight:800' : '';
+  }
+
+  function openNeedCheckModal() {
+    const filter = document.getElementById('nc-filter');
+    if (filter) {
+      const dests = [...new Set((priceReportsCache || []).map((r) => r.destinationKey))];
+      filter.innerHTML = '<option value="">전체</option>'
+        + dests.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+    }
+    document.getElementById('nc-msg').textContent = '';
+    document.getElementById('needCheckModal').classList.remove('hidden');
+    renderNeedCheck();
+  }
+
+  function renderNeedCheck() {
+    const tbody = document.getElementById('nc-tbody');
+    if (!tbody) return;
+    /* ⚠ 건수는 **목록을 그릴 때마다** 다시 센다. 탭을 그릴 때 한 번만 세면, 목록에서
+       몇 건을 처리하고 닫아도 버튼에는 옛 숫자가 남는다(그러면 아무도 그 숫자를 안 믿는다). */
+    updateNeedCheckCount();
+    const dest = document.getElementById('nc-filter')?.value || '';
+    const onlyRisky = document.getElementById('nc-only-risky')?.checked;
+    let rows = ncRows();
+    if (dest) rows = rows.filter((x) => x.report.destinationKey === dest);
+    if (onlyRisky) rows = rows.filter((x) => x.reason.level === 'high');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem">확인할 것이 없습니다.</td></tr>';
+      return;
+    }
+    const days = (ts) => Math.max(0, Math.round((Date.now() - new Date(ts).getTime()) / 86400000));
+    tbody.innerHTML = rows.map((x) => {
+      const d = days(x.report.createdAt);
+      return `<tr>
+        <td style="white-space:nowrap"><strong>${esc(x.report.destinationKey)}</strong>
+          <br><span style="font-size:.7rem;color:var(--muted)">${d === 0 ? '오늘' : d + '일 전'} · ${esc(x.report.author || '')}</span></td>
+        <td style="white-space:nowrap">${esc(x.f.label)}</td>
+        <td style="text-align:right"><input type="number" class="pw-input" style="max-width:120px;text-align:right"
+             id="nc-v-${x.report.id}-${x.f.key}" value="${Number(x.value)}"></td>
+        <td style="font-size:.74rem;${x.reason.level === 'high' ? 'color:#8A6100;font-weight:700' : 'color:var(--muted)'}">${esc(x.reason.why)}</td>
+        <td style="white-space:nowrap;text-align:right">
+          <button class="btn-detail" onclick="confirmNeedCheck(${Number(x.report.id)},'${x.f.key}')">확인</button>
+          <button class="btn-detail" onclick="togglePriceReportExclude(${Number(x.report.id)},'${x.f.key}')">평균에서 빼기</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* 값을 고쳤으면 그 값으로, 안 고쳤으면 **그대로 확인**으로 닫는다.
+     ⚠ 둘 다 「담당자가 확정했다」로 남는다 — 누가 언제 확인했는지가 기록돼야
+       다음 사람이 또 확인하지 않는다. */
+  async function confirmNeedCheck(id, fieldKey) {
+    const msg = document.getElementById('nc-msg');
+    const row = (priceReportsCache || []).find((r) => Number(r.id) === Number(id));
+    const el = document.getElementById(`nc-v-${id}-${fieldKey}`);
+    if (!row || !el) return;
+    const before = Number(row[NC_VALUE_KEY[fieldKey]]);
+    const now = Number(el.value);
+    if (!(now > 0)) { msg.style.color = 'var(--danger)'; msg.textContent = '0보다 큰 값이어야 합니다.'; return; }
+    const changed = now !== before;
+    const body = { id, field: fieldKey };
+    if (changed) {
+      body.value = now;
+      body.how = `확인 필요 목록에서 ${before.toLocaleString()} → ${now.toLocaleString()}으로 고쳤습니다`;
+    } else {
+      body.how = `확인 필요 목록에서 ${before.toLocaleString()}이 맞다고 확인했습니다`;
+    }
+    try {
+      const res = await fetch('/api/quotes?action=confirmReportField', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      if (!res.ok) { msg.style.color = 'var(--danger)'; msg.textContent = '저장에 실패했습니다.'; return; }
+      await loadPriceReports();
+      renderNeedCheck();
+      updateNeedCheckCount();
+      renderRates();
+      msg.style.color = 'var(--success)';
+      msg.textContent = changed ? '고친 값으로 확정했습니다.' : '확인 완료 — 이 칸은 다시 묻지 않습니다.';
+    } catch (err) {
+      msg.style.color = 'var(--danger)'; msg.textContent = '요청에 실패했습니다. 네트워크를 확인해 주세요.';
+    }
+  }
+
   function openPriceReportsModal() {
     const filter = document.getElementById('pr-list-filter');
     if (filter) {
@@ -6764,6 +6957,8 @@
     applyPriceReportModeUI();
     renderHotelReference();
     renderPriceReportProgress();
+    /* SX: 버튼에 건수를 띄운다 — **건수가 곧 할 일의 양**이라 열기 전에 보여야 한다 */
+    updateNeedCheckCount();
   }
 
   /* "어디까지 넣었나" — 수백 건을 넣을 때 같은 견적서를 두 번 넣거나 빠뜨리는 것을 막는다. */

@@ -58,7 +58,9 @@ const EXTRACT = {
   ok('모르는 항목 키는 **거절**한다 (조용히 버리지 않는다)',
     /invalid_manual_fields/.test(api) && /MANUAL_FIELD_KEYS\.indexOf\(k\) < 0/.test(api));
   ok('작성자는 클라이언트 값을 믿지 않고 세션 표시명을 쓴다', /by: safeAuthor/.test(api));
-  ok('저장 컬럼에 들어간다', /manual_fields, author, source\)/.test(api));
+  /* ⚠ 컬럼 목록 전체를 박아 두지 않는다 — 뒤에 컬럼이 하나 늘 때마다 깨진다
+     (SX에서 실제로 깨졌다). 재는 것은 「manual_fields가 insert에 들어가는가」다. */
+  ok('저장 컬럼에 들어간다', /insert into actual_price_reports[\s\S]{0,400}manual_fields/.test(api));
   ok('조회가 manualFields를 내려준다', /manualFields: \(r\.manual_fields/.test(api));
 
   /* ── [2] 화면 (jsdom) ───────────────────────────────────────────────── */
