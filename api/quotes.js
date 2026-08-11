@@ -554,6 +554,9 @@ async function handleExtractPdf(req, res) {
     reconciliation: out.reconciliation,
     blockCount: out.blockCount, selectedBlock: out.selectedBlock, blocks: out.blocks,
     needsFxRate: out.needsFxRate, fxRates: out.fxRates, fxFromDocument: out.fxFromDocument,
+    /* L7 일정표 (SS) — **금액과 무관한 층**이다. 화면이 「📅 날짜별 일정으로 넣기」에 쓴다.
+       ⚠ 값이 아니라 문서의 글이라 검증할 숫자가 없다. 그래서 그대로 넘기고 사람이 본다. */
+    itinerary: out.itinerary || null,
     source: aiNote || '규칙',
     /* 좌표가 안 나와 예전 방식으로 물러났는가 — 화면이 "항목 이름이 없어 직접 고르셔야
        합니다"라고 말할 수 있어야 한다(조용히 품질이 떨어지지 않게). */
