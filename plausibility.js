@@ -76,6 +76,49 @@
     };
   }
 
+  /* ── SV: 「전 일정 총액이 1일 단가 자리에 왔는가」 ─────────────────────────
+     실측(신한 이태리): 「차량 8,848,000 × 3대 × 1」은 **검산을 통과**하지만 8,848,000은
+     하루치가 아니라 **버스 한 대의 전 일정(6일) 총액**이다. 6으로 나누면 1,474,667로
+     요율표 1,400,000과 ±5% 안에 들어온다. 가이드도 2,528,000 → 421,333 vs 435,000.
+     그대로 두면 +532% · +481%로 나간다.
+
+     ⚠ **동료 비교로는 못 잡는다.** 그 지역 첫 견적서면 동료가 없어 ⚪로 통과하고
+       **그 값이 그대로 기준선이 된다.** 그래서 요율표만 있으면 되는 이 검사가 따로 필요하다.
+     ⚠ **기간을 이미 곱한 줄은 건드리지 않는다**(duration.covered). 뉴퍼스트 다낭의
+       「797,500 × 1 × 4」는 4가 곧 일수라 797,500이 진짜 1일 단가다 — 또 나누면 망가진다.
+     ⚠ **고치지 않는다. 묻는다.** 나눗셈이 틀리는 경우가 실제로 있었다(몫이 개수가 아니라
+       환율이었던 사고). 화면은 「일수로 나눌까요?」를 묻고 사람이 누른다.
+
+       value    잰 값 (1일 단가 자리에 들어온 원화)
+       rateBase 그 목적지의 1일 기준가
+       duration pdf_extract가 남긴 { days, covered } — 없으면 판단하지 않는다
+     반환 null(해당 없음) 또는 { days, perDay, ratioNow, ratioIfSplit } */
+  /* 지금 값이 기준가의 이 배수를 넘을 때만 의심한다 — 평범하게 비싼 값을 건드리지 않는다 */
+  var TRIP_TOTAL_MIN_RATIO = 3;
+  /* 나눈 값이 기준가의 이 범위 안에 들어와야 「나누니 맞는다」고 말한다 */
+  var TRIP_TOTAL_OK_LOW = 0.5;
+  var TRIP_TOTAL_OK_HIGH = 2;
+  function judgeTripTotal(value, rateBase, duration) {
+    var v = Number(value); var base = Number(rateBase);
+    if (!isFinite(v) || v <= 0 || !(base > 0)) return null;
+    if (!duration || duration.covered !== false) return null;   /* 기간을 이미 곱했거나 모른다 */
+    var days = Number(duration.days);
+    if (!(days >= 2)) return null;
+    var ratioNow = v / base;
+    if (ratioNow < TRIP_TOTAL_MIN_RATIO) return null;
+    var perDay = v / days;
+    var ratioIfSplit = perDay / base;
+    if (ratioIfSplit < TRIP_TOTAL_OK_LOW || ratioIfSplit > TRIP_TOTAL_OK_HIGH) return null;
+    return { days: days, perDay: perDay, ratioNow: ratioNow, ratioIfSplit: ratioIfSplit };
+  }
+
+  function describeTripTotal(res, fieldLabel) {
+    if (!res) return '';
+    return fieldLabel + '이(가) 기준가의 ' + res.ratioNow.toFixed(1) + '배인데, '
+      + res.days + '일로 나누면 ' + Math.round(res.perDay).toLocaleString() + '원으로 기준가에 맞습니다'
+      + ' — **전 일정 총액**이 1일 단가 자리에 들어온 것으로 보입니다. 확인해 주세요.';
+  }
+
   /* 화면에 그대로 쓸 한 줄 — 문구를 화면마다 다시 짓지 않게 여기서 만든다. */
   function describe(res, fieldLabel) {
     if (!res || res.level !== 'check') return '';
@@ -91,6 +134,10 @@
     PEER_SPREAD: PEER_SPREAD, RATE_SPREAD: RATE_SPREAD, MIN_PEERS: MIN_PEERS,
     TRUSTED_VIA: TRUSTED_VIA, isTrusted: isTrusted, median: median,
     judge: judge, describe: describe,
+    /* SV: 「전 일정 총액이 1일 단가 자리에」 — 차량·가이드에만 쓴다 */
+    TRIP_TOTAL_MIN_RATIO: TRIP_TOTAL_MIN_RATIO,
+    PER_DAY_FIELDS: ['vehicle', 'guide'],
+    judgeTripTotal: judgeTripTotal, describeTripTotal: describeTripTotal,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.PLAUSIBILITY = API;

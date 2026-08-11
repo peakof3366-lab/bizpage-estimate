@@ -5326,6 +5326,27 @@
     return PLAUSIBILITY.judge(v, peers, base);
   }
 
+  /* SV: 「전 일정 총액이 1일 단가 자리에」 — 차량·가이드에만 해당한다.
+     ⚠ 판정 규칙은 `plausibility.js`가 갖고, 여기서는 **재료만 모은다**(요율 기준가와
+       추출기가 남긴 duration). 규칙을 여기 다시 적으면 감사기와 어긋난다(결함 생성기 ①).
+     ⚠ 기준은 **그 목적지의 1일 기준가**다. 동료 실측을 쓰지 않는 이유: 이 검사는
+       **그 지역 첫 견적서**에서 가장 필요한데 그때는 동료가 없다. */
+  let PR_LAST_EVIDENCE = null;
+  function judgeTripTotalValue(key, rawValue) {
+    if (typeof PLAUSIBILITY === 'undefined' || !PLAUSIBILITY.judgeTripTotal) return null;
+    if ((PLAUSIBILITY.PER_DAY_FIELDS || []).indexOf(key) < 0) return null;
+    const ev = PR_LAST_EVIDENCE ? PR_LAST_EVIDENCE[key] : null;
+    if (!ev || !ev.duration) return null;
+    const rateField = PLAUS_RATE_FIELD[key];
+    const destKey = (document.getElementById('pr-dest') || {}).value || '';
+    if (!rateField || !destKey) return null;
+    const dest = (typeof destinationRates !== 'undefined')
+      ? destinationRates.find((d) => d.destination_key === destKey) : null;
+    const base = dest ? (effectiveRate(dest) || {})[rateField] : 0;
+    const v = Number(String(rawValue || '').replace(/[^\d.-]/g, ''));
+    return PLAUSIBILITY.judgeTripTotal(v, base, ev.duration);
+  }
+
   /* 값의 출처를 한 낱말로 (RZ 후속) — 담당자가 **어느 칸을 확인해야 하는지**를
      칸마다 보게 한다. 배지가 없으면 9칸이 전부 똑같아 보여서, 결국 아무것도 확인 안 하거나
      전부 다시 대조하게 된다. */
@@ -5728,6 +5749,9 @@
 
   function renderPdfEvidence(data) {
     clearPdfEvidence();
+    /* SV: 이번 추출의 근거를 기억해 둔다 — 「전 일정 총액인가」 판단에 추출기가 남긴
+       duration(수량·횟수가 기간을 설명하는가)이 필요하다. */
+    PR_LAST_EVIDENCE = data.evidence || null;
     const cands = Array.isArray(data.candidates) ? data.candidates : [];
     const groups = Array.isArray(data.groups) ? data.groups : [];
 
@@ -5795,6 +5819,38 @@
         warn.className = 'pr-ev-note pr-ev-plaus';
         warn.textContent = '🔍 ' + PLAUSIBILITY.describe(plaus, f.label);
         box.appendChild(warn);
+      }
+
+      /* ── SV: 「전 일정 총액이 1일 단가 자리에 왔는가」 ─────────────────────
+         실측(신한 이태리): 「차량 8,848,000 × 3대 × 1」은 **검산을 통과**하지만
+         8,848,000은 하루치가 아니라 버스 한 대의 **전 일정(6일) 총액**이다.
+         6으로 나누면 1,474,667 — 요율표 1,400,000과 ±5%로 맞는다.
+         ⚠ 이건 위의 **동료 비교로는 못 잡는다.** 그 지역 첫 견적서면 동료가 없어
+           조용히 통과하고 **그 값이 그대로 기준선이 된다.** 구멍이 정확히 거기였다.
+         ⚠ **자동으로 고치지 않는다.** 나눗셈이 틀리는 경우가 실제로 있었다(몫이 개수가
+           아니라 환율이었던 사고) — 버튼을 만들어 **사람이 누른다.** */
+      const trip = judgeTripTotalValue(f.key, input.value);
+      if (trip) {
+        box.classList.add('via-check');
+        const wrap = document.createElement('div');
+        wrap.className = 'pr-ev-note pr-ev-plaus';
+        const line = document.createElement('div');
+        line.textContent = '📏 ' + PLAUSIBILITY.describeTripTotal(trip, f.label).replace(/\*\*/g, '');
+        wrap.appendChild(line);
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'btn-act btn-outline-p';
+        btn.style.cssText = 'margin-top:.25rem;padding:.15rem .5rem;font-size:.72rem';
+        btn.textContent = `${trip.days}일로 나누기 → ${Math.round(trip.perDay).toLocaleString()}원`;
+        btn.addEventListener('click', () => {
+          const before = Number(String(input.value).replace(/[^\d.-]/g, ''));
+          input.value = String(Math.round(trip.perDay));
+          /* 무엇을 어떻게 바꿨는지 **그 자리에 남긴다** — 나중에 「이 값 어디서 나왔지」가 없게 */
+          showManual(`${f.label} — 전 일정 총액을 ${trip.days}일로 나눴습니다 (담당자 확인)`,
+            `${before.toLocaleString()} ÷ ${trip.days}일 = ${Math.round(trip.perDay).toLocaleString()} (1일 단가)`);
+          wrap.remove();
+        });
+        wrap.appendChild(btn);
+        box.appendChild(wrap);
       }
       /* 값을 바꿀 때마다 배지와 근거를 함께 갱신하는 도우미 —
          화면에는 '견적서'라고 적혀 있는데 값은 사람이 바꾼 것, 같은 상태를 막는다. */

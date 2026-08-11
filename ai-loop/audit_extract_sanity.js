@@ -118,6 +118,9 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
   const rateGap = [];   /* 🟡 동료끼리는 맞는데 요율표와 어긋난다 = 요율 갱신 후보 */
   const noPeer = [];    /* ⚪ 그 목적지의 첫 견적서 — 이 값이 기준선이 된다 */
   const noDest = [];    /* 목적지를 못 정한 문서 (마지막 그물) */
+  /* 📏 전 일정 총액이 1일 단가 자리에 왔는가 (SV) — **동료가 없어도 잡힌다.**
+     요율표 한 줄만 있으면 되므로, 그 지역 첫 견적서에서도 돈다. 거기가 구멍이었다. */
+  const tripTotal = [];
   let filled = 0;
 
   Object.keys(byDest).forEach((dest) => {
@@ -126,11 +129,29 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
     Object.keys(FIELD_MAP).forEach((f) => {
       const all = list.map((d) => ({ d, v: d.values[f] })).filter((x) => x.v > 0 && isFinite(x.v));
       if (!all.length) return;
+      const base = drow ? Number(drow[FIELD_MAP[f]]) : 0;
+
+      /* 📏 SV — **동료 유무와도, 검산 여부와도 무관하게** 먼저 잰다.
+         차량·가이드(1일 단가)만 해당하고, 요율표 한 줄만 있으면 된다.
+         ⚠ 아래 「검산된 값이 없으면 return」보다 **먼저** 와야 한다. 처음에 뒤에 뒀다가
+           푸켓 차량·싱가포르 차량/가이드가 통째로 빠졌다 — 전부 `unchecked`라
+           기준을 못 세우는 목적지였는데, **재는 대상에서까지 빠져 버렸다.**
+           SN이 정한 것 그대로다: 자(기준)는 검산된 값만, **재는 대상은 전부.**
+         ⚠ 판정 규칙은 plausibility.js 한 곳에 있다(화면과 같은 파일). */
+      if ((P.PER_DAY_FIELDS || []).indexOf(f) >= 0 && base > 0) {
+        all.forEach((x) => {
+          const dur = (x.d.evidence[f] || {}).duration;
+          const t = P.judgeTripTotal(x.v, base, dur);
+          if (t) tripTotal.push({ dest, field: f, file: x.d.file, value: x.v, rate: base,
+            days: t.days, perDay: t.perDay, ratioNow: t.ratioNow, ratioIfSplit: t.ratioIfSplit,
+            via: (x.d.evidence[f] || {}).via || '?' });
+        });
+      }
+
       /* **기준을 만드는 데 쓰는 값** — 검산된 것만. 나머지는 셈에서 빼되 개수를 남긴다. */
       const vals = all.filter((x) => isTrusted(x.d.evidence[f]));
       const skipped = all.length - vals.length;
       if (!vals.length) { unverified.push({ dest, field: f, n: skipped }); return; }
-      const base = drow ? Number(drow[FIELD_MAP[f]]) : 0;
 
       if (all.length === 1) {
         /* ⚠ **하나뿐이면 그것이 기준이 된다**(대표 지시) — '어긋났다'고 말하지 않는다.
@@ -187,6 +208,27 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
   console.log('견적서 ' + docs.length + '건 · 채워진 칸 ' + filled + '개.');
   console.log('목적지 ' + dests.length + '곳 — ' + dests.map((k) => k + ' ' + byDest[k].length).join(' · '));
   console.log('목적지를 못 정한 문서 ' + docs.filter((d) => !d.dest).length + '건 (전 목적지 범위로만 잰다)\n');
+
+  /* ── 📏 전 일정 총액이 1일 단가 자리에 (SV) ──────────────────────────────
+     ⚠ **동료 비교로는 못 잡는 종류다.** 그 지역 첫 견적서면 동료가 없어 ⚪로 통과하고
+       그 값이 그대로 기준선이 된다. 요율표만 있으면 되는 이 검사가 그래서 따로 있다.
+     ⚠ **판정이 아니다.** 자동으로 나누지 않는다 — 화면이 버튼을 띄우고 사람이 누른다. */
+  if (tripTotal.length) {
+    tripTotal.sort((a, b) => b.ratioNow - a.ratioNow);
+    console.log('📏 **전 일정 총액이 1일 단가 자리에 온 것으로 보인다 — ' + tripTotal.length + '개**');
+    console.log('   (일수로 나누면 요율표에 맞는다. 그 지역 첫 견적서에서도 잡힌다.)');
+    console.log('-'.repeat(112));
+    console.log('목적지     칸        지금 값        기준가     배수   ÷일수      나눈 값     신뢰도   파일');
+    console.log('-'.repeat(112));
+    tripTotal.forEach((x) => console.log(
+      x.dest.padEnd(10) + x.field.padEnd(9) + x.value.toLocaleString().padStart(12) + '  ' +
+      x.rate.toLocaleString().padStart(10) + '  ' + (x.ratioNow.toFixed(1) + '배').padStart(6) +
+      '  ' + ('÷' + x.days + '일').padStart(6) + '  ' + Math.round(x.perDay).toLocaleString().padStart(10) +
+      '  ' + x.via.padEnd(9) + x.file.slice(0, 28)));
+    console.log('-'.repeat(112));
+  } else {
+    console.log('📏 전 일정 총액으로 보이는 단가 없음.');
+  }
 
   /* ── 🔴 오독 후보 ─────────────────────────────────────────────────────── */
   if (misread.length) {

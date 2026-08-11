@@ -48,7 +48,8 @@ node ai-loop/audit_rates.js         # 요율 '값' 점검 — 결과는 '확인 
 node ai-loop/audit_vacuous_rows.js  # 검산 안 된 줄이 대표 단가가 되는가 — 신뢰도까지 본다
 node ai-loop/audit_row_categories.js # 검산줄이 어느 항목인지 알아냈는가 — 못 알아낸 이유까지 센다
 node ai-loop/audit_coverage.js      # 우리가 읽은 줄이 총계의 몇 %를 설명하는가 — 덜 읽은 것을 잡는다
-node ai-loop/audit_extract_sanity.js # 뽑아낸 값이 요율표 분포에서 벗어나는가 — 틀린 값을 잡는다
+node ai-loop/audit_extract_sanity.js # 뽑아낸 값이 말이 되는가 — 동료 대비(🔴) · 요율표 대비(🟡) ·
+                                    #   **전 일정 총액이 1일 단가 자리에 왔는가(📏, SV)**
 node ai-loop/backtest_quotes.js     # 고객이 보는 금액의 오차 (--cache = 추출 결과 재사용)
 node ai-loop/audit_itinerary.js     # 일정표를 얼마나 읽어냈는가 (트랙 B — 금액과 무관)
 ```

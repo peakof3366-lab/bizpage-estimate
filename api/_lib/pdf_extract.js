@@ -1701,6 +1701,37 @@ const fxOf = (rows) => {
   return { currency: cur, rate, partial: conv.length !== rows.length };
 };
 
+/* ═══ 「이 줄이 기간을 곱했는가」 (SV) ══════════════════════════════════════
+   차량·가이드 단가는 **1일 단가**다. 그런데 견적서에 이렇게 적힌 줄이 있다:
+
+     차량   8,848,000 × 3 × 1 = 26,544,000     (버스 3대, 5박6일)
+     가이드 2,528,000 × 3 × 1 =  7,584,000     (가이드 3명, 5박6일)
+
+   곱셈은 맞아떨어져 **검산을 통과한다.** 그런데 8,848,000은 하루 단가가 아니라
+   **버스 한 대의 전 일정 총액**이다(6으로 나누면 1,474,667 — 이태리 요율표 1,400,000과
+   ±5%로 맞는다. 가이드도 421,333 vs 435,000). 지금은 각각 +532% · +481%로 나간다.
+
+   ⚠ **이건 「동료와 어긋난다」로는 못 잡는다.** 그 지역 첫 견적서면 동료가 없어서
+     ⚪「이 값이 기준선이 된다」로 조용히 통과하고, 그대로 요율 기준선이 된다.
+     구멍이 정확히 거기다.
+
+   여기서는 **판정하지 않고 구조적 사실만** 남긴다 — 이 줄의 수량·횟수가 **여행 기간을
+   설명하는가.** 요율표를 아는 것은 화면·감사기(plausibility.js)의 몫이다.
+
+   ⚠ **기간을 이미 곱한 줄에 또 나누면 안 된다.** 실측(뉴퍼스트 다낭):
+     「797,500 × 1 × 4」의 4가 곧 일수라 797,500이 진짜 1일 단가다. 여기에 또 나누면
+     199,375가 되어 **맞는 값을 망가뜨린다.** 그래서 수량·횟수 중 하나라도 기간과
+     맞으면 후보에서 뺀다. */
+const DURATION_TOL = 1;   /* 5박6일 문서가 「×5」로 적는 일이 흔하다 — ±1일은 같은 기간으로 본다 */
+function coversDuration(row, trip) {
+  if (!row || !trip) return null;
+  const days = Number(trip.days) || (Number(trip.nights) ? Number(trip.nights) + 1 : 0);
+  if (!(days >= 2)) return null;         /* 기간을 모르면 판단하지 않는다 */
+  const covered = [row.qty, row.times].some((n) =>
+    Number(n) >= 2 && Math.abs(Number(n) - days) <= DURATION_TOL);
+  return { days, covered };
+}
+
 function ev(row, extra) {
   if (!row) return null;
   const unchecked = vacuous(row);
@@ -1825,7 +1856,10 @@ function readOneBlock(lines, fx, blockTotal) {
     },
     evidence: {
       airfare: ev(airfare), fuel: ev(fuel), hotel: ev(hotel),
-      vehicle: ev(vehicle), guide: ev(guide),
+      /* SV: 차량·가이드만 **1일 단가**라 「전 일정 총액이 단가 자리에 왔는가」를 따진다.
+         호텔은 1박 단가고 식비·관광비는 애초에 나눗셈으로 구한다 — 여기 넣지 말 것. */
+      vehicle: ev(vehicle, { duration: coversDuration(vehicle, dates) }),
+      guide: ev(guide, { duration: coversDuration(guide, dates) }),
       meal: meal ? {
         rowIdxs: meal.rowIdxs, calc: meal.calc, dayCount: meal.dayCount, via: 'calc',
         label: `식사 ${meal.rowIdxs.length}줄 · ${meal.basis}`,
@@ -1955,4 +1989,5 @@ module.exports = {
   classifyRow, classifyLabel, groupColumn, reconcile, triage, mealPerDay, sightPerPerson,
   splitLabel, numbersIn, VOCAB,
   findItinerary, pickDayColumn, splitDayParts,
+  coversDuration,
 };
