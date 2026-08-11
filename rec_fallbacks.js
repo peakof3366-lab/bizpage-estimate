@@ -223,8 +223,37 @@ function recRenderDayCard(doc, dayNum, data, totalDays) {
   return card;
 }
 
+/* ═══ TC: 견적서에서 읽은 일정이 있으면 **그것만** 고객에게 나간다 ═══════════
+   대표 요청(2026-08-11): 「온라인에서 가져온 정보로 만들어진 추천 일정표는 사용이
+   불가능한 경우가 많다. 일정표가 업데이트된 지역은 해당 내용으로, 아직 한 곳도
+   업데이트가 안 된 곳은 온라인 정보로.」
+
+   그래서 규칙은 딱 하나다:
+     그 목적지의 코스 중 `source === 'quote'`가 **하나라도 있으면 → 그것들만**
+     하나도 없으면                                    → 있는 그대로(온라인 기본값)
+
+   ⚠ **여기 한 곳에서만 고른다.** 고객 견적서·일정 탐색·관리자 미리보기가 전부 이
+     함수를 지난다. 화면마다 따로 거르면 **고객 견적서와 일정 탐색이 다른 일정을 보여준다**
+     — 이 저장소가 RR에서 정확히 그 사고를 겪었다(결함 생성기 ①).
+   ⚠ **지우지 않는다.** 온라인 코스는 그대로 남아 있고 화면에만 안 나온다. 견적서 코스를
+     담당자가 지우면 자동으로 다시 온라인 코스가 나간다(되돌릴 수 있어야 한다).
+   ⚠ 빈 배열이면 손대지 않는다 — 「코스가 없다」와 「전부 걸러졌다」는 다른 상태다. */
+function recPreferQuoteCourses(courses) {
+  if (!Array.isArray(courses) || !courses.length) return courses;
+  const fromQuote = courses.filter((c) => c && c.source === 'quote');
+  return fromQuote.length ? fromQuote : courses;
+}
+
+/* 이 목적지가 「견적서 일정으로 나가는 곳」인가 — 화면이 그 사실을 밝히는 데 쓴다.
+   ⚠ 조용히 바뀌면 담당자는 자기가 고친 온라인 코스가 왜 안 나가는지 모른다. */
+function recHasQuoteCourses(courses) {
+  return Array.isArray(courses) && courses.some((c) => c && c.source === 'quote');
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = REC_FALLBACKS;
+  module.exports.recPreferQuoteCourses = recPreferQuoteCourses;
+  module.exports.recHasQuoteCourses = recHasQuoteCourses;
   module.exports.recResolvePlanCourseIdx = recResolvePlanCourseIdx;
   module.exports.recPlanFromCourse = recPlanFromCourse;
   module.exports.REC_DAY_FILL = REC_DAY_FILL;

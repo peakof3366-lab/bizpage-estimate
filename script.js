@@ -3048,7 +3048,10 @@ function hasItineraryContent(destKey) {
    견적서를 낼 수 있게 한다. */
 function getItineraries(destKey, programType) {
   if (!hasItineraryContent(destKey)) return null;
-  const courses = ITINERARY_DB[destKey];
+  /* TC: 견적서에서 읽은 일정이 있으면 **그것만** 쓴다(2026-08-11 대표 요청).
+     규칙은 rec_fallbacks.js 한 곳에 있다 — 여기 다시 적으면 일정 탐색과 견적서가
+     서로 다른 일정을 보여준다(RR에서 실제로 겪은 사고다). */
+  const courses = recPreferQuoteCourses(ITINERARY_DB[destKey]);
 
   /* 프로그램 유형 기반 우선순위 적용.
      ⚠ 규칙은 rec_fallbacks.js가 안다 (RK) — 관리자 화면도 **같은 함수**를 불러
@@ -3899,7 +3902,10 @@ function renderStep3() {
    ⚠ 변환 규칙은 rec_fallbacks.js가 안다 (RK) — 관리자 미리보기가 같은 함수를 불러
    "코스를 이렇게 고치면 고객 카드가 이렇게 보인다"를 그대로 보여준다. */
 function _coursesToDestRec(courses) {
-  return { a: recPlanFromCourse(courses[0]), b: recPlanFromCourse(courses[1] || courses[0]) };
+  /* TC: 여기 오는 것은 보통 getItineraries가 이미 골라 준 쌍이지만, 다른 경로로도
+     불릴 수 있어 한 번 더 지난다(같은 함수라 두 번 걸러도 결과가 같다). */
+  const use = recPreferQuoteCourses(courses);
+  return { a: recPlanFromCourse(use[0]), b: recPlanFromCourse(use[1] || use[0]) };
 }
 
 /* 플랜 카드 내부 채우기 */
@@ -4103,7 +4109,9 @@ function _renderTimeline(plan) {
   /* 견적과 동일한 코스 쌍(_step3Courses)이 있으면 그것을 우선 사용 — 없으면
      ITINERARY_DB 원본 순서로 폴백 (프로그램 유형 우선순위 미반영 상태) */
   var planIdx  = (plan === 'a') ? 0 : 1;
-  var courses  = (typeof ITINERARY_DB !== 'undefined') ? ITINERARY_DB[destKey] : null;
+  /* TC: **여기도 같은 규칙을 지난다.** 이 자리를 빠뜨리면 견적서는 견적서 일정을,
+     일정 탐색은 온라인 일정을 보여준다 — 두 고객 화면이 서로 다른 말을 하게 된다. */
+  var courses  = (typeof ITINERARY_DB !== 'undefined') ? recPreferQuoteCourses(ITINERARY_DB[destKey]) : null;
   var course   = _step3Courses ? (_step3Courses[planIdx] || _step3Courses[0])
                : (courses ? (courses[planIdx] || courses[0]) : null);
 

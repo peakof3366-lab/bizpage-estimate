@@ -94,11 +94,22 @@ function normalizeCourses(courses) {
       });
     }
 
+    /* TC: **이 코스가 어디서 왔는가** (2026-08-11 대표 요청).
+       'quote' = 실제 견적서 PDF에서 읽은 일정 · 없으면 온라인 자료로 만든 기본값.
+       ⚠ 이 한 칸이 **고객에게 무엇이 나가는가**를 바꾼다 — 그 목적지에 견적서 일정이
+         하나라도 있으면 고객은 **그것만** 본다(recPreferQuoteCourses).
+         대표: 「온라인에서 가져온 추천 일정표는 사용이 불가능한 경우가 많다.」
+       ⚠ 이 함수는 **화이트리스트**다. 여기 안 적으면 화면이 보낸 출처가 저장 때
+         조용히 사라지고, 고객은 계속 온라인 일정을 본다(결함 생성기 ②).
+       ⚠ 'quote'가 아닌 값은 **버린다**(기본값으로 본다). 아무 문자열이나 받으면
+         나중에 'Quote'·'pdf' 같은 변종이 섞여 「견적서 일정인가」를 못 가린다. */
+    const src = c.source === 'quote' ? 'quote' : null;
     out.push({
       title: c.title.trim(),
       subtitle: String(c.subtitle ?? '').trim(),
       highlights: highlights.map((h) => h.trim()).filter(Boolean),
       days,
+      ...(src ? { source: src, sourceNote: String(c.sourceNote ?? '').trim().slice(0, 120) } : {}),
     });
   }
   return { courses: out };

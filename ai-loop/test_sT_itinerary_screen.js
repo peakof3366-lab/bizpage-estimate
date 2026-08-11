@@ -162,7 +162,11 @@ const EXTRACT = {
   const msg = doc.getElementById('iti-msg');
   ok('안내에 몇 일을 넣었는지 적는다', /2일/.test(msg.textContent), msg.textContent.slice(0, 90));
   ok('안내가 안 나뉜 날을 다시 말한다', /1일은 문서에 시간대 구분이 없어/.test(msg.textContent));
-  ok('안내가 「저장해야 반영된다」를 말한다', /저장해야 반영/.test(msg.textContent));
+  ok('안내가 「저장해야 반영된다」를 말한다', /저장해야 반영|저장하면/.test(msg.textContent));
+  /* TC: 저장하면 **고객 추천 일정이 이 견적서 일정으로 바뀐다** — 그 사실을 안 밝히면
+     담당자는 자기가 고친 온라인 코스가 왜 안 나가는지 모른다. */
+  ok('저장하면 고객 일정이 바뀐다는 것을 밝힌다',
+    /고객 추천 일정이 이 견적서 일정으로 바뀝니다/.test(msg.textContent), msg.textContent.slice(0, 200));
   ok('안내가 「지어내지 않았다」를 말한다', /지어내지 않았습니다/.test(msg.textContent));
 
   dom.window.close();
