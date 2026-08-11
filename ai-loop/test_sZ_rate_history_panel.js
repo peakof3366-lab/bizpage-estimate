@@ -41,7 +41,9 @@ const HISTORY = [
   ok('모달을 여는 함수도 없어졌다', !/openRateHistoryModal/.test(src));
   ok('필터 바의 「🕘 변경 이력」 버튼이 없어졌다',
     !/onclick="openRateHistoryModal\(\)"/.test(src));
-  ok('접히는 섹션으로 들어갔다', /<details class="card rate-history-panel" id="rate-history-panel"/.test(src));
+  /* ⚠ 클래스 이름을 박아 두지 않는다 — TA에서 세 카드가 같은 `fold-card`를 쓰게 되면서
+     한 번 깨졌다. 재는 것은 「접히는 요소인가」다. */
+  ok('접히는 섹션으로 들어갔다', /<details class="card fold-card" id="rate-history-panel"/.test(src));
   ok('목록 자리는 하나뿐이다', (src.match(/id="rate-history-list"/g) || []).length === 1,
     String((src.match(/id="rate-history-list"/g) || []).length));
   /* **맨 아래**여야 한다 — 요율 표와 갱신 방법 안내보다 뒤 */
@@ -49,8 +51,11 @@ const HISTORY = [
   ok('「요율 갱신 방법」 안내보다도 아래에 있다',
     src.indexOf('요율 갱신 방법') < src.indexOf('id="rate-history-panel"'));
   ok('브라우저 기본 삼각형을 지우고 펼침/접힘 표시를 둔다',
-    /\.rate-history-panel > summary::after \{ content: '▾ 펼치기'/.test(src)
-    && /\.rate-history-panel\[open\] > summary::after \{ content: '▴ 접기'/.test(src));
+    /\.fold-card > summary::after \{ content: '▾ 펼치기'/.test(src)
+    && /\.fold-card\[open\] > summary::after \{ content: '▴ 접기'/.test(src));
+  /* ⚠ 접는 규칙은 **한 클래스**에만 있어야 한다 — 카드마다 따로 적으면 하나만 고쳐진다 */
+  ok('접는 규칙이 한 곳에만 있다',
+    (src.match(/> summary::-webkit-details-marker \{ display: none; \}/g) || []).length === 1);
 
   /* ── [2] 동작 (jsdom) ──────────────────────────────────────────────── */
   console.log('\n[2] 펼칠 때만 불러오는가');

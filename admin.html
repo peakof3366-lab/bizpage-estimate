@@ -430,13 +430,18 @@
     .rate-badge.check { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
     .rate-badge.stale { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
     .rate-region-row td { background:var(--bg); font-weight:700; color:var(--heading); font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; padding:.45rem .85rem; }
-    /* SZ: 맨 아래 접히는 「요율 변경 이력」. 기본 삼각형을 지우고 오른쪽에 표시를 둔다 —
-       브라우저마다 삼각형 모양이 달라 카드 머리줄과 어긋나 보인다. */
-    .rate-history-panel > summary { list-style: none; }
-    .rate-history-panel > summary::-webkit-details-marker { display: none; }
-    .rate-history-panel > summary::after { content: '▾ 펼치기'; margin-left: auto; font-size: .76rem; color: var(--muted); font-weight: 700; }
-    .rate-history-panel[open] > summary::after { content: '▴ 접기'; }
-    .rate-history-panel > summary:hover { background: var(--bg); }
+    /* TA: 접히는 카드 — 요율 관리 화면의 긴 목록 셋이 공유한다(갱신 제안 · 견적 정확도 ·
+       변경 이력). ⚠ **한 클래스로 둔다.** 카드마다 따로 적으면 하나만 고쳐진다.
+       기본 삼각형(::marker)을 지우고 오른쪽에 표시를 두는 이유: 브라우저마다 삼각형
+       모양이 달라 카드 머리줄과 어긋나 보인다. */
+    .fold-card > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: .5rem; }
+    .fold-card > summary::-webkit-details-marker { display: none; }
+    .fold-card > summary::after { content: '▾ 펼치기'; margin-left: auto; font-size: .76rem; color: var(--muted); font-weight: 700; }
+    .fold-card[open] > summary::after { content: '▴ 접기'; }
+    .fold-card > summary:hover { background: var(--bg); }
+    /* 접혀 있어도 **몇 건인지는 보인다** — 숫자까지 숨기면 펼쳐 보기 전에는 할 일이 있는지조차 모른다 */
+    .fold-count { font-size: .76rem; font-weight: 800; color: var(--primary); }
+    .fold-hint { font-size: .76rem; color: var(--muted); font-weight: 600; }
     .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; }
     .rate-undo-banner { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; font-size:.82rem; font-weight:600; background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:.75rem 1rem; margin-bottom:1.25rem; }
 
@@ -1499,19 +1504,27 @@
            공개 API로 자동 갱신할 수 없지만, 계약완료된 견적/실제 계약가 위젯에 담당자가
            남긴 실제 단가를 목적지×항목별로 모아서 기준 요율과 얼마나 벌어졌는지 보여준다.
            후보가 없으면(데이터가 아직 부족하면) 카드 자체를 숨김. -->
-      <div class="card hidden" id="airfare-suggestion-card" style="margin-bottom:1.25rem">
-        <div class="card-header"><span class="card-title">📊 실제 계약 데이터 기반 갱신 제안</span></div>
+      <details class="card fold-card hidden" id="airfare-suggestion-card" style="margin-bottom:1.25rem">
+        <summary class="card-header">
+          <span class="card-title">📊 실제 계약 데이터 기반 갱신 제안</span>
+          <span class="fold-count" id="airfare-suggestion-count"></span>
+          <span class="fold-hint">기준 요율과 벌어진 항목</span>
+        </summary>
         <div class="card-body">
           <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">계약 실데이터가 기준 요율과 10% 이상 벌어진 목적지×항목(항공료·호텔·식비, 최소 2건 이상)만 표시됩니다.</p>
           <div id="airfare-suggestion-list" style="display:grid;gap:.6rem"></div>
         </div>
-      </div>
+      </details>
 
       <!-- 견적 정확도 (신규 · P1) — "견적이 실제 계약과 얼마나 맞았나"를 목적지×항목별로
            측정해 보여준다. 견적 계산식은 전혀 바꾸지 않는 순수 측정 레이어. 오차가 큰
            항목부터(=어디를 고쳐야 하는지) 위로 정렬. 데이터가 없으면 카드 숨김. -->
-      <div class="card hidden" id="accuracy-stats-card" style="margin-bottom:1.25rem">
-        <div class="card-header"><span class="card-title">📏 견적 정확도 (실제 대비)</span></div>
+      <details class="card fold-card hidden" id="accuracy-stats-card" style="margin-bottom:1.25rem">
+        <summary class="card-header">
+          <span class="card-title">📏 견적 정확도 (실제 대비)</span>
+          <span class="fold-count" id="accuracy-stats-count"></span>
+          <span class="fold-hint">견적이 실제와 얼마나 맞았나</span>
+        </summary>
         <div class="card-body">
           <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">최근 <span id="accuracy-months">12</span>개월 계약·실측 기준, 목적지×항목별 <strong style="color:var(--heading)">견적 대비 실제 오차</strong>입니다(표본 2건 이상). 오차가 큰 항목이 위에 옵니다 — 우선 손볼 곳을 알려줍니다.</p>
           <div style="overflow-x:auto">
@@ -1527,7 +1540,7 @@
             </table>
           </div>
         </div>
-      </div>
+      </details>
 
       <!-- P2b: 견적 계수 조정 (매니저+ 전용) — 시즌·리드타임·피크 반영 강도와 호텔 피크
            비중을 배포 없이 전역 조정. 기본값(강도 1.0, 호텔비중 0.8)이면 현재 계산과 동일.
@@ -1629,10 +1642,10 @@
              (같은 목록이 두 자리에 있으면 한쪽만 고쳐진다 — 결함 생성기 ①).
            ⚠ **펼칠 때 처음 한 번만 불러온다.** 요율 관리 탭을 열 때마다 최근 300건을
              받아오면 정작 자주 쓰는 표가 느려진다. -->
-      <details class="card rate-history-panel" id="rate-history-panel" style="margin-top:1.25rem">
-        <summary class="card-header" style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:.5rem">
+      <details class="card fold-card" id="rate-history-panel" style="margin-top:1.25rem">
+        <summary class="card-header">
           <span class="card-title">🕘 요율 변경 이력</span>
-          <span style="font-size:.76rem;color:var(--muted);font-weight:600" id="rate-history-hint">눌러서 펼치기 — 누가 언제 무엇을 바꿨는지, 되돌리기까지</span>
+          <span class="fold-hint" id="rate-history-hint">누가 언제 무엇을 바꿨는지, 되돌리기까지</span>
         </summary>
         <div class="card-body">
           <div id="rate-history-list" style="display:grid;gap:.5rem"></div>
@@ -5038,6 +5051,10 @@
     const list = document.getElementById('airfare-suggestion-list');
     if (!card || !list) return;
     const suggestions = computeRateSuggestions();
+    /* TA: 접혀 있어도 **몇 건인지는 보인다** — 숫자까지 숨기면 펼쳐 보기 전에는
+       할 일이 있는지조차 모른다(접는 것의 유일한 위험이 그것이다). */
+    const cntEl = document.getElementById('airfare-suggestion-count');
+    if (cntEl) cntEl.textContent = suggestions.length ? suggestions.length + '건' : '';
     if (!suggestions.length) { card.classList.add('hidden'); return; }
     card.classList.remove('hidden');
     list.innerHTML = suggestions.map(s => {
@@ -6994,6 +7011,8 @@
     const monthsEl = document.getElementById('accuracy-months');
     if (monthsEl) monthsEl.textContent = RATE_SUGGEST_RECENT_MONTHS;
     const stats = computeAccuracyStats();
+    const accCntEl = document.getElementById('accuracy-stats-count');
+    if (accCntEl) accCntEl.textContent = stats.length ? stats.length + '건' : '';
     if (!stats.length) { card.classList.add('hidden'); return; }
     card.classList.remove('hidden');
     const pct = v => v == null ? '—' : `${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}%`;
