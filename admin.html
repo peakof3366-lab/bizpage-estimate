@@ -1511,7 +1511,11 @@
           <span class="fold-hint">기준 요율과 벌어진 항목</span>
         </summary>
         <div class="card-body">
-          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">계약 실데이터가 기준 요율과 10% 이상 벌어진 목적지×항목(항공료·호텔·식비, 최소 2건 이상)만 표시됩니다.</p>
+          <!-- ⚠ TB: 이 문장이 실제 동작과 어긋나 있었다 — 「최소 2건 이상」이라고 적혀 있는데
+               SK에서 RATE_SUGGEST_MIN_COUNT를 1로 바꿨다(그 목적지의 첫 실측도 기준이 된다).
+               화면의 모든 줄이 「1건(이 목적지의 첫 실측)」인데 설명은 2건 이상만 뜬다고 말했다.
+               항목도 셋에서 일곱으로 넓혔다. 설명은 **동작을 따라간다.** -->
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">계약 실데이터가 기준 요율과 <strong>10% 이상</strong> 벌어진 목적지×항목만 표시됩니다 — 항공료·유류할증·호텔·식비·차량·가이드·관광 <strong>7개 항목</strong>, <strong>1건부터</strong>(그 목적지의 첫 실측이면 그렇게 표시됩니다).<br>⚠ <strong>「검산 안 됨」인 값은 빠집니다</strong> — 1인 단가인지 전 일정 총액인지 모르는 값으로 요율을 정할 수 없기 때문입니다. 그런 값은 <strong>견적서 업데이트 → ⚠ 확인 필요</strong>에서 확인해 주세요.</p>
           <div id="airfare-suggestion-list" style="display:grid;gap:.6rem"></div>
         </div>
       </details>
@@ -4814,7 +4818,27 @@
     if (!n) return null;
     return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
   }
-  const RATE_SUGGEST_REPORT_FIELDS = { airfare: 'airfareUnit', hotel_per_room: 'hotelUnit', meal_per_person: 'mealUnit' };
+  /* TB: **9칸을 뽑는데 제안은 셋만 보고 있었다.** 유류·차량·가이드·관광이 제보에 다
+     들어 있는데 갱신 제안에는 안 떴다 — 실측(제보 9건): 항공·호텔·식비 13건 외에
+     **19건이 화면 밖에 있었다**(싱가포르 가이드 +426% · 다낭 차량 +343% · 다낭 관광 +179% …).
+     사장님이 요율을 정하려면 그게 보여야 한다.
+     ⚠ 판매가(sell)는 넣지 않는다 — 요율 항목이 아니라 **우리 견적의 정확도를 재는 기준선**이다. */
+  const RATE_SUGGEST_REPORT_FIELDS = {
+    airfare: 'airfareUnit', fuel_surcharge: 'fuelUnit', hotel_per_room: 'hotelUnit',
+    meal_per_person: 'mealUnit', vehicle_large: 'vehicleUnit', guide_fee: 'guideUnit',
+    sightseeing_fee: 'sightUnit',
+  };
+
+  /* TB: **검산 안 된 값으로 요율을 논하지 않는다**(SN에서 정한 원칙 그대로).
+     그냥 넓혔으면 싱가포르 가이드 1,840,000이 「가이드 요율을 35만 → 184만으로」라는
+     제안이 됐을 것이다 — 그 값은 **전 일정 총액**이다(÷6일 하면 306,667로 기준가에 맞는다).
+     화면은 그 값에 「검산 안 됨」 배지를 붙여 확인을 요청하는데, 제안이 그걸 무시하고
+     집계하면 **화면과 제안이 서로 다른 말을 한다.**
+     ⚠ `field_sources`가 **없는 옛 제보는 「모름」**이다 — 빼지 않고 집계하되 그 사실을
+       화면에 밝힌다. 빼 버리면 SX 이전에 넣은 제보가 통째로 사라진다(조용한 손실). */
+  const reportFieldVia = (r, rateField) => (r.fieldSources || {})[REPORT_FX_KEY[rateField]] || null;
+  const reportFieldUnchecked = (r, rateField) => reportFieldVia(r, rateField) === 'unchecked';
+  const reportFieldViaUnknown = (r, rateField) => reportFieldVia(r, rateField) === null;
 
   /* ── SG: 제보 금액을 **오늘 환율 기준으로 되돌린다** ──────────────────────────
      요율표 단가는 「오늘 환율 기준」이라는 약속 위에 서 있다 — `rate_fx_baseline`에
@@ -4956,6 +4980,9 @@
     const byKey = {}; // `${destKey}|${field}` -> { destKey, field, label, ratios }
     /* SU: 담당자가 평균에서 뺀 건수 — 조용히 빼지 않고 표에 적는다 */
     const excludedByKey = {};
+    /* TB: 검산 안 돼 뺀 건수 · 출처를 몰라 그냥 쓴 건수 — 둘 다 표에 적는다 */
+    const uncheckedByKey = {};
+    const unknownByKey = {};
 
     /* 최근성 필터(신규) — 최근 RATE_SUGGEST_RECENT_MONTHS개월 이내 데이터만 집계.
        날짜가 없거나 파싱 안 되는 건 데이터 유실 방지를 위해 배제하지 않는다. */
@@ -5008,6 +5035,20 @@
           excludedByKey[ek] = (excludedByKey[ek] || 0) + 1;
           return;
         }
+        /* TB: **검산 안 된 값은 요율을 논하는 데 쓰지 않는다**(SN). 화면이 그 값에
+           「검산 안 됨」 배지를 붙여 확인을 요청하는데 제안이 그걸 무시하고 집계하면
+           **화면과 제안이 서로 다른 말을 한다.** 뺀 개수는 아래에서 표에 찍는다. */
+        if (reportFieldUnchecked(r, field)) {
+          const uk = `${r.destinationKey}|${field}|report`;
+          uncheckedByKey[uk] = (uncheckedByKey[uk] || 0) + 1;
+          return;
+        }
+        /* 출처를 모르는 옛 제보(SX 이전)는 **빼지 않는다** — 빼면 그때 넣은 것이
+           통째로 사라진다. 대신 몇 건이 그런지 밝힌다. */
+        if (reportFieldViaUnknown(r, field)) {
+          const nk = `${r.destinationKey}|${field}|report`;
+          unknownByKey[nk] = (unknownByKey[nk] || 0) + 1;
+        }
         /* 옛 환율이 박힌 금액을 그대로 기준가와 견주면 환율 차이가 '오차'로 둔갑한다(SG) */
         const reported = reportValueToday(r, field);
         if (reported == null) return;
@@ -5025,6 +5066,29 @@
          집계에서 빼고(clean), 제외 건수는 UI로 알린다. 대표값은 평균이 아니라 중앙값. */
       const clean = data.ratios.filter(r => r >= RATE_SUGGEST_RATIO_MIN && r <= RATE_SUGGEST_RATIO_MAX);
       const outlierCount = data.ratios.length - clean.length;
+      /* ⚠ TB: **전부 이상치면 지금까지 통째로 사라졌다.** 그런데 그게 제일 큰 신호일 수
+         있다 — 실측: 다낭 차량 797,500 vs 기준 180,000(**4.4배**)은 오타가 아니라
+         **베트남 차량 요율이 낮은 것**이다(감사기는 🟡 요율 갱신 후보로 잡고 있는데
+         화면만 못 봤다). 이상치 대역(0.5~2배)은 오타를 막는 장치지 「없던 일」로 만드는
+         장치가 아니다. 제안은 못 만들되 **따로 알린다.** */
+      if (!clean.length) {
+        if (!data.ratios.length) return;
+        const destF = destinationRates.find(d => d.destination_key === data.destKey);
+        if (!destF) return;
+        const baseF = effectiveRate(destF)[data.field] || 0;
+        if (!baseF) return;
+        const medAll = ratioMedian(data.ratios);
+        suggestions.push({
+          destKey: data.destKey, field: data.field, fieldLabel: RATE_FIELD_LABELS[data.field] || data.field,
+          label: data.label, count: data.ratios.length, outlierCount: 0, diffPct: (medAll - 1) * 100,
+          source: data.source, currentBase: baseF, suggestedBase: Math.round(baseF * medAll),
+          confident: false, farOff: true,
+          excludedCount: excludedByKey[`${data.destKey}|${data.field}|report`] || 0,
+          uncheckedCount: uncheckedByKey[`${data.destKey}|${data.field}|report`] || 0,
+          unknownCount: unknownByKey[`${data.destKey}|${data.field}|report`] || 0,
+        });
+        return;
+      }
       if (clean.length < RATE_SUGGEST_MIN_COUNT) return;
       const medRatio = ratioMedian(clean);
       const diffPct = (medRatio - 1) * 100;
@@ -5036,13 +5100,18 @@
         destKey: data.destKey, field: data.field, fieldLabel: RATE_FIELD_LABELS[data.field] || data.field,
         label: data.label, count: clean.length, outlierCount, diffPct, source: data.source,
         excludedCount: excludedByKey[`${data.destKey}|${data.field}|report`] || 0,
+        uncheckedCount: uncheckedByKey[`${data.destKey}|${data.field}|report`] || 0,
+        unknownCount: unknownByKey[`${data.destKey}|${data.field}|report`] || 0,
         currentBase, suggestedBase: Math.round(currentBase * medRatio),
         /* 자동적용(지금 바로 적용)은 계수 보정된 EM 소스에만 부여. 제보 소스는 계수 미보정
            이라 기준가를 밀어올리면 견적에서 시즌·피크가 이중 반영되므로 confident 불가. */
         confident: data.source === 'em' && clean.length >= RATE_SUGGEST_CONFIDENT_COUNT,
       });
     });
-    suggestions.sort((a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct));
+    /* TB: 「너무 벌어져 제안을 못 만든 것」을 맨 위로 — 제일 크게 벌어진 것들이고
+       사람이 봐야 판단이 되는 자리다. 그 안에서는 벌어진 순. */
+    suggestions.sort((a, b) => (a.farOff === b.farOff ? 0 : a.farOff ? -1 : 1)
+      || Math.abs(b.diffPct) - Math.abs(a.diffPct));
     return suggestions;
   }
 
@@ -5061,14 +5130,19 @@
       const isReport = s.source === 'report';
       /* confident(EM 표본 충분)만 파랑(액션색)으로 강조. 빨강(danger)은 이상치 등 실제
          경고에만 남긴다. 제보 소스는 참고용이라 강조 없음. */
-      const frameColor = s.confident ? 'var(--primary)' : 'var(--border)';
-      const frameBg    = s.confident ? '#eff6ff' : 'var(--bg)';
+      /* TB: farOff = 기준가와 너무 벌어져(0.5~2배 밖) 제안을 만들 수 없는 것.
+         **버리지 않고 따로 보여준다** — 오타일 수도, 요율이 낡은 것일 수도 있는데
+         그 판단은 사람만 한다. 주황 테두리로 「확인 대상」임을 밝힌다. */
+      const frameColor = s.farOff ? '#E0A100' : (s.confident ? 'var(--primary)' : 'var(--border)');
+      const frameBg    = s.farOff ? '#fffbeb' : (s.confident ? '#eff6ff' : 'var(--bg)');
       const srcBadge = isReport
         ? '<span style="font-size:.66rem;font-weight:700;background:#f1f5f9;color:var(--muted);border:1px solid var(--border);padding:.1rem .4rem;margin-right:.4rem">실측 제보 · 참고용</span>'
         : '<span style="font-size:.66rem;font-weight:700;background:#eef2ff;color:var(--primary);border:1px solid #c7d2fe;padding:.1rem .4rem;margin-right:.4rem">실제 계약</span>';
-      const confBadge = s.confident
-        ? '<span style="font-size:.68rem;font-weight:700;background:var(--primary);color:#fff;padding:.1rem .4rem;margin-right:.4rem">지금 적용 가능</span>'
-        : '';
+      const confBadge = s.farOff
+        ? '<span style="font-size:.68rem;font-weight:700;background:#E0A100;color:#fff;padding:.1rem .4rem;margin-right:.4rem">확인 필요 · 제안 못 만듦</span>'
+        : (s.confident
+          ? '<span style="font-size:.68rem;font-weight:700;background:var(--primary);color:#fff;padding:.1rem .4rem;margin-right:.4rem">지금 적용 가능</span>'
+          : '');
       return `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.6rem .8rem;border:1px solid ${frameColor};border-left-width:${s.confident ? '4px' : '1px'};background:${frameBg};flex-wrap:wrap">
         <div style="font-size:.85rem">
@@ -5077,8 +5151,9 @@
                **첫 실측**이라는 사실이 판단에 중요하다(대표 지시로 1건도 제안한다). -->
           <strong>${esc(s.label)} · ${esc(s.fieldLabel)}</strong> · 최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 ${isReport ? '실측 제보' : '실제 계약'} ${s.count === 1 ? '<b>1건</b>(이 목적지의 첫 실측)이' : `${s.count}건 중앙값이`} 기준 대비
           <strong>${s.diffPct > 0 ? '+' : ''}${s.diffPct.toFixed(1)}%</strong>
-          — 기준 ${fmtWon(s.currentBase)} → 제안 ${fmtWon(s.suggestedBase)}${s.outlierCount ? ` <span style="color:var(--danger);font-weight:700">· 이상치 ${s.outlierCount}건 제외</span>` : ''}${s.excludedCount ? ` <span style="color:var(--muted);font-weight:700">· 평균에서 뺀 ${s.excludedCount}건 제외</span>` : ''}
-          ${isReport ? '<div style="color:var(--muted);font-size:.72rem;margin-top:.25rem">※ 제보값은 성수기·피크 프리미엄이 섞여 있어 참고용입니다 — 값을 확인하고 <b>요율 편집하기</b>로 판단해 반영하세요(자동 적용 대상 아님).</div>' : ''}
+          — 기준 ${fmtWon(s.currentBase)}${s.farOff ? ` · 제보값 ${fmtWon(s.suggestedBase)}` : ` → 제안 ${fmtWon(s.suggestedBase)}`}${s.outlierCount ? ` <span style="color:var(--danger);font-weight:700">· 이상치 ${s.outlierCount}건 제외</span>` : ''}${s.excludedCount ? ` <span style="color:var(--muted);font-weight:700">· 평균에서 뺀 ${s.excludedCount}건 제외</span>` : ''}${s.uncheckedCount ? ` <span style="color:#8A6100;font-weight:700">· 검산 안 된 ${s.uncheckedCount}건 제외</span>` : ''}${s.unknownCount ? ` <span style="color:var(--muted);font-weight:700">· 출처 미상 ${s.unknownCount}건 포함</span>` : ''}
+          ${s.farOff ? `<div style="color:#8A6100;font-size:.72rem;margin-top:.25rem;font-weight:700">※ 기준가의 ${(Math.abs(s.diffPct) / 100 + 1).toFixed(1)}배 안팎이라 <b>제안 금액을 만들지 않았습니다</b> — 오타일 수도, 요율이 낡은 것일 수도 있어 사람이 봐야 합니다. 견적서를 열어 확인한 뒤 <b>요율 편집하기</b>로 직접 넣어 주세요.</div>` : ''}
+          ${isReport && !s.farOff ? '<div style="color:var(--muted);font-size:.72rem;margin-top:.25rem">※ 제보값은 성수기·피크 프리미엄이 섞여 있어 참고용입니다 — 값을 확인하고 <b>요율 편집하기</b>로 판단해 반영하세요(자동 적용 대상 아님).</div>' : ''}
         </div>
         <div style="display:flex;gap:.4rem;flex-shrink:0">
           ${s.confident ? `<button type="button" class="btn-act btn-primary" onclick="applyRateSuggestion('${s.destKey}','${s.field}',${s.suggestedBase},${s.count})">✅ 지금 바로 적용</button>` : ''}
