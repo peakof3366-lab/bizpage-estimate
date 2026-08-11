@@ -6374,6 +6374,35 @@
     if (!confirmPlausibleValue('호텔단가', hotel.value, prEff.hotel_per_room)) return;
     if (!confirmPlausibleValue('식비', meal.value, prEff.meal_per_person)) return;
 
+    /* ── SY: 같은 견적서를 **두 번** 넣는 것 ──────────────────────────────────
+       실무자 여러 명이 폴더에서 일괄로 올리기 시작하면 반드시 생긴다. 두 번 세면
+       그 값이 **실측 중앙값을 그쪽으로 끌어당긴다** — 요율에 그대로 얹힌다.
+       ⚠ **막지 않는다.** 같은 날 같은 금액의 다른 행사가 실제로 있을 수 있다.
+         대신 무엇이 같은지 보여 주고 사람이 정한다.
+       ⚠ 차수별 견적을 중복으로 오해하면 안 된다 — 상하이 건은 11/08·11/15·11/22
+         **출발일이 다른 3건**이다. 그래서 출발일이 같아야 의심한다. */
+    const dup = findDuplicateReports(destKey, {
+      departDate: (document.getElementById('pr-depart') || {}).value || null,
+      sell: extra.sellPriceUnit.value, nights: (document.getElementById('pr-nights') || {}).value || null,
+      hotelName,
+      values: { airfare: airfare.value, hotel: hotel.value, meal: meal.value,
+        fuel: extra.fuelUnit.value, vehicle: extra.vehicleUnit.value,
+        guide: extra.guideUnit.value, sight: extra.sightUnit.value },
+    });
+    if (dup.length) {
+      const d = dup[0];
+      const when = d.report.createdAt ? new Date(d.report.createdAt).toISOString().slice(0, 10) : '';
+      if (!confirm('같은 견적서를 이미 넣으셨을 수 있습니다.\n\n'
+        + `이미 있는 제보: ${d.report.destinationKey} · ${when} · ${d.report.author || ''}\n`
+        + `같은 것: ${d.why.join(' · ')}\n\n`
+        + '같은 견적서를 두 번 넣으면 그 값이 실측 중앙값을 끌어당깁니다.\n'
+        + '다른 행사가 맞으면 그대로 진행하세요. 넣을까요?')) {
+        msg.style.color = 'var(--muted)';
+        msg.textContent = '제출을 멈췄습니다 — 📋 제보 내역에서 이미 넣은 것을 확인해 보세요.';
+        return;
+      }
+    }
+
     const source = priceReportMode; // 'manual' | 'pdf' — 선택한 방식 그대로 기록
     /* SG: 환산된 칸만 골라 「어느 환율로 바꾼 값인가」를 함께 보낸다.
        ⚠ **담당자가 손으로 고친 칸은 뺀다** — 그 값은 더 이상 환산값이 아니라서,
@@ -6445,6 +6474,66 @@
   /* 제보 내역·삭제 모달(신규) — 잘못 입력된 제보를 찾아 지운다. priceReportsCache를
      최근순 그대로 목록화하고 목적지 필터를 건다. 삭제 후 캐시 재적재 + 요율표(갱신제안·
      검증배지·참고카드 포함) 재렌더. */
+  /* ════ SY: 같은 견적서를 두 번 넣는 것 ══════════════════════════════════════
+     실무자 여러 명이 폴더에서 일괄로 올리면 반드시 생긴다. 두 번 세면 그 값이
+     **실측 중앙값을 끌어당기고** 요율에 그대로 얹힌다. 빈칸과 달리 **틀린 값**이라
+     대표 방침상 우선순위가 높다.
+
+     무엇을 같다고 볼 것인가 — **문서를 가리키는 것**만 센다:
+       출발일 3점 · 1인 판매가 3점 · 박수 1점 · 호텔명 1점 · 값이 같은 칸 1점씩
+     6점부터 의심한다(출발일+판매가만 같아도 6점).
+
+     ⚠ **출발일이 다르면 의심하지 않는다.** 한 문서에 차수별 견적이 여럿인 일이 흔하다
+       (상하이 11/08·11/15·11/22 3건 · 항공료도 360/345/330천원으로 다르다).
+       그걸 중복으로 막으면 진짜 데이터를 잃는다.
+     ⚠ **막지 않고 물어본다.** 같은 날 같은 금액의 다른 행사가 실제로 있을 수 있고,
+       그 판단은 사람만 할 수 있다. */
+  const SY_DUP_SCORE = 6;
+  const SY_VALUE_KEY = {
+    airfare: 'airfareUnit', fuel: 'fuelUnit', hotel: 'hotelUnit', meal: 'mealUnit',
+    vehicle: 'vehicleUnit', guide: 'guideUnit', sight: 'sightUnit',
+  };
+  function findDuplicateReports(destKey, payload, excludeId) {
+    const same = (priceReportsCache || []).filter((r) => r.destinationKey === destKey
+      && (excludeId == null || Number(r.id) !== Number(excludeId)));
+    const num = (v) => (v == null || v === '' ? null : Number(v));
+    return same.map((r) => {
+      let score = 0; const why = [];
+      /* ⚠ **출발일이 둘 다 있고 서로 다르면 중복이 아니다 — 점수로 따지지 않고 끊는다.**
+         처음에 점수제로만 했다가 회귀 테스트가 잡았다: 차수별 견적은 **항공료만 다르고
+         나머지는 전부 같은 것이 정상**이라(상하이 11/08·11/15·11/22), 값 6칸 + 박수 +
+         호텔명이 겹쳐 8점이 나왔다. 그대로 뒀으면 **진짜 데이터를 중복으로 막았을 것**이다. */
+      if (payload.departDate && r.departDate) {
+        if (r.departDate !== payload.departDate) return { report: r, score: 0, why: [] };
+        score += 3; why.push('출발일');
+      }
+      if (num(payload.sell) != null && num(r.sellPriceUnit) === num(payload.sell)) { score += 3; why.push('1인 판매가'); }
+      if (num(payload.nights) != null && num(r.nights) === num(payload.nights)) { score += 1; why.push('박수'); }
+      if (payload.hotelName && r.hotelName && r.hotelName === payload.hotelName) { score += 1; why.push('호텔명'); }
+      const sameCells = Object.keys(SY_VALUE_KEY).filter((k) => {
+        const v = num((payload.values || {})[k]);
+        return v != null && num(r[SY_VALUE_KEY[k]]) === v;
+      });
+      score += sameCells.length;
+      if (sameCells.length) why.push('값 ' + sameCells.length + '칸');
+      return { report: r, score, why };
+    }).filter((x) => x.score >= SY_DUP_SCORE).sort((a, b) => b.score - a.score);
+  }
+
+  /* 이미 들어간 것들 중 서로 중복인 쌍 — 목록 화면이 배지로 알린다.
+     ⚠ 자기 자신은 뺀다(안 빼면 모든 제보가 자기와 중복으로 잡힌다). */
+  function duplicateIdSet() {
+    const out = new Set();
+    (priceReportsCache || []).forEach((r) => {
+      const hit = findDuplicateReports(r.destinationKey, {
+        departDate: r.departDate, sell: r.sellPriceUnit, nights: r.nights, hotelName: r.hotelName,
+        values: Object.keys(SY_VALUE_KEY).reduce((o, k) => { o[k] = r[SY_VALUE_KEY[k]]; return o; }, {}),
+      }, r.id);
+      if (hit.length) { out.add(Number(r.id)); hit.forEach((h) => out.add(Number(h.report.id))); }
+    });
+    return out;
+  }
+
   /* ════ SX: 확인 필요 목록 ═══════════════════════════════════════════════════
      ⚠ **판정 규칙을 여기 새로 적지 않는다.** 타당성은 `plausibility.js`(SO·SK),
        「검산 안 됨」은 제출 때 저장한 `fieldSources`(SX)에서 온다. 화면이 규칙을
@@ -6635,11 +6724,16 @@
         + (suspect ? ` <span title="작성일이 출발일보다 뒤입니다 — 견적을 낸 날이 아니라 문서를 뽑은 날일 수 있어 리드타임 계산에는 쓰지 않습니다" style="color:#b45309;font-weight:700">· 참고용</span>` : '')
         + `</span>`;
     };
+    /* SY: 이미 들어간 것들 중 서로 중복인 것 — **넣을 때 놓쳤어도 여기서 보인다** */
+    const dupIds = duplicateIdSet();
     if (!rows.length) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:1.5rem">제보가 없습니다.</td></tr>`; return; }
     tbody.innerHTML = rows.map(r => `
       <tr>
         <td style="white-space:nowrap">${r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 10) : '—'}</td>
-        <td style="white-space:nowrap"><strong>${esc(optLabel(r.destinationKey))}</strong>${(() => {
+        <td style="white-space:nowrap"><strong>${esc(optLabel(r.destinationKey))}</strong>${
+          dupIds.has(Number(r.id))
+            ? ' <span style="font-size:.66rem;font-weight:800;color:var(--danger)" title="같은 목적지에 출발일·판매가·값이 겹치는 제보가 또 있습니다 — 같은 견적서를 두 번 넣으면 실측 중앙값이 그쪽으로 끌립니다">⚠ 중복 의심</span>'
+            : ''}${(() => {
           /* 나라를 함께 보여준다 (RY) — 호텔명 칸이 바로 옆이라, 도시 이름만으로는
              어느 나라 호텔인지 모르는 줄이 이 표에서 제일 자주 나온다. */
           const c = destCountryOf(r.destinationKey);
