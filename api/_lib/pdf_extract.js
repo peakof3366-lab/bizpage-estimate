@@ -1391,6 +1391,55 @@ function splitDayParts(rows) {
   return { parts: empty, split: 'none', why: 'no-marker' };
 }
 
+/* ── TF: 이 견적서가 **한 도시 견적인가** ─────────────────────────────────────
+   실측 사고(2026-08-11, `actual_price_reports` id 17 — `KT CES참관.pdf`): 샌프란시스코 →
+   라스베가스 → LA → **칸쿤(멕시코)** 9일 일정이 목적지 「샌프란시스코」 실측 한 줄로
+   들어갔다. 저장된 호텔 단가는 칸쿤 리조트(770,000)였고, 차량은 「CUN 버스」,
+   가이드는 「LAX 한국인 가이드」였다. 샌프란시스코 표본이 그 하나뿐이라 **그 행이 곧
+   그 목적지의 실측**이 됐다.
+   ⚠ **기존 안전망은 이걸 못 잡는다.** 타당성 검토(SO)는 기준가의 3배를 넘어야 말하는데,
+     샌프란시스코는 원래 비싼 목적지라 칸쿤 호텔이 2.08배에 그쳤다. 「검산 안 됨」도
+     아니었다(단가×박수×실수가 멀쩡히 맞는 줄이다). 값이 이상한 게 아니라 **다른 도시
+     것**이라, 금액만 보는 자는 영영 못 잡는다.
+
+   왜 하필 「묵는 곳 수」인가 — 46건 코퍼스에 다른 후보를 전부 재 봤고 전부 떨어졌다:
+     · 같은 항목에 라벨이 여럿  → 44건 중 **37건**이 걸린다(기사팁·가이드 숙박·주중/주말
+       객실이 전부 정상이다). 쓸 수 없다.
+     · 본문에서 아는 목적지 이름 세기 → 46건 중 **31건**이 걸리고, 정작 KT CES는 **0곳**이다
+       (칸쿤·라스베가스가 요율표에 없다). 잡아야 할 것만 못 잡는다.
+     · 묵는 곳 수 → 일정표가 있는 41건 중 **2곳 이상 10건 / 3곳 이상 2건**(KT CES 7곳,
+       큐슈 3곳)이다. 큐슈도 4일에 세 도시라 확인할 값어치가 있다.
+   ⚠ **막지 않는다. 세기만 한다.** 국내 지방 이동처럼 한 요율로 덮는 게 맞는 일정도 있다 —
+     한 도시 견적이 맞는지는 문서를 손에 든 사람만 안다(SW와 같은 원칙).
+   ⚠ 문턱(3곳)은 **여기 한 곳에만** 적는다. 화면이 다시 세면 감사기와 어긋난다(결함 생성기 ①). */
+const MULTI_CITY_STAYS = 3;
+/* 같은 호텔이 표기 차이로 갈리면 문턱이 흔들린다 — 실측: 「베스트 웨스턴 프리미어…」와
+   「베스트웨스턴 프리미어…」가 두 곳으로 세어졌다(신한금융플러스 푸꾸옥). 머리말
+   (「HOTEL :」·「예정 호텔 :」)과 꼬리말(「| 2인 1실」·「또는 동급」)을 떼고 공백을 지운다. */
+function stayKey(s) {
+  return String(s || '')
+    .replace(/^[^:：]*[:：]/, '')
+    .split(/[|[(]/)[0]
+    .replace(/또는\s*동급.*$/, '')
+    .replace(/[\s·,.\-]/g, '')
+    .toLowerCase();
+}
+function distinctStays(days) {
+  const seen = new Map();
+  (days || []).forEach((d) => {
+    const k = stayKey(d.hotel);
+    if (!k || seen.has(k)) return;
+    /* 보여줄 때는 **문서에 적힌 그대로**를 쓴다 — 정규화한 글자를 화면에 내보내면
+       담당자가 견적서에서 그 줄을 찾을 수 없다. 머리말과 「또는 동급」꼬리만 뗀다
+       (모든 줄에 똑같이 붙어 있어 이름을 가린다). */
+    seen.set(k, String(d.hotel)
+      .replace(/^[^:：]*[:：]\s*/, '')
+      .replace(/\s*또는\s*동급.*$/, '')
+      .trim());
+  });
+  return Array.from(seen.values());
+}
+
 function findItinerary(lines) {
   const dayCol = pickDayColumn(lines);
   if (!dayCol) return null;
@@ -1481,6 +1530,8 @@ function findItinerary(lines) {
   const withText = days.filter((d) => d.lines.length);
   if (withText.length < MIN_ITIN_DAYS) return null;
 
+  const stays = distinctStays(days);
+
   return {
     days,
     repeated,
@@ -1493,6 +1544,11 @@ function findItinerary(lines) {
     mealX: mealX === null ? null : Math.round(mealX),
     /* 문서가 시간대를 나눠 주지 않은 날이 몇 개인가 — 담당자가 손볼 양이다 */
     unsplitDays: days.filter((d) => d.split === 'none').length,
+    /* TF: 며칠씩 **어디에서 묵는가**. 3곳 이상이면 한 목적지 요율의 근거로 삼기 전에
+       사람이 확인해야 한다(위 MULTI_CITY_STAYS 주석 참고). 판정은 여기서 끝낸다 —
+       화면이 다시 세지 않게 `multiCity`까지 함께 준다. */
+    stays,
+    multiCity: stays.length >= MULTI_CITY_STAYS,
   };
 }
 
@@ -1990,4 +2046,6 @@ module.exports = {
   splitLabel, numbersIn, VOCAB,
   findItinerary, pickDayColumn, splitDayParts,
   coversDuration,
+  /* TF: 「한 도시 견적인가」의 잣대 — 화면·감사기가 같은 것을 쓴다 */
+  MULTI_CITY_STAYS, stayKey, distinctStays,
 };
