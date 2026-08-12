@@ -1360,14 +1360,19 @@
             </div>
           </div>
 
-          <!-- 입력 방식 선택 (직접 입력 ↔ PDF 제출, 상호배타) -->
+          <!-- 입력 방식 선택 (PDF 제출 ↔ 직접 입력, 상호배타)
+               ⚠ **PDF 제출이 앞이고 기본값**이다 (2026-08-12 사장님 지시). 실무자가 하는 일은
+                  견적서를 올리는 것이고, 직접 입력은 문서가 없을 때의 예외 경로다.
+               ⚠ 여기 순서·기본 상태를 바꾸면 `priceReportMode` 초기값도 함께 바꿔야 한다.
+                  아래 class와 hidden 여부는 **그 초기값과 같은 화면**이어야 한다 —
+                  어긋나면 화면을 처음 연 순간만 다른 방식으로 보인다. -->
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
-            <button type="button" id="pr-mode-manual" class="btn-act btn-primary" onclick="setPriceReportMode('manual')">✏️ 직접 입력</button>
-            <button type="button" id="pr-mode-pdf" class="btn-act btn-outline-p" onclick="setPriceReportMode('pdf')">📄 PDF 제출</button>
+            <button type="button" id="pr-mode-pdf" class="btn-act btn-primary" onclick="setPriceReportMode('pdf')">📄 PDF 제출</button>
+            <button type="button" id="pr-mode-manual" class="btn-act btn-outline-p" onclick="setPriceReportMode('manual')">✏️ 직접 입력</button>
           </div>
 
-          <!-- 방식 ② PDF 전용 컨트롤 (PDF 모드에서만 노출) -->
-          <div id="pr-pdf-block" class="hidden" style="margin-bottom:1rem;padding:.9rem 1rem;border:1.5px dashed var(--border);border-radius:10px;background:var(--bg)">
+          <!-- 방식 ① PDF 전용 컨트롤 (PDF 모드에서만 노출 — 기본으로 열려 있다) -->
+          <div id="pr-pdf-block" style="margin-bottom:1rem;padding:.9rem 1rem;border:1.5px dashed var(--border);border-radius:10px;background:var(--bg)">
             <p style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;line-height:1.6">
               PDF를 올리고 <strong style="color:var(--heading)">"PDF에서 추출"</strong>을 누르면
               견적서에서 <strong style="color:var(--heading)">산술이 검산된 단가 줄</strong>만 골라 아래에 채웁니다
@@ -1383,7 +1388,10 @@
           </div>
 
           <!-- 가격 필드: 직접입력 모드=편집 가능 / PDF 모드=읽기전용(추출값) -->
-          <div id="pr-fields-label" class="detail-label" style="margin-bottom:.5rem">직접 입력할 값 (아는 항목만)</div>
+          <!-- ⚠ 이 문구의 초기값은 **PDF 모드 문구**여야 한다(기본이 PDF다).
+               applyPriceReportModeUI가 곧 덮어쓰지만, 그 사이 한 프레임 동안 다른 방식의
+               안내가 보인다. -->
+          <div id="pr-fields-label" class="detail-label" style="margin-bottom:.5rem">PDF에서 추출된 값 — 근거를 대조하세요. 틀렸으면 후보에서 고르거나 칸에 직접 넣으면 됩니다(「담당자 확정 ✓」로 바뀝니다)</div>
           <!-- ⚠ align-items를 end → start로 바꿨다 (RY). 호텔명 칸만 아래에 안내 줄이
                하나 더 붙는데, 아래 맞춤이면 그 줄 높이만큼 **호텔명 입력칸만 위로 밀린다**.
                다른 칸은 전부 라벨+입력 한 쌍이라 위 맞춤으로 바꿔도 보이는 모양이 같다.
@@ -5426,10 +5434,21 @@
      · pdf   : PDF 업로드→추출만 사용. 가격 필드는 readonly로 잠가 사람이 손대지 못하게
                하고, extractPdfDetails가 채운 값 그대로만 제출된다.
      방식 전환 시에는 값을 초기화해 한 방식의 입력이 다른 방식으로 섞이지 않게 한다. */
-  const PR_FIELD_IDS = ['pr-airfare', 'pr-hotel', 'pr-hotel-name', 'pr-meal',
-    'pr-fuel', 'pr-vehicle', 'pr-guide', 'pr-sight', 'pr-sell',
-    'pr-depart', 'pr-quote-date', 'pr-nights'];
-  let priceReportMode = 'manual';
+  /* 가격 칸 — **방식마다 다른 값**이다. 방식을 바꾸면 비운다(한 방식의 입력이 다른
+     방식으로 섞이면 안 된다). */
+  const PR_PRICE_IDS = ['pr-airfare', 'pr-hotel', 'pr-hotel-name', 'pr-meal',
+    'pr-fuel', 'pr-vehicle', 'pr-guide', 'pr-sight', 'pr-sell'];
+  /* 공통 칸 — 방식 선택 **위**에 있는 것들이다. 어느 방식이든 같은 값이라 방식을 바꿔도
+     지우지 않는다.
+     ⚠ 예전엔 이것들도 함께 지웠다. 그래서 출발일·견적작성일·박수를 먼저 넣고
+       방식 버튼을 누르면 **넣은 값이 통째로 사라져** 화면이 새로고침된 것처럼 보였다
+       (2026-08-12 사장님 지적). 출발일은 시즌·리드타임 검증의 근거라 다시 넣게 하면
+       그냥 비워 두고 넘어가게 된다. */
+  const PR_COMMON_IDS = ['pr-depart', 'pr-quote-date', 'pr-nights'];
+  const PR_FIELD_IDS = PR_PRICE_IDS.concat(PR_COMMON_IDS);
+  /* 기본은 **PDF 제출**이다 (2026-08-12 사장님 지시) — 실무자가 견적서를 들고 오는 자리라
+     직접 입력은 예외 경로다. 화면의 버튼 순서도 이 순서와 같아야 한다. */
+  let priceReportMode = 'pdf';
 
   function applyPriceReportModeUI() {
     const isPdf = priceReportMode === 'pdf';
@@ -6349,8 +6368,10 @@
   function setPriceReportMode(mode) {
     if (mode !== 'manual' && mode !== 'pdf') return;
     if (mode !== priceReportMode) {
-      /* 방식 전환 시에만 입력값·PDF파일·메시지 초기화 */
-      PR_FIELD_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      /* 방식 전환 시에만 입력값·PDF파일·메시지 초기화.
+         ⚠ **가격 칸만** 비운다 — 공통 칸(출발일·견적작성일·박수)은 방식과 무관하다.
+           함께 지우면 먼저 넣어 둔 날짜가 사라져 새로고침된 것처럼 보인다. */
+      PR_PRICE_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       const pdfInput = document.getElementById('pr-pdf'); if (pdfInput) pdfInput.value = '';
       const msg = document.getElementById('pr-msg'); if (msg) msg.textContent = '';
     }
