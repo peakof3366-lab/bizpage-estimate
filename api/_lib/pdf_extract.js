@@ -1029,7 +1029,19 @@ function findNightsDays(lines) {
    ⚠ 괄호 안은 **3글자까지만** 받는다 — 요일·「확정」 같은 짧은 표시만 건너뛰려는 것이지
       아무 괄호나 넘으라는 뜻이 아니다(긴 괄호를 넘기면 엉뚱한 날짜 둘이 이어진다). */
 const DOW = '(?:\\s*\\([^)]{1,3}\\))?';
-const YMD = `(\\d{2,4})\\s*(?:[.\\-\\/]\\s*|\\s+)(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})${DOW}`;
+/* ⚠ **한글 「년·월·일」도 구분자다** (2026-08-13). 구분자를 `.`·`-`·`/`로만 받아서
+     「여행 기간 ( 예정 ) **2025 년 11 월 28 일** ( 금 ) ~ 11 월 30 일 ( 일 ) / 2 박 3 일」이
+     통째로 안 걸렸다. 제대로 된 기간 표기인데도 출발일이 비었고, 그러면 그 견적서는
+     시즌 계수를 맞출 수 없어 **역검증에서 통째로 빠진다.**
+   ⚠ PDF에서 글자 사이가 벌어져 나오는 일이 흔하다(「2025 년 11 월 28 일」) — 그래서
+     구분자 앞뒤 공백을 모두 허용한다.
+   ⚠ 숫자 셋이 그 순서로 이어져야만 걸리므로 오탐 여지는 좁다. */
+const Y_SEP = '(?:\\s*[.\\-\\/]\\s*|\\s*년\\s*|\\s+)';   /* 연도 다음 */
+const M_SEP = '(?:\\s*[.\\-\\/]\\s*|\\s*월\\s*)';         /* 월 다음 */
+const D_TAIL = '(?:\\s*일)?';                             /* 일 뒤의 '일' */
+const YMD = `(\\d{2,4})${Y_SEP}(\\d{1,2})${M_SEP}(\\d{1,2})${D_TAIL}${DOW}`;
+/* 연도가 생략된 「월.일」 — 범위의 뒤쪽에 쓴다 */
+const MD = `(\\d{1,2})${M_SEP}(\\d{1,2})${D_TAIL}`;
 
 function findTripDates(lines) {
   let depart = null, ret = null, nights = null, days = null;
@@ -1067,7 +1079,7 @@ function findTripDates(lines) {
         if (depart) break;
       }
       /* ② 연도.월.일 ~ 월.일 (뒤쪽에 연도 생략) */
-      m = t.match(new RegExp(`${YMD}\\s*${TILDE}\\s*(\\d{1,2})\\s*[.\\-\\/]\\s*(\\d{1,2})(?!\\s*[.\\-\\/]\\s*\\d)`));
+      m = t.match(new RegExp(`${YMD}\\s*${TILDE}\\s*${MD}(?!\\s*[.\\-\\/]\\s*\\d)`));
       if (m) {
         depart = validYmd(ymd(m[1], m[2], m[3])) || depart;
         ret = validYmd(ymd(m[1], m[4], m[5])) || ret;
@@ -1076,7 +1088,7 @@ function findTripDates(lines) {
       }
       /* ③ 출발일 하나만 (+ 박수) — 낱말 관문을 통과한 줄에서만 */
       if (pass !== 1) continue;
-      m = t.match(/(\d{2,4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/);
+      m = t.match(new RegExp(YMD));
       if (m) {
         const v = validYmd(ymd(m[1], m[2], m[3]));
         if (v) { depart = v; takeNightsDays(t); break; }
