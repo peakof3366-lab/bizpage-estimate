@@ -2149,6 +2149,86 @@ function applyFx(rows, fx) {
   });
 }
 
+/* ═══ L2.9 — 1인 기준 안(案) 비교표 (UG) ═══════════════════════════════════
+   곱셈이 없는 양식이 있다. 실측(신한 금융플러스 감탄/마카오) — **한 줄도 검산이 안 된다:**
+
+       항공      240,000  190,000  250,000  250,000  | 7C 205,000 21,800 47,700 274,500
+       유류/택스   75,000   75,000   75,000   92,400  | NX 170,000 27,400 47,700 245,100
+       지상     615,000  615,000  615,000  673,920
+       보험      10,000   10,000   10,000   10,000
+       하나수익   67,000   87,000   57,000   57,000
+       입금가  1,007,000  977,000 1,007,000 1,083,320
+       대리점수익 213,000  263,000  233,000  176,680
+       판매가  1,220,000 1,240,000 1,240,000 1,260,000
+
+   **열 하나가 안(案) 하나**이고 값이 전부 **1인 기준**이다. L2는 「단가 x 수량 x 횟수 =
+   총금액」을 요구하므로 이런 표에서는 한 줄도 못 건진다 — 그래서 이 문서는 검산줄 0개다.
+
+   ⚠ **어느 열이 채택된 안인지 짐작하면 안 된다.** 대신 **문서가 스스로 증명하게** 한다:
+
+       항공 + 유류 + 지상 + 보험 + 수익  ==  입금가        (열마다)
+       입금가 + 대리점수익              ==  판매가
+
+   실측에서 **네 열이 전부 맞았다.** 세로 합이 맞는다는 것은 그 열이 한 벌의 견적이라는
+   뜻이고, 그게 곧 이 양식이라는 증거다. 맞지 않으면 이 층은 아무것도 하지 않는다.
+   그리고 **이미 읽어 둔 1인당(판매가)과 같은 열**을 고른다 — 고르는 근거가 문서 안에 있다.
+
+   ⚠ **검산줄이 하나도 없을 때만 돈다.** 정상 표가 있는 문서를 건드리지 않기 위해서다.
+   ⚠ **「지상」은 쓰지 않는다.** 차량·가이드·관광·식사를 한 덩어리로 묶은 줄이라 어느 칸의
+     단가도 아니다(SE에서 정한 원칙 그대로).
+   ⚠ 오른쪽에 항공사별 운임 내역표가 붙어 있다(SL의 좌우 두 표). 안의 개수는 **판매가 행이
+     정하고**, 그 개수만큼만 앞에서 쓴다 — 세로 합 검산이 그 선택이 옳음을 증명한다. */
+const SUMMARY_ROWS = {
+  airfare: /^항공(료|권)?$/,
+  fuel: /^(유류\s*\/?\s*택스|유류할증(료)?|유류|택스|T\/?S)$/i,
+  ground: /^(지상(비|경비)?|랜드(비)?)$/,
+  insurance: /^보험(료)?$/,
+  margin: /^(하나|HNT|현지)?\s*수익$/i,
+  deposit: /^입금가$/,
+  agent: /^(대리점|여행사)\s*수익$/,
+  sell: /^(판매가|고객가)$/,
+};
+function readSummaryTable(lines, perPerson) {
+  const got = {};
+  lines.forEach((ln) => {
+    const cells = ln.cells || [];
+    if (!cells.length) return;
+    const head = String(cells[0].s).replace(/\s+/g, '').trim();
+    Object.keys(SUMMARY_ROWS).forEach((k) => {
+      if (got[k] || !SUMMARY_ROWS[k].test(head)) return;
+      const ns = String(ln.text).slice(head.length)
+        .match(/\d{1,3}(?:,\d{3})+|\d{5,}/g);
+      if (ns && ns.length) got[k] = ns.map((s) => Number(s.replace(/,/g, '')));
+    });
+  });
+  /* 안의 개수는 **판매가 행이 정한다** — 다른 행에는 옆 표가 붙어 있을 수 있다 */
+  if (!got.sell || !got.deposit || got.sell.length < 2) return null;
+  const n = Math.min(got.sell.length, got.deposit.length);
+  const at = (k, c) => ((got[k] || [])[c] || 0);
+
+  /* 세로 합 검산 — **이게 이 양식이라는 유일한 증거다** */
+  const okCols = [];
+  for (let c = 0; c < n; c++) {
+    const sum = at('airfare', c) + at('fuel', c) + at('ground', c)
+      + at('insurance', c) + at('margin', c);
+    if (sum > 0 && sum === at('deposit', c)
+      && at('deposit', c) + at('agent', c) === at('sell', c)) okCols.push(c);
+  }
+  if (okCols.length < n) return null;          /* 한 열이라도 안 맞으면 이 양식이 아니다 */
+
+  /* 이미 읽어 둔 1인당과 같은 열을 고른다 — 짐작하지 않는다 */
+  const pick = perPerson ? okCols.find((c) => at('sell', c) === perPerson) : null;
+  if (pick == null) return null;
+  return {
+    col: pick, cols: n,
+    airfare: at('airfare', pick) || null,
+    fuel: at('fuel', pick) || null,
+    deposit: at('deposit', pick) || null,
+    sell: at('sell', pick) || null,
+    groundBundled: at('ground', pick) || null,   /* 묶음이라 값으로 쓰지 않는다 — 화면 설명용 */
+  };
+}
+
 /* ═══ 견적 한 장을 읽는다 ══════════════════════════════════════════════════ */
 function readOneBlock(lines, fx, blockTotal) {
   /* 1차로 뽑아 좌우 두 표인지 본다. 갈렸으면 **그 경계로 다시 뽑는다** — 조합이 두 표에
@@ -2210,6 +2290,10 @@ function readOneBlock(lines, fx, blockTotal) {
   /* 골프비 — 관광비에서 빼기만 하던 것을 **값으로 만든다**(1인 1회 라운딩) */
   const golf = golfPerRound(rows, pax, crews);
 
+  /* L2.9 — **검산줄이 하나도 없을 때만** 1인 기준 안 비교표를 본다(위 주석).
+     정상 표가 있는 문서는 건드리지 않는다. */
+  const summary = rows.length ? null : readSummaryTable(lines, rec.perPerson);
+
   /* 호텔명 — 호텔 줄의 라벨이 곧 호텔명이다(예: '노보텔'). 라벨이 비면 비고에서 찾는다. */
   /* 호텔명 — 호텔 줄의 라벨이 곧 호텔명이다. 다만 두 가지를 걷어내야 한다:
        ① 구분 열의 '호텔/숙박' 글자가 라벨 앞에 붙어 온다("호텔 Hotel Kadoman")
@@ -2244,8 +2328,12 @@ function readOneBlock(lines, fx, blockTotal) {
     dates,
     reconciliation: rec,
     values: {
-      airfare: airfare ? capped(airfare.unit, LIMITS.airfare) : null,
-      fuel: fuel ? capped(fuel.unit, LIMITS.fuel) : null,
+      /* L2.9: 검산줄이 없는 1인 기준 요약표에서 온 값(UG). 세로 합 검산을 통과한 열의
+         값이라 근거가 문서 안에 있다. ⚠ 「지상」은 묶음이라 안 쓴다. */
+      airfare: airfare ? capped(airfare.unit, LIMITS.airfare)
+        : (summary ? capped(summary.airfare, LIMITS.airfare) : null),
+      fuel: fuel ? capped(fuel.unit, LIMITS.fuel)
+        : (summary ? capped(summary.fuel, LIMITS.fuel) : null),
       hotel: hotel ? capped(hotel.unit, LIMITS.hotel) : null,
       hotelName: hotelName || null,
       meal: meal ? capped(meal.value, LIMITS.meal) : null,
@@ -2256,8 +2344,21 @@ function readOneBlock(lines, fx, blockTotal) {
       golf: golf ? capped(golf.value, LIMITS.golf) : null,
       sell: rec.perPerson ? capped(rec.perPerson, LIMITS.sell) : null,
     },
+    /* L2.9 — 1인 기준 안 비교표를 읽었는가(UG). 화면이 「몇 번째 안을 읽었는지」를
+       말할 수 있어야 한다 — 안이 여럿인 문서라 담당자가 확인할 자리다. */
+    summaryTable: summary,
     evidence: {
-      airfare: ev(airfare), fuel: ev(fuel), hotel: ev(hotel),
+      /* ⚠ 요약표에서 온 값은 **어느 안에서 왔는지** 밝힌다(조용한 폴백 금지) */
+      airfare: airfare ? ev(airfare) : (summary && summary.airfare ? {
+        calc: `1인 기준 요약표의 ${summary.col + 1}번째 안 (전체 ${summary.cols}개 안)`
+          + ` — 세로 합이 입금가 ${(summary.deposit || 0).toLocaleString()}와 맞는 열입니다`,
+        label: '항공 (안 비교표)', via: 'rule',
+      } : null),
+      fuel: fuel ? ev(fuel) : (summary && summary.fuel ? {
+        calc: `1인 기준 요약표의 ${summary.col + 1}번째 안 (전체 ${summary.cols}개 안)`,
+        label: '유류·택스 (안 비교표)', via: 'rule',
+      } : null),
+      hotel: ev(hotel),
       /* SV: 차량·가이드만 **1일 단가**라 「전 일정 총액이 단가 자리에 왔는가」를 따진다.
          호텔은 1박 단가고 식비·관광비는 애초에 나눗셈으로 구한다 — 여기 넣지 말 것. */
       vehicle: ev(vehicle, { duration: coversDuration(vehicle, dates) }),
