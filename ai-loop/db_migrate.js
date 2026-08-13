@@ -363,6 +363,17 @@ async function main() {
      모양: {"vehicle": "unchecked", "airfare": "rule", "meal": "calc"} */
   await sql`alter table actual_price_reports add column if not exists field_sources jsonb`;
 
+  /* TJ: 골프 라운딩 실측 — **1인 1회**(그린피+카트+캐디피). 2026-08-13 대표 승인.
+     추출기는 이미 이 값을 읽는다(golfPerRound). 그런데 담을 칸이 없어 화면에 보여주기만
+     하고 버리고 있었다 — 그래서 골프만 📊 갱신 제안 흐름 **밖에** 있었다.
+     다른 8칸은 견적서가 쌓이면 제안이 알려 주는데 골프는 영영 손으로 넣어야 했다.
+     ⚠ **관광비(sight_unit)와 같은 칸에 넣지 말 것.** 자릿수가 다르다 —
+       다낭 관광 50,000 대 라운딩 235,935. 섞으면 그 목적지 관광비 기준이 왜곡되고,
+       그 왜곡이 갱신 제안을 타고 **골프를 안 치는 고객의 견적까지** 간다.
+     ⚠ api/quotes.js의 INSERT가 이 컬럼을 쓴다 — **배포보다 이 마이그레이션이 먼저**여야
+       제출이 500으로 깨지지 않는다(CLAUDE.md 순서 규칙). */
+  await sql`alter table actual_price_reports add column if not exists golf_unit numeric`;
+
   /* P2b: 전역 앱 설정 KV (신규) — 견적 계수 스칼라 노브(coefficients) 등 사이트 전역 설정을
      key→jsonb로 저장. 공개 계산기는 /api/rates GET이 이 중 'coefficients' 행을 코드 기본값 위에
      폴백-우선 병합한다(행이 없으면 기본값=현재 동작). content_overrides와 같은 KV 형태이되 값이

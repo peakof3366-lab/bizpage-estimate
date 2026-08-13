@@ -335,6 +335,50 @@ ok('없는 목적지 이름에도 안전하다', DATA.getGolfFee('없는곳') ==
     d2.window.close();
   }
 
+  /* ══ [14] 골프 실측이 **끝까지 흐르는가** ═══════════════════════════════════
+     골프 요금은 손이 닿아야 하는 자리가 많다. 한 곳만 빠뜨리면 **그 자리에서만 조용히**
+     빠진다 — 저장은 되는데 제안에 안 뜨거나, 환율 되돌리기가 안 되거나, 확정이
+     엉뚱한 컬럼에 쓰인다. 그래서 배선을 통째로 고정한다(결함 생성기 ①). */
+  console.log('\n[14] 골프 실측 배선 — 한 곳이라도 빠지면 조용히 샌다');
+  const apiQuotes = read(path.join('api', 'quotes.js'));
+  const apiRates = read(path.join('api', 'rates.js'));
+  const adminSrc = read('admin.html');
+  const migSrc = read(path.join('ai-loop', 'db_migrate.js'));
+
+  ok('마이그레이션이 additive다 (golf_unit)',
+    /alter table actual_price_reports add column if not exists golf_unit numeric/.test(migSrc));
+  ok('제출이 golfUnit을 받는다', /golfUnit/.test(apiQuotes));
+  ok('INSERT가 golf_unit을 쓴다', /golf_unit, sell_price_unit/.test(apiQuotes));
+  ok('조회가 golfUnit을 내려준다', /golfUnit: num\(r\.golf_unit\)/.test(apiQuotes));
+  /* ⚠ 맨 아래 else는 sell 전용이다. 골프 갈래가 그 위에 없으면 **골프 확정값이 판매가
+     칸에 쓰인다** — 값도 잃고 판매가도 망가지는데 오류는 안 난다. */
+  ok('**확정 갈래에서 골프가 sell보다 위에 있다** (아니면 판매가 칸에 쓰인다)',
+    apiQuotes.indexOf("field === 'golf'") > 0
+    && apiQuotes.indexOf("field === 'golf'") < apiQuotes.indexOf('set sell_price_unit'));
+  ok('확정 API가 golf 컬럼을 안다', /golf: 'golf_unit'/.test(apiQuotes));
+  ok('확정 API가 golf 상한을 안다', /golf: GOLF_UNIT_MAX/.test(apiQuotes));
+
+  /* ⚠ golf_fee를 NUMERIC_FIELDS에 넣으면 **새 목적지를 만들 수 없게 된다** —
+     그 집합은 isValidNewDestination이 「반드시 있어야 하는 칸」으로도 쓴다. */
+  ok('**golf_fee는 필수 칸 목록(NUMERIC_FIELDS)에 없다** (새 목적지 생성이 막힌다)',
+    !/'sightseeing_fee', 'margin_per_traveler',\s*'golf_fee'/.test(apiRates)
+    && /OPTIONAL_NUMERIC_FIELDS = new Set\(\['golf_fee'\]\)/.test(apiRates));
+  ok('그래도 고칠 수는 있다 (isValidChange가 받는다)',
+    /NUMERIC_FIELDS\.has\(c\.field\) \|\| OPTIONAL_NUMERIC_FIELDS\.has\(c\.field\)/.test(apiRates));
+  /* ⚠ 상한 초과를 findOutOfRange가 못 보면 400이 아니라 **조용히 버려진다** */
+  ok('상한을 넘기면 조용히 버리지 않고 되돌려준다',
+    /NUMERIC_FIELDS\.has\(c\.field\) \|\| OPTIONAL_NUMERIC_FIELDS\.has\(c\.field\)\)[\s\S]{0,200}FIELD_MAX/.test(apiRates));
+  ok('골프 요금에 오타 상한이 있다', /golf_fee: 1500000/.test(apiRates));
+
+  /* 화면 쪽 — 세 표에 **다 있어야** 한다 */
+  ok('제출 칸이 있다 (pr-golf)', /id="pr-golf"/.test(adminSrc));
+  ok('방식을 바꿀 때 비우는 가격 칸에 들어 있다', /'pr-sight', 'pr-golf', 'pr-sell'/.test(adminSrc));
+  ok('환율 되돌리기 표에 있다 (REPORT_FX_KEY)', /sightseeing_fee: 'sight', golf_fee: 'golf'/.test(adminSrc));
+  ok('제보값 표에 있다 (REPORT_VALUE_KEY)', /golf_fee: 'golfUnit'/.test(adminSrc));
+  ok('**갱신 제안이 골프를 본다**', /RATE_SUGGEST_REPORT_FIELDS[\s\S]{0,400}golf_fee: 'golfUnit'/.test(adminSrc));
+  ok('요율 관리 화면에 골프 칸이 있다', /golf_fee: '골프\(1인 1회\)'/.test(adminSrc));
+  ok('확인 필요 목록이 골프를 본다', /key: 'golf', rate: 'golf_fee'/.test(adminSrc));
+
   /* ══ [13] 실제 코퍼스에서 몇 건이 걸리는가 — 오탐 수를 테스트가 고정한다 ══
      ⚠ 견적서 폴더는 저장소 밖이라 **없을 수 있다.** 없으면 건너뛴다(실패로 만들지 않는다). */
   const CORPUS = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');

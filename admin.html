@@ -1445,6 +1445,13 @@
               <input type="number" id="pr-sight" class="pw-input" min="0" placeholder="예: 40000" />
             </div>
             <div>
+              <!-- TJ: 골프는 관광과 다른 칸이다 — 자릿수가 달라 섞으면 그 목적지 관광비
+                   기준이 왜곡되고, 골프를 안 치는 고객의 견적까지 간다.
+                   골프가 없는 견적서에서는 그냥 빈칸으로 남는다(대부분이 그렇다). -->
+              <div class="detail-label" style="margin-bottom:.3rem">실제 골프(1인 1회 라운딩)</div>
+              <input type="number" id="pr-golf" class="pw-input" min="0" placeholder="예: 170000" />
+            </div>
+            <div>
               <div class="detail-label" style="margin-bottom:.3rem">최종 판매가(1인) 📏<span style="font-weight:400;text-transform:none;letter-spacing:0"> 정확도 기준</span></div>
               <input type="number" id="pr-sell" class="pw-input" min="0" placeholder="예: 1190000" />
             </div>
@@ -4638,6 +4645,11 @@
     airfare: '항공료', fuel_surcharge: '유류할증료', hotel_per_room: '호텔(1박)',
     meal_per_person: '1인 1일 식비', vehicle_large: '대형 차량', vehicle_small: '소형 차량',
     guide_fee: '가이드비', sightseeing_fee: '관광비', margin_per_traveler: '1인당 마진',
+    /* TJ: 골프 라운딩 1인 1회(그린피+카트+캐디피). **0이면 「골프를 안 판다」**는 뜻이고
+       고객 화면에서 골프 옵션이 잠긴다 — 「값을 아직 모른다」가 아니다.
+       ⚠ 관광비와 자릿수가 달라 따로 둔 칸이다. 관광비에 섞으면 그 목적지 관광비 기준이
+         왜곡되고 골프를 안 치는 고객의 견적까지 간다. */
+    golf_fee: '골프(1인 1회)',
   };
   const RATE_FIELD_ORDER = Object.keys(RATE_FIELD_LABELS);
 
@@ -4840,6 +4852,9 @@
     airfare: 'airfareUnit', fuel_surcharge: 'fuelUnit', hotel_per_room: 'hotelUnit',
     meal_per_person: 'mealUnit', vehicle_large: 'vehicleUnit', guide_fee: 'guideUnit',
     sightseeing_fee: 'sightUnit',
+    /* TJ: 골프도 여기 들어와야 견적서가 쌓일 때 제안이 알려 준다. 빠뜨리면 골프만
+       영영 손으로 넣어야 한다 — 이 칸을 만든 이유가 바로 그것이다. */
+    golf_fee: 'golfUnit',
   };
 
   /* TB: **검산 안 된 값으로 요율을 논하지 않는다**(SN에서 정한 원칙 그대로).
@@ -4870,12 +4885,16 @@
   const REPORT_FX_KEY = {
     airfare: 'airfare', fuel_surcharge: 'fuel', hotel_per_room: 'hotel',
     meal_per_person: 'meal', vehicle_large: 'vehicle', guide_fee: 'guide',
-    sightseeing_fee: 'sight',
+    sightseeing_fee: 'sight', golf_fee: 'golf',
   };
   const REPORT_VALUE_KEY = {
     airfare: 'airfareUnit', fuel_surcharge: 'fuelUnit', hotel_per_room: 'hotelUnit',
     meal_per_person: 'mealUnit', vehicle_large: 'vehicleUnit', guide_fee: 'guideUnit',
     sightseeing_fee: 'sightUnit',
+    /* TJ: 골프도 이 셋(REPORT_FX_KEY·REPORT_VALUE_KEY·RATE_SUGGEST_REPORT_FIELDS)에
+       **다 들어가야** 한다. 하나만 빠뜨리면 그 자리에서만 조용히 빠진다 — 환율 되돌리기가
+       안 되거나(옛 환율로 비교), 「평균에서 빼기」가 안 먹거나, 제안에서 사라진다. */
+    golf_fee: 'golfUnit',
   };
   /* SU: 담당자가 「평균에서 빼기」로 표시한 항목 (2026-08-11 대표 지시).
      ⚠ **여기 한 곳에서만 뺀다.** 이 함수가 제보 금액을 기준가와 견주는 **유일한 관문**이라
@@ -5437,7 +5456,7 @@
   /* 가격 칸 — **방식마다 다른 값**이다. 방식을 바꾸면 비운다(한 방식의 입력이 다른
      방식으로 섞이면 안 된다). */
   const PR_PRICE_IDS = ['pr-airfare', 'pr-hotel', 'pr-hotel-name', 'pr-meal',
-    'pr-fuel', 'pr-vehicle', 'pr-guide', 'pr-sight', 'pr-sell'];
+    'pr-fuel', 'pr-vehicle', 'pr-guide', 'pr-sight', 'pr-golf', 'pr-sell'];
   /* 공통 칸 — 방식 선택 **위**에 있는 것들이다. 어느 방식이든 같은 값이라 방식을 바꿔도
      지우지 않는다.
      ⚠ 예전엔 이것들도 함께 지웠다. 그래서 출발일·견적작성일·박수를 먼저 넣고
@@ -5498,6 +5517,9 @@
     { key: 'vehicle', input: 'pr-vehicle', label: '차량비' },
     { key: 'guide', input: 'pr-guide', label: '가이드비' },
     { key: 'sight', input: 'pr-sight', label: '관광·입장료' },
+    /* TJ: 골프는 관광과 **다른 칸**이다 — 자릿수가 달라 섞으면 관광비 기준이 왜곡된다.
+       골프가 없는 견적서에서는 그냥 빈칸으로 남는다(대부분이 그렇다). */
+    { key: 'golf', input: 'pr-golf', label: '골프(1인 1회)' },
     { key: 'sell', input: 'pr-sell', label: '최종 판매가' },
   ];
 
@@ -5510,6 +5532,10 @@
     airfare: 'airfare', fuel: 'fuel_surcharge', hotel: 'hotel_per_room',
     meal: 'meal_per_person', vehicle: 'vehicle_large', guide: 'guide_fee',
     sight: 'sightseeing_fee',
+    /* TJ: 골프도 요율 칸이 생겼다(golf_fee). 다만 값이 0인 목적지가 대부분이라
+       기준가가 없고, 그때 plausibility.judge는 'none'(판단하지 않음)을 돌려준다 —
+       그 지역 첫 견적서와 같은 취급이다. 그것이 맞다: 안 파는 곳의 골프 요금은 기준이 없다. */
+    golf: 'golf_fee',
   };
   function judgePdfValue(key, rawValue, ev) {
     if (typeof PLAUSIBILITY === 'undefined') return null;   /* 파일을 못 불러왔으면 조용히 넘어간다 */
@@ -5792,18 +5818,16 @@
         + esc(Object.keys(data.fxFromDocument).map((k) => `1 ${k} = ${data.fxFromDocument[k]}원`).join(' · ')));
     }
 
-    /* TJ: 골프 라운딩 요금 — **아직 저장할 칸이 없다.** 그래도 화면에는 반드시 띄운다.
-       ⚠ 안 띄우면 읽어 놓고 아무 데도 안 쓰는 값이 된다(관광 줄이 없는 문서에서는
-         관광비 근거에도 안 나온다 — 고은회 제주도가 그 모양이다).
-       ⚠ **저장되지 않는다는 것을 함께 말한다.** 화면에 값이 보이면 담당자는 저장된
-         줄 안다 — 그 오해가 「넣었는데 왜 요율에 없지」가 된다(결함 생성기 ②). */
+    /* TJ: 골프 라운딩 요금. 아래 골프 칸에 채워지지만 **여기서도 한 번 말한다** —
+       회차를 몇 번으로 셌는지가 단가를 배수로 바꾸는데, 그건 값만 봐서는 안 보인다.
+       ⚠ 관광 줄이 없는 문서에서는 관광비 근거에도 안 나온다(고은회 제주도가 그 모양이다). */
     const gEv = (data.evidence || {}).golf;
     if (data.values && data.values.golf && gEv) {
       line('⛳ 골프 라운딩 <strong>1인 1회 ' + Number(data.values.golf).toLocaleString() + '원</strong>을 읽었습니다 — '
         + esc(gEv.calc || '') + '<br>'
         + '<span style="color:var(--muted)">' + esc(gEv.note || '') + '</span><br>'
-        + '<span style="color:var(--muted)">관광비와 자릿수가 달라 <strong>관광비에서는 뺐습니다.</strong>'
-        + ' 골프 요금은 아직 저장할 칸이 없어 <strong>이 값은 제출되지 않습니다</strong> — 필요하면 알려 주세요.</span>');
+        + '<span style="color:var(--muted)">관광비와 자릿수가 달라 <strong>관광비에서는 뺐습니다</strong>'
+        + ' — 아래 「실제 골프」 칸으로 갔습니다.</span>');
     }
 
     renderPdfCrews(box, data);
@@ -6518,11 +6542,13 @@
      같은 파일을 다시 고르지 않아도 되게 하기 위해서다. */
   const PR_VALUE_TO_INPUT = {
     airfare: 'pr-airfare', fuel: 'pr-fuel', hotel: 'pr-hotel', hotelName: 'pr-hotel-name',
-    meal: 'pr-meal', vehicle: 'pr-vehicle', guide: 'pr-guide', sight: 'pr-sight', sell: 'pr-sell',
+    meal: 'pr-meal', vehicle: 'pr-vehicle', guide: 'pr-guide', sight: 'pr-sight',
+    golf: 'pr-golf', sell: 'pr-sell',
   };
   const PR_VALUE_LABEL = {
     airfare: '항공료', fuel: '유류할증료', hotel: '호텔단가', hotelName: '호텔명',
-    meal: '식비', vehicle: '차량비', guide: '가이드비', sight: '관광·입장료', sell: '판매가',
+    meal: '식비', vehicle: '차량비', guide: '가이드비', sight: '관광·입장료',
+    golf: '골프(1인 1회)', sell: '판매가',
   };
 
   async function runPdfExtract(base64, fxRate) {
@@ -6610,6 +6636,8 @@
       vehicleUnit: parseField(document.getElementById('pr-vehicle'), 10000000),
       guideUnit: parseField(document.getElementById('pr-guide'), 5000000),
       sightUnit: parseField(document.getElementById('pr-sight'), 2000000),
+      /* TJ: 골프 1인 1회. 상한은 서버의 GOLF_UNIT_MAX와 같은 값이다 */
+      golfUnit: parseField(document.getElementById('pr-golf'), 2000000),
       sellPriceUnit: parseField(document.getElementById('pr-sell'), 50000000),
     };
     const allParsed = [airfare, hotel, meal].concat(Object.keys(extra).map((k) => extra[k]));
@@ -6835,10 +6863,13 @@
     { key: 'vehicle', rate: 'vehicle_large', label: '차량비' },
     { key: 'guide', rate: 'guide_fee', label: '가이드비' },
     { key: 'sight', rate: 'sightseeing_fee', label: '관광비' },
+    /* TJ: 골프도 확인 대상이다 — 회차를 잘못 세면 단가가 배수로 틀리는데
+       그건 값만 봐서는 안 보인다(라운딩 줄 수로 나눈다). */
+    { key: 'golf', rate: 'golf_fee', label: '골프(1인 1회)' },
   ];
   const NC_VALUE_KEY = {
     airfare: 'airfareUnit', fuel: 'fuelUnit', hotel: 'hotelUnit', meal: 'mealUnit',
-    vehicle: 'vehicleUnit', guide: 'guideUnit', sight: 'sightUnit',
+    vehicle: 'vehicleUnit', guide: 'guideUnit', sight: 'sightUnit', golf: 'golfUnit',
   };
 
   /* TI: 이 칸이 **자동으로** 평균에서 빠져 있는가. 사람이 사유를 적어 뺀 것(SU)과 갈라야

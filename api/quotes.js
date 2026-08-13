@@ -53,6 +53,9 @@ const FUEL_UNIT_MAX = 2000000;
 const VEHICLE_UNIT_MAX = 10000000;
 const GUIDE_UNIT_MAX = 5000000;
 const SIGHT_UNIT_MAX = 2000000;
+/* TJ: 골프 1인 1회 라운딩(그린피+카트+캐디피). 실측 범위 133,000(오키나와)~267,180(카자흐).
+   관광비와 자릿수가 달라 칸도 상한도 따로 둔다. */
+const GOLF_UNIT_MAX = 2000000;
 /* 1인 최종 판매가 — 요율이 아니라 우리 견적의 정확도를 재는 기준선이다. */
 const SELL_UNIT_MAX = 50000000;
 const HOTEL_NAME_MAX_LEN = 80;
@@ -570,7 +573,7 @@ async function handleExtractPdf(req, res) {
 async function handlePriceReport(req, res) {
   if (!(await requireAdmin(req, res))) return;
   const { destinationKey, airfareUnit, hotelUnit, hotelName, mealUnit,
-          fuelUnit, vehicleUnit, guideUnit, sightUnit, sellPriceUnit,
+          fuelUnit, vehicleUnit, guideUnit, sightUnit, golfUnit, sellPriceUnit,
           departDate, quoteDate, nights,
           fxCurrency, fxRate, fxFields, manualFields, fieldSources,
           author, source } = req.body || {};
@@ -591,8 +594,10 @@ async function handlePriceReport(req, res) {
   const vehicle = parseOptional(vehicleUnit, VEHICLE_UNIT_MAX);
   const guide = parseOptional(guideUnit, GUIDE_UNIT_MAX);
   const sight = parseOptional(sightUnit, SIGHT_UNIT_MAX);
+  /* TJ: 골프 1인 1회 라운딩. 관광비와 **다른 칸**이다(자릿수가 다르다). */
+  const golf = parseOptional(golfUnit, GOLF_UNIT_MAX);
   const sell = parseOptional(sellPriceUnit, SELL_UNIT_MAX);
-  const parsed = [airfare, hotel, meal, fuel, vehicle, guide, sight, sell];
+  const parsed = [airfare, hotel, meal, fuel, vehicle, guide, sight, golf, sell];
   if (parsed.some((p) => !p.ok)) return res.status(400).json({ error: 'invalid_body' });
   const safeHotelName = typeof hotelName === 'string' ? hotelName.trim().slice(0, HOTEL_NAME_MAX_LEN) : '';
   /* 출발일·견적 작성일 (RZ 후속) — 시즌·리드타임 계수를 실측으로 검증하려면 필요하다.
@@ -660,7 +665,7 @@ async function handlePriceReport(req, res) {
      ⚠ `by`는 클라이언트 값을 믿지 않고 **세션의 표시명**으로 덮어쓴다(author와 같은 원칙).
      ⚠ `how`(어떻게 나온 값인가)를 안 받으면 나중에 근거를 잃는다 — 화면이 채워 보낸다.
      ⚠ 모르는 항목 키는 **버리지 않고 거절**한다. 조용히 버리면 화면은 저장됐다고 믿는다. */
-  const MANUAL_FIELD_KEYS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'sell'];
+  const MANUAL_FIELD_KEYS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'golf', 'sell'];
   let manualJson = null;
   if (manualFields !== undefined && manualFields !== null && manualFields !== '') {
     if (typeof manualFields !== 'object' || Array.isArray(manualFields)) {
@@ -719,7 +724,7 @@ async function handlePriceReport(req, res) {
      ⚠ 잣대는 `plausibility.countsAsMeasured` 하나다. 출처를 **모르는** 옛 제보는 빼지 않는다. */
   const autoExcluded = autoExcludedFields({
     airfare: airfare.value, fuel: fuel.value, hotel: hotel.value, meal: meal.value,
-    vehicle: vehicle.value, guide: guide.value, sight: sight.value,
+    vehicle: vehicle.value, guide: guide.value, sight: sight.value, golf: golf.value,
   }, sourcesJson ? JSON.parse(sourcesJson) : null);
   const excludedJson = Object.keys(autoExcluded).length ? JSON.stringify(autoExcluded) : null;
 
@@ -730,11 +735,11 @@ async function handlePriceReport(req, res) {
     await sql`
       insert into actual_price_reports
         (destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
-         fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
+         fuel_unit, vehicle_unit, guide_unit, sight_unit, golf_unit, sell_price_unit,
          depart_date, quote_date, nights, fx_currency, fx_rate, fx_fields,
          excluded_fields, manual_fields, field_sources, author, source)
       values (${destinationKey}, ${airfare.value}, ${hotel.value}, ${safeHotelName || null}, ${meal.value},
-              ${fuel.value}, ${vehicle.value}, ${guide.value}, ${sight.value}, ${sell.value},
+              ${fuel.value}, ${vehicle.value}, ${guide.value}, ${sight.value}, ${golf.value}, ${sell.value},
               ${depart.value}, ${quoted.value}, ${nightsN}, ${fxCur}, ${fxR}, ${fxF},
               ${excludedJson}::jsonb, ${manualJson}::jsonb, ${sourcesJson}::jsonb,
               ${safeAuthor}, ${source === 'pdf' ? 'pdf' : 'manual'})
@@ -752,7 +757,7 @@ async function handlePriceReports(req, res) {
   if (!(await requireAdmin(req, res))) return;
   try {
     const rows = await sql`select id, destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
-                                  fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
+                                  fuel_unit, vehicle_unit, guide_unit, sight_unit, golf_unit, sell_price_unit,
                                   depart_date, quote_date, nights,
                                   fx_currency, fx_rate, fx_fields, excluded_fields, manual_fields, field_sources,
                                   author, source, created_at
@@ -770,6 +775,8 @@ async function handlePriceReports(req, res) {
       vehicleUnit: num(r.vehicle_unit),
       guideUnit: num(r.guide_unit),
       sightUnit: num(r.sight_unit),
+      /* TJ: 골프 1인 1회 라운딩 — 관광비와 다른 칸이다 */
+      golfUnit: num(r.golf_unit),
       sellPriceUnit: num(r.sell_price_unit),
       /* 날짜는 화면이 그대로 쓰도록 YYYY-MM-DD 문자열로 내린다(타임존 때문에 하루가
          밀리는 사고를 막는다 — Date로 넘기면 브라우저가 현지시각으로 해석한다). */
@@ -883,11 +890,13 @@ async function handleExcludeReportField(req, res) {
      확정을 남기지 않는다(SW와 같은 원칙). */
 const REPORT_VALUE_COL = {
   airfare: 'airfare_unit', fuel: 'fuel_unit', hotel: 'hotel_unit', meal: 'meal_unit',
-  vehicle: 'vehicle_unit', guide: 'guide_unit', sight: 'sight_unit', sell: 'sell_price_unit',
+  vehicle: 'vehicle_unit', guide: 'guide_unit', sight: 'sight_unit', golf: 'golf_unit',
+  sell: 'sell_price_unit',
 };
 const REPORT_VALUE_MAX = {
   airfare: AIRFARE_UNIT_MAX, fuel: FUEL_UNIT_MAX, hotel: HOTEL_UNIT_MAX, meal: MEAL_UNIT_MAX,
-  vehicle: VEHICLE_UNIT_MAX, guide: GUIDE_UNIT_MAX, sight: SIGHT_UNIT_MAX, sell: SELL_UNIT_MAX,
+  vehicle: VEHICLE_UNIT_MAX, guide: GUIDE_UNIT_MAX, sight: SIGHT_UNIT_MAX, golf: GOLF_UNIT_MAX,
+  sell: SELL_UNIT_MAX,
 };
 async function handleConfirmReportField(req, res) {
   if (!(await requireAdmin(req, res))) return;
@@ -940,6 +949,9 @@ async function handleConfirmReportField(req, res) {
       else if (field === 'vehicle') await sql`update actual_price_reports set vehicle_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
       else if (field === 'guide') await sql`update actual_price_reports set guide_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
       else if (field === 'sight') await sql`update actual_price_reports set sight_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
+      /* ⚠ **골프는 반드시 이 else 위에** 있어야 한다. 맨 아래 else는 sell 전용 갈래라,
+         빠뜨리면 골프 확정값이 조용히 **판매가 칸에 쓰인다**(값도 잃고 판매가도 망가진다). */
+      else if (field === 'golf') await sql`update actual_price_reports set golf_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
       else await sql`update actual_price_reports set sell_price_unit = ${v}, manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
     } else {
       await sql`update actual_price_reports set manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
@@ -947,8 +959,8 @@ async function handleConfirmReportField(req, res) {
     /* TI: 자동으로 빠졌던 칸을 되살린다. **확정을 먼저 쓰고 이걸 나중에 쓰는 순서가 중요하다** —
        이 쓰기가 실패하면 「확정됐지만 아직 평균에서 빠진」 상태로 남는다(안전한 쪽).
        순서를 뒤집으면 실패했을 때 「확인 안 된 값이 평균에 들어간」 상태가 된다.
-       ⚠ 위 8갈래에 얹지 않는다 — 컬럼 이름을 조립하지 않기 위해 갈래를 늘어놓은 것이라,
-         거기에 컬럼을 더하면 갈래가 16개가 된다. */
+       ⚠ 위 9갈래에 얹지 않는다 — 컬럼 이름을 조립하지 않기 위해 갈래를 늘어놓은 것이라,
+         거기에 컬럼을 더하면 갈래가 18개가 된다. */
     if (revived) {
       await sql`update actual_price_reports set excluded_fields = ${JSON.stringify(exMap)}::jsonb where id = ${id}`;
     }

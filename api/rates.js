@@ -25,6 +25,15 @@ const NUMERIC_FIELDS = new Set([
   'vehicle_large', 'vehicle_small', 'guide_fee', 'sightseeing_fee', 'margin_per_traveler',
 ]);
 
+/* TJ: 고칠 수는 있지만 **없어도 되는** 요율 칸.
+   ⚠ 골프를 위 NUMERIC_FIELDS에 넣으면 안 된다 — 그 집합은 PATCH 검증뿐 아니라
+     **새 목적지를 만들 때 반드시 받아야 하는 칸 목록**으로도 쓰인다
+     (isValidNewDestination이 그 집합을 돌며 없으면 거절한다). 골프를 넣으면 골프를
+     안 파는 목적지를 새로 만들 수가 없게 된다.
+   골프는 **파는 곳에서만** 값이 있다(0 = 안 판다). 그래서 「고칠 수 있는 칸」과
+   「반드시 있어야 하는 칸」을 갈랐다. */
+const OPTIONAL_NUMERIC_FIELDS = new Set(['golf_fee']);
+
 /* 오타 상한 (신규) — 지금까지 서버 검증은 "숫자이고 0 이상"이 전부였다. 즉 호텔
    단가에 0을 하나 더 붙여도 그대로 저장되고, 저장 즉시 고객 견적서 금액이 바뀐다.
    관리자 화면에 3배 초과 시 confirm 경고가 있지만 그건 브라우저 쪽 안내라
@@ -44,6 +53,9 @@ const FIELD_MAX = {
   airfare: 8000000, fuel_surcharge: 4000000, hotel_per_room: 3000000,
   meal_per_person: 400000, vehicle_large: 20000000, vehicle_small: 15000000,
   guide_fee: 3000000, sightseeing_fee: 1500000, margin_per_traveler: 2000000,
+  /* 골프 1인 1회 라운딩. 현행 최댓값은 카자흐스탄 267,180(실측)이라 위 규칙(현행 5배)대로
+     1,500,000. 「0 하나 더」 오타(2,671,800)는 끊고 정상 인상 여유는 남는다. */
+  golf_fee: 1500000,
 };
 
 /* 숫자 요율 한 칸의 유효성. NUMERIC_FIELDS 검증이 필요한 모든 경로(개별 수정
@@ -143,7 +155,9 @@ async function fetchRateToKrw(currency) {
 
 function isValidChange(c) {
   if (!c || typeof c.field !== 'string') return false;
-  if (NUMERIC_FIELDS.has(c.field)) return isValidRateNumber(c.field, c.newValue);
+  if (NUMERIC_FIELDS.has(c.field) || OPTIONAL_NUMERIC_FIELDS.has(c.field)) {
+    return isValidRateNumber(c.field, c.newValue);
+  }
   if (STRING_FIELDS.has(c.field)) return typeof c.newValue === 'string' && c.newValue.length <= 500;
   return false;
 }
@@ -154,7 +168,11 @@ function isValidChange(c) {
    상한 위반은 조용히 버리지 말고 400으로 되돌려 무엇이 왜 막혔는지 알려준다. */
 function findOutOfRange(changes) {
   return changes
-    .filter((c) => c && NUMERIC_FIELDS.has(c.field) && typeof c.newValue === 'number'
+    /* ⚠ 골프(OPTIONAL_NUMERIC_FIELDS)도 여기 들어와야 한다. 빠뜨리면 상한을 넘긴
+       골프 요금이 400이 아니라 **조용히 버려지고** 담당자는 저장됐다고 믿는다 —
+       이 함수가 생긴 이유가 바로 그 사고다. */
+    .filter((c) => c && (NUMERIC_FIELDS.has(c.field) || OPTIONAL_NUMERIC_FIELDS.has(c.field))
+      && typeof c.newValue === 'number'
       && Number.isFinite(c.newValue) && c.newValue >= 0 && c.newValue > FIELD_MAX[c.field])
     .map((c) => ({ field: c.field, value: c.newValue, max: FIELD_MAX[c.field] }));
 }

@@ -85,10 +85,14 @@ const GOLF_FEES = {
 
 /* 그 목적지에 골프 요금이 있는가. 없으면 0 — 화면이 이걸로 옵션을 잠근다.
    ⚠ 여기 한 곳만 보게 한다. 화면이 `GOLF_FEES[key]`를 직접 읽으면 「값이 있는가」의
-     판단이 두 벌이 되어 한쪽만 고쳐진다(결함 생성기 ①). */
+     판단이 두 벌이 되어 한쪽만 고쳐진다(결함 생성기 ①).
+   ⚠ **요율 행을 먼저 본다.** `rate_overrides`가 다른 칸과 똑같이 그 행에 얹히므로
+     (script.js의 Object.assign), 담당자가 요율 관리에서 고친 값이 여기로 들어온다.
+     GOLF_FEES는 그 아래의 **기본값**이다 — data.js가 요율의 폴백인 것과 같은 구조다. */
 function getGolfFee(destKey) {
-  const v = GOLF_FEES[destKey];
-  return (typeof v === 'number' && v > 0) ? v : 0;
+  const row = destinationRates.find((d) => d.destination_key === destKey);
+  const v = (row && typeof row.golf_fee === 'number') ? row.golf_fee : GOLF_FEES[destKey];
+  return (typeof v === 'number' && isFinite(v) && v > 0) ? v : 0;
 }
 
 /* 출발월 기준 시즌 계수 — 항공·유류·호텔에 적용 (북반구/한국 출발 수요 기준) */
@@ -548,6 +552,14 @@ const destinationRates = [
 /* 서버(Node)에서 관리자 신규 목적지 생성 시 내장 목적지와의 destination_key 충돌을
    검사할 수 있도록 하는 isomorphic export (dest_currency.js와 동일한 패턴). 브라우저
    에서는 module이 없어 조건이 거짓이 되므로 아무 영향 없음. */
+/* TJ: 골프 요금을 요율 행에 얹는다. **여기서 얹어야** 오버라이드·관리자 화면·감사기가
+   전부 다른 요율 칸과 같은 경로를 탄다(값을 두 곳에서 찾지 않는다 — 결함 생성기 ①).
+   ⚠ 모르는 목적지는 **0**이다. 0은 「값을 아직 모른다」가 아니라 **「골프를 안 판다」**로
+     읽히고, 고객 화면이 그걸로 옵션을 잠근다. 추정치를 넣으면 그 숫자가 고객에게 나간다. */
+destinationRates.forEach((d) => {
+  if (typeof d.golf_fee !== 'number') d.golf_fee = GOLF_FEES[d.destination_key] || 0;
+});
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = destinationRates;
   /* PQ: 시즌 프로파일 id 목록을 서버 검증(api/rates.js)이 재사용하도록 함께 내보낸다.
