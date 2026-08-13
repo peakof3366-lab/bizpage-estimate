@@ -656,6 +656,10 @@ function getBreakdownData() {
   const incVehicle     = document.getElementById('incVehicle')?.checked ?? true;
   const incGuide       = document.getElementById('incGuide')?.checked ?? true;
   const incSightseeing = document.getElementById('incSightseeing')?.checked ?? true;
+  /* TJ: 골프조 — 기본은 꺼짐. 골프는 전원이 하는 항목이 아니라 편성이다. */
+  const incGolf        = document.getElementById('incGolf')?.checked ?? false;
+  const golfCountRaw   = Math.max(0, Math.floor(Number(document.getElementById('golfCount')?.value) || 0));
+  const golfRoundsRaw  = Math.max(0, Math.floor(Number(document.getElementById('golfRounds')?.value) || 0));
   const vehicleTypeVal = document.querySelector('input[name="vehicleType"]:checked')?.value || 'auto';
 
   /* ── Level 1: 티어·시즌·호텔 등급 계수 산출 ── */
@@ -830,6 +834,33 @@ function getBreakdownData() {
     amount: sightTotalTiered,
   });
 
+  /* ─── TJ: 골프조 ──────────────────────────────────────────────────────
+     사장님 2026-08-13: 「관광조가 있고 골프조가 있어」. 실제 견적서가 그렇다 —
+     신한/발리는 「중식 자유식 × 55명 **관광조**」와 「클럽중식 × 25명 **골프조**」가
+     한 문서에 있고, 글로벌/오키나와는 관광조 48명·골프조 20명이 표 두 개로 나뉜다.
+
+     그래서 골프는 **전원에게 붙는 항목이 아니다.** 골프조 인원 × 라운딩 횟수만큼만 붙는다.
+     ⚠ **관광비와 섞지 않는다.** 자릿수가 다르다(다낭 관광 50,000 vs 라운딩 235,935) —
+       한 칸에 넣으면 그 목적지 관광비 기준이 왜곡되고, 그 왜곡이 요율 갱신 제안을 타고
+       **골프를 안 치는 고객의 견적까지** 간다. 추출기가 골프를 따로 세는 이유와 같다.
+     ⚠ **인원 볼륨 할인(tieredTotal)을 걸지 않는다.** 그린피는 코스 정찰제라 단체라고
+       깎이지 않는다(관광 입장료보다도 경직적이다). 걸면 근거 없이 싸진다.
+     ⚠ **환율 보정(fxAdjust)은 건다.** 현지 통화로 결제하는 현지 원가이기 때문이다 —
+       호텔·식비·가이드·차량·관광과 같은 성격이다.
+     ⚠ 요금이 없는 목적지는 **여기 오기 전에 잠긴다**(golfFee가 0이면 줄을 만들지 않는다).
+       짐작한 값으로 견적을 내면 그 숫자가 그대로 고객에게 나간다. */
+  const golfFee  = typeof getGolfFee === 'function' ? getGolfFee(destKey) : 0;
+  const golfUnit = golfFee ? Math.round(golfFee * fxAdjust) : 0;
+  /* 골프조는 총원의 일부다 — 총원을 넘겨 입력해도 총원으로 자른다(bizCount와 같은 방어) */
+  const golfCount  = golfFee ? Math.min(golfCountRaw, participants) : 0;
+  const golfRounds = Math.max(1, golfRoundsRaw);
+  const golfTotal  = golfUnit * golfCount * golfRounds;
+  if (incGolf && golfCount > 0 && golfUnit > 0) rows.push({
+    name:'골프', unit:golfUnit,
+    qty: golfRounds > 1 ? `${golfCount}명×${golfRounds}회` : `${golfCount}명`,
+    amount: golfTotal,
+  });
+
   /* ─── 비공개 항목 3종 (고객 미노출, 총액에 포함) ─────────────────
      참고 기준 ENBT Revenue + Local Revenue + Travel Insurance
      ──────────────────────────────────────────────────────────── */
@@ -906,6 +937,11 @@ function getBreakdownData() {
     bizCount, bizSeatFactor,
     roomConfigVal,    roomConfigLabel:    roomCfg.label,
     vipCount, bizFactor, rooms,
+    /* TJ 신규 필드 — 골프조 편성 근거(표시·역검증용).
+       ⚠ `golfCount`는 **총원의 일부**다. 관광조 인원은 총원 − 골프조다(따로 받지 않는다 —
+         두 칸을 받으면 합이 총원과 안 맞는 입력이 생긴다). */
+    golfFee, golfUnit, golfCount, golfRounds, golfTotal,
+    tourCount: Math.max(participants - golfCount, 0),
     /* P2 신규 필드 — 항공 리드타임/피크 반영 근거(표시·디버깅용).
        P2b: leadFactor·peakFactor·seasonFactor는 스칼라 노브가 적용된 '실제 반영값'.
        원 raw 값이 필요하면 seasonInfo.factor/peakInfo.factor로 접근 가능. */
@@ -1006,6 +1042,26 @@ function renderLiveBreakdown() {
   }
 }
 
+/* TJ: 골프 옵션은 **요금이 있는 목적지에서만** 열린다.
+   ⚠ 요금이 없는데 옵션만 열어 두면 담당자가 골프를 켜고 인원을 넣어도 금액이 0으로
+     조용히 빠진다 — 「넣었는데 왜 안 나오지」가 되고, 더 나쁘게는 골프가 포함된 줄
+     알고 견적이 나간다. 그래서 **왜 못 쓰는지 화면이 말한다**(결함 생성기 ②).
+   ⚠ 목적지를 바꾸면 골프가 없는 곳으로 갈 수 있다. 그때 **체크를 풀어야** 한다 —
+     안 풀면 숨겨진 채 켜져 있다가 다시 골프 되는 목적지로 오면 유령처럼 살아난다. */
+function syncGolfAvailability() {
+  const chip = document.getElementById('incGolfChip');
+  const row  = document.getElementById('golfCountRow');
+  const note = document.getElementById('golfNoRateNote');
+  const box  = document.getElementById('incGolf');
+  if (!chip || !box) return;
+  const destKey = document.getElementById('destination')?.value || '';
+  const fee = (typeof getGolfFee === 'function' && destKey) ? getGolfFee(destKey) : 0;
+  chip.classList.toggle('hidden', !fee);
+  if (note) note.classList.toggle('hidden', !(destKey && !fee && box.checked));
+  if (!fee && box.checked) box.checked = false;   /* 조용히 켜진 채로 두지 않는다 */
+  if (row) row.classList.toggle('hidden', !(fee && box.checked));
+}
+
 /* 실시간 업데이트 이벤트 연결 (DOM 준비 후) */
 (function attachLiveListeners() {
   /* 기본 필드 */
@@ -1016,6 +1072,15 @@ function renderLiveBreakdown() {
   ['incHotel','incMeal','incVehicle','incGuide','incSightseeing'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', renderLiveBreakdown);
   });
+  /* TJ: 골프 — 목적지가 바뀔 때마다 쓸 수 있는지 다시 본다 */
+  document.getElementById('destination')?.addEventListener('change', syncGolfAvailability);
+  document.getElementById('incGolf')?.addEventListener('change', () => {
+    syncGolfAvailability(); renderLiveBreakdown();
+  });
+  ['golfCount','golfRounds'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('input', renderLiveBreakdown);
+  });
+  syncGolfAvailability();
 
   /* Level 1: 호텔 등급 + 날짜(시즌) */
   document.querySelectorAll('input[name="hotelGrade"]').forEach(r => r.addEventListener('change', renderLiveBreakdown));

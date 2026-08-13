@@ -504,6 +504,13 @@ p { line-height:1.8; }
 }
 .vip-count-inp:focus { border-color:var(--red); outline:none; box-shadow:0 0 0 3px rgba(200,16,46,.12); }
 .vip-count-unit { font-size:11.5px; color:var(--t-mute); }
+/* TJ: 옵션을 왜 못 쓰는지 그 자리에서 말하는 줄(골프 요금이 없는 목적지).
+   ⚠ 색은 --t-sub까지만 쓴다. --t-mute는 이 배경(--bg-off)에서 대비가 모자란다 —
+     check_contrast.py가 잡는 자리다(「보이는데 안 읽히는 글자」). */
+.inc-note {
+  font-size:11.5px; color:var(--t-sub); line-height:1.5;
+  padding:6px 0 2px;
+}
 .grade-pills { display:flex; gap:7px; flex-wrap:wrap; }
 .grade-pill {
   display:flex; align-items:center; gap:5px;

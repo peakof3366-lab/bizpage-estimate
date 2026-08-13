@@ -397,6 +397,24 @@
                       <input type="checkbox" id="incSightseeing" checked />
                       <span>관광</span>
                     </label>
+                    <!-- TJ: 골프조. 관광조와 따로 움직이는 편성이라 인원을 따로 받는다.
+                         요금이 있는 목적지에서만 열린다(script.js syncGolfAvailability). -->
+                    <label class="inc-chip hidden" id="incGolfChip">
+                      <input type="checkbox" id="incGolf" />
+                      <span>골프</span>
+                    </label>
+                  </div>
+                  <!-- TJ: 골프를 켰을 때만 노출. 인원은 총원의 일부이고(전원이 치지 않는다),
+                       라운딩 횟수만큼 요금이 붙는다. -->
+                  <div class="inc-vip-row hidden" id="golfCountRow">
+                    <span class="grade-label">골프조 인원</span>
+                    <input type="number" id="golfCount" min="0" step="1" value="0" class="vip-count-inp" />
+                    <span class="vip-count-unit">명 ×</span>
+                    <input type="number" id="golfRounds" min="1" step="1" value="1" class="vip-count-inp" />
+                    <span class="vip-count-unit">회 라운딩 (나머지 인원은 관광조)</span>
+                  </div>
+                  <div class="inc-note hidden" id="golfNoRateNote">
+                    이 목적지는 골프 요금이 아직 없어 골프 견적을 낼 수 없습니다 — 담당자에게 문의해 주세요.
                   </div>
 
                   <span class="inc-sec-lbl">숙박</span>

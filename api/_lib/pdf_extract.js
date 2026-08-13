@@ -48,6 +48,9 @@ const LIMITS = {
   vehicle: 10000000,
   guide: 5000000,
   sight: 2000000,
+  /* 골프 1인 1회 라운딩(그린피+카트+캐디피). 실측 범위 170,000(제주)~242,550(후아힌) —
+     해외 고급 코스를 감안해 넉넉히 잡되, 전 일정 총액이 들어오면 걸리게 둔다. */
+  golf: 2000000,
   sell: 50000000,
   hotelNameLen: 80,
 };
@@ -1648,6 +1651,113 @@ const headCount = (r) => Math.max(r.qty, r.times);
 const perHeadRows = (rows, category) =>
   rows.filter((r) => r.category === category && usable(r) && headCount(r) >= PER_HEAD_MIN_QTY);
 
+/* ═══ L3.7 — 조 편성 (TJ) ═══════════════════════════════════════════════════
+   기업연수 견적서는 **한 행사 안에서 일행이 조로 갈린다.** 낮에 관광을 도는 조와
+   골프를 치는 조가 따로 움직이고, 견적서는 그 사실을 비고에 그대로 적어 둔다.
+   실측(코퍼스 46건 중 9건에 흔적, 조 표기가 있는 것은 5건):
+
+     한화 뉴퍼스트/다낭  「2일 조식(클럽식) 29,000 × 23  **골프조만**」
+                         「바나힐 50,750 × 3           **관광조 3명 기준**」
+     신한/발리           「중식 자유식 $20 × 55  **관광조**」 / 「클럽중식 $20 × 25 **골프조**」
+     글로벌/카자흐스탄   「관광지 케이블카·박물관 $99 × 5  **Only 관광조**」
+     글로벌/오키나와     좌우로 나란한 두 표 — 왼쪽 관광조 48명 · 오른쪽 골프조 20명(SL이 가른다)
+
+   왜 고쳐야 하나 — **식비·관광비만 1인당으로 나눈다.** 그런데 분모가 언제나 전체
+   인원이라, 한 조만의 비용을 전원으로 나눠 버린다:
+
+     카자흐스탄 관광비  722,700 ÷ **32명**(전원) = 22,584
+                        722,700 ÷  **5명**(관광조) = 144,540   ← 실제로 관광을 한 사람 기준
+
+   6배 넘게 어긋난다. 그리고 그 값이 그 목적지의 실측 중앙값이 되어 요율 갱신 제안을
+   타고 **고객 견적까지 간다.** 방향이 한쪽으로만 틀리지도 않는다 — 골프조 전용 식사가
+   전원으로 나눠지면 식비는 반대로 낮아진다.
+
+   그래서 1인당 항목의 분모를 **그 줄이 실제로 대상으로 한 사람 수**로 바꾼다:
+     · 조 표시가 없는 줄  → 전체 인원 (전원이 함께 쓴 비용)
+     · 관광조 전용 줄     → 관광조 인원
+     · 골프조 전용 줄     → **요율에서 뺀다** (요율표는 일반 연수 기준이다)
+   합치면 「관광조에 속한 한 사람의 1인당 비용」이 되고, 그것이 요율표가 뜻하는 값이다.
+
+   ⚠ **단가 항목(항공·호텔·차량·가이드)에는 조를 적용하지 않는다.** 그건 1인당이 아니라
+     '좌석 1석·객실 1박·대당 1일' 단가라 어느 조가 탔든 그 지역 단가다. 실측(카자흐스탄):
+     골프조 대형버스 $364 / 관광조 밴 $120인데, 골프조를 빼면 **밴이 대형버스 단가**가 된다.
+     요율의 `vehicle_large`는 대형버스 단가이므로 그쪽이 오히려 틀린다.
+     → **나누는 항목에만 적용한다.** 이 경계를 넓히지 말 것.
+
+   ⚠ **조건문을 조 표시로 착각하지 말 것.** 실측(한화/다낭): 기사 경비 줄의 비고가
+     「**(미포함)관광조 추가시 인원 추가**」다. 이건 "관광조를 추가하면"이라는 가정이지
+     그 줄이 관광조 전용이라는 뜻이 아니다. 그 줄을 관광조로 붙이면 3명짜리 분모가
+     엉뚱한 줄에 걸린다. 그래서 가정·미포함 어구가 있으면 표시로 읽지 않는다.
+
+   ⚠ **표시가 없는 문서를 조로 나누지 않는다.** 46건 중 41건은 조 표기가 아예 없다.
+     「골프」라는 낱말이 있다고 조가 갈린 것이 아니다(전원이 골프를 치는 행사가 있다 —
+     고은회 제주도는 21명 전원이 라운딩한다). **문서가 말할 때만 나눈다.** */
+
+/* 조 표시를 읽는 자리는 라벨과 비고다. 줄 전체(line)를 보면 옆 표에서 흘러든 글자에
+   걸린다(SB의 줄 병합 오염 — 실제로 오키나와 바모스가 그 모양이다). */
+const CREW_GOLF_RE = /골프\s*(조|팀)|골프조만/;
+const CREW_TOUR_RE = /관광\s*(조|팀)/;
+/* ⚠ 가정·미포함 어구가 붙으면 그 줄의 소속이 아니라 **안내문**이다(위 주석 참고). */
+const CREW_HYPOTHETICAL_RE = /추가\s*시|추가시|미포함|불포함|별도\s*문의|선택\s*시/;
+
+function crewOf(r) {
+  const s = String(r.label || '') + ' ' + String(r.note || '');
+  if (CREW_HYPOTHETICAL_RE.test(s)) return null;
+  const golf = CREW_GOLF_RE.test(s);
+  const tour = CREW_TOUR_RE.test(s);
+  /* 둘 다 적힌 줄은 어느 조 것인지 문서가 말한 게 아니다 — 고르지 않는다 */
+  if (golf === tour) return null;
+  return golf ? 'golf' : 'tour';
+}
+
+/* 이 줄이 **몇 사람을 대상으로 한 것인가.**
+   ⚠ **조 인원을 문서 전체에서 하나로 뽑으려다 실패했다** (2026-08-13, 되돌리기 전 실측).
+     조 표시가 붙은 줄들의 `headCount` 최댓값을 그 조 인원으로 삼았더니:
+       카자흐스탄 「기사 식사 $15 **12** 1 관광조」 → 12를 관광조 인원으로 셌다(12는 **끼니 횟수**)
+       카자흐스탄 「차량(대형/**5**일간) $364 5 1 골프조」 → 5를 골프조 인원으로 셌다(5는 **일수**)
+     한 조의 인원을 문서가 한 곳에 적어 두지 않는다. 여러 줄에서 모으면 **인원이 아닌 수**가
+     반드시 섞인다 — SF에서 「인원을 박수로 센다」로 이미 한 번 당한 자리다.
+   → 그래서 **줄마다 그 줄의 수로 나눈다.** 「관광지 $99 × **5**명 = $495」는 그 줄 안에서
+     완결되어 있어 다른 줄의 숫자에 오염되지 않는다. 인원 판단 규칙은 이미 있는 것을
+     그대로 쓴다(수량·횟수 중 **큰 쪽**이 인원 — RZ 주석).
+   ⚠ 전체 인원보다 많으면 그건 인원이 아니다(횟수·박수). 그때는 전체 인원으로 나눈다. */
+function rowHeads(r, pax) {
+  const n = headCount(r);
+  return (n >= PER_HEAD_MIN_QTY && n <= pax) ? n : pax;
+}
+
+/* 조가 갈린 문서인가. **인원은 여기서 정하지 않는다**(위 주석) — 화면에 보여줄 용도로만,
+   그 조 줄들이 **모두 같은 수**를 말할 때에 한해 인원을 밝힌다. 서로 다르면 밝히지 않는다:
+   짐작한 인원을 화면에 적으면 담당자가 그것을 사실로 읽는다. */
+function readCrews(rows, pax) {
+  const marked = rows.filter((r) => usable(r) && r.crew);
+  if (!marked.length) return null;
+  const agreedSize = (crew) => {
+    const ns = [...new Set(marked.filter((r) => r.crew === crew)
+      .map((r) => rowHeads(r, pax)).filter((n) => n < pax))];
+    return ns.length === 1 ? ns[0] : 0;   /* 줄마다 다르면 말하지 않는다 */
+  };
+  const golfRows = marked.filter((r) => r.crew === 'golf');
+  const tourRows = marked.filter((r) => r.crew === 'tour');
+  return {
+    split: true,
+    golfSize: agreedSize('golf'), tourSize: agreedSize('tour'),
+    golfRows: golfRows.length, tourRows: tourRows.length,
+    /* 요율에서 뺀 골프조 전용 금액 — 화면이 「얼마를 왜 뺐는지」 말할 수 있게 */
+    golfOnlyCost: golfRows.reduce((n, r) => n + (r.total || 0), 0),
+  };
+}
+
+/* 1인당 합 — **조 표시가 붙은 줄만** 그 줄의 인원으로 나누고, 나머지는 전체 인원으로 나눈다.
+   ⚠ 표시가 없는 줄까지 줄 인원으로 나누면 46건 전부가 움직인다. 문서가 「이 줄은 한 조
+     것이다」라고 말한 곳에서만 분모를 바꾼다 — 고칠 자리를 문서가 지목한 것이다. */
+function perPersonSum(list, pax, crews) {
+  return list.reduce((n, r) => {
+    const heads = (crews && r.crew) ? rowHeads(r, pax) : pax;
+    return n + (r.total || 0) / (heads || pax);
+  }, 0);
+}
+
 /* 요율표의 `meal_per_person`은 **여행자 1인 1일 조·중·석식**이다. 그 정의 밖의 줄은
    합에서 뺀다 — 관광비에서 골프를 빼는 것과 같은 이유이고, 같은 방식으로 **얼마를
    뺐는지 화면에 남긴다**(조용히 버리지 않는다).
@@ -1663,16 +1773,20 @@ const perHeadRows = (rows, category) =>
 const MEAL_STAFF_RE = /가이드|기사|인솔|스텝|스태프|TC/i;
 const MEAL_NOT_A_MEAL_RE = /음료|주류|간식|야식|스낵|다과|커피|룸\s*드랍|룸서비스/;
 
-function mealPerDay(rows, pax, trip) {
+function mealPerDay(rows, pax, trip, crews) {
   const all = perHeadRows(rows, 'meal');
   if (!all.length || !pax) return null;
   const isStaff = (r) => MEAL_STAFF_RE.test(String(r.label || ''));
   const isNotMeal = (r) => MEAL_NOT_A_MEAL_RE.test(String(r.label || ''));
-  const meals = all.filter((r) => !isStaff(r) && !isNotMeal(r));
+  /* ⚠ **골프조 전용 끼니는 요율의 식비가 아니다**(L3.7). 요율표는 일반 연수 기준이라
+     그 조만의 클럽식을 전원으로 나누면 그 목적지 식비가 조용히 낮아진다. */
+  const isGolfCrew = (r) => !!(crews && r.crew === 'golf');
+  const meals = all.filter((r) => !isStaff(r) && !isNotMeal(r) && !isGolfCrew(r));
   /* 전부 빠지면 **비운다** — 여행자 끼니가 하나도 없는데 인솔진 밥값을 식비라 우기지 않는다 */
   if (!meals.length) return null;
   const staffCost = all.filter(isStaff).reduce((n, r) => n + r.total, 0);
-  const notMealCost = all.filter((r) => !isStaff(r) && isNotMeal(r)).reduce((n, r) => n + r.total, 0);
+  const notMealCost = all.filter((r) => !isStaff(r) && isNotMeal(r) && !isGolfCrew(r)).reduce((n, r) => n + r.total, 0);
+  const golfCrewCost = all.filter(isGolfCrew).reduce((n, r) => n + r.total, 0);
   const totalCost = meals.reduce((n, r) => n + r.total, 0);
 
   /* ⚠ **일수는 뺀 줄까지 포함해 센다.** 인솔진 식사도 「× 5회」처럼 며칠짜리 일정인지를
@@ -1722,36 +1836,106 @@ function mealPerDay(rows, pax, trip) {
   }
   if (!dayCount) return null;
 
-  const value = Math.round(totalCost / pax / dayCount);
+  /* 줄마다 **그 줄이 대상으로 한 사람 수**로 나눈다(L3.7). 조가 안 갈린 문서에서는
+     분모가 전부 pax라 예전의 `총액 ÷ pax`와 값이 정확히 같다. */
+  const perPerson = perPersonSum(meals, pax, crews);
+  const value = Math.round(perPerson / dayCount);
+  /* 분모가 여럿이면 식을 「총액 ÷ 인원」으로 쓸 수 없다 — 있는 그대로 밝힌다.
+     화면이 이 식을 그대로 보여주므로, 여기서 얼버무리면 담당자가 검산할 수 없다. */
+  const crewSplit = !!(crews && meals.some((r) => r.crew === 'tour'));
   return {
     value,
     rowIdxs: meals.map((r) => r.idx),
-    calc: `식사 총액 ${totalCost.toLocaleString()} ÷ 인원 ${pax} ÷ ${dayCount}일 = ${value.toLocaleString()} (1인 1일)`,
+    calc: crewSplit
+      ? `식사 ${meals.length}줄을 줄마다 그 조 인원으로 나눠 더하면 1인 ${Math.round(perPerson).toLocaleString()}`
+        + ` (관광조 ${crews.tourSize || pax}명 · 그 밖은 전원 ${pax}명) ÷ ${dayCount}일 = ${value.toLocaleString()} (1인 1일)`
+      : `식사 총액 ${totalCost.toLocaleString()} ÷ 인원 ${pax} ÷ ${dayCount}일 = ${value.toLocaleString()} (1인 1일)`,
     basis,
     dayCount,
     fx: fxOf(meals),   /* 어느 환율로 환산된 합인가 (SG) */
     /* 뺀 것들 — 화면이 「얼마를 왜 뺐는지」 말할 수 있게 (골프비와 같은 방식) */
     staffExcluded: staffCost || 0,
     notMealExcluded: notMealCost || 0,
+    golfCrewExcluded: golfCrewCost || 0,
   };
 }
 
 /* 관광비는 '1인당 여행 전체 일정의 관광비 묶음'이다(data.js sightseeing_fee 주석).
    그래서 대표 한 줄이 아니라 **관광으로 분류된 총액 ÷ 인원**이다. */
-function sightPerPerson(rows, pax) {
-  const list = perHeadRows(rows, 'sight');
-  if (!list.length || !pax) return null;
+function sightPerPerson(rows, pax, crews) {
+  const all = perHeadRows(rows, 'sight');
+  if (!all.length || !pax) return null;
+  /* ⚠ **골프조 전용 관광 줄은 뺀다**(L3.7) — 요율의 관광비는 일반 연수 기준이다. */
+  const list = all.filter((r) => !(crews && r.crew === 'golf'));
+  if (!list.length) return null;
+  const golfCrewCost = all.filter((r) => crews && r.crew === 'golf').reduce((n, r) => n + r.total, 0);
   const totalCost = list.reduce((n, r) => n + r.total, 0);
-  const value = Math.round(totalCost / pax);
+  /* 줄마다 그 조 인원으로 나눈다(L3.7). 실측(카자흐스탄): 「Only 관광조」 722,700을
+     전원 32명으로 나누면 22,584인데, 실제로 관광을 한 5명으로 나누면 144,540이다. */
+  const perPerson = perPersonSum(list, pax, crews);
+  const value = Math.round(perPerson);
+  const crewSplit = !!(crews && list.some((r) => r.crew === 'tour'));
   /* 뺀 골프비를 함께 돌려준다 — 화면이 "골프 ○○원은 뺐습니다"라고 말할 수 있게. */
   const golf = perHeadRows(rows, 'golf');
   const golfCost = golf.reduce((n, r) => n + r.total, 0);
   return {
     value, rowIdxs: list.map((r) => r.idx),
-    calc: `관광 총액 ${totalCost.toLocaleString()} ÷ 인원 ${pax} = ${value.toLocaleString()} (1인당 전 일정)`,
+    calc: crewSplit
+      ? `관광 ${list.length}줄을 줄마다 그 조 인원으로 나눠 더하면 1인 ${value.toLocaleString()}`
+        + ` (관광조 ${crews.tourSize || pax}명 · 그 밖은 전원 ${pax}명, 1인당 전 일정)`
+      : `관광 총액 ${totalCost.toLocaleString()} ÷ 인원 ${pax} = ${value.toLocaleString()} (1인당 전 일정)`,
     golfExcluded: golfCost || 0,
     golfRowIdxs: golf.map((r) => r.idx),
+    golfCrewExcluded: golfCrewCost || 0,
     fx: fxOf(list),   /* 어느 환율로 환산된 합인가 (SG) */
+  };
+}
+
+/* 골프비 — **1인 1회 라운딩** (그린피+카트+캐디피). 요율의 관광비와 자릿수가 달라
+   따로 센다(그래서 관광비에서 빼 왔다). 지금까지는 빼기만 하고 **값으로 만들지 않아**
+   골프를 파는 목적지의 실측이 통째로 버려지고 있었다.
+
+   ⚠ 분모는 **골프를 친 사람 수**다. 조가 갈렸으면 골프조 인원, 아니면 전체 인원이다
+     (고은회 제주도는 21명 전원이 라운딩한다).
+   ⚠ 분자는 **라운딩 횟수로 나눈다.** 견적서는 라운딩을 날마다 한 줄씩 적는다
+     (제주도 3줄 = 3회, 카자흐스탄 그린피 2곳 + 캐디피 2곳 = 2회). 회차를 안 나누면
+     3라운드짜리 행사의 단가가 1회 단가의 3배로 굳는다.
+     세는 법은 **그린피·라운딩 줄의 수**다 — 캐디피·카트는 같은 회차에 딸린 비용이라
+     따로 세면 회차가 부풀고 단가가 그만큼 낮아진다. */
+const GOLF_ROUND_RE = /라운딩|그린피|골프|C\s*\.?\s*C\b|컨트리\s*클럽/i;
+const GOLF_ADDON_RE = /캐디|카트|그늘집|팁|인식표|피켓/;
+function golfPerRound(rows, pax, crews) {
+  const list = perHeadRows(rows, 'golf');
+  if (!list.length || !pax) return null;
+  /* ⚠ **줄마다 그 줄의 인원으로 나눈다**(rowHeads 주석). 골프는 조 표시가 없어도 전원이
+     치지 않는 일이 흔하다 — 「오라 CC 175,000 × **18명**」처럼 그 줄이 직접 말해 준다.
+     전체 21명으로 나누면 175,000이 150,000이 되어 그 코스의 그린피가 아니게 된다. */
+  const perPerson = list.reduce((n, r) => n + (r.total || 0) / rowHeads(r, pax), 0);
+  const totalCost = list.reduce((n, r) => n + r.total, 0);
+  /* 회차 = 라운딩 줄의 수. 딸린 비용(캐디·카트·그늘집·팁)은 **회차를 만들지 않는다** —
+     같은 회차에 딸린 비용이라 따로 세면 회차가 부풀고 1회 단가가 그만큼 낮아진다. */
+  const roundRows = list.filter((r) => {
+    const s = String(r.label || '');
+    return GOLF_ROUND_RE.test(s) && !GOLF_ADDON_RE.test(s);
+  });
+  /* ⚠ **라운딩 줄이 하나도 없으면 값을 내지 않는다.** 실측(한화 뉴퍼스트/다낭): 골프로
+     분류된 줄이 「캐디팁」·「골프조 인식표」·「빈펄CC 그늘집 등」뿐이고 정작 그린피 줄이
+     없다. 그것을 1회로 세면 딸린 비용만 더해 **1인 1회 510,400원**이 나가는데, 그 문서에
+     적힌 라운딩 요금이 아니다. 회차를 모르면 나누는 수를 모르는 것이고, 나누는 수를
+     모르면 단가를 만들 수 없다 — **빈칸이 틀린 값보다 낫다**(2026-08-10 대표 방침). */
+  if (!roundRows.length) return null;
+  const rounds = roundRows.length;
+  const value = Math.round(perPerson / rounds);
+  const heads = [...new Set(list.map((r) => rowHeads(r, pax)))];
+  return {
+    value, rounds,
+    /* 몇 명 기준인지 — 줄마다 다르면 그대로 여럿을 밝힌다(하나로 뭉뚱그리지 않는다) */
+    heads: heads.length === 1 ? heads[0] : 0,
+    rowIdxs: list.map((r) => r.idx),
+    calc: `골프 ${list.length}줄 (총 ${totalCost.toLocaleString()})을 줄마다 그 줄 인원`
+      + `(${heads.join('·')}명)으로 나눠 더하면 1인 ${Math.round(perPerson).toLocaleString()}`
+      + ` ÷ ${rounds}회 = ${value.toLocaleString()} (1인 1회 라운딩)`,
+    fx: fxOf(list),
   };
 }
 
@@ -1885,6 +2069,8 @@ function readOneBlock(lines, fx, blockTotal) {
       categoryFrom: !category ? null
         : own ? 'label'
           : (fromGroup === category ? 'group' : (byUnit === category ? 'unit' : 'note')),
+      /* 이 줄이 어느 조 전용인가 (L3.7) — 문서가 비고에 적어 둘 때만 붙는다 */
+      crew: crewOf(r),
     });
   });
   const rec = reconcile(lines, rows, blockTotal || null, fx);
@@ -1906,8 +2092,13 @@ function readOneBlock(lines, fx, blockTotal) {
      그래서 부수 줄은 빼고 고른다. **다 빼면 비운다** — 부수 줄을 단가라 우기지 않는다. */
   const vehicle = pickBy(rows, 'vehicle', byMaxUnit, notIncidental);
   const guide = pickBy(rows, 'guide', byMaxUnit, notIncidental);
-  const meal = mealPerDay(rows, pax, dates);
-  const sight = sightPerPerson(rows, pax);
+  /* 조가 갈린 문서인가 (L3.7) — **문서가 비고에 적어 둘 때만** 갈린 것으로 본다.
+     ⚠ 인원(pax)을 알아야 조 인원이 뜻을 갖는다(전체보다 큰 수는 조 인원이 아니다). */
+  const crews = readCrews(rows, pax);
+  const meal = mealPerDay(rows, pax, dates, crews);
+  const sight = sightPerPerson(rows, pax, crews);
+  /* 골프비 — 관광비에서 빼기만 하던 것을 **값으로 만든다**(1인 1회 라운딩) */
+  const golf = golfPerRound(rows, pax, crews);
 
   /* 호텔명 — 호텔 줄의 라벨이 곧 호텔명이다(예: '노보텔'). 라벨이 비면 비고에서 찾는다. */
   /* 호텔명 — 호텔 줄의 라벨이 곧 호텔명이다. 다만 두 가지를 걷어내야 한다:
@@ -1930,6 +2121,9 @@ function readOneBlock(lines, fx, blockTotal) {
     kind, lineCount: lines.length,
     /* 좌우로 나란한 표를 갈랐는가 (SL) — 화면과 감사기가 「다른 조 N줄은 뺐다」를 말할 수 있게 */
     sideTables: sided.info,
+    /* 관광조·골프조로 갈린 문서인가 (L3.7) — 화면이 「어느 조 기준인지」 말할 수 있게.
+       ⚠ **문서가 비고에 적어 둘 때만** 채워진다. 없으면 null이고 계산은 예전과 같다. */
+    crews,
     /* 구분 열을 읽었는가 — 못 읽었으면 **왜 못 읽었는지**를 남긴다(감사기가 센다) */
     groupColumn: { used: !!grp.byLine, groups: grp.groups || 0, ambiguous: grp.ambiguous || 0, why: grp.why || '' },
     pax, grandTotal: rec.grand, perPerson: rec.perPerson,
@@ -1948,6 +2142,8 @@ function readOneBlock(lines, fx, blockTotal) {
       vehicle: vehicle ? capped(vehicle.unit, LIMITS.vehicle) : null,
       guide: guide ? capped(guide.unit, LIMITS.guide) : null,
       sight: sight ? capped(sight.value, LIMITS.sight) : null,
+      /* 골프 1인 1회 라운딩 (L3.7) — 요율의 관광비와 자릿수가 달라 칸을 따로 둔다 */
+      golf: golf ? capped(golf.value, LIMITS.golf) : null,
       sell: rec.perPerson ? capped(rec.perPerson, LIMITS.sell) : null,
     },
     evidence: {
@@ -1964,6 +2160,7 @@ function readOneBlock(lines, fx, blockTotal) {
         note: [
           meal.staffExcluded ? `인솔진 식사 ${meal.staffExcluded.toLocaleString()}원은 뺐습니다 — 여행자 식비가 아닙니다` : '',
           meal.notMealExcluded ? `음료·간식류 ${meal.notMealExcluded.toLocaleString()}원은 뺐습니다 — 끼니가 아닙니다` : '',
+          meal.golfCrewExcluded ? `골프조 전용 식사 ${meal.golfCrewExcluded.toLocaleString()}원은 뺐습니다 — 요율의 식비는 일반 연수 기준입니다` : '',
         ].filter(Boolean).join(' · '),
       } : null,
       sight: sight ? {
@@ -1971,9 +2168,23 @@ function readOneBlock(lines, fx, blockTotal) {
         label: `관광 ${sight.rowIdxs.length}줄`,
         fx: sight.fx || null,
         /* 뺀 골프비는 **따로** 준다 — label에 문장으로 이어 붙이면 화면에서 잘리거나 묻힌다 */
-        note: sight.golfExcluded
-          ? `골프 ${sight.golfExcluded.toLocaleString()}원은 뺐습니다 — 요율의 관광비와 성격이 다릅니다`
-          : '',
+        note: [
+          sight.golfExcluded
+            ? `골프 ${sight.golfExcluded.toLocaleString()}원은 뺐습니다 — 요율의 관광비와 성격이 다릅니다`
+              + (golf ? ` (골프비 칸으로 갔습니다: 1인 1회 ${golf.value.toLocaleString()}원)` : '')
+            : '',
+          sight.golfCrewExcluded
+            ? `골프조 전용 관광 ${sight.golfCrewExcluded.toLocaleString()}원은 뺐습니다` : '',
+        ].filter(Boolean).join(' · '),
+      } : null,
+      /* 골프비 — 요율의 관광비와 자릿수가 달라 따로 센다(L3.7) */
+      golf: golf ? {
+        rowIdxs: golf.rowIdxs, calc: golf.calc, via: 'calc',
+        label: `골프 ${golf.rowIdxs.length}줄 · ${golf.rounds}회 라운딩`,
+        fx: golf.fx || null,
+        note: golf.heads
+          ? `${golf.heads}명이 라운딩한 것으로 봤습니다 (전체 ${pax}명) — 다르면 고쳐 주세요`
+          : `줄마다 인원이 달라 줄별로 나눴습니다 (전체 ${pax}명) — 식을 확인해 주세요`,
       } : null,
       sell: rec.perPerson ? { calc: `문서에 적힌 1인당 금액 ${rec.perPerson.toLocaleString()}원`, label: '1인당', via: 'doc' } : null,
       /* 호텔명은 호텔 줄에서 나온다 — 그 줄이 검산 안 된 줄이면 이름도 같은 신뢰도다.
@@ -1988,6 +2199,8 @@ function readOneBlock(lines, fx, blockTotal) {
       categoryFrom: r.categoryFrom || null,
       /* 좌우로 나란한 **다른 표**의 줄인가 (SL) — 자동 선택에서 빠졌지만 고를 수는 있다 */
       otherTable: !!r.otherTable,
+      /* 어느 조 전용 줄인가 (L3.7) — 'golf' | 'tour' | null. 화면이 배지로 보여준다 */
+      crew: r.crew || null,
       line: String(r.line).slice(0, 140),
       /* 외화였던 줄은 화면이 "¥2,000 × 9.5 = 19,000원"처럼 보여줘야 담당자가 믿을 수 있다 */
       converted: r.converted || null,
