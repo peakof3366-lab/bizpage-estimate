@@ -660,6 +660,9 @@ function getBreakdownData() {
   const incGolf        = document.getElementById('incGolf')?.checked ?? false;
   const golfCountRaw   = Math.max(0, Math.floor(Number(document.getElementById('golfCount')?.value) || 0));
   const golfRoundsRaw  = Math.max(0, Math.floor(Number(document.getElementById('golfRounds')?.value) || 0));
+  /* TP: 부대비용 B안 — 담당자가 아는 조건. 기본은 꺼짐(A안 계수가 이미 깔려 있다). */
+  const agencyVisits    = Math.max(0, Math.floor(Number(document.getElementById('agencyVisits')?.value) || 0));
+  const domesticTransfer = document.getElementById('incDomestic')?.checked ?? false;
   const vehicleTypeVal = document.querySelector('input[name="vehicleType"]:checked')?.value || 'auto';
 
   /* ── Level 1: 티어·시즌·호텔 등급 계수 산출 ── */
@@ -861,6 +864,54 @@ function getBreakdownData() {
     amount: golfTotal,
   });
 
+  /* ─── TP: 현장 부대비용 ────────────────────────────────────────────────
+     요율 아홉 칸에 담기지 않는 돈이다 — 기관 섭외·통역, 국내수송, 싱글차지,
+     행사운영(현수막·기념품·사진·MC). 46건 코퍼스에서 견적서 돈의 **12.4%**가 여기고,
+     고객용 견적서 기준 엔진의 계통 편향이 **-12.1%**다. 두 숫자가 같다.
+
+     ⚠ **기준은 지상비다**(항공·유류 제외). 부대비용은 현장 진행에 비례하지 항공권 값에
+       비례하지 않는다 — 총액에 걸면 장거리 노선에서 근거 없이 부풀어 오른다.
+     ⚠ **마진·보험보다 위에 둔다.** 이건 원가지 우리 수익이 아니다. 아래 비공개 3종과
+       섞이면 `muted` 필터(공유 페이로드에서 고객에게 가려지는 줄)에 딸려 들어가
+       고객 견적서에서 금액이 사라진다 — 그러면 합이 안 맞는다.
+     ⚠ 계수는 **추정이 아니라 실측으로 고른 값**이다(sim_ancillary.js). 만질 때 그 자를
+       다시 돌릴 것 — 중앙값만 보면 사분위 폭이 벌어지는 것을 놓친다. */
+  /* ⚠ **골프는 기준에서 뺀다.** 부대비용은 행사 진행(기관 섭외·통역·행사 운영)에
+     비례하지 **골프조의 라운딩 횟수에 비례하지 않는다.** 넣어 봤더니 골프를 켤 때마다
+     섭외비가 함께 늘어나는 상태가 됐다(test_tJ의 「총액은 골프비만큼만 늘어난다」가 잡았다).
+     빼도 계수 근거는 흔들리지 않는다 — 코퍼스에서 골프는 지상비의 1.6%뿐이라
+     12.4 ÷ 58.5 = 21.2%로 20%와 사실상 같다. */
+  const groundRows = rows.filter((r) => ['호텔', '식사', '가이드', '관광'].some((n) => r.name.startsWith(n))
+    || r.name.startsWith('차량'));
+  const groundTotal = groundRows.reduce((s, r) => s + r.amount, 0);
+  const ancRate = (typeof ANCILLARY !== 'undefined' && ANCILLARY.rate) || 0;
+  const ancBaseTotal = Math.round(groundTotal * ancRate);
+
+  /* B안 — 담당자가 아는 조건만 얹는다. 고객은 안 골라도 위 계수가 이미 깔려 있다.
+     ⚠ 옵션 값은 **실측 표본이 얇다**(각 1건). 그래서 기본은 꺼짐이고, 켤 때 화면이
+       근거를 함께 보여준다. 견적서가 쌓이면 갱신 제안이 이 값을 알려 준다. */
+  const ancOpts = [];
+  if (typeof ANCILLARY_OPTIONS !== 'undefined') {
+    ANCILLARY_OPTIONS.forEach((o) => {
+      if (o.key === 'agency' && agencyVisits > 0) {
+        ancOpts.push({ key: o.key, label: o.label, qty: `${agencyVisits}${o.unit}`, amount: o.perVisit * agencyVisits });
+      }
+      if (o.key === 'domestic' && domesticTransfer) {
+        /* 전세 차량은 **정원으로 대수를 낸다** — 인원과 무관하게 1대로 두면 대형 단체가
+           통째로 과소 계상된다(차량 대수 산정과 같은 원리). */
+        const cars = Math.max(1, Math.ceil(participants / o.capacity));
+        ancOpts.push({ key: o.key, label: o.label, qty: `${cars}${o.unit}`, amount: o.perVehicle * cars });
+      }
+    });
+  }
+  const ancOptTotal = ancOpts.reduce((s, o) => s + o.amount, 0);
+  const ancTotal = ancBaseTotal + ancOptTotal;
+  const ancUnit = participants > 0 ? Math.round(ancTotal / participants) : 0;
+  if (ancTotal > 0) rows.push({
+    name: (typeof ANCILLARY !== 'undefined' ? ANCILLARY.label : '현장 부대비용'),
+    unit: ancUnit, qty: `${participants}명`, amount: ancTotal,
+  });
+
   /* ─── 비공개 항목 3종 (고객 미노출, 총액에 포함) ─────────────────
      참고 기준 ENBT Revenue + Local Revenue + Travel Insurance
      ──────────────────────────────────────────────────────────── */
@@ -942,6 +993,10 @@ function getBreakdownData() {
          두 칸을 받으면 합이 총원과 안 맞는 입력이 생긴다). */
     golfFee, golfUnit, golfCount, golfRounds, golfTotal,
     tourCount: Math.max(participants - golfCount, 0),
+    /* TP 신규 필드 — 부대비용 근거(표시·역검증용).
+       ⚠ `ancRate`를 함께 남긴다. 이 계수는 실측으로 고른 값이라 나중에 바뀌는데,
+         지난 견적이 어느 계수로 나온 것인지 모르면 역검증이 헛돈다(coef 스냅샷과 같은 이유). */
+    ancRate, groundTotal, ancBaseTotal, ancOptTotal, ancTotal, ancUnit, ancOpts,
     /* P2 신규 필드 — 항공 리드타임/피크 반영 근거(표시·디버깅용).
        P2b: leadFactor·peakFactor·seasonFactor는 스칼라 노브가 적용된 '실제 반영값'.
        원 raw 값이 필요하면 seasonInfo.factor/peakInfo.factor로 접근 가능. */
@@ -1081,6 +1136,9 @@ function syncGolfAvailability() {
     document.getElementById(id)?.addEventListener('input', renderLiveBreakdown);
   });
   syncGolfAvailability();
+  /* TP: 부대비용 옵션 — 켜는 즉시 금액에 반영된다(고객이 무엇 때문에 늘었는지 봐야 한다) */
+  document.getElementById('agencyVisits')?.addEventListener('input', renderLiveBreakdown);
+  document.getElementById('incDomestic')?.addEventListener('change', renderLiveBreakdown);
 
   /* Level 1: 호텔 등급 + 날짜(시즌) */
   document.querySelectorAll('input[name="hotelGrade"]').forEach(r => r.addEventListener('change', renderLiveBreakdown));

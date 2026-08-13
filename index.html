@@ -417,6 +417,26 @@
                     이 목적지는 골프 요금이 아직 없어 골프 견적을 낼 수 없습니다 — 담당자에게 문의해 주세요.
                   </div>
 
+                  <!-- TP: 현장 부대비용 B안 — **아는 것만 넣으면 더 정확해진다.**
+                       아무것도 안 골라도 A안 계수(지상비의 20%)가 이미 깔려 있어 실제에 가깝다.
+                       여기는 담당자가 아는 조건을 켜서 그만큼을 실제 단가로 바꾸는 자리다. -->
+                  <span class="inc-sec-lbl">현장 부대비용 (아는 것만 넣으세요)</span>
+                  <div class="inc-note" id="ancBaseNote">
+                    기관 섭외·통역, 행사 운영(현수막·기념품·사진), 현장 진행비는
+                    <strong>지상비의 20%</strong>로 이미 반영돼 있습니다 — 견적서 46건 실측 기준입니다.
+                  </div>
+                  <div class="inc-vip-row">
+                    <span class="grade-label">기관 방문·섭외</span>
+                    <input type="number" id="agencyVisits" min="0" step="1" value="0" class="vip-count-inp" />
+                    <span class="vip-count-unit">회 (섭외비+통역비)</span>
+                  </div>
+                  <div class="inc-chips">
+                    <label class="inc-chip">
+                      <input type="checkbox" id="incDomestic" />
+                      <span>지방 출발(국내 수송)</span>
+                    </label>
+                  </div>
+
                   <span class="inc-sec-lbl">숙박</span>
                   <div class="inc-grade-row" id="hotelGradeSub">
                     <span class="grade-label">호텔 등급</span>
