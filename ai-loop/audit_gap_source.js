@@ -51,8 +51,13 @@ const median = (a) => {
 };
 
 async function bootEngine() {
+  /* ⚠ **운영 요율을 얹고 잰다**(TR). 안 얹으면 data.js 기본값으로 재게 되는데,
+     고객은 오버라이드로 계산된 금액을 본다 — 그러면 이 표는 고객이 겪는 오차가 아니다. */
+  const { loadOverrides, applyOverrides } = require('./_rate_overrides');
+  const ov = await loadOverrides();
+  const EXPOSE = '\n;try{window.__DR=destinationRates;}catch(e){}';
   const APP = read('data.js') + '\n' + read('company-info.js') + '\n'
-    + read('rec_fallbacks.js') + '\n' + read('script.js');
+    + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
   const dom = new JSDOM(read('index.html'), {
     runScripts: 'dangerously', url: 'http://localhost/',
     beforeParse(w) {
@@ -66,6 +71,8 @@ async function bootEngine() {
   try { window.eval(APP); } catch (e) { console.log('[eval warn] ' + e.message); }
   await new Promise((r) => setTimeout(r, 150));
   if (typeof window.getBreakdownData !== 'function') throw new Error('엔진 로드 실패');
+  const applied = applyOverrides(window.__DR, ov.overrides);
+  console.log('요율 오버라이드 ' + applied + '칸 적용 — ' + ov.from);
   const doc = window.document;
   return (o) => {
     doc.getElementById('destination').value = o.dest;

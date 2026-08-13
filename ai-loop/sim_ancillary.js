@@ -38,7 +38,11 @@ const q = (arr, p) => {
 };
 
 async function bootEngine() {
-  const EXPOSE = '\n;try{window.__ANC=ANCILLARY;}catch(e){}';
+  /* ⚠ **운영 요율을 얹고 고른다**(TR). data.js 기본값으로 계수를 고르면, 고객이 실제로
+     겪는 조합(오버라이드가 얹힌 요율 + 이 계수)에서는 다른 값이 최선일 수 있다. */
+  const { loadOverrides, applyOverrides } = require('./_rate_overrides');
+  const ov = await loadOverrides();
+  const EXPOSE = '\n;try{window.__ANC=ANCILLARY;window.__DR=destinationRates;}catch(e){}';
   const APP = read('data.js') + '\n' + read('company-info.js') + '\n'
     + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
   const dom = new JSDOM(read('index.html'), {
@@ -55,6 +59,7 @@ async function bootEngine() {
   await new Promise((r) => setTimeout(r, 150));
   if (typeof window.getBreakdownData !== 'function') throw new Error('엔진 로드 실패');
   if (!window.__ANC) throw new Error('ANCILLARY를 못 찾았다 — data.js를 확인할 것');
+  console.log('요율 오버라이드 ' + applyOverrides(window.__DR, ov.overrides) + '칸 적용 — ' + ov.from);
   const doc = window.document;
   return {
     setRate: (v) => { window.__ANC.rate = v; },

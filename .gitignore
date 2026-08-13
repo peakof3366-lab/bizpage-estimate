@@ -27,3 +27,6 @@ ai-loop/.backtest_cache.json
 .corpus_validated.json
 
 .env*
+
+# 운영 요율 오버라이드 캐시 (TR) — 목적지별 단가라 같은 이유로 저장소에 넣지 않는다.
+.rate_overrides_cache.json
