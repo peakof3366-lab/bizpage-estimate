@@ -858,8 +858,33 @@ function findTotals(lines, pax, preferGrand, fx) {
     }
   });
   /* 인원을 아는데 1인당 × 인원이 총액과 딴판이면 잘못 집은 것이다 — 버린다(조용히 쓰지 않는다). */
-  if (perPerson && grand && pax && Math.abs(perPerson * pax - grand) / grand > 0.25) perPerson = null;
-  return Object.assign({ grand, perPerson, itemsTotal }, findDeposit(lines));
+  let discarded = false;
+  if (perPerson && grand && pax && Math.abs(perPerson * pax - grand) / grand > 0.25) {
+    perPerson = null; discarded = true;
+  }
+
+  /* ── 1인당을 **총 견적가 ÷ 인원**으로 유도한다 (UE) ────────────────────────
+     문서가 총 견적가와 인원을 둘 다 밝혔는데 1인당만 안 적는 양식이 있다
+     (실측: 리더스에셋 푸꾸옥 — 「총견적가 128,770,920」 · 인원 50인데 1인당 표기가 없다).
+     그 견적서는 1인당이 없다는 이유만으로 **역검증에서 통째로 빠진다.**
+     나눗셈은 문서가 이미 밝힌 두 값으로만 하므로 짐작이 섞이지 않는다.
+
+     ⚠ **`grandTotal`일 때만 한다. `itemsTotal`로는 안 한다**(SH의 구분 그대로) —
+       항목 합계는 마진이 빠진 원가 합계라, 그걸 나누면 「1인 판매가」가 아니라
+       1인 원가가 된다. 그 둘을 섞으면 오차의 부호를 해석할 수 없게 된다.
+     ⚠ 문서에 적힌 1인당이 있으면 **그쪽이 언제나 이긴다.** 유도값은 빈자리만 채운다.
+     ⚠ 범위 밖이면 안 쓴다 — 총계가 코드나 딴 숫자였을 수 있다. */
+  /* ⚠ **문서가 1인당을 적었는데 검산에서 버린 경우에는 유도하지 않는다.**
+     그건 「이 문서에 뭔가 어긋난 것이 있다」는 신호다 — 나눗셈으로 덮으면 그 신호가
+     사라진다. 회귀 테스트(test_sP)가 정확히 이 자리를 지킨다: 1인당 3,020,000이 총액과
+     안 맞아 버려진 건인데, 유도값 3,149,505로 채우면 「비운다」는 판단이 무력해진다.
+     **1인당 표기가 아예 없는 문서에서만** 나눈다. */
+  let perPersonVia = perPerson ? 'doc' : null;
+  if (!perPerson && !discarded && grand && pax >= 2) {
+    const v = Math.round(grand / pax);
+    if (v >= PER_PERSON_MIN && v <= PER_PERSON_MAX) { perPerson = v; perPersonVia = 'derived'; }
+  }
+  return Object.assign({ grand, perPerson, perPersonVia, itemsTotal }, findDeposit(lines));
 }
 
 /* 「입금가」 = **우리가 랜드사·홀세일러에 내는 1인 원가**다 (SC).
@@ -2227,7 +2252,15 @@ function readOneBlock(lines, fx, blockTotal) {
           ? `${golf.heads}명이 라운딩한 것으로 봤습니다 (전체 ${pax}명) — 다르면 고쳐 주세요`
           : `줄마다 인원이 달라 줄별로 나눴습니다 (전체 ${pax}명) — 식을 확인해 주세요`,
       } : null,
-      sell: rec.perPerson ? { calc: `문서에 적힌 1인당 금액 ${rec.perPerson.toLocaleString()}원`, label: '1인당', via: 'doc' } : null,
+      /* ⚠ **유도한 값임을 밝힌다.** 문서에 1인당이 없어 `총 견적가 ÷ 인원`으로 만든
+         값은 `via:'calc'`로 나가 화면이 계산식을 그대로 보여준다 — 담당자가 그 나눗셈이
+         맞는지 눈으로 볼 수 있어야 한다(조용한 폴백을 만들지 않는다). */
+      sell: rec.perPerson ? (rec.perPersonVia === 'derived'
+        ? {
+          calc: `총 견적가 ${(rec.grand || 0).toLocaleString()} ÷ 인원 ${pax} = ${rec.perPerson.toLocaleString()} (1인당)`,
+          label: '1인당 (문서에 없어 총액에서 나눴습니다)', via: 'calc',
+        }
+        : { calc: `문서에 적힌 1인당 금액 ${rec.perPerson.toLocaleString()}원`, label: '1인당', via: 'doc' }) : null,
       /* 호텔명은 호텔 줄에서 나온다 — 그 줄이 검산 안 된 줄이면 이름도 같은 신뢰도다.
          (실측: 검산 안 된 「호텔 패널티」 줄이 대표가 되어 호텔명이 '패널티'로 나갔다) */
       hotelName: hotelName ? { calc: hotelName, label: hotel ? (hotel.label || '') : '', via: hotel && vacuous(hotel) ? 'unchecked' : 'rule' } : null,
