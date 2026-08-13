@@ -966,7 +966,11 @@ function findQuoteDate(lines) {
     /* ⚠ `\b날짜\b`로 쓰면 **한 건도 안 걸린다** — 자바스크립트의 \b는 한글을 낱말
        문자로 안 봐서 한글 앞뒤에서는 경계가 성립하지 않는다. 실측에서 한화 건의
        「수신 … 날짜 2026-08-04」가 통째로 빠졌고, 테스트를 쓰고서야 드러났다. */
-    if (!/작성일|발행일|견적일|날짜/.test(t)) continue;
+    /* ⚠ **영문 「DATE :」도 작성일이다.** 실측(굿리치 바르셀로나): 머리글이
+       「2호차 확정 일정표 DATE : 2026-08-06」인데 한글 낱말만 봐서 못 읽었고, 그 결과
+       그 날짜가 **출발일로** 들어갔다(진짜 출발일은 일정표의 「04/04/Fri」다).
+       작성일을 못 읽으면 「출발일 = 작성일이면 버린다」는 방어도 함께 무력해진다. */
+    if (!/작성일|발행일|견적일|날짜|\bDATE\b/i.test(t)) continue;
     const m = t.match(/(\d{4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/);
     if (m) { const v = validYmd(ymd(m[1], m[2], m[3])); if (v) return v; }
   }
@@ -2286,11 +2290,41 @@ async function extractQuote(buffer, pdfParse, opts) {
     ? { currency: stuckList[0], rowCount: stuck[stuckList[0]], all: stuck }
     : null;
 
+  /* ── 일정표에서 **일수**를 채운다 (UC) ────────────────────────────────────
+     기간 표기가 없어 일수를 못 읽는 견적서가 46건 중 9건이다. 그런데 그중 8건은
+     **일정표를 이미 읽고 있다**(L7이 41/46건에서 읽는다). 일정표에 며칠이 있으면
+     그게 곧 여행 일수다 — 새로 읽을 것이 없고 이미 가진 것을 쓰면 된다.
+
+     ⚠ **문서가 밝힌 기간이 언제나 이긴다.** 여기서 채우는 것은 **비어 있을 때뿐**이다.
+       일정표는 「선택일정」이 여러 줄이거나 차수가 섞이면 날이 부풀 수 있다
+       (실측: KT CES는 9일 일정인데 13일치로 읽힌다). 그런 값으로 문서의 명시 기간을
+       덮으면 금액이 통째로 어긋난다 — 일수는 식비에 정비례한다.
+     ⚠ **박수와 어긋나면 안 쓴다.** 박수는 호텔 줄에서 따로 나오는 값이라 교차 검증이 된다.
+     ⚠ 상한을 둔다(MAX_NIGHTS+1). 부풀어 오른 일정표를 그대로 받으면 식비가 그만큼 줄어든다.
+     ⚠ 이렇게 얻은 일수는 `daysVia:'itinerary'`로 표시한다 — 화면이 「일정표에서 셌다」고
+       말해야 담당자가 눈으로 확인할 자리를 안다(조용한 폴백을 만들지 않는다). */
+  const itinerary = findItinerary(lines);
+  const itinDays = (itinerary && itinerary.days) ? itinerary.days.length : 0;
+  let daysVia = chosen.dates && chosen.dates.days >= 2 ? 'header' : null;
+  if (chosen.dates && !(chosen.dates.days >= 2) && itinDays >= 2 && itinDays <= MAX_NIGHTS + 1) {
+    const n = chosen.dates.nights;
+    /* 박수를 이미 아는데 일정표와 어긋나면 **고르지 않는다** — 둘 중 어느 쪽이 맞는지 모른다 */
+    if (n == null || n + 1 === itinDays) {
+      chosen.dates = Object.assign({}, chosen.dates, {
+        days: itinDays,
+        nights: n == null ? itinDays - 1 : n,
+      });
+      daysVia = 'itinerary';
+    }
+  }
+
   return Object.assign({}, chosen, {
     pageCount, text,
+    /* 일수를 어디서 얻었나 — 'header'(문서가 밝힌 기간) / 'itinerary'(일정표에서 셌다) */
+    daysVia,
     /* L7 — 일정표. **문서 전체**에서 읽는다(견적 장이 갈려도 일정표는 한 벌인 문서가
        대부분이라 장별로 나누면 오히려 조각난다). 금액과 무관한 층이다. */
-    itinerary: findItinerary(lines),
+    itinerary,
     fxRates: fx, fxFromDocument: docFx, fxFromUser: userFx,
     /* 통화별로 **어떻게** 알아낸 환율인가 — 'named'(통화를 밝힌 표기) / 'bare'(통화를
        안 밝힌 「환율 ₩ N」을 견적서의 유일한 외화로 묶었다). bareFxWhy는 못 묶은 이유. */
