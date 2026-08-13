@@ -1135,11 +1135,25 @@ function findTripDates(lines) {
      ③ 둘 다 없으면 **추정하지 않는다**
    ⚠ 이렇게 얻은 날짜는 `departVia:'itinerary'`로 표시해 화면이 "일정표에서 추정"이라고
    말한다. 담당자가 제출 전에 눈으로 확인하는 칸이므로, 비워 두는 것보다 낫다. */
+/* 일정표가 날짜를 적는 모양들. **한글 「N월 N일」만 보면 유럽 견적서를 통째로 놓친다** —
+   실측(2026-08-13): 굿리치 체코·바르셀로나·2026 굿리치 일정표 세 건이 전부
+   「4/4(토)」·「04/04/Fri」 꼴이라 출발일·일수를 하나도 못 읽고 있었다.
+   ⚠ **슬래시 표기는 반드시 요일이 붙어 있을 때만** 받는다. 그냥 「4/4」는 항공편·좌석·
+     비율 등 아무 데나 나오는 모양이라, 요일이라는 자물쇠가 없으면 엉뚱한 수를 날짜로 읽는다.
+   ⚠ 「12/25」처럼 월이 12를 넘으면 날짜가 아니다 — 아래 범위 검사가 거른다. */
+const ITIN_DATE_PATTERNS = [
+  /(\d{1,2})\s*월\s*(\d{1,2})\s*일/,                                   /* 02월 04일 */
+  /(\d{1,2})\s*\/\s*(\d{1,2})\s*\(\s*[월화수목금토일]\s*\)/,             /* 4/4(토) */
+  /(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i, /* 04/04/Fri */
+];
 function findItineraryDepart(lines, quoteDate) {
   let md = null;
   for (const ln of lines) {
-    const m = ln.text.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
-    if (m) { md = { mo: +m[1], d: +m[2] }; break; }
+    for (const re of ITIN_DATE_PATTERNS) {
+      const m = ln.text.match(re);
+      if (m) { md = { mo: +m[1], d: +m[2] }; break; }
+    }
+    if (md) break;
   }
   if (!md || md.mo < 1 || md.mo > 12 || md.d < 1 || md.d > 31) return null;
 
@@ -1164,6 +1178,17 @@ function findDates(lines) {
   const quoteDate = findQuoteDate(lines);
   const trip = findTripDates(lines);
   let departVia = trip.depart ? 'header' : null;
+  /* ⚠ **출발일이 견적 작성일과 같으면 그건 출발일이 아니다** (2026-08-13).
+     실측(굿리치 연도대상/바르셀로나): 문서 머리에 「2호차 확정 일정표 DATE : 2026-08-06」이
+     있는데 그 **작성일**을 출발일로 읽었다. 정작 진짜 출발일은 일정표의 「04/04/Fri 1일차」다.
+     리드타임 0인 행사는 없다 — 견적을 낸 날 출발하지 않는다. 그리고 이 값 하나가
+     **시즌 계수와 리드타임 계수를 통째로 틀리게** 만든다(둘 다 출발일로 계산한다).
+     ⚠ 그래서 **버리고 일정표 쪽을 다시 본다.** 지우기만 하면 그 문서는 출발일을 영영
+       못 얻는데, 일정표에는 대개 날짜가 있다. */
+  if (trip.depart && quoteDate && trip.depart === quoteDate) {
+    trip.depart = null;
+    departVia = null;
+  }
   if (!trip.depart) {
     const guess = findItineraryDepart(lines, quoteDate);
     if (guess) { trip.depart = guess; departVia = 'itinerary'; }
