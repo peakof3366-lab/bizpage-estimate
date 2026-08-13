@@ -3791,7 +3791,7 @@
     else if (name==='estimates') renderEstimates();
     else if (name==='marketing') renderMarketingInsights();
     else if (name==='pricereport') renderPriceReportTab();
-    else if (name==='rates') renderRates();
+    else if (name==='rates') { renderRates(); refreshRatesOnOpen(); }
     else if (name==='quotetool') renderQuoteTool();
     else if (name==='manual') renderManual();
     else if (name==='itineraries') renderItineraries();
@@ -7374,6 +7374,23 @@
       + '아무것도 변경되지 않았습니다. 이 상태로 저장하면 실제 운영 중인 값을 덮어쓸 수 있습니다.\n'
       + '연결을 확인한 뒤 다시 시도해 주세요.');
     return false;
+  }
+
+  /* TT: **요율 관리 탭을 열 때마다 서버 값을 다시 읽는다** (2026-08-13 사장님 지적).
+     ⚠ `loadRateOverrides()`는 여태 **로그인할 때 한 번만** 불렸다. 그래서 화면을 열어 둔
+       채로 요율이 바뀌면(다른 담당자가 고쳤거나, 실측 자동 반영이 돌았거나) 탭을 다시
+       눌러도 **로그인 시점의 값**이 계속 보인다. 실제로 2026-08-13에 실측 15칸을 반영한
+       뒤 「요율관리에 업데이트된 내용이 없는데 DB가 업데이트된 건가?」라는 질문이 나왔다 —
+       DB도 API도 정상이었고, 화면만 낡아 있었다.
+     ⚠ **먼저 그리고 나서 갱신한다.** 네트워크를 기다렸다가 그리면 탭이 빈 채로 멈춘 것처럼
+       보인다. 그래서 캐시로 즉시 그린 뒤, 서버 값이 오면 그때 다시 그린다.
+     ⚠ **실패해도 조용히 넘어가지 않는다** — loadRateOverrides가 `rateOverridesStale`을
+       세워 두고 renderRates가 경고띠를 띄운다(그 경로를 그대로 쓴다). */
+  async function refreshRatesOnOpen() {
+    const ok = await loadRateOverrides();
+    await loadPriceReports();
+    renderRates();
+    return ok;
   }
 
   /* 경고띠의 '다시 불러오기' — 성공하면 표까지 새 값으로 다시 그린다. */
