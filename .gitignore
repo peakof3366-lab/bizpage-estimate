@@ -23,5 +23,7 @@ ai-loop/.backtest_cache.json
 # 오히려 원본 PDF보다 새기 쉽다. build_corpus_db.js / audit_item_taxonomy.js가 만든다.
 .corpus_db.json
 .item_taxonomy.json
+# 10회 검토 결과 — 목적지별 실측 단가가 칸 단위로 다 들어 있다(validate_corpus.js가 만든다).
+.corpus_validated.json
 
 .env*
