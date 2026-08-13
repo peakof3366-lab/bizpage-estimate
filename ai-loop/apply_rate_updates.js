@@ -31,7 +31,12 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
+const argOf = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
 const APPLY = argv.indexOf('--apply') >= 0;
+/* `--simulate-cache` — 실제로 쓰지 않고 **오버라이드 캐시에만** 얹는다.
+   그러면 audit_cost_floor / audit_gap_source가 「이 변경을 하면 어떻게 되는가」를
+   그대로 잰다. 요율은 고객 금액이라 **재 보고 나서 쓰는 것이 기본 절차**다. */
+const SIM = argv.indexOf('--simulate-cache') >= 0;
 const IN = path.join(ROOT, '.corpus_validated.json');
 
 const destinationRates = require(path.join(ROOT, 'data.js'));
@@ -44,7 +49,17 @@ const FIELD_MAX = {
   guide_fee: 3000000, sightseeing_fee: 1500000, margin_per_traveler: 2000000,
   golf_fee: 1500000,
 };
-const MIN_SAMPLES = 2;   /* 한 장짜리 중앙값은 중앙값이 아니다 */
+/* 표본 요건 — `--min-samples 1`로 낮출 수 있다.
+   ⚠ **1건을 받아들일 때는 문턱을 좁힌다.** 한 장짜리 값에는 그 행사의 조건(성수기·등급·
+     인원)이 박혀 있어 중앙값이 아니다. 그래서 1건일 때는 `SINGLE_MAX_RATIO`(2배)까지만
+     받고, 그보다 벌어진 것은 「오독인지 먼저 봐야 하는」 쪽으로 보낸다.
+   ⚠ 그래도 1건을 받는 이유 — 지금 요율표의 값은 저장소가 스스로 **「근거 없는 온라인
+     추정치」**라고 적어 둔 것들이고(CLAUDE.md), 대표 방침도 「실제 견적이 올라가면 그
+     내용으로 교체하면서 기존 온라인 추정치를 삭제한다」(2026-08-04)다.
+     실측 1건은 추정치 0건보다 낫다. 코퍼스 21개 목적지 중 **14곳이 견적서 1건뿐**이라,
+     2건을 고집하면 그 14곳은 영영 추정치로 남는다. */
+const MIN_SAMPLES = Number(argOf('--min-samples', 2));
+const SINGLE_MAX_RATIO = 2;
 const MAX_RATIO = 3;     /* 이보다 벌어지면 요율이 아니라 **오독인지부터** 봐야 한다 */
 const AUTHOR = '실측 자동 반영(검토 10회 통과)';
 
@@ -78,11 +93,16 @@ const median = (a) => {
     const base = Number(dRow[g.cell]) || 0;
     const med = Math.round(median(g.vals));
     const why = [];
-    if (g.vals.length < MIN_SAMPLES) why.push('표본 ' + g.vals.length + '건 (2건 미만)');
+    if (g.vals.length < MIN_SAMPLES) why.push('표본 ' + g.vals.length + '건 (' + MIN_SAMPLES + '건 미만)');
     if (!base) why.push('지금 요율이 0이다(안 파는 곳일 수 있다)');
     else {
       const ratio = med > base ? med / base : base / med;
-      if (ratio > MAX_RATIO) why.push('지금 값의 ' + ratio.toFixed(1) + '배 — 오독인지부터 봐야 한다');
+      /* 표본이 1건이면 **더 좁은 문턱**을 쓴다(위 주석) */
+      const cap = g.vals.length >= 2 ? MAX_RATIO : SINGLE_MAX_RATIO;
+      if (ratio > cap) {
+        why.push('지금 값의 ' + ratio.toFixed(1) + '배'
+          + (g.vals.length < 2 ? ' — 실측이 1건뿐이라 ' + SINGLE_MAX_RATIO + '배까지만 받는다' : ' — 오독인지부터 봐야 한다'));
+      }
       if (ratio < 1.15) why.push('차이가 15% 미만이라 굳이 바꿀 값이 아니다');
     }
     if (FIELD_MAX[g.cell] != null && med > FIELD_MAX[g.cell]) why.push('오타 상한 초과');
@@ -104,6 +124,26 @@ const median = (a) => {
       + '   ' + h.why.join(' · '));
   });
   if (held.length > 30) console.log('   … ' + (held.length - 30) + '개 더');
+
+  /* ── 시뮬레이션 ── 운영 DB는 안 건드리고 **오버라이드 캐시에만** 얹는다.
+     그 뒤 `audit_cost_floor` / `audit_gap_source`를 돌리면 이 변경을 했을 때 원가 하한과
+     오차가 어떻게 되는지 그대로 나온다. 요율은 고객 금액이라 **재 보고 나서 쓴다.**
+     ⚠ 끝나면 `--fresh-rates`로 캐시를 되돌릴 것 — 안 그러면 다음 측정이 가짜 값으로 돈다. */
+  if (SIM) {
+    const CACHE = path.join(ROOT, '.rate_overrides_cache.json');
+    const cur = fs.existsSync(CACHE) ? JSON.parse(fs.readFileSync(CACHE, 'utf8')) : { overrides: {} };
+    const ov = cur.overrides || {};
+    proposals.forEach((p) => {
+      if (ov[p.dest] && ov[p.dest][p.cell] != null) return;   /* 사람이 정한 칸은 안 건드린다 */
+      ov[p.dest] = Object.assign({}, ov[p.dest], { [p.cell]: p.med });
+    });
+    fs.writeFileSync(CACHE, JSON.stringify({ at: new Date().toISOString(), overrides: ov, simulated: true }, null, 1), 'utf8');
+    console.log('\n── 캐시에만 얹었다(운영 DB는 그대로). 이제 재 보면 된다: ──');
+    console.log('   node ai-loop/audit_cost_floor.js');
+    console.log('   node ai-loop/audit_gap_source.js');
+    console.log('   ⚠ 끝나면 `--fresh-rates`로 캐시를 되돌릴 것.');
+    return;
+  }
 
   if (!APPLY) {
     console.log('\n── dry-run이라 아무것도 쓰지 않았다. 실제로 올리려면 --apply ──');
