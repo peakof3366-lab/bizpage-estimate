@@ -110,6 +110,19 @@ async function bootEngine() {
       .filter((c) => RATE_CATS.indexOf(c.category) < 0)
       .reduce((n, c) => n + (c.total || 0), 0);
     const denom = r.grandTotal || r.itemsTotal || 0;
+    /* ── 이 견적서를 **무엇과 견줄 수 있는가** (2026-08-13) ──────────────────
+       사장님 질문: 「50명 이상을 빼면 되나? 모두 아우르는 방법은?」
+       재 보니 **인원은 축이 아니었다** — 50명 미만이 오히려 폭 39.8%로 더 넓고
+       50명 이상이 21.0%다. 자르면 나쁜 쪽만 남는다.
+       진짜 축은 **비교 가능성**이었다:
+         ① 항공을 포함한 견적서인가 — 지상비 견적서를 전 일정 엔진값과 견주면
+            항공·유류만큼(1인 50만~70만) 엔진이 비싸게 나온다. 그건 엔진 오차가 아니다.
+            실측: 항공 없는 견적서 상위 넷이 전부 +15~43%다(마카오·보홀·세부·푸켓).
+         ② 원가 시트인가 고객용 견적서인가 — **고객용 11건은 폭이 10.3%**로 압도적으로
+            좁다(원가 시트는 38.9%). 우리 가견적은 고객에게 나가는 값이므로
+            **정답지로 삼아야 할 것은 고객용 견적서다.**
+       → **아무것도 버리지 않는다.** 견적서마다 답할 수 있는 질문이 다를 뿐이다. */
+    const hasAir = (r.values || {}).airfare != null;
 
     /* ⚠ 엔진이 못 돌면 **조용히 넘기지 않는다.** 왜 못 돌았는지 세어서 마지막에 밝힌다 —
        조용한 continue 하나 때문에 이 도구가 「대조 0건」을 아무 설명 없이 뱉었다. */
@@ -125,6 +138,10 @@ async function bootEngine() {
       err: (bd.perPerson - answer) / answer,
       errWithGap: (bd.perPerson + gapPer - answer) / answer,
       unclassRatio: denom ? unclassified / denom : null,
+      hasAir,
+      /* 원가 시트인가 — 단서는 파일 이름이 아니라 **본문의 칸**이다(SC).
+         「HNT 수익」·「권장수익」·「입금가」·「FOC」는 홀세일러가 우리에게 줄 때만 찍는다. */
+      cost: /HNT\s*수익|권장\s*수익|입금가|\bFOC\b/i.test(r.text || ''),
     });
   }
 
@@ -146,6 +163,38 @@ async function bootEngine() {
     + '건 · ±10% 안 ' + within(errs, 0.10) + '건 · ±20% 안 ' + within(errs, 0.20) + '건');
   console.log('  미분류 더하면 중앙값 ' + pct(median(errs2)) + '   ±5% 안 ' + within(errs2, 0.05)
     + '건 · ±10% 안 ' + within(errs2, 0.10) + '건 · ±20% 안 ' + within(errs2, 0.20) + '건');
+
+  /* ── 어느 무리가 얼마나 흩어져 있는가 ──────────────────────────────────────
+     ⚠ **중앙값이 아니라 사분위 폭을 본다.** 중앙값은 한 번의 보정으로 옮길 수 있지만
+       폭은 못 옮긴다 — 폭이 좁은 무리가 곧 「우리가 이미 맞히고 있는 것」이다. */
+  const q = (a, p) => {
+    if (!a.length) return null;
+    const s = a.slice().sort((x, y) => x - y); const i = (s.length - 1) * p;
+    const lo = Math.floor(i), hi = Math.ceil(i);
+    return lo === hi ? s[lo] : s[lo] + (s[hi] - s[lo]) * (i - lo);
+  };
+  const slice = (name, list) => {
+    if (!list.length) { console.log('  ' + name.padEnd(20) + '  —'); return; }
+    const a = list.map((r) => r.err);
+    console.log('  ' + name.padEnd(20) + String(list.length).padStart(3) + '건'
+      + '   중앙값 ' + pct(q(a, 0.5)).padStart(7)
+      + '   사분위 ' + pct(q(a, 0.25)) + ' ~ ' + pct(q(a, 0.75))
+      + '   폭 ' + pct(q(a, 0.75) - q(a, 0.25)).padStart(7)
+      + '   ±10% ' + a.filter((n) => Math.abs(n) <= 0.1).length + '건');
+  };
+  console.log('\n═══ 무리를 갈라 보면 — **폭이 좁은 쪽이 우리가 이미 맞히는 것** ═══');
+  slice('전체', rows);
+  console.log('  ── 인원으로 자르면 (자를 이유가 없다) ──');
+  slice('50명 미만', rows.filter((r) => r.pax < 50));
+  slice('50명 이상', rows.filter((r) => r.pax >= 50));
+  console.log('  ── 항공 포함 여부로 자르면 ──');
+  slice('항공 포함', rows.filter((r) => r.hasAir));
+  slice('항공 없음(지상비)', rows.filter((r) => !r.hasAir));
+  console.log('  ── 문서 성격으로 자르면 ──');
+  slice('원가 시트', rows.filter((r) => r.cost));
+  slice('🎯 고객용 견적서', rows.filter((r) => !r.cost));
+  console.log('  ── 둘을 겹치면 (가견적과 성격이 가장 가까운 무리) ──');
+  slice('🎯 고객용+항공포함', rows.filter((r) => !r.cost && r.hasAir));
 
   const gapShare = rows.map((r) => r.unclassRatio).filter((n) => n != null);
   console.log('\n  견적서 총계 중 **어느 칸에도 안 들어가는 돈**: 중앙값 '
