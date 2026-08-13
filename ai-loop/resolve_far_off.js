@@ -44,6 +44,34 @@ const FIELD_MAX = {
   golf_fee: 1500000,
 };
 const RATE_AUTHOR = '확인 필요 해소(실측 기반)';
+
+/* ── 단위가 다른 값 걸러내기 (TZ) ────────────────────────────────────────────
+   2026-08-13 사장님 방침: 「온라인에서 가져온 정보보다 견적서에서 뽑은 값이 정확할 확률이
+   높다.」 그래서 판단 불가(③)의 기본값을 **「실측 채택」**으로 바꿨다.
+   그런데 원본 줄을 12건 전부 열어 보니 **단위가 다른 값이 섞여 있었다.** 값이 틀린 게
+   아니라 **우리 칸이 뜻하는 것과 다른 것을 재고 있다** — 그건 채택하면 안 된다:
+
+     가고시마 호텔 727,000  「백수관 **2박**(2식, 조식/석식, 검은 모래찜질 포함)」
+                            -> 1인 2박 + 식사 + 체험 묶음이다. 객실 1박 단가가 아니다.
+     후쿠오카 호텔 109,250  「Hanamizuki ¥11,500 × 1 × **46**」  (46 = 그 행사 인원)
+                            -> **1인** 요금이다. 2인 1실이면 객실 단가는 그 두 배다.
+
+   ⚠ 둘 다 11회 검토를 **전부 통과했다.** 값 자체는 검산도 맞고 자릿수도 맞기 때문이다.
+     단위 불일치는 「그 값이 그럴듯한가」로는 절대 안 걸린다 — 뜻이 다른 것이지 값이
+     이상한 게 아니다. 그래서 잣대를 따로 둔다.
+   ⚠ **호텔에만 적용한다.** `hotel_per_room`이 유일하게 「객실 1박」이라는 단위를 갖는
+     칸이다(나머지는 1인당이거나 1일당이다). 넓히면 정상 줄을 떨어뜨린다. */
+const NIGHTS_IN_LABEL = /(\d+)\s*박/;
+function unitMismatch(cell, line, qty, pax) {
+  if (cell !== 'hotel') return null;
+  const m = NIGHTS_IN_LABEL.exec(String(line || ''));
+  if (m && Number(m[1]) >= 2) return '「' + m[0] + '」이 붙은 묶음 요금이다 — 객실 1박 단가가 아니다';
+  /* 수량이 그 행사 인원과 같으면 **1인 요금**이다(객실 수가 인원과 같을 수는 없다) */
+  if (pax && qty && Number(qty) === Number(pax)) {
+    return '수량(' + qty + ')이 인원과 같다 — 객실 요금이 아니라 **1인** 요금이다';
+  }
+  return null;
+}
 const VALIDATED = path.join(ROOT, '.corpus_validated.json');
 
 const PLAUSIBILITY = require(path.join(ROOT, 'plausibility.js'));
@@ -108,6 +136,21 @@ function countryPeers(destKey) {
     });
   });
 
+  /* 원가 시트(입금가가 적힌 견적서)가 있는 목적지 — **요율을 내릴 때 조심해야 하는 곳**이다.
+     `.corpus_db.json`이 있으면 거기서 읽고, 없으면 비워 둔다(그때는 보류 규칙이 안 돈다). */
+  /* ⚠ **낡은 캐시 파일에 기대지 않는다.** 처음엔 `.corpus_db.json`에서 읽었는데 그 파일이
+     낡아 원가 시트 목록이 **통째로 비어 있었고**, 그래서 보류 규칙이 조용히 안 돌아
+     나트랑 유류를 **두 번** 잘못 적용했다(두 번 다 원가 하한 감사가 잡아 되돌렸다).
+     캐시가 비면 「해당 없음」처럼 보이는 것이 조용한 폴백의 전형이다.
+     → **운영 DB에서 직접 읽는다.** 원가(입금가)가 적힌 견적서가 있는 목적지는
+       `audit_cost_floor`가 재는 목록과 같아야 하므로, 그 근거인 코퍼스를 다시 뽑는
+       대신 **제보에 sell_price가 있는 목적지**로 잡는다(원가 시트에서 온 제보다). */
+  const costRows = await sql`select distinct destination_key from actual_price_reports
+                             where sell_price_unit is not null`;
+  const costSheetDests = new Set(costRows.map((r) => r.destination_key));
+  console.log('원가·판매가가 함께 적힌 견적서가 있는 목적지 ' + costSheetDests.size + '곳 — '
+    + '여기서는 **요율을 내리는 변경을 보류한다**\n  ' + [...costSheetDests].join(' · ') + '\n');
+
   const farOff = [];
   Object.values(groups).forEach((g) => {
     const base = effective(g.dest, g.cell);
@@ -164,7 +207,15 @@ function countryPeers(destKey) {
     /* ── 판정 ─────────────────────────────────────────────────────────────
        ⚠ **오독 쪽으로 기울 때만 뺀다.** 요율이 낡은 것을 오독으로 몰아 빼면 그 목적지의
          유일한 실측이 사라지고, 요율은 영영 추정치로 남는다. */
-    if (failed.length && g.items.length === 1) {
+    /* 근거 ⑤ — **우리 칸과 단위가 같은가**(TZ). 값이 맞아도 뜻이 다르면 못 쓴다.
+       ⚠ 11회 검토를 전부 통과한 값에서 실제로 나왔다 — 값이 이상한 게 아니라 뜻이 다르다. */
+    const unitBad = checks.map((c) => unitMismatch(g.cell, c.line, c.qty, c.pax)).filter(Boolean);
+    if (unitBad.length) console.log('     ⚠ 단위가 다르다: ' + unitBad[0]);
+
+    if (unitBad.length && checks.length === unitBad.length) {
+      console.log('     → ① **단위가 달라 못 쓴다** — 값은 맞지만 우리 칸이 뜻하는 것이 아니다.');
+      toExclude.push({ ...g, why: unitBad[0] });
+    } else if (failed.length && g.items.length === 1) {
       console.log('     → ① **오독으로 본다** — 11회 검토가 이미 걸렀고 실측이 그 한 건뿐이다.');
       toExclude.push({ ...g, why: failed[0].failWhy.join(' / ').slice(0, 120) });
     } else if (!selfConsistent) {
@@ -176,8 +227,18 @@ function countryPeers(destKey) {
     } else if (allSameSide) {
       console.log('     → ② **요율이 낡은 것으로 본다** — 실측 ' + g.items.length + '건이 전부 같은 쪽으로 벌어진다.');
       toRate.push({ ...g, peerMed });
+    } else if (!failed.length) {
+      /* ⚠ **여기가 2026-08-13에 바뀐 자리다.** 예전엔 ③(판단 불가)로 두고 그대로 뒀는데,
+         그러면 그 목적지는 **온라인 추정치를 계속 쓴다.** 대표 방침이 그 반대다:
+         「온라인에서 가져온 정보보다 견적서에서 뽑은 값이 정확할 확률이 높다.」
+         → 11회 검토를 다 통과했고 단위도 맞으면 **실측을 채택한다.**
+         ⚠ 그래도 원가 하한은 따로 검사한다 — 실측이 맞아도 그 값 때문에 원가 아래로
+           내려가면 못 쓴다(나트랑 유류에서 실제로 겪었다). */
+      console.log('     → ② **실측을 채택한다** — 11회 검토를 다 통과했고 단위도 맞다.'
+        + ' 지금 기준가는 온라인 추정치다.');
+      toRate.push({ ...g, peerMed });
     } else {
-      console.log('     → ③ **판단 불가** — 사람이 문서를 봐야 한다.');
+      console.log('     → ③ **판단 불가** — 11회 검토에서 걸린 적이 있다. 사람이 문서를 봐야 한다.');
       toHuman.push(g);
     }
     console.log('');
@@ -209,6 +270,18 @@ function countryPeers(destKey) {
       const cell = RATE[g.cell];
       const cur = ov[g.dest] || {};
       if (cur[cell] != null) { console.log('   건너뜀: ' + g.dest + '.' + cell + ' — 이미 사람이 정한 값'); continue; }
+      /* ⚠ **요율을 내리는 변경 + 그 목적지에 원가 시트가 있으면 보류한다.**
+         2026-08-13에 실제로 깼다 — 나트랑 유류를 280,000 → 120,000으로 내렸더니 그
+         목적지가 원가 대비 +12.0% → **-1.5%**가 됐다(팔수록 손해). 되돌려야 했다.
+         ⚠ 유류 값 자체는 맞다. 문제는 **다른 칸이 부족한 것**이 유류를 정확히 맞추는
+           순간 드러난다는 것이다(SD의 「설명 안 되는 25%」와 같은 뿌리).
+           그래서 이건 「이 값을 쓰지 말라」가 아니라 **「먼저 부족분을 찾아라」**는 뜻이다.
+         → 올리는 변경은 원가 하한을 깰 수 없으므로 그대로 진행한다. */
+      if (Math.round(g.med) < g.base && costSheetDests.has(g.dest)) {
+        console.log('   보류: ' + g.dest + '.' + cell + '  ' + won(g.base) + ' → ' + won(g.med)
+          + ' — **내리는 변경인데 이 목적지에 원가 시트가 있다**(원가 하한을 깰 수 있다)');
+        continue;
+      }
       const next = Math.round(g.med);
       if (FIELD_MAX[cell] != null && next > FIELD_MAX[cell]) {
         console.log('   건너뜀: ' + g.dest + '.' + cell + ' — 오타 상한 초과'); continue;

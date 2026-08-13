@@ -292,8 +292,15 @@ const S = (why) => ({ r: 'skip', why });
       const list = Object.entries(checks);
       const fails = list.filter(([, c]) => c.r === 'fail');
       const skips = list.filter(([, c]) => c.r === 'skip');
+      /* 그 값이 **어느 줄에서 어떻게** 나왔는지 함께 남긴다 — 뒤에서 「단위가 우리 칸과
+         같은가」를 따지려면 값만으로는 못 한다(TZ). 값이 맞아도 뜻이 다를 수 있다. */
+      const srcRow = (r.candidates || []).find((c) => c.idx === (ev.rowIdxs || [])[0]
+        || (ev.rowIdxs == null && String(c.line || '') === String(ev.line || '')));
       out.push({
         file: f, dest, cell: k, label: LABEL[k], value: v, rateCell: CELL[k], base,
+        pax: r.pax || null,
+        line: String(ev.line || (srcRow && srcRow.line) || '').slice(0, 140),
+        qty: srcRow ? Math.max(Number(srcRow.qty) || 0, Number(srcRow.times) || 0) : null,
         pass: list.length - fails.length - skips.length,
         skip: skips.length, fail: fails.length,
         ok: fails.length === 0,
