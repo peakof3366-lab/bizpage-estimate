@@ -9,6 +9,9 @@ const { safeId, payloadTooLarge, toNumberOrNull, trimText } = require('./_lib/pu
 const { verifyQuote } = require('./_lib/quote_verify');
 /* 견적서 PDF 층 구조 추출 (RZ) — 왜 이렇게 나눴는지는 그 파일 머리말에 있다 */
 const pdfExtract = require('./_lib/pdf_extract');
+/* 「이 값을 실측으로 반영해도 되는가」의 잣대 — 화면·감사기와 **같은 파일**을 쓴다.
+   여기에 규칙을 다시 적으면 서버는 빼고 화면은 반영하는 상태가 된다(결함 생성기 ①). */
+const PLAUSIBILITY = require('../plausibility');
 
 /* 검증에 필요한 권위 데이터(요율 오버라이드·계수 노브·커스텀 목적지)를 모은다.
    조회에 실패하면 unavailable로 표시한다 — 빈 값으로 통과시키면 '검증했다'는
@@ -701,6 +704,25 @@ async function handlePriceReport(req, res) {
     }
   }
 
+  /* ── TI: **정확한 값을 찾지 못한 칸은 실측에 반영하지 않는다** (2026-08-12 대표 지시) ──
+     지금까지는 「검산 안 됨」 값이 저장되고 **📊 갱신 제안에서만** 빠졌다(SN·TB).
+     ✅실측 N건 배지 · 기준가 이상 경고 · 견적 정확도 카드 **세 곳에는 그대로 들어갔다.**
+     일괄 투입이 시작되면 사람이 모든 칸을 눈으로 볼 수 없으므로(2026-08-10 방침),
+     저장하는 자리에서 한 번에 빼야 네 곳이 같은 말을 한다.
+
+     ⚠ **행도 값도 지우지 않는다.** `excluded_fields`에 넣어 평균에서만 빼고, 원래 값은
+       그대로 남는다. 담당자가 「확인 필요」 목록에서 확정하면 그 자리에서 되살아난다
+       (아래 handleConfirmReportField). 조용히 버리는 것과 다르다.
+     ⚠ **사람이 뺀 것과 구분해야 한다.** 심천 호텔처럼 「값은 맞지만 다른 도시 것」이라
+       사람이 뺀 항목이 있다(SU). 그건 확정해도 되살아나면 안 된다 — 그래서 자동으로 뺀
+       것에만 표시를 붙이고, 되살리는 것도 그 표시가 붙은 것만 한다.
+     ⚠ 잣대는 `plausibility.countsAsMeasured` 하나다. 출처를 **모르는** 옛 제보는 빼지 않는다. */
+  const autoExcluded = autoExcludedFields({
+    airfare: airfare.value, fuel: fuel.value, hotel: hotel.value, meal: meal.value,
+    vehicle: vehicle.value, guide: guide.value, sight: sight.value,
+  }, sourcesJson ? JSON.parse(sourcesJson) : null);
+  const excludedJson = Object.keys(autoExcluded).length ? JSON.stringify(autoExcluded) : null;
+
   try {
     /* ⚠ 새 컬럼(fuel/vehicle/guide/sight/sell_price)은 **마이그레이션이 먼저** 돌아야 한다.
        배포가 앞서면 여기서 500이 난다 — CLAUDE.md의 순서 규칙 그대로다.
@@ -709,14 +731,17 @@ async function handlePriceReport(req, res) {
       insert into actual_price_reports
         (destination_key, airfare_unit, hotel_unit, hotel_name, meal_unit,
          fuel_unit, vehicle_unit, guide_unit, sight_unit, sell_price_unit,
-         depart_date, quote_date, nights, fx_currency, fx_rate, fx_fields, manual_fields, field_sources, author, source)
+         depart_date, quote_date, nights, fx_currency, fx_rate, fx_fields,
+         excluded_fields, manual_fields, field_sources, author, source)
       values (${destinationKey}, ${airfare.value}, ${hotel.value}, ${safeHotelName || null}, ${meal.value},
               ${fuel.value}, ${vehicle.value}, ${guide.value}, ${sight.value}, ${sell.value},
               ${depart.value}, ${quoted.value}, ${nightsN}, ${fxCur}, ${fxR}, ${fxF},
-              ${manualJson}::jsonb, ${sourcesJson}::jsonb,
+              ${excludedJson}::jsonb, ${manualJson}::jsonb, ${sourcesJson}::jsonb,
               ${safeAuthor}, ${source === 'pdf' ? 'pdf' : 'manual'})
     `;
-    return res.status(200).json({ ok: true });
+    /* 화면이 「무엇이 왜 빠졌는지」를 그 자리에서 말할 수 있어야 한다 — 조용히 빼면
+       담당자는 다 반영된 줄 안다(이 저장소가 반복해서 당한 유형이다). */
+    return res.status(200).json({ ok: true, autoExcluded: Object.keys(autoExcluded) });
   } catch (err) {
     console.error('[quotes priceReport] 저장 실패:', err);
     return res.status(500).json({ error: 'insert_failed' });
@@ -790,6 +815,38 @@ async function handleDeletePriceReport(req, res) {
   }
 }
 
+/* TI: 자동으로 뺀 것임을 나타내는 표시. **사람이 사유를 적어 뺀 것과 갈라야** 하기 때문에
+   있다 — 사람이 뺀 항목(심천 호텔)은 확정해도 평균에 돌아오면 안 된다(SU).
+   ⚠ **값은 `plausibility.js`에 있다.** 서버 두 곳(저장·확정)뿐 아니라 화면의 「확인 필요」
+     목록도 이 표시를 봐야 하기 때문이다. 여기 다시 적으면 한쪽만 고쳤을 때 자동 제외가
+     영영 안 풀린다 — 「확인했는데 왜 그대로지」가 된다(결함 생성기 ①). */
+const AUTO_EXCLUDE_MARK = PLAUSIBILITY.AUTO_EXCLUDE_MARK;
+const AUTO_EXCLUDE_WHY = {
+  unchecked: '검산 안 됨 — 수량·횟수가 없어 1인 단가인지 전 일정 총액인지 확인되지 않았습니다',
+  ai: 'AI 추정 — 규칙이 못 채워 AI가 고른 값입니다',
+  fallback: '예비 경로 — 표 좌표를 못 읽어 예전 방식으로 물러난 값입니다',
+};
+
+/* 어느 칸을 실측 평균에서 자동으로 뺄 것인가 — **순수 함수**라 테스트가 직접 부른다.
+     values  { airfare, fuel, hotel, meal, vehicle, guide, sight } (원화, 없으면 null)
+     sources { 항목: via } — 화면이 보낸 field_sources (없으면 null)
+   반환 { 항목: 사유 } — 비어 있으면 뺄 것이 없다.
+   ⚠ 판매가(sell)는 들어오지 않는다. 요율 항목이 아니라 검증용이라 평균에 안 들어간다.
+   ⚠ 잣대는 plausibility 하나다 — 여기에 via 목록을 다시 적지 말 것. */
+function autoExcludedFields(values, sources) {
+  const out = {};
+  if (!sources || typeof sources !== 'object') return out;
+  Object.keys(sources).forEach((k) => {
+    if (!(k in values)) return;
+    if (values[k] == null) return;                       /* 값이 없으면 뺄 것도 없다 */
+    if (PLAUSIBILITY.countsAsMeasured(sources[k])) return;
+    out[k] = AUTO_EXCLUDE_MARK
+      + (AUTO_EXCLUDE_WHY[sources[k]] || '확인되지 않은 값입니다')
+      + ' · 확인 필요 목록에서 확정하면 다시 반영됩니다';
+  });
+  return out;
+}
+
 /* SU: 제보의 한 항목을 **평균에서 빼거나 되돌린다** (2026-08-11 대표 지시).
    ⚠ 행을 지우지 않는다 — 같은 견적서의 나머지 항목은 그 목적지 것이라 그대로 쓴다.
    ⚠ **사유를 반드시 받는다.** 사유 없이 빠진 값은 나중에 아무도 이유를 몰라
@@ -850,10 +907,23 @@ async function handleConfirmReportField(req, res) {
   }
   const safeAuthor = String((req.user && req.user.displayName) || '').slice(0, 40);
   try {
-    const cur = await sql`select manual_fields from actual_price_reports where id = ${id}`;
+    const cur = await sql`select manual_fields, excluded_fields from actual_price_reports where id = ${id}`;
     if (!cur.length) return res.status(404).json({ error: 'not_found' });
     const map = (cur[0].manual_fields && typeof cur[0].manual_fields === 'object')
       ? Object.assign({}, cur[0].manual_fields) : {};
+    /* TI: 저장할 때 **자동으로 빠진** 칸이면, 사람이 확정하는 순간 되살린다.
+       ⚠ 안 되살리면 확정해도 평균에 안 들어가 「확인했는데 왜 그대로지」가 된다 —
+         확정 화면이 거짓말을 하는 상태다.
+       ⚠ **사람이 뺀 것은 건드리지 않는다.** 심천 호텔처럼 「값은 맞지만 다른 도시 것」이라
+         뺀 항목은 확정한다고 평균에 돌아오면 안 된다(SU). 그래서 `[자동]` 표시가 붙은
+         것만 지운다. 표시가 없으면 사람이 사유를 적어 뺀 것이다. */
+    const exMap = (cur[0].excluded_fields && typeof cur[0].excluded_fields === 'object')
+      ? Object.assign({}, cur[0].excluded_fields) : {};
+    let revived = false;
+    if (PLAUSIBILITY.isAutoExcluded(exMap[field])) {
+      delete exMap[field];
+      revived = true;
+    }
     map[field] = {
       by: safeAuthor,
       at: new Date().toISOString(),
@@ -874,7 +944,15 @@ async function handleConfirmReportField(req, res) {
     } else {
       await sql`update actual_price_reports set manual_fields = ${JSON.stringify(map)}::jsonb where id = ${id}`;
     }
-    return res.status(200).json({ ok: true, id, field, value: newValue, manualFields: map });
+    /* TI: 자동으로 빠졌던 칸을 되살린다. **확정을 먼저 쓰고 이걸 나중에 쓰는 순서가 중요하다** —
+       이 쓰기가 실패하면 「확정됐지만 아직 평균에서 빠진」 상태로 남는다(안전한 쪽).
+       순서를 뒤집으면 실패했을 때 「확인 안 된 값이 평균에 들어간」 상태가 된다.
+       ⚠ 위 8갈래에 얹지 않는다 — 컬럼 이름을 조립하지 않기 위해 갈래를 늘어놓은 것이라,
+         거기에 컬럼을 더하면 갈래가 16개가 된다. */
+    if (revived) {
+      await sql`update actual_price_reports set excluded_fields = ${JSON.stringify(exMap)}::jsonb where id = ${id}`;
+    }
+    return res.status(200).json({ ok: true, id, field, value: newValue, manualFields: map, revived });
   } catch (err) {
     console.error('[quotes confirmReportField] 저장 실패:', err);
     return res.status(500).json({ error: 'update_failed' });
@@ -987,3 +1065,6 @@ module.exports._extract = {
   pickRowValue, pickMealDaily, pickMealGroup, sanityWarnings, promptContext,
   AIRFARE_UNIT_MAX, HOTEL_UNIT_MAX, MEAL_UNIT_MAX,
 };
+
+/* TI: 「정확한 값을 못 찾은 칸은 반영하지 않는다」의 순수 함수 — 테스트가 직접 부른다 */
+module.exports._report = { autoExcludedFields, AUTO_EXCLUDE_MARK, AUTO_EXCLUDE_WHY };

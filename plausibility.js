@@ -43,6 +43,49 @@
 
   function isTrusted(via) { return TRUSTED_VIA.indexOf(String(via || '')) >= 0; }
 
+  /* 사람이 넣었거나 눈으로 확인한 값 — 추출기의 신뢰도와 **무관하게** 반영한다.
+       manual    직접 입력 방식으로 담당자가 친 값
+       confirmed 견적서를 보고 그 자리에서 확정한 값(SW) 또는 「확인 필요」 목록에서 확정(SX)
+     ⚠ 이걸 TRUSTED_VIA에 합치면 안 된다. TRUSTED_VIA는 「**추출기**가 검산했는가」를
+       재는 자라, 감사기가 추출 품질을 잴 때 사람 손이 섞이면 숫자가 거짓이 된다. */
+  var HUMAN_VIA = ['manual', 'confirmed'];
+  function isHuman(via) { return HUMAN_VIA.indexOf(String(via || '')) >= 0; }
+
+  /* ── 이 값을 **실측으로 반영해도 되는가** (2026-08-12 대표 지시) ──────────────
+     「PDF 제출 시 정확한 값을 찾지 못한 경우에는 반영이 안 되도록 해 달라」.
+     대표 방침과 같은 방향이다 — **빈칸은 다음 견적서가 채우지만, 틀린 값은 요율에 얹혀
+     고객이 보는 금액이 된다**(2026-08-10). 일괄 투입이라 사람이 모든 칸을 볼 수 없다.
+
+     반영하지 않는 것:
+       unchecked  수량·횟수가 없어 곱셈 검산이 안 된 줄 — 1인 단가인지 전 일정 총액인지 모른다
+       ai         규칙이 못 채워 AI가 고른 값
+       fallback   표 좌표를 못 읽어 예전 방식으로 물러난 값
+     ⚠ **버리는 게 아니라 평균에서 빼는 것이다.** 값은 그대로 저장되고, 담당자가 확인하면
+       그 자리에서 되살아난다(조용히 버리지 않는다 — 이 저장소의 규칙).
+     ⚠ 출처를 **모르는** 값은 빼지 않는다. 옛 제보(SX 이전)는 field_sources가 비어 있어
+       모두 빠져 버리고, 그러면 그때 넣은 것이 통째로 사라진다(화면의 기존 판단과 같다). */
+  function countsAsMeasured(via) {
+    var v = String(via || '');
+    if (!v) return true;                    /* 출처를 모른다 — 옛 제보를 지우지 않는다 */
+    return isTrusted(v) || isHuman(v);
+  }
+
+  /* ── **자동으로 뺐다**는 표시 (TI) ──────────────────────────────────────────
+     `excluded_fields`에는 성격이 다른 두 가지가 섞인다:
+       · **사람이 사유를 적어 뺀 것**(SU) — 심천 호텔처럼 「값은 맞지만 다른 도시 것」.
+         이미 사람이 판단했으므로 확정해도 평균에 돌아오면 안 되고, 「확인 필요」
+         목록에도 뜨면 안 된다.
+       · **자동으로 뺀 것**(TI) — 아직 **아무도 안 본** 값이다. 「확인 필요」 목록에
+         반드시 남아야 하고, 담당자가 확정하면 그 자리에서 되살아나야 한다.
+     둘을 못 가르면 자동 제외가 **되살릴 길이 없는 삭제**가 된다.
+
+     ⚠ 이 표시가 서버와 화면에 각각 적히면 한쪽만 고쳤을 때 영영 안 풀린다.
+       그래서 잣대와 **같은 파일**에 둔다(limits.js·countsAsMeasured와 같은 이유). */
+  var AUTO_EXCLUDE_MARK = '[자동] ';
+  function isAutoExcluded(reason) {
+    return String(reason || '').indexOf(AUTO_EXCLUDE_MARK) === 0;
+  }
+
   function median(arr) {
     var s = arr.slice().sort(function (a, b) { return a - b; });
     var m = Math.floor(s.length / 2);
@@ -133,6 +176,10 @@
   var API = {
     PEER_SPREAD: PEER_SPREAD, RATE_SPREAD: RATE_SPREAD, MIN_PEERS: MIN_PEERS,
     TRUSTED_VIA: TRUSTED_VIA, isTrusted: isTrusted, median: median,
+    /* 실측으로 반영해도 되는가 — 서버(저장 시 자동 제외)와 화면이 같은 잣대를 쓴다 */
+    HUMAN_VIA: HUMAN_VIA, isHuman: isHuman, countsAsMeasured: countsAsMeasured,
+    /* 자동으로 뺀 것인가 — 서버(되살리기)와 화면(확인 필요 목록)이 같은 표시를 본다 */
+    AUTO_EXCLUDE_MARK: AUTO_EXCLUDE_MARK, isAutoExcluded: isAutoExcluded,
     judge: judge, describe: describe,
     /* SV: 「전 일정 총액이 1일 단가 자리에」 — 차량·가이드에만 쓴다 */
     TRIP_TOTAL_MIN_RATIO: TRIP_TOTAL_MIN_RATIO,
