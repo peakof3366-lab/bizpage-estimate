@@ -848,7 +848,15 @@ function findTotals(lines, pax, preferGrand, fx) {
     /* ⚠ '입금가'는 총액이 아니라 **1인 원가**로 쓰는 양식이 있다(대림벧엘 큐슈).
        총액으로 잘못 잡으면 그보다 큰 판매가가 "총액보다 크다"는 이유로 버려진다 —
        실제로 그래서 판매가가 비어 있었다. 총액 후보에서 뺀다. */
-    if (/총\s*견\s*적\s*가|총\s*금\s*액|총\s*계|합\s*계\s*금액|총액/.test(t)) {
+    /* ⚠ **「총 여행경비」라고만 적는 양식이 있다** (UH). 실측(굿리치 가고시마·아오모리):
+           총 여행경비  14   26,619,180
+           1인 여행경비      1,901,370
+       「총 견적가」·「총 금액」을 요구하는 패턴에 하나도 안 걸려 **총계가 통째로 비었고**,
+       그러면 그 견적서는 1인당도 못 얻어 역검증에서 빠진다(가고시마가 그 상태였다).
+       ⚠ **「여행경비」만으로 보면 안 된다.** 코퍼스 46건 중 9건이 맺음말에
+         「※ 여행 경비 중 과세 항목은 '알선 수수료'이며」를 달고 있다 — 총계가 아니라
+         안내문이다. 그래서 **앞에 「총」이 붙은 것만** 받는다. */
+    if (/총\s*견\s*적\s*가|총\s*금\s*액|총\s*계|합\s*계\s*금액|총액|총\s*여\s*행\s*경\s*비/.test(t)) {
       const ns = wonNumbers(ln).filter((n) => n >= 100000);
       /* 블록 경계에서 읽은 총계가 있으면 그걸 믿는다 — 그 줄이 곧 '총 견적가'다 */
       if (ns.length && !preferGrand) { const v = Math.max.apply(null, ns); if (grand == null || v > grand) grand = v; }
@@ -889,7 +897,9 @@ function findTotals(lines, pax, preferGrand, fx) {
          1,137,780까지 함께 버려졌다.** 늘린 패턴이 멀쩡한 값을 죽인 것이다.
        → 「1 인」 **바로 뒤가 금액 꼴**일 때만 받는다(숫자·콤마 5자 이상).
          「1인 1실」의 '1'은 한 자리라 안 걸리고, 「1 인 1,030,000」은 걸린다. */
-    if (/1\s*인\s*당|일\s*인\s*당|객단가|상품가|인\s*당\s*[:：]|인당\s*요금|1\s*인\s*요금|1\s*인\s*금액|1\s*인\s+[₩$¥€]?\d[\d,]{4,}|(성인|아동)\s*\(\s*1\s*인\s*\)|판\s*매\s*가/.test(t)) {
+    /* ⚠ 「1인 여행경비」도 같은 양식의 짝이다(위 총계 주석 참고, UH).
+       여기서도 **「1인」이 앞에 붙은 것만** 받는다 — 맺음말의 「여행 경비」와 갈라야 한다. */
+    if (/1\s*인\s*당|일\s*인\s*당|객단가|상품가|인\s*당\s*[:：]|인당\s*요금|1\s*인\s*요금|1\s*인\s*금액|1\s*인\s*여\s*행\s*경\s*비|1\s*인\s+[₩$¥€]?\d[\d,]{4,}|(성인|아동)\s*\(\s*1\s*인\s*\)|판\s*매\s*가/.test(t)) {
       /* ⚠ **여기서 환산하지 않는다.** `wonNumbers`로 바꿔 봤다가 크게 당했다 — 엔화
          견적서의 「¥289,800」이 원화로 환산돼(×9.5 = 2,753,100) 1인당 후보에 들어갔고,
          `Math.max`가 그것을 골라 삿포로 1인당이 1,746,000 → 2,753,100이 됐다.
@@ -1227,33 +1237,93 @@ function findTripDates(lines) {
      비율 등 아무 데나 나오는 모양이라, 요일이라는 자물쇠가 없으면 엉뚱한 수를 날짜로 읽는다.
    ⚠ 「12/25」처럼 월이 12를 넘으면 날짜가 아니다 — 아래 범위 검사가 거른다. */
 const ITIN_DATE_PATTERNS = [
-  /(\d{1,2})\s*월\s*(\d{1,2})\s*일/,                                   /* 02월 04일 */
-  /(\d{1,2})\s*\/\s*(\d{1,2})\s*\(\s*[월화수목금토일]\s*\)/,             /* 4/4(토) */
-  /(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i, /* 04/04/Fri */
+  { re: /(\d{1,2})\s*월\s*(\d{1,2})\s*일/, dow: 0 },                                   /* 02월 04일 */
+  { re: /(\d{1,2})\s*\/\s*(\d{1,2})\s*\(\s*([월화수목금토일])\s*\)/, dow: 3 },            /* 4/4(토) */
+  { re: /(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i, dow: 3 },  /* 04/04/Fri */
 ];
+
+/* ═══ 요일은 자물쇠이면서 **열쇠**다 (UH) ═══════════════════════════════════
+   위 패턴에서 요일은 「그냥 4/4는 날짜가 아니다」를 가르는 자물쇠로만 쓰고 있었다.
+   그런데 요일은 **연도까지 증명한다** — 4월 4일이 토요일인 해는 몇 년에 한 번뿐이다.
+
+   실측(2026-08-14). 연도를 못 정해 출발일이 통째로 비거나 틀려 있었다:
+     · 굿리치 체코        본문에 「2025 …연도대상」과 「2026 굿리치 RM 연도대상」이 **둘 다**
+                          있어 `years.size === 1`이 깨졌다 → 출발일 **없음**.
+                          4/4은 2025년 금 · **2026년 토** → 문서의 「4/4(토)」가 2026을 고른다.
+     · 굿리치 바르셀로나   작성일 2026-08-06(실은 **PDF로 뽑은 날**)에서 연도를 데려와
+                          「견적보다 앞서면 이듬해」 규칙이 **2027-04-04**를 만들었다.
+                          문서는 「04/04/Fri」라고 적혀 있고 4/4이 금요일인 해는 **2025**다.
+                          → 그 행사는 지난 행사였다. 이듬해 규칙의 전제(여행은 견적 뒤에
+                            간다)가 **PDF 재출력일 앞에서 무너진다**.
+
+   ⚠ **짐작을 늘리는 것이 아니라 줄이는 장치다.** 후보 연도는 문서가 밝힌 것
+     (작성일의 해·그 이듬해·본문의 4자리 연도)뿐이고, 그중 **요일이 실제로 맞는 해**만
+     남긴다. 딱 하나 남을 때만 쓴다 — 같은 월/일의 요일은 5~6년에 한 번 돌아오므로
+     이 좁은 후보 안에서는 둘이 남는 일이 사실상 없다.
+   ⚠ 요일이 적혀 있는데 **맞는 해가 하나도 없으면 비운다.** 문서가 반증한 연도를
+     그래도 쓰는 것은 짐작이고, 그 값 하나가 시즌·리드타임 계수를 통째로 틀리게 만든다
+     (결함 생성기 ② 조용한 폴백 — 여기서는 폴백하지 않는 쪽이 옳다).
+   ⚠ 「02월 04일」처럼 요일이 없는 표기는 **예전 규칙 그대로** 간다(dow: 0). */
+const DOW_KO = ['일', '월', '화', '수', '목', '금', '토'];
+const DOW_EN = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+function dowIndex(s) {
+  if (!s) return -1;
+  const t = String(s).trim().toLowerCase();
+  const ko = DOW_KO.indexOf(t);
+  return ko >= 0 ? ko : DOW_EN.indexOf(t.slice(0, 3));
+}
+
 function findItineraryDepart(lines, quoteDate) {
   let md = null;
   for (const ln of lines) {
-    for (const re of ITIN_DATE_PATTERNS) {
-      const m = ln.text.match(re);
-      if (m) { md = { mo: +m[1], d: +m[2] }; break; }
+    for (const p of ITIN_DATE_PATTERNS) {
+      const m = ln.text.match(p.re);
+      if (m) { md = { mo: +m[1], d: +m[2], dow: p.dow ? dowIndex(m[p.dow]) : -1 }; break; }
     }
     if (md) break;
   }
   if (!md || md.mo < 1 || md.mo > 12 || md.d < 1 || md.d > 31) return null;
 
+  /* 문서가 밝힌 연도 후보 — 여기 없는 해는 애초에 고려하지 않는다 */
+  const docYears = new Set();
+  lines.forEach((ln) => {
+    const g = ln.text.match(/\b(20\d{2})\b/g);
+    if (g) g.forEach((y) => docYears.add(Number(y)));
+  });
+
+  /* ① 요일이 적혀 있으면 그것으로 가른다.
+     후보는 **문서가 밝힌 해와 그 앞뒤 1년**이다. 앞뒤를 여는 이유가 있다 —
+     바르셀로나 문서에 2025가 적혀 있던 것은 **우연**이었다(합성 검사에서 드러났다).
+     작성일이 PDF 재출력일이면 문서 어디에도 실제 여행 연도가 안 적힐 수 있다.
+     ⚠ 그래도 창은 좁게 둔다. 같은 월/일의 요일은 5~6년 주기로 돌아오므로 **연속 4년
+       안에서는 맞는 해가 둘일 수 없다** — 이 창이 곧 「하나만 남는다」의 근거다.
+       (창을 더 넓히면 둘이 남을 수 있는데, 그때는 아래 `fit.length === 1`이 막는다.) */
+  if (md.dow >= 0) {
+    const anchors = new Set(docYears);
+    if (quoteDate) anchors.add(Number(quoteDate.slice(0, 4)));
+    const cands = new Set();
+    anchors.forEach((y) => { cands.add(y - 1); cands.add(y); cands.add(y + 1); });
+    const fit = [...cands].filter((y) => {
+      const iso = validYmd(ymd(y, md.mo, md.d));
+      if (!iso) return false;
+      const dt = new Date(iso + 'T00:00:00Z');
+      /* ⚠ `validYmd`는 일자를 31까지만 본다 — 「2/30」은 3월 2일로 굴러가 엉뚱한 요일과
+         우연히 맞을 수 있다. 되짚어 같은 달·같은 날인지 확인한다. */
+      if (dt.getUTCMonth() + 1 !== md.mo || dt.getUTCDate() !== md.d) return false;
+      return dt.getUTCDay() === md.dow;
+    });
+    if (fit.length === 1) return validYmd(ymd(fit[0], md.mo, md.d));
+    return null;   /* 문서가 반증했거나 못 가렸다 — 짐작하지 않는다 */
+  }
+
+  /* ② 요일이 없을 때 — 예전 규칙 그대로 */
   let year = null;
   if (quoteDate) {
     year = Number(quoteDate.slice(0, 4));
     const cand = ymd(year, md.mo, md.d);
     if (cand < quoteDate) year += 1;      /* 견적보다 앞선 날짜면 이듬해 여행이다 */
-  } else {
-    const years = new Set();
-    lines.forEach((ln) => {
-      const g = ln.text.match(/\b(20\d{2})\b/g);
-      if (g) g.forEach((y) => years.add(y));
-    });
-    if (years.size === 1) year = Number([...years][0]);
+  } else if (docYears.size === 1) {
+    year = [...docYears][0];
   }
   if (!year) return null;
   return validYmd(ymd(year, md.mo, md.d));
