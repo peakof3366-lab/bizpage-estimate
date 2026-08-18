@@ -107,8 +107,14 @@ if (typeof content.normalizeCourses === 'function') {
 /* ── [4] 관리자 화면이 그 사실을 밝히는가 ────────────────────────────── */
 console.log('\n[4] 담당자가 그 규칙을 알 수 있는가');
 const admin = read('admin.html');
-ok('견적서에서 만든 코스에 출처를 찍는다', /source: 'quote',/.test(admin));
-ok('어느 견적서 몇 일짜리인지 남긴다', /견적서 PDF에서 읽은 일정 \(/.test(admin));
+/* ⚠ UL에서 변환기(prItinToCourse → recItinToCourse)를 rec_fallbacks.js로 옮겼다.
+   견적서 모음을 일괄로 심는 도구가 node에서 **같은 변환**을 불러야 하기 때문이다.
+   규칙이 없어진 게 아니라 자리가 바뀐 것이라, 검사 대상을 그 파일로 옮긴다.
+   (동작 자체는 test_uI의 [5]가 함수를 직접 불러 확인한다.) */
+const recFb = read('rec_fallbacks.js');
+ok('견적서에서 만든 코스에 출처를 찍는다', /source: 'quote',/.test(recFb));
+ok('어느 견적서 몇 일짜리인지 남긴다', /견적서 PDF에서 읽은 일정 \(/.test(recFb));
+ok('화면도 같은 변환을 부른다 (두 벌이 아니다)', /recItinToCourse\(itin, destKey\)/.test(admin));
 ok('일정 관리 화면에 「📄 견적서 일정」 배지가 있다', /📄 견적서 일정/.test(admin));
 ok('배지에 「고객에게 나갑니다」를 알린다', /이 목적지는 견적서 일정이 고객에게 나갑니다/.test(admin));
 /* ⚠ 이걸 안 밝히면 담당자는 자기가 고친 온라인 코스가 왜 안 나가는지 모른다 */

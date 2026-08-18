@@ -30,7 +30,7 @@ const { JSDOM } = require('jsdom');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const { htmlWithDeps } = require('./_jsdom_deps');
-const { recQuoteItinerary } = require(path.join(ROOT, 'rec_fallbacks.js'));
+const { recQuoteItinerary, recItinToCourse } = require(path.join(ROOT, 'rec_fallbacks.js'));
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -544,6 +544,42 @@ function seedQuote(w, over) {
     ok('일정을 안 보내면 기존 저장 경로 그대로다',
       r.status === 200 && /update quotes set/.test(calls[0].text)
       && !/itinerary/.test(calls[0].text), calls[0] && calls[0].text.slice(0, 60));
+  }
+
+  /* ── [5] 견적서 PDF → 코스 변환 (UL) ──────────────────────────────────
+     화면(견적서 업데이트 → 일정 관리로 보내기)과 일괄 심기 도구가 **같은 함수**를
+     쓴다. 두 벌이면 화면으로 넣은 코스와 일괄로 심은 코스가 다른 모양이 된다. */
+  console.log('\n[5] 견적서 PDF → 코스 변환');
+  {
+    const itin = { days: [
+      { place: '나리타 도착', split: 'time', am: '입국', pm: '호텔', eve: '환영만찬',
+        meals: { b: '기내식', d: '현지식' }, hotel: '호텔A' },
+      { place: '공장 견학', lines: ['오전 공장', '오후 세미나'] },   /* 시간대 구분 없음 */
+    ] };
+    const c = recItinToCourse(itin, '도쿄');
+    ok('제목에 목적지와 「검토 필요」가 들어간다', /^도쿄 .*검토 필요/.test(c.title), c.title);
+    ok('요약·핵심 포인트는 비운다 (지어내지 않는다)',
+      c.subtitle === '' && c.highlights.length === 0);
+    ok('source가 quote다 — 이 한 칸이 고객에게 나갈 일정을 바꾼다', c.source === 'quote');
+    ok('몇 일짜리에서 왔는지 남긴다', /2일/.test(c.sourceNote), c.sourceNote);
+    ok('시간대가 나뉜 날은 오전·오후·저녁으로 들어간다',
+      c.days[0].am === '입국' && c.days[0].pm === '호텔' && c.days[0].eve === '환영만찬');
+    ok('식사·숙박은 참고 칸에 문서 그대로 (지어낸 문장 없음)',
+      /식사 — 조: 기내식 \/ 석: 현지식/.test(c.days[0].tip) && /숙박 — 호텔A/.test(c.days[0].tip),
+      c.days[0].tip);
+    ok('시간대 구분이 없는 날은 줄을 오전 칸에 모은다 (버리지 않는다)',
+      c.days[1].am === '오전 공장 / 오후 세미나' && c.days[1].pm === '' && c.days[1].eve === '');
+    ok('일자 번호는 순서대로 매긴다', c.days[0].day === 1 && c.days[1].day === 2);
+    ok('일정이 비어도 터지지 않는다',
+      recItinToCourse({ days: [] }, '도쿄').days.length === 1);
+
+    /* 심는 코스가 저장 검증을 통과하는가 — 통과 못 하면 일괄 심기가 통째로 막힌다. */
+    const content = require(path.join(ROOT, 'api', 'content.js'));
+    const norm = content.normalizeCourses([c]);
+    ok('심을 코스가 저장 검증을 통과한다', !norm.error && norm.courses.length === 1,
+      String(norm.error));
+    ok('저장 뒤에도 source가 살아남는다 (흰 목록에 들어 있다)',
+      norm.courses[0].source === 'quote');
   }
 
   console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');

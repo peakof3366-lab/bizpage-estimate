@@ -5921,38 +5921,15 @@
      나누지 않고 넘긴다(split:'none'). 그런 날은 줄을 **오전 칸에 모아** 보내되,
      몇 날이 그런지 화면이 반드시 말한다 — 조용히 오전에 넣으면 담당자는 문서가
      원래 그런 줄 알고 지나간다(결함 생성기 ②). */
+  /* UL: 변환 규칙은 rec_fallbacks.js의 recItinToCourse 한 곳으로 옮겼다.
+     견적서 모음을 일괄로 심는 도구(ai-loop/seed_courses_from_corpus.js)가 **같은
+     변환**을 해야 하는데 node에서 이 파일을 부를 수 없어서다. 두 벌이 되면 화면으로
+     넣은 코스와 일괄로 심은 코스가 서로 다른 모양이 된다(결함 생성기 ①).
+     ⚠ 빈 일정일 때의 자리 채움만 화면 쪽 규칙(itiEmptyDay)을 유지한다. */
   function prItinToCourse(itin, destKey) {
-    const days = (itin.days || []).map((d, i) => {
-      const split = d.split === 'time' || d.split === 'meal';
-      return {
-        day: i + 1,
-        title: d.place || '',
-        /* 안 나뉜 날은 줄을 그대로 오전 칸에 모은다 — 버리는 것보다 낫고,
-           엉뚱한 시간대로 흩는 것보다도 낫다. 갯수는 화면이 따로 말한다. */
-        am: split ? (d.am || '') : (d.lines || []).join(' / '),
-        pm: split ? (d.pm || '') : '',
-        eve: split ? (d.eve || '') : '',
-        /* 참고 칸에는 **문서가 적어 둔 것만** 넣는다(식사·숙박). 지어낸 문장은 없다. */
-        tip: [
-          d.meals && (d.meals.b || d.meals.l || d.meals.d)
-            ? '식사 — ' + [d.meals.b && '조: ' + d.meals.b, d.meals.l && '중: ' + d.meals.l,
-              d.meals.d && '석: ' + d.meals.d].filter(Boolean).join(' / ') : '',
-          d.hotel ? '숙박 — ' + d.hotel : '',
-        ].filter(Boolean).join(' · '),
-      };
-    });
-    return {
-      title: (destKey ? destKey + ' ' : '') + '견적서 일정 (검토 필요)',
-      subtitle: '',        /* 지어내지 않는다 — 담당자가 채운다 */
-      highlights: [],      /* 위와 같다 */
-      days: days.length ? days : [itiEmptyDay()],
-      /* TC: **이 코스가 어디서 왔는가** (2026-08-11 대표 요청).
-         이 한 칸이 고객에게 무엇이 나가는지를 바꾼다 — 이 목적지에 견적서 일정이
-         하나라도 있으면 고객은 **그것만** 본다(recPreferQuoteCourses).
-         대표: 「온라인에서 가져온 추천 일정표는 사용이 불가능한 경우가 많다.」 */
-      source: 'quote',
-      sourceNote: '견적서 PDF에서 읽은 일정 (' + itin.days.length + '일)',
-    };
+    const course = recItinToCourse(itin, destKey);
+    if (!(itin.days || []).length) course.days = [itiEmptyDay()];
+    return course;
   }
 
   /* TF: 「여러 도시를 도는 견적서인가」 — **판정은 추출기가 한다**(pdf_extract의

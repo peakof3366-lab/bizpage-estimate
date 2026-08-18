@@ -348,9 +348,54 @@ function recQuoteItinerary(src, opts) {
   };
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   견적서 PDF에서 읽은 일정 → 코스 한 벌 (UL로 여기 옮김)
+
+   원래 admin.html 안에만 있었다(prItinToCourse). 그런데 견적서 모음 46건을 한꺼번에
+   코스로 심는 도구(ai-loop/seed_courses_from_corpus.js)가 **같은 변환**을 해야 한다.
+   node에서 부를 수 없으니 옮겨 적게 되고, 그러면 화면으로 넣은 코스와 일괄로 심은
+   코스가 서로 다른 모양이 된다(결함 생성기 ①).
+
+   ⚠ 지어내지 않는다. 제목·요약·하이라이트는 비운다 — 사람이 채울 자리다.
+   ⚠ `source:'quote'` 한 칸이 **고객에게 무엇이 나가는지**를 바꾼다. 이 목적지에
+     견적서 일정이 하나라도 있으면 고객은 그것만 본다(recPreferQuoteCourses).
+   ═══════════════════════════════════════════════════════════════════════════ */
+function recItinToCourse(itin, destKey) {
+  const src = (itin && itin.days) || [];
+  const days = src.map(function (d, i) {
+    const split = d.split === 'time' || d.split === 'meal';
+    const meals = d.meals || {};
+    return {
+      day: i + 1,
+      title: d.place || '',
+      /* 안 나뉜 날은 줄을 그대로 오전 칸에 모은다 — 버리는 것보다 낫고, 엉뚱한
+         시간대로 흩는 것보다도 낫다. 몇 일이 그런지는 부르는 쪽이 따로 말한다. */
+      am:  split ? (d.am || '') : (d.lines || []).join(' / '),
+      pm:  split ? (d.pm || '') : '',
+      eve: split ? (d.eve || '') : '',
+      /* 참고 칸에는 **문서가 적어 둔 것만** 넣는다(식사·숙박). 지어낸 문장은 없다. */
+      tip: [
+        (meals.b || meals.l || meals.d)
+          ? '식사 — ' + [meals.b && '조: ' + meals.b, meals.l && '중: ' + meals.l,
+            meals.d && '석: ' + meals.d].filter(Boolean).join(' / ') : '',
+        d.hotel ? '숙박 — ' + d.hotel : '',
+      ].filter(Boolean).join(' · '),
+    };
+  });
+  return {
+    title: (destKey ? destKey + ' ' : '') + '견적서 일정 (검토 필요)',
+    subtitle: '',
+    highlights: [],
+    days: days.length ? days : [{ day: 1, title: '', am: '', pm: '', eve: '', tip: '' }],
+    source: 'quote',
+    sourceNote: '견적서 PDF에서 읽은 일정 (' + src.length + '일)',
+  };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = REC_FALLBACKS;
   module.exports.recQuoteItinerary = recQuoteItinerary;
+  module.exports.recItinToCourse = recItinToCourse;
   module.exports.recPreferQuoteCourses = recPreferQuoteCourses;
   module.exports.recHasQuoteCourses = recHasQuoteCourses;
   module.exports.recResolvePlanCourseIdx = recResolvePlanCourseIdx;
