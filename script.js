@@ -3308,15 +3308,22 @@ function openEstimateWindow() {
      같은 undefined를 인덱싱해서 **신규 목적지에서는 여기서 TypeError가 났다.**
      견적 금액은 멀쩡히 계산된 뒤 견적서 만들기만 터지므로 담당자 입장에서는
      "버튼이 안 먹는다"로 보인다. 일정이 없으면 그 섹션만 빼고 견적서를 낸다. */
-  const itineraries = getItineraries(destKey, programType);
-  const hasIti = !!itineraries;
-  const itiA = hasIti ? itineraries[0] : null;
-  const itiB = hasIti ? (itineraries[1] || itineraries[0]) : null;
+  /* ⚠ 조립은 rec_fallbacks.js의 recQuoteItinerary 한 곳이 안다 (UI).
+     관리자 화면(견적 관리 → 견적서 링크 발급)이 **같은 함수**를 불러 같은 일정을 싣는다.
+     여기 다시 적으면 고객 계산기로 나간 견적서와 직원이 발급한 견적서가 서로 다른
+     일정을 말하게 된다 — 실제로 그 상태였다(직원 쪽은 아예 비어 있었다).
+     일수 재배치(코스는 전부 5일 고정이라 귀국일이 중간에 나오던 것)도 그 안에 있다. */
+  const itiSnap = recQuoteItinerary({
+    itineraryDb: typeof ITINERARY_DB    !== 'undefined' ? ITINERARY_DB    : null,
+    priority:    typeof PROGRAM_PRIORITY !== 'undefined' ? PROGRAM_PRIORITY : null,
+    destRec:     typeof DEST_REC        !== 'undefined' ? DEST_REC        : null,
+  }, { destKey, programType, totalDays: days });
 
-  /* 실제 선택 일수에 맞춰 귀국일 콘텐츠가 마지막 날에만 나오도록 재배치
-     (ITINERARY_DB 코스는 전부 5일 고정으로 작성되어 있음) */
-  const itiADisplayDays = hasIti ? _buildDisplayDays(itiA, destKey, 'a', days) : [];
-  const itiBDisplayDays = hasIti ? _buildDisplayDays(itiB, destKey, 'b', days) : [];
+  const hasIti = !!itiSnap;
+  const itiA = hasIti ? itiSnap.courses[0] : null;
+  const itiB = hasIti ? itiSnap.courses[1] : null;
+  const itiADisplayDays = hasIti ? itiSnap.a.d : [];
+  const itiBDisplayDays = hasIti ? itiSnap.b.d : [];
 
   /* 조용히 빠뜨리지 않는다 — 담당자가 관리자 → 일정 관리에서 이 목적지의 코스를
      만들면 다음 견적서부터 섹션이 살아난다(결함 생성기 ②). */
@@ -3366,8 +3373,8 @@ function openEstimateWindow() {
     req: requestDetails.slice(0, 300),
     /* 일정이 없으면 아예 싣지 않는다. estimate-view.html은 `d.itiA || d.itiB`로
        섹션 자체를 감싸고 있어 빠져도 정상 렌더된다(공유 견적서 확인). */
-    itiA: hasIti ? { t: itiA.title, s: itiA.subtitle, h: itiA.highlights, d: itiADisplayDays } : null,
-    itiB: hasIti ? { t: itiB.title, s: itiB.subtitle, h: itiB.highlights, d: itiBDisplayDays } : null,
+    itiA: hasIti ? itiSnap.a : null,
+    itiB: hasIti ? itiSnap.b : null,
     cover: destPhotos ? destPhotos.cover : '',
     strip: destPhotos ? destPhotos.strip.slice(0, 2) : [],
     sp: selectedPlan,
@@ -3557,6 +3564,18 @@ a{color:inherit;text-decoration:none}
   .quote-doc{box-shadow:none;border-radius:0;padding:28px 36px;margin-bottom:0}
   .q-print-btn{display:none!important}
   .totals-row{page-break-inside:avoid}
+  /* ── UI: 제안 일정을 인쇄에 싣는다 ──
+     예전엔 이 섹션 전체가 no-print라 **PDF로 뽑으면 일정이 사라졌다.** 고객이 결재
+     보고에 쓰는 건 화면이 아니라 그 PDF다. 담당자가 공들여 다듬은 일정이 정작
+     의사결정 문서에는 한 줄도 안 실리고 있었다.
+     인쇄에서는 탭으로 전환할 수 없으므로 **선택된 코스 한 벌만** 나간다(화면에서
+     담당자가 고른 그것이다). 사진·갤러리는 뺀다 — 잉크만 먹고 내용이 없다. */
+  #rec{page-break-before:always;padding-top:0}
+  .rec-tabs{display:none!important}
+  .course-cover-img,.dest-gallery,.gallery-label{display:none!important}
+  .day-card{box-shadow:none;border:1px solid #E5E2DC;border-left:3px solid #CC001A;
+    page-break-inside:avoid}
+  .participant-guide{page-break-inside:avoid}
 }
 @media(max-width:600px){
   .page-wrap{padding:20px 16px 60px}
@@ -3693,12 +3712,15 @@ a{color:inherit;text-decoration:none}
     <button class="q-print-btn no-print" onclick="window.print()"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>이 견적서 인쇄하기</button>
   </div><!-- /quote-doc -->
 
-  <!-- ══ 추천 일정 (no-print) ══
+  <!-- ══ 추천 일정 ══
        QD: 등록된 코스가 없는 목적지(관리자가 새로 추가한 곳)에서는 이 섹션 전체를
        뺀다. 예전엔 여기서 itiA.title을 읽다가 TypeError가 나 견적서 만들기 자체가
-       터졌다. 금액·조건은 그대로 나가므로 견적서로서는 온전하다. -->
+       터졌다. 금액·조건은 그대로 나가므로 견적서로서는 온전하다.
+       ⚠ UI에서 no-print 클래스를 뗐다 — 인쇄 규칙은 @media print에 있다(선택된 코스만).
+       ⚠ 이 주석은 **템플릿 문자열 안**이다. 백틱을 쓰면 그 자리에서 문자열이 끊겨
+         파일 절반이 통째로 죽는다(방금 그렇게 20개 테스트가 로드에 실패했다). -->
   ${!hasIti ? '' : `
-  <section id="rec" class="pg-section no-print">
+  <section id="rec" class="pg-section">
     <div class="sec-label">RECOMMENDED ITINERARY</div>
     <h2>맞춤 일정 추천</h2>
     <p class="sub">${destText} · <strong style="color:#CC001A">${programText}</strong> 프로그램 유형을 기반으로, 실제 견적 입력값에 최적화된 코스 두 가지를 선별하였습니다.</p>

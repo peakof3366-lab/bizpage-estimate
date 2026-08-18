@@ -250,8 +250,73 @@ function recHasQuoteCourses(courses) {
   return Array.isArray(courses) && courses.some((c) => c && c.source === 'quote');
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   이 견적서에 실릴 일정 한 벌 (UI)
+
+   왜 여기로 왔는가: 조립 순서(어느 코스가 방식 A인가 → 고른 일수에 맞게 일자를
+   재배치 → 고객이 읽는 모양으로 담기)가 **script.js 안에만** 있었다. 그런데
+   admin.html은 script.js를 싣지 않는다(견적 엔진이 필요 없으므로). 그 결과
+   **직원이 관리자 → 견적 관리에서 발급한 견적서에는 일정이 통째로 빠져 있었다** —
+   고객 계산기로 나간 견적서에는 실리는데 직원이 만든 것에는 안 실리는, 같은 회사가
+   두 가지 문서를 내보내는 상태였다(결함 생성기 ①이 만든 사고 중 가장 컸다).
+
+   그래서 조립을 여기 한 번만 적고 두 화면이 이 함수를 부른다.
+
+   ⚠ 표(ITINERARY_DB·PROGRAM_PRIORITY·DEST_REC)를 전역에서 읽지 않고 **인자로 받는다.**
+     관리자 화면은 오버라이드를 전역에 덮어쓸 수 없기 때문이다 — 일정 관리 화면이
+     "기본값 대비 무엇이 수정됐는가"를 보여주려면 기본값 원본이 살아 있어야 한다.
+     덮어쓰면 그 비교가 조용히 무너진다.
+   ⚠ 돌려주는 `a`·`b`는 **공유 페이로드에 그대로 실리는 모양**이다(estimate-view.html이
+     `t`·`s`·`h`·`d`를 읽는다). 키를 바꾸면 고객 견적서의 일정이 빈칸이 된다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function recQuoteItinerary(src, opts) {
+  const s = src || {};
+  const o = opts || {};
+  const db = s.itineraryDb || {};
+  const priority = s.priority || {};
+  const destRec = s.destRec || {};
+  const destKey = o.destKey;
+  const totalDays = o.totalDays;
+
+  /* QD: 코스가 없는 목적지(관리자가 요율 관리에서 새로 추가한 곳)는 null.
+     부르는 쪽이 일정 섹션만 빼고 견적서를 낸다 — 예전엔 여기서 TypeError가 나
+     견적서 만들기 자체가 터졌다. */
+  const raw = db[destKey];
+  if (!Array.isArray(raw) || !raw.length) return null;
+
+  const courses = recPreferQuoteCourses(raw);
+  const idx = recResolvePlanCourseIdx(courses.length, priority[destKey], o.programType);
+  if (!idx) return null;
+
+  const ca = courses[idx[0]];
+  const cb = courses[idx[1]] || courses[idx[0]];
+  const rec = destRec[destKey] || null;
+
+  const shape = function (course, plan) {
+    const pRec = rec ? rec[plan] : null;
+    return {
+      t: (course && course.title) || '',
+      s: (course && course.subtitle) || '',
+      h: (course && course.highlights) || [],
+      d: recBuildDisplayDays(course, pRec ? pRec.items : null, totalDays, destKey),
+    };
+  };
+
+  return {
+    /* 코스 원본 — 견적서 문서가 하이라이트·제목을 직접 읽는 데 쓴다.
+       ⚠ 공유 페이로드에는 넣지 말 것. `source` 같은 내부 표시가 함께 나간다. */
+    courses: [ca, cb],
+    a: shape(ca, 'a'),
+    b: shape(cb, 'b'),
+    /* 이 일정이 견적서에서 읽은 것인가(TC) — 화면이 출처를 밝히는 데 쓴다.
+       조용히 바뀌면 담당자는 자기가 고친 온라인 코스가 왜 안 나가는지 모른다. */
+    fromQuoteDoc: recHasQuoteCourses(raw),
+  };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = REC_FALLBACKS;
+  module.exports.recQuoteItinerary = recQuoteItinerary;
   module.exports.recPreferQuoteCourses = recPreferQuoteCourses;
   module.exports.recHasQuoteCourses = recHasQuoteCourses;
   module.exports.recResolvePlanCourseIdx = recResolvePlanCourseIdx;
