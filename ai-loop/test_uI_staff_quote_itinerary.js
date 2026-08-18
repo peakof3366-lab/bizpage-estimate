@@ -381,6 +381,58 @@ function seedQuote(w, over) {
     dom.window.close();
   }
 
+  /* ── [2-c] 출발점 가져오기 (UK) ───────────────────────────────────────
+     공통 일정을 「초안 창고」로 내렸으니, 창고에서 꺼내 쓰는 손잡이가 있어야 한다.
+     가장 좋은 출발점은 **같은 목적지로 이미 나간 지난 견적서의 일정**이다. */
+  console.log('\n[2-c] 출발점 가져오기');
+  {
+    const net = {};
+    const dom = await bootAdmin(net, { overrides: { '도쿄': [OVERRIDE_COURSE] } });
+    const w = dom.window, d = w.document;
+    seedQuote(w);
+    /* 같은 목적지로 나간 지난 견적 + 다른 목적지 견적을 함께 둔다 */
+    const all = JSON.parse(w.localStorage.getItem('linkedt_estimates_full'));
+    all.push(Object.assign({}, all[0], { id: 'q9', orgName: '지난고객', ts: '2026-08-01T00:00:00.000Z',
+      itinerary: { courses: SAVED, days: 3 } }));
+    all.push(Object.assign({}, all[0], { id: 'q8', destKey: '파리', orgName: '딴곳고객',
+      itinerary: { courses: SAVED, days: 5 } }));
+    w.localStorage.setItem('linkedt_estimates_full', JSON.stringify(all));
+    await w.eqToggle();
+
+    const opts = Array.from(d.getElementById('eq-import').options).map(o => o.textContent);
+    ok('목적지 공통 코스가 후보에 뜬다',
+      opts.some(t => /^공통 · 코스 A — 담당자가고친코스/.test(t)), JSON.stringify(opts));
+    ok('같은 목적지의 지난 견적서 일정이 후보에 뜬다',
+      opts.some(t => /지난 견적서 · 지난고객/.test(t)), JSON.stringify(opts));
+    ok('다른 목적지 견적서는 후보에 안 뜬다 (손 미끄러짐 방지)',
+      !opts.some(t => /딴곳고객/.test(t)));
+    ok('자기 자신은 후보에 안 뜬다', !opts.some(t => /테스트기업/.test(t)));
+
+    /* 아무것도 안 고르고 누르면 */
+    w.eqImport();
+    ok('고르지 않고 누르면 안내한다',
+      /먼저 골라/.test(d.getElementById('eq-msg').textContent),
+      d.getElementById('eq-msg').textContent);
+
+    /* 3일짜리 지난 일정을 5일 견적에 가져온다 */
+    const sel = d.getElementById('eq-import');
+    const target = Array.from(sel.options).findIndex(o => /지난 견적서 · 지난고객/.test(o.textContent));
+    sel.value = String(target - 1);   /* 첫 줄이 안내라 인덱스가 하나 밀린다 */
+    w.eqImport();
+    const titles = Array.from(d.querySelectorAll('#eq-body .iti-day .iti-day-no')).map(e => e.textContent);
+    ok('가져온 뒤에도 일자 수는 이 견적의 일수(5일)다',
+      titles.length === 10, String(titles.length));
+    ok('가져온 내용이 편집칸에 들어온다',
+      d.querySelector('#eq-body .iti-day-body .iti-inp').value === '전용도착',
+      d.querySelector('#eq-body .iti-day-body .iti-inp').value);
+    ok('3일짜리를 5일에 가져오면 늘어난 날은 자동 생성으로 표시된다',
+      Array.from(d.querySelectorAll('#eq-body .iti-day-blank')).some(e => /자동 생성/.test(e.textContent)));
+    ok('가져오기만으로는 저장되지 않는다 (아직 확인이 남았다)',
+      !net.patched && /저장되지 않았습니다/.test(d.getElementById('eq-msg').textContent),
+      d.getElementById('eq-msg').textContent);
+    dom.window.close();
+  }
+
   /* ── [3] 견적서 PDF에 일정이 실리는가 ────────────────────────────────
      고객이 결재 보고에 쓰는 건 화면이 아니라 인쇄본이다. 그런데 일정 섹션 전체가
      `no-print`라 **PDF로 뽑으면 일정이 통째로 사라졌다.** 담당자가 다듬은 일정이

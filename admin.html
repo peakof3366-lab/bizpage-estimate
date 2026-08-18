@@ -2211,6 +2211,15 @@
             여기서 고친 일정은 <strong style="color:var(--heading)">이 견적서에만</strong> 적용됩니다.
             비워 두면 목적지 공통 일정이 그대로 나갑니다.
           </p>
+          <!-- UI: 출발점 가져오기. 백지에서 쓰는 것과 고치는 것은 부담이 다르고,
+               같은 목적지로 이미 나간 일정이 있으면 그게 가장 좋은 출발점이다.
+               ⚠ 목록은 열 때마다 다시 만든다 — 복사해 두면 동료가 방금 저장한 일정이
+                 후보에 안 나타난다. -->
+          <div id="eq-import-row" class="hidden" style="display:flex;gap:.4rem;margin-top:.6rem;align-items:center;flex-wrap:wrap">
+            <span style="font-size:.74rem;color:var(--muted)">출발점 가져오기</span>
+            <select id="eq-import" class="search-box" style="flex:1;min-width:220px;max-width:520px"></select>
+            <button type="button" class="btn-act btn-outline-p" onclick="eqImport()">이 일정으로 바꾸기</button>
+          </div>
           <div id="eq-body" class="hidden" style="margin-top:.6rem"></div>
           <div id="eq-actions" class="hidden" style="display:flex;gap:.4rem;margin-top:.6rem;align-items:center;flex-wrap:wrap">
             <button type="button" class="btn-act btn-primary" onclick="eqSave()">이 견적서 일정으로 저장</button>
@@ -11604,8 +11613,10 @@
     const body = document.getElementById('eq-body');
     const acts = document.getElementById('eq-actions');
     const tog  = document.getElementById('eq-toggle');
+    const imp  = document.getElementById('eq-import-row');
     if (body) { body.innerHTML = ''; body.classList.add('hidden'); }
     if (acts) acts.classList.add('hidden');
+    if (imp)  imp.classList.add('hidden');
     if (tog)  tog.textContent = '불러오기';
     const org = document.getElementById('eq-origin');
     if (org) org.textContent = '';
@@ -11660,6 +11671,7 @@
     eqState = {
       id: rec.id, destKey: rec.destKey, days: rec.days,
       courses: eqCoursesFromSnap(snap), dirty: false, origin: snap.origin,
+      tables,   /* 가져오기 후보를 만들 때 쓴다 — 다시 받아오면 그 사이 값이 달라진다 */
     };
     const org = document.getElementById('eq-origin');
     if (org) {
@@ -11670,8 +11682,88 @@
     document.getElementById('eq-toggle').textContent = '접기';
     body.classList.remove('hidden');
     document.getElementById('eq-actions').classList.remove('hidden');
+    eqFillImport();
     eqRenderBody();
     eqSetMsg('');
+  }
+
+  /* ── 출발점 후보 (UK) ───────────────────────────────────────────────────
+     대표 의견의 핵심 — 목적지 공통 일정은 「정답」이 아니라 **초안 창고**다. 그러면
+     창고에서 꺼내 쓰는 손잡이가 있어야 한다. 후보는 두 갈래다:
+       ① 이 목적지의 공통 코스 (일정 관리에 쌓아 둔 것 · 견적서에서 읽은 것 포함)
+       ② **같은 목적지로 이미 나간 지난 견적서의 일정** — 실제로 팔린 일정이라 가장 좋다
+     ⚠ 목록은 열 때마다 다시 만든다(복사해 두면 동료가 방금 저장한 것이 안 보인다).
+     ⚠ 다른 목적지의 일정은 후보에 넣지 않는다 — 도쿄 일정을 파리 견적서에 넣는 것은
+       손이 미끄러진 것이지 의도가 아니다. */
+  function eqImportCandidates() {
+    if (!eqState) return [];
+    const out = [];
+    const common = (eqState.tables.itineraryDb || {})[eqState.destKey] || [];
+    common.forEach((c, i) => {
+      if (!c || !Array.isArray(c.days) || !c.days.length) return;
+      out.push({
+        label: '공통 · 코스 ' + String.fromCharCode(65 + i) + ' — ' + (c.title || '(제목 없음)')
+          + ' (' + c.days.length + '일' + (c.source === 'quote' ? ' · 견적서에서 읽음' : '') + ')',
+        courses: [c],
+      });
+    });
+
+    getEstsFull().forEach((q) => {
+      if (!q || q.id === eqState.id) return;
+      if (q.destKey !== eqState.destKey) return;
+      const it = q.itinerary;
+      if (!it || !Array.isArray(it.courses) || !it.courses.length) return;
+      const when = String(q.ts || '').slice(0, 10);
+      out.push({
+        label: '지난 견적서 · ' + (q.orgName || '(고객명 없음)') + ' ' + (q.days || '?') + '일'
+          + ' — ' + (it.courses[0].title || '(제목 없음)') + (when ? ' · ' + when : ''),
+        courses: it.courses,
+      });
+    });
+    return out;
+  }
+
+  function eqFillImport() {
+    const row = document.getElementById('eq-import-row');
+    const sel = document.getElementById('eq-import');
+    if (!row || !sel) return;
+    eqState.importCands = eqImportCandidates();
+    sel.innerHTML = '';
+    if (!eqState.importCands.length) { row.classList.add('hidden'); return; }
+    /* 첫 줄은 안내다 — 아무것도 안 고르고 버튼을 누르는 사고를 막는다. */
+    const head = document.createElement('option');
+    head.value = ''; head.textContent = '— 가져올 일정을 고르세요 —';
+    sel.appendChild(head);
+    eqState.importCands.forEach((c, i) => {
+      const o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = c.label;   /* ⚠ 담당자가 친 글이다 — textContent로만 넣는다 */
+      sel.appendChild(o);
+    });
+    row.classList.remove('hidden');
+  }
+
+  function eqImport() {
+    if (!eqState) return;
+    const sel = document.getElementById('eq-import');
+    const idx = Number(sel.value);
+    if (sel.value === '' || !Number.isFinite(idx) || !eqState.importCands[idx]) {
+      eqSetMsg('가져올 일정을 먼저 골라 주세요.', 'err'); return;
+    }
+    if (eqState.dirty && !confirm('지금 편집 중인 내용을 버리고 고른 일정으로 바꿉니다. 계속할까요?')) return;
+
+    /* ⚠ 일수 맞춤을 여기서 다시 계산하지 않는다. 가져온 일정이 3일짜리이고 이 견적이
+       5일이면 늘어난 이틀을 채워야 하는데, 그 규칙은 rec_fallbacks.js 한 곳이 안다.
+       여기 다시 적으면 견적서와 편집기가 서로 다른 일정을 보여준다. */
+    const snap = recQuoteItinerary(
+      Object.assign({}, eqState.tables, { savedCourses: eqState.importCands[idx].courses }),
+      { destKey: eqState.destKey, programType: null, totalDays: eqState.days });
+    if (!snap) { eqSetMsg('그 일정을 읽지 못했습니다.', 'err'); return; }
+
+    eqState.courses = eqCoursesFromSnap(snap);
+    eqRenderBody();
+    eqMarkDirty();
+    eqSetMsg('가져왔습니다. 확인하고 고친 뒤 저장하세요 — 아직 저장되지 않았습니다.', 'err');
   }
 
   function eqMarkDirty() {
