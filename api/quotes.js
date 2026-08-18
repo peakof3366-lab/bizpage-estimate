@@ -1015,6 +1015,10 @@ module.exports = async (req, res) => {
         actualHotelUnit: r.actual_hotel_unit !== null && r.actual_hotel_unit !== undefined ? Number(r.actual_hotel_unit) : null,
         actualMealUnit: r.actual_meal_unit !== null && r.actual_meal_unit !== undefined ? Number(r.actual_meal_unit) : null,
         actualTotal: r.actual_total !== null && r.actual_total !== undefined ? Number(r.actual_total) : null,
+        /* UI: 이 견적서 전용 일정. null = 없음(목적지 공통 일정으로 물러난다).
+           ⚠ payload 뒤에 둔다 — 클라이언트가 payload에 같은 이름을 넣어 보내도
+             컬럼 값이 이긴다(channel·createdBy를 payload 뒤에 두는 것과 같은 이유). */
+        itinerary: r.itinerary || null,
       })));
     } catch (err) {
       console.error(err);

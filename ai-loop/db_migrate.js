@@ -253,6 +253,22 @@ async function main() {
   await sql`alter table quotes add column if not exists actual_meal_unit numeric`;
   await sql`alter table quotes add column if not exists actual_total numeric`;
 
+  /* UI: 이 견적서 전용 일정 (2026-08-18 대표 지시 — 「직원들이 견적서를 내보낼 때
+     일정을 직접 기록·수정하면서 진행할 수 있게」).
+
+     왜 새 칸인가: 지금 일정은 `itinerary_overrides`에 **목적지당 한 벌**로만 있다
+     (dest_key가 PK). 그런데 같은 목적지라도 고객마다 목적·인원·일수가 달라 정답이
+     하나일 수 없고, 그래서 55곳 중 5곳만 손댄 채 나머지는 기본값이 나가고 있었다.
+     여기에 담기는 것은 **작성자가 이 견적서에 실어 내보낸 바로 그 일정**이다.
+
+     ⚠ 모양은 `itinerary_overrides.courses`와 **같은 코스 배열**이다(A·B 두 벌).
+       api/content.js의 normalizeCourses를 그대로 재사용하려고 맞췄다 — 검증 규칙을
+       두 벌 쓰면 반드시 어긋난다(결함 생성기 ①).
+     ⚠ 별도 테이블로 나누지 않는다. 견적과 그 일정이 따로 저장되면 절반만 저장된
+       상태가 생긴다(itinerary_overrides에서 courses·rec을 한 행에 담은 이유와 같다).
+     null = 이 견적에는 전용 일정이 없음 → 목적지 공통 일정으로 물러난다. */
+  await sql`alter table quotes add column if not exists itinerary jsonb`;
+
   /* 실제 가격 제보 (신규) — 위 quotes.actual_airfare_unit은 특정 견적 레코드에 종속돼
      견적관리 상세 모달을 열어야만 입력 가능했음. 이 테이블은 목적지만 고르면 어떤
      견적 레코드와도 무관하게 요율 관리 탭 맨 위에서 누구나(로그인한 임직원 누구나)

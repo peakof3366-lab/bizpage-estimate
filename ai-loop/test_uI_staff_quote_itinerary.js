@@ -96,6 +96,38 @@ ok('⑤ 견적서에서 읽은 코스가 있으면 그것만 나간다 (TC)',
 ok('⑤ 그 사실을 화면이 말할 수 있게 알려 준다',
   snapQ.fromQuoteDoc === true && snap5.fromQuoteDoc === false);
 
+/* ── 폴백 사슬 4층 (UJ) ────────────────────────────────────────────────
+   ⚠ 순서가 뒤집히면 작성자가 이 견적서에만 쓴 일정이 목적지 공통에 묻힌다. */
+console.log('\n[1-b] 어느 층에서 오는가');
+const SAVED = [{ title: '전용코스가', subtitle: '전용설명', highlights: ['전용'],
+  days: [day(1, '전용도착'), day(2, '전용중간'), day(3, '전용귀국')] }];
+
+const sSaved = recQuoteItinerary({ ...qTables, savedCourses: SAVED },
+  { destKey: '도쿄', programType: 'industry', totalDays: 3 });
+ok('전용 일정이 있으면 그것이 이긴다 (견적서 코스보다도 세다)',
+  sSaved.origin === 'saved' && sSaved.a.t === '전용코스가', sSaved.origin + ' / ' + sSaved.a.t);
+ok('전용 일정은 목적지 공통의 일별 활동으로 덮이지 않는다',
+  sSaved.a.d[1].title === '전용중간', sSaved.a.d[1].title);
+ok('전용 일정이 하나뿐이면 A·B 둘 다 그것',
+  sSaved.b.t === '전용코스가');
+ok('빈 배열은 전용 일정이 아니다 (아래층으로 물러난다)',
+  recQuoteItinerary({ ...TABLES, savedCourses: [] },
+    { destKey: '도쿄', programType: 'industry', totalDays: 5 }).origin === 'default');
+
+ok('견적서에서 읽은 코스가 있으면 quoteDoc', snapQ.origin === 'quoteDoc', snapQ.origin);
+ok('담당자 수정본이 있는 목적지는 override',
+  recQuoteItinerary({ ...TABLES, editedDestKeys: ['도쿄'] },
+    { destKey: '도쿄', programType: 'industry', totalDays: 5 }).origin === 'override');
+ok('아무도 안 고쳤으면 default (그 사실을 숨기지 않는다)', snap5.origin === 'default');
+ok('네 층 모두 사람이 읽을 이름을 갖는다',
+  [sSaved, snapQ, snap5].every(s => typeof s.originLabel === 'string' && s.originLabel.length > 3));
+
+ok('저장 후 견적 일수가 바뀌면 그 사실을 알린다',
+  recQuoteItinerary({ ...TABLES, savedCourses: SAVED, savedDays: 3 },
+    { destKey: '도쿄', programType: 'industry', totalDays: 5 }).daysChanged === true);
+ok('일수가 그대로면 조용하다',
+  sSaved.daysChanged === false);
+
 /* ── admin.html 실제 발급 경로 ──────────────────────────────────────────
    ⚠ 소스를 읽어 "키가 있다"로 끝내지 않는다. 이 저장소가 반복해서 당한 것이
      '실행된 적 없는 안전망'(결함 생성기 ③)이라, 실제로 발급을 눌러 서버로 나간
@@ -106,9 +138,14 @@ const OVERRIDE_COURSE = { title: '담당자가고친코스', subtitle: '수정�
 async function bootAdmin(net, opts) {
   const o = opts || {};
   const html = htmlWithDeps('admin.html');
+  /* 로그인 상태를 흉내 낸다 — openEstDetail·진행 기록이 currentUser를 읽는다.
+     안 넣으면 픽스처가 실제 화면과 다른 상태로 돌고, 그러면 이 테스트가
+     "로그인한 담당자가 쓰는 경로"를 검사하지 못한다. */
   const EXPOSE = `
 ;try{
   window.__setCurrent = (id) => { emCurrentId = id; };
+  window.__login = () => { currentUser = { id: '1', username: 'admin',
+    displayName: '테스트담당', role: 'owner' }; };
 }catch(e){ window.__exposeError = String(e); }
 `;
   let injected = false;
@@ -133,6 +170,16 @@ async function bootAdmin(net, opts) {
         if (s.includes('quote-shares')) {
           net.issued = JSON.parse(opt.body);
           return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, id: 'sid1', verdict: 'verified' }) });
+        }
+        if (/\/api\/quotes\//.test(s) && method === 'PATCH') {
+          const b = JSON.parse(opt.body);
+          if (b.addLog) return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, entry: b.addLog }) });
+          net.patched = b;
+          /* 서버가 하듯 확인 기록을 붙여 돌려준다 — 화면이 그 값을 그대로 쓰는지 본다. */
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(b.itinerary === null
+            ? { ok: true, removed: true }
+            : { ok: true, itinerary: { ...b.itinerary, confirmedBy: '서버가준이름',
+                confirmedAt: '2026-08-18T00:00:00.000Z' } }) });
         }
         return new Promise(() => {});
       };
@@ -160,6 +207,7 @@ function seedQuote(w, over) {
             { name: 'ENBT 수익', amount: 1000000, isHidden: true }],
   }, over || {});
   w.localStorage.setItem('linkedt_estimates_full', JSON.stringify([rec]));
+  w.__login();
   w.__setCurrent('q1');
   return rec;
 }
@@ -230,6 +278,21 @@ function seedQuote(w, over) {
     dom.window.close();
   }
 
+  /* UJ: 견적서 전용 일정이 저장돼 있으면 그것이 나간다 */
+  {
+    const net = {};
+    const dom = await bootAdmin(net, { overrides: { '도쿄': [OVERRIDE_COURSE] } });
+    const w = dom.window;
+    seedQuote(w, { itinerary: { courses: SAVED, days: 5, confirmedBy: '김담당' } });
+    await w.issueShareLink();
+    const share = net.issued && net.issued.share;
+    ok('전용 일정이 목적지 공통(수정본)을 이긴다',
+      !!share && share.itiA.t === '전용코스가', share ? share.itiA.t : '요청 없음');
+    ok('확인 화면이 전용 일정이라고 말한다',
+      (net.confirms || []).some(m => /이 견적서 전용/.test(m)));
+    dom.window.close();
+  }
+
   /* ⑩ 코스가 없는 목적지 */
   {
     const net = {};
@@ -244,6 +307,77 @@ function seedQuote(w, over) {
       share.itiA === null && share.itiB === null);
     ok('⑩ 일정이 안 실린다는 사실을 작성자에게 먼저 말한다',
       (net.confirms || []).some(m => /일정이 실리지 않/.test(m)));
+    dom.window.close();
+  }
+
+  /* ── [2-b] 견적서별 일정 편집기 (UJ) ──────────────────────────────────
+     대표 지시: 「작성하는 사람이 손쉽게 접근해 견적서와 함께 제공할 수 있는 구조」.
+     여기서 고정하는 것 — 출발점이 지금 나갈 일정이고, 저장하면 이 견적서에만 남고,
+     되돌리면 목적지 공통으로 돌아가고, **다음 견적을 열면 앞 견적 것이 안 남는다.** */
+  console.log('\n[2-b] 견적서별 일정 편집기');
+  {
+    const net = {};
+    const dom = await bootAdmin(net, { overrides: { '도쿄': [OVERRIDE_COURSE] } });
+    const w = dom.window, d = w.document;
+    seedQuote(w);
+    await w.eqToggle();
+
+    const dayCards = d.querySelectorAll('#eq-body .iti-day');
+    ok('출발점이 지금 이 견적서에 나갈 일정이다 (백지가 아니다)',
+      d.querySelector('#eq-origin').textContent.includes('담당자 수정본'),
+      d.querySelector('#eq-origin').textContent);
+    ok('일자 수가 견적 일수(5일)와 같다 — 코스 A·B 두 벌',
+      dayCards.length === 10, String(dayCards.length));
+    ok('자동으로 채워진 날은 그렇다고 표시한다',
+      Array.from(d.querySelectorAll('#eq-body .iti-day-blank'))
+        .some(el => /자동 생성/.test(el.textContent)));
+
+    /* 작성자가 한 칸을 고친다 */
+    const ta = d.querySelector('#eq-body .iti-day-body .iti-inp');
+    ta.value = '작성자가 고친 제목';
+    ta.dispatchEvent(new w.Event('input'));
+    ok('고치면 저장하지 않은 편집이라고 알린다',
+      /저장하지 않은/.test(d.getElementById('eq-msg').textContent));
+
+    await w.eqSave();
+    ok('저장 본문이 코스 두 벌과 일수를 담는다',
+      !!net.patched && net.patched.itinerary.courses.length === 2
+      && net.patched.itinerary.days === 5);
+    ok('작성자가 고친 값이 실제로 나간다',
+      net.patched.itinerary.courses[0].days[0].title === '작성자가 고친 제목',
+      net.patched.itinerary.courses[0].days[0].title);
+    ok('확인자는 서버가 준 이름을 쓴다 (화면이 지어내지 않는다)',
+      JSON.parse(w.localStorage.getItem('linkedt_estimates_full'))[0]
+        .itinerary.confirmedBy === '서버가준이름');
+    dom.window.close();
+  }
+
+  /* 되돌리기 + 다음 견적으로 넘어갈 때 초기화 */
+  {
+    const net = {};
+    const dom = await bootAdmin(net, {});
+    const w = dom.window, d = w.document;
+    seedQuote(w, { itinerary: { courses: SAVED, days: 5, confirmedBy: '김담당' } });
+    await w.eqToggle();
+    ok('저장된 전용 일정을 열면 그것이 출발점이다',
+      d.querySelector('#eq-origin').textContent.includes('이 견적서 전용'),
+      d.querySelector('#eq-origin').textContent);
+    await w.eqRevert();
+    ok('되돌리면 서버에 null을 보낸다 (잘못 저장한 일정을 걷어낼 수 있다)',
+      net.patched && net.patched.itinerary === null);
+    ok('되돌린 뒤 편집칸이 닫힌다',
+      d.getElementById('eq-body').classList.contains('hidden'));
+
+    /* ⚠ 이게 진짜 사고가 나는 자리다 — 앞 견적의 일정이 남으면 남의 일정이 나간다. */
+    const all = JSON.parse(w.localStorage.getItem('linkedt_estimates_full'));
+    all.push(Object.assign({}, all[0], { id: 'q2', itinerary: null }));
+    w.localStorage.setItem('linkedt_estimates_full', JSON.stringify(all));
+    await w.eqToggle();
+    w.openEstDetail('q2');
+    ok('다른 견적을 열면 앞 견적의 편집 상태가 남지 않는다',
+      d.getElementById('eq-body').classList.contains('hidden')
+      && d.getElementById('eq-body').innerHTML === ''
+      && d.getElementById('eq-toggle').textContent === '불러오기');
     dom.window.close();
   }
 
@@ -271,6 +405,94 @@ function seedQuote(w, over) {
     /\.day-card\{[^}]*page-break-inside:avoid/.test(printCss));
   ok('일정은 새 쪽에서 시작한다 (금액 표와 안 섞인다)',
     /#rec\{[^}]*page-break-before:always/.test(printCss));
+
+  /* ── [4] 서버가 무엇을 받아 무엇을 저장하는가 ─────────────────────────
+     ⚠ 소스를 읽어 "normalizeCourses를 부른다"로 끝내지 않는다 — 실제로 핸들러를
+       불러 저장 본문을 받아 본다(결함 생성기 ③).
+     DB·인증은 require 캐시에 가짜를 심어 대신한다. api/content.js도 같은 db 모듈을
+     쓰므로 한 번만 심으면 된다. */
+  console.log('\n[4] 서버 저장 (api/quotes/[id].js)');
+  process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://u:p@localhost/db';
+  const calls = [];
+  const stub = (rel, exports) => {
+    const p = require.resolve(path.join(ROOT, rel));
+    require.cache[p] = { id: p, filename: p, loaded: true, exports, children: [], paths: [] };
+  };
+  const fakeSql = (strings, ...values) => {
+    calls.push({ text: strings.join('?'), values });
+    return Promise.resolve([]);
+  };
+  stub('api/_lib/db.js', { sql: fakeSql });
+  stub('api/_lib/auth.js', {
+    requireAdmin: async (req) => { req.user = { displayName: '서버가아는이름' }; return true; },
+    requireRole: async () => true,
+  });
+  const handler = require(path.join(ROOT, 'api', 'quotes', '[id].js'));
+
+  const callPatch = async (body) => {
+    calls.length = 0;
+    let out = { status: 0, body: null };
+    const res = { status(c) { out.status = c; return res; }, json(b) { out.body = b; return res; } };
+    await handler({ method: 'PATCH', query: { id: 'q1' }, body }, res);
+    return out;
+  };
+
+  const goodCourse = { title: '코스가', subtitle: '설명', highlights: ['ㄱ'],
+    days: [{ title: '첫날', am: '오전', pm: '오후', eve: '', tip: '' }] };
+
+  {
+    const r = await callPatch({ itinerary: { courses: [goodCourse, goodCourse], days: 5 } });
+    ok('정상 저장은 200', r.status === 200 && r.body && r.body.ok, JSON.stringify(r.body));
+    ok('확인자는 로그인한 사람이다 (클라이언트가 보낸 값이 아니다)',
+      r.body.itinerary.confirmedBy === '서버가아는이름', r.body.itinerary.confirmedBy);
+    ok('확인 시각이 찍힌다', !!r.body.itinerary.confirmedAt);
+    ok('확인 당시 견적 일수를 남긴다 (나중에 일수가 바뀌면 다시 봐야 한다)',
+      r.body.itinerary.days === 5);
+    ok('일자 번호는 서버가 순서대로 다시 매긴다',
+      r.body.itinerary.courses[0].days[0].day === 1);
+    ok('update 한 번으로 끝난다', calls.length === 1 && /update quotes set itinerary/.test(calls[0].text),
+      String(calls.length));
+  }
+
+  {
+    /* 클라이언트가 확인자를 자칭해도 서버 값이 이겨야 한다 — 아니면 확인 기록이
+       스스로를 증명하지 못한다. */
+    const r = await callPatch({ itinerary: { courses: [goodCourse], days: 3, confirmedBy: '내가썼다고침' } });
+    ok('클라이언트가 보낸 confirmedBy는 무시된다',
+      r.body.itinerary.confirmedBy === '서버가아는이름', r.body.itinerary.confirmedBy);
+  }
+
+  {
+    const r = await callPatch({ itinerary: null });
+    ok('null을 보내면 전용 일정을 지운다 (되돌릴 수 있다)',
+      r.status === 200 && r.body.removed === true
+      && /update quotes set itinerary = /.test(calls[0].text));
+  }
+
+  {
+    /* 조용히 잘라내지 않는다 — 잘라내면 작성자는 저장됐다고 믿고 반쪽이 나간다. */
+    const bad = [
+      ['제목 없는 코스', { courses: [{ title: '  ', days: [{ title: 'a' }] }] }, 'empty_title'],
+      ['일자 없는 코스', { courses: [{ title: 'A', days: [] }] }, 'days_empty'],
+      ['코스 자체가 빈 배열', { courses: [] }, 'courses_empty'],
+      ['코스를 안 보냄', { days: 5 }, 'courses_empty'],
+    ];
+    for (const [label, body, err] of bad) {
+      const r = await callPatch({ itinerary: body });
+      ok('거절: ' + label, r.status === 400 && r.body.error === err,
+        r.status + ' ' + JSON.stringify(r.body));
+      ok('  → 거절했으면 DB를 건드리지 않는다', calls.length === 0, String(calls.length));
+    }
+  }
+
+  {
+    /* itinerary를 안 보낸 호출은 예전 그대로 status/note/assignee만 건드려야 한다 —
+       일정을 넣으면서 기존 저장 경로를 깨지 않았다. */
+    const r = await callPatch({ status: 'consulting' });
+    ok('일정을 안 보내면 기존 저장 경로 그대로다',
+      r.status === 200 && /update quotes set/.test(calls[0].text)
+      && !/itinerary/.test(calls[0].text), calls[0] && calls[0].text.slice(0, 60));
+  }
 
   console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
   process.exit(fail ? 1 : 0);

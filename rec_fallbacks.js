@@ -278,19 +278,47 @@ function recQuoteItinerary(src, opts) {
   const destKey = o.destKey;
   const totalDays = o.totalDays;
 
+  /* ── 어느 층에서 오는가 (UI) ────────────────────────────────────────────
+     ① savedCourses  이 견적서 전용 — 작성자가 확인·수정해 저장한 것. **가장 세다.**
+     ② source:'quote' 견적서 PDF에서 읽은 목적지 코스 (TC 규칙)
+     ③ editedDestKeys 목적지 공통 일정의 담당자 수정본
+     ④ 그 외          data.js 기본값 — 아직 아무도 손대지 않았다는 뜻이다
+     ⚠ 어느 층인지 **반드시 밝힌다.** 조용히 아래층으로 떨어지면 작성자는 자기가
+       고친 일정이 왜 안 나가는지 알 방법이 없다(결함 생성기 ②).
+     ⚠ 순서를 여기서만 정한다. 화면마다 따로 고르면 견적서와 미리보기가 서로 다른
+       일정을 말하게 된다 — 이 저장소가 RR에서 실제로 겪은 사고다. */
+  const saved = Array.isArray(s.savedCourses) && s.savedCourses.length ? s.savedCourses : null;
+
+  const raw = saved || db[destKey];
   /* QD: 코스가 없는 목적지(관리자가 요율 관리에서 새로 추가한 곳)는 null.
      부르는 쪽이 일정 섹션만 빼고 견적서를 낸다 — 예전엔 여기서 TypeError가 나
      견적서 만들기 자체가 터졌다. */
-  const raw = db[destKey];
   if (!Array.isArray(raw) || !raw.length) return null;
 
-  const courses = recPreferQuoteCourses(raw);
-  const idx = recResolvePlanCourseIdx(courses.length, priority[destKey], o.programType);
+  /* 전용 일정은 이미 「이 견적서에 나갈 그것」이라 더 고를 것이 없다.
+     목적지 공통에서 올 때만 견적서 코스 우선(TC)·방식 A/B 배정을 거친다. */
+  const courses = saved ? raw : recPreferQuoteCourses(raw);
+  const idx = saved
+    ? [0, courses.length > 1 ? 1 : 0]
+    : recResolvePlanCourseIdx(courses.length, priority[destKey], o.programType);
   if (!idx) return null;
 
   const ca = courses[idx[0]];
   const cb = courses[idx[1]] || courses[idx[0]];
-  const rec = destRec[destKey] || null;
+  /* 전용 일정은 그 안에 이미 모든 날이 적혀 있다 — 목적지 공통의 '일별 활동'으로
+     빈 날을 채우면 작성자가 비워 둔 자리에 엉뚱한 글이 들어간다. */
+  const rec = saved ? null : (destRec[destKey] || null);
+
+  const edited = Array.isArray(s.editedDestKeys) ? s.editedDestKeys : [];
+  const origin = saved ? 'saved'
+    : (recHasQuoteCourses(raw) ? 'quoteDoc'
+      : (edited.indexOf(destKey) >= 0 ? 'override' : 'default'));
+  const ORIGIN_LABEL = {
+    saved:    '📝 이 견적서 전용 일정 (작성자가 확인함)',
+    quoteDoc: '📄 견적서에서 읽은 일정',
+    override: '✏️ 목적지 공통 일정 (담당자 수정본)',
+    default:  '📦 기본 일정 (아직 아무도 수정하지 않음)',
+  };
 
   const shape = function (course, plan) {
     const pRec = rec ? rec[plan] : null;
@@ -303,14 +331,20 @@ function recQuoteItinerary(src, opts) {
   };
 
   return {
-    /* 코스 원본 — 견적서 문서가 하이라이트·제목을 직접 읽는 데 쓴다.
+    /* 코스 원본 — 견적서 문서가 하이라이트·제목을 직접 읽고, 편집기가 여기서 출발한다.
        ⚠ 공유 페이로드에는 넣지 말 것. `source` 같은 내부 표시가 함께 나간다. */
     courses: [ca, cb],
     a: shape(ca, 'a'),
     b: shape(cb, 'b'),
+    origin,
+    originLabel: ORIGIN_LABEL[origin],
     /* 이 일정이 견적서에서 읽은 것인가(TC) — 화면이 출처를 밝히는 데 쓴다.
        조용히 바뀌면 담당자는 자기가 고친 온라인 코스가 왜 안 나가는지 모른다. */
     fromQuoteDoc: recHasQuoteCourses(raw),
+    /* 전용 일정을 저장한 뒤 견적 일수가 바뀌었는가. 저장할 때는 5일이었는데 지금
+       7일이면, 늘어난 이틀은 **작성자가 쓴 글이 아니라 자동으로 채워진 것**이다.
+       그 사실을 말하지 않으면 작성자는 자기가 쓴 일정이 그대로 나간 줄 안다. */
+    daysChanged: !!(saved && s.savedDays && Number(s.savedDays) !== Number(totalDays)),
   };
 }
 
