@@ -32,6 +32,9 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const { recItinToCourse } = require(path.join(ROOT, 'rec_fallbacks.js'));
 const { MAX_COURSES, MAX_DAYS } = require(path.join(ROOT, 'limits.js'));
+/* US: 기본 코스(data.js)도 본다 — 검토 전 코스는 기본값을 밀어내지 않고 그 위에
+   얹히므로(recApplyOverride), 기본 개수를 안 세면 코스 상한을 넘겨 심게 된다. */
+const { ITINERARY_DB } = require(path.join(ROOT, 'data.js'));
 
 const APPLY = process.argv.includes('--apply');
 const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
@@ -132,7 +135,12 @@ const PDF_DIR = path.join(process.env.USERPROFILE || process.env.HOME || '', 'De
        기존 것을 앞에 두고 견적서 코스를 **뒤에 덧붙인다.** 화면에는 TC 규칙에 따라
        견적서 코스만 나가지만, 온라인 코스는 남아 있어 되돌릴 수 있다. */
     const keep = (cur || []).filter((c) => c && c.source !== 'quote');
-    const room = Math.max(0, MAX_COURSES - keep.length);
+    /* US: 자리를 셀 때 **화면에 실제로 올라올 개수**를 센다.
+       오버라이드가 검토 전뿐이면 기본 코스가 그 앞에 얹혀 올라오므로(recApplyOverride),
+       keep만 세면 상한을 넘겨 심는다. 그러면 담당자가 그 목적지를 저장하는 순간
+       서버가 too_many_courses로 거절한다 — 심을 때는 조용하고 나중에 사람이 막힌다. */
+    const baseCount = keep.length ? keep.length : ((ITINERARY_DB && ITINERARY_DB[d]) || []).length;
+    const room = Math.max(0, MAX_COURSES - baseCount);
     const add = list.slice(0, room);
     const dropped = list.length - add.length;
 
@@ -145,7 +153,9 @@ const PDF_DIR = path.join(process.env.USERPROFILE || process.env.HOME || '', 'De
       + state.padEnd(21)
       + (skip ? '건드리지 않음(이미 견적서 일정)'
         : !add.length ? '건드리지 않음(자리 없음)'
-          : (keep.length ? '수정본 ' + keep.length + '개 유지 + ' : '') + '견적서 ' + add.length + '개 추가'));
+          : (keep.length ? '수정본 ' + keep.length + '개 유지 + '
+            : (baseCount ? '기본 ' + baseCount + '개 유지 + ' : ''))
+            + '검토 전 ' + add.length + '개 추가'));
     const uns = add.reduce((n, x) => n + x.unsplit, 0);
     if (!skip && uns) console.log('    ⚠ ' + uns + '일은 문서에 시간대 구분이 없어 오전 칸에 모여 있습니다 — 사람이 나눠야 합니다.');
     /* 잘라낸 것은 반드시 말한다 — 조용히 자르면 「다 심었다」로 읽힌다. */

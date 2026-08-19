@@ -3021,4 +3021,9 @@ const PROGRAM_PRIORITY = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports.PROGRAM_TYPES = PROGRAM_TYPES;
   module.exports.PROGRAM_PRIORITY = PROGRAM_PRIORITY;
+  /* US: 기본 코스도 내보낸다. 일괄 심기 도구가 「이 목적지에 기본 코스가 몇 개 있는가」를
+     알아야 코스 상한을 제대로 계산한다 — 검토 전 코스는 기본값 위에 얹히므로
+     (recApplyOverride) 기본 개수를 안 세면 상한을 넘겨 심고, 그러면 담당자가 그 목적지를
+     저장할 때 서버가 too_many_courses로 거절한다. 화면에서만 드러나는 함정이었다. */
+  module.exports.ITINERARY_DB = ITINERARY_DB;
 }

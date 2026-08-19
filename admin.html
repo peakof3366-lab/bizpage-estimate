@@ -8458,9 +8458,15 @@
        코스를 기본값으로 되돌린 직후에도 방식 저장본이 남아 있으면 meta가 남아
        '수정됨'이 그대로 붙었다 — 되돌렸는데 수정됨이라 말하는 게 제일 헷갈린다.
        무엇이 저장돼 있는지는 이 구역의 저장본이 정하고, meta는 '누가·언제'에만 쓴다. */
+    /* ⚠ US: 「저장본이 있다」와 「사람이 고쳤다」는 다르다. 일괄로 심은 검토 전
+       코스만 든 행을 '수정됨'이라 하면 담당자는 동료가 손본 줄 알고 그대로 둔다 —
+       그러면 검토가 영영 안 일어난다. 판단은 rec_fallbacks 한 곳(recOverrideIsEdited)이고
+       목적지 목록의 ✏️ 배지도 같은 함수를 쓴다. */
     const saved = itiState.overrides[itiState.destKey];
-    if (!saved) {
-      el.textContent = '기본 일정 (아직 수정한 적 없음)';
+    if (!recOverrideIsEdited(saved)) {
+      const pending = recPendingCount(itiState.courses);
+      el.textContent = '기본 일정 (아직 수정한 적 없음)'
+        + (pending ? ' · 🕒 검토 전 ' + pending + '개가 검토를 기다립니다' : '');
     } else {
       el.classList.add('is-edited');
       const m = itiState.meta[itiState.destKey];
@@ -8607,11 +8613,20 @@
   /* 기업 연수 적합도 등급 이름 (QX) — activity_rank.js의 1·2·3과 짝이다. */
   const ITI_FIT_LABEL = { 1: '연수', 2: '보완', 3: '여가' };
 
-  /* 지금 고객에게 나가는 값 — 오버라이드가 있으면 그것이 진실이다(요율에서 data.js보다
-     rate_overrides가 진실인 것과 같다). 후보도 같은 규칙을 따라야 화면과 안 어긋난다. */
+  /* 이 목적지의 **창고 전체** — 후보(활동 고르기·코스 가져오기)가 꺼내 쓸 수 있는 것.
+     오버라이드가 있으면 그것이 진실이다(요율에서 data.js보다 rate_overrides가 진실인
+     것과 같다). 후보도 같은 규칙을 따라야 화면과 안 어긋난다.
+     ⚠ US: 다만 「검토 전(UQ)만 든 오버라이드」는 기본 코스를 **밀어내지 않는다.**
+       예전 규칙 그대로 두면 일괄로 심은 목적지에서 기본 코스 2개가 후보 목록에서
+       조용히 사라진다 — 고객에게는 그 기본 코스가 나가고 있는데(recApplyOverride)
+       담당자 화면에서는 안 보이는, 두 화면이 어긋나는 상태다.
+       병합 규칙은 rec_fallbacks.js 한 곳이고 고객 화면도 같은 함수를 부른다.
+     ⚠ 검토 전도 **후보에는 남긴다.** 창고는 꺼내 쓰라고 있는 것이고, 검토 전이라는
+       사실은 라벨이 따로 밝힌다(eqImportCandidates·목적지 목록의 🕒). */
   function itiLiveCourses(destKey) {
-    if (itiState.overrides[destKey]) return itiState.overrides[destKey];
-    return (typeof ITINERARY_DB !== 'undefined' && ITINERARY_DB[destKey]) || [];
+    const base = (typeof ITINERARY_DB !== 'undefined' && ITINERARY_DB[destKey]) || null;
+    const merged = recApplyOverride(base, itiState.overrides[destKey]);
+    return Array.isArray(merged) ? merged : [];
   }
   function itiLiveRec(destKey) {
     if (itiState.recOverrides[destKey]) return itiState.recOverrides[destKey];
@@ -9490,8 +9505,13 @@
     itiState.dirty = false;
     itiView.courseIdx = 0;   /* 목적지를 바꾸면 코스 A부터 본다 (RF) */
     itiSetMsg('');
+    /* US: 편집기에도 **창고 전체**를 올린다. 예전엔 오버라이드가 있으면 그것만
+       올렸는데, 일괄로 심은 목적지는 오버라이드가 「검토 전」뿐이라 담당자 화면에서
+       기본 코스 2개가 사라졌다 — 정작 고객에게 나가는 건 그 기본 코스다.
+       ⚠ 여기서 저장하면 병합된 목록이 그대로 오버라이드가 된다. 그건 맞는 동작이다 —
+         사람이 이 목적지를 손본 순간이고, 그때부터는 오버라이드가 진실이 된다. */
     itiState.courses = destKey
-      ? (itiState.overrides[destKey] ? itiClone(itiState.overrides[destKey]) : itiDefaults(destKey))
+      ? itiClone(recApplyOverride(itiDefaults(destKey), itiState.overrides[destKey]))
       : [];
     /* QY: 목적지 선택은 하나다 — 두 구역이 항상 같은 목적지를 본다. 예전(QU)처럼
        따로 고르게 두면 "지금 어느 목적지를 고치는 중인가"가 두 개가 되어 헷갈린다. */
