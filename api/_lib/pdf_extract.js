@@ -1161,10 +1161,35 @@ function findTripDates(lines) {
       m = t.match(new RegExp(`${YMD}\\s*${TILDE}\\s*${MD}(?!\\s*[.\\-\\/]\\s*\\d)`));
       if (m) {
         depart = validYmd(ymd(m[1], m[2], m[3])) || depart;
-        ret = validYmd(ymd(m[1], m[4], m[5])) || ret;
+        /* ⚠ 뒤쪽에 연도가 없으니 앞쪽 연도를 빌려 쓰는데, **해를 넘기는 일정**에서는
+           그게 귀국일을 출발일보다 앞으로 보낸다(「2025. 12. 3 ~ 1. 6」 → 2025-01-06).
+           그 상태로는 날짜로 센 박수가 음수라 조용히 버려지고, 문서가 밝힌 기간이
+           통째로 없는 것이 된다. 여행은 떠난 뒤에 돌아온다 — 다음 해로 넘긴다. */
+        let r2 = validYmd(ymd(m[1], m[4], m[5]));
+        if (r2 && depart && r2 < depart) r2 = validYmd(ymd(Number(m[1]) + 1, m[4], m[5]));
+        ret = r2 || ret;
         takeNightsDays(t);
         if (depart) break;
       }
+      /* ②-b 연도.월.일 ~ 일 (**월까지 생략**) — 「행 사 기 간 2025. 12. 3 ~ 6 (3박 4일)」
+         실측 2건이 이 표기로만 기간을 밝히고 있었다(리더스에셋 푸꾸옥 · 호남대 북해도).
+         둘 다 출발일이 통째로 비어 있어 시즌·리드타임 검증에서 빠져 있었다.
+         ⚠ **②보다 반드시 뒤**여야 한다. 앞에 두면 「2026. 06. 19 ~ 06. 22」의 '06'을
+           일자로 읽어 6일이 귀국일이 된다 — 있던 값을 틀린 값으로 바꾸는 자리다.
+         ⚠ 오른쪽 일자가 왼쪽보다 **커야** 받는다. 작으면 다음 달로 넘어간 것인데
+           **몇 월인지는 문서가 말하지 않았다.** 짐작하면 그게 곧 틀린 출발일이 되고,
+           출발일은 시즌 계수를 통해 금액에 들어간다 — 비워 두는 편이 낫다. */
+      m = t.match(new RegExp(`${YMD}\\s*${TILDE}\\s*(\\d{1,2})${D_TAIL}(?!\\s*[.\\-\\/월]\\s*\\d)`));
+      if (m) {
+        const d1 = validYmd(ymd(m[1], m[2], m[3]));
+        const d2 = validYmd(ymd(m[1], m[2], m[4]));
+        if (d1 && d2 && Number(m[4]) > Number(m[3])) {
+          depart = d1; ret = d2;
+          takeNightsDays(t);
+          break;
+        }
+      }
+
       /* ③ 출발일 하나만 (+ 박수) — 낱말 관문을 통과한 줄에서만 */
       if (pass !== 1) continue;
       m = t.match(new RegExp(YMD));
