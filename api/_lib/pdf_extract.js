@@ -1280,9 +1280,32 @@ function findTripDates(lines) {
      (일수는 엔진 금액에 정비례로 들어가는 값이라 그대로 견적 오차가 된다).
      그래서 **날짜 범위를 쓰되(구체적인 증거다) 어긋났다는 사실을 남긴다.**
      화면이 이 표시를 보고 담당자에게 한 칸 물어볼 수 있다 — 조용한 폴백을 만들지 않는다. */
+  /* UX: **검사가 잘못된 것을 묻고 있었다.**
+     예전에는 「날짜 범위로 센 박수 ≠ 문서에 적힌 박수」면 모순으로 봤다. 그런데 실측
+     46건 중 12건이 걸렸고, 그중 10건은 이런 모양이었다:
+
+         행 사 기 2026. 4. 7 (화) ~ 4. 11 (토) / **3박 5일**   ← 한 줄에 같이 적혀 있다
+         5일차 인천 6:45 도착                                  ← 귀국이 야간 비행
+
+     4/7~4/11은 여행 밤이 4박이고, 호텔은 3박이다(마지막 밤은 기내). 문서는 **호텔
+     박수**를 적은 것이고 모순이 아니다. 발리 건은 문서가 스스로 「캠핀스키 4박 …
+     (4박6일)」이라고 두 번 적어 두기까지 했다.
+
+     ⚠ **금액에 들어가는 값은 일수(days)다** — 엔진은 nights를 안 쓴다. 그러니 일수가
+       같으면 다툼이 없다. 그런데도 12건에 경고를 띄우면 **10건이 잡음**이고, 잡음이
+       섞인 경고는 곧 안 읽힌다 — 그러면 진짜 하나(대림벧엘 큐슈)가 묻힌다.
+     → 일수가 어긋날 때만 모순으로 본다. 박수만 다른 것은 조용히 버리지 않고
+       `redEye`(기내박으로 보인다)로 남긴다. */
   let nightsConflict = null;
+  let redEye = null;
   if (fromDates != null && labelled.nights && labelled.nights !== fromDates) {
-    nightsConflict = { fromDates, labelled: labelled.nights, labelledDays: labelled.days };
+    const rangeDays = fromDates + 1;
+    if (labelled.days && labelled.days === rangeDays) {
+      /* 일수는 같다 — 호텔 박수와 여행 박수의 차이다(대개 기내박). */
+      redEye = { hotelNights: labelled.nights, travelNights: fromDates, days: rangeDays };
+    } else {
+      nightsConflict = { fromDates, labelled: labelled.nights, labelledDays: labelled.days };
+    }
   }
 
   if (fromDates != null) {
@@ -1305,7 +1328,7 @@ function findTripDates(lines) {
     ret = d.toISOString().slice(0, 10);
     returnEstimated = true;
   }
-  return { depart, ret, nights, days, returnEstimated, nightsConflict };
+  return { depart, ret, nights, days, returnEstimated, nightsConflict, redEye };
 }
 
 /* 머리글에 기간이 안 적힌 견적서가 절반이 넘는다(실측 46건 중 28건). 그런 문서도
@@ -1452,6 +1475,10 @@ function findDates(lines) {
     days: trip.days,
     /* 문서 안에서 기간 표기가 서로 어긋났다 — 화면이 한 칸 물어야 한다(null이면 이상 없음) */
     nightsConflict: trip.nightsConflict || null,
+    /* UX: 박수만 다른 것(대개 기내박)은 모순이 아니다. ⚠ 이 흰 목록에 안 적으면
+       여기서 조용히 사라져 화면이 「그렇게 봤다」고 말할 수 없다 — 실제로 한 번
+       빠뜨려서 실측에서 undefined가 나왔다(결함 생성기 ②). */
+    redEye: trip.redEye || null,
     leadDays,
   };
 }
@@ -2656,6 +2683,31 @@ async function extractQuote(buffer, pdfParse, opts) {
        말해야 담당자가 눈으로 확인할 자리를 안다(조용한 폴백을 만들지 않는다). */
   const itinerary = findItinerary(lines);
   const itinDays = (itinerary && itinerary.days) ? itinerary.days.length : 0;
+
+  /* UX: 기간이 어긋난 건은 **일정표를 제3의 증인으로 세운다.**
+     지금까지는 「날짜 범위를 쓰되 어긋났다고 표시」에서 멈췄다 — 사람이 매번 봐야 했다.
+     그런데 일정표에 며칠이 있는지가 세어지면, 둘 중 어느 쪽이 맞는지 **문서가 스스로
+     증명한다**(실측: 대림벧엘 큐슈 — 제목 2박3일 · 기간 3박4일 · 일정표 4일차까지).
+     ⚠ 일정표를 **일수의 출처로 쓰는 것이 아니다.** 이미 문서에 있는 두 후보 중
+       하나를 고르는 데만 쓴다 — 일정표는 선택일정·차수가 섞이면 부풀기 때문에
+       (KT CES 9일 → 13일) 스스로 답이 될 수는 없다. 증인과 출처는 다르다.
+     ⚠ 어느 쪽도 지지하지 않으면 **고르지 않는다.** 표시를 그대로 두고 사람이 본다. */
+  let nightsResolved = null;
+  const nc0 = chosen.dates && chosen.dates.nightsConflict;
+  if (nc0 && itinDays >= 2) {
+    const rangeDays = nc0.fromDates + 1;
+    if (itinDays === rangeDays && itinDays !== nc0.labelledDays) {
+      nightsResolved = { by: 'itinerary', days: itinDays, side: 'range' };
+      chosen.dates = Object.assign({}, chosen.dates, { nightsConflict: null });
+    } else if (nc0.labelledDays && itinDays === nc0.labelledDays && itinDays !== rangeDays) {
+      /* 문서에 적힌 쪽이 맞았다 — 일수·박수를 그쪽으로 돌린다. */
+      nightsResolved = { by: 'itinerary', days: itinDays, side: 'labelled' };
+      chosen.dates = Object.assign({}, chosen.dates, {
+        days: nc0.labelledDays, nights: nc0.labelled, nightsConflict: null,
+      });
+    }
+  }
+
   let daysVia = chosen.dates && chosen.dates.days >= 2 ? 'header' : null;
   if (chosen.dates && !(chosen.dates.days >= 2) && itinDays >= 2 && itinDays <= MAX_NIGHTS + 1) {
     const n = chosen.dates.nights;
@@ -2673,6 +2725,9 @@ async function extractQuote(buffer, pdfParse, opts) {
     pageCount, text,
     /* 일수를 어디서 얻었나 — 'header'(문서가 밝힌 기간) / 'itinerary'(일정표에서 셌다) */
     daysVia,
+    /* UX: 기간이 어긋났던 것을 **일정표가 증인이 되어** 풀었는가. 화면이 「무엇을 보고
+       이쪽으로 정했는지」를 말할 수 있어야 한다 — 조용히 고르면 그게 조용한 폴백이다. */
+    nightsResolved,
     /* L7 — 일정표. **문서 전체**에서 읽는다(견적 장이 갈려도 일정표는 한 벌인 문서가
        대부분이라 장별로 나누면 오히려 조각난다). 금액과 무관한 층이다. */
     itinerary,

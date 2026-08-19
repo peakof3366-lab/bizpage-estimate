@@ -574,6 +574,25 @@ async function handleExtractPdf(req, res) {
   /* ② 문서가 스스로 모순된다 — 제목의 「N박」과 기간 표기가 다르다.
      날짜 범위가 더 구체적인 증거라 그쪽을 쓰지만, **어긋났다는 사실은 말한다.**
      일수는 식비에 정비례해서 들어간다. */
+  /* ②-b UX: 기간이 어긋났던 것을 **일정표가 증인이 되어** 풀었다면 그렇게 말한다.
+     조용히 고르면 담당자는 왜 그 일수인지 모른다(조용한 폴백). */
+  const nr = out.nightsResolved;
+  if (nr) {
+    warnings.push(nr.side === 'labelled'
+      ? `기간 표기가 어긋났는데 **일정표가 ${nr.days}일**이라 문서에 적힌 쪽을 따랐습니다 — 맞는지 봐 주세요.`
+      : `기간 표기가 어긋났는데 **일정표도 ${nr.days}일**이라 날짜 범위 쪽으로 정했습니다 — 맞는지 봐 주세요.`);
+  }
+
+  /* ②-c 박수만 다른 것은 모순이 아니다 — 대개 기내박(야간 비행)이라 호텔 박수가 하나 적다.
+     예전에는 이것까지 「문서가 모순된다」로 띄워 46건 중 10건이 잡음이었다. 조용히
+     버리지도 않는다 — 그렇게 봤다고 한 줄 남긴다. */
+  const re0 = out.dates && out.dates.redEye;
+  if (re0) {
+    warnings.push(`문서는 ${re0.hotelNights}박 ${re0.days}일인데 날짜 범위로는 ${re0.travelNights}박입니다 `
+      + '— 귀국이 야간 비행이면 호텔이 한 밤 적습니다(모순 아님). 일수는 '
+      + re0.days + '일로 봤습니다.');
+  }
+
   const nc = out.dates && out.dates.nightsConflict;
   if (nc) {
     warnings.push(`문서 안에서 기간이 어긋납니다 — 날짜 범위로는 ${nc.fromDates}박인데 `
@@ -603,6 +622,7 @@ async function handleExtractPdf(req, res) {
        나중에 화면이 다른 방식으로 보여 주려 할 때 다시 서버를 고쳐야 한다). */
     paxConflict: out.paxConflict || null,
     paxPick: out.paxPick || null,
+    nightsResolved: out.nightsResolved || null,
     daysVia: out.daysVia || null,
     reconciliation: out.reconciliation,
     blockCount: out.blockCount, selectedBlock: out.selectedBlock, blocks: out.blocks,

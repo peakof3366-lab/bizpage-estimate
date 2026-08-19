@@ -103,5 +103,33 @@ console.log('\n[4] 해를 넘기는 일정');
     D('행 2026. 06. 19 ~ 06. 22').ret === '2026-06-22');
 }
 
+console.log('\n[5] UX — 박수만 다른 것은 모순이 아니다 (기내박)');
+{
+  /* 실측 10건이 이 모양이었다:
+       행 사 기 2026. 4. 7 (화) ~ 4. 11 (토) / 3박 5일   ← 한 줄에 같이 적혀 있다
+       5일차 인천 6:45 도착                              ← 귀국이 야간 비행
+     4/7~4/11은 여행 밤이 4박이고 호텔은 3박이다. 문서는 **호텔 박수**를 적은 것이다.
+     ⚠ 금액에 들어가는 값은 일수다 — 그게 같으면 다툼이 없다. 그런데도 경고를 띄우면
+       46건 중 10건이 잡음이 되고, 잡음이 섞인 경고는 곧 안 읽힌다. */
+  /* ⚠ 한 줄에 다 넣으면 findNightsDays가 그 줄을 못 집어 labelled가 비고, 그러면
+     이 검사가 아무것도 안 본다(실제로 그렇게 짰다가 null이 나왔다). 실제 문서처럼
+     기간 줄과 「N박 M일」 표기를 **따로** 둔다. */
+  const a = ex.findTripDates([{ text: '행 사 기 2026. 4. 7 ~ 4. 11' }, { text: '3박 5일' }]);
+  ok('일수가 같으면 모순으로 치지 않는다', !a.nightsConflict, JSON.stringify(a.nightsConflict));
+  ok('대신 기내박으로 봤다고 남긴다 (조용히 버리지 않는다)', !!a.redEye, JSON.stringify(a.redEye));
+  ok('호텔 박수와 여행 박수를 갈라 적는다',
+    a.redEye && a.redEye.hotelNights === 3 && a.redEye.travelNights === 4,
+    JSON.stringify(a.redEye));
+  ok('일수는 날짜 범위대로 5일이다 (값은 안 바뀐다)', a.days === 5, String(a.days));
+
+  /* 일수까지 다르면 **진짜 모순**이다 — 실측: 대림벧엘 큐슈 */
+  const b = ex.findTripDates([{ text: '여행기간 2026. 03. 10 ~ 03. 13' }, { text: '2박 3일' }]);
+  ok('일수가 다르면 모순으로 든다', !!b.nightsConflict, JSON.stringify(b.nightsConflict));
+  ok('그때는 기내박으로 치지 않는다', !b.redEye, JSON.stringify(b.redEye));
+  ok('어느 쪽이 무엇인지 함께 적는다',
+    b.nightsConflict && b.nightsConflict.fromDates === 3 && b.nightsConflict.labelled === 2,
+    JSON.stringify(b.nightsConflict));
+}
+
 console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

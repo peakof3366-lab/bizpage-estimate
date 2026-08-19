@@ -93,16 +93,38 @@ console.log('[2] 세로쓰기로 낱말이 잘린 기간 줄을 읽는가');
 /* ══ [3] 문서가 스스로 모순될 때 ════════════════════════════════════════ */
 console.log('[3] 기간 표기가 서로 어긋나면 — 날짜를 쓰되 반드시 흔적을 남기는가');
 {
-  /* 실측 그대로: 3박이면 4일인데 5일이라 적혀 있고, 날짜로는 4박 5일이다 */
+  /* ⚠ **UX(2026-08-19)에서 이 규칙이 뒤집혔다.** 예전에는 「3박 5일」을 그 자체로 모순
+     이라고 봤는데(3박이면 4일), 실측 46건 중 10건이 이 모양이었고 문서를 열어 보니
+     모순이 아니었다:
+         행 사 기 2026. 4. 7 (화) ~ 4. 11 (토) / 3박 5일
+         5일차 인천 6:45 도착              ← 귀국이 야간 비행
+     4/7~4/11은 여행 밤이 4박이고 **호텔은 3박**이다. 발리 건은 문서가 스스로
+     「캠핀스키 4박 … (4박6일)」이라고 두 번 적어 두기까지 했다.
+     금액에 들어가는 값은 일수이고 그건 어차피 같다 — 그런데도 경고를 띄우면 10건이
+     잡음이 되어 진짜 하나(대림벧엘 큐슈)가 묻힌다.
+     → 이제 일수가 어긋날 때만 모순이고, 박수만 다른 것은 `redEye`로 남긴다. */
   const d = X.findTripDates(doc([
     ['행사기간', '2026. 10. 11 ~ 10. 15 (3박 5일)'],
   ]));
   ok('날짜 범위 쪽(4박)을 쓴다', d.nights === 4, JSON.stringify(d));
   ok('일수는 5일', d.days === 5, JSON.stringify(d));
-  ok('어긋났다는 흔적이 남는다', !!d.nightsConflict, JSON.stringify(d));
+  ok('일수가 같으므로 모순으로 치지 않는다 (UX에서 뒤집힘)',
+    !d.nightsConflict, JSON.stringify(d.nightsConflict));
+  ok('대신 기내박으로 봤다고 남긴다 — 조용히 버리지 않는다',
+    d.redEye && d.redEye.hotelNights === 3 && d.redEye.travelNights === 4,
+    JSON.stringify(d.redEye));
+}
+{
+  /* 일수까지 어긋나면 예전 그대로 모순이다 (실측: 대림벧엘 큐슈) */
+  const d = X.findTripDates(doc([
+    ['여행기간', '2026. 03. 10 ~ 03. 13'],
+    ['대림벧엘교회 해외여행 (큐슈) | 2박 3일'],
+  ]));
+  ok('일수가 어긋나면 모순으로 든다', !!d.nightsConflict, JSON.stringify(d.nightsConflict));
   ok('무엇과 무엇이 어긋났는지 함께 남긴다',
-    d.nightsConflict && d.nightsConflict.fromDates === 4 && d.nightsConflict.labelled === 3,
+    d.nightsConflict && d.nightsConflict.fromDates === 3 && d.nightsConflict.labelled === 2,
     JSON.stringify(d.nightsConflict));
+  ok('그때는 기내박으로 치지 않는다', !d.redEye, JSON.stringify(d.redEye));
 }
 {
   /* 제목과 날짜가 **일치하면** 흔적을 남기지 않는다(오탐이 나면 아무도 안 본다) */
@@ -134,8 +156,15 @@ console.log('[3] 기간 표기가 서로 어긋나면 — 날짜를 쓰되 반�
 /* ══ [4] findDates가 충돌을 바깥으로 넘기는가 ═══════════════════════════ */
 console.log('[4] findDates가 화면까지 충돌을 전달하는가');
 {
+  /* UX: 이제 이 표기는 모순이 아니라 기내박이다. 바깥으로 나가야 하는 것은
+     `redEye`다 — 흰 목록에서 빠뜨리면 여기서 조용히 사라진다(실제로 한 번 그랬다). */
   const d = X.findDates(doc([['행사기간', '2026. 10. 11 ~ 10. 15 (3박 5일)']]));
-  ok('findDates에 nightsConflict가 실려 나온다', !!d.nightsConflict, JSON.stringify(d));
+  ok('findDates에 redEye가 실려 나온다', !!d.redEye, JSON.stringify(d));
+  const c = X.findDates(doc([
+    ['여행기간', '2026. 03. 10 ~ 03. 13'],
+    ['대림벧엘교회 해외여행 (큐슈) | 2박 3일'],
+  ]));
+  ok('진짜 모순은 findDates에 nightsConflict로 실려 나온다', !!c.nightsConflict, JSON.stringify(c));
   ok('정상 문서에서는 null이다',
     X.findDates(doc([['행사기간', '2026. 10. 11 ~ 10. 15 (4박 5일)']])).nightsConflict === null);
 }
