@@ -240,14 +240,39 @@ function recRenderDayCard(doc, dayNum, data, totalDays) {
    ⚠ 빈 배열이면 손대지 않는다 — 「코스가 없다」와 「전부 걸러졌다」는 다른 상태다. */
 function recPreferQuoteCourses(courses) {
   if (!Array.isArray(courses) || !courses.length) return courses;
-  const fromQuote = courses.filter((c) => c && c.source === 'quote');
-  return fromQuote.length ? fromQuote : courses;
+  /* UQ: 검토 전인 코스는 고객에게 자동으로 나가지 않는다. **여기서 먼저 거른다** —
+     아래 '견적서 코스 우선'보다 앞이어야 한다. 뒤에 두면 심어 놓은 견적서 코스가
+     전부 검토 전인 목적지에서 「견적서 코스가 있으니 그것만」이 먼저 걸려, 검토도
+     안 한 일정이 고객에게 나간다(정확히 이걸 막으려고 만든 표시다). */
+  const visible = recVisibleCourses(courses);
+  if (!visible.length) return visible;
+  const fromQuote = visible.filter((c) => c && c.source === 'quote');
+  return fromQuote.length ? fromQuote : visible;
+}
+
+/* 지금 고객에게 나갈 수 있는 코스만 (UQ).
+   ⚠ 전부 검토 전이면 **빈 배열을 돌려준다.** 그대로 내보내면 이 표시가 아무것도
+     막지 못하고, 「검토 전」이 이름뿐인 칸이 된다(결함 생성기 ③).
+     코스가 하나도 없는 상태는 이미 다룬다 — 견적서는 일정 섹션만 빼고 나가고,
+     화면·감사 도구에 그 사실이 남는다. */
+function recVisibleCourses(courses) {
+  if (!Array.isArray(courses)) return [];
+  return courses.filter((c) => c && c.pending !== true);
+}
+
+/* 이 목적지에 검토를 기다리는 코스가 있는가 — 담당자 화면이 「할 일」로 보여준다.
+   조용히 창고에만 쌓이면 아무도 검토하지 않는다. */
+function recPendingCount(courses) {
+  return Array.isArray(courses) ? courses.filter((c) => c && c.pending === true).length : 0;
 }
 
 /* 이 목적지가 「견적서 일정으로 나가는 곳」인가 — 화면이 그 사실을 밝히는 데 쓴다.
    ⚠ 조용히 바뀌면 담당자는 자기가 고친 온라인 코스가 왜 안 나가는지 모른다. */
 function recHasQuoteCourses(courses) {
-  return Array.isArray(courses) && courses.some((c) => c && c.source === 'quote');
+  /* UQ: 검토 전인 것은 아직 고객에게 안 나가므로 「견적서 일정으로 나가는 곳」이
+     아니다. 여기서 세면 화면이 "견적서 일정이 나갑니다"라고 말하는데 실제로는
+     온라인 기본값이 나가는 상태가 된다. */
+  return recVisibleCourses(courses).some((c) => c && c.source === 'quote');
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -413,6 +438,8 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports.recItinToCourse = recItinToCourse;
   module.exports.recPreferQuoteCourses = recPreferQuoteCourses;
   module.exports.recHasQuoteCourses = recHasQuoteCourses;
+  module.exports.recVisibleCourses = recVisibleCourses;
+  module.exports.recPendingCount = recPendingCount;
   module.exports.recResolvePlanCourseIdx = recResolvePlanCourseIdx;
   module.exports.recPlanFromCourse = recPlanFromCourse;
   module.exports.REC_DAY_FILL = REC_DAY_FILL;

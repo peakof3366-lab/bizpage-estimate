@@ -104,12 +104,21 @@ function normalizeCourses(courses) {
        ⚠ 'quote'가 아닌 값은 **버린다**(기본값으로 본다). 아무 문자열이나 받으면
          나중에 'Quote'·'pdf' 같은 변종이 섞여 「견적서 일정인가」를 못 가린다. */
     const src = c.source === 'quote' ? 'quote' : null;
+    /* UQ: **검토 전** (2026-08-19). 견적서 PDF에서 일괄로 심은 코스는 사람이 한 번
+       봐야 한다 — 문서에 시간대 구분이 없어 오전 칸에 뭉쳐 있는 날이 여럿이고,
+       그대로 나가면 오후·저녁이 빈 일정표가 고객에게 간다.
+       ⚠ 이 칸이 붙어 있는 동안 그 코스는 **창고에만 있다.** 고객 견적서·일정 탐색에
+         자동으로 나가지 않는다(recVisibleCourses). 대신 「출발점 가져오기」 후보에는
+         나온다 — 창고는 꺼내 쓰라고 있는 것이다.
+       ⚠ 흰 목록이라 여기 안 적으면 저장할 때 조용히 사라지고, 검토도 안 한 일정이
+         고객에게 나간다(결함 생성기 ②). */
     out.push({
       title: c.title.trim(),
       subtitle: String(c.subtitle ?? '').trim(),
       highlights: highlights.map((h) => h.trim()).filter(Boolean),
       days,
       ...(src ? { source: src, sourceNote: String(c.sourceNote ?? '').trim().slice(0, 120) } : {}),
+      ...(c.pending === true ? { pending: true } : {}),
     });
   }
   return { courses: out };

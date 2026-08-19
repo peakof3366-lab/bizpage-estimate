@@ -622,7 +622,13 @@
       background: #fff; border: 1px solid var(--border); border-top: 3px solid var(--heading);
       padding: 1.2rem 1.35rem; margin-bottom: 1rem;
     }
-    .iti-course-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .9rem; }
+    .iti-course-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .9rem; flex-wrap: wrap; }
+    /* UQ: 검토 전 배지 — 「견적서 일정」 배지와 나란히 선다. 색을 달리해서 「출처」와
+       「아직 안 나감」이 다른 이야기라는 것을 한눈에 가른다. */
+    .iti-src-pending {
+      font-size: .7rem; font-weight: 800; padding: .18rem .45rem;
+      background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;
+    }
     .iti-course-no {
       font-size: .68rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
       color: #fff; background: var(--heading); padding: .2rem .55rem;
@@ -9234,8 +9240,36 @@
       srcTag.textContent = '📄 견적서 일정';
       srcTag.title = (course.sourceNote || '') + ' — 이 목적지는 견적서 일정이 고객에게 나갑니다';
     }
+    /* UQ: 「검토 전」 — 일괄로 심은 코스는 사람이 한 번 봐야 한다.
+       이 표시가 붙어 있는 동안 그 코스는 **고객에게 나가지 않는다**(recVisibleCourses).
+       ⚠ 배지만 두고 떼는 방법을 안 주면 창고에 영원히 쌓인다(결함 생성기 ③) —
+         바로 옆에 「검토 완료」 버튼을 둔다. */
+    const pendTag = document.createElement('span');
+    if (course && course.pending === true) {
+      pendTag.className = 'iti-src-pending';
+      pendTag.textContent = '🕒 검토 전 — 고객에게 안 나감';
+      pendTag.title = '견적서에서 일괄로 심은 코스입니다. 확인해 다듬은 뒤 「검토 완료」를 누르면 고객 견적서에 나가기 시작합니다.';
+    }
+
     const spacer = document.createElement('span');
     spacer.style.marginLeft = 'auto';
+
+    const done = document.createElement('button');
+    if (course && course.pending === true) {
+      done.type = 'button';
+      done.className = 'iti-btn';
+      done.textContent = '✓ 검토 완료 — 고객에게 내보내기';
+      done.addEventListener('click', function () {
+        if (!confirm('이 코스를 고객 견적서에 내보냅니다.' + String.fromCharCode(10) + String.fromCharCode(10)
+          + '「' + (course.title || '(제목 없음)') + '」' + String.fromCharCode(10)
+          + '오전·오후·저녁이 비어 있지 않은지 확인하셨나요?' + String.fromCharCode(10) + String.fromCharCode(10)
+          + '(저장을 눌러야 실제로 반영됩니다.)')) return;
+        delete course.pending;
+        itiMarkDirty(); itiRenderBody();
+        itiSetMsg('검토 완료로 표시했습니다 — 저장을 눌러야 고객에게 나갑니다.', 'err');
+      });
+    }
+
     const del = document.createElement('button');
     del.className = 'iti-btn danger';
     del.textContent = '이 코스 삭제';
@@ -9263,7 +9297,10 @@
 
     head.appendChild(no);
     if (srcTag.textContent) head.appendChild(srcTag);   /* TC: 견적서 출처 배지 */
-    head.appendChild(spacer); head.appendChild(foldAll); head.appendChild(del);
+    if (pendTag.textContent) head.appendChild(pendTag); /* UQ: 검토 전 배지 */
+    head.appendChild(spacer);
+    if (done.textContent) head.appendChild(done);       /* UQ: 검토 완료 */
+    head.appendChild(foldAll); head.appendChild(del);
     box.appendChild(head);
 
     box.appendChild(itiField('코스 제목', course.title, false, (v) => { course.title = v; }));
@@ -11823,8 +11860,12 @@
     common.forEach((c, i) => {
       if (!c || !Array.isArray(c.days) || !c.days.length) return;
       out.push({
+        /* UQ: 검토 전 코스도 후보에 **넣는다** — 창고는 꺼내 쓰라고 있는 것이다.
+           대신 그렇다고 표시한다. 검토 전은 「아직 사람이 안 본 글」이라, 가져온 뒤
+           그대로 저장하면 다듬지 않은 일정이 이 고객에게 나간다. */
         label: '공통 · 코스 ' + String.fromCharCode(65 + i) + ' — ' + (c.title || '(제목 없음)')
-          + ' (' + c.days.length + '일' + (c.source === 'quote' ? ' · 견적서에서 읽음' : '') + ')',
+          + ' (' + c.days.length + '일' + (c.source === 'quote' ? ' · 견적서에서 읽음' : '')
+          + (c.pending === true ? ' · 🕒 검토 전' : '') + ')',
         courses: [c],
       });
     });

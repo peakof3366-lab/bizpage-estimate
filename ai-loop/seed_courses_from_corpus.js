@@ -95,6 +95,12 @@ const PDF_DIR = path.join(process.env.USERPROFILE || process.env.HOME || '', 'De
     if (itin.days.length > MAX_DAYS) { failed.push(r.file + ' (' + itin.days.length + '일 — 상한 ' + MAX_DAYS + ' 초과)'); continue; }
 
     const course = recItinToCourse(itin, r.destination);
+    /* UQ (2026-08-19): 일괄로 심는 코스는 **검토 전**으로 들어간다.
+       이 표시가 있는 동안 그 코스는 창고에만 있고 고객에게 자동으로 안 나간다.
+       ⚠ 이게 없으면 심는 순간 19곳의 고객 화면이 다듬기 전 상태로 바뀐다 —
+         문서에 시간대 구분이 없어 오후·저녁이 빈 일정표가 여럿 나온다.
+         담당자가 관리자 → 일정 관리에서 「검토 완료」를 눌러야 나가기 시작한다. */
+    course.pending = true;
     /* 문서에 시간대 구분이 없어 오전 칸에 모아 둔 날이 몇 개인가 — 사람이 나눠야 한다. */
     const unsplit = itin.days.filter((d) => !(d.split === 'time' || d.split === 'meal')).length;
     (byDest[r.destination] = byDest[r.destination] || []).push({
@@ -154,8 +160,13 @@ const PDF_DIR = path.join(process.env.USERPROFILE || process.env.HOME || '', 'De
     failed.forEach((f) => console.log('  · ' + f));
   }
 
-  console.log('\n⚠ 심으면 이 ' + willChange + '곳의 **고객 추천 일정이 견적서 일정으로 바뀝니다.**');
-  console.log('  온라인 코스는 지워지지 않고 화면에만 안 나갑니다(되돌릴 수 있습니다).');
+  /* UQ에서 바뀐 안내다. 예전엔 「심으면 고객 화면이 바뀐다」였는데, 이제 심는 코스에는
+     검토 전 표시가 붙어 창고에만 들어간다. 문구를 안 고치면 도구가 자기 동작에 대해
+     거짓말을 하고, 사장님은 안 바뀔 일을 걱정하며 승인을 미루게 된다. */
+  console.log('\n✓ 심어도 **고객 화면은 바뀌지 않습니다.** 심는 코스에는 「검토 전」이 붙어');
+  console.log('  창고(관리자 → 일정 관리)에만 들어갑니다. 담당자가 「검토 완료」를 누른');
+  console.log('  코스부터 고객 견적서에 나가기 시작합니다.');
+  console.log('  견적서별 일정의 「출발점 가져오기」에서는 검토 전에도 꺼내 쓸 수 있습니다.');
   console.log('  제목·요약·핵심 포인트는 비어 있습니다 — 지어내지 않았습니다.');
 
   if (!APPLY) {
