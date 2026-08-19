@@ -115,7 +115,63 @@ const ymd = (v) => {
       const droppedOnPurpose = dbv == null && nowv != null && v && v.ok === false;
       if (dbv !== nowv && !droppedOnPurpose) diffs.push({ k, dbv, nowv });
     });
-    if (diffs.length) { drift++; driftRows.push({ row, hit, diffs }); }
+    if (diffs.length) {
+      drift++;
+      /* UY: **왜 어긋났는지**를 함께 담는다. 예전에는 「DB 115,827 ↔ 지금 111,891」만
+         찍혀서, 사람이 그 자리에서 곱셈을 해 봐야 원인을 알 수 있었다. 실측 3행의
+         원인은 전부 **분모가 달라진 것**이었다:
+           후아힌  인원 199 → 206  (관광 115,827×199 = 111,891×206, 총액은 같다)
+           다낭    일수 4 → 5      (식비 40,950×4 = 32,760×5)
+         분모가 바뀐 것이면 **지금 값이 맞다**(추출기가 좋아진 것). 그 판단이 30초짜리가
+         되도록 곱셈까지 해서 보여 준다 — 안 그러면 이 도구는 「뭔가 다르다」에서 멈춘다. */
+      const nowPax = hit.r.pax || null;
+      const nowDays = (hit.r.dates && hit.r.dates.days) || null;
+      const nowNights = (hit.r.dates && hit.r.dates.nights) || null;
+      const dbNights = row.nights == null ? null : Number(row.nights);
+      /* ⚠ **비율만 보고 원인을 고르지 않는다.** 실측에서 다낭 건의 비율 1.25가 인원과
+         일수 둘 다에 맞아떨어져, 먼저 시도한 「인원 30 → 24」로 잘못 단정했다.
+         (실제로는 일수 4 → 5였다.) 제보 행에 저장된 **박수**가 그 자리의 증인이다 —
+         박수가 달라졌으면 일수 쪽, 그대로면 인원 쪽으로 본다.
+         증인이 없거나 둘 다 맞으면 **하나를 고르지 않고 둘 다 적는다.** */
+      const nightsMoved = dbNights != null && nowNights != null && dbNights !== nowNights;
+      diffs.forEach((x) => {
+        if (!x.dbv || !x.nowv) return;
+        const ratio = x.dbv / x.nowv;
+        const fits = [];
+        /* ⚠ 방향에 주의한다. 1인당 단가 = 총액 ÷ 분모이므로
+             옛값 ÷ 지금값 = 지금분모 ÷ 옛분모  →  **옛분모 = 지금분모 ÷ 비율**이다.
+           처음에 `지금분모 × 비율`로 적었다가 후아힌(206 ÷ 1.0352 = 199)을 놓치고
+           다낭에는 「인원 30」이라는 없는 값을 붙였다 — 곱셈이 우연히 정수가 나온 것이다.
+           실측 두 건으로 방향을 확인했다: 후아힌 199 → 206 · 다낭 일수 4 → 5. */
+        const fit = (what, now) => {
+          if (!now) return;
+          const then = Math.round(now / ratio);
+          if (then >= 1 && then !== now && Math.abs(now / ratio - then) <= 0.02) {
+            fits.push({ what, now, then });
+          }
+        };
+        fit('인원', nowPax);
+        fit('일수', nowDays);
+        if (!fits.length) return;
+        const say = (c) => c.what + ' ' + c.then + ' → ' + c.now;
+        if (fits.length === 1) {
+          x.why = say(fits[0]) + '로 다시 읽혔다 (총액은 같다)';
+          return;
+        }
+        /* 둘 다 맞는다 — 저장된 박수가 갈라 준다 */
+        const byNights = fits.find((c) => c.what === '일수');
+        const byPax = fits.find((c) => c.what === '인원');
+        if (nightsMoved && byNights) {
+          x.why = say(byNights) + '로 다시 읽혔다 (제보에 저장된 박수 ' + dbNights
+            + '박과도 맞는다 · 총액은 같다)';
+        } else if (dbNights != null && nowNights === dbNights && byPax) {
+          x.why = say(byPax) + '로 다시 읽혔다 (박수는 그대로 ' + dbNights + '박 · 총액은 같다)';
+        } else {
+          x.why = '분모가 달라졌다 — ' + fits.map(say).join(' 또는 ') + ' (총액은 같다 · 어느 쪽인지는 사람이 봐야 한다)';
+        }
+      });
+      driftRows.push({ row, hit, diffs });
+    }
 
     /* ② 빈 칸이 왜 비었나 */
     const why = CELLS.filter((k) => row[COL[k]] == null).map((k) => {
@@ -190,7 +246,8 @@ const ymd = (v) => {
   driftRows.slice(0, 10).forEach((d) => {
     console.log('     ' + d.row.destination_key + ' (id ' + d.row.id + ') ' + d.hit.file.slice(0, 36));
     d.diffs.forEach((x) => console.log('        ' + LABEL[x.k].padEnd(5)
-      + 'DB ' + won(x.dbv).padStart(12) + '  ↔  지금 ' + won(x.nowv).padStart(12)));
+      + 'DB ' + won(x.dbv).padStart(12) + '  ↔  지금 ' + won(x.nowv).padStart(12)
+      + (x.why ? '   ← ' + x.why : '')));
   });
   console.log('  출처(field_sources)가 비어 있는 옛 제보 ' + noSource + '행');
 })();
