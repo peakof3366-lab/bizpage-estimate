@@ -320,7 +320,7 @@ function seedQuote(w, over) {
     const dom = await bootAdmin(net, { overrides: { '도쿄': [OVERRIDE_COURSE] } });
     const w = dom.window, d = w.document;
     seedQuote(w);
-    await w.eqToggle();
+    await w.eqOpen('q1');
 
     const dayCards = d.querySelectorAll('#eq-body .iti-day');
     ok('출발점이 지금 이 견적서에 나갈 일정이다 (백지가 아니다)',
@@ -358,7 +358,7 @@ function seedQuote(w, over) {
     const dom = await bootAdmin(net, {});
     const w = dom.window, d = w.document;
     seedQuote(w, { itinerary: { courses: SAVED, days: 5, confirmedBy: '김담당' } });
-    await w.eqToggle();
+    await w.eqOpen('q1');
     ok('저장된 전용 일정을 열면 그것이 출발점이다',
       d.querySelector('#eq-origin').textContent.includes('이 견적서 전용'),
       d.querySelector('#eq-origin').textContent);
@@ -368,16 +368,18 @@ function seedQuote(w, over) {
     ok('되돌린 뒤 편집칸이 닫힌다',
       d.getElementById('eq-body').classList.contains('hidden'));
 
-    /* ⚠ 이게 진짜 사고가 나는 자리다 — 앞 견적의 일정이 남으면 남의 일정이 나간다. */
+    /* ⚠ 이게 진짜 사고가 나는 자리다 — 앞 견적의 일정이 남으면 남의 일정이 나간다.
+       UM에서 편집기가 모달로 나갔으므로 **모달이 닫히는 것까지** 확인한다. 상태만
+       지우고 화면을 두면 앞 견적의 일자 카드가 그대로 떠 있다. */
     const all = JSON.parse(w.localStorage.getItem('linkedt_estimates_full'));
     all.push(Object.assign({}, all[0], { id: 'q2', itinerary: null }));
     w.localStorage.setItem('linkedt_estimates_full', JSON.stringify(all));
-    await w.eqToggle();
+    await w.eqOpen('q1');
     w.openEstDetail('q2');
     ok('다른 견적을 열면 앞 견적의 편집 상태가 남지 않는다',
       d.getElementById('eq-body').classList.contains('hidden')
       && d.getElementById('eq-body').innerHTML === ''
-      && d.getElementById('eq-toggle').textContent === '불러오기');
+      && d.getElementById('eqModal').classList.contains('hidden'));
     dom.window.close();
   }
 
@@ -397,7 +399,7 @@ function seedQuote(w, over) {
     all.push(Object.assign({}, all[0], { id: 'q8', destKey: '파리', orgName: '딴곳고객',
       itinerary: { courses: SAVED, days: 5 } }));
     w.localStorage.setItem('linkedt_estimates_full', JSON.stringify(all));
-    await w.eqToggle();
+    await w.eqOpen('q1');
 
     const opts = Array.from(d.getElementById('eq-import').options).map(o => o.textContent);
     ok('목적지 공통 코스가 후보에 뜬다',

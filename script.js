@@ -1442,6 +1442,11 @@ form.addEventListener('submit', (event) => {
        가리키도록 연결한다(신규) — 견적 관리/문의 관리 두 화면이 서로 다른 테이블에
        따로 쌓여 관리자가 같은 고객·같은 건인지 알기 어려웠던 문제 보완 */
     window._lastQuoteId = estRecord.id;
+    /* UM: 새 견적이다 — 앞 견적에서 확인한 전용 일정을 여기서 **반드시** 지운다.
+       안 지우면 조건만 바꿔 다시 산출했을 때 앞 고객의 일정이 그대로 실려 나간다
+       (관리자 화면이 견적을 바꿀 때 편집 상태를 지우는 것과 같은 이유다). */
+    quoteItiClear();
+    window._lastQuoteSaved = null;
     /* 공유 링크 발급 시 서버가 이 스냅샷으로 검증한다(항목별 단가·적용 계수까지).
        shareData만 보내면 표시용 축약값뿐이라 검증 깊이가 얕아진다. */
     window._lastQuoteRecord = estRecord;
@@ -1459,8 +1464,12 @@ form.addEventListener('submit', (event) => {
        저장된 건을 대조한다). 그런데 화면에는 "견적 산출 완료!"만 떴다.
        → 내부 도구에서만 실패를 알린다. */
     const quoteEndpoint = window.__INTERNAL_TOOL__ ? '/api/quotes?action=internal' : '/api/quotes';
-    submitLead(quoteEndpoint, estRecord).then(function (saved) {
+    /* UM: 저장 결과를 **약속으로 남긴다.** 산출 화면의 일정 편집은 서버에 저장된
+       견적에만 붙일 수 있는데(PATCH /api/quotes/:id), 예전엔 성공 여부를 아무도
+       알 수 없었다. 그대로 두면 담당자가 일정을 다 고친 뒤에야 "저장 실패"를 만난다. */
+    window._lastQuoteSaved = submitLead(quoteEndpoint, estRecord).then(function (saved) {
       if (!saved && window.__INTERNAL_TOOL__) showInternalSaveWarning();
+      return saved;
     });
 
     if (typeof _trackEvent !== 'undefined') {
@@ -3174,6 +3183,32 @@ function hasItineraryContent(destKey) {
    `courses.length`를 읽어서, 신규 목적지에서는 **TypeError로 견적서 만들기와 일정
    탐색이 통째로 터졌다**(재현 확인). 여기서 null을 돌려주고, 부르는 쪽이 일정 없이도
    견적서를 낼 수 있게 한다. */
+/* ══ UM: 이 견적서 전용 일정 (2026-08-19 대표 지시) ══════════════════════
+   내부 견적 산출 화면에서 담당자가 확인·저장한 일정을 담아 둔다. 견적서 문서와
+   공유 페이로드가 이 값을 **그대로** 싣는다(위 recQuoteItinerary 호출부).
+
+   ⚠ 값을 여기 한 곳에만 둔다. 화면마다 제 변수를 두면 「PDF에 실린 일정」과
+     「화면이 보여준 일정」이 갈라진다.
+   ⚠ quoteId를 함께 들고 다니는 이유 — 이 값이 **어느 견적의 것인지 증명되지 않으면
+     쓰면 안 된다.** 조건을 고쳐 다시 산출한 뒤에도 남아 있으면 앞 고객의 일정이
+     이 견적서에 실린다.
+   고객 계산기(index.html)에서는 아무도 이 함수를 부르지 않는다 → 늘 비어 있다. */
+function quoteItiSet(quoteId, itinerary) {
+  if (!quoteId || !itinerary || !Array.isArray(itinerary.courses) || !itinerary.courses.length) {
+    quoteItiClear();
+    return null;
+  }
+  window.__QUOTE_ITI__ = {
+    quoteId: quoteId,
+    courses: itinerary.courses,
+    days: itinerary.days == null ? null : Number(itinerary.days),
+    confirmedBy: String(itinerary.confirmedBy || ''),
+  };
+  return window.__QUOTE_ITI__;
+}
+
+function quoteItiClear() { window.__QUOTE_ITI__ = null; }
+
 function getItineraries(destKey, programType) {
   if (!hasItineraryContent(destKey)) return null;
   /* TC: 견적서에서 읽은 일정이 있으면 **그것만** 쓴다(2026-08-11 대표 요청).
@@ -3313,10 +3348,24 @@ function openEstimateWindow() {
      여기 다시 적으면 고객 계산기로 나간 견적서와 직원이 발급한 견적서가 서로 다른
      일정을 말하게 된다 — 실제로 그 상태였다(직원 쪽은 아예 비어 있었다).
      일수 재배치(코스는 전부 5일 고정이라 귀국일이 중간에 나오던 것)도 그 안에 있다. */
+  /* UM (2026-08-19 대표 지시): **이 견적서 전용 일정이 있으면 그것이 나간다.**
+     예전엔 이 자리에 savedCourses를 아예 안 넘겼다. 그래서 담당자가 견적서별 일정을
+     정성껏 고쳐 저장해도 **산출 화면에서 뽑은 견적서에는 실릴 수 없었다** — 늘 목적지
+     공통(대부분 아무도 손 안 댄 기본값)이 나갔다. 화면을 아무리 고쳐도 여기가 그대로면
+     아무 소용이 없다.
+     ⚠ 고객 계산기(index.html)에서는 __QUOTE_ITI__가 늘 없다 → 동작 불변.
+     ⚠ **id가 다르면 쓰지 않는다.** 담당자가 조건을 고쳐 다시 산출하면 견적이 새로
+       만들어지는데, 앞 견적에서 확인한 일정이 그대로 따라가면 **다른 고객의 일정이
+       이 견적서에 실린다.** 지우는 쪽(아래 quoteItiClear)과 여기, 두 겹으로 막는다. */
+  const _qIti = (typeof window !== 'undefined' && window.__QUOTE_ITI__) || null;
+  const _qItiOk = !!(_qIti && _qIti.quoteId && _qIti.quoteId === window._lastQuoteId
+                     && Array.isArray(_qIti.courses) && _qIti.courses.length);
   const itiSnap = recQuoteItinerary({
     itineraryDb: typeof ITINERARY_DB    !== 'undefined' ? ITINERARY_DB    : null,
     priority:    typeof PROGRAM_PRIORITY !== 'undefined' ? PROGRAM_PRIORITY : null,
     destRec:     typeof DEST_REC        !== 'undefined' ? DEST_REC        : null,
+    savedCourses: _qItiOk ? _qIti.courses : null,
+    savedDays:    _qItiOk ? _qIti.days    : null,
   }, { destKey, programType, totalDays: days });
 
   const hasIti = !!itiSnap;

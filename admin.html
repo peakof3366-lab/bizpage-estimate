@@ -2196,36 +2196,22 @@
           <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">계약 완료 건의 실제 최종 총액을 남기면 요율 관리 탭 "견적 정확도"에 <strong style="color:var(--heading)">종합 오차</strong>로 집계됩니다.</p>
         </div>
         <!-- UI: 이 견적서의 일정 (2026-08-18 대표 지시)
-             여기 두는 이유 — 발급 버튼 **바로 위**다. 일정을 손보는 시점은 고객에게
-             보내기 직전이고, 산출 화면(admin-quote.html)은 금액에 집중해야 한다.
-             목적지 공통 일정(사이드바 '일정 관리')과 다른 것: 여기서 고친 것은
-             **이 견적서에만** 나간다. 같은 목적지라도 고객마다 목적이 다르다. -->
+             ⚠ UM에서 **편집기 본체를 이 안에서 꺼냈다.** 산출 화면(admin-quote.html)도
+               같은 편집기를 열어야 하는데(대표 지시 2026-08-19), 여기 묻혀 있으면
+               산출 쪽에 한 벌을 새로 만들게 되고 그게 이 저장소가 반복해 당한
+               결함 생성기 ①이다. 지금은 두 화면 모두 eqModal 하나를 연다.
+             여기 남은 것은 「지금 이 견적서에 무엇이 실려 나가는가」 한 줄과 여는 버튼이다. -->
         <div style="margin-top:.6rem;padding:.75rem .9rem;background:#fbfaf8;border:1px solid var(--border)">
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <div class="detail-label" style="margin:0">📅 이 견적서의 제안 일정</div>
-            <span id="eq-origin" style="font-size:.74rem;color:var(--muted)"></span>
+            <span id="em-iti-state" style="font-size:.74rem;color:var(--muted)"></span>
             <span style="margin-left:auto"></span>
-            <button type="button" class="btn-act btn-outline-p" id="eq-toggle" onclick="eqToggle()">불러오기</button>
+            <button type="button" class="btn-act btn-outline-p" onclick="eqOpen(emCurrentId)">일정 확인·수정</button>
           </div>
           <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">
             여기서 고친 일정은 <strong style="color:var(--heading)">이 견적서에만</strong> 적용됩니다.
             비워 두면 목적지 공통 일정이 그대로 나갑니다.
           </p>
-          <!-- UI: 출발점 가져오기. 백지에서 쓰는 것과 고치는 것은 부담이 다르고,
-               같은 목적지로 이미 나간 일정이 있으면 그게 가장 좋은 출발점이다.
-               ⚠ 목록은 열 때마다 다시 만든다 — 복사해 두면 동료가 방금 저장한 일정이
-                 후보에 안 나타난다. -->
-          <div id="eq-import-row" class="hidden" style="display:flex;gap:.4rem;margin-top:.6rem;align-items:center;flex-wrap:wrap">
-            <span style="font-size:.74rem;color:var(--muted)">출발점 가져오기</span>
-            <select id="eq-import" class="search-box" style="flex:1;min-width:220px;max-width:520px"></select>
-            <button type="button" class="btn-act btn-outline-p" onclick="eqImport()">이 일정으로 바꾸기</button>
-          </div>
-          <div id="eq-body" class="hidden" style="margin-top:.6rem"></div>
-          <div id="eq-actions" class="hidden" style="display:flex;gap:.4rem;margin-top:.6rem;align-items:center;flex-wrap:wrap">
-            <button type="button" class="btn-act btn-primary" onclick="eqSave()">이 견적서 일정으로 저장</button>
-            <button type="button" class="btn-act btn-outline-p" onclick="eqRevert()">목적지 공통으로 되돌리기</button>
-            <span id="eq-msg" style="font-size:.76rem;font-weight:700"></span>
-          </div>
         </div>
 
         <div class="modal-actions" style="margin-top:.75rem">
@@ -2533,6 +2519,55 @@
      후보는 새로 만든 목록이 아니라 **지금 실제로 쓰이는 일정 값**에서 그때그때 뽑는다
      (itiPickCandidates). 별도 목록을 두면 일정을 고쳐도 후보는 안 바뀌어 곧 어긋난다.
      내용은 담당자가 친 자유 문자열이라 전부 itiPick* 쪽에서 createElement로 채운다. -->
+<!-- ══ UM: 이 견적서의 일정 편집기 (2026-08-19 대표 지시) ══════════════════
+     대표 지시: 「내부 견적 산출 페이지에서 견적을 산출한 직원이 산출 이후에 직접
+     일정을 컨트롤해서 견적서와 함께 고객에게 제공할 수 있게」.
+
+     UI에서는 이 편집기가 **견적 상세 모달 안에** 있었다. 그래서 산출 화면에서 나가는
+     견적서(PDF·엑셀)에는 손댈 방법이 없었다 — 담당자가 실제로 쓰는 길에 편집기가
+     없었던 것이다. 여기로 꺼낸 이유는 하나다: **두 화면이 같은 편집기를 열게 하려고.**
+     산출 화면에 한 벌을 새로 만들면 칸 구성·일수 맞춤·저장 규칙이 두 벌이 되고,
+     그 둘은 반드시 어긋난다(결함 생성기 ①. RR에서 겪은 그대로다).
+
+     ⚠ 산출 화면(admin-quote.html)은 이 문서 안의 iframe이다. 거기서는 부모의
+       window.openQuoteItineraryEditor(id)를 부른다 — 편집기 코드는 여기 한 곳뿐이다.
+     ══════════════════════════════════════════════════════════════════════ -->
+<div id="eqModal" class="modal-overlay hidden">
+  <div class="modal-box" style="width:min(880px,100%)">
+    <div class="modal-header">
+      <h3>📅 이 견적서의 제안 일정</h3>
+      <button type="button" class="modal-close" onclick="eqClose()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="eq-head" style="font-size:.82rem;font-weight:700;color:var(--heading)"></div>
+      <p style="font-size:.74rem;color:var(--muted);margin-top:.25rem">
+        여기서 고친 일정은 <strong style="color:var(--heading)">이 견적서에만</strong> 적용됩니다.
+        저장하지 않으면 목적지 공통 일정이 그대로 나갑니다.
+      </p>
+      <div id="eq-origin" style="font-size:.76rem;color:var(--muted);margin-top:.5rem"></div>
+
+      <!-- UI: 출발점 가져오기. 백지에서 쓰는 것과 고치는 것은 부담이 다르고,
+           같은 목적지로 이미 나간 일정이 있으면 그게 가장 좋은 출발점이다.
+           ⚠ 목록은 열 때마다 다시 만든다 — 복사해 두면 동료가 방금 저장한 일정이
+             후보에 안 나타난다. -->
+      <div id="eq-import-row" class="hidden" style="display:flex;gap:.4rem;margin-top:.6rem;align-items:center;flex-wrap:wrap">
+        <span style="font-size:.74rem;color:var(--muted)">출발점 가져오기</span>
+        <select id="eq-import" class="search-box" style="flex:1;min-width:220px;max-width:520px"></select>
+        <button type="button" class="btn-act btn-outline-p" onclick="eqImport()">이 일정으로 바꾸기</button>
+      </div>
+
+      <div id="eq-body" class="hidden" style="margin-top:.6rem"></div>
+
+      <div class="modal-actions" style="margin-top:.75rem;align-items:center;flex-wrap:wrap">
+        <button type="button" class="btn-act btn-primary" id="eq-save-btn" onclick="eqSave()">이 견적서 일정으로 저장</button>
+        <button type="button" class="btn-act btn-outline-p" onclick="eqRevert()">목적지 공통으로 되돌리기</button>
+        <button type="button" class="btn-act" onclick="eqClose()" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
+        <span id="eq-msg" style="font-size:.76rem;font-weight:700"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="itiPickModal" class="modal-overlay hidden">
   <div class="modal-box" style="width:min(680px,100%)">
     <div class="modal-header">
@@ -3559,6 +3594,7 @@
        로그아웃 상태에서는 아무것도 하지 않는다). */
     startInboxWatch();
     applyRolePermissionsToUI();
+    aqHandleItiHash();
     /* 설정 탭 요율 정보 초기화 */
     const rvEl = document.getElementById('rate-settings-version');
     if (rvEl && typeof RATE_META !== 'undefined') {
@@ -8433,9 +8469,13 @@
 
   /* 다시 그린 뒤·탭을 연 뒤에 한 번에 맞춘다. 칸마다 부르는 자리를 따로 두면 언젠가
      한 곳을 빠뜨려 그 칸만 높이가 안 맞는다(결함 생성기 ①). */
-  function itiAutoGrowAll() {
+  /* UM: 범위를 인자로 받는다. 예전엔 '#tab-itineraries' 안만 훑었는데, 견적서별
+     일정 편집기는 그 탭 밖(모달)에 있어 **한 칸도 늘어나지 않았다** — 여러 줄 문구가
+     두 줄짜리 칸에 갇혀 담당자가 쓴 글의 뒷부분이 안 보였다. */
+  function itiAutoGrowAll(rootSel) {
     let done = 0;
-    document.querySelectorAll('#tab-itineraries .iti-ta').forEach((el) => { if (itiAutoGrow(el)) done++; });
+    document.querySelectorAll((rootSel || '#tab-itineraries') + ' .iti-ta')
+      .forEach((el) => { if (itiAutoGrow(el)) done++; });
     return done;
   }
 
@@ -11161,8 +11201,13 @@
     if (!e) return;
     emCurrentId = id;
     /* UI: 일정 편집기를 접어 둔 상태로 되돌린다. 안 지우면 **앞 견적의 일정이
-       다음 견적 화면에 그대로 남고**, 그 상태로 저장하면 남의 일정이 이 고객에게 간다. */
+       다음 견적 화면에 그대로 남고**, 그 상태로 저장하면 남의 일정이 이 고객에게 간다.
+       ⚠ UM: 편집기가 모달로 나갔으므로 **열려 있으면 닫는 것까지** 해야 한다.
+         상태만 지우고 화면을 두면 앞 견적의 일자 카드가 그대로 떠 있다. */
+    document.getElementById('eqModal').classList.add('hidden');
+    eqOnSaved = null;
     eqReset();
+    emRenderItiState();
 
     document.getElementById('emModalTitle').textContent = `견적 상세 — ${e.destLabel||e.destKey}`;
 
@@ -11575,6 +11620,28 @@
        서로의 편집 중인 값을 덮어쓴다.
      ══════════════════════════════════════════════════════════════════ */
   let eqState = null;
+  let eqOnSaved = null;   /* 저장 뒤 알려 줄 곳 (산출 화면) — eqClose에서 반드시 지운다 */
+
+  /* 견적 상세에 「지금 이 견적서에 무엇이 실려 나가는가」 한 줄 (UM).
+     편집기를 열지 않아도 전용 일정이 있는지 없는지는 보여야 한다 — 안 보이면
+     담당자는 열어 봐야만 알 수 있고, 열어 보지 않으면 기본 일정이 나가는 줄 모른다
+     (결함 생성기 ②). */
+  function emRenderItiState() {
+    const el = document.getElementById('em-iti-state');
+    if (!el) return;
+    const rec = getEstsFull().find((x) => x.id === emCurrentId);
+    const it = rec && rec.itinerary;
+    if (it && Array.isArray(it.courses) && it.courses.length) {
+      el.textContent = '📝 이 견적서 전용 일정'
+        + (it.confirmedBy ? ' · ' + it.confirmedBy + ' 확인' : '')
+        + (it.days ? ' · ' + it.days + '일' : '')
+        + (rec && it.days && Number(it.days) !== Number(rec.days) ? '  ·  ⚠ 저장 후 견적 일수가 바뀌었습니다' : '');
+      el.style.color = '#15803D';
+    } else {
+      el.textContent = '목적지 공통 일정이 나갑니다 (이 견적서 전용 일정 없음)';
+      el.style.color = 'var(--muted)';
+    }
+  }
 
   function eqSetMsg(text, kind) {
     const el = document.getElementById('eq-msg');
@@ -11588,15 +11655,13 @@
   function eqReset() {
     eqState = null;
     const body = document.getElementById('eq-body');
-    const acts = document.getElementById('eq-actions');
-    const tog  = document.getElementById('eq-toggle');
     const imp  = document.getElementById('eq-import-row');
     if (body) { body.innerHTML = ''; body.classList.add('hidden'); }
-    if (acts) acts.classList.add('hidden');
     if (imp)  imp.classList.add('hidden');
-    if (tog)  tog.textContent = '불러오기';
     const org = document.getElementById('eq-origin');
     if (org) org.textContent = '';
+    const head = document.getElementById('eq-head');
+    if (head) head.textContent = '';
     eqSetMsg('');
   }
 
@@ -11620,15 +11685,29 @@
     return [one(snap.a), one(snap.b)];
   }
 
-  async function eqToggle() {
-    const body = document.getElementById('eq-body');
-    if (eqState) {   /* 이미 열려 있으면 접는다 */
-      if (eqState.dirty && !confirm('저장하지 않은 편집이 있습니다. 접으면 사라집니다. 계속할까요?')) return;
-      eqReset();
+  /* 편집기를 연다 (UM).
+     ⚠ 열기 전에 **반드시 eqReset()**한다. 안 지우면 앞 견적의 편집 상태가 남아,
+       저장하는 순간 남의 일정이 이 고객에게 나간다.
+     opts.onSaved — 저장이 끝나면 저장된 일정을 돌려준다. 산출 화면(iframe)이 이걸로
+       「견적서 받기」에 실을 일정을 갱신한다. 없으면 아무 일도 안 한다. */
+  async function eqOpen(quoteId, opts) {
+    const modal = document.getElementById('eqModal');
+    const body  = document.getElementById('eq-body');
+    if (eqState && eqState.dirty
+        && !confirm('저장하지 않은 편집이 있습니다. 버리고 다시 열까요?')) return;
+    eqReset();
+    eqOnSaved = (opts && typeof opts.onSaved === 'function') ? opts.onSaved : null;
+    modal.classList.remove('hidden');
+
+    const rec = getEstsFull().find((x) => x.id === quoteId);
+    if (!rec) {
+      /* 산출 직후라면 서버 저장이 아직 안 끝났거나 실패한 것이다. 조용히 닫지 않는다 —
+         담당자는 "왜 안 열리지"가 아니라 "무엇이 잘못됐는지"를 알아야 한다. */
+      eqSetMsg('이 견적을 찾을 수 없습니다. 산출 직후라면 잠시 뒤 다시 눌러 주세요.', 'err');
       return;
     }
-    const rec = getEstsFull().find((x) => x.id === emCurrentId);
-    if (!rec) { eqSetMsg('견적 정보를 찾을 수 없습니다.', 'err'); return; }
+    document.getElementById('eq-head').textContent =
+      (rec.orgName || '(고객명 없음)') + ' · ' + (rec.destLabel || rec.destKey) + ' · ' + rec.days + '일';
 
     eqSetMsg('불러오는 중…');
     const tables = await emLoadItiTables();
@@ -11654,14 +11733,44 @@
     if (org) {
       org.textContent = '출발점 · ' + snap.originLabel
         + (saved && saved.confirmedBy ? '  ·  ' + saved.confirmedBy + ' 확인' : '')
-        + (snap.daysChanged ? '  ·  ⚠ 저장 후 견적 일수가 바뀌었습니다' : '');
+        + (snap.daysChanged ? '  ·  ⚠ 저장 후 견적 일수가 바뀌었습니다' : '')
+        + (tables.loaded ? '' : '  ·  ⚠ 최신 수정본을 불러오지 못했습니다(기본 일정 기준)');
     }
-    document.getElementById('eq-toggle').textContent = '접기';
     body.classList.remove('hidden');
-    document.getElementById('eq-actions').classList.remove('hidden');
     eqFillImport();
     eqRenderBody();
     eqSetMsg('');
+  }
+
+  function eqClose() {
+    if (eqState && eqState.dirty
+        && !confirm('저장하지 않은 편집이 있습니다. 닫으면 사라집니다. 계속할까요?')) return;
+    document.getElementById('eqModal').classList.add('hidden');
+    eqOnSaved = null;
+    eqReset();
+  }
+
+  /* 산출 화면(admin-quote.html iframe)이 부르는 창구 (UM).
+     ⚠ 편집기를 그쪽에 복제하지 않기 위한 유일한 연결점이다. 여기서 하는 일은
+       "열어 준다"뿐이고, 조립·일수 맞춤·저장 규칙은 전부 이 화면 한 곳에 남는다. */
+  window.openQuoteItineraryEditor = function (quoteId, opts) {
+    /* 견적 상세 모달이 열려 있으면 겹친다 — 일정 편집기가 위에 오게 둔다. */
+    return eqOpen(quoteId, opts);
+  };
+
+  /* 산출 화면을 **iframe이 아니라 따로** 연 경우의 착지점 (UM).
+     그쪽에서는 부모가 없어 편집기를 부를 수 없으므로 '#quote-iti=<id>'로 이 화면에
+     보낸다. 안내만 띄우고 끝내면 담당자는 목록에서 자기 건을 다시 찾아야 한다. */
+  function aqHandleItiHash() {
+    const m = /^#quote-iti=(.+)$/.exec(location.hash || '');
+    if (!m) return;
+    const id = decodeURIComponent(m[1]);
+    /* 주소창에 남겨 두면 새로고침할 때마다 다시 열린다. */
+    history.replaceState(null, '', location.pathname + location.search);
+    switchTab('estmgr');
+    /* 견적 상세를 함께 연다 — 편집기만 뜨면 어느 건인지 화면에 남는 것이 없다. */
+    if (getEstsFull().some((x) => x.id === id)) openEstDetail(id);
+    eqOpen(id);
   }
 
   /* ── 출발점 후보 (UK) ───────────────────────────────────────────────────
@@ -11772,7 +11881,7 @@
       course.days.forEach((day, di) => box.appendChild(eqRenderDay(course, day, di, ci)));
       body.appendChild(box);
     });
-    itiAutoGrowAll();
+    itiAutoGrowAll('#eq-body');
   }
 
   function eqRenderDay(course, day, dayIdx, courseIdx) {
@@ -11838,6 +11947,10 @@
     eqSetMsg('저장했습니다. 이 일정이 견적서와 함께 나갑니다.', 'ok');
     const org = document.getElementById('eq-origin');
     if (org && savedIti) org.textContent = '출발점 · 📝 이 견적서 전용 일정 (작성자가 확인함)';
+    emRenderItiState();
+    /* 산출 화면에 알린다 (UM) — 이게 없으면 담당자가 방금 확인한 일정이 저장은 됐는데
+       그 화면의 「견적서 받기」에는 안 실린다(같은 문서가 두 가지를 말하게 된다). */
+    if (eqOnSaved) { try { eqOnSaved(savedIti); } catch (err) { console.warn('[admin] 산출 화면 알림 실패:', err); } }
   }
 
   async function eqRevert() {
@@ -11849,7 +11962,12 @@
     const idx = all.findIndex((x) => x.id === eqState.id);
     if (idx >= 0) { all[idx].itinerary = null; localStorage.setItem(EM_KEY, JSON.stringify(all)); }
     await addActivityLogSilent('quote', eqState.id, '견적서 일정 되돌리기 (목적지 공통 사용)');
+    /* ⚠ 되돌린 것도 산출 화면에 알린다. 안 알리면 그 화면은 지워진 전용 일정을
+       계속 실어 보낸다 — 「되돌리기」를 눌렀는데 아무것도 안 바뀐 것으로 보인다. */
+    const notify = eqOnSaved;
     eqReset();
+    emRenderItiState();
+    if (notify) { try { notify(null); } catch (err) { console.warn('[admin] 산출 화면 알림 실패:', err); } }
     eqSetMsg('목적지 공통 일정으로 되돌렸습니다.', 'ok');
   }
 
