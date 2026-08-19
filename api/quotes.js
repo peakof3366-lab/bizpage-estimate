@@ -545,6 +545,37 @@ async function handleExtractPdf(req, res) {
   if (values.hotel != null && values.airfare != null && values.hotel > values.airfare) warnings.push('호텔 1박이 항공료보다 비쌉니다 — 확인해 주세요.');
   if (out.blockCount > 1) warnings.push(`이 PDF에 견적이 ${out.blockCount}개 들어 있습니다 — 아래에서 어느 것을 읽을지 골라 주세요.`);
   if (out.needsFxRate) warnings.push(`${out.needsFxRate.currency} 기준 견적서인데 문서에 환율이 없습니다 — 환율을 넣으면 ${out.needsFxRate.rowCount}줄이 살아납니다.`);
+
+  /* ══ UV: 추출기가 **화면에 쓰라고 만들어 둔 신호 세 가지**가 여기까지 오지 않았다.
+     셋 다 금액에 직결되는데, 지금까지는 담당자가 올리는 순간에 아무 말도 못 들었다
+     (만들어만 두고 안 도는 안전망 — 이 저장소가 반복해서 당한 유형이다).
+     ⚠ 값을 여기서 고치지 않는다. **무엇을 봐야 하는지만** 말한다. ══════════════ */
+
+  /* ① 인원 어긋남 (UU) — 총계 ÷ 1인당이 딱 떨어지는데 우리가 읽은 인원과 다르다.
+     실측(리더스에셋 푸꾸옥): 128,770,920 ÷ 1,839,585 = 정확히 70인데 50으로 읽었다.
+     인원은 **모든 1인당 단가의 분모**라, 틀리면 그 견적서의 값이 통째로 어긋난다. */
+  if (out.paxConflict) {
+    warnings.push(`인원이 어긋납니다 — 우리가 읽은 ${out.paxConflict.docPax}명인데 `
+      + `문서 계산(총계 ÷ 1인당)은 ${out.paxConflict.impliedPax}명입니다. `
+      + '어느 쪽이 맞는지 확인해 주세요 — 인원이 틀리면 1인당 단가가 전부 어긋납니다.');
+  }
+
+  /* ② 문서가 스스로 모순된다 — 제목의 「N박」과 기간 표기가 다르다.
+     날짜 범위가 더 구체적인 증거라 그쪽을 쓰지만, **어긋났다는 사실은 말한다.**
+     일수는 식비에 정비례해서 들어간다. */
+  const nc = out.dates && out.dates.nightsConflict;
+  if (nc) {
+    warnings.push(`문서 안에서 기간이 어긋납니다 — 날짜 범위로는 ${nc.fromDates}박인데 `
+      + `문서에 적힌 것은 ${nc.labelled}박${nc.labelledDays ? ' ' + nc.labelledDays + '일' : ''}입니다. `
+      + `날짜 범위(${nc.fromDates}박)를 썼습니다 — 맞는지 봐 주세요.`);
+  }
+
+  /* ③ 일수를 기간 표기가 아니라 **일정표를 세어** 얻었다.
+     일정표는 「선택일정」이 여러 줄이거나 차수가 섞이면 날이 부푼다(KT CES: 9일 → 13일). */
+  if (out.daysVia === 'itinerary') {
+    warnings.push(`여행 일수를 문서의 기간 표기가 아니라 **일정표를 세어** ${out.dates && out.dates.days}일로 봤습니다 `
+      + '— 선택일정이나 차수가 섞이면 날이 부풀 수 있으니 확인해 주세요.');
+  }
   (out.reconciliation.checks || []).filter((c) => !c.ok).forEach((c) => {
     warnings.push(`문서 검산 불일치: ${c.name} (${c.detail})`);
   });
@@ -557,6 +588,10 @@ async function handleExtractPdf(req, res) {
     pax: out.pax, grandTotal: out.grandTotal, perPerson: out.perPerson,
     mealDays: (out.evidence.meal && out.evidence.meal.dayCount) || null,
     dates: out.dates,
+    /* UV: 화면이 그대로 다시 쓸 수 있게 원본 신호도 함께 보낸다(문구만 주면
+       나중에 화면이 다른 방식으로 보여 주려 할 때 다시 서버를 고쳐야 한다). */
+    paxConflict: out.paxConflict || null,
+    daysVia: out.daysVia || null,
     reconciliation: out.reconciliation,
     blockCount: out.blockCount, selectedBlock: out.selectedBlock, blocks: out.blocks,
     needsFxRate: out.needsFxRate, fxRates: out.fxRates, fxFromDocument: out.fxFromDocument,
