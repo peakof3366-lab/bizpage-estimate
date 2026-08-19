@@ -93,6 +93,11 @@ function blockers(r, dest) {
      그러면 이 표가 "아무것도 못 쓴다"고 거짓말을 한다. */
   if (!(r.dates && r.dates.departDate)) out.push('출발일 불명');
   if (!r.perPerson && !r.depositPerPerson) out.push('1인당 금액 없음');
+  /* UU: 문서가 적은 총계 ÷ 1인당이 딱 떨어지는데 우리가 읽은 인원과 다르다.
+     ⚠ **1인당을 버리지 않고 이 사유로 든다.** 예전엔 1인당을 버려서 「1인당 금액 없음」이
+       됐는데, 그건 사실이 아니고(문서에 적혀 있다) 사람이 볼 곳도 가리키지 못했다.
+       인원은 규모 계수로 금액에 들어가므로 틀린 채 대조하면 그 오차가 엔진 오차로 둔갑한다. */
+  if (r.paxConflict) out.push('인원 어긋남(문서 계산은 ' + r.paxConflict.impliedPax + '명)');
   if (!r.grandTotal && !r.itemsTotal) out.push('총계 없음');
   return out;
 }
@@ -169,6 +174,7 @@ function blockers(r, dest) {
       crews: r.crews || null,
       sideTables: r.sideTables || null,
       multiCity: !!(r.itinerary && r.itinerary.multiCity),
+      paxConflict: r.paxConflict || null,
       itineraryDays: (r.itinerary && r.itinerary.days) ? r.itinerary.days.length : 0,
       fxFromDocument: r.fxFromDocument || null,
       needsFxRate: (r.needsFxRate && r.needsFxRate.currency) || null,

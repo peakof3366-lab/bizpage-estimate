@@ -911,10 +911,31 @@ function findTotals(lines, pax, preferGrand, fx) {
       if (ok.length) { const v = Math.max.apply(null, ok); if (perPerson == null || v > perPerson) perPerson = v; }
     }
   });
-  /* 인원을 아는데 1인당 × 인원이 총액과 딴판이면 잘못 집은 것이다 — 버린다(조용히 쓰지 않는다). */
+  /* 인원을 아는데 1인당 × 인원이 총액과 딴판이면 잘못 집은 것이다 — 버린다(조용히 쓰지 않는다).
+
+     ⚠ UU: 다만 **버릴 것이 1인당이 아닌 경우가 있다.** 실측(리더스에셋 푸꾸옥):
+         총 견적가 128,770,920 · 문서의 1인 객단가 1,839,585 · 우리가 읽은 인원 50
+         → 128,770,920 ÷ 1,839,585 = **정확히 70.000**
+       문서가 적어 놓은 두 숫자가 서로를 증명하고, 어긋나는 것은 **인원 쪽**이다.
+       그런데 예전에는 1인당을 버려서, 화면과 감사기가 「1인당을 못 읽었다」고 말했다 —
+       실제로는 읽었고 인원이 틀렸는데, 그 신호가 통째로 사라진 것이다.
+       이 문서는 그 이유로 역검증에서 빠져 있었고, 사람이 보기 전에는 원인을 알 수 없었다.
+     ⚠ **인원을 여기서 고치지 않는다.** 인원은 규모 계수를 통해 금액에 들어가는 값이라,
+       나눗셈이 맞았다는 것만으로 조용히 바꾸면 그게 다음 사고가 된다. 값을 살려 두고
+       **어긋났다는 사실을 돌려준다** — 부르는 쪽이 사람에게 한 칸 물어보게 한다. */
   let discarded = false;
+  let paxConflict = null;
   if (perPerson && grand && pax && Math.abs(perPerson * pax - grand) / grand > 0.25) {
-    perPerson = null; discarded = true;
+    const implied = grand / perPerson;
+    const n = Math.round(implied);
+    /* 「나누어떨어진다」는 **사람 수의 절대 오차**로 잰다(0.02명). 상대오차(0.5%)로
+       두면 인원이 클수록 헐거워져 우연이 걸린다 — 실측으로 확인했다:
+       128,770,920 ÷ 1,234,567 = 104.30인데 104의 0.5%는 0.52라 통과해 버린다.
+       그건 잘못 집은 값이지 인원 어긋남이 아니다.
+       ⚠ 엄격해서 놓치는 건은 **예전 그대로 버려진다** — 새 위험이 생기지 않는다. */
+    const clean = n >= 2 && n <= 2000 && Math.abs(implied - n) <= 0.02;
+    if (clean && n !== pax) paxConflict = { docPax: pax, impliedPax: n };
+    else { perPerson = null; discarded = true; }
   }
 
   /* ── 1인당을 **총 견적가 ÷ 인원**으로 유도한다 (UE) ────────────────────────
@@ -938,7 +959,7 @@ function findTotals(lines, pax, preferGrand, fx) {
     const v = Math.round(grand / pax);
     if (v >= PER_PERSON_MIN && v <= PER_PERSON_MAX) { perPerson = v; perPersonVia = 'derived'; }
   }
-  return Object.assign({ grand, perPerson, perPersonVia, itemsTotal }, findDeposit(lines));
+  return Object.assign({ grand, perPerson, perPersonVia, itemsTotal, paxConflict }, findDeposit(lines));
 }
 
 /* 「입금가」 = **우리가 랜드사·홀세일러에 내는 1인 원가**다 (SC).
@@ -976,7 +997,7 @@ function findDeposit(lines) {
 
 function reconcile(lines, rows, preferGrand, fx) {
   const pax = findPax(lines, rows);
-  const { grand, perPerson, deposit, depositAll, itemsTotal } = findTotals(lines, pax, preferGrand, fx);
+  const { grand, perPerson, deposit, depositAll, itemsTotal, paxConflict } = findTotals(lines, pax, preferGrand, fx);
   const checks = [];
   const near = (a, b, tolPct) => a > 0 && b > 0 && Math.abs(a - b) / b <= tolPct;
 
@@ -1005,7 +1026,7 @@ function reconcile(lines, rows, preferGrand, fx) {
   }
 
   const done = checks.filter((c) => c.ok).length;
-  return { pax, grand, perPerson, deposit, depositAll, itemsTotal, checks, passed: done, total: checks.length };
+  return { pax, grand, perPerson, deposit, depositAll, itemsTotal, paxConflict, checks, passed: done, total: checks.length };
 }
 
 /* ═══ L4b — 날짜 (견적 작성일 · 출발일) ════════════════════════════════════
@@ -2416,6 +2437,9 @@ function readOneBlock(lines, fx, blockTotal) {
     /* 구분 열을 읽었는가 — 못 읽었으면 **왜 못 읽었는지**를 남긴다(감사기가 센다) */
     groupColumn: { used: !!grp.byLine, groups: grp.groups || 0, ambiguous: grp.ambiguous || 0, why: grp.why || '' },
     pax, grandTotal: rec.grand, perPerson: rec.perPerson,
+    /* UU: 문서의 총계 ÷ 1인당이 딱 떨어지는데 우리가 읽은 인원과 다르다.
+       인원을 여기서 고치지는 않는다 — 사람이 한 칸 확인해야 하는 자리라고 말할 뿐이다. */
+    paxConflict: rec.paxConflict || null,
     /* 항목을 다 더한 줄(「합계」) — 견적 총액과 다르다(SH). 커버리지 측정의 분모다. */
     itemsTotal: rec.itemsTotal || null,
     /* 우리 1인 원가 — 원가 시트에만 있다. 판매가(perPerson)와 섞지 말 것 (SC) */

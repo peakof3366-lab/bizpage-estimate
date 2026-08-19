@@ -53,7 +53,7 @@ const BASIS = (args.find((a) => a.startsWith('--basis=')) || '').split('=')[1] |
 if (!['sell', 'cost'].includes(BASIS)) { console.log('--basis 는 sell 또는 cost'); process.exit(1); }
 /* ⚠ 캐시에 새 칸(입금가)이 생겼다. 판이 다르면 **조용히 재사용하지 않는다** —
    안 그러면 원가가 undefined라 전건이 '제외'로 빠지고 그게 '해당 없음'처럼 보인다. */
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 const { DEST_ALIAS, destFromName } = require('./_dest_from_name');
 
@@ -80,6 +80,9 @@ async function extractCorpus() {
         file: f, pax: r.pax, perPerson: r.perPerson, grand: r.grandTotal,
         deposit: r.depositPerPerson || null, depositAll: r.depositCandidates || [],
         dates: r.dates, kind: r.kind && r.kind.kind, values: r.values,
+        /* UU: 인원이 문서 계산과 어긋난다는 표시. 여기서 안 실으면 아래 가드가
+           영영 안 걸린다 — 만들어만 두고 안 도는 안전망이 된다(결함 생성기 ③). */
+        paxConflict: r.paxConflict || null,
       });
     } catch (e) {
       out.push({ file: f, error: String(e.message).slice(0, 120) });
@@ -173,6 +176,16 @@ function quantile(sorted, q) {
        눈으로 확인할 수 있게 한다. 7건을 버리면 표본이 15→8로 줄어 분포가 더 흔들린다. */
     /* 출발일이 없으면 시즌 계수를 못 맞춘다 — 그 대조는 계절 오차를 엔진 오차로 오해하게 한다 */
     if (!c.dates.departDate) { skipped.push({ f: c.file, why: '출발일 불명(시즌 계수를 맞출 수 없음)' }); continue; }
+
+    /* UU: 문서의 총계 ÷ 1인당이 딱 떨어지는데 우리가 읽은 인원과 다르면 대조하지 않는다.
+       인원은 규모 계수로 금액에 들어가므로, 틀린 인원으로 잰 오차는 엔진 오차로 둔갑한다.
+       ⚠ 조용히 빼지 않는다 — **문서 계산이 몇 명인지까지 적어** 사람이 한 칸 확인하면
+         바로 표본이 되게 한다(빈칸보다 틀린 값이 위험하다는 원칙 그대로다). */
+    if (c.paxConflict) {
+      skipped.push({ f: c.file, why: '인원 어긋남 — 우리가 읽은 ' + c.paxConflict.docPax
+        + '명 vs 문서 계산 ' + c.paxConflict.impliedPax + '명 (총계 ÷ 1인당)' });
+      continue;
+    }
 
     let bd;
     try { bd = run({ dest: key, pax: c.pax, days, date: c.dates.departDate }); }
