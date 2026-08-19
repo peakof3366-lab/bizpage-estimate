@@ -194,6 +194,16 @@ const submitForm = async (w, d) => {
       !!(card.compareDocumentPosition(d.getElementById('downloadEstimate'))
          & w.Node.DOCUMENT_POSITION_FOLLOWING));
 
+    /* 대표 요청(2026-08-19)으로 버튼을 머리줄 오른쪽에서 **카드 폭 전체**로 내렸다.
+       jsdom은 레이아웃을 계산하지 않으므로 폭을 재는 대신 구조로 고정한다 —
+       머리줄 밖에 있고 전체 폭 클래스를 달고 있어야 한다. */
+    const itiBtn = d.getElementById('aqItiBtn');
+    ok('일정 버튼이 카드 폭 전체를 쓰는 자리에 있다',
+      itiBtn.classList.contains('aq-iti-btn') && !itiBtn.closest('.aq-iti-head'));
+    ok('상태 문구보다 아래에 선다 (무엇이 나가는지 읽고 나서 누른다)',
+      !!(d.getElementById('aqItiState').compareDocumentPosition(itiBtn)
+         & w.Node.DOCUMENT_POSITION_FOLLOWING));
+
     fillForm(w, d, '도쿄');
     await submitForm(w, d);
     ok('산출하면 카드가 뜬다', !card.classList.contains('hidden'));

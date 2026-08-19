@@ -125,7 +125,14 @@
   }
   .aq-iti-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
   .aq-iti-title { font-size: .82rem; font-weight: 700; color: var(--heading); }
-  .aq-iti-head .btn-mini { margin-left: auto; }
+  /* 카드 안쪽 폭을 꽉 채운다 — 카드 좌우 선과 같은 자리에서 시작하고 끝난다. */
+  .aq-iti-btn {
+    width: 100%; height: auto; padding: .85rem 1rem; margin-top: .7rem;
+    justify-content: center; font-size: .95rem; font-weight: 800; letter-spacing: .01em;
+    border-width: 2px; border-color: var(--heading);
+  }
+  .aq-iti-btn:hover { background: var(--heading); color: #fff; }
+  .aq-iti-btn:disabled { opacity: .55; cursor: default; }
   .aq-iti-state { font-size: .78rem; font-weight: 700; margin-top: .4rem; color: var(--muted); }
   .aq-iti-state.is-set { color: #15803D; }
   .aq-iti-state.is-warn { color: var(--primary); }
@@ -730,10 +737,14 @@
           <div id="aqItiCard" class="aq-iti-card hidden">
             <div class="aq-iti-head">
               <span class="aq-iti-title">📅 고객에게 함께 나갈 일정</span>
-              <button type="button" class="btn-mini" id="aqItiBtn">일정 확인·수정</button>
             </div>
             <div id="aqItiState" class="aq-iti-state"></div>
             <p class="aq-iti-note">확인하지 않고 바로 견적서를 받아도 됩니다 — 그때는 위에 적힌 일정이 그대로 나갑니다.</p>
+            <!-- 버튼을 머리줄 오른쪽이 아니라 **카드 폭 전체**로 내렸다 (대표 요청 2026-08-19).
+                 읽는 순서와도 맞는다 — 「무엇이 나가는지」를 먼저 읽고 그 아래에서 누른다.
+                 ⚠ 아래 「견적서 받기」보다 약하게 둔다(테두리형). 그쪽이 이 화면의 결론이고,
+                   둘 다 진하면 어느 쪽을 눌러야 하는지가 흐려진다. -->
+            <button type="button" class="btn-mini aq-iti-btn" id="aqItiBtn">📅 일정 확인·수정</button>
           </div>
 
           <button type="button" id="downloadEstimate" class="btn-get-estimate hidden">
