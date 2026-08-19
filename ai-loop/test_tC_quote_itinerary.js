@@ -71,6 +71,10 @@ const OK_UNGUARDED = [
   /Array\.isArray\(/,          /* 코스가 있는지 확인 */
   /\]\.length > 0/,            /* 위와 같다 */
   /DEST_PHOTOS/,               /* 목적지 사진이 있는지 확인 */
+  /* UQ/UR: recVisibleCourses도 **거르는 함수**다(검토 전 제외). recPreferQuoteCourses가
+     그 앞단에서 이미 이걸 부르므로, 이 자리를 지나는 것은 안 걸러진 것이 아니다.
+     hasItineraryContent가 「고객에게 나갈 수 있는 코스가 있는가」를 물을 때 쓴다. */
+  /recVisibleCourses\(/,
 ];
 const badLines = script.split(String.fromCharCode(10)).filter((ln) => {
   if (!/ITINERARY_DB\[destKey\]/.test(ln)) return false;

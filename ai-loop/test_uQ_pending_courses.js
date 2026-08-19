@@ -208,6 +208,107 @@ delete REVIEWED.pending;
     dom.window.close();
   }
 
+  /* ── [6] 검토가 남았다는 사실이 목록에서 보이는가 (UR) ─────
+     심어 놓고 목적지를 하나씩 열어봐야 알 수 있으면 아무도 검토하지 않는다. */
+  console.log('\n[6] 목적지 목록 — 검토 대기가 눈에 보이는가');
+  {
+    const EXPOSE2 = '\n;try{ window.__iti2 = { state: itiState, fill: itiFillDestSelect }; }'
+      + 'catch(e){ window.__exposeError = String(e); }\n';
+    let injected2 = false;
+    const patched2 = htmlWithDeps('admin.html').replace(
+      /(<script(?![^>]*src=)[^>]*>)([\s\S]*?)(<\/script>)/gi,
+      (m, open, code, close) => {
+        if (!injected2 && /const\s+itiView/.test(code)) { injected2 = true; return open + code + EXPOSE2 + close; }
+        return m;
+      });
+    if (!injected2) throw new Error('itiView 선언 블록을 찾지 못했습니다');
+
+    const dom = new JSDOM(patched2, {
+      runScripts: 'dangerously', url: 'http://localhost/',
+      beforeParse(w) {
+        w.fetch = () => new Promise(() => {});
+        const c = new Proxy({}, { get: () => (() => c) });
+        w.HTMLCanvasElement.prototype.getContext = () => c;
+        w.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
+        w.confirm = () => true; w.alert = () => {}; w.prompt = () => null;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 80));
+    const w = dom.window, d = w.document;
+    if (w.__exposeError) throw new Error('주입 실패: ' + w.__exposeError);
+    const iti = w.__iti2;
+
+    const total = d.getElementById('iti-pending-total');
+    iti.state.overrides = {};
+    iti.fill();
+    ok('검토 대기가 없으면 합계 배지가 숨어 있다', total.classList.contains('hidden'), total.textContent);
+
+    /* 두 목적지에 검토 전 코스를 넣는다 — 심은 직후의 모양 그대로 */
+    iti.state.overrides = {
+      '도쿄': [ONLINE, JSON.parse(JSON.stringify(SEEDED)), JSON.parse(JSON.stringify(SEEDED))],
+      '홍콩': [ONLINE, JSON.parse(JSON.stringify(SEEDED))],
+    };
+    iti.fill();
+    ok('합계 배지가 뜬다', !total.classList.contains('hidden'));
+    ok('**개수와 곳수를 정확히 센다** (3개 · 2곳)',
+      /검토 대기 3개 · 2곳/.test(total.textContent), total.textContent);
+
+    const opts = Array.from(d.getElementById('iti-dest').options).map((o) => o.textContent);
+    ok('목적지 목록에도 그 목적지마다 개수가 붙는다',
+      opts.some((t) => /^도쿄.*🕒 검토 전 2/.test(t))
+      && opts.some((t) => /^홍콩.*🕒 검토 전 1/.test(t)),
+      JSON.stringify(opts.filter((t) => /검토 전/.test(t))));
+    ok('검토 전이 없는 목적지에는 안 붙는다',
+      !opts.some((t) => /^오사카.*검토 전/.test(t)));
+
+    dom.window.close();
+  }
+
+  /* ── [7] 심은 오버라이드가 기본 코스를 밀어내지 않는가 (UR) ─────────────
+     ⚠ 이게 UQ가 남긴 구멍이었다. 오버라이드는 예전부터 기본값을 **통째로 대체**했다.
+       그런데 일괄로 심으면 검토 전 코스만 든 행이 생기고, 검토 전은 고객에게 안 나가므로
+       **그 목적지의 일정이 통째로 사라진다.** 19곳 전부 data.js에 기본 코스가 있는데도. */
+  console.log('\n[7] 기본값 + 오버라이드 병합');
+  {
+    const BASE = [ONLINE];
+    const seededOv = [JSON.parse(JSON.stringify(SEEDED))];
+
+    ok('검토 전만 든 오버라이드는 「담당자 수정본」이 아니다',
+      R.recOverrideIsEdited(seededOv) === false);
+    ok('사람이 손댄 코스가 하나라도 있으면 수정본이다',
+      R.recOverrideIsEdited([ONLINE, SEEDED]) === true);
+
+    const merged = R.recApplyOverride(BASE, seededOv);
+    ok('**심어도 기본 코스가 남는다** (덧붙인다)',
+      merged.length === 2 && merged[0].title === '온라인코스',
+      JSON.stringify(merged.map((c) => c.title)));
+    ok('그래서 고객에게는 여전히 기본 코스가 나간다',
+      R.recPreferQuoteCourses(merged).length === 1
+      && R.recPreferQuoteCourses(merged)[0].title === '온라인코스');
+
+    const humanOv = [Object.assign({}, ONLINE, { title: '담당자가고친코스' })];
+    ok('사람이 손댄 오버라이드는 예전 그대로 **대체**다 (지운 판단을 뒤집지 않는다)',
+      R.recApplyOverride(BASE, humanOv).length === 1
+      && R.recApplyOverride(BASE, humanOv)[0].title === '담당자가고친코스');
+    ok('오버라이드가 비면 기본값 그대로', R.recApplyOverride(BASE, []) === BASE);
+    ok('기본값이 없으면 오버라이드만', R.recApplyOverride(null, seededOv).length === 1);
+  }
+
+  /* ── [8] 두 화면이 같은 병합을 쓰는가 ──────────────────────────────────
+     각자 병합하면 담당자가 발급한 견적서와 고객이 직접 뽑은 견적서가 다른 일정을
+     싣는다 — 이 저장소가 RR에서 겪은 사고 그대로다(결함 생성기 ①). */
+  console.log('\n[8] 고객 화면과 관리자 화면이 같은 규칙을 쓰는가');
+  {
+    const sc = read('script.js');
+    const ad = read('admin.html');
+    ok('고객 계산기가 병합 함수를 부른다', /recApplyOverride\(/.test(sc));
+    ok('관리자 발급 경로도 **같은 함수**를 부른다', /recApplyOverride\(/.test(ad));
+    ok('관리자가 옛 방식(통째 대체)으로 되돌아가 있지 않다',
+      !/db\[k\] = ov\[k\];/.test(ad));
+    ok('「담당자 수정본」 판정도 한 곳에서 한다',
+      /recOverrideIsEdited\(/.test(sc) && /recOverrideIsEdited\(/.test(ad));
+  }
+
   console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
   process.exit(fail ? 1 : 0);
 })();

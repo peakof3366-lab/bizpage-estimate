@@ -200,7 +200,15 @@ const itineraryOverridesReady = (function applyItineraryOverrides() {
            서버가 이미 검증하지만, 여기서도 최소한만 확인하고 건너뛴 건 기록한다. */
         const courses = map[key];
         if (!Array.isArray(courses) || !courses.length) { st.skipped = (st.skipped || []).concat(key); return; }
-        ITINERARY_DB[key] = courses;
+        /* UR: 예전엔 여기서 **통째로 대체**했다. UQ 이후로는 그러면 안 된다 —
+           견적서에서 일괄로 심은 「검토 전」 코스만 든 오버라이드가 기본 코스를
+           밀어내는데, 검토 전은 고객에게 안 나가므로 그 목적지의 일정이 통째로
+           사라진다(19곳 전부 data.js에 기본 코스가 있다). 병합 규칙은
+           rec_fallbacks.js가 안다 — 관리자 화면도 **같은 함수**를 부른다. */
+        /* 폴백은 조용하지 않게 한다(결함 생성기 ②). 기본값 위에 얹힌 것인지 대체한
+           것인지를 남겨, 내부 도구가 "왜 아직 기본 일정이 나가지"에 답할 수 있게 한다. */
+        if (!recOverrideIsEdited(courses)) st.pendingOnly = (st.pendingOnly || []).concat(key);
+        ITINERARY_DB[key] = recApplyOverride(ITINERARY_DB[key], courses);
       });
 
       /* QC: 추천 콘텐츠(방식 A/B). 일정과 같은 행에 담겨 오지만 별도 맵으로 내려온다 —
@@ -3174,9 +3182,15 @@ const _FALLBACK_MAP = {
    (`data.js`가 아니라 DB의 custom_destinations에 있으므로 ITINERARY_DB에 자리가 없다).
    담당자가 관리자 → 일정 관리에서 코스를 만들어 저장하면 그때 생긴다. */
 function hasItineraryContent(destKey) {
+  /* UR: **고객에게 실제로 나갈 수 있는** 코스가 있는가를 묻는 자리다. 배열 길이만
+     세면 검토 전(UQ)만 남은 목적지에서 "있다"고 답하고, 바로 아래 getItineraries가
+     빈 목록을 받아 그 자리에서 터진다 — 재현 확인했다.
+     ⚠ 거르는 함수는 **getItineraries와 같은 것**을 쓴다. recVisibleCourses로 따로
+       세면 「있다」와 「무엇이 나가는가」가 다른 규칙을 보게 되고, 그 어긋남이 바로
+       이 저장소가 반복해 겪은 사고다(결함 생성기 ①). test_tC가 그래서 여기를 본다. */
   return typeof ITINERARY_DB !== 'undefined'
     && Array.isArray(ITINERARY_DB[destKey])
-    && ITINERARY_DB[destKey].length > 0;
+    && recPreferQuoteCourses(ITINERARY_DB[destKey]).length > 0;
 }
 
 /* 동기 버전 — 코스가 없으면 null. 예전엔 `ITINERARY_DB[destKey]`를 그대로 받아
@@ -3221,6 +3235,11 @@ function getItineraries(destKey, programType) {
      "이 코스는 어떤 유형에서 방식 A로 나가는가"를 배지로 보여준다. 여기 다시 적으면
      두 화면이 다른 매핑을 말하게 되고, 그게 담당자가 두 화면을 못 맞추던 원인이었다. */
   const idx = recResolvePlanCourseIdx(courses.length, PROGRAM_PRIORITY[destKey], programType);
+  /* UR: 고를 코스가 하나도 없으면 **null**이다. 예전엔 idx가 null인 채로 idx[0]을
+     읽어 TypeError를 냈고, 그러면 견적 만들기와 일정 탐색이 통째로 죽는다. 위
+     hasItineraryContent가 먼저 막지만 그것 하나에 기대지 않는다 — 이 함수는 다른
+     경로에서도 불린다(결함 생성기 ③: 안전망이 하나뿐이면 그게 곧 단일 지점이다). */
+  if (!idx) return null;
   return [courses[idx[0]], courses[idx[1]]];
 }
 

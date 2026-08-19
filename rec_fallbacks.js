@@ -275,6 +275,47 @@ function recHasQuoteCourses(courses) {
   return recVisibleCourses(courses).some((c) => c && c.source === 'quote');
 }
 
+/* ═══ UR: 검토 전만 있는 오버라이드는 기본값을 밀어내지 않는다 ═══════════════
+   UQ가 「검토 전 코스는 고객에게 안 나간다」를 만들었는데, 오버라이드를 얹는 규칙이
+   그대로였다 — **오버라이드가 있으면 기본값을 통째로 대체**한다(script.js
+   applyItineraryOverrides · admin.html emLoadItiTables).
+
+   그 둘을 겹치면 심는 순간 이렇게 된다:
+     심기 전 : ITINERARY_DB['다낭'] = 기본 코스 2개            → 고객이 본다
+     심은 뒤 : 오버라이드 = [검토 전 3개] → 기본 2개를 밀어냄  → 나갈 코스 0개
+   즉 「고객 화면을 안 바꾸려고」 붙인 표시가 오히려 **19곳의 일정을 통째로 지운다.**
+   dry-run 실측으로 19곳 전부 data.js에 기본 코스가 2개씩 있다(도쿄만 3개).
+
+   그래서 규칙을 하나 더 둔다: **사람이 손댄 적 없는 오버라이드는 기본값을 대체하지
+   않고 그 뒤에 덧붙인다.** 창고(관리자 화면·출발점 가져오기)에는 둘 다 보이고,
+   고객에게는 기본값이 그대로 나간다 — 담당자가 「검토 완료」를 누른 코스부터 바뀐다.
+
+   ⚠ 규칙은 여기 한 곳이다. 고객 화면과 관리자 화면이 각각 병합하면 두 화면이 다른
+     목록을 보게 된다 — 이 저장소가 RR에서 겪은 사고 그대로다(결함 생성기 ①).
+   ⚠ 「사람이 손댔는가」를 **저장 시각·updated_by로 판단하지 않는다.** 일괄 심기도
+     그 두 칸을 채우기 때문에 구분이 안 된다. 코스 자체에 검토 전이 아닌 것이
+     하나라도 있는지로만 본다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 이 오버라이드에 **사람이 검토한 코스**가 하나라도 있는가.
+   일괄로 심은 검토 전 코스만 든 행은 사람이 손댄 것이 아니다 — 화면이 그걸
+   「✏️ 담당자 수정본」이라고 부르면 거짓말이 된다(origin 라벨이 이 값을 쓴다). */
+function recOverrideIsEdited(overrideCourses) {
+  return Array.isArray(overrideCourses)
+    && overrideCourses.some((c) => c && c.pending !== true);
+}
+
+/* 기본값(data.js) + 오버라이드(DB) → 이 목적지의 실제 코스 목록. */
+function recApplyOverride(defaultCourses, overrideCourses) {
+  const ov = Array.isArray(overrideCourses) ? overrideCourses.filter(Boolean) : [];
+  if (!ov.length) return defaultCourses;
+  /* 사람이 손댄 오버라이드는 예전 그대로 **대체**다. 담당자가 기본 코스를 일부러
+     지웠을 수도 있는데, 여기서 되살리면 그 판단을 조용히 뒤집는다. */
+  if (recOverrideIsEdited(ov)) return ov;
+  const base = Array.isArray(defaultCourses) ? defaultCourses.filter(Boolean) : [];
+  return base.length ? base.concat(ov) : ov;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    이 견적서에 실릴 일정 한 벌 (UI)
 
@@ -440,6 +481,8 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports.recHasQuoteCourses = recHasQuoteCourses;
   module.exports.recVisibleCourses = recVisibleCourses;
   module.exports.recPendingCount = recPendingCount;
+  module.exports.recOverrideIsEdited = recOverrideIsEdited;
+  module.exports.recApplyOverride = recApplyOverride;
   module.exports.recResolvePlanCourseIdx = recResolvePlanCourseIdx;
   module.exports.recPlanFromCourse = recPlanFromCourse;
   module.exports.REC_DAY_FILL = REC_DAY_FILL;

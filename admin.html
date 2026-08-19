@@ -625,6 +625,10 @@
     .iti-course-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .9rem; flex-wrap: wrap; }
     /* UQ: 검토 전 배지 — 「견적서 일정」 배지와 나란히 선다. 색을 달리해서 「출처」와
        「아직 안 나감」이 다른 이야기라는 것을 한눈에 가른다. */
+    .iti-pending-total {
+      font-size: .74rem; font-weight: 800; padding: .22rem .5rem;
+      background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;
+    }
     .iti-src-pending {
       font-size: .7rem; font-weight: 800; padding: .18rem .45rem;
       background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;
@@ -1738,6 +1742,9 @@
       <div class="iti-bar">
         <label for="iti-dest">목적지</label>
         <select id="iti-dest"><option value="">불러오는 중…</option></select>
+        <!-- UR: 검토를 기다리는 코스가 **몇 곳에 몇 개** 남았는가. 목록을 열어야만
+             보이면 아무도 검토하지 않고 창고에만 쌓인다(결함 생성기 ③). -->
+        <span id="iti-pending-total" class="iti-pending-total hidden"></span>
         <span class="iti-spacer"></span>
         <span class="iti-jumplbl">바로가기</span>
         <button type="button" class="iti-jump jump-rec"  data-jump="sec-rec">✨ 방식 A·B</button>
@@ -9520,16 +9527,48 @@
       const hasDefault = (typeof ITINERARY_DB !== 'undefined') && Array.isArray(ITINERARY_DB[k]);
       /* 무엇이 수정됐는지까지 적는다 (QY) — '수정됨'만 적으면 일정인지 방식 A·B인지
          목록에서 알 수 없다. 한 화면이 둘을 다 다루므로 여기서 구별해 준다. */
+      /* ⚠ UR: 일괄로 심은 검토 전 코스만 든 행은 「✏️ 수정됨」이 아니다 — 사람이
+         손댄 적이 없다. 판단은 rec_fallbacks 한 곳(recOverrideIsEdited). */
       const edited = [
-        itiState.overrides[k] ? '일정' : '',
+        (typeof recOverrideIsEdited === 'function'
+          ? recOverrideIsEdited(itiState.overrides[k]) : !!itiState.overrides[k]) ? '일정' : '',
         itiState.recOverrides[k] ? '방식' : '',
       ].filter(Boolean).join('·');
+      /* UR: 이 목적지에 **검토를 기다리는 코스가 몇 개 있는가**.
+         일괄로 심은 코스는 사람이 봐야 고객에게 나가기 시작하는데, 목록에서 안 보이면
+         목적지를 하나씩 열어봐야 알 수 있다 — 그러면 아무도 검토하지 않고 창고에만
+         쌓인다(결함 생성기 ③: 안전망이 실행된 적이 없다).
+         ⚠ 세는 규칙은 rec_fallbacks 한 곳이다. 여기서 직접 filter를 적으면 「검토 전」의
+           정의가 두 벌이 된다. */
+      const pending = (typeof recPendingCount === 'function')
+        ? recPendingCount(itiState.overrides[k] || (typeof ITINERARY_DB !== 'undefined' ? ITINERARY_DB[k] : null))
+        : 0;
       o.textContent = k
         + (edited ? '  ✏️ ' + edited : '')
+        + (pending ? '  🕒 검토 전 ' + pending : '')
         + (hasDefault || itiState.overrides[k] ? '' : '  (일정 없음)');
       return o;
     });
     if (prev) sel.value = prev;
+    itiRenderPendingTotal();
+  }
+
+  /* UR: 검토 대기 합계. 목적지 목록과 **같은 규칙**으로 센다(recPendingCount) —
+     따로 세면 목록에는 있는데 합계에는 없는 일이 생긴다. */
+  function itiRenderPendingTotal() {
+    const el = document.getElementById('iti-pending-total');
+    if (!el) return;
+    if (typeof recPendingCount !== 'function') { el.classList.add('hidden'); return; }
+    let dests = 0, total = 0;
+    itiDestKeys().forEach((k) => {
+      const n = recPendingCount(itiState.overrides[k]
+        || (typeof ITINERARY_DB !== 'undefined' ? ITINERARY_DB[k] : null));
+      if (n) { dests++; total += n; }
+    });
+    if (!total) { el.classList.add('hidden'); el.textContent = ''; return; }
+    el.textContent = '🕒 검토 대기 ' + total + '개 · ' + dests + '곳';
+    el.title = '견적서에서 일괄로 심은 코스입니다. 확인해 다듬고 「검토 완료」를 눌러야 고객에게 나갑니다.';
+    el.classList.remove('hidden');
   }
 
   /* 탭을 열 때마다 서버 상태를 다시 읽는다 — 동료가 방금 고친 것을 덮어쓰지 않기 위해.
@@ -11606,7 +11645,15 @@
       Object.keys(ov).forEach((k) => {
         /* 모양이 깨진 값은 넣지 않는다 — script.js가 고객 화면에서 쓰는 기준과 같다. */
         if (Array.isArray(ov[k]) && ov[k].length) {
-          db[k] = ov[k]; out.edited.push(k); out.editedDestKeys.push(k);
+          /* UR: **통째로 대체하지 않는다.** 검토 전 코스만 든 오버라이드가 기본 코스를
+             밀어내면, 검토 전은 고객에게 안 나가므로 그 목적지의 일정이 통째로 사라진다.
+             ⚠ 병합 규칙은 rec_fallbacks.js 한 곳이다 — 고객 계산기(script.js)가 부르는
+               것과 **같은 함수**여야 한다. 각자 병합하면 담당자가 발급한 견적서와
+               고객이 직접 뽑은 견적서가 다른 일정을 싣는다(결함 생성기 ①). */
+          db[k] = recApplyOverride(db[k], ov[k]);
+          /* ⚠ 「담당자 수정본」은 사람이 손댄 것만이다. 일괄로 심은 검토 전 코스만 든
+             행까지 여기 넣으면, 출처 라벨이 ✏️ 담당자 수정본이라고 거짓말을 한다. */
+          if (recOverrideIsEdited(ov[k])) { out.edited.push(k); out.editedDestKeys.push(k); }
         }
       });
       const rv = (data && data.recOverrides) || {};
