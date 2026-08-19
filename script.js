@@ -3369,10 +3369,14 @@ function openEstimateWindow() {
   }, { destKey, programType, totalDays: days });
 
   const hasIti = !!itiSnap;
+  /* UO: 작성자가 코스를 하나만 골랐으면 그 하나만 나간다. 판단은 rec_fallbacks가
+     하고(single), 여기서는 그 결과를 그대로 따른다 — 여기서 다시 세면 견적서와
+     편집기가 서로 다른 개수를 말한다. */
+  const itiSingle = hasIti && itiSnap.single;
   const itiA = hasIti ? itiSnap.courses[0] : null;
-  const itiB = hasIti ? itiSnap.courses[1] : null;
+  const itiB = (hasIti && !itiSingle) ? itiSnap.courses[1] : null;
   const itiADisplayDays = hasIti ? itiSnap.a.d : [];
-  const itiBDisplayDays = hasIti ? itiSnap.b.d : [];
+  const itiBDisplayDays = (hasIti && itiSnap.b) ? itiSnap.b.d : [];
 
   /* 조용히 빠뜨리지 않는다 — 담당자가 관리자 → 일정 관리에서 이 목적지의 코스를
      만들면 다음 견적서부터 섹션이 살아난다(결함 생성기 ②). */
@@ -3772,12 +3776,14 @@ a{color:inherit;text-decoration:none}
   <section id="rec" class="pg-section">
     <div class="sec-label">RECOMMENDED ITINERARY</div>
     <h2>맞춤 일정 추천</h2>
-    <p class="sub">${destText} · <strong style="color:#CC001A">${programText}</strong> 프로그램 유형을 기반으로, 실제 견적 입력값에 최적화된 코스 두 가지를 선별하였습니다.</p>
+    <p class="sub">${destText} · <strong style="color:#CC001A">${programText}</strong> 프로그램 유형을 기반으로, ${itiSingle ? '실제 견적 입력값에 최적화된 코스를 제안드립니다.' : '실제 견적 입력값에 최적화된 코스 두 가지를 선별하였습니다.'}</p>
 
+    ${itiSingle ? '' : `
     <div class="rec-tabs">
       <button class="rec-tab${selectedPlan!=='b'?' active':''}" onclick="showCourse('a',this)">코스 A &nbsp;·&nbsp; ${_e(itiA.title)}${selectedPlan==='a'?' <span style="color:#CC001A">· 탐색하신 일정</span>':''}</button>
       <button class="rec-tab${selectedPlan==='b'?' active':''}" onclick="showCourse('b',this)">코스 B &nbsp;·&nbsp; ${_e(itiB.title)}${selectedPlan==='b'?' <span style="color:#CC001A">· 탐색하신 일정</span>':''}</button>
     </div>
+    `}
 
     <div id="course-a" class="rec-content${selectedPlan!=='b'?' active':''}">
       ${destPhotos ? `<div class="course-cover-img"><img src="${destPhotos.cover}" alt="${destText}" loading="lazy" onerror="this.parentElement.style.display='none'" /></div>` : ''}
@@ -3791,6 +3797,7 @@ a{color:inherit;text-decoration:none}
       ${renderGallery(destPhotos?.strip)}
     </div>
 
+    ${itiSingle ? '' : `
     <div id="course-b" class="rec-content${selectedPlan==='b'?' active':''}">
       ${destPhotos ? `<div class="course-cover-img"><img src="${destPhotos.cover}" alt="${destText}" loading="lazy" onerror="this.parentElement.style.display='none'" /></div>` : ''}
       <div class="course-hd">
@@ -3802,6 +3809,7 @@ a{color:inherit;text-decoration:none}
       ${renderParticipantGuide()}
       ${renderGallery(destPhotos?.strip)}
     </div>
+    `}
   </section>
   `}
 

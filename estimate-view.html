@@ -600,7 +600,9 @@ function renderPage(d) {
       <div style="font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px">맞춤 일정 추천</div>
       <div style="font-size:13px;color:#5A5A5A">${esc(d.dt)} · <strong style="color:#CC001A">${esc(d.ptx)}</strong> 프로그램 유형에 최적화된 코스입니다.</div>
     </div>
-    ${renderCourse(d.itiA, 'COURSE A · 추천 코스', d.sp === 'a', 'a')}
+    <!-- UO: 담당자가 코스를 하나만 보내기로 한 견적서는 itiB가 없다. 그때 남은 코스를
+         「COURSE A」로 부르면 고객은 없는 B를 찾는다 — 하나뿐이면 그냥 「추천 코스」다. -->
+    ${renderCourse(d.itiA, d.itiB ? 'COURSE A · 추천 코스' : '추천 코스', d.sp === 'a', 'a')}
     ${renderCourse(d.itiB, 'COURSE B · 대안 코스', d.sp === 'b', 'b')}
     ` : ''}
 

@@ -2546,6 +2546,25 @@
       </p>
       <div id="eq-origin" style="font-size:.76rem;color:var(--muted);margin-top:.5rem"></div>
 
+      <!-- UO (2026-08-19 대표 요청): 「견적서 산출자가 코스를 하나만 추천해서 진행할 수
+           있게」. 둘 중 하나를 고르라는 것이 늘 친절한 건 아니다 — 목적이 분명한
+           연수에서는 대안 코스가 결재 문서를 오히려 흐린다.
+           ⚠ 기본은 「둘 다」다. 지금까지 나간 견적서가 전부 두 벌이라, 기본을 바꾸면
+             아무도 손대지 않은 견적서의 모양이 조용히 달라진다. -->
+      <div id="eq-count-row" class="hidden" style="display:flex;gap:.8rem;margin-top:.6rem;align-items:center;flex-wrap:wrap;padding:.5rem .7rem;background:var(--bg);border:1px solid var(--border)">
+        <span style="font-size:.76rem;font-weight:700;color:var(--heading)">고객에게 보낼 코스</span>
+        <label style="font-size:.78rem;display:flex;align-items:center;gap:.25rem;cursor:pointer">
+          <input type="radio" name="eq-count" value="both" onchange="eqSetCount('both')" /> 둘 다 (A·B)
+        </label>
+        <label style="font-size:.78rem;display:flex;align-items:center;gap:.25rem;cursor:pointer">
+          <input type="radio" name="eq-count" value="a" onchange="eqSetCount('a')" /> 코스 A만
+        </label>
+        <label style="font-size:.78rem;display:flex;align-items:center;gap:.25rem;cursor:pointer">
+          <input type="radio" name="eq-count" value="b" onchange="eqSetCount('b')" /> 코스 B만
+        </label>
+        <span id="eq-count-note" style="font-size:.72rem;color:var(--muted)"></span>
+      </div>
+
       <!-- UI: 출발점 가져오기. 백지에서 쓰는 것과 고치는 것은 부담이 다르고,
            같은 목적지로 이미 나간 일정이 있으면 그게 가장 좋은 출발점이다.
            ⚠ 목록은 열 때마다 다시 만든다 — 복사해 두면 동료가 방금 저장한 일정이
@@ -11596,8 +11615,13 @@
       + (snap.daysChanged
         ? '⚠ 일정을 저장한 뒤 견적 일수가 바뀌었습니다 — 늘어난 날은 자동으로 채워집니다.' + NL : '')
       + NL
-      + '［코스 A］ ' + (snap.a.t || '(제목 없음)') + NL + dayLines(snap.a) + NL + NL
-      + '［코스 B］ ' + (snap.b.t || '(제목 없음)') + NL + dayLines(snap.b) + NL + NL
+      /* UO: 코스 하나만 나가는 견적서면 그렇다고 말한다. 없는 코스 B 자리를
+         비워 두면 작성자는 "빠뜨렸나"로 읽는다. */
+      + (snap.single
+        ? '［코스］ ' + (snap.a.t || '(제목 없음)') + '  (이 견적서는 코스 하나만 나갑니다)'
+          + NL + dayLines(snap.a) + NL + NL
+        : '［코스 A］ ' + (snap.a.t || '(제목 없음)') + NL + dayLines(snap.a) + NL + NL
+          + '［코스 B］ ' + (snap.b.t || '(제목 없음)') + NL + dayLines(snap.b) + NL + NL)
       + '고칠 것이 있으면 관리자 → 일정 관리에서 "' + (rec.destLabel || dk) + '"을(를) 수정한 뒤'
       + NL + '다시 발급하세요.' + NL + NL
       + '이대로 발급할까요?');
@@ -11656,8 +11680,10 @@
     eqState = null;
     const body = document.getElementById('eq-body');
     const imp  = document.getElementById('eq-import-row');
+    const cnt  = document.getElementById('eq-count-row');
     if (body) { body.innerHTML = ''; body.classList.add('hidden'); }
     if (imp)  imp.classList.add('hidden');
+    if (cnt)  cnt.classList.add('hidden');
     const org = document.getElementById('eq-origin');
     if (org) org.textContent = '';
     const head = document.getElementById('eq-head');
@@ -11682,7 +11708,9 @@
         _auto: !!d._auto,
       })),
     });
-    return [one(snap.a), one(snap.b)];
+    /* UO: 코스 한 벌만 나가는 견적서면 b가 null이다. 여기서 ca를 복제해 채우면
+       편집기에는 두 벌이 보이고, 저장하는 순간 「하나만」이 조용히 풀린다. */
+    return snap.b ? [one(snap.a), one(snap.b)] : [one(snap.a)];
   }
 
   /* 편집기를 연다 (UM).
@@ -11724,9 +11752,14 @@
       return;
     }
 
+    const opened = eqCoursesFromSnap(snap);
     eqState = {
       id: rec.id, destKey: rec.destKey, days: rec.days,
-      courses: eqCoursesFromSnap(snap), dirty: false, origin: snap.origin,
+      courses: opened, dirty: false, origin: snap.origin,
+      /* UO: 'both' | 'a' | 'b'. 저장된 전용 일정이 한 벌이면 이미 「하나만」인 상태다.
+         ⚠ 저장할 때 A였는지 B였는지는 남지 않는다 — 남길 이유도 없다. 지금 이
+           견적서에 나가는 코스는 하나뿐이고, 화면은 그것을 「코스」로만 부른다. */
+      count: opened.length === 1 ? 'a' : 'both',
       tables,   /* 가져오기 후보를 만들 때 쓴다 — 다시 받아오면 그 사이 값이 달라진다 */
     };
     const org = document.getElementById('eq-origin');
@@ -11737,6 +11770,8 @@
         + (tables.loaded ? '' : '  ·  ⚠ 최신 수정본을 불러오지 못했습니다(기본 일정 기준)');
     }
     body.classList.remove('hidden');
+    document.getElementById('eq-count-row').classList.remove('hidden');
+    eqSyncCountRow();
     eqFillImport();
     eqRenderBody();
     eqSetMsg('');
@@ -11847,9 +11882,44 @@
     if (!snap) { eqSetMsg('그 일정을 읽지 못했습니다.', 'err'); return; }
 
     eqState.courses = eqCoursesFromSnap(snap);
+    /* UO: 공통 코스 한 벌을 가져오면 편집칸이 한 벌이 된다. 개수 선택을 그대로 두면
+       「둘 다」인 채로 남아 저장할 때 없는 코스 B를 집는다. */
+    if (eqState.courses.length === 1) eqState.count = 'a';
+    eqSyncCountRow();
     eqRenderBody();
     eqMarkDirty();
     eqSetMsg('가져왔습니다. 확인하고 고친 뒤 저장하세요 — 아직 저장되지 않았습니다.', 'err');
+  }
+
+  /* ══ UO: 고객에게 보낼 코스를 몇 벌로 할 것인가 ═══════════════════════════
+     ⚠ 편집칸에서 코스를 **지우지 않는다.** 「코스 A만」을 골랐다가 되돌릴 때 B에
+       써 둔 글이 사라지면, 그건 선택이 아니라 사고다. 여기서는 무엇을 내보낼지만
+       정하고, 실제로 자르는 것은 저장하는 순간 한 번뿐이다(eqSave).
+     ⚠ 코스가 애초에 한 벌뿐인 목적지에서는 고를 것이 없다 — 줄을 잠근다. */
+  function eqSyncCountRow() {
+    if (!eqState) return;
+    const only = eqState.courses.length === 1;
+    document.querySelectorAll('input[name="eq-count"]').forEach((r) => {
+      r.checked = (r.value === eqState.count);
+      /* 편집칸에 코스가 한 벌뿐이면 「코스 B만」·「둘 다」는 고를 수 없다. */
+      r.disabled = only && r.value !== 'a';
+    });
+    const note = document.getElementById('eq-count-note');
+    if (!note) return;
+    note.textContent = only
+      ? '이 견적서에는 코스가 한 벌뿐입니다 (출발점 가져오기로 다른 코스를 더할 수 있습니다).'
+      : eqState.count === 'both'
+        ? '고객 견적서에 코스 A·B가 탭으로 함께 나갑니다.'
+        : '고객 견적서에는 ' + (eqState.count === 'a' ? '코스 A' : '코스 B') + ' 하나만 나갑니다 — 탭이 없어집니다.';
+  }
+
+  function eqSetCount(v) {
+    if (!eqState) return;
+    if (eqState.courses.length === 1 && v !== 'a') { eqSyncCountRow(); return; }
+    eqState.count = v;
+    eqSyncCountRow();
+    eqRenderBody();
+    eqMarkDirty();
   }
 
   function eqMarkDirty() {
@@ -11869,8 +11939,20 @@
       head.className = 'iti-course-head';
       const tag = document.createElement('span');
       tag.className = 'iti-day-no';
-      tag.textContent = ci === 0 ? '코스 A' : '코스 B';
+      tag.textContent = eqState.courses.length === 1 ? '코스'
+        : (ci === 0 ? '코스 A' : '코스 B');
       head.appendChild(tag);
+      /* UO: 이 코스가 고객에게 안 나간다면 **그렇다고 말한다.** 안 그러면 작성자가
+         나가지도 않을 코스를 공들여 고친다(결함 생성기 ②). 지우지는 않는다 —
+         선택을 되돌리면 쓰던 글이 그대로 살아 있어야 한다. */
+      const outIdx = eqState.count === 'both' ? -1 : (eqState.count === 'b' ? 1 : 0);
+      if (outIdx >= 0 && ci !== outIdx) {
+        box.style.opacity = '.45';
+        const off = document.createElement('span');
+        off.className = 'iti-day-blank';
+        off.textContent = '이 견적서에는 나가지 않습니다';
+        head.appendChild(off);
+      }
       box.appendChild(head);
 
       box.appendChild(itiField('코스 제목 (고객이 먼저 보는 줄)', course.title, false,
@@ -11925,12 +12007,22 @@
     if (!eqState) return;
     /* 빈 제목은 서버가 거절한다. 눌러 보고서야 알게 두지 않는다 —
        화면이 막지 않고 서버만 거절하면 담당자는 다 채운 뒤에야 그 사실을 안다. */
-    const bad = eqState.courses.findIndex((c) => !String(c.title || '').trim());
-    if (bad >= 0) { eqSetMsg((bad === 0 ? '코스 A' : '코스 B') + '의 제목이 비어 있습니다.', 'err'); return; }
+    /* UO: 실제로 나갈 코스만 저장한다. 자르는 자리는 여기 한 곳뿐이다 —
+       편집칸에서 미리 지우면 되돌릴 수 없고, 저장 뒤에 자르면 서버가 이미 두 벌을
+       받은 뒤라 「하나만」이 기록에 남지 않는다. */
+    const outCourses = eqState.count === 'both' ? eqState.courses
+      : [eqState.courses[eqState.count === 'b' ? 1 : 0]].filter(Boolean);
+
+    const bad = outCourses.findIndex((c) => !String(c.title || '').trim());
+    if (bad >= 0) {
+      eqSetMsg((eqState.count !== 'both' ? '보낼 코스' : (bad === 0 ? '코스 A' : '코스 B'))
+        + '의 제목이 비어 있습니다.', 'err');
+      return;
+    }
 
     eqSetMsg('저장 중…');
     const r = await patchQuote(eqState.id, {
-      itinerary: { courses: eqState.courses, days: eqState.days },
+      itinerary: { courses: outCourses, days: eqState.days },
     }, { desc: '견적서 일정 저장' });
     if (!r.ok) { eqSetMsg('저장하지 못했습니다. 다시 시도해 주세요.', 'err'); return; }
 
@@ -11943,8 +12035,11 @@
     const idx = all.findIndex((x) => x.id === eqState.id);
     if (idx >= 0) { all[idx].itinerary = savedIti; localStorage.setItem(EM_KEY, JSON.stringify(all)); }
     eqState.dirty = false;
-    await addActivityLogSilent('quote', eqState.id, '견적서 일정 저장 (' + eqState.days + '일)');
-    eqSetMsg('저장했습니다. 이 일정이 견적서와 함께 나갑니다.', 'ok');
+    await addActivityLogSilent('quote', eqState.id, '견적서 일정 저장 ('
+      + eqState.days + '일 · 코스 ' + outCourses.length + '벌)');
+    eqSetMsg('저장했습니다. ' + (outCourses.length === 1
+      ? '이 견적서에는 코스 하나만 나갑니다.'
+      : '이 일정이 견적서와 함께 나갑니다.'), 'ok');
     const org = document.getElementById('eq-origin');
     if (org && savedIti) org.textContent = '출발점 · 📝 이 견적서 전용 일정 (작성자가 확인함)';
     emRenderItiState();

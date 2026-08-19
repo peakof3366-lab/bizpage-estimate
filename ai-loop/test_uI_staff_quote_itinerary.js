@@ -108,8 +108,11 @@ ok('전용 일정이 있으면 그것이 이긴다 (견적서 코스보다도 �
   sSaved.origin === 'saved' && sSaved.a.t === '전용코스가', sSaved.origin + ' / ' + sSaved.a.t);
 ok('전용 일정은 목적지 공통의 일별 활동으로 덮이지 않는다',
   sSaved.a.d[1].title === '전용중간', sSaved.a.d[1].title);
-ok('전용 일정이 하나뿐이면 A·B 둘 다 그것',
-  sSaved.b.t === '전용코스가');
+/* ⚠ UO(2026-08-19 대표 요청)에서 이 규칙이 **뒤집혔다.** 예전에는 전용 일정이 한 벌이면
+   같은 코스를 A·B 두 자리에 복제해 넣었는데, 그러면 고객 견적서에 똑같은 코스가 두 번
+   나간다. 이제 「한 벌 저장 = 코스 하나만 보낸다」는 작성자의 의사표시다. */
+ok('전용 일정이 하나뿐이면 코스 하나만 나간다 (UO에서 뒤집힌 규칙)',
+  sSaved.single === true && sSaved.b === null, String(sSaved.single));
 ok('빈 배열은 전용 일정이 아니다 (아래층으로 물러난다)',
   recQuoteItinerary({ ...TABLES, savedCourses: [] },
     { destKey: '도쿄', programType: 'industry', totalDays: 5 }).origin === 'default');
@@ -422,8 +425,17 @@ function seedQuote(w, over) {
     sel.value = String(target - 1);   /* 첫 줄이 안내라 인덱스가 하나 밀린다 */
     w.eqImport();
     const titles = Array.from(d.querySelectorAll('#eq-body .iti-day .iti-day-no')).map(e => e.textContent);
+    /* ⚠ UO에서 바뀐 자리. 가져온 지난 견적서가 **코스 한 벌짜리**였으므로 이 견적서도
+       한 벌이 된다(예전에는 같은 코스를 A·B로 복제해 10칸이 됐다 — 고객 견적서에
+       똑같은 코스가 두 번 나가던 상태다). 일자 수는 여전히 이 견적의 일수를 따른다. */
     ok('가져온 뒤에도 일자 수는 이 견적의 일수(5일)다',
-      titles.length === 10, String(titles.length));
+      titles.length === 5, String(titles.length));
+    ok('한 벌짜리를 가져오면 코스도 한 벌이 된다 (UO)',
+      d.querySelectorAll('#eq-body .iti-course').length === 1,
+      String(d.querySelectorAll('#eq-body .iti-course').length));
+    ok('그 사실을 화면이 말한다 (조용히 개수가 바뀌지 않는다)',
+      /코스가 한 벌뿐입니다/.test(d.getElementById('eq-count-note').textContent),
+      d.getElementById('eq-count-note').textContent);
     ok('가져온 내용이 편집칸에 들어온다',
       d.querySelector('#eq-body .iti-day-body .iti-inp').value === '전용도착',
       d.querySelector('#eq-body .iti-day-body .iti-inp').value);
