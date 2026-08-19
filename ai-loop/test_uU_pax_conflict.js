@@ -102,5 +102,43 @@ console.log('\n[4] 만들어만 두고 안 도는 안전망이 아닌가');
   ok('코퍼스 행이 그 표시를 들고 다닌다', /paxConflict: r\.paxConflict/.test(bc));
 }
 
+console.log('\n[7] UW — 인원 표기가 여럿이면 항목 줄이 투표한다');
+{
+  /* 실측(리더스에셋 푸꾸옥): 머리말이 둘이다.
+       「인 원 50명」  ← 인천 출발분만
+       「인원 70명」   ← 전체
+     그리고 1인당 항목 줄(식사·보험·수수료)이 전부 70명을 쓴다.
+     예전에는 **먼저 나온 50**을 잡아 모든 1인당 단가의 분모가 틀렸다. */
+  const rows = (n, k) => Array.from({ length: k }, () => ({ qty: n, times: 1 }));
+  const lines = L(['인 원 50명', '인원 70명']);
+
+  const r = ex.reconcile(lines, rows(70, 10).concat(rows(50, 2)), 128770920, null);
+  ok('① 항목 줄이 많이 쓰는 인원을 고른다 (먼저 나온 것이 아니라)',
+    r.pax === 70, String(r.pax));
+  ok('① 어떻게 골랐는지 남긴다', r.paxPick && r.paxPick.via === 'rows',
+    JSON.stringify(r.paxPick));
+  ok('① 후보를 전부 남긴다 (사람이 다시 판단할 수 있게)',
+    r.paxPick && r.paxPick.heads.length === 2 && r.paxPick.heads.indexOf(50) >= 0,
+    JSON.stringify(r.paxPick.heads));
+  ok('① 몇 줄이 지지했는지 남긴다', r.paxPick.votes === 10, String(r.paxPick.votes));
+  ok('① **그 결과 인원 어긋남이 사라진다** (문서와 앞뒤가 맞는다)',
+    !r.paxConflict, JSON.stringify(r.paxConflict));
+
+  /* ⚠ 뒤집을 근거가 없으면 안 뒤집는다 — 지지가 같으면 먼저 나온 것(옛 동작) */
+  const tie = ex.reconcile(lines, rows(70, 3).concat(rows(50, 3)), 128770920, null);
+  ok('② 지지가 같으면 먼저 나온 것을 쓴다 (옛 동작 유지)',
+    tie.pax === 50, String(tie.pax));
+
+  /* ⚠ 후보가 하나뿐이면 예전과 완전히 같다 — 나머지 문서는 아무것도 안 바뀐다 */
+  const one = ex.reconcile(L(['인원 7명']), rows(7, 5), 13800306, null);
+  ok('③ 후보가 하나면 예전 그대로다', one.pax === 7 && one.paxPick.via === 'header',
+    String(one.pax) + ' / ' + one.paxPick.via);
+
+  /* ⚠ 인원 표기가 아예 없으면 예전처럼 수량 최댓값 */
+  const none = ex.reconcile(L(['품명 단가']), rows(12, 3), 1000000, null);
+  ok('③ 표기가 없으면 수량 최댓값 (옛 폴백 유지)',
+    none.pax === 12 && none.paxPick.via === 'maxQty', String(none.pax));
+}
+
 console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

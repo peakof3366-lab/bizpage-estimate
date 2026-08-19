@@ -560,6 +560,17 @@ async function handleExtractPdf(req, res) {
       + '어느 쪽이 맞는지 확인해 주세요 — 인원이 틀리면 1인당 단가가 전부 어긋납니다.');
   }
 
+  /* ①-b UW: 인원 표기가 **여럿이라 골랐다**면 무엇을 보고 골랐는지 말한다.
+     출발지가 나뉘면 머리말이 한 그룹만 적는 일이 흔하다(리더스에셋: 「인 원 50명」이
+     인천 출발분, 실제는 70명). 이제 항목 줄이 투표해 스스로 고르지만, **고쳤다는
+     사실과 근거를 말하지 않으면 조용히 바꾼 것**이 된다. */
+  const pk = out.paxPick;
+  if (pk && pk.via === 'rows' && Array.isArray(pk.heads) && pk.heads.length > 1) {
+    warnings.push(`인원 표기가 여럿이라(${pk.heads.join('·')}명) `
+      + `**${pk.pax}명**으로 봤습니다 — 1인당 항목 줄 ${pk.votes}건이 이 인원을 씁니다. `
+      + '출발지가 나뉜 행사면 머리말이 한 그룹만 적기도 합니다. 맞는지 확인해 주세요.');
+  }
+
   /* ② 문서가 스스로 모순된다 — 제목의 「N박」과 기간 표기가 다르다.
      날짜 범위가 더 구체적인 증거라 그쪽을 쓰지만, **어긋났다는 사실은 말한다.**
      일수는 식비에 정비례해서 들어간다. */
@@ -591,6 +602,7 @@ async function handleExtractPdf(req, res) {
     /* UV: 화면이 그대로 다시 쓸 수 있게 원본 신호도 함께 보낸다(문구만 주면
        나중에 화면이 다른 방식으로 보여 주려 할 때 다시 서버를 고쳐야 한다). */
     paxConflict: out.paxConflict || null,
+    paxPick: out.paxPick || null,
     daysVia: out.daysVia || null,
     reconciliation: out.reconciliation,
     blockCount: out.blockCount, selectedBlock: out.selectedBlock, blocks: out.blocks,

@@ -773,14 +773,51 @@ function groupColumn(lines, rows) {
    재현되면 **정답지 없이도** "제대로 읽었다"를 말할 수 있다.
    ⚠ 이 검산은 값을 고치지 않는다. 화면과 감사에 **증거로 남기기만** 한다
    (조용한 폴백을 만들지 않는다는 이 저장소의 규칙 그대로다). */
+/* UW: **맨 처음 나온 「인원 N명」을 고르지 않는다.** 한 문서에 인원 표기가 둘 이상
+   있는 일이 흔하다 — 출발지가 나뉘면 그렇다. 실측(리더스에셋 푸꾸옥):
+
+       인 원 50명        ← 머리말 (인천 출발분)
+       인원 70명         ← 머리말 (전체)
+       대한항공(1) … 50명   비엣젯항공(2) … 20명      = 70
+       1일차 석식 … 70명 · 여행자보험 … 70명 · 알선수수료 … 70명
+
+   예전에는 먼저 나온 50을 잡아 **모든 1인당 단가의 분모가 틀렸고**, 그 탓에 문서에
+   적힌 1인당 금액까지 검산에서 버려져 그 견적서가 표본에서 통째로 빠졌다.
+
+   그래서 후보를 전부 모으고 **항목 줄이 가장 많이 쓰는 인원**을 고른다. 짐작이 아니라
+   문서 안의 표가 투표하는 것이다.
+   ⚠ 후보가 하나뿐이면 예전과 완전히 같다 — 45건은 아무것도 안 바뀐다.
+   ⚠ 지지가 같으면 **먼저 나온 것**을 쓴다(옛 동작). 뒤집을 근거가 없으면 안 뒤집는다.
+   ⚠ 어떻게 골랐는지 함께 돌려준다. 조용히 바꾸면 담당자는 왜 인원이 그 값인지 모른다. */
 function findPax(lines, rows) {
+  const heads = [];
   for (const ln of lines) {
     const m = ln.text.match(/인\s*원[^\d]{0,4}(\d{1,4})\s*명?/) || ln.text.match(/총\s*인\s*원[^\d]{0,4}(\d{1,4})/);
-    if (m) { const n = Number(m[1]); if (n >= 2 && n <= 2000) return n; }
+    if (m) { const n = Number(m[1]); if (n >= 2 && n <= 2000 && heads.indexOf(n) < 0) heads.push(n); }
+  }
+  /* 항목 줄이 그 인원을 몇 번 쓰는가 — 식사·보험·수수료처럼 전원에게 걸리는 줄이 표를 준다 */
+  const tally = new Map();
+  (rows || []).forEach((r) => {
+    const q = Number(r && r.qty);
+    if (q >= 2 && q <= 2000) tally.set(q, (tally.get(q) || 0) + 1);
+  });
+
+  if (heads.length === 1) return { pax: heads[0], via: 'header', heads, votes: tally.get(heads[0]) || 0 };
+  if (heads.length > 1) {
+    let best = heads[0], bestVotes = tally.get(heads[0]) || 0;
+    for (const h of heads.slice(1)) {
+      const v = tally.get(h) || 0;
+      if (v > bestVotes) { best = h; bestVotes = v; }
+    }
+    return {
+      pax: best,
+      via: best === heads[0] ? 'header' : 'rows',
+      heads, votes: bestVotes,
+    };
   }
   /* 못 찾으면 수량의 최댓값으로 본다 — 1인당 항목의 수량이 곧 인원이다 */
-  const qtys = rows.map((r) => Math.max(r.qty, r.times)).filter((n) => n >= 2 && n <= 2000);
-  return qtys.length ? Math.max.apply(null, qtys) : 0;
+  const qtys = (rows || []).map((r) => Math.max(r.qty, r.times)).filter((n) => n >= 2 && n <= 2000);
+  return { pax: qtys.length ? Math.max.apply(null, qtys) : 0, via: qtys.length ? 'maxQty' : 'none', heads, votes: 0 };
 }
 
 /* 1인 판매가로 인정할 범위 — 밖이면 그 줄은 1인당이 아니라 총액이거나 딴 숫자다.
@@ -996,7 +1033,10 @@ function findDeposit(lines) {
 }
 
 function reconcile(lines, rows, preferGrand, fx) {
-  const pax = findPax(lines, rows);
+  /* UW: findPax가 「몇 명인가」와 **어떻게 골랐는가**를 함께 준다. 뒤엣것을 버리면
+     화면이 「인원을 왜 그 값으로 봤는지」를 말할 수 없다(조용한 폴백이 된다). */
+  const paxPick = findPax(lines, rows);
+  const pax = paxPick.pax;
   const { grand, perPerson, deposit, depositAll, itemsTotal, paxConflict } = findTotals(lines, pax, preferGrand, fx);
   const checks = [];
   const near = (a, b, tolPct) => a > 0 && b > 0 && Math.abs(a - b) / b <= tolPct;
@@ -1026,7 +1066,7 @@ function reconcile(lines, rows, preferGrand, fx) {
   }
 
   const done = checks.filter((c) => c.ok).length;
-  return { pax, grand, perPerson, deposit, depositAll, itemsTotal, paxConflict, checks, passed: done, total: checks.length };
+  return { pax, paxPick, grand, perPerson, deposit, depositAll, itemsTotal, paxConflict, checks, passed: done, total: checks.length };
 }
 
 /* ═══ L4b — 날짜 (견적 작성일 · 출발일) ════════════════════════════════════
@@ -2440,6 +2480,8 @@ function readOneBlock(lines, fx, blockTotal) {
     /* UU: 문서의 총계 ÷ 1인당이 딱 떨어지는데 우리가 읽은 인원과 다르다.
        인원을 여기서 고치지는 않는다 — 사람이 한 칸 확인해야 하는 자리라고 말할 뿐이다. */
     paxConflict: rec.paxConflict || null,
+    /* UW: 인원을 어떻게 골랐는가 — 후보가 여럿이면 항목 줄이 투표한다. */
+    paxPick: rec.paxPick || null,
     /* 항목을 다 더한 줄(「합계」) — 견적 총액과 다르다(SH). 커버리지 측정의 분모다. */
     itemsTotal: rec.itemsTotal || null,
     /* 우리 1인 원가 — 원가 시트에만 있다. 판매가(perPerson)와 섞지 말 것 (SC) */
