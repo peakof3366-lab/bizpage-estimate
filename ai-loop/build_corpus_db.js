@@ -61,25 +61,12 @@ const ISSUERS = [
 const pct = (n) => (n == null ? '—' : (n * 100).toFixed(0) + '%');
 const won = (n) => (n == null ? '—' : Number(n).toLocaleString());
 
-/* 파일 이름의 괄호 안이 목적지인 양식이 많다 — 요율표에 있는 이름만 받는다.
-   ⚠ **짐작하지 않는다.** 못 찾으면 비워 두고 그 사실을 적는다(가견적은 목적지가 있어야
-     시작되므로, 못 찾는 것 자체가 고쳐야 할 항목이다). */
-/* ⚠ **「세부내역서」의 '세부'가 목적지 세부(Cebu)로 잡힌다.** 실측에서 아오모리 건과
-   한화 다낭 건이 통째로 '세부'가 됐다 — 파일 이름과 본문 양쪽에서 났다.
-   목적지 이름이 다른 낱말의 조각일 수 있다는 뜻이라, **그 낱말들을 먼저 지운다.**
-   (같은 유형: '대만'과 '대만족', '상해'와 '손해보험'의 '해'는 아니지만 '상해'는
-    「신체 상해」에 들어간다.) */
-const DEST_DECOY_RE = /세부\s*내역서|세부\s*견적|손해보험|상해\s*보험|여행자\s*보험/g;
-function guessDest(file, text) {
-  const clean = (s) => String(s || '').replace(DEST_DECOY_RE, ' ');
-  const f = clean(file);
-  const hits = DEST_KEYS.filter((k) => f.indexOf(k) >= 0);
-  if (hits.length) return { key: hits.sort((a, b) => b.length - a.length)[0], from: 'filename' };
-  const inText = DEST_KEYS.filter((k) => clean(text).indexOf(k) >= 0);
-  if (inText.length === 1) return { key: inText[0], from: 'text' };
-  if (inText.length > 1) return { key: null, from: 'ambiguous', all: inText.slice(0, 6) };
-  return { key: null, from: 'none' };
-}
+/* 파일 이름·본문 → 목적지 판정은 `_guess_dest.js` 한 곳에 있다 (UZ에서 떼어냈다).
+   여기 안에 두었더니 테스트할 수 없었고, 그 사이 역검증이 쓰는 판정과 답이 갈려
+   **대만이 섞인 견적서가 푸꾸옥 코스로 심겼다.** 이제 test_uZ가 두 판정을 대조한다. */
+const { guessDest: guessDestFn } = require('./_guess_dest.js');
+const guessDest = (file, text) => guessDestFn(file, text, DEST_KEYS);
+
 
 /* **왜 가견적 검증에 못 쓰는가** — backtest_quotes가 빼는 사유와 같은 축으로 모은다.
    한 건이 여러 사유에 걸릴 수 있으므로 전부 적는다(하나만 고쳐도 안 풀린다). */
