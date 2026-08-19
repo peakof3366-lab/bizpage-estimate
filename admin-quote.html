@@ -834,6 +834,23 @@
       summary.appendChild(titleSpan);
       summary.appendChild(countSpan);
 
+      /* UN: 지역은 한 번에 하나만 펼친다 (2026-08-19 대표 요청).
+         예전에는 열어 본 지역이 전부 열린 채 쌓여, 다음 지역을 고르려면 앞서 펼친
+         목록을 지나 한참 스크롤해야 했다(19개 지역 · 55곳).
+
+         ⚠ `toggle` 이벤트가 아니라 **summary의 click**을 듣는다. toggle은 비동기로
+           발사돼서 "지금이 검색이 연 것인가 사람이 연 것인가"를 가릴 수 없다. 그러면
+           아래 검색이 조건에 맞는 그룹을 여러 개 펼치는 동작을 이 규칙이 도로 닫아
+           검색이 무용지물이 된다.
+         ⚠ 클릭 시점에는 아직 열리기 **전**이라 group.open이 옛 값이다. 이미 열려
+           있으면 이 클릭은 '접기'이므로 남의 창을 건드리지 않는다. */
+      summary.addEventListener('click', function () {
+        if (group.open) return;
+        container.querySelectorAll('.aq-accordion-group').forEach(function (other) {
+          if (other !== group) other.open = false;
+        });
+      });
+
       const body = document.createElement('div');
       body.className = 'aq-accordion-body';
       const grid = document.createElement('div');
