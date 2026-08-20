@@ -121,7 +121,7 @@ const S = (why) => ({ r: 'skip', why });
   for (const f of files) {
     try {
       const r = await X.extractQuote(new Uint8Array(fs.readFileSync(path.join(CORPUS, f))), pdfParse, {});
-      docs.push({ f, r, dest: destFromName(f).key });
+      docs.push({ f, r, dest: destFromName(f, r.text).key });
     } catch (e) { /* 못 읽는 문서는 검토 대상이 아니다 */ }
   }
   /* 동료 표본 — 목적지별·칸별. **검산된 값만** 기준이 된다(SN). */

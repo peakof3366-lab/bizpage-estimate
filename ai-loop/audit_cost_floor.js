@@ -102,7 +102,7 @@ async function bootEngine() {
     let r;
     try { r = await X.extractQuote(new Uint8Array(fs.readFileSync(path.join(CORPUS, f))), pdfParse, {}); }
     catch (e) { continue; }
-    const dn = destFromName(f);
+    const dn = destFromName(f, r.text);
     const pax = r.pax, days = r.dates && r.dates.days, date = r.dates && r.dates.departDate;
     const cost = r.depositPerPerson || null;
     const why = !cost ? '입금가(원가)가 없는 문서' : !dn.key ? (dn.why || '목적지')

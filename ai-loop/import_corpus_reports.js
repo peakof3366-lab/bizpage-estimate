@@ -110,7 +110,7 @@ const won = (n) => (n == null ? '—' : Number(Math.round(n)).toLocaleString());
     let r;
     try { r = await X.extractQuote(new Uint8Array(fs.readFileSync(path.join(CORPUS, f))), pdfParse, {}); }
     catch (e) { skipped.push({ f, why: '읽기 실패' }); continue; }
-    const dn = destFromName(f);
+    const dn = destFromName(f, r.text);
     if (!dn.key) { skipped.push({ f, why: dn.why }); continue; }
 
     const values = {}, sources = {}, excluded = {};

@@ -105,7 +105,7 @@ async function bootEngine() {
     /* ⚠ `destFromName`은 **객체**를 돌려준다({key, why}). 처음에 그대로 썼다가
        select에 「[object Object]」가 들어가 **29건 전부가 조용히 실패**했다
        (대조 0건인데 오류 메시지는 하나도 없었다 — continue가 삼켰다). */
-    const dn = destFromName(f);
+    const dn = destFromName(f, r.text);
     const dest = dn.key;
     const pax = r.pax, days = r.dates && r.dates.days, date = r.dates && r.dates.departDate;
     const answer = r.perPerson || null;

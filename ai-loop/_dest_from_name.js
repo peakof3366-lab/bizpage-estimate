@@ -54,14 +54,62 @@ const DEST_ALIAS = [
    중앙값을 통째로 끌어내렸다. 문서 종류를 가리키는 말이지 목적지가 아니다. */
 const NOT_A_DEST = /세부\s*내역서|내역서|견적서|일정표|확정/g;
 
-/* ⚠ 여러 목적지가 한 이름에 있으면(‘대만, 푸꾸옥’) 어느 쪽 요율로 재야 할지 모른다.
-   고르지 않고 뺀다 — 절반만 맞는 대조는 분포를 조용히 오염시킨다. */
-function destFromName(name) {
-  const cleaned = name.replace(NOT_A_DEST, ' ');
-  const hits = DEST_ALIAS.filter(([, aliases]) => aliases.some((a) => cleaned.includes(a)));
-  if (hits.length !== 1) return { key: null, why: hits.length ? '목적지 여러 곳' : '요율표에 없는 목적지' };
-  return { key: hits[0][0], why: null };
+/* ⚠ **요율표에 없는 목적지인데, 본문에 이웃 목적지 이름이 함께 나오는 것들**(VC).
+   본문 경로에서만 쓴다 — 파일명에 목적지가 있으면 그게 답이라 여기까지 오지 않는다.
+
+   왜 필요한가 — 「굿리치_재무분석 관리자 워크샵(미야코지)」 본문에는 **오키나와가 나온다**
+   (미야코지마가 오키나와현이라 문서가 그렇게 쓴다). 본문을 읽기 시작하는 순간 이 문서가
+   오키나와로 잡히는데, 그건 **2026-08-13에 일부러 떼어낸 바로 그 오분류**다 — 그때
+   「오키나와가 원가보다 30.4% 싸다」는 보고가 나왔고, 원인은 **다른 섬의 원가를 오키나와
+   요율로 잰 것**이었다. 위 DEST_ALIAS 주석이 그 사고를 이미 적어 두고 있다.
+   → 본문에 이 이름이 보이면 **고르지 않고 뺀다.** 팔 거라면 목적지로 추가하는 게 순서다. */
+const NEAR_MISS = ['미야코지', '미야코지마'];
+
+/* 본문에만 쓰는 미끼 목록(VC). 본문은 파일명보다 훨씬 시끄러워서 따로 둔다.
+   ⚠ **전부 실측이다** — 코퍼스 45건 중 파일명으로 목적지를 못 정한 7건을 전수로 훑었다:
+
+     「공동**경비**」의 **동경** → 도쿄.  7건 중 **5건**에 있다. 압도적으로 흔한 미끼다.
+       ⚠ 이걸 안 지우면 「굿리치_마케팅임원 워크샵(**아오모리**)」가 **도쿄로 세어진다.**
+         본문에 걸리는 것이 그것 하나뿐이라 **「여러 곳」 안전망이 안 걸린다** — 즉
+         조용히 틀린 목적지로 33건 표본에 들어간다. 실제로 그 상태를 한 번 만들었고
+         이 훑기가 잡았다. 미끼는 **거를 뿐 아니라 세는 것을 막는 자리**다.
+     「**세부**금액」의 **세부** → 세부(Cebu). NOT_A_DEST의 「세부내역서」와 같은 유형이다.
+
+   ⚠ 여기 없는 미끼가 새로 나오면 **대개 「여러 곳」으로 빠져 표본에서 사라진다**(안전한 쪽).
+     위험한 것은 위 아오모리처럼 **미끼 하나만 걸리는** 경우다. 그래서 목적지를 못 정한
+     문서가 늘면 이 훑기를 다시 돌린다 — test_vC [4]가 그 훑기를 코드로 붙들고 있다. */
+const BODY_DECOY_RE = /공동\s*경비|세부\s*금액|세부\s*사항|세부\s*일정|세부\s*내용/g;
+
+/* 파일 이름(없으면 본문)으로 목적지를 정한다.
+
+   ⚠ **순서가 규칙이다.** 파일명이 먼저고, 파일명에서 **하나도 못 찾았을 때만** 본문을 본다.
+     파일명이 「여러 곳」이라 답한 것은 못 찾은 게 아니라 **거부한 것**이라, 본문으로 넘겨
+     한쪽을 고르면 UZ에서 고친 그 사고(대만이 푸꾸옥으로 심긴 것)가 되돌아온다.
+   ⚠ 여러 목적지가 걸리면(‘대만, 푸꾸옥’) 어느 쪽 요율로 재야 할지 모른다.
+     고르지 않고 뺀다 — 절반만 맞는 대조는 분포를 조용히 오염시킨다.
+   ⚠ 본문은 **경유지·호텔 이름까지** 품고 있어 파일명보다 시끄럽다. 그래서 본문 경로는
+     ①NEAR_MISS를 먼저 거르고 ②정확히 한 곳만 걸릴 때만 답한다.
+
+   @param {string} name  파일 이름
+   @param {string} [text] 문서 본문 — 주면 파일명이 비었을 때만 쓴다
+   @returns {{key: string|null, why: string|null, from?: 'filename'|'text'}} */
+function destFromName(name, text) {
+  const match = (s) => DEST_ALIAS.filter(([, aliases]) => aliases.some((a) => s.includes(a)));
+
+  const hits = match(String(name).replace(NOT_A_DEST, ' '));
+  if (hits.length === 1) return { key: hits[0][0], why: null, from: 'filename' };
+  if (hits.length > 1) return { key: null, why: '목적지 여러 곳' };
+
+  if (!text) return { key: null, why: '요율표에 없는 목적지' };
+
+  const body = String(text).replace(NOT_A_DEST, ' ').replace(BODY_DECOY_RE, ' ');
+  const near = NEAR_MISS.find((n) => body.includes(n));
+  if (near) return { key: null, why: '요율표에 없는 목적지(' + near + ')' };
+
+  const inText = match(body);
+  if (inText.length === 1) return { key: inText[0][0], why: null, from: 'text' };
+  return { key: null, why: inText.length ? '목적지 여러 곳' : '요율표에 없는 목적지' };
 }
 
 
-module.exports = { DEST_ALIAS, NOT_A_DEST, destFromName };
+module.exports = { DEST_ALIAS, NOT_A_DEST, NEAR_MISS, BODY_DECOY_RE, destFromName };

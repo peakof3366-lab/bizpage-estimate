@@ -103,7 +103,7 @@ const median = (a) => {
     let r;
     try { r = await X.extractQuote(new Uint8Array(fs.readFileSync(path.join(CORPUS, f))), pdfParse, {}); }
     catch (e) { continue; }
-    const dn = destFromName(f);
+    const dn = destFromName(f, r.text);
     if (!dn.key) { noDest.push(f.slice(0, 46) + ' (' + dn.why + ')'); continue; }
     obs[dn.key] = obs[dn.key] || { files: [], cells: {} };
     obs[dn.key].files.push(f);

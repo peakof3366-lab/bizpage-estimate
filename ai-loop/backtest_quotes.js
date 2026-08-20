@@ -54,7 +54,7 @@ const BASIS = (args.find((a) => a.startsWith('--basis=')) || '').split('=')[1] |
 if (!['sell', 'cost'].includes(BASIS)) { console.log('--basis 는 sell 또는 cost'); process.exit(1); }
 /* ⚠ 캐시에 새 칸(입금가)이 생겼다. 판이 다르면 **조용히 재사용하지 않는다** —
    안 그러면 원가가 undefined라 전건이 '제외'로 빠지고 그게 '해당 없음'처럼 보인다. */
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;   /* VC: 행에 `dest`(본문까지 본 목적지 판정)가 생겼다 */
 
 const { DEST_ALIAS, destFromName } = require('./_dest_from_name');
 
@@ -85,6 +85,11 @@ async function extractCorpus() {
         file: f, pax: r.pax, perPerson: r.perPerson, grand: r.grandTotal,
         deposit: r.depositPerPerson || null, depositAll: r.depositCandidates || [],
         dates: r.dates, kind: r.kind && r.kind.kind, values: r.values,
+        /* VC: 목적지 판정을 **여기서 한 번만** 한다. 본문이 필요한데 본문은 캐시에
+           싣지 않기 때문이다(46건 전문이면 캐시가 몇 MB로 부푼다). 판정 결과만 싣는다.
+           ⚠ 그래서 `CACHE_VERSION`을 올렸다 — 안 올리면 옛 캐시에 이 칸이 없어
+           `--cache`일 때만 목적지가 통째로 비는, 조용한 어긋남이 된다(결함 생성기 ③). */
+        dest: destFromName(f, r.text),
         /* UU: 인원이 문서 계산과 어긋난다는 표시. 여기서 안 실으면 아래 가드가
            영영 안 걸린다 — 만들어만 두고 안 도는 안전망이 된다(결함 생성기 ③). */
         paxConflict: r.paxConflict || null,
@@ -157,8 +162,10 @@ function quantile(sorted, q) {
   const skipped = [];
   for (const c of corpus) {
     if (c.error) { skipped.push({ f: c.file, why: '추출 오류: ' + c.error }); continue; }
-    const { key, why } = destFromName(c.file);
-    if (!key) { skipped.push({ f: c.file, why }); continue; }
+    /* ⚠ **캐시가 준 판정을 그대로 쓴다.** 여기서 `destFromName(c.file)`을 다시 부르면
+       본문이 없어 파일명만 보게 되고, 추출할 때와 캐시를 쓸 때의 답이 갈린다(VC). */
+    const { key, why } = c.dest || {};
+    if (!key) { skipped.push({ f: c.file, why: why || '목적지 판정 없음(캐시가 낡았다)' }); continue; }
     /* 정답지 — 판매가(기본)인가 우리 원가(입금가)인가. 섞지 않는다 (SC). */
     const actual = BASIS === 'cost' ? c.deposit : c.perPerson;
     if (!actual) {

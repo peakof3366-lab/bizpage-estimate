@@ -107,7 +107,7 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
       const buf = new Uint8Array(fs.readFileSync(path.join(CORPUS, f)));
       r = await X.extractQuote(buf, pdfParse, {});
     } catch (e) { errors.push({ file: f, err: String(e.message).slice(0, 90) }); continue; }
-    docs.push({ file: f, dest: destFromName(f).key, values: r.values || {}, evidence: r.evidence || {} });
+    docs.push({ file: f, dest: destFromName(f, r.text).key, values: r.values || {}, evidence: r.evidence || {} });
   }
 
   /* 목적지별로 모은다 — 여기가 이 감사기의 뼈대다 */

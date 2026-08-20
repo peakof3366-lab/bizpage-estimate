@@ -126,7 +126,7 @@ const AXES = [
     let r;
     try { r = await X.extractQuote(new Uint8Array(fs.readFileSync(path.join(CORPUS, f))), pdfParse, {}); }
     catch (e) { continue; }
-    const dn = destFromName(f);
+    const dn = destFromName(f, r.text);
     const pax = r.pax, days = r.dates && r.dates.days, date = r.dates && r.dates.departDate;
     if (!dn.key || !pax || !(days >= 2) || !date || !r.perPerson) continue;
     let bd;
