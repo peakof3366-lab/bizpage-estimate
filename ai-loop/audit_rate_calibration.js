@@ -58,6 +58,7 @@ const PLAUSIBILITY = require(path.join(ROOT, 'plausibility.js'));
 const { destFromName } = require('./_dest_from_name');
 /* ⚠ 요율의 진실은 `data.js`가 아니라 운영 DB다(CLAUDE.md). 읽기 전용 GET 한 번. */
 const { loadOverrides, applyOverrides } = require('./_rate_overrides');
+const { dedupeTrips, droppedNote } = require('./_same_trip');
 
 /* 추출 항목 → 요율 칸. **admin.html의 PLAUS_RATE_FIELD와 같은 표여야 한다** —
    두 곳이 다르면 화면과 이 표가 서로 다른 칸을 견준다(결함 생성기 ①). */
@@ -97,6 +98,7 @@ const median = (a) => {
 
   /* 목적지 → 칸 → [값…] */
   const obs = {};
+  const trips = [];      /* VG: 같은 여행을 갈라내기 전에 한 번 모은다 */
   let dropped = 0, kept = 0;
   const noDest = [];
   for (const f of files) {
@@ -105,6 +107,27 @@ const median = (a) => {
     catch (e) { continue; }
     const dn = destFromName(f, r.text);
     if (!dn.key) { noDest.push(f.slice(0, 46) + ' (' + dn.why + ')'); continue; }
+    /* ⚠ **같은 여행이 문서 두 벌로 오면 한 번만 센다**(VG). 값이 같으니 중앙값은 안
+       움직이지만 **「견적서 N건」과 「⚠표본1」 경고가 거짓이 된다** — 1건짜리 실측이
+       2건으로 보이면 그 값을 요율로 굳혀도 되는 것처럼 읽힌다.
+       ⚠ 정답값은 판매가가 없으면 입금가를 쓴다 — 원가 시트끼리도 갈라내야 한다
+         (실측으로 걸린 동유럽 두 벌이 바로 판매가 없는 원가 시트다). */
+    trips.push({ f, r, dest: dn.key });
+    continue;
+  }
+  {
+    const ded = dedupeTrips(trips, (t) => ({
+      dest: t.dest, pax: t.r.pax,
+      days: t.r.dates && t.r.dates.days, date: t.r.dates && t.r.dates.departDate,
+      answer: t.r.perPerson || t.r.depositPerPerson, file: t.f,
+    }));
+    const note = droppedNote(ded.dropped);
+    if (note) console.log(note + '\n');
+    trips.length = 0;
+    ded.kept.forEach((t) => trips.push(t));
+  }
+  for (const { f, r, dest: destKey } of trips) {
+    const dn = { key: destKey };
     obs[dn.key] = obs[dn.key] || { files: [], cells: {} };
     obs[dn.key].files.push(f);
     Object.keys(CELL).forEach((k) => {

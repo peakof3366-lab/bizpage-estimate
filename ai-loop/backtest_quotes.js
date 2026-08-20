@@ -57,6 +57,7 @@ if (!['sell', 'cost'].includes(BASIS)) { console.log('--basis 는 sell 또는 co
 const CACHE_VERSION = 6;   /* VC: `dest` · VE: `needsFx` · `dates.departWhy`(왜 날짜를 못 얻었나) */
 
 const { DEST_ALIAS, destFromName } = require('./_dest_from_name');
+const { dedupeTrips, droppedNote } = require('./_same_trip');
 
 /* ── 코퍼스 추출 ─────────────────────────────────────────────────────────── */
 async function extractCorpus() {
@@ -242,11 +243,25 @@ function quantile(sorted, q) {
     });
   }
 
+  /* ⚠ **같은 여행이 문서 두 벌로 들어온 것을 한 번만 센다**(VG). VA는 같은 *파일*을
+     잡았고, 이건 그 다음 층이다 — 파일은 다른데 같은 여행인 경우다. 실측:
+       「2026 굿리치 일정표(확정)」과 「굿리치RM_연도대상 체코&오스트리」가 둘 다
+       동유럽 158명 6일 2026-04-04 입금가 4,569,397이다(원가 기준 15건 중 2건).
+     ⚠ 차수별 견적은 **출발일이 다르므로** 뭉쳐지지 않는다(상하이 11/08·11/15·11/22). */
+  const ded = dedupeTrips(rows, (r) => ({
+    dest: r.dest, pax: r.pax, days: r.days, date: r.date, answer: r.actual, file: r.file,
+  }));
+  const note = droppedNote(ded.dropped);
+  rows.length = 0;
+  ded.kept.forEach((r) => rows.push(r));
+
   console.log('\n════ 역검증 결과 ════');
   console.log(BASIS === 'cost'
     ? '정답지: **우리 원가(입금가)** — 「엔진이 낮다」는 곧 **팔면 손해**라는 뜻이다.'
     : '정답지: 견적서의 1인당 판매가 — 「엔진이 낮다」는 **그 견적서보다 싸다**는 뜻이다.');
-  console.log('코퍼스 ' + corpus.length + '건 중 대조 가능 ' + rows.length + '건, 제외 ' + skipped.length + '건\n');
+  if (note) console.log(note);
+  console.log('코퍼스 ' + corpus.length + '건 중 대조 가능 ' + rows.length + '건, 제외 '
+    + (skipped.length + ded.dropped.length) + '건\n');
 
   if (rows.length) {
     rows.sort((a, b) => a.err - b.err);
