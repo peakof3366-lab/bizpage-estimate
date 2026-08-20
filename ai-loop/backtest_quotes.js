@@ -312,6 +312,30 @@ function quantile(sorted, q) {
       '   최소 ' + pct(errs[0]) + '  최대 ' + pct(errs[errs.length - 1]));
     const within = (t) => rows.filter((r) => Math.abs(r.err) <= t).length;
     console.log('±5% 안 ' + within(0.05) + '건 · ±10% 안 ' + within(0.10) + '건 · ±20% 안 ' + within(0.20) + '건  (전체 ' + rows.length + '건)');
+    /* ── 목표선 (VI) ─────────────────────────────────────────────────────────
+       2026-08-20 대표 결정: **「±10% 안에 들되, 틀릴 때는 높은 쪽으로」**
+       ±5%가 아니라 ±10%인 이유 — 표본이 36건이라 ±5%를 겨냥하면 잡음에 맞추게 된다
+       (하루에 표본 오류로 판단이 세 번 뒤집힌 적이 있다: VA·VB·VH).
+
+       ⚠ **방향을 함께 센다.** 그동안 |오차|만 봤는데, 두 방향은 아픈 정도가 다르다:
+         아래로 벗어남 = 견적서보다 **싸게** 불렀다 → 계약되면 그만큼 덜 남는다
+         위로 벗어남   = **비싸게** 불렀다 → 실주 위험은 있지만 실견적에서 깎으면 된다
+       깎는 것은 쉽고 올리는 것은 신뢰를 잃는다. 그래서 같은 크기여도 **아래가 더 아프다.**
+       ⚠ 이 줄이 목표를 **대신 판단하지 않는다** — 몇 건인지만 세어 준다. */
+    const TARGET = 0.10;
+    const inBand = rows.filter((r) => Math.abs(r.err) <= TARGET).length;
+    const below = rows.filter((r) => r.err < -TARGET);
+    const above = rows.filter((r) => r.err > TARGET);
+    const med = quantile(errs, 0.5);
+    console.log('\n──── 목표선: ±10% 안, 틀리면 높은 쪽 (2026-08-20 결정) ────');
+    console.log('  목표 안 ' + inBand + '건 / ' + rows.length + '건 ('
+      + Math.round(inBand / rows.length * 100) + '%)');
+    console.log('  🔴 아래로 벗어남 ' + below.length + '건  ← 싸게 불렀다. **이쪽이 더 아프다**'
+      + (below.length ? '  (최악 ' + pct(below[0] && Math.min.apply(null, below.map((r) => r.err))) + ')' : ''));
+    console.log('  🟡 위로 벗어남 ' + above.length + '건  ← 비싸게 불렀다(실견적에서 깎을 수 있다)');
+    console.log('  중앙값 ' + pct(med) + ' → 목표 방향은 **+3~5%**다 '
+      + (med < 0.03 ? '(지금은 반대쪽에 있다)' : med > 0.05 ? '(지금은 넘어가 있다)' : '(범위 안이다)'));
+
     console.log('\n비율(엔진 ÷ 견적서) 중앙값 ' + quantile(ratios, 0.5).toFixed(3) +
       '  사분위 ' + quantile(ratios, 0.25).toFixed(3) + ' ~ ' + quantile(ratios, 0.75).toFixed(3));
     console.log('  ↑ 이 값이 한 곳에 모이면 오차가 아니라 **수익률**이다(견적서=원가, 엔진=판매가).');

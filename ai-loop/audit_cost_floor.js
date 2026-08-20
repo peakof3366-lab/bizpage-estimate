@@ -33,13 +33,27 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const CORPUS = process.env.BIZPAGE_CORPUS
   || path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');
 const { destFromName } = require('./_dest_from_name');
+const { dedupeTrips, droppedNote } = require('./_same_trip');
 
-/* 지금 알고 있는 위반 건수. **줄이는 것이 일이다.** 2026-08-13 기준 3건:
-     오키나와(바모스 48명) -26.4% · 삿포로 135명 -9.0% x2
+/* 지금 알고 있는 위반 건수. **줄이는 것이 일이다.**
 
-   여기까지 밝혀진 것 — **셋 다 요율 단가 문제가 아니다:**
-   · 미야코지 -30.4%는 **없어졌다.** 다른 섬을 오키나와 요율로 재고 있었다
+   ⚠ **2026-08-20(VI): 숫자는 3으로 같은데 구성이 바뀌었다.** 같은 3이라고 넘기면
+     새로 생긴 위반이 옛 위반에 가려진다 — 건수만 보는 검사의 맹점이다.
+       2026-08-13   오키나와 -26.4% · 삿포로 135명 -9.0% **×2**
+       2026-08-20   오키나와 -26.4% · **미야코지마 -14.5%(신규)** · 삿포로 -9.0% ×1
+     · 삿포로가 둘에서 하나로 준 것은 고쳐서가 아니라 **같은 파일이 두 벌이었기 때문**이다
+       (VA에서 바이트 중복을 걷어냈다). 위반이 줄어든 게 아니라 **두 번 세던 것을 멈춘 것**이다.
+     · 미야코지마는 2026-08-20에 목적지로 새로 넣으면서 생겼다(VD). 단가가 오키나와를
+       복사한 출발점이라 원가에 못 미치는 것이고, **요율을 아직 안 재 봤다는 뜻**이지
+       마진 문제가 아니다.
+   ⚠ 그리고 **여유가 0.1%뿐인 건이 하나 더 있다**(동유럽 4,569,397 → 4,572,626).
+     원가 위이긴 하나 사실상 붙어 있다 — 요율이 조금만 움직여도 아래로 내려간다.
+
+   여기까지 밝혀진 것 — **요율 단가를 올려서 덮을 문제가 아니다:**
+   · 미야코지 -30.4%는 2026-08-13에 **없어졌다.** 다른 섬을 오키나와 요율로 재고 있었다
      (`_dest_from_name`에서 별칭을 뺐다). 오키나와 요율 자체는 실측과 거의 일치한다.
+     ⚠ 그리고 2026-08-20에 **미야코지마를 별도 목적지로 넣으면서 다시 나타났다(-14.5%).**
+       이번엔 오분류가 아니라 **이웃 복사 단가를 아직 안 재 본 것**이다 — 성격이 다르다.
    · 삿포로는 TQ에서 요율을 실측에 **정확히 맞췄는데도** 원가에 못 미친다 —
      SD가 찾아낸 「우리가 읽은 항목을 다 더해도 1인 385,935원(25%)이 설명되지 않는다」가
      그대로 남아 있다는 뜻이다. 요율을 더 올려서 덮으면 **틀린 칸을 올리는 것**이 된다.
@@ -98,6 +112,7 @@ async function bootEngine() {
 
   const engine = await bootEngine();
   const rows = [], skipped = {};
+  const trips = [];   /* VG: 같은 여행이 문서 두 벌로 온 것을 갈라내기 전에 모은다 */
   for (const f of files) {
     let r;
     try { r = await X.extractQuote(new Uint8Array(fs.readFileSync(path.join(CORPUS, f))), pdfParse, {}); }
@@ -111,11 +126,21 @@ async function bootEngine() {
     let bd;
     try { bd = engine({ dest: dn.key, pax, days, date }); } catch (e) { continue; }
     if (!bd || !bd.perPerson) continue;
-    rows.push({
-      file: f, dest: dn.key, pax, days, cost, engine: bd.perPerson,
+    trips.push({
+      file: f, dest: dn.key, pax, days, date, cost, engine: bd.perPerson,
       gap: (bd.perPerson - cost) / cost,
       lossPer: cost - bd.perPerson,
     });
+  }
+  /* ⚠ **같은 여행이 문서 두 벌로 오면 한 번만 센다**(VG). 실측으로 동유럽 두 벌이
+     「여유가 얇은 순」에 나란히 찍혀 있었다 — 위험한 건이 실제보다 많아 보인다. */
+  {
+    const ded = dedupeTrips(trips, (t) => ({
+      dest: t.dest, pax: t.pax, days: t.days, date: t.date, answer: t.cost, file: t.file,
+    }));
+    const note = droppedNote(ded.dropped);
+    if (note) console.log('\n' + note);
+    ded.kept.forEach((t) => rows.push(t));
   }
 
   const bad = rows.filter((r) => r.gap < 0).sort((a, b) => a.gap - b.gap);
