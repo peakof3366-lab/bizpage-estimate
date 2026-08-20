@@ -54,7 +54,7 @@ const BASIS = (args.find((a) => a.startsWith('--basis=')) || '').split('=')[1] |
 if (!['sell', 'cost'].includes(BASIS)) { console.log('--basis 는 sell 또는 cost'); process.exit(1); }
 /* ⚠ 캐시에 새 칸(입금가)이 생겼다. 판이 다르면 **조용히 재사용하지 않는다** —
    안 그러면 원가가 undefined라 전건이 '제외'로 빠지고 그게 '해당 없음'처럼 보인다. */
-const CACHE_VERSION = 5;   /* VC: `dest` · VE: `needsFx`(제외 사유를 가르는 신호) */
+const CACHE_VERSION = 6;   /* VC: `dest` · VE: `needsFx` · `dates.departWhy`(왜 날짜를 못 얻었나) */
 
 const { DEST_ALIAS, destFromName } = require('./_dest_from_name');
 
@@ -191,7 +191,13 @@ function quantile(sorted, q) {
     }
     if (!c.pax || c.pax < 2) { skipped.push({ f: c.file, why: '인원 불명' }); continue; }
     const days = (c.dates && (c.dates.days || (c.dates.nights ? c.dates.nights + 1 : 0))) || 0;
-    if (!days) { skipped.push({ f: c.file, why: '일수 불명(출발·도착일이 없음)' }); continue; }
+    /* ⚠ **무엇이 없어서인지 말한다**(VE). 「불명」만 찍으면 코드가 고칠 것과 사람이
+       한 칸 넣을 것이 같은 얼굴이 된다 — 환율 쪽에서 이미 겪었다. */
+    const dw = (c.dates && c.dates.departWhy) || null;
+    if (!days) {
+      skipped.push({ f: c.file, why: dw ? '일수 불명 — ' + dw : '일수 불명(출발·도착일이 없음)' });
+      continue;
+    }
     /* 문서가 스스로 모순된 기간을 적은 건 — **빼지 않고 표시만 한다.**
        처음엔 뺐다가 되돌렸다. 7건이 걸렸는데 전부 같은 모양이었고(제목이 날짜보다 1박 적다),
        실제로 열어 보니 **틀린 쪽은 언제나 제목**이었다:
@@ -202,7 +208,10 @@ function quantile(sorted, q) {
        날짜 범위가 더 구체적인 증거이므로 그쪽을 쓰되, **표에 ⚠로 남겨** 사람이
        눈으로 확인할 수 있게 한다. 7건을 버리면 표본이 15→8로 줄어 분포가 더 흔들린다. */
     /* 출발일이 없으면 시즌 계수를 못 맞춘다 — 그 대조는 계절 오차를 엔진 오차로 오해하게 한다 */
-    if (!c.dates.departDate) { skipped.push({ f: c.file, why: '출발일 불명(시즌 계수를 맞출 수 없음)' }); continue; }
+    if (!c.dates.departDate) {
+      skipped.push({ f: c.file, why: dw ? '출발일 불명 — ' + dw : '출발일 불명(시즌 계수를 맞출 수 없음)' });
+      continue;
+    }
 
     /* UU: 문서의 총계 ÷ 1인당이 딱 떨어지는데 우리가 읽은 인원과 다르면 대조하지 않는다.
        인원은 규모 계수로 금액에 들어가므로, 틀린 인원으로 잰 오차는 엔진 오차로 둔갑한다.

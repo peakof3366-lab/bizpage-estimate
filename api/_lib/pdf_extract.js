@@ -1486,6 +1486,30 @@ function findDates(lines) {
     const guess = findItineraryDepart(lines, quoteDate);
     if (guess) { trip.depart = guess; departVia = 'itinerary'; }
   }
+  /* ── 출발일을 못 얻었으면 **무엇이 없어서인지** 말한다 (VE) ────────────────────
+     예전엔 그냥 null이었고, 역검증은 「출발일 불명」이라고만 찍었다. 그러면 **코드가
+     고칠 것과 사람이 한 칸 넣을 것이 같은 얼굴**이 된다 — 환율 쪽에서 이미 겪었다.
+
+     실측으로 갈린다:
+       키움에셋플래너 해외연수(하노이) — 일정표에 「04월 02일 ~ 04월 05일」이 또렷한데
+         **문서 어디에도 연도가 없다.** 작성일도 없어서 `findItineraryDepart`가 연도를
+         추정할 근거조차 없다. → 사람이 **연도 한 칸**이면 들어온다.
+       굿리치 RM재무(후아힌) — 「11월 19~22일」은 있는데 연도 후보가 **넷**이다
+         (2024·2025·2026·2012). 하나를 고르면 시즌 계수가 조용히 틀린다.
+     ⚠ **연도를 추측하지 않는다.** 출발일 하나가 시즌·리드타임 계수를 둘 다 움직인다
+       (바로 위 주석이 그 사고를 적어 두고 있다). 모르면 비우되, **왜 비었는지는 말한다.** */
+  let departWhy = null;
+  if (!trip.depart) {
+    const all = lines.map((l) => l.text || '').join(' ');
+    const md = [...new Set(all.match(/\d{1,2}\s*월\s*\d{1,2}\s*일/g) || [])];
+    const years = [...new Set(all.match(/20\d{2}/g) || [])];
+    if (md.length) {
+      departWhy = years.length === 0
+        ? '문서에 연도가 없다 (' + md.slice(0, 2).join('~') + ' — 연도 한 칸이면 된다)'
+        : '연도 후보가 ' + years.length + '개라 고르지 않았다 (' + md.slice(0, 2).join('~')
+          + ' · ' + years.slice(0, 4).join('·') + ')';
+    }
+  }
   /* 리드타임 = 출발일 − 견적 작성일. 요율의 리드타임 계수를 실측으로 재려면 이 값이 있어야 한다.
      ⚠ 음수면(작성일이 출발일보다 뒤) 계산하지 않는다 — 지난 여행을 정산한 문서일 수 있다. */
   let leadDays = null;
@@ -1498,6 +1522,8 @@ function findDates(lines) {
     departDate: trip.depart,
     /* 'header' = 문서가 기간을 명시했다 · 'itinerary' = 일정표에서 읽고 연도는 추정했다 */
     departVia,
+    /* 못 얻었을 때 **왜**인지 (VE). null이면 날짜 흔적 자체가 없다는 뜻이다. */
+    departWhy,
     returnDate: trip.ret,
     returnEstimated: trip.returnEstimated,
     nights: trip.nights,

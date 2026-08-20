@@ -114,5 +114,37 @@ console.log('\n[6] 역검증이 제외 사유를 세 갈래로 가른다');
   ok('⑥ 캐시 판을 올렸다 (5 이상)', Number(v) >= 5, 'CACHE_VERSION=' + v);
 }
 
+console.log('\n[7] 날짜를 못 얻었을 때 **무엇이 없어서인지** 말한다');
+{
+  const why = (lines) => (X.findDates(lines).departWhy || null);
+
+  /* 실측(키움에셋플래너 해외연수 하노이): 일정표에 04월 02~05일이 또렷한데
+     문서 어디에도 연도가 없다. 작성일도 없어 연도를 추정할 근거조차 없다. */
+  const noYear = why(L('제1일 04월 02일 하노이 13:10 공항 도착', '제2일 04월 03일 하노이 시내'));
+  ok('⑦ 연도가 아예 없으면 그렇게 말한다', /연도가 없다/.test(noYear || ''), String(noYear));
+  ok('⑦ 무엇을 넣으면 되는지 말한다', /연도 한 칸/.test(noYear || ''), String(noYear));
+
+  /* 실측(굿리치 RM재무 후아힌): 11월 19~22일은 있는데 연도 후보가 여럿이다.
+     하나를 고르면 시즌·리드타임 계수가 조용히 틀린다. */
+  const many = why(L('11월 19일 출발 11월 22일 귀국', '2025 굿리치 · 2026 행사 기준'));
+  ok('⑦ 연도 후보가 여럿이면 고르지 않고 그 사실을 말한다',
+    /연도 후보가/.test(many || ''), String(many));
+
+  /* 날짜 흔적이 아예 없으면 할 말이 없다 — 없는 말을 지어내지 않는다 */
+  ok('⑦ 날짜 흔적이 없으면 null이다', why(L('행사 진행표 호차1 호차2')) === null,
+    String(why(L('행사 진행표 호차1 호차2'))));
+
+  /* ⚠ 출발일을 **얻은** 문서에는 켜지면 안 된다 — 켜지면 화면이 멀쩡한 값을 두고
+     「연도가 없다」고 말하게 된다(조용한 폴백의 반대 방향 사고). */
+  const good = X.findDates(L('여행기간 2026. 04. 02 ~ 04. 05 (3박 4일)'));
+  ok('⑦ 출발일을 얻었으면 켜지지 않는다', !!good.departDate && !good.departWhy,
+    JSON.stringify({ d: good.departDate, w: good.departWhy }));
+
+  const bt = fs.readFileSync(path.join(ROOT, 'ai-loop', 'backtest_quotes.js'), 'utf8');
+  ok('⑦ 역검증이 그 이유를 그대로 보여준다', /departWhy/.test(bt));
+  const v2 = (bt.match(/const CACHE_VERSION = (\d+)/) || [])[1];
+  ok('⑦ 캐시 판을 다시 올렸다 (6 이상)', Number(v2) >= 6, 'CACHE_VERSION=' + v2);
+}
+
 console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
