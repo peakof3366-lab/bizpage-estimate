@@ -935,9 +935,24 @@ function getBreakdownData() {
     { min: 30, max: 49, factor: 0.92 },
     { min: 50, max: Infinity, factor: 0.85 },
   ];
-  const enbtMarginTotalTiered = tieredTotal(dest.margin_per_traveler, participants, enbtMarginTierFactors);
+  /* ── 금액 구간별 마진 계수 (VK) ─────────────────────────────────────────
+     ⚠ **구간 기준은 여기까지 쌓인 rows의 1인 합 = 원가소계**다(마진·보험 전).
+       엔진 총액으로 끊으면 마진이 총액을 바꾸고 총액이 구간을 바꾸는 **순환**이 된다.
+       그리고 프로그램·기관 계수는 **아래에서** 곱해지므로 여기 소계에는 아직 없다 —
+       그게 맞다. 계수는 그 여행의 원가 수준이 아니라 조건 보정이다.
+     ⚠ 구간표는 `data.js`의 `MARGIN_BANDS` 하나가 진실이다. 여기서 다시 적지 말 것.
+     ⚠ 배수는 **두 줄에 함께** 걸린다(ENBT·현지가 같은 값에서 1 : 0.9로 나온다).
+       즉 인상분의 약 47%는 현지 파트너 몫이다 — 결정대기열 0-d. */
+  const costSubtotalUnit = participants > 0
+    ? rows.reduce((s, r) => s + r.amount, 0) / participants : 0;
+  const marginBand = (typeof marginBandFor === 'function')
+    ? marginBandFor(costSubtotalUnit) : { mul: 1, label: '구간 없음' };
+  const marginBandMul = Number(marginBand.mul) || 1;
+  const bandedMargin = dest.margin_per_traveler * marginBandMul;
+
+  const enbtMarginTotalTiered = tieredTotal(bandedMargin, participants, enbtMarginTierFactors);
   const enbtMarginUnit  = participants > 0 ? Math.round(enbtMarginTotalTiered / participants) : 0;
-  const localMarginUnit = Math.round(dest.margin_per_traveler * 0.90);
+  const localMarginUnit = Math.round(bandedMargin * 0.90);
 
   rows.push({
     name:'💼 ENBT 수익', unit: enbtMarginUnit,
@@ -1021,6 +1036,12 @@ function getBreakdownData() {
     sightDuration,
     /* P3 신규 필드 — 환율 보정 계수(현지원가 항목에 적용) */
     fxAdjust,
+    /* VK 신규 필드 — 금액 구간별 마진 계수와 판정 근거(표시·역검증용).
+       ⚠ `ancRate`를 남긴 것과 같은 이유다 — 이 배수는 실측으로 고른 값이라 나중에
+         바뀌는데, 지난 견적이 어느 배수로 나온 것인지 모르면 역검증이 헛돈다.
+       ⚠ `costSubtotalUnit`(판정에 쓴 소계)까지 함께 남긴다. 배수만 남기면
+         **왜 그 구간이 됐는지**를 화면이 말할 수 없다(조용한 폴백이 된다). */
+    marginBandMul, marginBandLabel: marginBand.label, costSubtotalUnit,
   };
 }
 

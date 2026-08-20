@@ -162,6 +162,48 @@ function getGolfFee(destKey) {
   return (typeof v === 'number' && isFinite(v) && v > 0) ? v : 0;
 }
 
+/* ═══ 금액 구간별 마진 계수 (VK) — **저가 구간이 원가에 못 미치던 것을 메운다** ═══
+   대표 2026-08-20: 「비쌀수록 수익률이 낮아지는 건 어쩔 수 없다. 정률이면 비쌀수록
+   수익 금액이 커져 좋지만 고객이 부담을 느낀다. **구간별 정리가 필요하겠다.**」
+
+   ⚠ **체감 곡선은 원래 있었다.** 마진이 정액이라 금액이 오를수록 비율이 저절로
+     내려간다. 견적서 36건 실측(구간 기준 = 원가소계, 마진·보험 뺀 1인 금액):
+
+         ~120만     13건   마진율 18.8%   오차 중앙 **-16.6%**  ← 여기만 벗어나 있었다
+         120~180만  16건   마진율 15.1%   오차 중앙  +4.5%
+         180~250만   3건   마진율 12.3%   오차 중앙  +6.5%
+         250만~      4건   마진율 13.2%   오차 중앙  -2.9%
+
+     그래서 **저가 구간 하나만** 올린다. 전 구간에 같은 배수를 걸면 이미 맞는 세 구간이
+     함께 밀려난다 — 실측으로 확인했다(전체 ×1.4: 중앙값은 맞는데 ±10% 안이 14 → 12건).
+
+   ⚠ **구간 기준은 「원가소계」다** — 엔진 총액으로 끊으면 마진이 총액을 바꾸고 총액이
+     구간을 바꾸는 **순환**이 된다. 그리고 프로그램·기관 계수가 붙기 **전** 소계로 잰다
+     (계수는 그 여행의 원가 수준이 아니라 조건 보정이라, 구간을 흔들면 안 된다).
+
+   ⚠ **배수는 마진 두 줄에 함께 걸린다** — 💼 ENBT 수익과 🏷️ 현지 수익금이 같은 값에서
+     1 : 0.9로 나오기 때문이다. 즉 **인상분의 약 47%는 현지 파트너 몫**이다.
+     우리 몫만 올리려면 그 둘을 떼어내는 구조 변경이 먼저다(결정대기열 0-d).
+
+   ⚠ **값을 바꿀 때는 `ai-loop/sim_margin_bands.js`로 전/후를 재고 넣는다.**
+     중앙값만 보지 말 것 — 중앙값이 0에 가까워지면서 폭이 벌어지면 개선이 아니다.
+   ⚠ 여기 없는 큰 금액은 마지막 구간(`max: null`)이 받는다. 구간을 늘릴 때는
+     **반드시 마지막을 null로** 남겨 둘 것 — 아니면 그 위 금액이 조용히 배수 1이 된다. */
+const MARGIN_BANDS = [
+  { max: 1200000, mul: 1.45, label: '원가소계 ~120만' },
+  { max: null,    mul: 1.00, label: '원가소계 120만~' },
+];
+
+/* 그 원가소계가 어느 구간인가. **경계는 「미만」이다**(120만은 다음 구간).
+   ⚠ 판정을 화면·엔진·시뮬레이터가 각자 하면 반드시 갈라진다(결함 생성기 ①) — 여기 하나만 쓴다. */
+function marginBandFor(costPerPerson) {
+  const v = Number(costPerPerson) || 0;
+  for (const b of MARGIN_BANDS) {
+    if (b.max == null || v < b.max) return b;
+  }
+  return { max: null, mul: 1, label: '구간 없음' };
+}
+
 /* 출발월 기준 시즌 계수 — 항공·유류·호텔에 적용 (북반구/한국 출발 수요 기준) */
 const SEASON_CONFIG = [
   { id: 'peak',    months: [7, 8, 12, 1], factor: 1.20, label: '성수기', badge: '성수기 +20%' },
@@ -653,6 +695,8 @@ if (typeof module !== 'undefined' && module.exports) {
      대조하는 데 쓴다. 화면은 getGolfFee 하나만 본다. */
   module.exports.GOLF_FEES = GOLF_FEES;
   module.exports.getGolfFee = getGolfFee;
+  module.exports.MARGIN_BANDS = MARGIN_BANDS;
+  module.exports.marginBandFor = marginBandFor;
   /* TP: 부대비용 계수·옵션. 시뮬레이터(sim_ancillary.js)와 테스트가 같은 값을 본다 —
      엔진과 자가 서로 다른 계수를 쓰면 「재 보니 좋더라」가 거짓이 된다. */
   module.exports.ANCILLARY = ANCILLARY;
