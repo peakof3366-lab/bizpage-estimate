@@ -30,6 +30,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 
 const ROOT = path.join(__dirname, '..');
 const CORPUS = process.env.BIZPAGE_CORPUS
@@ -69,7 +70,7 @@ const median = (a) => {
   if (!fs.existsSync(CORPUS)) { console.log('코퍼스 폴더가 없습니다: ' + CORPUS); process.exit(1); }
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
-  const files = fs.readdirSync(CORPUS).filter((f) => f.toLowerCase().endsWith('.pdf')).sort();
+  const files = corpusFiles(CORPUS).files;
   console.log('견적서 ' + files.length + '건에서 칸별 실측을 모으는 중… (2~4분)\n');
 
   /* 목적지 → 칸 → [값…] */

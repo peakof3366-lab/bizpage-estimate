@@ -21,6 +21,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 
 const ROOT = path.join(__dirname, '..');
 const DEFAULT_CORPUS = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');
@@ -34,7 +35,7 @@ const SMALL = /벤|승합|스타렉스|미니|카니발|\d{1,2}\s*인승\s*(벤|
   if (!fs.existsSync(CORPUS)) { console.log('코퍼스 폴더가 없습니다: ' + CORPUS); process.exit(1); }
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
-  const files = fs.readdirSync(CORPUS).filter((f) => f.toLowerCase().endsWith('.pdf')).sort();
+  const files = corpusFiles(CORPUS).files;
   console.log('견적서 ' + files.length + '건 추출 중… (1~3분)\n');
 
   const rows = [];

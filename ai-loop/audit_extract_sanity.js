@@ -41,6 +41,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 const { destFromName } = require('./_dest_from_name');
 
 const ROOT = path.join(__dirname, '..');
@@ -95,7 +96,7 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
       rateMin: Math.min.apply(null, vals), rateMax: Math.max.apply(null, vals) };
   });
 
-  const files = fs.readdirSync(CORPUS).filter((f) => f.toLowerCase().endsWith('.pdf')).sort();
+  const files = corpusFiles(CORPUS).files;
   console.log('견적서 ' + files.length + '건 추출 중… (1~3분)\n');
 
   const docs = [];

@@ -28,6 +28,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 
 const ROOT = path.join(__dirname, '..');
 const DEFAULT_CORPUS = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');
@@ -48,7 +49,7 @@ const LOW_COVERAGE = 0.5;
   }
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
-  const files = fs.readdirSync(CORPUS).filter((f) => f.toLowerCase().endsWith('.pdf')).sort();
+  const files = corpusFiles(CORPUS).files;
   console.log('견적서 ' + files.length + '건 추출 중… (1~3분)\n');
 
   const rows = [];

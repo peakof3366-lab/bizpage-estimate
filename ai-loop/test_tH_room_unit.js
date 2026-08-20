@@ -21,6 +21,7 @@
    실행: node ai-loop/test_tH_room_unit.js  (프로젝트 루트에서) */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 const ex = require('../api/_lib/pdf_extract.js');
 
 let pass = 0, fail = 0;
@@ -98,7 +99,7 @@ if (fs.existsSync(FILE_A) && fs.existsSync(FILE_B)) {
          여러 번 났다(공동경비·인두세·픽트램). 그래서 바뀐 문서 수를 여기 박아 둔다. */
     console.log('\n[5] 코퍼스 나머지가 조용히 안 바뀌었는가');
     let touched = 0, total = 0;
-    for (const f of fs.readdirSync(CORPUS).filter((x) => x.toLowerCase().endsWith('.pdf')).sort()) {
+    for (const f of corpusFiles(CORPUS, { quiet: true }).files) {
       if (/고은회/.test(f)) continue;
       total++;
       try {

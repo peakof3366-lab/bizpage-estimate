@@ -30,6 +30,7 @@
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const X = require('../api/_lib/pdf_extract.js');
@@ -385,7 +386,7 @@ ok('없는 목적지 이름에도 안전하다', DATA.getGolfFee('없는곳') ==
   if (fs.existsSync(CORPUS)) {
     const pdfParse = require('pdf-parse');
     const split = [], golfVals = [];
-    for (const f of fs.readdirSync(CORPUS).filter((x) => x.toLowerCase().endsWith('.pdf')).sort()) {
+    for (const f of corpusFiles(CORPUS, { quiet: true }).files) {
       try {
         const r = await X.extractQuote(new Uint8Array(fs.readFileSync(path.join(CORPUS, f))), pdfParse, {});
         if (r.crews && r.crews.split) split.push(f.slice(0, 40));

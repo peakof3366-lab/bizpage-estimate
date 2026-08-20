@@ -28,6 +28,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
@@ -59,7 +60,7 @@ const won = (n) => (n == null ? '—' : Number(Math.round(n)).toLocaleString());
 
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
-  const files = fs.readdirSync(CORPUS).filter((f) => f.toLowerCase().endsWith('.pdf')).sort();
+  const files = corpusFiles(CORPUS).files;
   console.log('견적서 ' + files.length + '건 읽는 중… (2~4분)\n');
 
   require('./_load_env')();

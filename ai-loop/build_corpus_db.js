@@ -30,6 +30,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 
 const ROOT = path.join(__dirname, '..');
 const DEFAULT_CORPUS = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');
@@ -93,7 +94,7 @@ function blockers(r, dest) {
   if (!fs.existsSync(CORPUS)) { console.log('코퍼스 폴더가 없습니다: ' + CORPUS); process.exit(1); }
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
-  let files = fs.readdirSync(CORPUS).filter((f) => f.toLowerCase().endsWith('.pdf')).sort();
+  let files = corpusFiles(CORPUS).files;
   if (ONLY) files = files.filter((f) => f.indexOf(ONLY) >= 0);
   console.log('견적서 ' + files.length + '건 읽는 중… (2~4분)\n');
 

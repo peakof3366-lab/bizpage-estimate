@@ -36,6 +36,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 
 const ROOT = path.join(__dirname, '..');
 const CORPUS = process.env.BIZPAGE_CORPUS
@@ -107,7 +108,7 @@ const S = (why) => ({ r: 'skip', why });
   if (!fs.existsSync(CORPUS)) { console.log('코퍼스 폴더가 없습니다: ' + CORPUS); process.exit(1); }
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
-  const files = fs.readdirSync(CORPUS).filter((f) => f.toLowerCase().endsWith('.pdf')).sort();
+  const files = corpusFiles(CORPUS).files;
   console.log('견적서 ' + files.length + '건 · 칸마다 11회 검토… (2~4분)\n');
 
   /* 1차 — 전부 추출한다. ④(동료 대비)는 **다른 견적서들을 알아야** 하므로 두 번 돈다. */

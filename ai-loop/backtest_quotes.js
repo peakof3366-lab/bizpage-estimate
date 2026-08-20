@@ -30,6 +30,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 const { JSDOM } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
@@ -63,13 +64,17 @@ async function extractCorpus() {
     const cached = JSON.parse(fs.readFileSync(CACHE, 'utf8'));
     if (cached && cached.version === CACHE_VERSION) {
       console.log('캐시 사용: ' + CACHE + '  (--cache 빼면 다시 추출)');
-      return cached.rows;
+      /* ⚠ VA: 캐시는 **파일 목록을 거치지 않는다.** 여기서 다시 거르지 않으면 중복 제거가
+         `--cache`일 때만 조용히 안 먹는다 — 안전망이 실행되지 않는 자리다(결함 생성기 ③).
+         옛 캐시에 남아 있는 중복 행도 이 한 줄이 걷어낸다. */
+      const allow = new Set(corpusFiles(CORPUS).files);
+      return cached.rows.filter((r) => allow.has(r.file));
     }
     console.log('캐시가 낡았습니다(판 ' + (cached && cached.version) + ' ≠ ' + CACHE_VERSION + ') — 다시 추출합니다.');
   }
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
-  const files = fs.readdirSync(CORPUS).filter((f) => f.toLowerCase().endsWith('.pdf')).sort();
+  const files = corpusFiles(CORPUS).files;
   console.log('견적서 ' + files.length + '건 추출 중… (1~3분)');
   const out = [];
   for (const f of files) {

@@ -20,6 +20,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 
 const ROOT = path.join(__dirname, '..');
 const CORPUS = process.env.BIZPAGE_CORPUS
@@ -71,7 +72,7 @@ const ymd = (v) => {
 
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
-  const files = fs.readdirSync(CORPUS).filter((f) => f.toLowerCase().endsWith('.pdf')).sort();
+  const files = corpusFiles(CORPUS).files;
   console.log('제보 ' + reports.length + '행 · 견적서 ' + files.length + '건을 다시 뽑아 맞춰 본다… (2~4분)\n');
 
   /* 견적서를 다시 뽑아 [목적지|출발일]로 색인한다 — 넣을 때 쓴 열쇠와 같다 */

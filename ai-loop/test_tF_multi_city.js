@@ -19,6 +19,7 @@
    실행: node ai-loop/test_tF_multi_city.js  (프로젝트 루트에서) */
 const fs = require('fs');
 const path = require('path');
+const { corpusFiles } = require('./_corpus_files.js');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const ex = require('../api/_lib/pdf_extract.js');
@@ -88,7 +89,7 @@ if (fs.existsSync(CORPUS)) {
   (async () => {
     const pdfParse = require('pdf-parse');
     let withItin = 0; const flagged = [];
-    for (const f of fs.readdirSync(CORPUS).filter((x) => x.toLowerCase().endsWith('.pdf')).sort()) {
+    for (const f of corpusFiles(CORPUS, { quiet: true }).files) {
       try {
         const r = await ex.extractQuote(fs.readFileSync(path.join(CORPUS, f)), pdfParse, {});
         const itin = r.itinerary || (r.blocks && r.blocks[0] && r.blocks[0].itinerary);
