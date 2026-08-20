@@ -12,6 +12,19 @@
    그래서 이 자는 **칸 단위로** 잰다. 목적지 × 7칸마다:
      요율표 값(운영 오버라이드 반영) vs 그 목적지 견적서들의 실측 중앙값
 
+   ⚠ **2026-08-20(VB): 위 「운영 오버라이드 반영」이 머리말에만 있고 코드에 없었다.**
+     이 자는 `data.js` 기본값만 읽고 있었다. TR이 `_rate_overrides.js`를 만들어 측정
+     도구에 운영값을 실어 줬는데 **이 파일만 안 붙었다** — 그런데 머리말은 붙은 것처럼
+     적혀 있어서, 읽는 사람이 어긋남을 알 방법이 없었다(결함 생성기 ②의 문서판).
+     실제 피해가 컸다. 2026-08-13에 실측으로 고쳐 둔 칸을 이 표가 **여전히 틀린 것으로**
+     찍었다: 삿포로 가이드(운영 142,500인데 기본 300,000으로 보고 「2.1배 높다」),
+     푸꾸옥·다낭·오키나와 유류, 홍콩·카자흐 식비 — **🔴 12칸 중 6칸이 그런 것**이었고
+     여섯 칸 전부 **운영값 = 실측 중앙값으로 이미 정확히 일치**하고 있었다.
+     그대로 따랐으면 맞춰 놓은 값을 **한 번 더** 반토막 냈을 것이다.
+     → 이제 `loadOverrides`로 운영값을 얹고, **무엇으로 쟀는지 첫 줄에 밝힌다.**
+     → 오버라이드가 얹힌 칸은 표에 `📌`를 단다. 「이미 실측으로 고친 칸」과
+       「아직 온라인 추정치인 칸」은 처방이 정반대라, 같은 얼굴로 보이면 안 된다.
+
    ⚠ **기준은 검산된 값만 쓴다**(SN). 검산 안 된 값은 1인 단가인지 전 일정 총액인지
      모르는 값이라, 기준에 넣으면 요율을 통째로 엉뚱한 곳으로 끌고 간다
      (카자흐 가이드 +352%가 「전일정 총액」이었던 전례).
@@ -27,6 +40,7 @@
    실행:
      node ai-loop/audit_rate_calibration.js
      node ai-loop/audit_rate_calibration.js --dest 푸꾸옥
+     node ai-loop/audit_rate_calibration.js --fresh-rates   (운영 요율을 다시 받는다)
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
@@ -42,6 +56,8 @@ const ONLY = argOf('--dest');
 const destinationRates = require(path.join(ROOT, 'data.js'));
 const PLAUSIBILITY = require(path.join(ROOT, 'plausibility.js'));
 const { destFromName } = require('./_dest_from_name');
+/* ⚠ 요율의 진실은 `data.js`가 아니라 운영 DB다(CLAUDE.md). 읽기 전용 GET 한 번. */
+const { loadOverrides, applyOverrides } = require('./_rate_overrides');
 
 /* 추출 항목 → 요율 칸. **admin.html의 PLAUS_RATE_FIELD와 같은 표여야 한다** —
    두 곳이 다르면 화면과 이 표가 서로 다른 칸을 견준다(결함 생성기 ①). */
@@ -71,6 +87,12 @@ const median = (a) => {
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
   const files = corpusFiles(CORPUS).files;
+
+  /* ⚠ **무엇으로 쟀는지 먼저 밝힌다.** 못 받았을 때 조용히 기본값으로 떨어지면
+     「이미 고친 칸」을 또 고치라고 말하게 된다 — VB에서 실제로 그랬다. */
+  const ov = await loadOverrides();
+  const OV = ov.overrides || {};
+  console.log('요율 오버라이드 ' + applyOverrides(destinationRates, OV) + '칸 적용 — ' + ov.from);
   console.log('견적서 ' + files.length + '건에서 칸별 실측을 모으는 중… (2~4분)\n');
 
   /* 목적지 → 칸 → [값…] */
@@ -114,13 +136,17 @@ const median = (a) => {
       const loud = ratio >= LOUD || ratio <= 1 / LOUD;
       /* 표본이 1건이면 중앙값이 아니다 — 그 사실을 기호로 드러낸다 */
       const weak = list.length < 2;
+      /* 📌 = 이 칸은 **운영 DB에서 사람이 실측으로 고친 값**이다. 아직 온라인 추정치인
+         칸과 처방이 정반대라(고친 칸이 또 벌어지면 표본을 의심하고, 추정치 칸은 그냥
+         실측으로 바꾼다) 표에서 구분되어야 한다. */
+      const fromOv = typeof ((OV[destKey] || {})[CELL[k]]) === 'number';
       console.log('   ' + LABEL[k].padEnd(5)
-        + '요율 ' + won(base).padStart(11)
-        + '   실측중앙 ' + won(med).padStart(11)
+        + '요율 ' + won(base).padStart(11) + (fromOv ? ' 📌' : '   ')
+        + '  실측중앙 ' + won(med).padStart(11)
         + '  (' + String(list.length) + '건' + (weak ? ' ⚠표본1' : '') + ')'
         + '   ' + (ratio >= 1 ? '×' + ratio.toFixed(2) : '÷' + (1 / ratio).toFixed(2)).padStart(7)
         + (loud ? '  🔴' : ''));
-      if (loud && !weak) proposals.push({ destKey, cell: CELL[k], label: LABEL[k], base, med, ratio, n: list.length });
+      if (loud && !weak) proposals.push({ destKey, cell: CELL[k], label: LABEL[k], base, med, ratio, n: list.length, fromOv });
     });
   });
 
@@ -132,10 +158,16 @@ const median = (a) => {
   proposals.sort((a, b) => Math.max(b.ratio, 1 / b.ratio) - Math.max(a.ratio, 1 / a.ratio))
     .forEach((p) => {
       console.log('  ' + p.destKey.padEnd(10) + p.label.padEnd(5)
-        + '요율 ' + won(p.base).padStart(11) + '  →  실측 ' + won(p.med).padStart(11)
+        + '요율 ' + won(p.base).padStart(11) + (p.fromOv ? ' 📌' : '   ')
+        + ' →  실측 ' + won(p.med).padStart(11)
         + '  (' + p.n + '건, ' + (p.ratio >= 1 ? '요율이 ' + p.ratio.toFixed(1) + '배 낮다'
           : '요율이 ' + (1 / p.ratio).toFixed(1) + '배 높다') + ')');
     });
+  if (proposals.some((p) => p.fromOv)) {
+    console.log('\n  📌 = 운영 DB에서 **사람이 이미 실측으로 고친 칸**이다. 그런데도 벌어져 있다면');
+    console.log('     처방이 다르다 — 요율을 또 옮기기 전에 **그 사이 들어온 견적서가 다른 조건**');
+    console.log('     (성수기·인원·등급)인지부터 본다. 고친 값을 반복해 옮기면 진동한다.');
+  }
 
   console.log('\n검산된 값 ' + kept + '칸을 썼고, 검산 안 된 ' + dropped + '칸은 뺐다(SN).');
   if (noDest.length) {

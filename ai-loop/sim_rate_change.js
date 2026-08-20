@@ -6,6 +6,8 @@
    이 자가 그 실측을 요율 쪽에 대해서 한다.
 
    재는 법 — 엔진을 두 번 띄운다. 한 번은 지금 요율로, 한 번은 바꾼 요율로.
+   ⚠ **「지금 요율」은 운영 DB다**(VB에서 고쳤다 — 그전에는 `data.js` 기본값이었다).
+     '전'이 고객이 보는 금액이 아니면 여기서 나온 전/후 차이는 전부 헛것이다.
    같은 46건 코퍼스에 대고 [엔진 1인당 vs 견적서 1인당]의 분포가 어떻게 움직이는지 본다.
    **중앙값만 보지 않는다** — 중앙값이 0에 가까워지면서 사분위가 벌어지면 그건 개선이
    아니라 **틀린 칸을 올려 우연히 총액을 맞춘 것**이다(SD에서 경고한 그 상태).
@@ -31,6 +33,8 @@ const argv = process.argv.slice(2);
 const argOf = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const PLAN_PATH = argOf('--plan');
 const { destFromName } = require('./_dest_from_name');
+const { loadOverrides, applyOverrides } = require('./_rate_overrides');
+let OV = {};                                   /* 운영 요율 — IIFE에서 채운다 */
 
 if (!PLAN_PATH) { console.log('사용법: node ai-loop/sim_rate_change.js --plan <계획.json>'); process.exit(1); }
 const plan = JSON.parse(fs.readFileSync(path.isAbsolute(PLAN_PATH) ? PLAN_PATH : path.join(ROOT, PLAN_PATH), 'utf8'));
@@ -86,6 +90,11 @@ async function bootEngine(mutate) {
   try { window.eval(APP); } catch (e) { console.log('[eval warn] ' + e.message); }
   await new Promise((r) => setTimeout(r, 150));
   if (typeof window.getBreakdownData !== 'function') throw new Error('엔진 로드 실패');
+  /* ⚠ **「지금 요율」은 `data.js`가 아니라 운영 DB다**(VB). 이걸 안 얹으면 '전'이
+     고객이 실제로 보는 금액이 아니라서, 이 자가 재는 전/후 차이가 통째로 헛것이 된다.
+     ⚠ 순서가 중요하다 — **운영값을 먼저 얹고 그 위에 계획을 얹는다.** 반대로 하면
+     `mul`이 기본값에 곱해져, 이미 실측으로 고쳐 둔 칸이 계획에서 사라진다. */
+  applyOverrides(window.__DR, OV);
   let touched = [];
   if (mutate) touched = applyPlan(window.__DR);
   const doc = window.document;
@@ -107,6 +116,10 @@ async function bootEngine(mutate) {
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
   const files = corpusFiles(CORPUS).files;
+  /* 무엇으로 쟀는지 밝힌다 — 못 받으면 '전'이 기본값이 되므로 조용히 넘어가면 안 된다 */
+  const ovRes = await loadOverrides();
+  OV = ovRes.overrides || {};
+  console.log('요율 오버라이드 ' + Object.keys(OV).length + '곳 — ' + ovRes.from);
   console.log('견적서 ' + files.length + '건 추출 중… (2~4분)');
 
   const cases = [];

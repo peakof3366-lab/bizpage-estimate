@@ -1,0 +1,5 @@
+{
+  "푸꾸옥": { "meal_per_person": { "set": 58037 }, "sightseeing_fee": { "set": 172775 } },
+  "다낭":   { "meal_per_person": { "set": 52621 } },
+  "홍콩":   { "sightseeing_fee": { "set": 10195 } }
+}

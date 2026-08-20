@@ -49,6 +49,9 @@ const JSON_OUT = path.join(ROOT, '.corpus_validated.json');
 const destinationRates = require(path.join(ROOT, 'data.js'));
 const PLAUSIBILITY = require(path.join(ROOT, 'plausibility.js'));
 const { destFromName } = require('./_dest_from_name');
+/* ⚠ 기준가(`base`)는 운영 DB가 진실이다(VB). 기본값으로 재면 **실측에 맞춰 고쳐 둔
+   목적지일수록** 멀쩡한 추출값이 「기준가에서 벗어났다」로 걸린다. */
+const { loadOverrides, applyOverrides } = require('./_rate_overrides');
 
 const CELL = {
   airfare: 'airfare', fuel: 'fuel_surcharge', hotel: 'hotel_per_room',
@@ -109,6 +112,8 @@ const S = (why) => ({ r: 'skip', why });
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
   const files = corpusFiles(CORPUS).files;
+  const ovRes = await loadOverrides();
+  console.log('요율 오버라이드 ' + applyOverrides(destinationRates, ovRes.overrides) + '칸 적용 — ' + ovRes.from);
   console.log('견적서 ' + files.length + '건 · 칸마다 11회 검토… (2~4분)\n');
 
   /* 1차 — 전부 추출한다. ④(동료 대비)는 **다른 견적서들을 알아야** 하므로 두 번 돈다. */
