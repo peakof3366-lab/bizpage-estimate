@@ -42,7 +42,9 @@ const EXPECT = {
   '가고시마':   'short|asiaShort|일본|JPY|japan|',
   '나고야':    'short|asiaShort|일본|JPY|japan|',
   '삿포로':    'short|asiaShort|일본|JPY|japan|',
+  '아오모리':   'short|asiaShort|일본|JPY|japan|',
   '오키나와':   'short|asiaShort|일본|JPY|japan|',
+  '미야코지마':  'short|asiaShort|일본|JPY|japan|',
   '홍콩':     'short|asiaShort|홍콩·마카오|HKD|hkmo|',
   '마카오':    'short|asiaShort|홍콩·마카오|MOP|hkmo|',
   '상해':     'short|asiaShort|중국|CNY|china|',
@@ -95,10 +97,12 @@ const EXPECT = {
   '우즈베키스탄': 'mid|evac|중앙아시아|UZS|centralAsia|',
 };
 
-console.log('[1] 분류표가 리팩터 이전 값과 정확히 같은가 (목적지 58개 × 6축)');
+console.log('[1] 분류표가 리팩터 이전 값과 정확히 같은가 (목적지 60개 × 6축)');
 /* ⚠ 이 표는 **스냅샷**이다. 목적지를 늘리면 여기서 걸리는 것이 정상이고, 늘린 사람이
    여기에도 한 줄을 적어야 통과한다 — 그게 「목적지를 추가할 때 한 곳을 빠뜨린다」를
-   막는 장치다(결함 생성기 ①). 2026-08-11 TD에서 가고시마·후아힌을 넣어 57개가 됐다. */
+   막는 장치다(결함 생성기 ①). 2026-08-11 TD에서 가고시마·후아힌을 넣어 57개가 됐다.
+   2026-08-20 VC에서 아오모리·미야코지마를 넣어 **60개**가 됐다 — 대표 방침
+   「지역이 달라지면 별도로 추가한다」에 따라 미야코지마를 오키나와에서 분리했다. */
 const DC = DATA.DEST_CLASSIFY;
 const dcKeys = Object.keys(DC).sort();
 const expKeys = Object.keys(EXPECT).sort();
