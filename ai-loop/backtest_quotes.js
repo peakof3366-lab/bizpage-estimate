@@ -54,7 +54,7 @@ const BASIS = (args.find((a) => a.startsWith('--basis=')) || '').split('=')[1] |
 if (!['sell', 'cost'].includes(BASIS)) { console.log('--basis 는 sell 또는 cost'); process.exit(1); }
 /* ⚠ 캐시에 새 칸(입금가)이 생겼다. 판이 다르면 **조용히 재사용하지 않는다** —
    안 그러면 원가가 undefined라 전건이 '제외'로 빠지고 그게 '해당 없음'처럼 보인다. */
-const CACHE_VERSION = 4;   /* VC: 행에 `dest`(본문까지 본 목적지 판정)가 생겼다 */
+const CACHE_VERSION = 5;   /* VC: `dest` · VE: `needsFx`(제외 사유를 가르는 신호) */
 
 const { DEST_ALIAS, destFromName } = require('./_dest_from_name');
 
@@ -90,6 +90,9 @@ async function extractCorpus() {
            ⚠ 그래서 `CACHE_VERSION`을 올렸다 — 안 올리면 옛 캐시에 이 칸이 없어
            `--cache`일 때만 목적지가 통째로 비는, 조용한 어긋남이 된다(결함 생성기 ③). */
         dest: destFromName(f, r.text),
+        /* VE: 「못 읽음」의 이유를 가르는 데 쓴다. 캐시에 없으면 `--cache`일 때만
+           이유가 뭉뚱그려져, 고칠 수 있는 것과 없는 것이 같은 얼굴이 된다. */
+        needsFx: r.needsFxRate || null,
         /* UU: 인원이 문서 계산과 어긋난다는 표시. 여기서 안 실으면 아래 가드가
            영영 안 걸린다 — 만들어만 두고 안 도는 안전망이 된다(결함 생성기 ③). */
         paxConflict: r.paxConflict || null,
@@ -169,9 +172,21 @@ function quantile(sorted, q) {
     /* 정답지 — 판매가(기본)인가 우리 원가(입금가)인가. 섞지 않는다 (SC). */
     const actual = BASIS === 'cost' ? c.deposit : c.perPerson;
     if (!actual) {
+      /* ⚠ **못 읽은 것과 없는 것을 가른다**(VE). 예전엔 셋을 전부 「1인당 금액을 못
+         읽음」 하나로 묶었는데, 그러면 **고칠 수 있는 것과 없는 것이 같은 얼굴**이 된다.
+         실제로 그 표시를 보고 원가 시트를 고치려 들었다 — 그 문서엔 판매가 자리가
+         「* 계약서상 판매가??」로 **비어 있어서** 코드로는 영영 못 읽는다.
+         이제 셋으로 나눈다: ①원가 시트라 판매가가 없다 ②외화인데 환율이 없다(사람이
+         한 칸) ③진짜로 못 읽었다(코드가 고칠 것). ③만 우리 몫이다. */
       skipped.push({ f: c.file, why: BASIS === 'cost'
         ? '「입금가」가 없음 (원가 시트가 아니다 — 고객용 견적서로 보인다)'
-        : '견적서에서 1인당 금액을 못 읽음' });
+        : c.deposit
+          ? '원가 시트라 판매가가 없다 (입금가 ' + Number(c.deposit).toLocaleString()
+            + ' — `--basis=cost`로는 잰다)'
+          : (c.needsFx && c.needsFx.currency)
+            ? '외화(' + c.needsFx.currency + ' ' + c.needsFx.rowCount
+              + '줄)인데 문서에 환율이 없다 — 사람이 한 칸 (결정대기열 0-f)'
+            : '견적서에서 1인당 금액을 못 읽음' });
       continue;
     }
     if (!c.pax || c.pax < 2) { skipped.push({ f: c.file, why: '인원 불명' }); continue; }
