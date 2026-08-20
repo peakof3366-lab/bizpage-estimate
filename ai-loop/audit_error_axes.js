@@ -33,6 +33,10 @@ const DATA = require(path.join(ROOT, 'data.js'));
 
 const MIN_GROUP = 4;           /* 이보다 작은 무리는 중앙값이 뜻이 없다 */
 const COST_SHEET_RE = /HNT\s*수익|권장\s*수익|입금가|\bFOC\b/i;
+/* 골프 일정인지 — **라벨만으로 센다.** 금액이 따로 안 적히는 문서가 대부분이다
+   (실측: 「캐디팁」·「골프조 게임비」는 라벨만 있고 숫자가 없다 · 하노이·푸꾸옥은
+   「선택 일정 [관광/자유/골프]」라 아예 금액이 없다). */
+const GOLF_RE = /골프|그린피|캐디/g;
 const pct = (n) => (n == null ? '  —  ' : (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%');
 const q = (a, p) => {
   if (!a.length) return null;
@@ -111,6 +115,19 @@ const AXES = [
      정확한데 마카오·보홀이 크게 틀리는 것을 보고 이 축을 넣었다. */
   { key: '호텔 실측', of: (r) => (r.hotelMeasured ? '① 호텔이 실측' : '② 호텔이 온라인 추정'),
     note: '**호텔은 지상비의 26.7%로 가장 큰 칸**이다 — 여기가 틀리면 총액이 통째로 틀어진다' },
+  /* ⚠ **엔진이 담을 칸이 아예 없는 항목**을 재는 축이다(VG). 앞의 축들은 전부
+     「우리 값이 맞는가」를 묻는데, 이건 「우리가 그 항목을 갖고 있기는 한가」를 묻는다.
+     실측: 코퍼스 45건 중 **13건이 골프 일정**인데 요율에 골프 요금이 있는 곳은
+     **4곳뿐**이다(제주도·오키나와·후아힌·카자흐스탄). 다낭·푸꾸옥·발리·하노이는 없다.
+     골프 요금이 없으면 엔진은 그 줄을 **아예 만들지 않으므로**(getGolfFee가 0이면 잠긴다)
+     그 견적서는 구조적으로 싸게 나온다 — 요율이 틀려서가 아니다.
+     ⚠ 그리고 그 비용이 문서에서는 차량·관광 칸에 섞여 들어가 **칸별 실측 중앙값까지
+       끌어올린다**(다낭 차량이 요율의 2.84배로 찍힌 것이 그 모양이다).
+     ⚠ 이 축이 크게 갈리면 처방은 요율 조정이 아니라 **골프 요금을 넣는 것**이고,
+       그건 실거래가라 대표 판단이다. */
+  { key: '골프 일정', of: (r) => (!r.golfDoc ? '③ 골프 일정 아님'
+    : r.golfFee ? '② 골프 · 요율에 골프 요금 있음' : '① 골프 · 요율에 골프 요금 **없음**'),
+    note: '골프가 든 일정인데 그 목적지에 골프 요금이 없으면 엔진은 그 줄을 아예 못 만든다' },
 ];
 
 (async () => {
@@ -138,6 +155,11 @@ const AXES = [
       cost: COST_SHEET_RE.test(r.text || ''),
       ovCells: OV_CELLS[dn.key] || 0,
       hotelMeasured: !!OV_HOTEL[dn.key],
+      /* VG: 골프가 든 일정인가, 그리고 그 목적지에 골프 요금이 있는가.
+         ⚠ 언급 3회 미만은 「선택 일정에 골프도 있다」 정도라 골프 일정으로 안 본다
+           (실측: 미야코지마 1회·한화GA 다낭 1회는 지나가는 말이다). */
+      golfDoc: ((r.text || '').match(GOLF_RE) || []).length >= 3,
+      golfFee: DATA.getGolfFee ? DATA.getGolfFee(dn.key) > 0 : false,
     });
   }
   const all = rows.map((x) => x.err);
@@ -152,7 +174,18 @@ const AXES = [
     rows.forEach((r) => { (g[ax.of(r)] = g[ax.of(r)] || []).push(r.err); });
     const groups = Object.entries(g).filter(([, v]) => v.length >= MIN_GROUP)
       .sort((a, b) => a[0].localeCompare(b[0]));
-    if (groups.length < 2) { console.log('■ ' + ax.key + ' — 무리가 ' + MIN_GROUP + '건 이상인 것이 하나뿐이라 못 잰다\n'); return; }
+    if (groups.length < 2) {
+      /* ⚠ **몇 건이 모자란지 말한다**(VG). 「못 잰다」만 찍으면 그 축이 영영 안 될 일인지
+         견적서 한두 장이면 될 일인지 알 수 없다 — 실제로 골프 축이 양쪽 3건씩이라
+         **각각 한 장씩이면 재기 시작한다.** 그 사실이 곧 「어떤 견적서를 더 넣어야
+         하는가」의 답이다. 조용히 넘어가면 그 답이 사라진다(결함 생성기 ②). */
+      const sizes = Object.entries(g).sort((a, b) => b[1].length - a[1].length)
+        .map(([k, v]) => k + ' ' + v.length + '건').join(' · ');
+      console.log('■ ' + ax.key + ' — 아직 못 잰다 (무리가 ' + MIN_GROUP + '건 이상이어야 한다)');
+      console.log('   지금: ' + sizes);
+      console.log('   ' + ax.note + '\n');
+      return;
+    }
     const meds = groups.map(([, v]) => q(v, 0.5));
     const spread = Math.max.apply(null, meds) - Math.min.apply(null, meds);
     ranked.push({ ax, spread, groups });
