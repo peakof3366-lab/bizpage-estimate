@@ -44,8 +44,14 @@ const tools = fs.readdirSync(AI)
    두 갈래뿐이다: 목적지 행에서 요율 칸을 직접 꺼내 쓰거나(`dRow[CELL[k]]`),
    data.js를 실어 엔진을 띄우거나(jsdom). 둘 다 아니면 요율을 자로 쓰지 않는 도구다
    (추출 검사·코퍼스 적재·일정 심기 — 이들은 오버라이드가 필요 없다). */
-const usesRateBaseline = (s) => /\[\s*CELL\[/.test(s) || (/new JSDOM\(/.test(s) && /read\('data\.js'\)/.test(s));
-const readsCorpus = (s) => /_corpus_files/.test(s);
+/* ⚠ VL에서 두 군데가 넓어졌다. 증상으로 찾는 검사는 **문법이 바뀌면 조용히 못 찾는다** —
+   그게 「검사는 통과하는데 실제로는 안 보고 있는」 상태를 만든다(결함 생성기 ③):
+     · 교정표가 `dest[CELL[k]]` → `dest[field]`로 바뀌면서 `[CELL[` 패턴에서 빠졌다.
+     · 새 도구(`audit_error_decomp`)가 코퍼스를 `_corpus_cache`로 읽어 `_corpus_files`
+       패턴에서 빠졌다. 요율을 자로 쓰는데도 이 검사 밖에 있었다. */
+const usesRateBaseline = (s) => /\[\s*CELL\[/.test(s) || /FIELD_LABEL\[/.test(s)
+  || (/new JSDOM\(/.test(s) && /read\('data\.js'\)/.test(s));
+const readsCorpus = (s) => /_corpus_files/.test(s) || /_corpus_cache/.test(s);
 
 console.log('\n[1] 요율을 자로 쓰는 코퍼스 도구는 전부 운영값을 얹는다');
 {
@@ -57,7 +63,10 @@ console.log('\n[1] 요율을 자로 쓰는 코퍼스 도구는 전부 운영값�
     missing.length ? '안 부르는 도구: ' + missing.join(' · ') : '');
 
   /* VB에서 실제로 고친 세 자리 — 이름을 박아 둔다. 지우면 그 자리가 조용히 되돌아간다. */
-  ['audit_rate_calibration.js', 'sim_rate_change.js', 'validate_corpus.js'].forEach((f) => {
+  /* VL 추가: 새 분해기도 요율을 자로 쓴다. 이름을 박아 두지 않으면 탐지기 문법이
+     바뀔 때 조용히 빠지고, 그러면 낡은 요율로 재고도 아무도 모른다. */
+  ['audit_rate_calibration.js', 'sim_rate_change.js', 'validate_corpus.js',
+    'audit_error_decomp.js'].forEach((f) => {
     ok('① ' + f + ' 가 목록에 있다', measuring.indexOf(f) >= 0);
   });
 

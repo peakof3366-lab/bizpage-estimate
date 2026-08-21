@@ -64,18 +64,38 @@ const { dedupeTrips, droppedNote } = require('./_same_trip');
    두 곳이 다르면 화면과 이 표가 서로 다른 칸을 견준다(결함 생성기 ①). */
 const CELL = {
   airfare: 'airfare', fuel: 'fuel_surcharge', hotel: 'hotel_per_room',
-  meal: 'meal_per_person', vehicle: 'vehicle_large', guide: 'guide_fee',
+  meal: 'meal_per_person', vehicle: 'vehicle_large', guide: 'guide_fee',   /* ⚠ vehicle은 아래에서 인원에 따라 다시 고른다 — 이 값을 그대로 쓰지 말 것 */
   sight: 'sightseeing_fee',
 };
 const LABEL = {
   airfare: '항공', fuel: '유류', hotel: '호텔', meal: '식비',
   vehicle: '차량', guide: '가이드', sight: '관광',
 };
+
+/* ── 차량은 **인원에 따라 요율 칸이 갈린다** (VL) ───────────────────────────
+   엔진은 `participants > VEHICLE_CAPACITY.small`(25명)일 때만 `vehicle_large`를 쓴다.
+   그런데 이 표는 인원과 무관하게 전부 `vehicle_large`에 견주고 있었다 —
+   25명 이하 견적은 **고객이 보지도 않는 칸**과 대조된 셈이라, 상해 15명의
+   「차량 ×1.00 일치」 같은 허수가 만들어졌다. VB에서 잡은 「자가 틀렸다」와 같은 자리다.
+   ⚠ 임계값을 여기 다시 적지 않는다 — `_engine_consts`가 script.js에서 읽는다. */
+const { vehicleFieldFor } = require('./_engine_consts');
+
+/* 요율 칸 → 표에 찍을 이름. 차량만 둘로 갈린다(대조 대상이 다른 칸이라 섞으면 안 된다). */
+const FIELD_LABEL = {
+  airfare: '항공', fuel_surcharge: '유류', hotel_per_room: '호텔', meal_per_person: '식비',
+  vehicle_small: '차량(소)', vehicle_large: '차량(대)',
+  guide_fee: '가이드', sightseeing_fee: '관광',
+};
 /* 이 배수를 넘게 벌어지면 🔴 — 요율을 논하기 전에 **그 값이 오독인지부터** 봐야 한다.
    plausibility의 RATE_SPREAD(3)와 같은 뜻이되, 여기는 '평균 대비'라 조금 좁게 잡는다. */
 const LOUD = 2.0;
 
 const won = (n) => (n == null ? '—' : Number(Math.round(n)).toLocaleString());
+/* 한글은 화면에서 두 칸을 먹는다 — `padEnd`만 쓰면 「차량(대)」 줄만 어긋난다 */
+const wpad = (s, w) => {
+  const width = String(s).split('').reduce((n, ch) => n + (ch.charCodeAt(0) > 0x2000 ? 2 : 1), 0);
+  return String(s) + ' '.repeat(Math.max(0, w - width));
+};
 const median = (a) => {
   if (!a.length) return null;
   const s = a.slice().sort((x, y) => x - y);
@@ -137,8 +157,15 @@ const median = (a) => {
       /* SN 그대로 — **자는 검산된 값만, 재는 대상은 전부.** */
       if (!PLAUSIBILITY.isTrusted(via)) { dropped++; return; }
       kept++;
-      obs[dn.key].cells[k] = obs[dn.key].cells[k] || [];
-      obs[dn.key].cells[k].push({ v, f });
+      /* 차량은 그 견적서의 **인원**이 정하는 칸에 담는다(위 주석 참고). 인원을 모르면
+         담지 않는다 — 어느 칸인지 모르는 값을 아무 칸에나 넣으면 그 칸이 오염된다. */
+      let field = CELL[k];
+      if (k === 'vehicle') {
+        if (!r.pax) { dropped++; kept--; return; }
+        field = vehicleFieldFor(r.pax);
+      }
+      obs[dn.key].cells[field] = obs[dn.key].cells[field] || [];
+      obs[dn.key].cells[field].push({ v, f });
     });
   }
 
@@ -150,9 +177,9 @@ const median = (a) => {
     if (!dest) { console.log('▪ ' + destKey + ' — 요율표에 없다(추가 대상)'); return; }
     const o = obs[destKey];
     console.log('▪ ' + destKey + '  (견적서 ' + o.files.length + '건)');
-    Object.keys(CELL).forEach((k) => {
-      const list = (o.cells[k] || []).map((x) => x.v);
-      const base = Number(dest[CELL[k]]) || 0;
+    Object.keys(FIELD_LABEL).forEach((field) => {
+      const list = (o.cells[field] || []).map((x) => x.v);
+      const base = Number(dest[field]) || 0;
       if (!list.length || !base) return;
       const med = median(list);
       const ratio = med / base;
@@ -162,14 +189,14 @@ const median = (a) => {
       /* 📌 = 이 칸은 **운영 DB에서 사람이 실측으로 고친 값**이다. 아직 온라인 추정치인
          칸과 처방이 정반대라(고친 칸이 또 벌어지면 표본을 의심하고, 추정치 칸은 그냥
          실측으로 바꾼다) 표에서 구분되어야 한다. */
-      const fromOv = typeof ((OV[destKey] || {})[CELL[k]]) === 'number';
-      console.log('   ' + LABEL[k].padEnd(5)
+      const fromOv = typeof ((OV[destKey] || {})[field]) === 'number';
+      console.log('   ' + wpad(FIELD_LABEL[field], 9)
         + '요율 ' + won(base).padStart(11) + (fromOv ? ' 📌' : '   ')
         + '  실측중앙 ' + won(med).padStart(11)
         + '  (' + String(list.length) + '건' + (weak ? ' ⚠표본1' : '') + ')'
         + '   ' + (ratio >= 1 ? '×' + ratio.toFixed(2) : '÷' + (1 / ratio).toFixed(2)).padStart(7)
         + (loud ? '  🔴' : ''));
-      if (loud && !weak) proposals.push({ destKey, cell: CELL[k], label: LABEL[k], base, med, ratio, n: list.length, fromOv });
+      if (loud && !weak) proposals.push({ destKey, cell: field, label: FIELD_LABEL[field], base, med, ratio, n: list.length, fromOv });
     });
   });
 
@@ -180,7 +207,7 @@ const median = (a) => {
   if (!proposals.length) console.log('  없다.');
   proposals.sort((a, b) => Math.max(b.ratio, 1 / b.ratio) - Math.max(a.ratio, 1 / a.ratio))
     .forEach((p) => {
-      console.log('  ' + p.destKey.padEnd(10) + p.label.padEnd(5)
+      console.log('  ' + wpad(p.destKey, 12) + wpad(p.label, 9)
         + '요율 ' + won(p.base).padStart(11) + (p.fromOv ? ' 📌' : '   ')
         + ' →  실측 ' + won(p.med).padStart(11)
         + '  (' + p.n + '건, ' + (p.ratio >= 1 ? '요율이 ' + p.ratio.toFixed(1) + '배 낮다'

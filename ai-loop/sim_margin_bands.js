@@ -59,8 +59,10 @@ const PLAN = PLAN_PATH
   ? JSON.parse(fs.readFileSync(path.isAbsolute(PLAN_PATH) ? PLAN_PATH : path.join(ROOT, PLAN_PATH), 'utf8'))
   : null;
 
-/* 목표선은 역검증과 **같은 값**이어야 한다 — 두 곳에 적으면 갈라진다(결함 생성기 ①) */
-const TARGET = 0.10;
+/* 목표선은 `_accuracy_target.js` 하나에서 온다(VL). 예전엔 여기에 사본을 적고
+   test_vJ가 역검증 소스를 정규식으로 긁어 대조했다 — 도구가 늘 때마다 사본과
+   대조가 함께 느는 구조라 파생으로 바꿨다(결함 생성기 ①). */
+const { TARGET } = require('./_accuracy_target');
 
 const pct = (n) => (n == null ? '—' : (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%');
 const won = (n) => Number(Math.round(n)).toLocaleString();

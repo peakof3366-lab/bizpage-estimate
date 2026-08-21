@@ -55,12 +55,17 @@ console.log('\n[2] 계획이 없으면 아무것도 안 바꾼다');
   ok('② mul이 0이어도 마진을 없애지 않는다', S.mulFor(100, [{ max: null, mul: 0 }]) === 1);
 }
 
-console.log('\n[3] 목표선이 역검증과 같은 값이다');
+console.log('\n[3] 목표선이 역검증과 같은 값이다 (VL: 대조가 아니라 파생)');
 {
+  /* 예전엔 backtest 소스를 정규식으로 긁어 두 값을 견줬다. 이제 둘 다 같은 모듈을
+     require하므로 **갈라질 수 없다** — 대조 대신 「정말로 그 모듈에서 오는가」를 본다.
+     ⚠ 값 비교만 남기면 우연히 같은 리터럴을 적어도 통과한다. 출처를 함께 본다. */
   const bt = fs.readFileSync(path.join(AI, 'backtest_quotes.js'), 'utf8');
-  const m = bt.match(/const TARGET = ([\d.]+);/);
-  ok('③ 두 도구의 목표선이 같다', m && Number(m[1]) === S.TARGET,
-    'backtest=' + (m && m[1]) + ' vs sim=' + S.TARGET);
+  const sm = fs.readFileSync(path.join(AI, 'sim_margin_bands.js'), 'utf8');
+  const T = require('./_accuracy_target');
+  ok('③ 두 도구의 목표선이 같다', S.TARGET === T.TARGET, 'sim=' + S.TARGET + ' vs 출처=' + T.TARGET);
+  ok('③ 역검증이 출처를 require한다', /require\(['"]\.\/_accuracy_target['"]\)/.test(bt));
+  ok('③ 시뮬레이터가 출처를 require한다', /require\(['"]\.\/_accuracy_target['"]\)/.test(sm));
 }
 
 console.log('\n[4] require만 해서는 시뮬레이션이 돌지 않는다');

@@ -96,8 +96,9 @@ console.log('\n[4] 코퍼스를 읽는 도구가 **직접 목록을 만들지 �
 
 console.log('\n[5] 역검증의 --cache 경로도 중복을 거른다');
 {
-  const src = fs.readFileSync(path.join(ROOT, 'ai-loop', 'backtest_quotes.js'), 'utf8');
-  const block = src.slice(src.indexOf('if (USE_CACHE'), src.indexOf('const pdfParse'));
+  /* VL: 추출·캐시가 `_corpus_cache.js`로 옮겨졌다 */
+  const src = fs.readFileSync(path.join(ROOT, 'ai-loop', '_corpus_cache.js'), 'utf8');
+  const block = src.slice(src.indexOf('if (o.useCache'), src.indexOf('const pdfParse'));
   ok('⑤ 캐시를 그대로 돌려주지 않는다', !/return cached\.rows;/.test(block), block.slice(0, 200));
   ok('⑤ 캐시 행을 공용 목록으로 거른다',
     /corpusFiles\(CORPUS\)/.test(block) && /cached\.rows\.filter/.test(block), block.slice(0, 400));

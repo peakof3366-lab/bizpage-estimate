@@ -151,7 +151,11 @@ console.log('\n[5] 감사기가 README에 등록돼 있는가');
      서로 다른 표를 쓰면 한쪽에서 빠진 건이 다른 쪽에서 엉뚱한 목적지로 세어진다. */
   const shared = fs.readFileSync(path.join(__dirname, '_dest_from_name.js'), 'utf8');
   ok('목적지 판정표가 공용 모듈에 있다', /const DEST_ALIAS = \[/.test(shared));
-  ['backtest_quotes.js', 'audit_extract_sanity.js'].forEach((f) => {
+  /* ⚠ VL: 목적지 판정은 **추출할 때 한 번** 하고 캐시가 답을 들고 다닌다(VC).
+     그래서 `destFromName`을 부르는 자리가 `backtest_quotes.js` → `_corpus_cache.js`로
+     옮겨졌다. 옛 이름을 그대로 두면 「검사는 통과하는데 실제로는 아무 데도 없는」
+     상태가 되거나(지금은 반대로 헛되이 실패했다), 판정표가 갈라져도 못 잡는다. */
+  ['_corpus_cache.js', 'audit_extract_sanity.js'].forEach((f) => {
     const src = fs.readFileSync(path.join(__dirname, f), 'utf8');
     ok(f + ' 가 그 모듈을 쓴다', /require\('\.\/_dest_from_name'\)/.test(src));
     ok(f + ' 안에 표를 다시 적지 않았다', !/const DEST_ALIAS = \[/.test(src));

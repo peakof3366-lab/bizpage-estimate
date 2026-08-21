@@ -91,8 +91,11 @@ console.log('\n[4] 만들어만 두고 안 도는 안전망이 아닌가');
     && /itemsTotal, paxConflict, checks/.test(src));
   ok('블록 결과에 실린다', /paxConflict: rec\.paxConflict/.test(src));
 
-  const bt = fs.readFileSync(path.join(ROOT, 'ai-loop', 'backtest_quotes.js'), 'utf8');
-  ok('④ 역검증이 코퍼스 행에 싣는다', /paxConflict: r\.paxConflict/.test(bt));
+  /* ⚠ VL: 캐시는 `_corpus_cache.js`, 대조 가능 판정은 `_comparable.js`로 옮겼다.
+     옛 자리를 계속 보면 「검사는 통과하는데 실제로는 아무 데도 없는」 상태가 된다. */
+  const cc = fs.readFileSync(path.join(ROOT, 'ai-loop', '_corpus_cache.js'), 'utf8');
+  const bt = fs.readFileSync(path.join(ROOT, 'ai-loop', '_comparable.js'), 'utf8');
+  ok('④ 역검증이 코퍼스 행에 싣는다', /paxConflict: r\.paxConflict/.test(cc));
   ok('④ 역검증이 그 건을 대조하지 않는다', /if \(c\.paxConflict\)/.test(bt));
   ok('④ 조용히 빼지 않고 몇 명인지 적는다',
     /인원 어긋남[\s\S]{0,120}impliedPax/.test(bt));

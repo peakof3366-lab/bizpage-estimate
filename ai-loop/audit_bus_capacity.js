@@ -97,7 +97,10 @@ const SMALL = /벤|승합|스타렉스|미니|카니발|\d{1,2}\s*인승\s*(벤|
     console.log('\n⚠ 정원을 정할 때 봐야 하는 것은 평균이 아니라 **최대**다.');
     console.log('  "이만큼까지는 한 대에 태우더라"의 상한이 곧 정원이기 때문이다.');
     console.log('  실측 최대 ' + max.toFixed(1) + '명 → 정원 후보 ' + Math.ceil(max) + '명.');
-    const CUR = 45;
+    /* ⚠ **엔진에서 읽는다**(VL). 여기 숫자를 적어 두었더니 45로 굳어 있었는데 엔진은
+       이미 38이었다 — 「지금 정원 45로는 N건이 어긋난다」가 통째로 틀린 진단이었다.
+       VB의 「자가 낡은 값으로 재고 있었다」와 같은 자리다. */
+    const CUR = require('./_engine_consts').vehicleCapacity().large;
     const fit = (cap) => rows.filter((r) => Math.ceil(r.pax / cap) === r.buses).length;
     console.log('\n지금 정원 ' + CUR + ' 로는 ' + (rows.length - fit(CUR)) + '/' + rows.length + '건이 실측 대수와 어긋난다.');
     /* 정원을 하나 고르는 게 아니라 **데이터가 허용하는 구간**을 찾는다.
@@ -116,7 +119,11 @@ const SMALL = /벤|승합|스타렉스|미니|카니발|\d{1,2}\s*인승\s*(벤|
       console.log('  · 위쪽을 묶는 건: ' + (bind2 || '없음') + '  → 정원이 이보다 크면 대수가 모자란다');
       console.log('\n  ⚠ 이 구간 안에서 어느 값을 쓸지는 **측정이 아니라 판단**이다.');
       console.log('    작게 잡으면 대수가 늘어 견적이 오른다(원가 미달을 덜 낸다).');
-      console.log('    지금 정원 ' + CUR + '은 이 구간 **밖**이다 — 데이터가 배제한다.');
+      /* ⚠ 예전엔 이 줄을 **무조건** 찍었다. 상수를 엔진에서 읽게 되자 지금 값이 구간
+         안일 수도 있는데, 그때도 「밖이다」라고 말하면 그게 새 거짓말이 된다. */
+      console.log(okCaps.includes(CUR)
+        ? '    지금 정원 ' + CUR + '은 이 구간 **안**이다 — 데이터가 배제하지 않는다.'
+        : '    지금 정원 ' + CUR + '은 이 구간 **밖**이다 — 데이터가 배제한다.');
     }
     console.log('\n정원별 일치 건수:');
     for (let cap = 30; cap <= 46; cap += 2) {

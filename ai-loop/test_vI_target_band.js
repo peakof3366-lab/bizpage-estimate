@@ -30,13 +30,28 @@ const ok = (name, cond, extra = '') => {
 const bt = fs.readFileSync(path.join(AI, 'backtest_quotes.js'), 'utf8');
 const cf = fs.readFileSync(path.join(AI, 'audit_cost_floor.js'), 'utf8');
 
-console.log('\n[1] 목표선이 ±10%로 박혀 있다');
+console.log('\n[1] 목표선이 ±10%로 박혀 있다 (VL: 단일 출처)');
 {
-  const m = bt.match(/const TARGET = ([\d.]+);/);
-  ok('① 목표선이 코드에 있다', !!m, String(m));
-  ok('① 값이 ±10%다', m && Number(m[1]) === 0.10, m && m[1]);
+  const T = require('./_accuracy_target');
+  const src = fs.readFileSync(path.join(AI, '_accuracy_target.js'), 'utf8');
+  ok('① 목표선이 코드에 있다', typeof T.TARGET === 'number', String(T.TARGET));
+  ok('① 값이 ±10%다', T.TARGET === 0.10, String(T.TARGET));
   /* ⚠ 왜 ±5%가 아닌지가 코드에 남아 있어야 한다 — 없으면 다음 사람이 그냥 조인다 */
-  ok('① ±5%가 아닌 이유가 적혀 있다', /표본이 36건|잡음에 맞추게/.test(bt));
+  ok('① ±5%가 아닌 이유가 적혀 있다', /표본이 36건|잡음에 맞추게/.test(src));
+  /* ⚠ 역검증은 이제 **파생**이어야 한다. 자기 사본을 다시 들면 갈라진다 */
+  ok('① 역검증이 단일 출처에서 파생한다', /_accuracy_target/.test(bt) && /TARGETS\.TARGET/.test(bt));
+
+  /* ── 사본이 다시 생기는 것을 막는다 (test_vB의 전수 훑기와 같은 자리) ──────
+     도구가 늘 때마다 목표선을 제 파일에 적으면, 대조 정규식도 함께 늘려야 한다.
+     그 구조를 없애려고 파생으로 바꿨으므로 **리터럴 사본 자체를 금지**한다. */
+  const strays = fs.readdirSync(AI)
+    .filter((f) => f.endsWith('.js') && f !== '_accuracy_target.js' && !f.startsWith('test_'))
+    .filter((f) => /const\s+TARGET\s*=\s*0?\.\d/.test(fs.readFileSync(path.join(AI, f), 'utf8')));
+  ok('① 목표선 리터럴 사본이 없다', strays.length === 0, strays.join(', '));
+
+  /* 빈 입력을 0건으로 얼버무리면 「목표 안 0건」과 「잰 것이 없다」가 같은 얼굴이 된다 */
+  ok('① 잰 것이 없으면 null을 준다(0건이라 하지 않는다)', T.score([]) === null);
+  ok('① 방향을 나눠 센다', (() => { const s = T.score([-0.3, 0, 0.3]); return s.below === 1 && s.above === 1 && s.inBand === 1; })());
 }
 
 console.log('\n[2] 방향을 두 갈래로 센다');
@@ -46,7 +61,9 @@ console.log('\n[2] 방향을 두 갈래로 센다');
   /* 같은 크기여도 아래가 더 아프다는 것을 화면이 말해야 한다 */
   ok('② 아래쪽이 더 아프다고 말한다', /이쪽이 더 아프다/.test(bt));
   ok('② 위쪽은 실견적에서 깎을 수 있다고 말한다', /깎을 수 있다/.test(bt));
-  ok('② 목표 방향(+3~5%)을 함께 찍는다', /\+3~5%/.test(bt));
+  /* ⚠ VL 이후 방향 범위도 단일 출처에서 파생한다 — 문구를 하드코딩하면 값을 바꿔도
+     화면은 옛 범위를 계속 말한다(문서가 코드보다 앞서가는 자리, VB에서 겪었다) */
+  ok('② 목표 방향(+3~5%)을 함께 찍는다', /AIM_LOW/.test(bt) && /AIM_HIGH/.test(bt));
 }
 
 console.log('\n[3] 원가 하한도 같은 여행을 두 번 세지 않는다');

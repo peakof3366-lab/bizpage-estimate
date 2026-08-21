@@ -147,11 +147,15 @@ console.log('\n[9] 요율표 **밖** 지명이 끼어 있어도 한 곳으로 �
 
 console.log('\n[7] 판정은 한 번만 — 역검증 캐시가 답을 들고 다닌다');
 {
-  const s = fs.readFileSync(path.join(AI, 'backtest_quotes.js'), 'utf8');
+  /* ⚠ VL에서 추출·캐시가 `_corpus_cache.js`로, 대조 가능 판정이 `_comparable.js`로
+     옮겨졌다. 예전엔 둘 다 backtest_quotes.js 안에 있었다 — 여기서 옛 자리를 계속
+     보면 「검사는 통과하는데 실제로는 아무 데도 없는」 상태가 된다(결함 생성기 ③). */
+  const s = fs.readFileSync(path.join(AI, '_corpus_cache.js'), 'utf8');
+  const cmp = fs.readFileSync(path.join(AI, '_comparable.js'), 'utf8');
   ok('⑦ 추출할 때 본문까지 보고 판정해 캐시에 싣는다', /dest:\s*destFromName\(f,\s*r\.text\)/.test(s));
-  ok('⑦ 소비하는 쪽은 캐시가 준 판정을 쓴다 (다시 부르지 않는다)', /c\.dest\s*\|\|\s*\{\}/.test(s));
+  ok('⑦ 소비하는 쪽은 캐시가 준 판정을 쓴다 (다시 부르지 않는다)', /c\.dest\s*\|\|\s*\{\}/.test(cmp));
   /* 판이 안 올라가면 옛 캐시에 dest가 없어 `--cache`일 때만 전건이 빠진다 */
-  const v = (s.match(/const CACHE_VERSION = (\d+)/) || [])[1];
+  const v = require('./_corpus_cache').CACHE_VERSION;
   ok('⑦ 캐시 판을 올렸다 (4 이상)', Number(v) >= 4, 'CACHE_VERSION=' + v);
 }
 

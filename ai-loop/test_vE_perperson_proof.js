@@ -103,14 +103,17 @@ console.log('\n[5] 우연히 맞는 두 숫자를 받지 않는다');
 
 console.log('\n[6] 역검증이 제외 사유를 세 갈래로 가른다');
 {
-  const s = fs.readFileSync(path.join(ROOT, 'ai-loop', 'backtest_quotes.js'), 'utf8');
+  /* ⚠ VL에서 제외 사유는 ` _comparable.js`로, 캐시는 `_corpus_cache.js`로 옮겨졌다.
+     옛 자리를 계속 보면 「검사는 통과하는데 실제로는 아무 데도 없는」 상태가 된다. */
+  const s = fs.readFileSync(path.join(ROOT, 'ai-loop', '_comparable.js'), 'utf8');
+  const cc = fs.readFileSync(path.join(ROOT, 'ai-loop', '_corpus_cache.js'), 'utf8');
   ok('⑥ 원가 시트를 따로 말한다', /원가 시트라 판매가가 없다/.test(s));
   ok('⑥ 그 경우 --basis=cost로는 잰다고 알려준다', /--basis=cost/.test(s));
   ok('⑥ 환율이 없는 경우를 따로 말한다', /문서에 환율이 없다/.test(s));
   ok('⑥ 그 경우 사람이 할 일임을 가리킨다', /0-f/.test(s));
   /* ⚠ 캐시에 안 실으면 `--cache`일 때만 사유가 뭉뚱그려진다(결함 생성기 ③) */
-  ok('⑥ 환율 신호를 캐시에 싣는다', /needsFx:\s*r\.needsFxRate/.test(s));
-  const v = (s.match(/const CACHE_VERSION = (\d+)/) || [])[1];
+  ok('⑥ 환율 신호를 캐시에 싣는다', /needsFx:\s*r\.needsFxRate/.test(cc));
+  const v = require(path.join(ROOT, 'ai-loop', '_corpus_cache')).CACHE_VERSION;
   ok('⑥ 캐시 판을 올렸다 (5 이상)', Number(v) >= 5, 'CACHE_VERSION=' + v);
 }
 
@@ -140,9 +143,10 @@ console.log('\n[7] 날짜를 못 얻었을 때 **무엇이 없어서인지** 말
   ok('⑦ 출발일을 얻었으면 켜지지 않는다', !!good.departDate && !good.departWhy,
     JSON.stringify({ d: good.departDate, w: good.departWhy }));
 
-  const bt = fs.readFileSync(path.join(ROOT, 'ai-loop', 'backtest_quotes.js'), 'utf8');
+  /* VL: 판정은 `_comparable.js`, 캐시 판은 `_corpus_cache.js`가 진실이다 */
+  const bt = fs.readFileSync(path.join(ROOT, 'ai-loop', '_comparable.js'), 'utf8');
   ok('⑦ 역검증이 그 이유를 그대로 보여준다', /departWhy/.test(bt));
-  const v2 = (bt.match(/const CACHE_VERSION = (\d+)/) || [])[1];
+  const v2 = require(path.join(ROOT, 'ai-loop', '_corpus_cache')).CACHE_VERSION;
   ok('⑦ 캐시 판을 다시 올렸다 (6 이상)', Number(v2) >= 6, 'CACHE_VERSION=' + v2);
 }
 

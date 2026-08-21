@@ -51,8 +51,26 @@ node ai-loop/audit_coverage.js      # 우리가 읽은 줄이 총계의 몇 %를
 node ai-loop/audit_extract_sanity.js # 뽑아낸 값이 말이 되는가 — 동료 대비(🔴) · 요율표 대비(🟡) ·
                                     #   **전 일정 총액이 1일 단가 자리에 왔는가(📏, SV)**
 node ai-loop/backtest_quotes.js     # 고객이 보는 금액의 오차 (--cache = 추출 결과 재사용)
+node ai-loop/audit_error_decomp.js  # **그 오차가 어느 칸에서 왔는가** + 🎯요율 천장 (VL)
 node ai-loop/audit_itinerary.js     # 일정표를 얼마나 읽어냈는가 (트랙 B — 금액과 무관)
 ```
+
+**정확도 도구 셋은 층이 다르다** — 섞어 읽으면 엉뚱한 칸을 고치게 된다:
+
+| 도구 | 답하는 것 | 답하지 **못하는** 것 |
+|---|---|---|
+| `backtest_quotes` | 한 건이 몇 % 어긋나는가 | **왜** 어긋나는가 |
+| `audit_rate_calibration` | 목적지 × 칸이 실측과 몇 배 벌어졌나 | 그 배수가 **총액을 얼마나** 움직이는가 |
+| `audit_error_decomp` | 한 건의 오차를 **칸별로 쪼갠 것** · 요율로 갈 수 있는 **천장** | 요율 밖 원인(좌석 등급·섭외비)의 정체 |
+
+⚠ **`audit_error_decomp`가 2026-08-21에 처음 답한 것**: 견적서마다 요율을 완벽히
+맞춰도 폭이 22.6% → 27.7%로 **나빠진다**. 「요율을 더 다듬으면 정확해진다」는
+전제가 실측으로 부정됐다 — 남은 폭은 요율이 아니라 구조에서 온다.
+
+⚠ 네 도구는 **같은 표본**을 봐야 뜻이 통한다. 그래서 판정(`_comparable.js`) ·
+추출 캐시(`_corpus_cache.js`) · 목표선(`_accuracy_target.js`) · 엔진 상수
+(`_engine_consts.js`)를 단일 출처로 뺐다. **도구를 새로 만들 때 이 넷을 다시 적지 말 것** —
+`test_vL_error_decomp.js`와 `test_vI_target_band.js`가 리터럴 사본을 금지한다.
 
 ⚠ **일정표(L7)는 금액과 완전히 분리된 층이다.** `audit_itinerary.js`가 좋아져도 고객이
 보는 금액은 1원도 안 바뀐다. 거꾸로 단가 쪽을 고칠 때 이 자를 근거로 삼지 말 것.
