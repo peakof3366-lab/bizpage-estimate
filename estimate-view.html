@@ -571,7 +571,10 @@ function renderPage(d) {
         <div class="t-card">
           <div class="t-label">TOTAL</div>
           <div class="t-amount">${fmt(d.t)}</div>
-          <div class="t-note">VAT 별도 · 부대비용 미포함</div>
+          ${/* ⚠ **패키지는 기준이 다르다**(VR). 맞춤 견적은 우리가 원가를 조립하고
+                부대비용을 따로 세지만, 패키지는 상품가에 다 들어 있다. 여기서 문구를
+                안 가르면 견적서가 「부대비용 미포함」이라고 거짓말을 한다. */''}
+          <div class="t-note">${d.pkg ? '패키지 상품가 · 포함/불포함은 아래 참고' : 'VAT 별도 · 부대비용 미포함'}</div>
         </div>
         <div class="t-card per">
           <div class="t-label">PER PERSON</div>
@@ -579,6 +582,22 @@ function renderPage(d) {
           <div class="t-note">${Number(d.n) || 0}명 기준 1인당 금액</div>
         </div>
       </div>
+      ${/* ⚠ **금액이 언제 값인지를 반드시 함께 찍는다**(VR). 패키지가는 자주 바뀌고
+            우리는 대리점이라 이 문서에 적힌 값으로 팔아야 한다. 조회 시점이 없으면
+            고객도 우리도 이 금액이 언제 것인지 알 수 없다. */''}
+      ${d.pkg ? `
+      <div class="sec-title">금액 기준</div>
+      <div class="field-grid">
+        <div class="field-box"><div class="field-box-label">금액 확인일</div><div class="field-box-value">${fmtDate(d.pkg.asOf)}</div></div>
+        ${d.pkg.validUntil ? `<div class="field-box"><div class="field-box-label">유효기간</div><div class="field-box-value">${fmtDate(d.pkg.validUntil)}까지</div></div>` : ''}
+      </div>
+      ${(d.pkg.included || []).length ? `
+        <div class="sec-title">포함 사항</div>
+        <div class="inc-tags">${(d.pkg.included || []).map(s => `<span class="inc-tag">${esc(s)}</span>`).join('')}</div>` : ''}
+      ${(d.pkg.excluded || []).length ? `
+        <div class="sec-title">불포함 사항</div>
+        <div class="inc-tags">${(d.pkg.excluded || []).map(s => `<span class="inc-tag">${esc(s)}</span>`).join('')}</div>` : ''}
+      ` : ''}
 
       <div class="sec-title">포함 항목</div>
       <div class="inc-tags">${incTags}</div>

@@ -150,5 +150,113 @@ console.log('\n[8] 서버리스 함수를 늘리지 않았다');
   ok('⑧ 패키지가 기존 파일에 ?action=으로 붙었다', /action === 'packages'/.test(API));
 }
 
+console.log('\n[9] PDF 일괄 투입 — 자동화가 판단을 대신하지 않는다 (VQ)');
+{
+  const IMP = read('ai-loop/import_packages.js');
+  const M = require('./import_packages');
+
+  /* ⚠ **기본이 dry-run이어야 한다.** 운영 DB에 쓰는 도구다 —
+     실수로 한 번 돌리는 것과 폴더째 들어가는 것은 위험이 다르다. */
+  ok('⑨ 기본이 dry-run이다', /const APPLY = argv\.includes\('--apply'\)/.test(IMP));
+  ok('⑨ --apply 없이는 안 쓴다', /if \(!APPLY\) \{[\s\S]{0,200}return;/.test(IMP));
+
+  /* 🔴 이것이 이 자동화의 **유일한 안전장치**다. 열려서 나가는 것은 사람이 정한다 —
+     우리는 대리점이라 화면에 적힌 값으로 팔아야 하고, 낡은 값이면 차액을 우리가 문다. */
+  ok('⑨ 만드는 행이 항상 draft다', /status: 'draft'/.test(IMP) && !/status: 'open'/.test(IMP));
+  ok('⑨ 왜 draft인지가 적혀 있다', /판매중으로 열지 않는다/.test(IMP));
+  ok('⑨ 금액 확인일의 출처를 note에 남긴다', /문서의 작성일\('/.test(IMP) || /문서의 작성일/.test(IMP));
+  ok('⑨ 작성일이 「뽑은 날」일 수 있다는 실측이 적혀 있다', /PDF로 뽑은 날/.test(IMP));
+
+  /* ⚠ 이미 있는 행을 덮어쓰면 담당자가 손본 값이 조용히 사라진다 */
+  ok('⑨ 이미 있으면 건드리지 않는다', /select 1 from packages where id = \$\{p\.id\}/.test(IMP));
+  ok('⑨ 그 이유가 적혀 있다', /담당자가 손본 값을 덮어쓰면/.test(IMP));
+
+  /* id가 흔들리면 「이미 있으면 건드리지 않는다」가 통째로 무력해진다 */
+  ok('⑨ 같은 파일이면 같은 id가 나온다',
+    M.idFrom('Hanatour 견적서_신선혜님(오키나와)_251121.pdf') === M.idFrom('Hanatour 견적서_신선혜님(오키나와)_251121.pdf'));
+  ok('⑨ 다른 파일이면 다른 id가 나온다',
+    M.idFrom('A(오키나와).pdf') !== M.idFrom('B(오키나와).pdf'));
+  ok('⑨ id가 API 패턴을 통과한다', /^[A-Za-z0-9_-]+$/.test(M.idFrom('하나투어 견적서_홍길동님(오키나와)_251121.pdf')));
+
+  /* ⚠ **없는 것을 지어내지 않는다.** 추출기가 오전/오후/저녁을 안 나눠 준 문서가 많은데,
+     그럴듯하게 나누면 실제와 다른 「오후 일정」이 고객에게 나간다. */
+  ok('⑨ 없는 시간대 구분을 지어내지 않는다', /없는 구분을 지어내지 않는다/.test(IMP));
+  {
+    const out = M.itineraryFrom({ days: [{ place: '나하', lines: ['도착', '석식'], meals: { b: '호텔식' }, hotel: 'X호텔' }] });
+    ok('⑨ 뭉친 일정은 am에 담고 pm·eve를 비운다',
+      out && out[0].am === '도착 / 석식' && out[0].pm === '' && out[0].eve === '');
+    ok('⑨ 숙박·식사를 tip에 남긴다', out && /X호텔/.test(out[0].tip) && /조:호텔식/.test(out[0].tip));
+  }
+  ok('⑨ 일정이 없으면 null이다 (빈 배열로 속이지 않는다)', M.itineraryFrom({ days: [] }) === null);
+
+  /* 제목도 지어내지 않는다 — 원본에 없는 말이 고객 화면에 나가면 안 된다 */
+  ok('⑨ 제목을 지어내지 않는다', /이름을 지어내지 않는다/.test(IMP));
+  {
+    const t = M.titleFrom('오키나와 자유일정_251121.pdf', '오키나와', { nights: 3, days: 4 });
+    ok('⑨ 확장자·날짜꼬리를 떼고 기간을 붙인다', t === '오키나와 자유일정 (3박 4일)', t);
+  }
+
+  /* 못 만든 것을 조용히 넘기지 않는다 — 왜 못 만들었는지 말해야 사람이 고친다 */
+  ok('⑨ 못 만든 것의 이유를 말한다', /못 만든 것 ' \+ skipped\.length/.test(IMP));
+  ok('⑨ 금액·출발일이 없으면 안 만든다',
+    /1인당 금액을 못 읽었다/.test(IMP) && /출발일을 못 읽었다/.test(IMP));
+  ok('⑨ require만으로 코퍼스를 안 읽는다',
+    /require\.main === module/.test(IMP) && typeof M.idFrom === 'function');
+}
+
+console.log('\n[10] 패키지 견적서 — 값이 브라우저를 안 지난다 (VR)');
+{
+  const QS = read('api/quote-shares.js');
+  const EV = read('estimate-view.html');
+
+  /* 🔴 **이것이 이 경로의 핵심 방어다.** 위조를 막는 방법이 「검증」이 아니라
+     「값이 요청에 없다」는 것이다 — 브라우저는 상품 id와 인원만 보낸다. */
+  ok('⑩ 패키지 분기가 있다', /action === 'package'/.test(QS));
+  ok('⑩ 상품 id와 인원만 받는다',
+    /b\.packageId/.test(QS) && /b\.pax/.test(QS)
+    && !/b\.price/.test(QS) && !/b\.total/.test(QS));
+  ok('⑩ 금액을 DB에서 읽는다', /Number\(p\.price_per_person\)/.test(QS));
+  ok('⑩ 총액을 서버가 곱한다', /t: per \* pax/.test(QS));
+  ok('⑩ 왜 이렇게 했는지가 적혀 있다', /값이 브라우저를 아예 안 지나게 한다/.test(QS));
+  /* 고객 화면도 금액을 안 보내야 한다 — 보내면 위 설계가 무의미해진다 */
+  ok('⑩ 고객 화면이 금액을 안 보낸다',
+    /packageId: p\.id, pax: pax/.test(PKG) && !/pricePerPerson: p\./.test(PKG));
+
+  /* ⚠ verifyQuote를 부르면 엔진 값과 달라 매번 실패하고, 그 실패를 무시하는 코드가
+     생기면 그게 곧 무검증 발급이 된다. 아예 안 부르는 것이 맞다. */
+  {
+    const fn = QS.slice(QS.indexOf('async function issuePackageShare'), QS.indexOf('module.exports'));
+    ok('⑩ 패키지 발급이 verifyQuote를 부르지 않는다', !/verifyQuote\(/.test(fn));
+    ok('⑩ 그 이유가 적혀 있다', /verifyQuote.{0,10}를 부르지 않는다/.test(QS));
+  }
+  /* 엔진 검증을 거친 것과 **구분**되어야 한다 — 같은 얼굴이면 나중에 셀 때 거짓이 섞인다 */
+  ok('⑩ verdict가 package다', /verdict: 'package'/.test(QS));
+  ok('⑩ 왜 그런지도 함께 남긴다', /엔진 대조 대상이 아니다/.test(QS));
+
+  /* 고객 목록과 **같은 조건**으로 읽어야 한다 — 느슨하면 안 보이는 상품이 링크로 나간다 */
+  {
+    const fn = QS.slice(QS.indexOf('async function issuePackageShare'), QS.indexOf('module.exports'));
+    ok('⑩ 판매중만 발급한다', /status = 'open'/.test(fn));
+    ok('⑩ 기한 지난 것은 발급 안 한다', /valid_until >= current_date/.test(fn));
+    ok('⑩ 조회가 실패하면 발급하지 않는다', /package_lookup_failed/.test(fn));
+    ok('⑩ 인원 범위를 막는다', /PKG_MAX_PAX/.test(QS) && /invalid_pax/.test(fn));
+  }
+
+  /* ⚠ 패키지 견적서가 맞춤 견적 기준 문구를 그대로 찍으면 **거짓말이 된다** */
+  ok('⑩ 견적서가 패키지를 구분해 그린다', /d\.pkg \? '패키지 상품가/.test(EV));
+  ok('⑩ 「부대비용 미포함」을 패키지에 안 찍는다', /d\.pkg \?[^:]*:[^;]*VAT 별도/.test(EV));
+  ok('⑩ 금액 확인일을 견적서에 찍는다', /금액 확인일<\/div>/.test(EV));
+  ok('⑩ 포함·불포함을 견적서에 낸다', /d\.pkg\.included/.test(EV) && /d\.pkg\.excluded/.test(EV));
+  ok('⑩ 견적서가 그 값들을 esc한다', /esc\(s\)/.test(EV));
+
+  /* 실패 사유를 그대로 말한다 — 「실패」로 뭉뚱그리면 고객이 다시 누르기만 한다 */
+  ok('⑩ 발급 실패 사유를 고객에게 말한다', /package_not_available/.test(PKG));
+
+  const pd = new JSDOM(PKG).window.document;
+  ok('⑩ 인원 입력이 화면에 있다', /id="pkPax"/.test(PKG));
+  ok('⑩ 상세가 견적서로 이동한다', /estimate-view\.html\?id=/.test(PKG));
+  ok('⑩ (렌더 확인) 상세 칸이 있다', !!pd.getElementById('pkDetail'));
+}
+
 console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

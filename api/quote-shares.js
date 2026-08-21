@@ -65,8 +65,116 @@ async function loadContext(destKey) {
   return ctx;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   ?action=package (VR) — **패키지 상품 견적서**. 엔진이 만든 값이 아니다.
+   ───────────────────────────────────────────────────────────────────────────
+   위 발급 경로는 `verifyQuote`로 **엔진과 대조해** 위조를 막는다. 패키지는 그 검증을
+   통과할 수 없다 — 애초에 엔진이 만든 값이 아니기 때문이다(대리점가를 그대로 쓴다).
+   그렇다고 검증을 끄면 이 파일이 막으려던 위조 경로가 다시 열린다.
+
+   → **값이 브라우저를 아예 안 지나게 한다.** 브라우저는 `packageId`와 인원만 보내고,
+     금액·일정·기간은 **서버가 DB에서 읽어** 페이로드를 만든다.
+     위조할 값이 요청에 없으므로 **검증할 것도 없다.** 이 파일의 원칙("링크 내용을
+     서버가 소유한다")을 그대로 따른 것이다.
+
+   ⚠ **`verifyQuote`를 부르지 않는다.** 부르면 엔진 값과 달라 매번 실패하고,
+     그 실패를 무시하는 코드가 생기면 그게 곧 무검증 발급이 된다.
+     대신 `_verify.verdict = 'package'`로 남겨 **엔진 검증을 거친 것과 구분**한다 —
+     둘이 같은 얼굴이면 나중에 「검증된 견적서」를 셀 때 거짓이 섞인다.
+   ⚠ **판매중이고 기한이 안 지난 상품만** 발급한다. 마감된 상품으로 견적서가 나가면
+     대리점인 우리가 그 값으로 물어야 한다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const PKG_MAX_PAX = 500;
+
+async function issuePackageShare(req, res) {
+  const b = req.body || {};
+  const pkgId = typeof b.packageId === 'string' ? b.packageId : '';
+  if (!pkgId || !/^[A-Za-z0-9_-]+$/.test(pkgId)) return res.status(400).json({ error: 'invalid_package_id' });
+
+  /* 인원은 **금액이 아니라 수량**이라 브라우저가 보내도 된다. 다만 범위는 막는다 —
+     안 막으면 1인당 금액 × 터무니없는 수가 총액으로 찍힌다. */
+  const pax = Math.round(Number(b.pax));
+  if (!Number.isFinite(pax) || pax < 1 || pax > PKG_MAX_PAX) {
+    return res.status(400).json({ error: 'invalid_pax' });
+  }
+
+  let rows;
+  try {
+    /* ⚠ 고객 목록과 **같은 조건**으로 읽는다. 여기서 조건을 느슨하게 하면
+       고객 화면에 안 보이는 상품의 견적서가 링크로는 발급된다. */
+    rows = await sql`
+      select * from packages
+       where id = ${pkgId} and status = 'open'
+         and (valid_until is null or valid_until >= current_date)
+       limit 1`;
+  } catch (err) {
+    console.error('[quote-shares] 패키지 조회 실패:', err);
+    /* 조회가 실패했으면 발급하지 않는다 — 빈 값으로 만들면 0원 견적서가 나간다 */
+    return res.status(503).json({ error: 'package_lookup_failed' });
+  }
+  if (!rows.length) return res.status(404).json({ error: 'package_not_available' });
+
+  const p = rows[0];
+  const per = Number(p.price_per_person);
+  const iti = Array.isArray(p.itinerary) ? p.itinerary : [];
+  const listOf = (v) => (Array.isArray(v) ? v.filter((s) => typeof s === 'string') : []);
+
+  const share = {
+    dk: p.dest_key || null,
+    dt: p.dest_label || p.dest_key || '',
+    n: pax,
+    d: p.days || null,
+    ng: p.nights || null,
+    sd: p.depart_date ? String(p.depart_date).slice(0, 10) : null,
+    /* 총액은 **서버가 곱한다.** 브라우저가 보낸 총액을 쓰면 그게 곧 위조 경로다. */
+    t: per * pax,
+    pp: per,
+    rows: [['패키지 상품가 (1인)', per]],
+    ptx: '패키지 상품',
+    ia: iti.length ? { t: p.title, h: [], d: iti } : null,
+    /* ⚠ **이 견적서가 패키지임을 화면이 알아야 한다.** 안 알려주면 견적서가
+       「VAT 별도 · 부대비용 미포함」처럼 맞춤 견적 기준 문구를 그대로 찍는다 —
+       패키지는 그 값에 다 들어 있어서 거짓말이 된다. */
+    pkg: {
+      id: p.id,
+      title: p.title,
+      source: p.source,
+      /* 금액이 언제 값인지 — 고객 견적서에 반드시 함께 나간다 */
+      asOf: p.price_asof,
+      validUntil: p.valid_until,
+      included: listOf(p.incl_items),
+      excluded: listOf(p.excl_items),
+    },
+  };
+
+  const id = newId();
+  try {
+    await sql`
+      insert into quote_shares (id, payload)
+      values (${id}, ${JSON.stringify({
+        ...share,
+        _verify: {
+          /* ⚠ 'ok'가 아니라 'package'다. 엔진 검증을 거친 것과 **구분되어야** 한다 */
+          verdict: 'package',
+          why: '패키지 상품 — 대리점가를 그대로 쓰므로 엔진 대조 대상이 아니다',
+          at: new Date().toISOString(),
+          issuedBy: 'package',
+        },
+      })}::jsonb)
+      on conflict (id) do nothing`;
+    return res.status(200).json({ ok: true, id, verdict: 'package' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'insert_failed' });
+  }
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+  /* 패키지는 검증 대상이 아니라 위 분기보다 **먼저** 갈라낸다 — 아래로 흘려보내면
+     verifyQuote가 엔진 값과 대조해 매번 실패한다(그리고 그 실패를 무시하고 싶어진다). */
+  if (req.query && req.query.action === 'package') return issuePackageShare(req, res);
 
   const body = req.body || {};
   /* 하위호환: 예전 클라이언트는 shareData를 본문 그대로 보냈다. */
