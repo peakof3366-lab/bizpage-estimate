@@ -209,6 +209,16 @@ p { line-height:1.8; }
 }
 .nav-links a:hover { color:var(--white); border-bottom-color:var(--red); }
 
+/* 패키지 여행 (VP) — **다른 화면으로 나가는 링크**라 나머지 앵커와 구분한다.
+   나머지는 이 페이지 안을 이동하는데 이것만 페이지를 떠난다. 같은 모양이면
+   눌러 보고 나서야 알게 되고, 돌아올 생각을 못 한다. */
+.nav-links a.nav-pkg {
+  color:rgba(255,255,255,.92);
+  border:1px solid rgba(255,255,255,.22); border-radius:999px;
+  padding:5px 12px; margin-left:4px;
+}
+.nav-links a.nav-pkg:hover { border-color:var(--red); color:var(--white); }
+
 .nav-toggle {
   display:none; flex-direction:column; align-items:center; justify-content:center;
   gap:5px; min-width:44px; min-height:44px;

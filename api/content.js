@@ -13,9 +13,17 @@
      PUT    ?action=itineraries              (직원+) body { destKey, courses } upsert
      DELETE ?action=itineraries&destKey=…    (직원+) 기본값(data.js)으로 되돌리기
 
+   ?action=packages (VP 신규) — **패키지 상품**. 아래 handlePackages 머리말 참고.
+     GET    ?action=packages         (공개) → 판매중이고 기한이 안 지난 것만
+     GET    ?action=packages&all=1   (직원+) → 초안·마감 포함 전부
+     PUT    ?action=packages         (직원+) upsert
+     DELETE ?action=packages&id=…    (직원+)
+
    content.js/content/[key].js 2개로 나누지 않고 한 파일에서 method 분기하는 이유는
    Vercel Hobby 플랜의 배포당 서버리스 함수 12개 제한 때문(api/admin/insights.js,
-   api/admin/account.js와 동일한 이유로 통합). */
+   api/admin/account.js와 동일한 이유로 통합).
+   ⚠ **함수가 12/12로 꽉 차 있다.** 새 기능은 새 파일이 아니라 여기 `?action=`으로 붙인다 —
+     패키지도 그래서 이 파일에 들어왔다. */
 const { sql } = require('./_lib/db');
 const { requireRole } = require('./_lib/auth');
 const destinationRates = require('../data');
@@ -293,8 +301,181 @@ async function handleItineraries(req, res) {
   return res.status(405).json({ error: 'method_not_allowed' });
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   ?action=packages (VP) — **패키지 상품**. 견적 엔진을 타지 않는 두 번째 흐름이다.
+   ───────────────────────────────────────────────────────────────────────────
+   2026-08-21 대표 결정: 「가격도 그대로 가져온다. 우리가 하나투어 대리점이라
+   그 가격 그대로 받아 **견적서화만** 하면 된다.」
+   → `pricePerPerson`이 곧 고객가다. 요율·계수·마진이 하나도 안 붙는다.
+   ⚠ 이 구분이 무너지면 실측이 경고한 일이 벌어진다 — 같은 하나투어 상품을 우리
+     엔진으로 재산출하면 **+21.5%·+41.7% 비싸게** 나온다(코퍼스 실측 2건).
+
+   GET    ?action=packages              (공개) → **판매중이고 기한이 안 지난 것만**
+   GET    ?action=packages&all=1        (직원+) → 초안·마감 포함 전부 (관리자 화면)
+   PUT    ?action=packages              (직원+) upsert
+   DELETE ?action=packages&id=…         (직원+)
+
+   ⚠ **거르는 일은 서버가 한다.** 화면에서 거르면 그건 방어가 아니다 —
+     화면을 안 거치는 경로(직접 호출·캐시·다음에 만들 다른 화면)가 반드시 생긴다.
+     마감된 상품으로 견적서가 나가면 대리점인 우리가 그 값으로 물어야 한다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const PKG_STATUS = ['draft', 'open', 'closed'];
+const PKG_MAX_TITLE = 200;
+const PKG_MAX_NOTE = 2000;
+/* 일정·포함/불포함 묶음의 크기 상한. 인증 계정 하나가 붙여넣기 사고로 DB를 채우지
+   못하게 한다(itineraries의 MAX_COURSES와 같은 이유). */
+const PKG_MAX_JSON = 60000;
+
+function pkgRowOut(r) {
+  return {
+    id: r.id,
+    source: r.source, sourceCode: r.source_code,
+    title: r.title,
+    destKey: r.dest_key, destLabel: r.dest_label,
+    nights: r.nights, days: r.days,
+    departDate: r.depart_date,
+    pricePerPerson: r.price_per_person == null ? null : Number(r.price_per_person),
+    priceCurrency: r.price_currency,
+    /* ⚠ **언제 값인지를 항상 함께 준다.** 이 칸이 화면까지 안 가면 고객 견적서에
+       조회 시점을 못 찍고, 그러면 낡은 값인지 아무도 모른다. */
+    priceAsOf: r.price_asof,
+    validUntil: r.valid_until,
+    status: r.status,
+    itinerary: r.itinerary, included: r.incl_items, excluded: r.excl_items,
+    note: r.note,
+    updatedAt: r.updated_at, updatedBy: r.updated_by,
+  };
+}
+
+async function handlePackages(req, res) {
+  if (req.method === 'GET') {
+    const wantAll = String((req.query && req.query.all) || '') === '1';
+    try {
+      if (wantAll) {
+        /* 관리자 화면 — 초안·마감까지 봐야 관리가 된다 */
+        if (!(await requireRole(req, res, ['owner', 'manager', 'staff']))) return;
+        const rows = await sql`
+          select * from packages order by coalesce(depart_date, '2999-12-31') asc, updated_at desc`;
+        return res.status(200).json({ packages: rows.map(pkgRowOut) });
+      }
+      /* 고객 화면 — **서버가 거른다.** 판매중이고, 기한이 있으면 안 지난 것만. */
+      const rows = await sql`
+        select * from packages
+         where status = 'open'
+           and (valid_until is null or valid_until >= current_date)
+         order by coalesce(depart_date, '2999-12-31') asc`;
+      return res.status(200).json({ packages: rows.map(pkgRowOut) });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'query_failed' });
+    }
+  }
+
+  /* 등록·수정은 산출 담당자의 일이다(일정 편집과 같은 급) — staff까지 연다 */
+  if (req.method === 'PUT') {
+    if (!(await requireRole(req, res, ['owner', 'manager', 'staff']))) return;
+    const b = req.body || {};
+
+    const id = typeof b.id === 'string' && b.id ? b.id.slice(0, 60) : null;
+    if (!id || !/^[A-Za-z0-9_-]+$/.test(id)) return res.status(400).json({ error: 'invalid_id' });
+
+    const title = typeof b.title === 'string' ? b.title.trim() : '';
+    if (!title || title.length > PKG_MAX_TITLE) return res.status(400).json({ error: 'invalid_title' });
+
+    /* ⚠ **가격은 숫자여야 하고 0보다 커야 한다.** 0을 통과시키면 「무료 상품」이
+       고객 화면에 뜬다. 문자열을 그대로 받으면 그게 그대로 견적서에 박힌다. */
+    const price = Number(b.pricePerPerson);
+    if (!Number.isFinite(price) || price <= 0 || price > 100000000) {
+      return res.status(400).json({ error: 'invalid_price' });
+    }
+
+    /* ⚠ **「언제 값인지」가 없으면 저장 자체를 거절한다**(스키마도 not null이다).
+       이것 하나가 「낡은 값이 견적서로 나가는」 사고를 막는 유일한 장치다. */
+    const asOf = b.priceAsOf ? new Date(b.priceAsOf) : null;
+    if (!asOf || isNaN(asOf.getTime())) return res.status(400).json({ error: 'price_asof_required' });
+
+    const status = PKG_STATUS.includes(b.status) ? b.status : 'draft';
+
+    /* 목적지는 **알고 있는 것만** 받는다. 길이만 재고 통과시키면 화면에 영영 안 보이는
+       유령 목적지가 쌓인다(itineraries에서 같은 자리를 이미 겪었다).
+       ⚠ 다만 **비워 두는 것은 허용**한다 — 요율표에 없는 곳의 패키지가 있을 수 있다. */
+    let destKey = typeof b.destKey === 'string' && b.destKey ? b.destKey.slice(0, 40) : null;
+    if (destKey) {
+      const known = await isKnownDest(destKey);
+      if (known === null) return res.status(503).json({ error: 'dest_check_failed' });
+      if (!known) return res.status(400).json({ error: 'unknown_dest_key' });
+    }
+
+    const jsonOk = (v) => v == null || JSON.stringify(v).length <= PKG_MAX_JSON;
+    if (!jsonOk(b.itinerary) || !jsonOk(b.included) || !jsonOk(b.excluded)) {
+      return res.status(400).json({ error: 'payload_too_large' });
+    }
+
+    const intOr = (v, max) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n) : null;
+    };
+
+    try {
+      const who = (req.user && (req.user.username || req.user.id)) || null;
+      await sql`
+        insert into packages (
+          id, source, source_code, title, dest_key, dest_label, nights, days, depart_date,
+          price_per_person, price_currency, price_asof, valid_until, status,
+          itinerary, incl_items, excl_items, note, updated_by, updated_at
+        ) values (
+          ${id},
+          ${typeof b.source === 'string' && b.source ? b.source.slice(0, 40) : 'hanatour'},
+          ${typeof b.sourceCode === 'string' ? b.sourceCode.slice(0, 60) : null},
+          ${title}, ${destKey},
+          ${typeof b.destLabel === 'string' ? b.destLabel.slice(0, 60) : null},
+          ${intOr(b.nights, 60)}, ${intOr(b.days, 61)},
+          ${b.departDate || null},
+          ${Math.round(price)},
+          ${typeof b.priceCurrency === 'string' ? b.priceCurrency.slice(0, 8) : 'KRW'},
+          ${asOf.toISOString()}, ${b.validUntil || null}, ${status},
+          ${b.itinerary == null ? null : JSON.stringify(b.itinerary)},
+          ${b.included == null ? null : JSON.stringify(b.included)},
+          ${b.excluded == null ? null : JSON.stringify(b.excluded)},
+          ${typeof b.note === 'string' ? b.note.slice(0, PKG_MAX_NOTE) : ''},
+          ${who}, now()
+        )
+        on conflict (id) do update set
+          source = excluded.source, source_code = excluded.source_code,
+          title = excluded.title, dest_key = excluded.dest_key, dest_label = excluded.dest_label,
+          nights = excluded.nights, days = excluded.days, depart_date = excluded.depart_date,
+          price_per_person = excluded.price_per_person, price_currency = excluded.price_currency,
+          price_asof = excluded.price_asof, valid_until = excluded.valid_until,
+          status = excluded.status,
+          itinerary = excluded.itinerary, incl_items = excluded.incl_items, excl_items = excluded.excl_items,
+          note = excluded.note, updated_by = excluded.updated_by, updated_at = now()
+      `;
+      return res.status(200).json({ ok: true, id });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'save_failed' });
+    }
+  }
+
+  if (req.method === 'DELETE') {
+    if (!(await requireRole(req, res, ['owner', 'manager', 'staff']))) return;
+    const id = (req.query && req.query.id) || '';
+    if (!id || !/^[A-Za-z0-9_-]+$/.test(String(id))) return res.status(400).json({ error: 'invalid_id' });
+    try {
+      await sql`delete from packages where id = ${String(id)}`;
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'delete_failed' });
+    }
+  }
+
+  return res.status(405).json({ error: 'method_not_allowed' });
+}
+
 module.exports = async (req, res) => {
   if (req.query && req.query.action === 'itineraries') return handleItineraries(req, res);
+  if (req.query && req.query.action === 'packages') return handlePackages(req, res);
 
   if (req.method === 'GET') {
     try {

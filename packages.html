@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>패키지 여행 · 비즈페이지</title>
+<meta name="description" content="소규모 단체·친목 모임을 위한 패키지 여행. 일정과 금액을 견적서로 정리해 드립니다." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<!-- 디자인 토큰·기본 타이포를 본 사이트와 공유한다. 별도 스타일을 새로 쓰면
+     두 화면의 색·간격이 조용히 갈라진다(같은 회사인데 다른 사이트처럼 보인다). -->
+<link rel="stylesheet" href="styles.css">
+<script src="company-info.js"></script>
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   패키지 여행 — 고객 입구 (VP)
+
+   ⚠ **입구는 나누되 백엔드는 하나다.** 이 화면은 견적 엔진을 타지 않는다 —
+     가격은 `packages` 테이블의 값을 **그대로** 보여준다(대리점가).
+     여기서 요율·계수·마진을 얹으면 원본보다 비싸진다(실측 +21.5%·+41.7%).
+
+   ⚠ 이 파일은 `styles.css`의 토큰만 빌려 쓰고, 화면 규칙은 여기서 끝낸다.
+     `styles.css`를 고치면 본 사이트가 함께 움직이므로 **여기서는 안 고친다.**
+   ══════════════════════════════════════════════════════════════════ */
+.pk-wrap { max-width: 1120px; margin: 0 auto; padding: 0 var(--pad-x, 24px); }
+
+/* ── 머리줄 ── 본 사이트로 돌아가는 길을 항상 남긴다 */
+.pk-nav {
+  position: sticky; top: 0; z-index: 40;
+  background: var(--ink); color: var(--white);
+  border-bottom: 1px solid var(--rule-inv);
+}
+.pk-nav-in { display: flex; align-items: center; gap: 20px; height: 62px; }
+.pk-brand { font-weight: 800; font-size: 17px; letter-spacing: -.01em; color: var(--white); }
+.pk-brand span { color: var(--red); }
+.pk-nav-sep { flex: 1; }
+.pk-nav a.pk-back {
+  font-size: 13px; color: rgba(255,255,255,.72); border: 1px solid var(--rule-inv);
+  padding: 8px 14px; border-radius: 999px; transition: .18s;
+}
+.pk-nav a.pk-back:hover { color: var(--white); border-color: rgba(255,255,255,.3); }
+
+/* ── 히어로 ── 기업 연수와 **다른 화면**임을 첫 줄에서 말한다 */
+.pk-hero { background: var(--bg-off); padding: 56px 0 44px; border-bottom: 1px solid var(--rule); }
+.pk-eyebrow {
+  display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .08em;
+  color: var(--red); margin-bottom: 12px;
+}
+.pk-hero h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; line-height: 1.25; color: var(--t-head); }
+.pk-hero p { margin-top: 12px; font-size: 15px; color: var(--t-mute); max-width: 640px; line-height: 1.8; }
+.pk-hero .pk-xlink { margin-top: 20px; font-size: 13px; color: var(--t-sub); }
+.pk-hero .pk-xlink a { color: var(--t-head); font-weight: 700; border-bottom: 1px solid var(--rule-md); }
+
+/* ── 거르개 ── */
+.pk-filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 24px 0 4px; }
+.pk-chip {
+  font-size: 13px; padding: 8px 15px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--rule-md); background: var(--white); color: var(--t-mute); transition: .16s;
+}
+.pk-chip:hover { border-color: var(--ink); color: var(--t-head); }
+.pk-chip.on { background: var(--ink); border-color: var(--ink); color: var(--white); font-weight: 700; }
+
+/* ── 목록 ── */
+.pk-count { padding: 18px 0 10px; font-size: 13px; color: var(--t-sub); }
+.pk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; padding-bottom: 64px; }
+.pk-card {
+  border: 1px solid var(--rule); border-radius: 14px; background: var(--white);
+  padding: 20px; display: flex; flex-direction: column; gap: 12px; transition: .18s;
+}
+.pk-card:hover { border-color: var(--rule-md); transform: translateY(-2px); }
+.pk-card-top { display: flex; align-items: center; gap: 8px; }
+.pk-dest { font-size: 12px; font-weight: 700; color: var(--red); letter-spacing: .04em; }
+.pk-dur { font-size: 12px; color: var(--t-sub); }
+.pk-title { font-size: 16px; font-weight: 700; line-height: 1.5; color: var(--t-head); }
+.pk-meta { font-size: 13px; color: var(--t-mute); line-height: 1.7; }
+.pk-price-row { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--rule); }
+.pk-price { font-size: 22px; font-weight: 800; color: var(--t-head); letter-spacing: -.02em; }
+.pk-price small { font-size: 12px; font-weight: 500; color: var(--t-sub); margin-left: 4px; }
+
+/* ⚠ **가격이 언제 값인지를 카드마다 찍는다.** 패키지가는 자주 바뀌고 우리는
+   대리점이라 그 값으로 팔아야 한다 — 조회 시점 없이 보여주면 낡은 값인지 아무도 모른다. */
+.pk-asof { margin-top: 6px; font-size: 11px; color: var(--t-sub); }
+.pk-asof.stale { color: var(--red); font-weight: 700; }
+
+.pk-cta {
+  margin-top: 14px; width: 100%; padding: 12px 0; border: 0; border-radius: 10px;
+  background: var(--red); color: var(--white); font-size: 14px; font-weight: 700; cursor: pointer;
+  font-family: inherit; transition: .16s;
+}
+.pk-cta:hover { background: var(--red-dk); }
+
+/* ── 빈 상태 ── **비어 있는 이유를 말한다.** 그냥 비면 고장으로 읽힌다 */
+.pk-empty { padding: 56px 20px; text-align: center; color: var(--t-sub); font-size: 14px; line-height: 1.9; }
+.pk-empty b { color: var(--t-head); }
+
+/* ── 상세 ── */
+.pk-modal { position: fixed; inset: 0; z-index: 90; display: none; }
+.pk-modal.on { display: block; }
+.pk-modal-bg { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+.pk-modal-box {
+  position: relative; max-width: 780px; margin: 5vh auto; max-height: 90vh; overflow: auto;
+  background: var(--white); border-radius: 16px; padding: 30px;
+}
+.pk-modal-close {
+  position: absolute; top: 16px; right: 18px; border: 0; background: none;
+  font-size: 24px; cursor: pointer; color: var(--t-sub); line-height: 1;
+}
+.pk-day { border-left: 2px solid var(--rule-md); padding: 0 0 18px 16px; margin-left: 6px; position: relative; }
+.pk-day::before {
+  content: ''; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--red);
+}
+.pk-day h4 { font-size: 13px; font-weight: 800; color: var(--red); margin-bottom: 6px; }
+.pk-day p { font-size: 13px; color: var(--t-body); line-height: 1.8; }
+.pk-sec-h { font-size: 13px; font-weight: 800; color: var(--t-head); margin: 22px 0 10px; }
+.pk-list { font-size: 13px; color: var(--t-body); line-height: 1.9; padding-left: 18px; }
+
+@media (max-width: 720px) {
+  .pk-hero h1 { font-size: 26px; }
+  .pk-grid { grid-template-columns: 1fr; }
+  .pk-modal-box { margin: 0; border-radius: 0; min-height: 100vh; padding: 24px 18px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="pk-nav">
+  <div class="pk-wrap pk-nav-in">
+    <a href="index.html" class="pk-brand">비즈<span>페이지</span></a>
+    <div class="pk-nav-sep"></div>
+    <a href="index.html" class="pk-back">기업·공공기관 맞춤 견적 →</a>
+  </div>
+</nav>
+
+<header class="pk-hero">
+  <div class="pk-wrap">
+    <span class="pk-eyebrow">패키지 여행</span>
+    <h1>정해진 일정, 정해진 금액.<br>견적서로 정리해 드립니다.</h1>
+    <p>
+      소규모 단체·친목 모임을 위한 패키지 상품입니다. 일정과 금액이 이미 확정된 상품이라
+      기다리실 필요가 없습니다. 마음에 드는 상품을 고르시면 <b>일정표와 견적서</b>를 바로 만들어 드립니다.
+    </p>
+    <p class="pk-xlink">
+      기업·공공기관 연수처럼 <b>인원·일정·목적에 맞춰 새로 짜야 하는</b> 여행이라면
+      <a href="index.html">맞춤 견적</a>을 이용해 주세요.
+    </p>
+  </div>
+</header>
+
+<main class="pk-wrap">
+  <div class="pk-filters" id="pkFilters"></div>
+  <div class="pk-count" id="pkCount"></div>
+  <div class="pk-grid" id="pkGrid"></div>
+  <div class="pk-empty" id="pkEmpty" style="display:none"></div>
+</main>
+
+<div class="pk-modal" id="pkModal">
+  <div class="pk-modal-bg" data-close="1"></div>
+  <div class="pk-modal-box">
+    <button class="pk-modal-close" data-close="1" aria-label="닫기">&times;</button>
+    <div id="pkDetail"></div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   ⚠ 이 화면은 **견적 엔진을 부르지 않는다.** 서버가 준 가격을 그대로 쓴다.
+     `script.js`(견적 엔진)를 여기서 싣지 않는 것이 그 방어선이다 —
+     싣는 순간 누군가 계수를 얹고 싶어지고, 그러면 원본보다 비싸진다.
+   ══════════════════════════════════════════════════════════════════ */
+(function () {
+  var ALL = [];
+  var destFilter = '';
+
+  var won = function (n) { return n == null ? '—' : Number(n).toLocaleString('ko-KR'); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+  var fmtDate = function (d) {
+    if (!d) return '';
+    var t = new Date(d);
+    if (isNaN(t.getTime())) return '';
+    return t.getFullYear() + '.' + String(t.getMonth() + 1).padStart(2, '0') + '.' + String(t.getDate()).padStart(2, '0');
+  };
+  /* 가격을 확인한 지 며칠 지났나 — 오래됐으면 화면이 그렇게 말한다 */
+  var daysSince = function (d) {
+    var t = new Date(d);
+    if (isNaN(t.getTime())) return null;
+    return Math.floor((Date.now() - t.getTime()) / 86400000);
+  };
+  var STALE_DAYS = 7;
+
+  function render() {
+    var list = destFilter ? ALL.filter(function (p) { return (p.destLabel || p.destKey) === destFilter; }) : ALL;
+    var grid = document.getElementById('pkGrid');
+    var empty = document.getElementById('pkEmpty');
+    var count = document.getElementById('pkCount');
+
+    count.textContent = list.length ? ('상품 ' + list.length + '개') : '';
+    if (!list.length) {
+      grid.innerHTML = '';
+      empty.style.display = '';
+      /* ⚠ **비어 있는 이유를 말한다.** 그냥 비워 두면 고장으로 읽히고 문의가 안 온다. */
+      empty.innerHTML = ALL.length
+        ? '<b>고르신 지역에는 지금 열린 상품이 없습니다.</b><br>다른 지역을 보시거나, 원하시는 일정으로 <a href="index.html" style="border-bottom:1px solid #ccc">맞춤 견적</a>을 요청해 주세요.'
+        : '<b>지금 준비된 패키지 상품이 없습니다.</b><br>원하시는 지역·일정을 알려 주시면 맞춰 드립니다 — <a href="index.html" style="border-bottom:1px solid #ccc">맞춤 견적 요청</a>';
+      return;
+    }
+    empty.style.display = 'none';
+
+    grid.innerHTML = list.map(function (p, i) {
+      var age = daysSince(p.priceAsOf);
+      var stale = age != null && age > STALE_DAYS;
+      var dur = (p.nights && p.days) ? (p.nights + '박 ' + p.days + '일') : '';
+      return '<article class="pk-card">'
+        + '<div class="pk-card-top">'
+        +   '<span class="pk-dest">' + esc(p.destLabel || p.destKey || '') + '</span>'
+        +   (dur ? '<span class="pk-dur">· ' + esc(dur) + '</span>' : '')
+        + '</div>'
+        + '<h3 class="pk-title">' + esc(p.title) + '</h3>'
+        + '<div class="pk-meta">'
+        +   (p.departDate ? '출발 ' + esc(fmtDate(p.departDate)) : '출발일 협의')
+        + '</div>'
+        + '<div class="pk-price-row">'
+        +   '<div class="pk-price">' + won(p.pricePerPerson) + '<small>원 / 1인</small></div>'
+        +   '<div class="pk-asof' + (stale ? ' stale' : '') + '">'
+        +     (age == null ? '' : (stale
+              ? '⚠ ' + esc(fmtDate(p.priceAsOf)) + ' 기준 — 확인이 필요합니다'
+              : esc(fmtDate(p.priceAsOf)) + ' 기준 금액'))
+        +   '</div>'
+        +   '<button class="pk-cta" data-i="' + i + '">일정 · 견적서 보기</button>'
+        + '</div>'
+        + '</article>';
+    }).join('');
+
+    /* ⚠ 인라인 onclick 안에 값을 끼워 넣지 않는다 — 그 구조는 esc()로 막을 수 없다
+       (CLAUDE.md 결함 생성기 ④). 목록 위치(index)만 넘기고 값은 배열에서 꺼낸다. */
+    Array.prototype.forEach.call(grid.querySelectorAll('.pk-cta'), function (b) {
+      b.addEventListener('click', function () { openDetail(list[Number(b.dataset.i)]); });
+    });
+  }
+
+  function renderFilters() {
+    var seen = [];
+    ALL.forEach(function (p) {
+      var k = p.destLabel || p.destKey;
+      if (k && seen.indexOf(k) < 0) seen.push(k);
+    });
+    var box = document.getElementById('pkFilters');
+    if (!seen.length) { box.innerHTML = ''; return; }
+    box.innerHTML = ['<button class="pk-chip on" data-d="">전체</button>']
+      .concat(seen.map(function (d) { return '<button class="pk-chip" data-d="' + esc(d) + '">' + esc(d) + '</button>'; }))
+      .join('');
+    Array.prototype.forEach.call(box.querySelectorAll('.pk-chip'), function (c) {
+      c.addEventListener('click', function () {
+        destFilter = c.dataset.d || '';
+        Array.prototype.forEach.call(box.querySelectorAll('.pk-chip'), function (x) { x.classList.remove('on'); });
+        c.classList.add('on');
+        render();
+      });
+    });
+  }
+
+  function openDetail(p) {
+    if (!p) return;
+    var days = Array.isArray(p.itinerary) ? p.itinerary : [];
+    var listOf = function (v) { return Array.isArray(v) ? v : (v ? [String(v)] : []); };
+    var incl = listOf(p.included), excl = listOf(p.excluded);
+
+    document.getElementById('pkDetail').innerHTML =
+        '<span class="pk-eyebrow">' + esc(p.destLabel || p.destKey || '패키지') + '</span>'
+      + '<h2 style="font-size:22px;font-weight:800;line-height:1.4;margin-bottom:8px">' + esc(p.title) + '</h2>'
+      + '<div class="pk-meta">'
+      +   ((p.nights && p.days) ? esc(p.nights + '박 ' + p.days + '일') : '')
+      +   (p.departDate ? ' · 출발 ' + esc(fmtDate(p.departDate)) : '')
+      + '</div>'
+      + '<div class="pk-price-row" style="margin-top:16px">'
+      +   '<div class="pk-price">' + won(p.pricePerPerson) + '<small>원 / 1인</small></div>'
+      +   '<div class="pk-asof">' + esc(fmtDate(p.priceAsOf)) + ' 기준 금액'
+      +     (p.validUntil ? ' · ' + esc(fmtDate(p.validUntil)) + '까지 유효' : '') + '</div>'
+      + '</div>'
+      + (days.length
+          ? '<div class="pk-sec-h">일정</div>' + days.map(function (d, i) {
+              var body = [d.am, d.pm, d.eve].filter(Boolean).join(' / ') || d.title || '';
+              return '<div class="pk-day"><h4>DAY ' + (i + 1) + (d.title ? ' · ' + esc(d.title) : '') + '</h4>'
+                + '<p>' + esc(body) + '</p></div>';
+            }).join('')
+          : '')
+      + (incl.length ? '<div class="pk-sec-h">포함 사항</div><ul class="pk-list">'
+          + incl.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' : '')
+      + (excl.length ? '<div class="pk-sec-h">불포함 사항</div><ul class="pk-list">'
+          + excl.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' : '')
+      + '<button class="pk-cta" id="pkAsk" style="margin-top:24px">이 상품으로 견적서 받기</button>'
+      + '<p style="margin-top:10px;font-size:12px;color:var(--t-sub);line-height:1.8">'
+      +   '금액은 ' + esc(fmtDate(p.priceAsOf)) + ' 기준이며 항공 좌석·현지 사정에 따라 변동될 수 있습니다.'
+      + '</p>';
+
+    document.getElementById('pkModal').classList.add('on');
+    var ask = document.getElementById('pkAsk');
+    if (ask) {
+      ask.addEventListener('click', function () {
+        /* 🚧 다음 단계: 이 상품을 견적서 페이로드로 바꿔 `/api/quote-shares`에 올리고
+           공유 링크를 낸다. 지금은 문의 경로로 보낸다 — **없는 기능을 있는 척하지 않는다.** */
+        location.href = 'index.html#contact';
+      });
+    }
+  }
+
+  document.getElementById('pkModal').addEventListener('click', function (e) {
+    if (e.target.dataset && e.target.dataset.close) this.classList.remove('on');
+  });
+
+  /* ⚠ 서버가 이미 「판매중 + 기한 안 지남」으로 걸러 준다. 화면에서 또 거르지 않는다 —
+     두 곳에서 거르면 규칙이 갈라지고, 어느 쪽이 진실인지 알 수 없어진다. */
+  fetch('/api/content?action=packages')
+    .then(function (r) { return r.ok ? r.json() : { packages: [] }; })
+    .then(function (d) {
+      ALL = (d && d.packages) || [];
+      renderFilters();
+      render();
+    })
+    .catch(function () {
+      ALL = [];
+      renderFilters();
+      render();
+    });
+})();
+</script>
+</body>
+</html>

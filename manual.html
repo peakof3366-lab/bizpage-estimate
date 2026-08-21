@@ -244,6 +244,7 @@
         <li><a href="#estmgr">견적 관리</a></li>
         <li><a href="#quotetool">내부 견적 산출</a></li>
         <li><a href="#itinerary">일정 · 방식 A·B</a></li>
+        <li><a href="#packages">패키지 상품</a></li>
         <li><a href="#pricereport">견적서 업데이트 — 실제 단가 남기기</a></li>
         <li><a href="#rates">요율 관리 — 단가 갱신</a></li>
         <li><a href="#newdest">새 목적지 추가<span class="who">매니저·관리자</span></a></li>
@@ -336,6 +337,7 @@
             <tr><td class="field">문의 관리</td><td>홈페이지 문의 폼으로 들어온 건 처리</td><td>매일</td></tr>
             <tr><td class="field">견적 관리</td><td>고객이 직접 뽑은 견적 건 처리 · 견적서 링크 발급</td><td>매일</td></tr>
             <tr><td class="field">내부 견적 산출</td><td>담당자가 직접 조건을 넣어 견적서를 뽑는 도구</td><td>상담할 때</td></tr>
+            <tr><td class="field">패키지 상품</td><td>이미 값이 정해진 여행 상품 — <strong>요율·마진이 안 붙습니다</strong>(넣은 금액이 그대로 고객가)</td><td>상품이 생길 때마다</td></tr>
             <tr><td class="field">일정 · 방식 A·B</td><td>목적지별 연수 내용 — 한 화면에 <strong>두 구역</strong>(✨ 방식 A·B 소개 / 📅 날짜별 일정)</td><td>필요할 때</td></tr>
             <tr><td class="field">요율 관리</td><td>목적지별 단가 갱신 · 변경 이력</td><td>분기 1회</td></tr>
             <tr><td class="field">방문 통계 · 이벤트 분석 · 견적 분석 · 마케팅 인사이트</td><td>보는 곳(읽기 전용). 무엇을 눌러도 고객 화면은 안 바뀝니다</td><td>필요할 때</td></tr>
@@ -1051,6 +1053,73 @@
           마지막 “귀국” 일자는 항상 실제 마지막 날로 옮겨지고, 남는 날은
           <strong>✨ 방식 A·B 소개의 “일별 주요 활동”</strong> 목록으로 채워집니다.
           그래서 그 목록을 넉넉히 채워 두면 긴 일정에서도 빈 날이 생기지 않습니다.
+        </p>
+      </div>
+    </section>
+
+    <section id="packages">
+      <h2>6-2. 패키지 상품</h2>
+      <p>
+        <strong>이미 값이 정해진 여행 상품</strong>을 올리는 곳입니다. 왼쪽 메뉴
+        「패키지 상품」으로 들어갑니다. 고객은 홈페이지 위쪽 <strong>「패키지 여행」</strong> 링크로
+        이 상품들을 봅니다.
+      </p>
+      <div class="warn">
+        <span class="label">🔴 여기는 요율·계수·마진이 없습니다 — 넣은 금액이 그대로 나갑니다</span>
+        <p>
+          다른 메뉴(요율 관리·내부 견적 산출)는 <strong>우리가 원가를 조립해서</strong> 금액을 만듭니다.
+          패키지 상품은 다릅니다 — <strong>우리가 대리점으로 받은 판매가를 그대로</strong> 씁니다.
+          여기서 넣은 <strong>1인 금액이 곧 고객이 보는 금액</strong>입니다.
+        </p>
+        <p>
+          왜 이렇게 하느냐면, 같은 상품을 우리 견적 엔진으로 다시 계산하면
+          <strong>원본보다 21~42% 비싸게</strong> 나오기 때문입니다(실제 하나투어 견적서 2건으로
+          측정한 값입니다). 고객이 검색 한 번이면 비교할 수 있습니다.
+        </p>
+      </div>
+      <div class="warn">
+        <span class="label">💡 「금액 확인일」은 비워 둘 수 없습니다</span>
+        <p>
+          패키지 금액은 출발일마다 다르고 자주 바뀝니다. 그런데 우리는 대리점이라
+          <strong>화면에 적힌 값으로 팔아야 합니다.</strong> 낡은 값이 견적서로 나가면 그 차액을
+          우리가 물게 됩니다.
+        </p>
+        <p>
+          그래서 <strong>언제 확인한 금액인지</strong>를 반드시 함께 넣습니다. 이 날짜는
+          <strong>고객 화면과 견적서에 같이 찍힙니다.</strong> 비워 두면 저장되지 않습니다 —
+          고장이 아니라 <strong>확인하고 적으시라는 뜻</strong>입니다.
+        </p>
+        <p>
+          확인한 지 <strong>7일이 넘은 판매중 상품</strong>은 왼쪽 메뉴에 숫자 배지가 뜨고,
+          목록에도 <strong>⚠ N일 전 금액</strong>으로 표시됩니다. 그 상품은 금액을 다시 확인해 주세요.
+        </p>
+      </div>
+      <h3>올리는 순서</h3>
+      <ol>
+        <li><strong>+ 새 상품</strong>을 누릅니다.</li>
+        <li><strong>상품 ID</strong>를 정합니다 — 영문·숫자·하이픈만 됩니다(예: <code>hana-okinawa-1203</code>).
+          한 번 정하면 바꿀 수 없습니다.</li>
+        <li><strong>상품명 · 박/일 · 출발일 · 1인 금액</strong>을 넣습니다.</li>
+        <li><strong>금액 확인일</strong>에 오늘(또는 실제로 확인한 날) 날짜를 넣습니다.</li>
+        <li><strong>목적지</strong>는 요율표에 있는 곳이면 골라 주세요. 없는 곳이면 비우고
+          아래 <strong>표시 지역명</strong>에 직접 적습니다.</li>
+        <li>포함/불포함 사항과 일정을 넣습니다 — <strong>한 줄에 하나</strong>씩입니다.</li>
+        <li>상태를 <strong>판매중</strong>으로 바꾸고 저장하면 고객 화면에 나옵니다.</li>
+      </ol>
+      <div class="note">
+        <span class="label">상태 세 가지</span>
+        <p>
+          <strong>작성중</strong> — 아직 고객에게 안 보입니다. 만들다 만 상품은 여기 둡니다.<br>
+          <strong>판매중</strong> — 고객 화면에 나옵니다.<br>
+          <strong>마감</strong> — 고객에게 안 보입니다. <strong>지우지 말고 마감으로 바꾸세요</strong> —
+          다음에 같은 상품이 다시 열릴 때 그대로 쓸 수 있습니다.
+        </p>
+      </div>
+      <div class="note">
+        <span class="label">일정은 손으로 옮기지 않아도 될 수 있습니다</span>
+        <p>
+          하나투어 견적서 PDF가 있으면 <strong>「견적서 업데이트」의 추출기가 일정을 DAY별로
+          읽어냅니다.</strong> 두 화면을 잇는 작업은 다음 단계라, 지금은 일정을 직접 넣습니다.
         </p>
       </div>
     </section>

@@ -629,6 +629,30 @@
       font-size: .74rem; font-weight: 800; padding: .22rem .5rem;
       background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;
     }
+    /* ── 패키지 상품 (VP) ────────────────────────────────────────────
+       ⚠ 색을 새로 만들지 않았다. 기존 경고색(#FEF3C7/#92400E)·본문색을 그대로 쓴다 —
+         화면마다 다른 색을 쓰면 「경고」가 무슨 색인지 담당자가 매번 다시 배운다. */
+    .pkg-f { display: block; font-size: .8rem; }
+    .pkg-f > span { display: block; font-weight: 700; color: var(--heading); margin-bottom: .3rem; }
+    .pkg-f > span em { font-style: normal; font-weight: 500; color: var(--muted); font-size: .92em; }
+    .pkg-f input, .pkg-f select, .pkg-f textarea {
+      width: 100%; padding: .5rem .6rem; border: 1px solid #D8D8D4; border-radius: 6px;
+      font-family: inherit; font-size: .84rem; color: var(--heading); background: #fff;
+    }
+    .pkg-f textarea { resize: vertical; line-height: 1.7; }
+    .pkg-row {
+      display: grid; grid-template-columns: 1fr auto auto auto; gap: .6rem; align-items: center;
+      padding: .65rem .2rem; border-bottom: 1px solid #ECECE8; cursor: pointer;
+    }
+    .pkg-row:hover { background: #FAFAF8; }
+    .pkg-row-t { font-weight: 700; color: var(--heading); }
+    .pkg-row-s { font-size: .72rem; color: var(--muted); }
+    .pkg-st { font-size: .7rem; font-weight: 800; padding: .18rem .5rem; border-radius: 4px; }
+    .pkg-st.open   { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
+    .pkg-st.draft  { background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; }
+    .pkg-st.closed { background: #F1F5F9; color: #94A3B8; border: 1px solid #E2E8F0; }
+    /* 금액을 확인한 지 오래된 상품 — 대리점가라 낡으면 그대로 손해다 */
+    .pkg-stale { font-size: .7rem; font-weight: 800; color: #92400E; }
     .iti-src-pending {
       font-size: .7rem; font-weight: 800; padding: .18rem .45rem;
       background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;
@@ -1030,6 +1054,15 @@
              그대로 부른다: '무엇이 들었는지'를 이름이 말해야 한다(QV에서 배운 것). -->
         <button class="sidebar-item" data-tab="itineraries">
           <span class="si-icon"><i data-lucide="calendar-range"></i></span><span class="si-label">일정 · 방식 A·B</span>
+        </button>
+        <!-- 패키지 상품 (VP) — **견적 엔진을 타지 않는 두 번째 흐름**이다.
+             위 메뉴들(요율·일정·견적산출)은 전부 「우리가 조립하는 맞춤 견적」용이고,
+             이 메뉴만 「이미 값이 정해진 상품」을 다룬다. 그래서 구분선 위에 따로 둔다 —
+             같은 묶음에 섞으면 담당자가 여기서도 요율을 만질 수 있다고 읽는다. -->
+        <button class="sidebar-item" data-tab="packages">
+          <span class="si-icon"><i data-lucide="package"></i></span><span class="si-label">패키지 상품</span>
+          <!-- 가격 확인이 오래된 상품 수 — 목록을 열어야만 보이면 아무도 안 본다(결함 생성기 ③) -->
+          <span class="si-badge" id="sb-pkg-stale" style="display:none"></span>
         </button>
         <div class="sidebar-divider"></div>
         <!-- 매뉴얼 (QN) — 별도 파일(manual.html)을 iframe으로 띄운다. 내부 견적 산출과
@@ -1796,6 +1829,100 @@
         <p id="iti-msg" class="iti-msg"></p>
         <div id="iti-body"></div>
       </section>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         패키지 상품 (VP) — **견적 엔진을 타지 않는 두 번째 흐름**
+
+         2026-08-21 대표 결정: 「가격도 그대로 가져온다. 우리가 하나투어 대리점이라
+         그 가격 그대로 받아 견적서화만 하면 된다.」
+
+         ⚠ 그래서 이 화면에는 **요율·계수·마진이 없다.** 여기서 입력한 1인 금액이
+           고객이 보는 금액 그대로다. 같은 상품을 우리 견적 엔진으로 재산출하면
+           실측 기준 +21.5%·+41.7% 비싸게 나온다 — 그래서 안 태운다.
+         ══════════════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-packages">
+      <div class="rate-update-info">
+        <strong>여기서 입력한 1인 금액이 고객에게 그대로 나갑니다</strong> —
+        요율표·계수·마진이 붙지 않습니다. 우리가 대리점으로 받은 판매가를 그대로 적어 주세요.
+        <br>
+        <strong>「금액 확인일」은 비워 둘 수 없습니다.</strong> 패키지가는 자주 바뀌는데
+        우리는 그 값으로 팔아야 합니다 — 언제 확인한 값인지가 고객 화면과 견적서에 함께 찍힙니다.
+      </div>
+
+      <div class="iti-bar">
+        <button type="button" class="btn-act btn-primary" id="pkgNew">+ 새 상품</button>
+        <span class="iti-spacer"></span>
+        <label for="pkgFilterStatus" style="font-size:13px;color:#666">상태</label>
+        <select id="pkgFilterStatus">
+          <option value="">전체</option>
+          <option value="open">판매중</option>
+          <option value="draft">작성중</option>
+          <option value="closed">마감</option>
+        </select>
+        <span id="pkgStaleNote" class="iti-pending-total hidden"></span>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">상품 목록</span></div>
+        <div id="pkgList" style="padding:4px 0 8px"></div>
+      </div>
+
+      <!-- 편집 칸 — 목록에서 고르면 채워진다 -->
+      <div class="card" id="pkgEditCard" style="display:none">
+        <div class="card-header">
+          <span class="card-title" id="pkgEditTitle">상품 편집</span>
+          <button class="btn-act btn-outline-p" id="pkgCancel">닫기</button>
+        </div>
+        <div style="padding:14px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+          <label class="pkg-f"><span>상품 ID <em>(영문·숫자·- _ )</em></span>
+            <input type="text" id="pkgId" placeholder="hana-okinawa-1203"></label>
+          <label class="pkg-f"><span>상품명</span>
+            <input type="text" id="pkgTitle" placeholder="오키나와 3박4일 자유일정"></label>
+          <label class="pkg-f"><span>목적지</span>
+            <select id="pkgDest"><option value="">(요율표에 없는 곳)</option></select></label>
+          <label class="pkg-f"><span>표시 지역명 <em>(목적지를 안 고를 때)</em></span>
+            <input type="text" id="pkgDestLabel" placeholder="오키나와"></label>
+          <label class="pkg-f"><span>박 / 일</span>
+            <span style="display:flex;gap:6px">
+              <input type="number" id="pkgNights" min="0" max="60" placeholder="3" style="width:50%">
+              <input type="number" id="pkgDays" min="1" max="61" placeholder="4" style="width:50%">
+            </span></label>
+          <label class="pkg-f"><span>출발일</span>
+            <input type="date" id="pkgDepart"></label>
+          <label class="pkg-f"><span>1인 금액 (원) <em>— 고객가 그대로</em></span>
+            <input type="number" id="pkgPrice" min="1" placeholder="1190000"></label>
+          <label class="pkg-f"><span>💡 금액 확인일 <em>— 필수</em></span>
+            <input type="date" id="pkgAsOf"></label>
+          <label class="pkg-f"><span>유효기간 <em>(선택)</em></span>
+            <input type="date" id="pkgValid"></label>
+          <label class="pkg-f"><span>상태</span>
+            <select id="pkgStatus">
+              <option value="draft">작성중 (고객에게 안 보임)</option>
+              <option value="open">판매중 (고객에게 보임)</option>
+              <option value="closed">마감 (고객에게 안 보임)</option>
+            </select></label>
+          <label class="pkg-f"><span>공급사 상품코드 <em>(선택)</em></span>
+            <input type="text" id="pkgSourceCode" placeholder="HNT-OKA-2512"></label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <label class="pkg-f"><span>포함 사항 <em>— 한 줄에 하나</em></span>
+            <textarea id="pkgIncl" rows="5" placeholder="왕복 항공권&#10;호텔 3박 (2인1실)&#10;조식 3회"></textarea></label>
+          <label class="pkg-f"><span>불포함 사항 <em>— 한 줄에 하나</em></span>
+            <textarea id="pkgExcl" rows="5" placeholder="여행자보험&#10;개인 경비&#10;가이드 팁"></textarea></label>
+        </div>
+        <label class="pkg-f" style="margin-top:14px;display:block"><span>일정 <em>— DAY마다 한 줄. 「제목 | 내용」</em></span>
+          <textarea id="pkgIti" rows="6" placeholder="인천 출발 · 나하 도착 | 오전 인천공항 집결 / 오후 나하 도착 후 호텔 이동&#10;북부 관광 | 츄라우미 수족관 / 코우리대교"></textarea></label>
+        <p style="margin-top:8px;font-size:12px;color:#777;line-height:1.7">
+          ⚠ 하나투어 견적서 PDF가 있으면 <strong>일정을 손으로 옮길 필요가 없습니다</strong> —
+          견적서 업데이트 화면의 추출기가 DAY별로 읽어냅니다. (연결은 다음 단계)
+        </p>
+        <div style="margin-top:18px;display:flex;gap:8px;align-items:center">
+          <button class="btn-act btn-primary" id="pkgSave">저장</button>
+          <button class="btn-act btn-outline-d" id="pkgDelete">삭제</button>
+          <span id="pkgMsg" style="font-size:13px"></span>
+        </div>
+      </div>
     </div>
 
     <!-- ── 콘텐츠 관리 (신규) ── 필드 110개는 CMS_FIELDS 데이터에서 renderContent()가
@@ -3864,7 +3991,7 @@
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', pricereport:'견적서 업데이트',
     rates:'요율 관리', quotetool:'내부 견적 산출',
-    itineraries:'일정 · 방식 A·B', content:'콘텐츠 관리',
+    itineraries:'일정 · 방식 A·B', packages:'패키지 상품', content:'콘텐츠 관리',
     manual:'매뉴얼', settings:'설정'
   };
 
@@ -3896,6 +4023,7 @@
     else if (name==='quotetool') renderQuoteTool();
     else if (name==='manual') renderManual();
     else if (name==='itineraries') renderItineraries();
+    else if (name==='packages') renderPackages();
     else if (name==='content') renderContent();
   }
 
@@ -12394,6 +12522,242 @@
   function clearMulti(keys, label) {
     if (confirm(`${label}을(를) 초기화하시겠습니까?`)) { keys.forEach(k=>localStorage.removeItem(k)); renderTab(currentTab); alert('초기화되었습니다.'); }
   }
+
+  /* ══════════════════════════════════════════════════════════════════
+     패키지 상품 (VP) — **견적 엔진을 타지 않는다**
+
+     2026-08-21 대표 결정: 「가격도 그대로 가져온다. 우리가 하나투어 대리점이라
+     그 가격 그대로 받아 견적서화만 하면 된다.」
+     → 여기서 입력한 1인 금액이 곧 고객가다. 요율·계수·마진이 하나도 안 붙는다.
+
+     ⚠ **이 화면에 요율 관련 입력을 추가하지 말 것.** 같은 상품을 우리 엔진으로
+       재산출하면 실측 기준 +21.5%·+41.7% 비싸게 나온다(코퍼스 오키나와·상해).
+       그 실측이 이 흐름을 만든 이유다.
+     ══════════════════════════════════════════════════════════════════ */
+  const PKG_STALE_DAYS = 7;
+  let pkgAll = [];
+  let pkgEditing = null;   /* 지금 편집 중인 id (신규는 null) */
+
+  const pkgDaysSince = (d) => {
+    const t = new Date(d);
+    return isNaN(t.getTime()) ? null : Math.floor((Date.now() - t.getTime()) / 86400000);
+  };
+  const pkgDateStr = (d) => {
+    if (!d) return '';
+    const t = new Date(d);
+    return isNaN(t.getTime()) ? '' : t.toISOString().slice(0, 10);
+  };
+
+  async function renderPackages() {
+    const box = document.getElementById('pkgList');
+    if (!box) return;
+    box.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">불러오는 중…</div>';
+    try {
+      /* 관리자는 초안·마감까지 봐야 관리가 된다 — `all=1` */
+      const r = await fetch('/api/content?action=packages&all=1');
+      if (!r.ok) throw new Error('http_' + r.status);
+      const d = await r.json();
+      pkgAll = (d && d.packages) || [];
+    } catch (err) {
+      /* ⚠ **못 불러온 것을 「0건」으로 보여주지 않는다.** 그러면 담당자가 상품이
+         지워진 줄 알고 다시 만든다(결함 생성기 ②). */
+      box.innerHTML = '<div style="padding:16px;color:#B91C1C;font-size:.85rem">'
+        + '목록을 불러오지 못했습니다 — <strong>「상품이 없다」는 뜻이 아닙니다.</strong> '
+        + '잠시 뒤 다시 열어 주세요. (' + String(err.message || err) + ')</div>';
+      return;
+    }
+    pkgDrawList();
+    pkgFillDestSelect();
+  }
+
+  function pkgDrawList() {
+    const box = document.getElementById('pkgList');
+    const want = (document.getElementById('pkgFilterStatus') || {}).value || '';
+    const list = want ? pkgAll.filter(p => p.status === want) : pkgAll;
+
+    /* 금액 확인이 오래된 것 — 사이드바 배지와 위쪽 안내에 같은 수를 쓴다 */
+    const stale = pkgAll.filter(p => p.status === 'open'
+      && (pkgDaysSince(p.priceAsOf) ?? 0) > PKG_STALE_DAYS);
+    const badge = document.getElementById('sb-pkg-stale');
+    if (badge) {
+      badge.textContent = stale.length || '';
+      badge.style.display = stale.length ? '' : 'none';
+    }
+    const note = document.getElementById('pkgStaleNote');
+    if (note) {
+      note.classList.toggle('hidden', !stale.length);
+      note.textContent = stale.length
+        ? `⚠ 금액 확인이 ${PKG_STALE_DAYS}일 넘은 판매중 상품 ${stale.length}건`
+        : '';
+    }
+
+    if (!list.length) {
+      box.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">'
+        + (pkgAll.length ? '그 상태의 상품이 없습니다.' : '등록된 상품이 없습니다. 「+ 새 상품」으로 시작하세요.')
+        + '</div>';
+      return;
+    }
+
+    box.innerHTML = list.map((p, i) => {
+      const age = pkgDaysSince(p.priceAsOf);
+      const old = p.status === 'open' && age != null && age > PKG_STALE_DAYS;
+      const dur = (p.nights && p.days) ? `${p.nights}박 ${p.days}일` : '';
+      const stLabel = { open: '판매중', draft: '작성중', closed: '마감' }[p.status] || p.status;
+      return '<div class="pkg-row" data-i="' + i + '">'
+        + '<div>'
+        +   '<div class="pkg-row-t">' + esc(p.title) + '</div>'
+        +   '<div class="pkg-row-s">' + esc([p.destLabel || p.destKey || '지역 미지정', dur,
+              p.departDate ? '출발 ' + pkgDateStr(p.departDate) : ''].filter(Boolean).join(' · ')) + '</div>'
+        + '</div>'
+        + '<div style="text-align:right;font-weight:800">' + Number(p.pricePerPerson || 0).toLocaleString() + '원</div>'
+        + '<div class="pkg-stale">' + (old ? '⚠ ' + age + '일 전 금액' : '') + '</div>'
+        + '<div><span class="pkg-st ' + esc(p.status) + '">' + esc(stLabel) + '</span></div>'
+        + '</div>';
+    }).join('');
+
+    /* ⚠ 인라인 onclick에 값을 끼워 넣지 않는다 — 그 구조는 esc()로 못 막는다
+       (CLAUDE.md 결함 생성기 ④). 위치만 넘기고 값은 배열에서 꺼낸다. */
+    box.querySelectorAll('.pkg-row').forEach(row => {
+      row.addEventListener('click', () => pkgOpen(list[Number(row.dataset.i)]));
+    });
+  }
+
+  function pkgFillDestSelect() {
+    const sel = document.getElementById('pkgDest');
+    if (!sel || sel.dataset.filled) return;
+    /* 목적지 목록은 **요율표가 진실**이다(data.js). 여기 이름을 다시 적지 않는다. */
+    const opts = (typeof destinationRates !== 'undefined' ? destinationRates : [])
+      .map(d => '<option value="' + esc(d.destination_key) + '">' + esc(d.label || d.destination_key) + '</option>')
+      .join('');
+    sel.innerHTML = '<option value="">(요율표에 없는 곳 — 아래 지역명을 직접 적습니다)</option>' + opts;
+    sel.dataset.filled = '1';
+  }
+
+  function pkgOpen(p) {
+    const card = document.getElementById('pkgEditCard');
+    if (!card) return;
+    pkgEditing = p ? p.id : null;
+    document.getElementById('pkgEditTitle').textContent = p ? '상품 편집 — ' + p.title : '새 상품';
+    const v = (id, val) => { const e = document.getElementById(id); if (e) e.value = val == null ? '' : val; };
+    v('pkgId', p ? p.id : '');
+    v('pkgTitle', p ? p.title : '');
+    v('pkgDest', p ? (p.destKey || '') : '');
+    v('pkgDestLabel', p ? (p.destLabel || '') : '');
+    v('pkgNights', p ? p.nights : '');
+    v('pkgDays', p ? p.days : '');
+    v('pkgDepart', p ? pkgDateStr(p.departDate) : '');
+    v('pkgPrice', p ? p.pricePerPerson : '');
+    /* ⚠ 새 상품의 「금액 확인일」을 **오늘로 미리 채우지 않는다.** 미리 채우면
+       담당자가 확인도 안 한 날짜를 그대로 저장하게 되고, 그 순간 이 칸이 무의미해진다.
+       비워 두면 서버가 거절하고, 그 거절이 곧 「확인하고 적으라」는 뜻이다. */
+    v('pkgAsOf', p ? pkgDateStr(p.priceAsOf) : '');
+    v('pkgValid', p ? pkgDateStr(p.validUntil) : '');
+    v('pkgStatus', p ? p.status : 'draft');
+    v('pkgSourceCode', p ? (p.sourceCode || '') : '');
+    const lines = (arr) => Array.isArray(arr) ? arr.join('\n') : (arr || '');
+    v('pkgIncl', p ? lines(p.included) : '');
+    v('pkgExcl', p ? lines(p.excluded) : '');
+    v('pkgIti', p && Array.isArray(p.itinerary)
+      ? p.itinerary.map(d => [d.title || '', [d.am, d.pm, d.eve].filter(Boolean).join(' / ')]
+          .filter(Boolean).join(' | ')).join('\n')
+      : '');
+    document.getElementById('pkgMsg').textContent = '';
+    document.getElementById('pkgId').readOnly = !!p;   /* 기존 상품은 id를 못 바꾼다 */
+    card.style.display = '';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function pkgParseIti(text) {
+    return String(text || '').split('\n').map(l => l.trim()).filter(Boolean).map((l, i) => {
+      const parts = l.split('|');
+      const title = (parts[0] || '').trim();
+      const body = (parts.slice(1).join('|') || '').trim();
+      return { day: i + 1, title, am: body, pm: '', eve: '' };
+    });
+  }
+  const pkgLines = (id) => String((document.getElementById(id) || {}).value || '')
+    .split('\n').map(s => s.trim()).filter(Boolean);
+
+  async function pkgSave() {
+    const msg = document.getElementById('pkgMsg');
+    const g = (id) => (document.getElementById(id) || {}).value || '';
+    const asOf = g('pkgAsOf');
+    /* ⚠ 서버도 막지만 화면에서 먼저 말해 준다 — 서버 오류 문자열보다 이쪽이 친절하다.
+       ⚠ 다만 **화면 검사를 방어선으로 삼지 않는다.** 서버가 not null로 거절한다. */
+    if (!asOf) { msg.style.color = '#B91C1C'; msg.textContent = '「금액 확인일」을 넣어 주세요 — 언제 확인한 금액인지가 고객 견적서에 함께 나갑니다.'; return; }
+
+    const body = {
+      id: g('pkgId').trim(),
+      title: g('pkgTitle').trim(),
+      destKey: g('pkgDest') || null,
+      destLabel: g('pkgDestLabel').trim() || null,
+      nights: g('pkgNights') || null,
+      days: g('pkgDays') || null,
+      departDate: g('pkgDepart') || null,
+      pricePerPerson: g('pkgPrice'),
+      priceAsOf: asOf,
+      validUntil: g('pkgValid') || null,
+      status: g('pkgStatus'),
+      sourceCode: g('pkgSourceCode').trim() || null,
+      included: pkgLines('pkgIncl'),
+      excluded: pkgLines('pkgExcl'),
+      itinerary: pkgParseIti(g('pkgIti')),
+    };
+
+    msg.style.color = '#666'; msg.textContent = '저장 중…';
+    try {
+      const r = await fetch('/api/content?action=packages', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const out = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        /* 서버가 왜 거절했는지를 **그대로 보여준다.** 「저장 실패」로 뭉뚱그리면
+           담당자가 무엇을 고쳐야 할지 모른다. */
+        const why = {
+          invalid_id: '상품 ID는 영문·숫자·- _ 만 됩니다',
+          invalid_title: '상품명을 넣어 주세요',
+          invalid_price: '1인 금액을 숫자로 넣어 주세요',
+          price_asof_required: '「금액 확인일」이 필요합니다',
+          unknown_dest_key: '요율표에 없는 목적지입니다',
+          payload_too_large: '일정·포함사항이 너무 깁니다',
+        }[out.error] || (out.error || ('오류 ' + r.status));
+        msg.style.color = '#B91C1C'; msg.textContent = '저장하지 못했습니다 — ' + why;
+        return;
+      }
+      msg.style.color = '#166534'; msg.textContent = '저장했습니다.';
+      await renderPackages();
+    } catch (err) {
+      msg.style.color = '#B91C1C';
+      msg.textContent = '저장하지 못했습니다 — ' + String(err.message || err);
+    }
+  }
+
+  async function pkgDelete() {
+    if (!pkgEditing) { document.getElementById('pkgEditCard').style.display = 'none'; return; }
+    if (!confirm('이 상품을 지우시겠습니까? 되돌릴 수 없습니다.')) return;
+    const msg = document.getElementById('pkgMsg');
+    try {
+      const r = await fetch('/api/content?action=packages&id=' + encodeURIComponent(pkgEditing), { method: 'DELETE' });
+      if (!r.ok) throw new Error('http_' + r.status);
+      document.getElementById('pkgEditCard').style.display = 'none';
+      pkgEditing = null;
+      await renderPackages();
+    } catch (err) {
+      msg.style.color = '#B91C1C';
+      msg.textContent = '지우지 못했습니다 — ' + String(err.message || err);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('pkgNew')?.addEventListener('click', () => pkgOpen(null));
+    document.getElementById('pkgSave')?.addEventListener('click', pkgSave);
+    document.getElementById('pkgDelete')?.addEventListener('click', pkgDelete);
+    document.getElementById('pkgCancel')?.addEventListener('click', () => {
+      document.getElementById('pkgEditCard').style.display = 'none';
+    });
+    document.getElementById('pkgFilterStatus')?.addEventListener('change', pkgDrawList);
+  });
 </script>
 <script>if (typeof lucide !== 'undefined') lucide.createIcons();</script>
 </body>

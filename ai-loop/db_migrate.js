@@ -436,7 +436,73 @@ async function main() {
      보낸다). 여러 번 실행해도 안전하다. */
   await sql`alter table itinerary_overrides alter column courses drop not null`;
 
-  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations, app_settings, itinerary_overrides tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
+  /* ═══════════════════════════════════════════════════════════════════════
+     패키지 상품 (VP) — **견적 엔진을 타지 않는 두 번째 흐름**
+     ─────────────────────────────────────────────────────────────────────────
+     2026-08-21 대표 결정: 「가격도 그대로 가져온다. 우리가 하나투어 대리점이라
+     그 가격 그대로 받아 **견적서화만** 하면 된다.」
+
+     ⚠ 그래서 이 테이블의 `price_per_person`은 **곧 고객가**다. 요율표·계수·마진이
+       하나도 안 붙는다. 이 구분이 무너지면 실측이 경고한 일이 그대로 벌어진다 —
+       같은 하나투어 상품을 우리 엔진으로 재산출하면 **+21.5%·+41.7% 비싸게** 나온다
+       (코퍼스 실측 2건: 오키나와 14명 · 상해 15명. 사양을 가장 싸게 돌려도 못 내려간다).
+
+     안전장치 셋을 **스키마에 박는다**(화면에서 막으면 화면을 안 거치는 경로가 생긴다):
+       ① `price_asof` **not null** — 「언제 값인지」 없이는 저장 자체가 안 된다.
+          패키지가는 출발일별로 자주 바뀌고 우리는 대리점이라 **그 값으로 팔아야 한다.**
+          낡은 값이 견적서로 나가면 그대로 손해다(요율표에 rateDate를 둔 것과 같은 이유).
+       ② `status` — 마감된 상품으로 견적서가 나가면 사고다. 고객 GET은 open만 준다.
+       ③ `valid_until` — 유효기간이 지난 값은 고객 화면에서 서버가 거른다.
+
+     ⚠ `dest_key`는 **nullable**이다. 우리 요율표(55곳)에 없는 목적지의 패키지가
+       있을 수 있다. 있으면 목적지 사진·기본 일정을 재사용하고, 없으면 그냥 안 쓴다.
+       여기서 not null로 잡으면 요율표에 없는 상품을 아예 못 올린다.
+     ═══════════════════════════════════════════════════════════════════════ */
+  await sql`
+    create table if not exists packages (
+      id text primary key,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now(),
+      updated_by text,
+
+      /* ── 출처 ── 어디서 가져온 상품인가. 나중에 공급사가 늘어도 이 칸으로 갈린다 */
+      source text not null default 'hanatour',
+      source_code text,
+
+      /* ── 상품 ── */
+      title text not null,
+      dest_key text,
+      dest_label text,
+      nights int,
+      days int,
+      depart_date date,
+
+      /* ── 가격 ── ⚠ 엔진을 안 탄다. 이 값이 곧 고객가다 */
+      price_per_person bigint not null,
+      price_currency text not null default 'KRW',
+      price_asof timestamptz not null,
+      valid_until date,
+
+      /* ── 상태 ── draft(작성중) | open(판매중) | closed(마감) */
+      status text not null default 'draft',
+
+      /* ── 내용 ── 추출기가 읽어낸 DAY별 일정을 그대로 담는다 */
+      itinerary jsonb,
+      -- ⚠ 이름을 included/excluded로 짓지 않았다. Postgres의 ON CONFLICT DO UPDATE는
+      --   excluded 를 「들어오려던 행」의 예약 별칭으로 쓴다 — 컬럼 이름이 그것과 같으면
+      --   excluded = excluded.excluded 가 되어 읽는 사람도 파서도 헷갈린다.
+      --   처음에 그렇게 지었다가 upsert를 쓰는 순간 걸렸다.
+      -- ⚠ 이 주석은 SQL 주석(--)이다. 템플릿 리터럴 안이라 JS 주석은 안 되고,
+      --   백틱을 쓰면 문자열이 그 자리에서 끊긴다(실제로 한 번 끊었다).
+      incl_items jsonb,
+      excl_items jsonb,
+      note text not null default ''
+    )
+  `;
+  /* 고객 화면이 「판매중 + 출발일 가까운 순」으로 훑는다 */
+  await sql`create index if not exists packages_open_idx on packages (status, depart_date)`;
+
+  console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations, app_settings, itinerary_overrides, packages tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
 }
 
 main().catch((err) => {
