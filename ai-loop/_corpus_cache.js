@@ -30,8 +30,10 @@ const CACHE = path.join(__dirname, '.backtest_cache.json');
          「맞출 수 있다」와 「실제로 그랬다」를 가르는 데 쓴다 — 없으면 손잡이 탐색이
          우연히 맞은 것과 진짜를 구분하지 못한다(과적합).
     10 — VM: `specHints.airExcluded`(문서가 **항공 불포함이라 말하는가**). 「항공 단가를
-         못 읽음」을 「항공 없음」이라 부르던 오진을 가른다 — 처방이 정반대다. */
-const CACHE_VERSION = 10;
+         못 읽음」을 「항공 없음」이라 부르던 오진을 가른다 — 처방이 정반대다.
+    11 — VN: `specHints.fee/vat` · `shape`(미분류 비중·골프 줄 수). **정답지의 성격**을
+         가르는 데 쓴다 — 가설 셋이 기각된 뒤 남은 의심이 표본 자체라서다. */
+const CACHE_VERSION = 11;
 
 const DEFAULT_CORPUS = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');
 
@@ -56,6 +58,21 @@ const SINGLE_RE = /1\s*인\s*1\s*실|싱글\s*차지|single\s*(charge|room)/i;
      「불포함사항: 개인경비」와 「항공 시간 변경 가능」이 있는 문서가 전부 걸린다. */
 const AIR_EXCLUDED_RE = /불포함[^\n]{0,40}항공|항공[^\n]{0,20}불포함|항공료\s*(별도|불포함)/;
 
+/* ── 문서의 **성격**을 재는 신호 (VN) ──────────────────────────────────────
+   VL·VM에서 가설 셋이 기각됐다(요율 · 사양 · 지상비). 남은 의심은 **정답지**다 —
+   36건이 정말 우리 가견적과 같은 상품인가.
+   ⚠ 전부 「문서가 그렇게 적었다」까지다. 뜻을 단정하지 않는다.
+
+   알선 수수료 = 여행사가 **우리 마진에 해당하는 몫**을 별도 줄로 적은 것.
+   이 줄이 있으면 그 견적서 총액에 여행사 이윤이 **명시적으로** 들어 있다. 없으면
+   단가에 녹아 있거나 아예 없다 — 우리와 견주는 뜻이 서로 다르다.
+
+   부가세 = 우리 화면은 「예상 총액 (VAT 별도)」인데, 견적서 10건은 「부가세 포함 ·
+   세금계산서 발행 가능」이라 적는다. 해외여행은 여행경비가 면세이고 **알선수수료만
+   과세**라 그렇게 쓰는 것이 관행이다. 둘이 같은 것을 세고 있는지 봐야 한다. */
+const FEE_RE = /알선\s*수수료|여행\s*수수료|대행\s*수수료|취급\s*수수료/;
+const VAT_RE = /부가세|부가가치세|\bVAT\b|세금계산서/i;
+
 function specHintsOf(text) {
   const t = String(text || '');
   if (!t) return null;                      /* 본문을 못 얻었다 — false로 채우면 「없다」로 읽힌다 */
@@ -63,6 +80,26 @@ function specHintsOf(text) {
     business: BUSINESS_RE.test(t),
     single: SINGLE_RE.test(t),
     airExcluded: AIR_EXCLUDED_RE.test(t),
+    fee: FEE_RE.test(t),
+    vat: VAT_RE.test(t),
+  };
+}
+
+/* 문서 돈의 몇 %가 **우리 9칸 어디에도 안 들어가는가**.
+   ⚠ `audit_item_taxonomy`·`audit_gap_source`와 **같은 목록**을 써야 한다 —
+     세 곳이 다른 칸을 세면 어느 쪽을 믿을지 알 수 없다(결함 생성기 ①). */
+const RATE_CATS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'golf'];
+
+function shapeOf(r) {
+  const cands = (r.candidates || []).filter((c) => !c.unconvertible);
+  if (!cands.length) return null;           /* 줄을 하나도 못 읽었다 — 0%로 채우면 「깨끗하다」로 읽힌다 */
+  const denom = r.grandTotal || r.itemsTotal || 0;
+  const unclass = cands.filter((c) => RATE_CATS.indexOf(c.category) < 0)
+    .reduce((n, c) => n + (c.total || 0), 0);
+  return {
+    unclassRatio: denom ? unclass / denom : null,
+    golfLines: cands.filter((c) => c.category === 'golf').length,
+    lines: cands.length,
   };
 }
 
@@ -123,6 +160,9 @@ async function loadCorpus(opts) {
            ⚠ 낱말을 넓게 잡지 않았다 — 「비즈니스」만으로 잡으면 「비즈니스 미팅」·
              「비즈니스 센터」가 전부 걸린다. 좌석/객실을 가리키는 말만 본다. */
         specHints: specHintsOf(r.text),
+        /* VN: 문서 돈의 성격 — 미분류 비중·골프 줄 수. 못 읽으면 null이다(0%로 채우면
+           「깨끗한 문서」로 읽혀, 비교 가능성 판정이 통째로 거짓이 된다). */
+        shape: shapeOf(r),
       });
     } catch (e) {
       out.push({ file: f, error: String(e.message).slice(0, 120) });
