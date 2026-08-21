@@ -30,10 +30,8 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
-const { JSDOM } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
-const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 const DEFAULT_CORPUS = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');
 const args = process.argv.slice(2);
@@ -67,43 +65,10 @@ const TARGETS = require('./_accuracy_target');
 const extractCorpus = () => loadCorpus({ corpus: CORPUS, useCache: USE_CACHE });
 
 /* ── 엔진 ────────────────────────────────────────────────────────────────
-   ⚠ `script.js`의 견적 엔진은 화면과 엮여 있어 jsdom으로 띄운다.
-   합쳐 eval하는 파일 목록은 CLAUDE.md가 정한 그대로다(rec_fallbacks.js를 빼면
-   REC_FALLBACKS가 undefined라 그 자리에서 죽는다). */
-async function bootEngine() {
-  /* ⚠ **운영 요율을 얹고 잰다**(TR). 안 얹으면 data.js 기본값으로 재는데 고객은
-     오버라이드로 계산된 금액을 본다 — 그러면 이 표는 고객이 겪는 오차가 아니다. */
-  const { loadOverrides, applyOverrides } = require('./_rate_overrides');
-  const ov = await loadOverrides();
-  const EXPOSE = '\n;try{window.__DR=destinationRates;}catch(e){}';
-  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
-  const dom = new JSDOM(read('index.html'), {
-    runScripts: 'dangerously', url: 'http://localhost/',
-    beforeParse(window) {
-      /* ⚠ 네트워크를 막는다 — 안 막으면 운영 DB의 site_events에 행이 쌓인다. */
-      window.fetch = () => new Promise(() => {});
-      const ctx = new Proxy({}, { get: () => (() => ctx) });
-      window.HTMLCanvasElement.prototype.getContext = () => ctx;
-      window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
-    },
-  });
-  const { window } = dom;
-  try { window.eval(APP); } catch (e) { console.log('[eval warn] ' + e.message); }
-  await new Promise((r) => setTimeout(r, 150));
-  if (typeof window.getBreakdownData !== 'function') throw new Error('엔진 로드 실패 — getBreakdownData 없음');
-  console.log('요율 오버라이드 ' + applyOverrides(window.__DR, ov.overrides) + '칸 적용 — ' + ov.from);
-  const doc = window.document;
-  return (o) => {
-    doc.getElementById('destination').value = o.dest;
-    doc.getElementById('participants').value = String(o.pax);
-    doc.getElementById('days').value = String(o.days);
-    doc.getElementById('startDate').value = o.date;
-    ['incHotel', 'incMeal', 'incVehicle', 'incGuide', 'incSightseeing'].forEach((id) => {
-      const e = doc.getElementById(id); if (e) e.checked = true;
-    });
-    return window.getBreakdownData();
-  };
-}
+   부팅은 **_engine_boot.js 하나가 진실**이다(VM). 네트워크 차단·운영 요율 얹기·
+   합쳐 eval하는 파일 목록이 도구마다 따로 있으면, 한 벌만 빠뜨려도 그 도구만
+   조용히 다른 것을 재게 된다(결함 생성기 ①). */
+const { bootEngine } = require('./_engine_boot');
 
 const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%';
 function quantile(sorted, q) {
@@ -120,7 +85,7 @@ function quantile(sorted, q) {
     process.exit(1);
   }
   const corpus = await extractCorpus();
-  const run = await bootEngine();
+  const { run } = await bootEngine();
 
   const rows = [];
   const skipped = [];

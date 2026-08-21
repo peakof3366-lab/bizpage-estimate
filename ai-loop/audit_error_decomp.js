@@ -46,10 +46,8 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
-const { JSDOM } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
-const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 const { loadCorpus, DEFAULT_CORPUS } = require('./_corpus_cache');
 const { comparable } = require('./_comparable');
@@ -125,61 +123,10 @@ const pct = (n) => (n == null ? '—' : (n >= 0 ? '+' : '') + (n * 100).toFixed(
 const pp = (n) => (n == null ? '—' : (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%p');
 const won = (n) => (n == null ? '—' : Number(Math.round(n)).toLocaleString());
 
-async function bootEngine() {
-  /* ⚠ **운영 요율을 얹고 잰다**(TR·VB). 안 얹으면 data.js 기본값으로 재는데 고객은
-     오버라이드로 계산된 금액을 본다 — 그러면 이 표는 고객이 겪는 오차가 아니다. */
-  const { loadOverrides, applyOverrides } = require('./_rate_overrides');
-  const ov = await loadOverrides();
-  const EXPOSE = '\n;try{window.__DR=destinationRates;}catch(e){}';
-  const APP = read('data.js') + '\n' + read('company-info.js') + '\n' + read('rec_fallbacks.js') + '\n' + read('script.js') + EXPOSE;
-  const dom = new JSDOM(read('index.html'), {
-    runScripts: 'dangerously', url: 'http://localhost/',
-    beforeParse(window) {
-      window.fetch = () => new Promise(() => {});
-      const ctx = new Proxy({}, { get: () => (() => ctx) });
-      window.HTMLCanvasElement.prototype.getContext = () => ctx;
-      window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
-    },
-  });
-  const { window } = dom;
-  try { window.eval(APP); } catch (e) { console.log('[eval warn] ' + e.message); }
-  await new Promise((r) => setTimeout(r, 150));
-  if (typeof window.getBreakdownData !== 'function') throw new Error('엔진 로드 실패 — getBreakdownData 없음');
-  console.log('요율 오버라이드 ' + applyOverrides(window.__DR, ov.overrides) + '칸 적용 — ' + ov.from);
-  const doc = window.document;
-  const DR = window.__DR;
-
-  const run = (o) => {
-    doc.getElementById('destination').value = o.dest;
-    doc.getElementById('participants').value = String(o.pax);
-    doc.getElementById('days').value = String(o.days);
-    doc.getElementById('startDate').value = o.date;
-    ['incHotel', 'incMeal', 'incVehicle', 'incGuide', 'incSightseeing'].forEach((id) => {
-      const e = doc.getElementById(id); if (e) e.checked = true;
-    });
-    return window.getBreakdownData();
-  };
-
-  /* ⚠ `destinationRates`는 **이름을 키로 쓰는 객체가 아니라 배열**이다 —
-     `destination_key`로 찾는다(`_rate_overrides.applyOverrides`와 같은 방식).
-     `DR[dest]`로 쓰면 전건이 조용히 null이 되어 「분해할 수 없는 견적서」로 보인다
-     (처음 돌렸을 때 실제로 36건 전부 그렇게 나왔다). */
-  const rowOf = (dest) => DR.find((x) => x.destination_key === dest);
-
-  /* 칸을 잠깐 바꿔 돌리고 **반드시 되돌린다.** 안 되돌리면 다음 견적서가 앞 건의
-     실측값으로 계산되어 표 전체가 조용히 오염된다(가장 찾기 어려운 종류다). */
-  const runWith = (o, patch) => {
-    const row = rowOf(o.dest);
-    if (!row) return null;
-    const saved = {};
-    Object.keys(patch).forEach((f) => { saved[f] = row[f]; row[f] = patch[f]; });
-    try { return run(o); } finally {
-      Object.keys(saved).forEach((f) => { row[f] = saved[f]; });
-    }
-  };
-
-  return { run, runWith, rowOf };
-}
+/* 엔진 부팅은 **_engine_boot.js 하나가 진실**이다(VM). 예전엔 여기와 역검증에
+   각각 있었고, 손잡이 도구가 생기면 세 벌이 됐다 — 네트워크 차단·운영 요율 얹기
+   같은 것은 한 벌만 빠뜨려도 그 도구만 조용히 다른 것을 재게 된다. */
+const { bootEngine } = require('./_engine_boot');
 
 async function main() {
   if (!fs.existsSync(CORPUS)) { console.log('코퍼스 폴더가 없습니다: ' + CORPUS); process.exit(1); }
@@ -367,4 +314,4 @@ if (require.main === module) {
   main().catch((e) => { console.error(e); process.exit(1); });
 }
 /* 테스트가 **실제로 걸어 보고** 확인할 수 있게 내보낸다(결함 생성기 ③ 대비) */
-module.exports = { CELL, LABEL, vehicleFieldOf, bootEngine };
+module.exports = { CELL, LABEL, vehicleFieldOf, toEngineBasis, bootEngine };

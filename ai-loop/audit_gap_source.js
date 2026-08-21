@@ -125,12 +125,31 @@ async function bootEngine() {
        진짜 축은 **비교 가능성**이었다:
          ① 항공을 포함한 견적서인가 — 지상비 견적서를 전 일정 엔진값과 견주면
             항공·유류만큼(1인 50만~70만) 엔진이 비싸게 나온다. 그건 엔진 오차가 아니다.
-            실측: 항공 없는 견적서 상위 넷이 전부 +15~43%다(마카오·보홀·세부·푸켓).
+            🔴 **2026-08-21(VM) 정정**: 「항공 없는 견적서 상위 넷이 +15~43%」라고 적어
+            두었는데, 그 넷은 **지상비 견적서가 아니었다.** 문서를 열어 보니 전부
+            항공이 또렷이 있었고(「왕복 항공권 포함」·편명), 우리가 **못 읽은 것**이었다.
+            코퍼스 45건 중 진짜 「항공 불포함」은 2건뿐이다. 아래 슬라이스 이름을
+            「항공 없음」 → 「항공 단가를 읽었는가」로 고쳤다.
+            ⚠ 그리고 **못 읽은 무리가 +26.6%인 것은 상관이지 인과가 아니다** —
+              추출을 고쳐도 엔진 금액은 1원도 안 바뀐다(엔진은 제 요율표로 계산한다).
+              그 무리가 왜 비싸게 나오는지는 **아직 답이 없다.** 「추출을 고치면
+              오차가 준다」로 읽지 말 것.
          ② 원가 시트인가 고객용 견적서인가 — **고객용 11건은 폭이 10.3%**로 압도적으로
             좁다(원가 시트는 38.9%). 우리 가견적은 고객에게 나가는 값이므로
             **정답지로 삼아야 할 것은 고객용 견적서다.**
        → **아무것도 버리지 않는다.** 견적서마다 답할 수 있는 질문이 다를 뿐이다. */
-    const hasAir = (r.values || {}).airfare != null;
+    /* ── 🔴 **「항공 단가를 못 읽었다」는 「항공이 없다」가 아니다** (VM) ───────
+       이 줄을 예전엔 `hasAir`라 부르고 아래 표에서 **「항공 없음(지상비)」**이라
+       찍었다. 그 무리가 중앙값 +21.7%라 「지상비 견적이라 엔진이 구조적으로 비싸다 →
+       항공 제외 기능이 필요하다」는 그럴듯한 결론이 나왔는데, **문서를 열어 보니
+       7건 중 6건에 항공이 또렷이 있었다**(「왕복 항공권 포함」·「인천 OZ747 17:00 출발」).
+       즉 그 무리는 지상비 견적이 아니라 **우리 추출 실패**였다.
+       코퍼스 45건 기준: 항공 단가를 못 읽은 11건 중 **진짜 불포함은 2건뿐**이다.
+       처방이 정반대다 — 추출 실패는 우리가 고칠 결함이고, 진짜 불포함은 애초에
+       엔진과 대조하면 안 되는 문서다(엔진은 항공을 항상 넣는다). */
+    const airRead = (r.values || {}).airfare != null;
+    const airExcluded = !!((r.specHints && r.specHints.airExcluded)
+      || /불포함[^\n]{0,40}항공|항공[^\n]{0,20}불포함|항공료\s*(별도|불포함)/.test(r.text || ''));
 
     /* ⚠ 엔진이 못 돌면 **조용히 넘기지 않는다.** 왜 못 돌았는지 세어서 마지막에 밝힌다 —
        조용한 continue 하나 때문에 이 도구가 「대조 0건」을 아무 설명 없이 뱉었다. */
@@ -146,7 +165,7 @@ async function bootEngine() {
       err: (bd.perPerson - answer) / answer,
       errWithGap: (bd.perPerson + gapPer - answer) / answer,
       unclassRatio: denom ? unclassified / denom : null,
-      hasAir,
+      airRead, airExcluded,
       /* 원가 시트인가 — 단서는 파일 이름이 아니라 **본문의 칸**이다(SC).
          「HNT 수익」·「권장수익」·「입금가」·「FOC」는 홀세일러가 우리에게 줄 때만 찍는다. */
       cost: /HNT\s*수익|권장\s*수익|입금가|\bFOC\b/i.test(r.text || ''),
@@ -195,14 +214,15 @@ async function bootEngine() {
   console.log('  ── 인원으로 자르면 (자를 이유가 없다) ──');
   slice('50명 미만', rows.filter((r) => r.pax < 50));
   slice('50명 이상', rows.filter((r) => r.pax >= 50));
-  console.log('  ── 항공 포함 여부로 자르면 ──');
-  slice('항공 포함', rows.filter((r) => r.hasAir));
-  slice('항공 없음(지상비)', rows.filter((r) => !r.hasAir));
+  console.log('  ── 항공 단가를 **읽었는가**로 자르면 (VM: 「없다」가 아니다) ──');
+  slice('항공 단가를 읽음', rows.filter((r) => r.airRead));
+  slice('🔴 못 읽음(대부분 추출 실패)', rows.filter((r) => !r.airRead && !r.airExcluded));
+  slice('문서가 항공 불포함이라 말함', rows.filter((r) => r.airExcluded));
   console.log('  ── 문서 성격으로 자르면 ──');
   slice('원가 시트', rows.filter((r) => r.cost));
   slice('🎯 고객용 견적서', rows.filter((r) => !r.cost));
   console.log('  ── 둘을 겹치면 (가견적과 성격이 가장 가까운 무리) ──');
-  slice('🎯 고객용+항공포함', rows.filter((r) => !r.cost && r.hasAir));
+  slice('🎯 고객용+항공 읽음', rows.filter((r) => !r.cost && r.airRead));
 
   const gapShare = rows.map((r) => r.unclassRatio).filter((n) => n != null);
   console.log('\n  견적서 총계 중 **어느 칸에도 안 들어가는 돈**: 중앙값 '

@@ -50,17 +50,27 @@ const tools = fs.readdirSync(AI)
      · 새 도구(`audit_error_decomp`)가 코퍼스를 `_corpus_cache`로 읽어 `_corpus_files`
        패턴에서 빠졌다. 요율을 자로 쓰는데도 이 검사 밖에 있었다. */
 const usesRateBaseline = (s) => /\[\s*CELL\[/.test(s) || /FIELD_LABEL\[/.test(s)
+  || /_engine_boot/.test(s)
   || (/new JSDOM\(/.test(s) && /read\('data\.js'\)/.test(s));
 const readsCorpus = (s) => /_corpus_files/.test(s) || /_corpus_cache/.test(s);
+/* ⚠ VM에서 엔진 부팅이 `_engine_boot.js` 한 곳으로 모였고, **오버라이드 얹기가 그 안에
+   들어갔다.** 그래서 부팅을 쓰는 도구는 `_rate_overrides`를 직접 부르지 않는다 —
+   부르지 않는 것이 오히려 맞다(잊을 수가 없어졌다). 그 경로도 통과로 본다.
+   ⚠ 다만 `_engine_boot.js` 자체는 반드시 직접 불러야 한다 — 아래 [1]에서 따로 본다. */
+const appliesOverrides = (s) => /_rate_overrides/.test(s) || /_engine_boot/.test(s);
 
 console.log('\n[1] 요율을 자로 쓰는 코퍼스 도구는 전부 운영값을 얹는다');
 {
   const measuring = tools.filter((f) => { const s = srcOf(f); return readsCorpus(s) && usesRateBaseline(s); });
   ok('① 자로 쓰는 도구를 실제로 찾아냈다 (검사가 헛돌지 않는다)', measuring.length >= 6,
     measuring.join(' · '));
-  const missing = measuring.filter((f) => !/_rate_overrides/.test(srcOf(f)));
-  ok('① 그 도구 전부가 _rate_overrides를 부른다', missing.length === 0,
+  const missing = measuring.filter((f) => !appliesOverrides(srcOf(f)));
+  ok('① 그 도구 전부가 _rate_overrides를 부른다(직접 또는 _engine_boot을 통해)',
+    missing.length === 0,
     missing.length ? '안 부르는 도구: ' + missing.join(' · ') : '');
+  /* 부팅이 한 곳으로 모인 만큼, **그 한 곳이 빠지면 전부가 함께 낡는다.** 따로 못 박는다. */
+  ok('① _engine_boot이 직접 _rate_overrides를 부른다',
+    /_rate_overrides/.test(fs.readFileSync(path.join(AI, '_engine_boot.js'), 'utf8')));
 
   /* VB에서 실제로 고친 세 자리 — 이름을 박아 둔다. 지우면 그 자리가 조용히 되돌아간다. */
   /* VL 추가: 새 분해기도 요율을 자로 쓴다. 이름을 박아 두지 않으면 탐지기 문법이

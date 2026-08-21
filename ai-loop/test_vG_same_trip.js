@@ -94,12 +94,18 @@ console.log('\n[6] 재는 도구들이 같은 판정을 쓴다');
     ok('⑥ ' + f + ' 가 _same_trip을 쓴다', /_same_trip/.test(s));
     ok('⑥ ' + f + ' 가 뺀 것을 화면에 말한다', /droppedNote/.test(s));
   });
-  /* 제자리에서 같은 판정을 다시 지은 도구가 없는지 — 다음에 또 갈라지지 않게 */
+  /* 제자리에서 같은 판정을 다시 지은 도구가 없는지 — 다음에 또 갈라지지 않게.
+     ⚠ **낱말만 보면 오탐이 난다.** 「같은 여행」은 다른 뜻으로도 쓰인다 — VM에서
+       `_engine_boot.js`가 「도구마다 기본값이 다르면 *같은 여행*에 서로 다른 금액이
+       나온다」라고 적었다가 걸렸다. 그 파일은 코퍼스를 읽지도 않는다.
+     → **코퍼스를 읽는 파일만** 본다. 코퍼스를 안 읽으면 같은 여행을 두 번 셀 수가 없다.
+       오탐이 쌓이면 그 검사는 곧 무시되고, 그때부터는 진짜도 못 잡는다. */
   const rogue = fs.readdirSync(AI)
     .filter((f) => f.endsWith('.js') && !f.startsWith('test_') && f !== '_same_trip.js')
     .filter((f) => {
       const s = fs.readFileSync(path.join(AI, f), 'utf8');
-      return /같은 여행/.test(s) && !/_same_trip/.test(s);
+      const readsCorpus = /_corpus_files|_corpus_cache/.test(s);
+      return readsCorpus && /같은 여행/.test(s) && !/_same_trip/.test(s);
     });
   ok('⑥ 제자리에서 같은 판정을 다시 지은 도구가 없다', rogue.length === 0, rogue.join(' · '));
 }
