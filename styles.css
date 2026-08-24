@@ -219,6 +219,57 @@ p { line-height:1.8; }
 }
 .nav-links a.nav-pkg:hover { border-color:var(--red); color:var(--white); }
 
+/* ── 두 번째 갈래 (VT) ──────────────────────────────────────────────
+   히어로 바로 다음. 견적 계산기 **앞**에 두는 이유: 계산기를 먼저 만나면
+   연수용 폼을 보고 「내 것이 아니다」로 읽고 나간다. 갈림길이 폼보다 먼저다.
+   ⚠ 레드는 CTA·아이브로우·핵심 수치 3곳만이라는 원칙(방향 4)을 지킨다 —
+     여기서는 아이브로우와 화살표에만 쓴다. 카드 두 장을 색으로 겨루게 하지 않는다. */
+/* ⚠ 바탕을 **흰색**으로 둔다. 바로 다음 견적 섹션이 `--bg-off`라, 여기도 off-white로
+   두면 두 섹션이 한 덩어리로 보이고 갈림길이 별개 단계로 안 읽힌다.
+   어두운 히어로 → 흰 갈림길 → off-white 계산기 순으로 층이 갈린다. */
+.section-tracks {
+  padding:calc(var(--sec-y) * .62) 0;
+  background:var(--bg); border-bottom:1px solid var(--rule);
+}
+.tracks-hd { text-align:center; margin-bottom:38px; }
+.tracks-title {
+  font-size:clamp(24px,3.4vw,38px); font-weight:900;
+  letter-spacing:-.035em; color:var(--t-head); margin:6px 0 12px;
+}
+.tracks-sub { font-size:14.5px; line-height:1.9; color:var(--t-mute); margin:0; }
+
+.tracks-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.track-card {
+  display:flex; flex-direction:column; gap:9px;
+  padding:28px 26px 24px;
+  /* 흰 바탕 위의 흰 카드는 테두리가 유일한 경계다 — 옅게 두면 카드로 안 보인다 */
+  background:var(--white); border:1px solid var(--rule-md);
+  text-decoration:none; color:inherit;
+  transition:border-color var(--dur), transform var(--dur), box-shadow var(--dur);
+}
+.track-card:hover {
+  border-color:var(--rule-md); transform:translateY(-2px);
+  box-shadow:0 10px 30px rgba(0,0,0,.06);
+}
+.track-tag {
+  font-size:10.5px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--t-sub);
+}
+.track-h { font-size:19px; font-weight:800; letter-spacing:-.02em; color:var(--t-head); line-height:1.5; }
+.track-h em { font-style:normal; border-bottom:2px solid var(--red); padding-bottom:1px; }
+.track-d { font-size:13.5px; line-height:1.85; color:var(--t-mute); }
+.track-d b { color:var(--t-body); font-weight:700; }
+.track-go {
+  margin-top:6px; font-size:13px; font-weight:700; color:var(--red);
+  transition:letter-spacing var(--dur);
+}
+.track-card:hover .track-go { letter-spacing:.02em; }
+
+@media (max-width:720px) {
+  .tracks-grid { grid-template-columns:1fr; gap:12px; }
+  .track-card { padding:22px 20px 20px; }
+}
+
 .nav-toggle {
   display:none; flex-direction:column; align-items:center; justify-content:center;
   gap:5px; min-width:44px; min-height:44px;
