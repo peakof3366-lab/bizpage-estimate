@@ -88,6 +88,19 @@ function run() {
   ok('① 발급은 아직 막혀 있다(먼저 저장해야 한다)', d.getElementById('pkgIssue').disabled === true);
   ok('① 왜 막혔는지 말한다', /먼저 저장/.test(txt('pkgIssueGate')));
 
+  console.log('\n[1-b] 🔴 상태 라벨이 1회용에 거짓말을 하지 않는다');
+  {
+    /* 값은 셋 그대로여야 한다 — 서버·필터·인덱스가 그 값을 본다 */
+    const sel = d.getElementById('pkgStatus');
+    const values = Array.from(sel.options).map((o) => o.value);
+    ok('①b 상태 값은 draft/open/closed 그대로다', values.join(',') === 'draft,open,closed', values.join(','));
+    const labels = Array.from(sel.options).map((o) => o.textContent);
+    ok('①b 1회용에 「고객에게 보임」이라고 말하지 않는다',
+      !labels.some((t) => /고객에게 보임/.test(t)), labels.join(' | '));
+    ok('①b open을 「확정(견적서 발급 가능)」이라고 부른다',
+      /확정/.test(labels[1]) && /발급/.test(labels[1]), labels[1]);
+  }
+
   console.log('\n[2] 출처를 「대리점가」로 바꾸면 자동 날짜를 비운다');
   const basis = d.getElementById('pkgBasis');
   basis.value = 'agency'; basis.dispatchEvent(new w.Event('change'));
@@ -117,6 +130,12 @@ function run() {
   /* 🔴 VP의 핵심 규칙 — 확인도 안 한 날짜가 굳는 것을 막는 유일한 장치다 */
   ok('⑤ 금액 확인일을 미리 채우지 않는다 (VP 규칙 유지)', val('pkgAsOf') === '', val('pkgAsOf'));
   ok('⑤ 라벨이 「공급사에게 확인한 날」이라고 묻는다', /공급사에게 확인한 날/.test(txt('pkgAsOfLbl')));
+  {
+    /* 상품 쪽 상태 라벨은 예전 그대로여야 한다 — 여기는 진짜로 노출 이야기다 */
+    const labels = Array.from(d.getElementById('pkgStatus').options).map((o) => o.textContent);
+    ok('⑤ 상품은 「판매중 (고객에게 보임)」이라고 그대로 말한다',
+      /판매중/.test(labels[1]) && /고객에게 보임/.test(labels[1]), labels[1]);
+  }
 
   console.log('\n[6] 자동 ID가 겹치지 않는다');
   const seen = new Set();
