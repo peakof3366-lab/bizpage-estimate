@@ -322,6 +322,11 @@
                       <option value="leadership">리더십 / 조직문화</option>
                       <option value="industry">산업체 실무 연수</option>
                       <option value="academic">교육기관 / 연구 연수</option>
+                      <!-- 🔴 휴양 (VV) — 앞 넷과 성격이 다르다. 이걸 고르면 차량·가이드가
+                           기본으로 꺼진다(실측: 그 둘이 정액이라 소수인원에서 1인당 979,000원이
+                           되고, 켜 둔 채로는 소매가의 두 배가 나온다). data.js PROGRAM_TYPES가
+                           진실이고 test_rK가 이 목록과 대조한다 — 한쪽만 고치면 걸린다. -->
+                      <option value="leisure">휴양 / 자유여행</option>
                     </select>
                   </label>
                   <label class="fld">
@@ -330,6 +335,10 @@
                       <option value="company">기업</option>
                       <option value="public">공공기관</option>
                       <option value="education">교육기관</option>
+                      <!-- 일반 고객 (VV) — 기관이 아니라 개인·가족·친목 모임.
+                           계수는 1.0(=조정 없음)이다. 값을 지어내지 않았다는 뜻이고,
+                           그 상태에서 실측이 소매가와 +1.6%였다. -->
+                      <option value="individual">일반 고객 (개인 · 가족 · 모임)</option>
                     </select>
                   </label>
                 </div>
@@ -427,6 +436,14 @@
                   </div>
 
                   <span class="inc-sec-lbl">추가 선택</span>
+                  <!-- 🔴 휴양을 골랐을 때만 보인다(VV). **왜 꺼졌는지 말한다** — 조용히 끄면
+                       고객은 금액이 왜 이렇게 나왔는지 모르고, 우리도 나중에 그 견적을
+                       설명할 수 없다(결함 생성기 ②). 다시 켤 수 있다는 것도 함께 알린다. -->
+                  <p class="inc-leisure-note hidden" id="leisureNote">
+                    휴양 여행은 <b>전용 차량과 가이드를 기본으로 빼고</b> 계산합니다 —
+                    소수 인원에서는 이 두 항목이 1인당 금액을 크게 올립니다(정액이라 나눠도 줄지 않습니다).
+                    필요하시면 아래에서 다시 선택하시면 금액에 바로 반영됩니다.
+                  </p>
                   <div class="inc-chips">
                     <label class="inc-chip">
                       <input type="checkbox" id="incHotel" checked />

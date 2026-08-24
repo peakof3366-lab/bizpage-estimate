@@ -309,11 +309,15 @@ const EMPTY = {
   console.log('\n[5-c] 프로그램 유형에 따라 코스↔방식 매핑이 바뀌는가');
   w.__select('도쿄'); w.__setCourses(COURSES); btn.click();
   const typeSel = d.getElementById('recPvType');
-  ok('프로그램 유형을 고를 수 있다', !!typeSel && typeSel.options.length === 4,
-    typeSel ? String(typeSel.options.length) : '(없음)');
+  /* ⚠ 개수와 키를 **여기 적지 않는다**(VV에서 휴양이 늘면서 4로 못 박아 둔 것이 걸렸다).
+     기대값을 data.js에서 파생시킨다 — 그러면 유형이 늘어도 이 검사는 「화면이 그 표를
+     그대로 쓰는가」만 묻는다. 목록을 두 번 적지 않는다는 이 저장소 원칙 그대로다. */
+  const EXPECT_TYPES = Object.keys(require('../data').PROGRAM_TYPES);
+  ok('프로그램 유형을 고를 수 있다', !!typeSel && typeSel.options.length === EXPECT_TYPES.length,
+    typeSel ? typeSel.options.length + '개 vs data.js ' + EXPECT_TYPES.length + '개' : '(없음)');
   ok('유형 이름이 data.js의 PROGRAM_TYPES에서 온다',
-    Array.from(typeSel.options).map((o) => o.value).join(',') === 'language,leadership,industry,academic',
-    Array.from(typeSel.options).map((o) => o.value).join(','));
+    Array.from(typeSel.options).map((o) => o.value).join(',') === EXPECT_TYPES.join(','),
+    Array.from(typeSel.options).map((o) => o.value).join(',') + ' vs ' + EXPECT_TYPES.join(','));
   /* 도쿄 PROGRAM_PRIORITY: language:[2,1] leadership:[1,0] industry:[0,1]
      코스를 2개만 뒀으니 인덱스 2는 범위를 넘어 0으로 접힌다 — 고객 코드와 같은 규칙이다 */
   w.__pvType('leadership');

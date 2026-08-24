@@ -245,11 +245,19 @@ const estimateCriteria = {
     leadership: 1.12,
     industry: 1.18,
     academic: 1.05,
+    /* 휴양 (VV) — **1.0 = 계수를 걸지 않는다.** 값을 지어내지 않았다는 뜻이다.
+       연수 유형의 계수는 프로그램 운영 난이도(강사·기관 섭외)를 반영한 것인데
+       휴양에는 그 일이 없다. 그리고 1.0인 상태에서 실측이 소매가와 **+1.6%**였다
+       (오키나와 4명, 차량·가이드 제외). 올릴 근거가 없다.
+       ⚠ 휴양에 다른 마진 정책을 두려면 여기 한 줄이고, 그건 대표 결정이다. */
+    leisure: 1.0,
   },
   organizationFactor: {
     company: 1.0,
     public: 1.06,
     education: 0.95,
+    /* 일반 고객 (VV) — 기관이 아니라 개인·가족·모임. 위와 같은 이유로 1.0이다. */
+    individual: 1.0,
   },
   formula: '항공+유류+숙박+식비+차량+가이드+관광+마진 × 프로그램 계수 × 기관 계수',
 };
@@ -1156,6 +1164,35 @@ function syncGolfAvailability() {
   ['incHotel','incMeal','incVehicle','incGuide','incSightseeing'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', renderLiveBreakdown);
   });
+  /* 🔴 휴양을 고르면 차량·가이드를 **기본으로 끈다**(VV). 실측이 정한 것이다 —
+     그 둘은 인원과 무관한 **정액**이라 소수인원에서 1인당으로 나누면 폭발한다.
+     오키나와 3박4일 4명: 전부 포함 2,320,246원(소매가 +95.0%) → 둘을 빼면 1,208,446원(+1.6%).
+     ⚠ **끄기만 하고 잠그지는 않는다.** 휴양이라도 밴을 부르는 팀이 있다 — 고객이 다시
+       켤 수 있어야 한다. 잠그면 「우리는 그 옵션을 안 판다」는 뜻이 되어버린다.
+     ⚠ 그리고 **왜 꺼졌는지 반드시 말한다.** 조용히 끄면 고객은 금액이 왜 이렇게
+       나왔는지 모르고, 우리도 나중에 그 견적을 설명할 수 없다(결함 생성기 ②). */
+  (function attachLeisureDefaults() {
+    const prg = document.getElementById('programType');
+    if (!prg) return;
+    const note = document.getElementById('leisureNote');
+    const apply = () => {
+      const leisure = prg.value === 'leisure';
+      ['incVehicle', 'incGuide'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (leisure) {
+          /* 사람이 직접 켜 둔 것을 지우지 않는다 — 자동으로 끈 것만 되돌린다 */
+          if (el.checked) { el.checked = false; el.dataset.autoOff = '1'; }
+        } else if (el.dataset.autoOff) {
+          el.checked = true; delete el.dataset.autoOff;
+        }
+      });
+      if (note) note.classList.toggle('hidden', !leisure);
+      renderLiveBreakdown();
+    };
+    prg.addEventListener('change', apply);
+    apply();   /* 첫 진입에도 맞춘다 — 뒤로가기로 휴양이 선택된 채 열릴 수 있다 */
+  })();
   /* TJ: 골프 — 목적지가 바뀔 때마다 쓸 수 있는지 다시 본다 */
   document.getElementById('destination')?.addEventListener('change', syncGolfAvailability);
   document.getElementById('incGolf')?.addEventListener('change', () => {

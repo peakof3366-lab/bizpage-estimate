@@ -519,6 +519,15 @@ p { line-height:1.8; }
   margin-top:2px;
 }
 .inc-sec-lbl:first-child { padding-top:0; border-top:none; margin-top:0; }
+
+/* 휴양 선택 시 「차량·가이드를 왜 뺐는지」 (VV). 경고가 아니라 설명이라 레드를 쓰지 않는다 —
+   고객이 잘못한 것이 없고, 우리가 계산 기준을 밝히는 자리다. */
+.inc-leisure-note {
+  margin:0 0 8px; padding:9px 11px;
+  background:var(--bg-off); border-left:2px solid var(--rule-md);
+  font-size:11.5px; line-height:1.75; color:var(--t-mute);
+}
+.inc-leisure-note b { color:var(--t-body); font-weight:700; }
 .inc-sec-lbl + .inc-fixed-row { margin-top:4px; }
 .inc-sec-lbl + .inc-grade-row { border-top:none; padding-top:4px; }
 .inc-sec-lbl + .inc-chips { margin-top:2px; }

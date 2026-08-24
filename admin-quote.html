@@ -556,12 +556,16 @@
             <option value="leadership">리더십 / 조직문화</option>
             <option value="industry">산업체 실무 연수</option>
             <option value="academic">교육기관 / 연구 연수</option>
+            <!-- ⚠ 이 목록은 index.html·data.js와 **세 벌**이다(결함 생성기 ①).
+                 test_vV가 세 곳을 함께 대조한다 — 예전엔 index.html만 대조하고 있었다. -->
+            <option value="leisure">휴양 / 자유여행</option>
           </select>
           <select id="organizationType" class="aq-native-hidden" required tabindex="-1" aria-hidden="true"
                   data-field-label="기관 유형" data-reveal="#organizationTypeList">
             <option value="company">기업</option>
             <option value="public">공공기관</option>
             <option value="education">교육기관</option>
+            <option value="individual">일반 고객 (개인 · 가족 · 모임)</option>
           </select>
           <select id="visitMode" class="aq-native-hidden" tabindex="-1" aria-hidden="true">
             <option value="official">기관·기업 공식 방문 포함</option>
