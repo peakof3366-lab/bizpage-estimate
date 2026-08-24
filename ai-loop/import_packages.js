@@ -39,8 +39,14 @@ const ROOT = path.join(__dirname, '..');
 const { corpusFiles } = require('./_corpus_files.js');
 const { destFromName } = require('./_dest_from_name');
 
+const R = require('./_package_rows');
+
 const argv = process.argv.slice(2);
 const APPLY = argv.includes('--apply');
+/* 🔴 문서에 작성일이 없을 때 **오늘로 채워서라도** 만들겠다는 뜻. 기본은 안 만든다.
+   예전엔 이게 기본이라 실측 38건 중 28건이 「오늘 확인함」으로 들어갔다 —
+   확인한 적이 없는데 배지가 7일간 안 뜨고, 고객 견적서에 그 날짜가 찍혔다. */
+const ASSUME_TODAY = argv.includes('--assume-today');
 const ONLY = (argv.find((a) => a.startsWith('--only')) ? argv[argv.indexOf(argv.find((a) => a.startsWith('--only'))) + 1] : null);
 const DIR = argv.find((a) => !a.startsWith('--') && a !== ONLY)
   || process.env.BIZPAGE_CORPUS
@@ -126,29 +132,26 @@ async function main() {
     /* ⚠ **금액 확인일은 문서 작성일을 후보로 넣을 뿐이다.**
        그게 「우리가 확인한 날」이라는 보장은 없다 — 실측으로 작성일이 실은
        「PDF로 뽑은 날」인 문서가 여럿이었다. 그래서 note에 출처를 남기고 draft로 둔다. */
-    const asOf = dates.quoteDate || null;
-    const asOfWhy = asOf
-      ? '금액 확인일은 문서의 작성일(' + asOf + ')에서 가져왔습니다 — 실제로 확인한 날로 고쳐 주세요.'
-      : '⚠ 문서에 작성일이 없어 오늘 날짜를 넣었습니다 — 반드시 확인한 날로 고쳐 주세요.';
-
-    rows.push({
+    /* 🔴 **행으로 만드는 규칙은 `_package_rows.js` 하나가 진실이다**(VW).
+       여기는 「PDF를 읽는 어댑터」일 뿐이다 — 엑셀·피드가 붙어도 그쪽은 읽기만 쓰고
+       draft·kind·금액확인일 정책은 같은 함수에서 나온다. 형태마다 다시 쓰면 하나를
+       빠뜨리고, 빠뜨린 것이 하필 「오늘 날짜를 조용히 넣는」 자리였다. */
+    const built = R.buildPackageRow({
       id: idFrom(f),
       source: 'hanatour',
       title: titleFrom(f, dn.key, dates),
       destKey: dn.key || null,
-      destLabel: dn.key || null,
       nights: dates.nights || null,
       days: dates.days || null,
       departDate: dates.departDate,
-      pricePerPerson: Math.round(price),
-      priceAsOf: asOf,
-      /* ⚠ 항상 draft다. 고객에게 나가려면 사람이 연다 — 위 머리말 참고. */
-      status: 'draft',
-      itinerary: iti,
-      note: asOfWhy + ' (출처 파일: ' + f + ')',
-      _file: f,
-      _dayCount: iti ? iti.length : 0,
-    });
+      pricePerPerson: price,
+      priceAsOf: dates.quoteDate || null,
+      itinerary: iti || [],
+      origin: '출처 파일: ' + f,
+    }, { assumeToday: ASSUME_TODAY });
+
+    if (!built.ok) { skipped.push({ f, why: built.why, needsAsOf: built.needsAsOf }); continue; }
+    rows.push(Object.assign(built.row, { _file: f }));
   }
 
   /* ── 표 ── */
@@ -160,14 +163,28 @@ async function main() {
       + won(p.pricePerPerson).padStart(11) + '원'
       + '   일정 ' + String(p._dayCount).padStart(2) + '일'
       + '   ' + p._file.slice(0, 40));
-    if (!p.priceAsOf) console.log('     ⚠ 문서에 작성일이 없다 — 금액 확인일을 사람이 넣어야 한다');
+    if (!p._asOfFromDoc) console.log('     ⚠ 금액 확인일이 **투입한 날**이다(문서에 작성일이 없었다) — 확인한 날로 고쳐야 한다');
     if (!p.destKey) console.log('     ⚠ 목적지를 못 정했다 — 관리자 화면에서 지역명을 적어야 한다');
     if (!p._dayCount) console.log('     ⚠ 일정을 못 읽었다 — 금액만 들어간다');
   });
 
   if (skipped.length) {
-    console.log('\n──── 못 만든 것 ' + skipped.length + '건 ────');
-    skipped.forEach((s) => console.log('  · ' + wpad(s.f.slice(0, 44), 46) + s.why));
+    /* ⚠ **못 만든 것을 한 뭉치로 뭉개지 않는다.** 「확인일 한 칸만 있으면 되는 것」과
+       「영영 못 읽는 것」은 사람이 할 일이 전혀 다르다 — 갈라서 보여준다. */
+    const needAsOf = skipped.filter((s) => s.needsAsOf);
+    const other = skipped.filter((s) => !s.needsAsOf);
+    if (needAsOf.length) {
+      console.log('\n──── 🔴 금액 확인일이 없어 만들지 않은 것 ' + needAsOf.length + '건 ────');
+      console.log('  문서에 작성일이 없습니다. **오늘 날짜를 조용히 넣지 않습니다** —');
+      console.log('  그러면 확인한 적 없는 날짜가 고객 견적서에 찍히고, 「N일 전 금액」 배지도 안 뜹니다.');
+      needAsOf.forEach((s) => console.log('  · ' + s.f.slice(0, 60)));
+      console.log('  → 자료에 기준일이 있으면 그것으로 다시 받으시거나,');
+      console.log('    투입한 날로 채워서라도 만들려면 **--assume-today**를 붙이세요(note에 그 사실이 남습니다).');
+    }
+    if (other.length) {
+      console.log('\n──── 못 만든 것 ' + other.length + '건 ────');
+      other.forEach((s) => console.log('  · ' + wpad(s.f.slice(0, 44), 46) + s.why));
+    }
   }
 
   console.log('\n⚠ 만들어지는 상품은 **전부 「작성중」**입니다 — 고객에게 안 보입니다.');
@@ -193,13 +210,17 @@ async function main() {
     await sql`
       insert into packages (
         id, source, title, dest_key, dest_label, nights, days, depart_date,
-        price_per_person, price_asof, status, itinerary, note, updated_by
+        price_per_person, price_asof, status, kind, price_basis,
+        itinerary, note, updated_by
       ) values (
         ${p.id}, ${p.source}, ${p.title}, ${p.destKey}, ${p.destLabel},
         ${p.nights}, ${p.days}, ${p.departDate},
         ${p.pricePerPerson},
-        ${p.priceAsOf ? new Date(p.priceAsOf).toISOString() : new Date().toISOString()},
+        ${new Date(p.priceAsOf).toISOString()},
         ${p.status},
+        ${/* ⚠ **DB 기본값에 기대지 않는다**(VW) — 기본값이 바뀌면 투입분이 조용히
+             1회용(adhoc)이 되거나 그 반대가 된다. 값을 여기서 못 박는다. */ p.kind},
+        ${p.priceBasis},
         ${p.itinerary == null ? null : JSON.stringify(p.itinerary)},
         ${p.note}, ${'import_packages'}
       )`;

@@ -40,6 +40,10 @@ const MIG = read('ai-loop/db_migrate.js');
    사는 곳만 바뀌었으므로, 여기서 보는 자리도 함께 옮긴다.
    ⚠ 옛 자리를 계속 보면 「조건이 사라졌다」로 잘못 읽힌다 — 실제로는 단일 출처가 된 것이다. */
 const LIB = read('api/_lib/packages.js');
+/* VW에서 **투입 규칙**(항상 draft · 금액 확인일 정책 · kind/basis)이 여기로 모였다.
+   자료 형태(PDF·엑셀·피드)마다 다시 쓰지 않기 위함이다 — 투입기는 「읽는 어댑터」가 됐다.
+   ⚠ 그래서 아래 ⑨의 몇 줄은 **import_packages.js가 아니라 이 파일**을 봐야 한다. */
+const INTAKE = read('ai-loop/_package_rows.js');
 
 console.log('\n[1] 🔴 패키지 흐름이 견적 엔진을 타지 않는다');
 {
@@ -170,7 +174,10 @@ console.log('\n[9] PDF 일괄 투입 — 자동화가 판단을 대신하지 않
 
   /* 🔴 이것이 이 자동화의 **유일한 안전장치**다. 열려서 나가는 것은 사람이 정한다 —
      우리는 대리점이라 화면에 적힌 값으로 팔아야 하고, 낡은 값이면 차액을 우리가 문다. */
-  ok('⑨ 만드는 행이 항상 draft다', /status: 'draft'/.test(IMP) && !/status: 'open'/.test(IMP));
+  /* VW: 규칙이 _package_rows.js로 옮겨졌다. **투입기에는 없어야 정상**이다 —
+     어댑터가 정책을 다시 적으면 형태가 늘 때마다 사본이 늘어난다(test_vW ⑦이 그것을 막는다). */
+  ok('⑨ 만드는 행이 항상 draft다', /status: 'draft'/.test(INTAKE) && !/status: 'open'/.test(INTAKE));
+  ok('⑨ 투입기(어댑터)는 그 정책을 다시 적지 않는다', !/status: 'draft'/.test(IMP));
   ok('⑨ 왜 draft인지가 적혀 있다', /판매중으로 열지 않는다/.test(IMP));
   ok('⑨ 금액 확인일의 출처를 note에 남긴다', /문서의 작성일\('/.test(IMP) || /문서의 작성일/.test(IMP));
   ok('⑨ 작성일이 「뽑은 날」일 수 있다는 실측이 적혀 있다', /PDF로 뽑은 날/.test(IMP));
@@ -205,9 +212,12 @@ console.log('\n[9] PDF 일괄 투입 — 자동화가 판단을 대신하지 않
   }
 
   /* 못 만든 것을 조용히 넘기지 않는다 — 왜 못 만들었는지 말해야 사람이 고친다 */
-  ok('⑨ 못 만든 것의 이유를 말한다', /못 만든 것 ' \+ skipped\.length/.test(IMP));
+  ok('⑨ 못 만든 것의 이유를 말한다', /못 만든 것 ' \+ (skipped|other)\.length/.test(IMP));
+  /* VW: 「확인일만 있으면 되는 것」과 「영영 못 읽는 것」을 갈라 보여준다 —
+     사람이 할 일이 전혀 다르기 때문이다 */
+  ok('⑨ 못 만든 것을 두 갈래로 가른다', /needsAsOf/.test(IMP));
   ok('⑨ 금액·출발일이 없으면 안 만든다',
-    /1인당 금액을 못 읽었다/.test(IMP) && /출발일을 못 읽었다/.test(IMP));
+    /1인당 금액을 못 읽었다/.test(IMP + INTAKE) && /출발일을 못 읽었다/.test(IMP + INTAKE));
   ok('⑨ require만으로 코퍼스를 안 읽는다',
     /require\.main === module/.test(IMP) && typeof M.idFrom === 'function');
 }
