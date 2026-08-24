@@ -45,6 +45,7 @@ node ai-loop/audit_rates.js         # 요율 '값' 점검 — 결과는 '확인 
 **견적서 PDF 추출을 손댔으면 코퍼스로 재 본다** (읽기 전용, 코퍼스는 저장소 밖).
 
 ```bash
+node ai-loop/audit_self_checks.js   # **추출기가 스스로 돌리는 검산 두 개** — 정답지가 맞는가 (WD)
 node ai-loop/audit_vacuous_rows.js  # 검산 안 된 줄이 대표 단가가 되는가 — 신뢰도까지 본다
 node ai-loop/audit_row_categories.js # 검산줄이 어느 항목인지 알아냈는가 — 못 알아낸 이유까지 센다
 node ai-loop/audit_coverage.js      # 우리가 읽은 줄이 총계의 몇 %를 설명하는가 — 덜 읽은 것을 잡는다
@@ -61,6 +62,7 @@ node ai-loop/audit_itinerary.js     # 일정표를 얼마나 읽어냈는가 (�
 
 | 도구 | 답하는 것 | 답하지 **못하는** 것 |
 |---|---|---|
+| `audit_self_checks` | **정답지 자체가 맞는가**(문서가 스스로 검산된다) | 엔진이 맞는가 |
 | `backtest_quotes` | 한 건이 몇 % 어긋나는가 | **왜** 어긋나는가 |
 | `audit_rate_calibration` | 목적지 × 칸이 실측과 몇 배 벌어졌나 | 그 배수가 **총액을 얼마나** 움직이는가 |
 | `audit_error_decomp` | 한 건의 오차를 **칸별로 쪼갠 것** · 요율로 갈 수 있는 **천장** | 요율 밖 원인(좌석 등급·섭외비)의 정체 |

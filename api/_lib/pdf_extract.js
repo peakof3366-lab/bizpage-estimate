@@ -1070,13 +1070,42 @@ function reconcile(lines, rows, preferGrand, fx) {
   const checks = [];
   const near = (a, b, tolPct) => a > 0 && b > 0 && Math.abs(a - b) / b <= tolPct;
 
-  /* ① 총계 ÷ 인원 = 1인당 — 천원 단위 절삭이 흔해 1.5%까지 봐준다 */
-  if (grand && perPerson && pax) {
-    const calc = grand / pax;
+  /* ① 총계 ÷ 인원 = 1인당 — 천원 단위 절삭이 흔해 1.5%까지 봐준다.
+     ⚠ **②와 같은 분모를 쓴다**(WD). 예전에는 `grand`가 있을 때만 돌아서, 총액이
+       「합계」 양식으로만 적힌 문서에서는 이 검산이 아예 안 돌았다 — 코퍼스 45건 중
+       **25건**이 그랬다. 상해 건이 정확히 그 구멍으로 빠져나갔다: 문서는
+       「1인 1,030,000원 + 황포강유람선/꽃비용 411,600원」이고 총합계가 15,861,600원인데
+       우리는 앞의 1,030,000만 1인당으로 읽었다(15,861,600 ÷ 15 = 1,057,440).
+       그 2.7% 차이가 검산에 안 걸린 채 역검증의 **정답지**로 쓰였다.
+     ⚠ 어느 쪽이 옳은지는 여기서 정하지 않는다 — 총계가 판매가 총액이면 `÷ 인원`이
+       맞고, 지상비 합계면 문서의 1인당이 맞다(원가 시트가 그렇다). 값을 고르는 것은
+       사람의 자리이고, 이 검산의 일은 **둘이 어긋난다고 말하는 것**까지다.
+       그래서 어느 총계로 쟀는지를 `basis`로 남긴다(조용한 폴백 금지). */
+  const perScale = grand || itemsTotal;
+  if (perScale && perPerson && pax) {
+    const calc = perScale / pax;
+    /* 🔴 **항목 합계로 잴 때는 한쪽 방향만 결함이다.** 원가 시트의 「합계」는 지상비만
+       담고 항공·마진은 그 밖에 있어서, `합계 ÷ 인원 < 판매가`가 **정상**이다. 실측으로
+       코퍼스 45건 중 13건이 -45~-55%인데 전부 그 유형이었다. 그걸 다 「깨짐」이라
+       부르면 진짜 두 건(상해 +2.7% · 하노이 +7.6%)이 소음에 묻힌다 —
+       `audit_rates`가 「확인 대상은 오류가 아니다」로 배운 것과 같은 교훈이다.
+       반대로 **합계가 1인당 표기보다 크면** 1인당 표기가 무언가를 덜 담은 것이고,
+       그건 우리가 정답지를 작게 읽었다는 뜻이라 결함이 맞다.
+       ⚠ `grand`(견적 총액)일 때는 양쪽 다 본다 — 그건 판매가 총액이라 방향이 없다. */
+    const basis = grand ? 'grand' : 'items';
+    const ok = basis === 'grand'
+      ? near(calc, perPerson, 0.015)
+      : calc <= perPerson * 1.015;
     checks.push({
       name: '총계 ÷ 인원 = 1인당',
-      ok: near(calc, perPerson, 0.015),
-      detail: `${grand.toLocaleString()} ÷ ${pax} = ${Math.round(calc).toLocaleString()} vs 문서의 ${perPerson.toLocaleString()}`,
+      ok,
+      basis,
+      /* 「정상 방향으로 벌어졌다」와 「딱 맞는다」는 다른 사실이다. 둘을 같은 `ok`로
+         뭉개면 감사기가 원가 시트를 「검산 통과」로 세어, 실제로는 대조가 안 된 문서가
+         깨끗해 보인다(결함 생성기 ②). 그래서 어느 쪽인지를 따로 남긴다. */
+      matched: near(calc, perPerson, 0.015),
+      detail: `${grand ? '총계' : '항목 합계'} ${perScale.toLocaleString()} ÷ ${pax}`
+        + ` = ${Math.round(calc).toLocaleString()} vs 문서의 ${perPerson.toLocaleString()}`,
     });
   }
 
