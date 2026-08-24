@@ -245,6 +245,7 @@
         <li><a href="#quotetool">내부 견적 산출</a></li>
         <li><a href="#itinerary">일정 · 방식 A·B</a></li>
         <li><a href="#packages">패키지 · 소규모 견적</a></li>
+        <li><a href="#ledger">견적서 대장</a></li>
         <li><a href="#pricereport">견적서 업데이트 — 실제 단가 남기기</a></li>
         <li><a href="#rates">요율 관리 — 단가 갱신</a></li>
         <li><a href="#newdest">새 목적지 추가<span class="who">매니저·관리자</span></a></li>
@@ -337,6 +338,7 @@
             <tr><td class="field">문의 관리</td><td>홈페이지 문의 폼으로 들어온 건 처리</td><td>매일</td></tr>
             <tr><td class="field">견적 관리</td><td>고객이 직접 뽑은 견적 건 처리 · 견적서 링크 발급</td><td>매일</td></tr>
             <tr><td class="field">내부 견적 산출</td><td>담당자가 직접 조건을 넣어 견적서를 뽑는 도구</td><td>상담할 때</td></tr>
+            <tr><td class="field">견적서 대장</td><td>우리가 <strong>발급한 견적서 전부</strong> — 번호·고객·목적지·담당자로 찾습니다. <strong>담당자가 휴가여도 응대</strong>할 수 있는 자리</td><td>문의 올 때마다</td></tr>
             <tr><td class="field">패키지 · 소규모 견적</td><td>이미 값이 정해진 여행 상품과, <strong>소규모 손님 1회용 견적</strong> — <strong>요율·마진이 안 붙습니다</strong>(넣은 금액이 그대로 고객가)</td><td>상품이 생길 때마다 · 소규모 상담 때</td></tr>
             <tr><td class="field">일정 · 방식 A·B</td><td>목적지별 연수 내용 — 한 화면에 <strong>두 구역</strong>(✨ 방식 A·B 소개 / 📅 날짜별 일정)</td><td>필요할 때</td></tr>
             <tr><td class="field">요율 관리</td><td>목적지별 단가 갱신 · 변경 이력</td><td>분기 1회</td></tr>
@@ -1238,6 +1240,50 @@
         <p>
           ⚠ 소규모 견적은 <strong>엔진 검증을 거치지 않습니다.</strong> 담당자가 적은 숫자가
           그대로 고객에게 갑니다 — 그래서 <strong>매니저 이상만</strong> 만들 수 있습니다.
+        </p>
+      </div>
+    </section>
+
+    <section id="ledger">
+      <h2>6-3. 견적서 대장</h2>
+      <p>
+        <strong>우리가 발급한 견적서가 전부 여기 있습니다.</strong> 왼쪽 메뉴에서
+        「견적서 대장」으로 들어갑니다. 담당자가 <strong>연차·휴가여도</strong> 다른 사람이
+        찾아서 바로 응대할 수 있게 만든 자리입니다.
+      </p>
+      <div class="note">
+        <span class="label">「견적 관리」와 다릅니다</span>
+        <p>
+          <strong>견적 관리</strong>는 <strong>고객이 남긴 요청</strong>입니다.
+          <strong>견적서 대장</strong>은 <strong>우리가 내보낸 문서</strong>입니다.
+          고객이 "견적서 받았는데요" 하고 전화하면 <strong>대장</strong>에서 찾으십시오.
+        </p>
+      </div>
+      <h4>견적번호 읽는 법</h4>
+      <p>
+        <code>Q260824-03</code> = <strong>2026년 8월 24일에 발급한 세 번째 견적서</strong>입니다.
+        <strong>번호에 날짜가 들어 있습니다</strong> — 고객이 번호를 몰라도
+        「지난주쯤 받았다」는 말만으로 목록에서 찾을 수 있게 하려고 그렇게 만들었습니다.
+      </p>
+      <h4>찾는 방법</h4>
+      <ul>
+        <li><strong>견적번호</strong> — 고객이 알고 있으면 제일 빠릅니다</li>
+        <li><strong>회사명 · 고객 담당자 이름</strong></li>
+        <li><strong>목적지</strong> (예: 오키나와)</li>
+        <li><strong>발급한 직원 이름</strong></li>
+      </ul>
+      <h4>상태를 바꿔 두세요</h4>
+      <p>
+        각 줄의 상태를 <strong>발급 / 계약 / 무산 / 취소</strong>로 바꿀 수 있습니다.
+        누가 언제 바꿨는지 기록에 남습니다. <strong>이걸 해 두셔야 다른 사람이
+        「이 건 어떻게 됐지」를 묻지 않아도 됩니다.</strong>
+      </p>
+      <div class="warn">
+        <span class="label">견적서는 지우지 않습니다</span>
+        <p>
+          삭제 버튼이 없습니다. 지우면 <strong>「우리가 그 금액을 낸 적 있다」는 근거가
+          사라지기</strong> 때문입니다. 무산되거나 잘못 낸 건은 상태를
+          <strong>「취소」</strong>로 바꿔 주세요 — 목록에는 남되 무엇이 됐는지는 분명해집니다.
         </p>
       </div>
     </section>

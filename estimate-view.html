@@ -72,6 +72,13 @@ a { color: inherit; text-decoration: none; }
 .hero-strip-sub {
   font-size: 13px; color: rgba(255,255,255,.7); margin-top: 8px;
 }
+/* 견적번호 (WB) — 인쇄물에도 남는다. 고객이 전화로 부르는 값이라 **읽기 쉬운 자간**을 준다. */
+.hero-strip-qno {
+  margin-top: 10px; display: inline-block;
+  font-size: 12px; font-weight: 700; letter-spacing: .08em;
+  color: rgba(255,255,255,.9);
+  border: 1px solid rgba(255,255,255,.3); border-radius: 3px; padding: 3px 9px;
+}
 
 /* ── CONTENT WRAP ── */
 .content-wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 100px; }
@@ -307,6 +314,9 @@ a { color: inherit; text-decoration: none; }
     <div class="hero-strip-label">OVERSEAS TRAINING PROGRAM</div>
     <div class="hero-strip-title" id="hero-title">해외연수 견적서</div>
     <div class="hero-strip-sub" id="hero-sub"></div>
+    <!-- 견적번호 (WB) — ⚠ **인쇄물에 나와야 한다.** 상단 바는 `no-print`라 인쇄하면
+         사라진다. 고객이 전화로 부를 수 있는 유일한 값이고, 결재 서류에 남는 것도 이것이다. -->
+    <div class="hero-strip-qno" id="quote-no"></div>
   </div>
 </div>
 
@@ -393,8 +403,14 @@ async function loadShareData() {
   }
 }
 
+/* 🔴 발행일이 없으면 **만료 판정이 조용히 무력해진다**(WB).
+   `new Date(undefined)` → Invalid Date → `daysLeft`가 NaN → `expired: NaN < 0` = **false**.
+   실측: 패키지 발급 경로가 `iso`를 안 넣어서, 만료된 견적서가 만료가 아닌 것으로
+   보이고 있었다. 지금은 세 발급 경로가 전부 `iso`를 넣지만(서버가 채운다), 옛 링크와
+   앞으로 생길 경로를 위해 **여기서도 막는다** — 모르면 「모른다」고 말한다. */
 function calcValidity(isoDate) {
   const issued = new Date(isoDate);
+  if (isNaN(issued.getTime())) return { expires: null, daysLeft: null, expired: false, unknown: true };
   const expires = new Date(issued);
   expires.setDate(expires.getDate() + 30);
   const now = new Date();
@@ -412,17 +428,30 @@ function renderPage(d) {
   } else {
     document.getElementById('hero-strip').style.background = 'linear-gradient(135deg,#111,#1E1E1E)';
   }
-  document.getElementById('hero-title').textContent = d.dt + ' 연수 견적서';
+  /* ⚠ 예전엔 무조건 「○○ 연수 견적서」였다(WB). 가족·친목 손님이 받는 문서에도 그랬다 —
+     패키지·휴양 견적서가 「오키나와 연수 견적서」로 나갔다. 연수인 것만 연수라 부른다. */
+  document.getElementById('hero-title').textContent = d.dt + (d.pkg ? ' 여행 견적서' : ' 연수 견적서');
   document.getElementById('hero-sub').textContent = d.ptx + ' · ' + d.n + '명 · ' + (d.ng ? d.ng + '박 ' : '') + d.d + '일';
 
   /* ── 유효기간 ── */
   const validity = calcValidity(d.iso || (d.id || '').replace(/[년 월일]/g, m => m === '년' ? '-' : m === '월' ? '-' : ''));
-  const expiresStr = validity.expires.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  const expiresStr = validity.expires
+    ? validity.expires.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+    : null;
   const validityBar = document.getElementById('validity-bar');
-  if (validity.expired) {
+  if (validity.unknown) {
+    /* ⚠ 모르면 「모른다」고 쓴다. 예전엔 이 경우가 **「만료 아님」으로 조용히 통과**했다 */
+    validityBar.innerHTML = '유효기간은 담당자에게 확인해 주세요';
+  } else if (validity.expired) {
     validityBar.innerHTML = `<span style="color:#FF6B6B">유효기간 만료 (${expiresStr})</span>`;
   } else {
     validityBar.innerHTML = `유효기간 &nbsp;<strong>${expiresStr}까지</strong> &nbsp;(${validity.daysLeft}일 남음)`;
+  }
+  /* 견적번호 — 고객이 전화로 부를 수 있는 유일한 값이다. 없으면 자리를 접는다(옛 링크). */
+  const qnoEl = document.getElementById('quote-no');
+  if (qnoEl) {
+    if (d.qno) qnoEl.textContent = '견적번호 ' + d.qno;
+    else qnoEl.style.display = 'none';
   }
 
   /* ── 날짜 포맷 ── */
@@ -696,7 +725,11 @@ function downloadEstimateExcelShared() {
 
   const aoa = [
     [legalName + ' 견적서'],
-    ['발행일', d.id || '—'],
+    /* 🔴 여기가 `d.id`였다(WB). 「발행일」이라고 적어 놓고 `mrx9l0xqhudmf1` 같은
+       **랜덤 식별자**를 찍고 있었다 — 고객이 받는 엑셀에 그대로 나갔다.
+       발행일 데이터는 처음부터 `d.iso`에 있었는데 엉뚱한 칸을 읽었을 뿐이다. */
+    ['견적번호', d.qno || '—'],
+    ['발행일', d.iso || '—'],
     ['목적지', d.dt || '—'],
     ['프로그램', d.ptx || '—'],
     ['기관 유형', d.ot || '—'],

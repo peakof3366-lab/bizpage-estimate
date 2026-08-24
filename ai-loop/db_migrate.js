@@ -43,6 +43,36 @@ async function main() {
     )
   `;
 
+  /* ── 견적서 대장 (WB) ── 발급된 견적서를 **찾을 수 있게** 한다.
+     감사 실측: 운영 DB에 견적서 10건이 발급돼 있는데 **관리자 화면에서 그 목록을 볼
+     방법이 전혀 없었다**(quote_shares를 조회하는 관리자 코드가 0건). 담당자가 휴가면
+     그 사람이 낸 견적서를 아무도 못 찾는다 — 대표가 지적한 그 자리다.
+
+     ⚠ payload에 이미 있는 것(목적지·금액·인원·발행일)은 **여기 다시 적지 않는다.**
+       두 벌이 되면 반드시 어긋난다(결함 생성기 ①). 목록은 payload->>'…'로 읽는다.
+       여기 두는 것은 payload에 **없던** 것뿐이다. */
+  await sql`alter table quote_shares add column if not exists quote_no text`;
+  await sql`alter table quote_shares add column if not exists issued_by text`;
+  await sql`alter table quote_shares add column if not exists customer_label text`;
+  /* issued(발급) | won(계약) | lost(무산) | void(취소) — 휴가 중에도 진행 상황을 안다 */
+  await sql`alter table quote_shares add column if not exists status text not null default 'issued'`;
+  await sql`alter table quote_shares add column if not exists status_by text`;
+  await sql`alter table quote_shares add column if not exists status_at timestamptz`;
+  /* 🔴 같은 번호가 두 건에 붙으면 대장이 무너진다. **DB가 막는다**(화면이 아니라). */
+  await sql`create unique index if not exists quote_shares_no_idx
+              on quote_shares (quote_no) where quote_no is not null`;
+  await sql`create index if not exists quote_shares_created_idx on quote_shares (created_at desc)`;
+
+  /* 견적번호 순번 — 하루 한 행. 발급은 `api/_lib/quote_no.js` 한 곳이 한다.
+     ⚠ 날짜는 **한국 시간**이다. 운영 DB TimeZone이 GMT라(실측) `current_date`를 쓰면
+       한국 오전 9시 이전 발급이 **전날 번호**를 받는다. */
+  await sql`
+    create table if not exists quote_seq (
+      day date primary key,
+      n int not null
+    )
+  `;
+
   await sql`
     create table if not exists admin_auth (
       id int primary key default 1,

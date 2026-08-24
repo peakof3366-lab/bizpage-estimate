@@ -1,9 +1,11 @@
 const { sql } = require('./_lib/db');
-const { newId, payloadTooLarge } = require('./_lib/public_input');
+const { newId, payloadTooLarge, SAFE_ID_RE } = require('./_lib/public_input');
 const { requireAdmin } = require('./_lib/auth');
 const { verifyQuote } = require('./_lib/quote_verify');
 /* ⚠ `packages`를 읽는 조건·금액 계산은 **`_lib/packages.js` 하나가 진실**이다(VS). */
 const PKG = require('./_lib/packages');
+/* 견적번호의 형식과 발급은 **`_lib/quote_no.js` 하나가 진실**이다(WB). */
+const QNO = require('./_lib/quote_no');
 
 /* 고객용 견적서 공유 링크(estimate-view.html?id=) 저장소.
 
@@ -165,11 +167,23 @@ async function issuePackageShare(req, res) {
   };
 
   const id = newId();
+  /* 견적번호 (WB) — 규칙은 `_lib/quote_no.js` 하나가 진실이다.
+     ⚠ **번호를 못 따면 발급하지 않는다.** 번호 없이 나간 건은 대장에서 영영 못 찾는다 —
+       「번호는 나중에 붙이자」가 곧 안 붙는다는 뜻이다(조용한 폴백 금지). */
+  let quoteNo;
+  try { quoteNo = await QNO.nextQuoteNo(sql); }
+  catch (err) { console.error('[quote-shares] 견적번호 발급 실패:', err); return res.status(503).json({ error: 'quote_no_failed' }); }
+
   try {
     await sql`
-      insert into quote_shares (id, payload)
+      insert into quote_shares (id, payload, quote_no, issued_by, customer_label)
       values (${id}, ${JSON.stringify({
         ...share,
+        /* 🔴 발행일. 예전에 패키지 경로만 이 칸을 안 넣어서 `calcValidity(undefined)`가
+           **Invalid Date → expired:false**로 조용히 통과했다 — 만료된 견적서가 만료가
+           아닌 것으로 보였다. 세 경로가 전부 넣는다. KST 기준이다. */
+        iso: QNO.kstToday(),
+        qno: quoteNo,
         _verify: {
           /* ⚠ 'ok'가 아니다 — 엔진 검증을 거친 것과 **구분되어야** 한다.
              그리고 VS부터는 **둘로 갈린다.** 대리점가('package')는 공급사가 확인해
@@ -183,16 +197,92 @@ async function issuePackageShare(req, res) {
           issuedBy: assembled ? 'assembled' : 'package',
           kind: p.kind || 'catalog',
         },
-      })}::jsonb)
+      })}::jsonb,
+        ${quoteNo},
+        ${(req.user && (req.user.displayName || req.user.username)) || '고객'},
+        ${p.customer_label || p.title || null})
       on conflict (id) do nothing`;
-    return res.status(200).json({ ok: true, id, verdict: 'package' });
+    return res.status(200).json({ ok: true, id, quoteNo, verdict: 'package' });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'insert_failed' });
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   ?action=list (WB) — **견적서 대장**. 담당자가 휴가여도 응대할 수 있게.
+   ───────────────────────────────────────────────────────────────────────────
+   감사 실측: 발급된 견적서 10건이 있는데 **관리자 화면에서 볼 방법이 전혀 없었다.**
+   담당자가 휴가면 그 사람이 낸 견적서를 아무도 못 찾는다.
+
+   ⚠ **payload에 있는 것을 컬럼으로 복사하지 않았다**(결함 생성기 ①). 목적지·금액·인원은
+     `payload->>'…'`로 읽는다. 두 벌이 되면 반드시 어긋난다.
+   ⚠ **직원 전원이 다 본다.** 가리면 휴가 대응이라는 목적 자체가 깨진다.
+     상태 변경만 로그인한 사람 이름으로 남고, 삭제는 아예 없다(견적서는 안 지운다 —
+     지우면 「우리가 그 금액을 낸 적 있다」는 근거가 사라진다. 대신 status='void').
+   ═══════════════════════════════════════════════════════════════════════════ */
+const LIST_MAX = 300;
+
+async function handleList(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  const q = String((req.query && req.query.q) || '').trim().slice(0, 80);
+  try {
+    /* 검색축 — 고객이 전화로 말할 수 있는 것부터: 번호 · 회사/고객명 · 목적지 · 담당자.
+       ⚠ 날짜는 목록이 최신순이라 눈으로 찾는다(번호에 날짜가 들어 있다). */
+    const like = q ? '%' + q + '%' : null;
+    const rows = q
+      ? await sql`
+          select id, quote_no, created_at, issued_by, customer_label, status, status_by, status_at,
+                 payload->>'dt' dest, payload->>'org' org, payload->>'cn' cn,
+                 payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
+                 payload->'_verify'->>'verdict' verdict
+            from quote_shares
+           where quote_no ilike ${like} or customer_label ilike ${like}
+              or payload->>'dt' ilike ${like} or payload->>'org' ilike ${like}
+              or payload->>'cn' ilike ${like} or issued_by ilike ${like}
+           order by created_at desc limit ${LIST_MAX}`
+      : await sql`
+          select id, quote_no, created_at, issued_by, customer_label, status, status_by, status_at,
+                 payload->>'dt' dest, payload->>'org' org, payload->>'cn' cn,
+                 payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
+                 payload->'_verify'->>'verdict' verdict
+            from quote_shares order by created_at desc limit ${LIST_MAX}`;
+    /* ⚠ 상한에 걸렸으면 **말한다.** 조용히 자르면 「전부 봤다」로 읽힌다. */
+    return res.status(200).json({ shares: rows, capped: rows.length >= LIST_MAX, max: LIST_MAX });
+  } catch (err) {
+    console.error('[quote-shares] 대장 조회 실패:', err);
+    return res.status(500).json({ error: 'query_failed' });
+  }
+}
+
+const SHARE_STATUS = ['issued', 'won', 'lost', 'void'];
+
+async function handleStatus(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  const b = req.body || {};
+  const id = typeof b.id === 'string' ? b.id : '';
+  if (!id || !SAFE_ID_RE.test(id)) return res.status(400).json({ error: 'invalid_id' });
+  if (!SHARE_STATUS.includes(b.status)) return res.status(400).json({ error: 'invalid_status' });
+  try {
+    /* 누가 언제 바꿨는지 남긴다 — 나중에 「이거 왜 무산으로 돼 있지」를 물을 수 있어야 한다 */
+    const r = await sql`
+      update quote_shares
+         set status = ${b.status},
+             status_by = ${(req.user && (req.user.displayName || req.user.username)) || 'staff'},
+             status_at = now()
+       where id = ${id} returning id`;
+    if (!r.length) return res.status(404).json({ error: 'not_found' });
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('[quote-shares] 상태 변경 실패:', err);
+    return res.status(500).json({ error: 'update_failed' });
+  }
+}
+
 module.exports = async (req, res) => {
+  const action = req.query && req.query.action;
+  if (action === 'list' && req.method === 'GET') return handleList(req, res);
+  if (action === 'status' && req.method === 'POST') return handleStatus(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
   /* 패키지는 검증 대상이 아니라 위 분기보다 **먼저** 갈라낸다 — 아래로 흘려보내면
@@ -233,21 +323,34 @@ module.exports = async (req, res) => {
   }
 
   const id = newId();
+  /* 견적번호 (WB) — **고객이 직접 뽑은 것도 번호를 받는다.** 그 건도 나중에 전화가 오고,
+     그때 담당자가 휴가일 수 있다. 번호를 못 따면 발급하지 않는다. */
+  let quoteNo;
+  try { quoteNo = await QNO.nextQuoteNo(sql); }
+  catch (err) { console.error('[quote-shares] 견적번호 발급 실패:', err); return res.status(503).json({ error: 'quote_no_failed' }); }
+
   try {
     await sql`
-      insert into quote_shares (id, payload)
+      insert into quote_shares (id, payload, quote_no, issued_by, customer_label)
       values (${id}, ${JSON.stringify({
         ...share,
+        /* ⚠ 화면이 넣어 준 iso가 있으면 그대로 둔다(그 화면의 발급 시각이다).
+           없으면 서버가 KST로 채운다 — 없는 채로 두면 만료 계산이 조용히 무력해진다. */
+        iso: share.iso || QNO.kstToday(),
+        qno: quoteNo,
         _verify: {
           verdict: result.verdict,
           failedSteps: result.failedSteps,
           at: new Date().toISOString(),
           issuedBy: isStaffIssue ? (req.user && req.user.displayName) || 'staff' : 'auto',
         },
-      })}::jsonb)
+      })}::jsonb,
+        ${quoteNo},
+        ${isStaffIssue ? ((req.user && (req.user.displayName || req.user.username)) || 'staff') : '고객 직접'},
+        ${(share && (share.org || share.cn)) || null})
       on conflict (id) do nothing
     `;
-    return res.status(200).json({ ok: true, id, verdict: result.verdict });
+    return res.status(200).json({ ok: true, id, quoteNo, verdict: result.verdict });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'insert_failed' });
