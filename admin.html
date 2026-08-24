@@ -1060,7 +1060,7 @@
              이 메뉴만 「이미 값이 정해진 상품」을 다룬다. 그래서 구분선 위에 따로 둔다 —
              같은 묶음에 섞으면 담당자가 여기서도 요율을 만질 수 있다고 읽는다. -->
         <button class="sidebar-item" data-tab="packages">
-          <span class="si-icon"><i data-lucide="package"></i></span><span class="si-label">패키지 상품</span>
+          <span class="si-icon"><i data-lucide="package"></i></span><span class="si-label">패키지 · 소규모 견적</span>
           <!-- 가격 확인이 오래된 상품 수 — 목록을 열어야만 보이면 아무도 안 본다(결함 생성기 ③) -->
           <span class="si-badge" id="sb-pkg-stale" style="display:none"></span>
         </button>
@@ -1848,11 +1848,30 @@
         <br>
         <strong>「금액 확인일」은 비워 둘 수 없습니다.</strong> 패키지가는 자주 바뀌는데
         우리는 그 값으로 팔아야 합니다 — 언제 확인한 값인지가 고객 화면과 견적서에 함께 찍힙니다.
+        <br><br>
+        <strong>여기서 다루는 것은 두 가지입니다.</strong>
+        <b>패키지 상품</b>은 반복해서 파는 것이라 고객 화면(패키지 여행)에 나갑니다.
+        <b>소규모 견적</b>은 이 손님 한 분을 위한 1회용이라 <b>고객 목록에는 절대 나가지 않고</b>,
+        견적서 링크로만 나갑니다 — 발급도 로그인한 담당자만 됩니다.
+        <br>
+        ⚠ 소규모 손님을 <b>견적 엔진으로 계산하지 않는 이유</b>는 실측입니다. 같은 하나투어
+        상품을 우리 엔진으로 다시 뽑으면 <b>+21.5%·+41.7%</b> 비싸게 나오고, 10명 이하
+        표본이 <b>2건</b>뿐이라 보정할 근거가 없습니다. 그래서 금액은 사람이 정하고,
+        시스템은 그 값이 어디서 왔는지를 지킵니다.
       </div>
 
       <div class="iti-bar">
         <button type="button" class="btn-act btn-primary" id="pkgNew">+ 새 상품</button>
+        <!-- 1회용 견적은 매니저 이상만 만든다(2026-08-24 대표 결정) — 권한이 없으면
+             이 버튼을 아예 안 보여준다. 다만 **방어선은 서버**다(화면은 안내일 뿐). -->
+        <button type="button" class="btn-act btn-outline-p" id="pkgNewAdhoc">+ 소규모 견적</button>
         <span class="iti-spacer"></span>
+        <label for="pkgFilterKind" style="font-size:13px;color:#666">종류</label>
+        <select id="pkgFilterKind">
+          <option value="">전체</option>
+          <option value="catalog">패키지 상품</option>
+          <option value="adhoc">소규모 견적</option>
+        </select>
         <label for="pkgFilterStatus" style="font-size:13px;color:#666">상태</label>
         <select id="pkgFilterStatus">
           <option value="">전체</option>
@@ -1874,6 +1893,24 @@
           <span class="card-title" id="pkgEditTitle">상품 편집</span>
           <button class="btn-act btn-outline-p" id="pkgCancel">닫기</button>
         </div>
+        <!-- ⚠ 종류·산출 근거·상태는 **서로 다른 축**이다. 한 칸에 뭉치면
+             「작성중인 상품」과 「이 손님 전용 1회용 견적」이 구분되지 않는다. -->
+        <div style="padding:14px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+          <label class="pkg-f"><span>종류</span>
+            <select id="pkgKind">
+              <option value="catalog">패키지 상품 (고객 목록에 나감)</option>
+              <option value="adhoc">소규모 견적 (이 손님 전용 · 목록에 안 나감)</option>
+            </select></label>
+          <label class="pkg-f"><span>금액의 출처</span>
+            <select id="pkgBasis">
+              <option value="agency">대리점가 — 공급사에게 받아 적음</option>
+              <option value="assembled">담당자 산출 — 항목을 조립해 만듦</option>
+            </select></label>
+          <label class="pkg-f"><span>고객 표시 <em>(소규모용 · 견적서엔 안 나감)</em></span>
+            <input type="text" id="pkgCustomer" placeholder="김보균님 / ○○교회 20명"></label>
+        </div>
+        <p id="pkgKindNote" style="margin:8px 0 0;font-size:12px;color:#777;line-height:1.7"></p>
+
         <div style="padding:14px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
           <label class="pkg-f"><span>상품 ID <em>(영문·숫자·- _ )</em></span>
             <input type="text" id="pkgId" placeholder="hana-okinawa-1203"></label>
@@ -1911,6 +1948,16 @@
           <label class="pkg-f"><span>불포함 사항 <em>— 한 줄에 하나</em></span>
             <textarea id="pkgExcl" rows="5" placeholder="여행자보험&#10;개인 경비&#10;가이드 팁"></textarea></label>
         </div>
+        <!-- ── 항목별 조립 (VS) ──
+             ⚠ 여기에 항목을 넣으면 **그 합이 1인 금액을 이긴다**(서버가 덮어쓴다).
+               담당자가 항목만 고치고 총액 칸을 안 고치는 일은 반드시 생기는데, 그때
+               화면과 견적서가 다른 금액을 말하지 않게 하기 위함이다.
+             ⚠ 엔진 값을 여기 미리 채우지 않는다 — 소규모 구간에서 엔진이 실측 기준
+               +21~42% 틀리는데, 값이 들어가 있으면 담당자는 그대로 저장한다. -->
+        <label class="pkg-f" style="margin-top:14px;display:block"><span>항목별 조립 <em>— 한 줄에 하나. 「이름 | 금액」 · 비우면 위 1인 금액을 그대로 씁니다</em></span>
+          <textarea id="pkgItems" rows="5" placeholder="항공 | 620000&#10;호텔 3박 | 380000&#10;지상비 | 190000"></textarea></label>
+        <p id="pkgItemsSum" style="margin:6px 0 0;font-size:12px;color:#777"></p>
+
         <label class="pkg-f" style="margin-top:14px;display:block"><span>일정 <em>— DAY마다 한 줄. 「제목 | 내용」</em></span>
           <textarea id="pkgIti" rows="6" placeholder="인천 출발 · 나하 도착 | 오전 인천공항 집결 / 오후 나하 도착 후 호텔 이동&#10;북부 관광 | 츄라우미 수족관 / 코우리대교"></textarea></label>
         <p style="margin-top:8px;font-size:12px;color:#777;line-height:1.7">
@@ -1921,6 +1968,28 @@
           <button class="btn-act btn-primary" id="pkgSave">저장</button>
           <button class="btn-act btn-outline-d" id="pkgDelete">삭제</button>
           <span id="pkgMsg" style="font-size:13px"></span>
+        </div>
+
+        <!-- ── 견적서 발급 (VS) ──
+             예전에는 이 자리가 없어서, 담당자가 손님에게 견적서를 내려면 고객 화면
+             (packages.html)으로 나가야 했다. 그 동선은 1회용 견적에는 아예 쓸 수 없다 —
+             1회용은 고객 목록에 안 뜨기 때문이다.
+             ⚠ **금액을 보내지 않는다.** 상품 id와 인원만 보내고 금액·일정·기간은 서버가
+               DB에서 읽는다. 위조할 값이 요청에 없으므로 검증할 것도 없다(VQ 원칙 그대로). -->
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(0,0,0,.08)">
+          <div style="font-weight:800;font-size:14px;margin-bottom:8px">견적서 발급</div>
+          <p id="pkgIssueGate" style="margin:0 0 10px;font-size:12px;color:#B45309;line-height:1.7"></p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label for="pkgIssuePax" style="font-size:13px;color:#666">인원</label>
+            <input type="number" id="pkgIssuePax" min="1" max="500" value="2" style="width:90px">
+            <button class="btn-act btn-primary" id="pkgIssue">견적서 만들기</button>
+            <span id="pkgIssueMsg" style="font-size:13px"></span>
+          </div>
+          <div id="pkgIssueOut" class="hidden" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="pkgIssueUrl" readonly style="flex:1;min-width:260px;font-size:12px">
+            <button class="btn-act btn-outline-p" id="pkgIssueCopy">링크 복사</button>
+            <a class="btn-act btn-outline-p" id="pkgIssueOpen" target="_blank" rel="noopener" style="text-decoration:none">열어 보기 ↗</a>
+          </div>
         </div>
       </div>
     </div>
@@ -2869,6 +2938,13 @@
     if (btnRateBulk) btnRateBulk.classList.toggle('hidden', !isManagerUp);
     const btnNewDest = document.getElementById('btnNewDest');
     if (btnNewDest) btnNewDest.classList.toggle('hidden', !isManagerUp);
+
+    /* 소규모 1회용 견적은 매니저 이상 (VS · 2026-08-24 대표 결정) — 엔진 검증을
+       거치지 않은 값이 그대로 고객에게 나가므로 권한이 곧 통제다.
+       ⚠ 화면에서 숨기는 것은 「눌렀는데 안 되는」 경험을 없애기 위한 것이고,
+         **방어선은 서버**다(content.js가 403 adhoc_requires_manager로 막는다). */
+    const btnNewAdhoc = document.getElementById('pkgNewAdhoc');
+    if (btnNewAdhoc) btnNewAdhoc.classList.toggle('hidden', !isManagerUp);
 
     /* 문의·견적 개별 삭제도 매니저 이상 (신규) — 서버에서 403으로 막고 있으므로
        여기서 숨기는 건 "눌렀는데 안 되는" 경험을 없애기 위한 것이다. 화면만 숨기고
@@ -3991,7 +4067,7 @@
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', pricereport:'견적서 업데이트',
     rates:'요율 관리', quotetool:'내부 견적 산출',
-    itineraries:'일정 · 방식 A·B', packages:'패키지 상품', content:'콘텐츠 관리',
+    itineraries:'일정 · 방식 A·B', packages:'패키지 · 소규모 견적', content:'콘텐츠 관리',
     manual:'매뉴얼', settings:'설정'
   };
 
@@ -12573,10 +12649,14 @@
   function pkgDrawList() {
     const box = document.getElementById('pkgList');
     const want = (document.getElementById('pkgFilterStatus') || {}).value || '';
-    const list = want ? pkgAll.filter(p => p.status === want) : pkgAll;
+    const wantKind = (document.getElementById('pkgFilterKind') || {}).value || '';
+    const list = pkgAll.filter(p => (!want || p.status === want)
+      && (!wantKind || (p.kind || 'catalog') === wantKind));
 
     /* 금액 확인이 오래된 것 — 사이드바 배지와 위쪽 안내에 같은 수를 쓴다 */
-    const stale = pkgAll.filter(p => p.status === 'open'
+    /* ⚠ **패키지 상품만 센다**(VS). 1회용 소규모 견적은 기한(valid_until)이 그 일을
+       이미 하고 있어서, 여기까지 세면 배지가 늘 켜져 있고 그러면 아무도 안 본다. */
+    const stale = pkgAll.filter(p => p.status === 'open' && (p.kind || 'catalog') === 'catalog'
       && (pkgDaysSince(p.priceAsOf) ?? 0) > PKG_STALE_DAYS);
     const badge = document.getElementById('sb-pkg-stale');
     if (badge) {
@@ -12603,10 +12683,15 @@
       const old = p.status === 'open' && age != null && age > PKG_STALE_DAYS;
       const dur = (p.nights && p.days) ? `${p.nights}박 ${p.days}일` : '';
       const stLabel = { open: '판매중', draft: '작성중', closed: '마감' }[p.status] || p.status;
+      /* ⚠ 종류를 목록에서 **한눈에** 갈라 보여준다. 안 그러면 1회용 견적이 상품
+         목록에 섞여 보이고, 담당자가 그걸 상품인 줄 알고 손댄다. */
+      const isAdhoc = (p.kind || 'catalog') === 'adhoc';
+      const kindTag = isAdhoc ? '<span class="pkg-st draft">소규모</span> ' : '';
       return '<div class="pkg-row" data-i="' + i + '">'
         + '<div>'
-        +   '<div class="pkg-row-t">' + esc(p.title) + '</div>'
-        +   '<div class="pkg-row-s">' + esc([p.destLabel || p.destKey || '지역 미지정', dur,
+        +   '<div class="pkg-row-t">' + kindTag + esc(p.title) + '</div>'
+        +   '<div class="pkg-row-s">' + esc([p.customerLabel || null,
+              p.destLabel || p.destKey || '지역 미지정', dur,
               p.departDate ? '출발 ' + pkgDateStr(p.departDate) : ''].filter(Boolean).join(' · ')) + '</div>'
         + '</div>'
         + '<div style="text-align:right;font-weight:800">' + Number(p.pricePerPerson || 0).toLocaleString() + '원</div>'
@@ -12633,12 +12718,22 @@
     sel.dataset.filled = '1';
   }
 
-  function pkgOpen(p) {
+  function pkgOpen(p, newKind) {
     const card = document.getElementById('pkgEditCard');
     if (!card) return;
     pkgEditing = p ? p.id : null;
-    document.getElementById('pkgEditTitle').textContent = p ? '상품 편집 — ' + p.title : '새 상품';
+    const kind = p ? (p.kind || 'catalog') : (newKind === 'adhoc' ? 'adhoc' : 'catalog');
+    document.getElementById('pkgEditTitle').textContent = p
+      ? ((kind === 'adhoc' ? '소규모 견적 — ' : '상품 편집 — ') + p.title)
+      : (kind === 'adhoc' ? '새 소규모 견적' : '새 상품');
     const v = (id, val) => { const e = document.getElementById(id); if (e) e.value = val == null ? '' : val; };
+    v('pkgKind', kind);
+    /* 새 1회용 견적의 기본 출처는 **담당자 산출**이다 — 대부분 우리가 조립한다.
+       공급사에게 받아 적은 것이면 담당자가 바꾸면 된다. */
+    v('pkgBasis', p ? (p.priceBasis || 'agency') : (kind === 'adhoc' ? 'assembled' : 'agency'));
+    v('pkgCustomer', p ? (p.customerLabel || '') : '');
+    v('pkgItems', p && Array.isArray(p.lineItems)
+      ? p.lineItems.map(it => it.label + ' | ' + it.amount).join('\n') : '');
     v('pkgId', p ? p.id : '');
     v('pkgTitle', p ? p.title : '');
     v('pkgDest', p ? (p.destKey || '') : '');
@@ -12663,8 +12758,49 @@
       : '');
     document.getElementById('pkgMsg').textContent = '';
     document.getElementById('pkgId').readOnly = !!p;   /* 기존 상품은 id를 못 바꾼다 */
+    pkgSyncNotes();
+    pkgIssueReset(p);
     card.style.display = '';
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ── 화면이 지금 상태를 스스로 말하게 한다 ──────────────────────────────────
+     ⚠ 종류·출처를 고르는 것만으로는 **무엇이 달라지는지** 알 수 없다. 조용히
+       달라지면 담당자는 1회용 견적을 상품으로 저장하고도 모른다(결함 생성기 ②). */
+  function pkgSyncNotes() {
+    const kind = (document.getElementById('pkgKind') || {}).value || 'catalog';
+    const basis = (document.getElementById('pkgBasis') || {}).value || 'agency';
+    const note = document.getElementById('pkgKindNote');
+    if (note) {
+      note.innerHTML = (kind === 'adhoc'
+        ? '이 건은 <b>고객 목록에 나가지 않습니다.</b> 견적서 링크로만 나가고, 발급도 로그인한 담당자만 됩니다. '
+          + '유효기간을 비우면 <b>14일</b>이 자동으로 붙습니다.'
+        : '이 건은 <b>고객 화면(패키지 여행)에 나갑니다.</b> 「판매중」으로 두는 순간 누구나 볼 수 있습니다.')
+        + '<br>'
+        + (basis === 'assembled'
+          ? '금액 출처가 <b>담당자 산출</b>입니다 — 견적서에 「담당자 산출」로 찍히고 엔진 검증을 거치지 않은 것으로 기록됩니다.'
+          : '금액 출처가 <b>대리점가</b>입니다 — 공급사에게 받은 값 그대로라는 뜻입니다. 우리가 조립했다면 위에서 바꿔 주세요.');
+    }
+    /* 항목 합을 실시간으로 보여준다 — 저장 뒤에야 알면 이미 늦다 */
+    const sumBox = document.getElementById('pkgItemsSum');
+    if (sumBox) {
+      const items = pkgParseItems((document.getElementById('pkgItems') || {}).value);
+      sumBox.textContent = items.length
+        ? '항목 ' + items.length + '개 · 합계 ' + items.reduce((s, it) => s + it.amount, 0).toLocaleString()
+          + '원 → 저장하면 이 값이 위 「1인 금액」을 덮어씁니다.'
+        : '';
+    }
+  }
+
+  /* 「이름 | 금액」 한 줄씩. 금액에 쉼표가 섞여 들어오는 일이 흔해 먼저 턴다. */
+  function pkgParseItems(text) {
+    return String(text || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      const i = l.lastIndexOf('|');
+      if (i < 0) return null;
+      const label = l.slice(0, i).trim();
+      const amount = Math.round(Number(l.slice(i + 1).replace(/[,\s원]/g, '')));
+      return label && Number.isFinite(amount) ? { label, amount } : null;
+    }).filter(Boolean);
   }
 
   function pkgParseIti(text) {
@@ -12677,6 +12813,62 @@
   }
   const pkgLines = (id) => String((document.getElementById(id) || {}).value || '')
     .split('\n').map(s => s.trim()).filter(Boolean);
+
+  /* ── 견적서 발급 ──────────────────────────────────────────────────────────
+     ⚠ **막는 이유를 말한다.** 버튼만 죽여 두면 담당자는 왜 안 되는지 모르고,
+       그 상태가 오래가면 「원래 안 되는 기능」으로 굳는다(결함 생성기 ②). */
+  function pkgIssueReset(p) {
+    const out = document.getElementById('pkgIssueOut');
+    const btn = document.getElementById('pkgIssue');
+    const gate = document.getElementById('pkgIssueGate');
+    const msg = document.getElementById('pkgIssueMsg');
+    if (out) out.classList.add('hidden');
+    if (msg) msg.textContent = '';
+    let why = '';
+    if (!p) why = '먼저 저장하세요 — 견적서는 저장된 내용을 서버가 읽어서 만듭니다.';
+    else if (p.status !== 'open') why = '「판매중」 상태에서만 발급됩니다. 지금은 「'
+      + ({ draft: '작성중', closed: '마감' }[p.status] || p.status) + '」입니다 — 마감·작성중인 값으로 견적서가 나가면 그 금액을 우리가 물게 됩니다.';
+    if (gate) gate.textContent = why;
+    if (btn) btn.disabled = !!why;
+  }
+
+  async function pkgIssueNow() {
+    const msg = document.getElementById('pkgIssueMsg');
+    const out = document.getElementById('pkgIssueOut');
+    if (!pkgEditing) return;
+    const pax = Number((document.getElementById('pkgIssuePax') || {}).value);
+    if (!Number.isFinite(pax) || pax < 1 || pax > 500) {
+      msg.style.color = '#B91C1C'; msg.textContent = '인원을 1~500명 사이로 넣어 주세요.'; return;
+    }
+    msg.style.color = '#666'; msg.textContent = '만드는 중…';
+    try {
+      /* ⚠ **금액을 보내지 않는다.** id와 인원만 보내고 나머지는 서버가 DB에서 읽는다. */
+      const r = await fetch('/api/quote-shares?action=package', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packageId: pkgEditing, pax: pax }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.id) {
+        const why = {
+          package_not_available: '지금 발급할 수 없는 상태입니다 — 「판매중」인지, 유효기간이 지나지 않았는지 보세요.',
+          invalid_pax: '인원을 다시 확인해 주세요.',
+          package_price_broken: '금액이 비어 있습니다 — 1인 금액이나 조립 항목을 채우고 저장해 주세요.',
+          unauthorized: '로그인이 풀렸습니다. 새로고침 후 다시 시도해 주세요.',
+        }[d.error] || (d.error || ('오류 ' + r.status));
+        msg.style.color = '#B91C1C'; msg.textContent = '만들지 못했습니다 — ' + why;
+        return;
+      }
+      const url = location.origin + '/estimate-view.html?id=' + encodeURIComponent(d.id);
+      document.getElementById('pkgIssueUrl').value = url;
+      document.getElementById('pkgIssueOpen').href = url;
+      out.classList.remove('hidden');
+      msg.style.color = '#166534';
+      msg.textContent = '만들었습니다 (' + (d.verdict === 'assembled' ? '담당자 산출' : '패키지 상품') + ').';
+    } catch (err) {
+      msg.style.color = '#B91C1C';
+      msg.textContent = '만들지 못했습니다 — ' + String(err.message || err);
+    }
+  }
 
   async function pkgSave() {
     const msg = document.getElementById('pkgMsg');
@@ -12698,6 +12890,12 @@
       priceAsOf: asOf,
       validUntil: g('pkgValid') || null,
       status: g('pkgStatus'),
+      kind: g('pkgKind') || 'catalog',
+      priceBasis: g('pkgBasis') || 'agency',
+      customerLabel: g('pkgCustomer').trim() || null,
+      /* ⚠ 합계는 **서버가** 다시 구한다. 여기서 계산해 보낸 총액은 쓰이지 않는다 —
+         금액을 브라우저가 정하게 두는 순간 그게 위조 경로다(VQ 원칙). */
+      lineItems: pkgParseItems(g('pkgItems')),
       sourceCode: g('pkgSourceCode').trim() || null,
       included: pkgLines('pkgIncl'),
       excluded: pkgLines('pkgExcl'),
@@ -12721,12 +12919,20 @@
           price_asof_required: '「금액 확인일」이 필요합니다',
           unknown_dest_key: '요율표에 없는 목적지입니다',
           payload_too_large: '일정·포함사항이 너무 깁니다',
+          invalid_line_items: '조립 항목을 읽지 못했습니다 — 「이름 | 금액」 형식인지 보세요',
+          adhoc_requires_manager: '소규모 1회용 견적은 매니저 이상만 만들 수 있습니다 (엔진 검증을 거치지 않는 값이라 그렇습니다)',
+          kind_check_failed: '기존 내용을 확인하지 못했습니다 — 잠시 뒤 다시 시도해 주세요',
         }[out.error] || (out.error || ('오류 ' + r.status));
         msg.style.color = '#B91C1C'; msg.textContent = '저장하지 못했습니다 — ' + why;
         return;
       }
       msg.style.color = '#166534'; msg.textContent = '저장했습니다.';
+      const savedId = body.id;
       await renderPackages();
+      /* 저장 직후 **발급 자리를 다시 판정한다.** 안 그러면 방금 「판매중」으로 바꾼
+         담당자가 계속 「먼저 저장하세요」를 보게 된다. */
+      pkgEditing = savedId;
+      pkgIssueReset(pkgAll.find(p => p.id === savedId) || null);
     } catch (err) {
       msg.style.color = '#B91C1C';
       msg.textContent = '저장하지 못했습니다 — ' + String(err.message || err);
@@ -12751,12 +12957,25 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('pkgNew')?.addEventListener('click', () => pkgOpen(null));
+    document.getElementById('pkgNewAdhoc')?.addEventListener('click', () => pkgOpen(null, 'adhoc'));
     document.getElementById('pkgSave')?.addEventListener('click', pkgSave);
     document.getElementById('pkgDelete')?.addEventListener('click', pkgDelete);
     document.getElementById('pkgCancel')?.addEventListener('click', () => {
       document.getElementById('pkgEditCard').style.display = 'none';
     });
     document.getElementById('pkgFilterStatus')?.addEventListener('change', pkgDrawList);
+    document.getElementById('pkgFilterKind')?.addEventListener('change', pkgDrawList);
+    /* 종류·출처·항목을 고치면 안내와 합계가 **그 자리에서** 따라간다 */
+    ['pkgKind', 'pkgBasis'].forEach(id =>
+      document.getElementById(id)?.addEventListener('change', pkgSyncNotes));
+    document.getElementById('pkgItems')?.addEventListener('input', pkgSyncNotes);
+    document.getElementById('pkgIssue')?.addEventListener('click', pkgIssueNow);
+    document.getElementById('pkgIssueCopy')?.addEventListener('click', () => {
+      const el = document.getElementById('pkgIssueUrl');
+      el.select();
+      navigator.clipboard?.writeText(el.value).catch(() => {});
+      document.getElementById('pkgIssueMsg').textContent = '복사했습니다.';
+    });
   });
 </script>
 <script>if (typeof lucide !== 'undefined') lucide.createIcons();</script>

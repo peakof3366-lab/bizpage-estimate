@@ -2,6 +2,8 @@ const { sql } = require('./_lib/db');
 const { newId, payloadTooLarge } = require('./_lib/public_input');
 const { requireAdmin } = require('./_lib/auth');
 const { verifyQuote } = require('./_lib/quote_verify');
+/* ⚠ `packages`를 읽는 조건·금액 계산은 **`_lib/packages.js` 하나가 진실**이다(VS). */
+const PKG = require('./_lib/packages');
 
 /* 고객용 견적서 공유 링크(estimate-view.html?id=) 저장소.
 
@@ -98,26 +100,36 @@ async function issuePackageShare(req, res) {
     return res.status(400).json({ error: 'invalid_pax' });
   }
 
-  let rows;
+  let p;
   try {
-    /* ⚠ 고객 목록과 **같은 조건**으로 읽는다. 여기서 조건을 느슨하게 하면
-       고객 화면에 안 보이는 상품의 견적서가 링크로는 발급된다. */
-    rows = await sql`
-      select * from packages
-       where id = ${pkgId} and status = 'open'
-         and (valid_until is null or valid_until >= current_date)
-       limit 1`;
+    /* ⚠ 조건은 **`_lib/packages.js` 하나가 진실**이다(VS). 예전엔 여기 쿼리를 직접
+       쓰고 「고객 목록과 같은 조건으로 읽는다」고 주석만 달아 뒀는데, 그 말이
+       지켜지는지를 아무것도 검사하지 않았다. */
+    p = await PKG.getIssuablePackage(sql, pkgId);
   } catch (err) {
     console.error('[quote-shares] 패키지 조회 실패:', err);
     /* 조회가 실패했으면 발급하지 않는다 — 빈 값으로 만들면 0원 견적서가 나간다 */
     return res.status(503).json({ error: 'package_lookup_failed' });
   }
-  if (!rows.length) return res.status(404).json({ error: 'package_not_available' });
+  if (!p) return res.status(404).json({ error: 'package_not_available' });
 
-  const p = rows[0];
-  const per = Number(p.price_per_person);
+  /* ⚠ **1회용 소규모 견적은 관리자만 발급한다**(VS). 목록에서 감추는 것은 노출
+     방지지 접근 통제가 아니다 — id를 아는 사람이 이 공개 POST로 남의 손님 견적서를
+     그대로 뽑아 갈 수 있다. catalog는 애초에 고객이 고르라고 만든 것이라 공개다. */
+  if ((p.kind || 'catalog') === 'adhoc') {
+    if (!(await requireAdmin(req, res))) return;
+  }
+
+  /* ⚠ **저장된 총액을 믿지 않고 다시 구한다**(VS). 항목이 있으면 그 합이 이긴다 —
+     DB를 직접 고쳤거나 옛 저장이 남아 둘이 어긋난 경우, 견적서에 나가는 값과
+     화면이 보여준 값이 달라지는 쪽이 훨씬 비싸다. */
+  const per = PKG.perPersonOf(p);
+  if (!Number.isFinite(per) || per <= 0) {
+    return res.status(409).json({ error: 'package_price_broken' });
+  }
   const iti = Array.isArray(p.itinerary) ? p.itinerary : [];
   const listOf = (v) => (Array.isArray(v) ? v.filter((s) => typeof s === 'string') : []);
+  const assembled = (p.price_basis || 'agency') === 'assembled';
 
   const share = {
     dk: p.dest_key || null,
@@ -129,8 +141,9 @@ async function issuePackageShare(req, res) {
     /* 총액은 **서버가 곱한다.** 브라우저가 보낸 총액을 쓰면 그게 곧 위조 경로다. */
     t: per * pax,
     pp: per,
-    rows: [['패키지 상품가 (1인)', per]],
-    ptx: '패키지 상품',
+    /* 항목을 조립했으면 **항목별로** 나간다. 안 했으면 한 줄이다(VS). */
+    rows: PKG.shareRowsOf(p, assembled ? '산출 금액 (1인)' : '패키지 상품가 (1인)'),
+    ptx: assembled ? '담당자 산출' : '패키지 상품',
     ia: iti.length ? { t: p.title, h: [], d: iti } : null,
     /* ⚠ **이 견적서가 패키지임을 화면이 알아야 한다.** 안 알려주면 견적서가
        「VAT 별도 · 부대비용 미포함」처럼 맞춤 견적 기준 문구를 그대로 찍는다 —
@@ -139,6 +152,10 @@ async function issuePackageShare(req, res) {
       id: p.id,
       title: p.title,
       source: p.source,
+      /* ⚠ **무엇으로 만든 값인지가 견적서에 남아야 한다**(VS). 대리점가는 「공급사가
+         확인해 준 값」이고 조립가는 「우리가 판단한 값」이다 — 나중에 금액을 다투게
+         되면 이 구분이 근거가 된다. 고객 화면 문구도 여기서 갈린다. */
+      basis: assembled ? 'assembled' : 'agency',
       /* 금액이 언제 값인지 — 고객 견적서에 반드시 함께 나간다 */
       asOf: p.price_asof,
       validUntil: p.valid_until,
@@ -154,11 +171,17 @@ async function issuePackageShare(req, res) {
       values (${id}, ${JSON.stringify({
         ...share,
         _verify: {
-          /* ⚠ 'ok'가 아니라 'package'다. 엔진 검증을 거친 것과 **구분되어야** 한다 */
-          verdict: 'package',
-          why: '패키지 상품 — 대리점가를 그대로 쓰므로 엔진 대조 대상이 아니다',
+          /* ⚠ 'ok'가 아니다 — 엔진 검증을 거친 것과 **구분되어야** 한다.
+             그리고 VS부터는 **둘로 갈린다.** 대리점가('package')는 공급사가 확인해
+             준 값이고, 조립가('assembled')는 담당자가 판단한 값이라 신뢰의 성격이
+             다르다. 하나로 뭉치면 나중에 「검증된 견적서」를 셀 때 거짓이 섞인다. */
+          verdict: assembled ? 'assembled' : 'package',
+          why: assembled
+            ? '담당자 조립 견적 — 엔진이 만든 값이 아니라 대조 대상이 아니다'
+            : '패키지 상품 — 대리점가를 그대로 쓰므로 엔진 대조 대상이 아니다',
           at: new Date().toISOString(),
-          issuedBy: 'package',
+          issuedBy: assembled ? 'assembled' : 'package',
+          kind: p.kind || 'catalog',
         },
       })}::jsonb)
       on conflict (id) do nothing`;

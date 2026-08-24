@@ -26,6 +26,10 @@
      패키지도 그래서 이 파일에 들어왔다. */
 const { sql } = require('./_lib/db');
 const { requireRole } = require('./_lib/auth');
+/* ⚠ `packages` 테이블을 읽는 조건과 금액 계산은 **`_lib/packages.js` 하나가 진실**이다
+   (VS). 여기서 쿼리를 다시 쓰면 고객 목록과 발급 조건이 갈린다 — 그때 생기는 것이
+   「고객 화면에 안 보이는 상품의 견적서가 링크로는 발급되는」 상태다. */
+const PKG = require('./_lib/packages');
 const destinationRates = require('../data');
 
 const KEY_PATTERN = /^[a-z]+\.([0-9]+\.)?[a-z]+$/;
@@ -319,7 +323,7 @@ async function handleItineraries(req, res) {
      화면을 안 거치는 경로(직접 호출·캐시·다음에 만들 다른 화면)가 반드시 생긴다.
      마감된 상품으로 견적서가 나가면 대리점인 우리가 그 값으로 물어야 한다.
    ═══════════════════════════════════════════════════════════════════════════ */
-const PKG_STATUS = ['draft', 'open', 'closed'];
+const { PKG_STATUS, PKG_KINDS, PKG_BASIS, ADHOC_DEFAULT_VALID_DAYS } = PKG;
 const PKG_MAX_TITLE = 200;
 const PKG_MAX_NOTE = 2000;
 /* 일정·포함/불포함 묶음의 크기 상한. 인증 계정 하나가 붙여넣기 사고로 DB를 채우지
@@ -341,6 +345,12 @@ function pkgRowOut(r) {
     priceAsOf: r.price_asof,
     validUntil: r.valid_until,
     status: r.status,
+    /* VS — 종류·출처는 status와 **다른 축**이다. 화면이 셋을 따로 보여야
+       「작성중인 상품」과 「이 손님 전용 1회용 견적」이 구분된다. */
+    kind: r.kind || 'catalog',
+    priceBasis: r.price_basis || 'agency',
+    customerLabel: r.customer_label || null,
+    lineItems: PKG.lineItemsOf(r),
     itinerary: r.itinerary, included: r.incl_items, excluded: r.excl_items,
     note: r.note,
     updatedAt: r.updated_at, updatedBy: r.updated_by,
@@ -354,16 +364,12 @@ async function handlePackages(req, res) {
       if (wantAll) {
         /* 관리자 화면 — 초안·마감까지 봐야 관리가 된다 */
         if (!(await requireRole(req, res, ['owner', 'manager', 'staff']))) return;
-        const rows = await sql`
-          select * from packages order by coalesce(depart_date, '2999-12-31') asc, updated_at desc`;
+        const rows = await PKG.listAllPackages(sql);
         return res.status(200).json({ packages: rows.map(pkgRowOut) });
       }
-      /* 고객 화면 — **서버가 거른다.** 판매중이고, 기한이 있으면 안 지난 것만. */
-      const rows = await sql`
-        select * from packages
-         where status = 'open'
-           and (valid_until is null or valid_until >= current_date)
-         order by coalesce(depart_date, '2999-12-31') asc`;
+      /* 고객 화면 — **서버가 거른다.** 판매중 · 기한 안 지남 · **catalog만**(VS).
+         조건은 `_lib/packages.js`에 있다 — 발급 쪽과 갈라지지 않게 하기 위함이다. */
+      const rows = await PKG.listPublicPackages(sql);
       return res.status(200).json({ packages: rows.map(pkgRowOut) });
     } catch (err) {
       console.error(err);
@@ -382,9 +388,42 @@ async function handlePackages(req, res) {
     const title = typeof b.title === 'string' ? b.title.trim() : '';
     if (!title || title.length > PKG_MAX_TITLE) return res.status(400).json({ error: 'invalid_title' });
 
+    /* ── VS: 종류와 출처 ────────────────────────────────────────────────────
+       ⚠ **1회용 소규모 견적(adhoc)은 매니저 이상만 만든다**(2026-08-24 대표 결정).
+         이 값은 엔진 검증을 안 거친다 — 담당자가 적은 숫자가 그대로 고객에게 나간다.
+         목록 등록(catalog)은 대리점가를 옮겨 적는 일이라 staff까지 열어 둔 것과
+         성격이 다르다. 권한이 곧 통제다. */
+    const kind = PKG_KINDS.includes(b.kind) ? b.kind : 'catalog';
+    /* ⚠ **이미 adhoc인 행을 건드리는 것도 매니저 이상이다.** 안 그러면 구멍이 하나
+       남는다 — staff가 `kind`를 빼고 저장하면 기본값 catalog로 덮여서 **남의 손님
+       1회용 견적이 고객 목록에 뜬다.** 들어온 값만 보면 이 경로가 안 보인다.
+       adhoc → catalog 승격(반복되는 여행을 상품으로 올리는 것)도 같은 이유로 매니저 몫이다. */
+    let wasAdhoc = false;
+    try {
+      const prev = await sql`select kind from packages where id = ${id} limit 1`;
+      wasAdhoc = prev.length && prev[0].kind === 'adhoc';
+    } catch (err) {
+      /* 못 읽었으면 **통과시키지 않는다.** 「모르니까 괜찮겠지」가 곧 위 구멍이다. */
+      console.error('[content] 패키지 종류 조회 실패:', err);
+      return res.status(503).json({ error: 'kind_check_failed' });
+    }
+    if ((kind === 'adhoc' || wasAdhoc) && !['owner', 'manager'].includes(req.user && req.user.role)) {
+      return res.status(403).json({ error: 'adhoc_requires_manager' });
+    }
+    const priceBasis = PKG_BASIS.includes(b.priceBasis) ? b.priceBasis : 'agency';
+
     /* ⚠ **가격은 숫자여야 하고 0보다 커야 한다.** 0을 통과시키면 「무료 상품」이
-       고객 화면에 뜬다. 문자열을 그대로 받으면 그게 그대로 견적서에 박힌다. */
-    const price = Number(b.pricePerPerson);
+       고객 화면에 뜬다. 문자열을 그대로 받으면 그게 그대로 견적서에 박힌다.
+       ⚠ **항목을 조립했으면 그 합이 이긴다**(VS). 담당자가 항목만 고치고 총액 칸을
+         안 고치는 일은 반드시 생긴다 — 그때 화면과 견적서가 다른 금액을 말하지
+         않도록 서버가 합으로 덮어쓴다. 판정은 `_lib/packages.js`가 한다. */
+    const lineItems = PKG.lineItemsOf({ line_items: b.lineItems });
+    if (Array.isArray(b.lineItems) && b.lineItems.length && !lineItems.length) {
+      /* 보낸 항목이 **전부** 걸러졌다 — 조용히 0으로 떨어뜨리면 그 순간 총액이
+         엉뚱해진다(결함 생성기 ②). 왜 못 받았는지를 말하고 거절한다. */
+      return res.status(400).json({ error: 'invalid_line_items' });
+    }
+    const price = lineItems.length ? PKG.perPersonOf({ line_items: lineItems }) : Number(b.pricePerPerson);
     if (!Number.isFinite(price) || price <= 0 || price > 100000000) {
       return res.status(400).json({ error: 'invalid_price' });
     }
@@ -395,6 +434,15 @@ async function handlePackages(req, res) {
     if (!asOf || isNaN(asOf.getTime())) return res.status(400).json({ error: 'price_asof_required' });
 
     const status = PKG_STATUS.includes(b.status) ? b.status : 'draft';
+
+    /* ⚠ **1회용 견적에는 기한을 반드시 붙인다**(VS). 소규모는 항공가 변동이 그대로
+       손실인데, 기한 없는 1회용 견적이 쌓이면 언젠가 옛 값으로 발급된다.
+       담당자가 넣었으면 그 값이 이긴다 — 여기는 **안 넣었을 때의 값**이다. */
+    let validUntil = b.validUntil || null;
+    if (!validUntil && kind === 'adhoc') {
+      const d = new Date(Date.now() + ADHOC_DEFAULT_VALID_DAYS * 86400000);
+      validUntil = d.toISOString().slice(0, 10);
+    }
 
     /* 목적지는 **알고 있는 것만** 받는다. 길이만 재고 통과시키면 화면에 영영 안 보이는
        유령 목적지가 쌓인다(itineraries에서 같은 자리를 이미 겪었다).
@@ -422,6 +470,7 @@ async function handlePackages(req, res) {
         insert into packages (
           id, source, source_code, title, dest_key, dest_label, nights, days, depart_date,
           price_per_person, price_currency, price_asof, valid_until, status,
+          kind, price_basis, customer_label, line_items,
           itinerary, incl_items, excl_items, note, updated_by, updated_at
         ) values (
           ${id},
@@ -433,7 +482,10 @@ async function handlePackages(req, res) {
           ${b.departDate || null},
           ${Math.round(price)},
           ${typeof b.priceCurrency === 'string' ? b.priceCurrency.slice(0, 8) : 'KRW'},
-          ${asOf.toISOString()}, ${b.validUntil || null}, ${status},
+          ${asOf.toISOString()}, ${validUntil}, ${status},
+          ${kind}, ${priceBasis},
+          ${typeof b.customerLabel === 'string' ? b.customerLabel.trim().slice(0, 80) || null : null},
+          ${lineItems.length ? JSON.stringify(lineItems) : null},
           ${b.itinerary == null ? null : JSON.stringify(b.itinerary)},
           ${b.included == null ? null : JSON.stringify(b.included)},
           ${b.excluded == null ? null : JSON.stringify(b.excluded)},
@@ -447,6 +499,8 @@ async function handlePackages(req, res) {
           price_per_person = excluded.price_per_person, price_currency = excluded.price_currency,
           price_asof = excluded.price_asof, valid_until = excluded.valid_until,
           status = excluded.status,
+          kind = excluded.kind, price_basis = excluded.price_basis,
+          customer_label = excluded.customer_label, line_items = excluded.line_items,
           itinerary = excluded.itinerary, incl_items = excluded.incl_items, excl_items = excluded.excl_items,
           note = excluded.note, updated_by = excluded.updated_by, updated_at = now()
       `;

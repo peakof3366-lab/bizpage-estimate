@@ -36,6 +36,10 @@ const PKG = read('packages.html');
 const ADMIN = read('admin.html');
 const API = read('api/content.js');
 const MIG = read('ai-loop/db_migrate.js');
+/* VS에서 **읽는 조건이 `_lib/packages.js` 한 곳으로 옮겨졌다.** 규칙은 그대로고
+   사는 곳만 바뀌었으므로, 여기서 보는 자리도 함께 옮긴다.
+   ⚠ 옛 자리를 계속 보면 「조건이 사라졌다」로 잘못 읽힌다 — 실제로는 단일 출처가 된 것이다. */
+const LIB = read('api/_lib/packages.js');
 
 console.log('\n[1] 🔴 패키지 흐름이 견적 엔진을 타지 않는다');
 {
@@ -70,8 +74,11 @@ console.log('\n[2] 「금액 확인일」 — 세 곳이 같은 규칙을 말한
 
 console.log('\n[3] 거르는 일은 서버가 한다');
 {
-  ok('③ 공개 GET이 판매중만 준다', /where status = 'open'/.test(API));
-  ok('③ 기한 지난 것을 서버가 뺀다', /valid_until is null or valid_until >= current_date/.test(API));
+  ok('③ 공개 GET이 판매중만 준다', /where status = 'open'/.test(LIB));
+  ok('③ 기한 지난 것을 서버가 뺀다', /valid_until is null or valid_until >= current_date/.test(LIB));
+  /* 그리고 API가 **그 함수를 실제로 부르는지**까지 본다 — 조건이 어딘가 있는 것과
+     그 조건으로 부르는 것은 다른 이야기다(결함 생성기 ③). */
+  ok('③ 공개 GET이 그 단일 출처를 부른다', /PKG\.listPublicPackages\(sql\)/.test(API));
   ok('③ 관리자만 전부 본다(all=1에 권한 검사)',
     /wantAll[\s\S]{0,200}requireRole\(req, res, \['owner', 'manager', 'staff'\]\)/.test(API));
   /* ⚠ 화면에서 또 거르면 규칙이 두 곳이 되고, 어느 쪽이 진실인지 알 수 없어진다 */
@@ -123,7 +130,8 @@ console.log('\n[6] 화면이 실제로 그려진다 (jsdom)');
   });
   /* 탭 배선 — 버튼만 있고 renderTab에 안 걸리면 눌러도 아무 일이 없다(결함 생성기 ③) */
   ok('⑥ renderTab이 packages를 안다', /name==='packages'\) renderPackages\(\)/.test(ADMIN));
-  ok('⑥ 탭 제목이 있다', /packages:'패키지 상품'/.test(ADMIN));
+  /* VS에서 탭이 「패키지 · 소규모 견적」으로 넓어졌다(같은 탭 안에서 두 흐름을 다룬다) */
+  ok('⑥ 탭 제목이 있다', /packages:'패키지 · 소규모 견적'/.test(ADMIN));
 }
 
 console.log('\n[7] 못 불러온 것을 「0건」으로 보여주지 않는다');
@@ -215,7 +223,9 @@ console.log('\n[10] 패키지 견적서 — 값이 브라우저를 안 지난다
   ok('⑩ 상품 id와 인원만 받는다',
     /b\.packageId/.test(QS) && /b\.pax/.test(QS)
     && !/b\.price/.test(QS) && !/b\.total/.test(QS));
-  ok('⑩ 금액을 DB에서 읽는다', /Number\(p\.price_per_person\)/.test(QS));
+  /* VS: 저장된 총액을 그대로 쓰지 않고 **다시 구한다**(조립 항목이 있으면 그 합이 이긴다).
+     어느 쪽이든 값의 출처가 DB라는 규칙은 그대로다. */
+  ok('⑩ 금액을 DB에서 읽는다', /PKG\.perPersonOf\(p\)/.test(QS));
   ok('⑩ 총액을 서버가 곱한다', /t: per \* pax/.test(QS));
   ok('⑩ 왜 이렇게 했는지가 적혀 있다', /값이 브라우저를 아예 안 지나게 한다/.test(QS));
   /* 고객 화면도 금액을 안 보내야 한다 — 보내면 위 설계가 무의미해진다 */
@@ -236,16 +246,22 @@ console.log('\n[10] 패키지 견적서 — 값이 브라우저를 안 지난다
   /* 고객 목록과 **같은 조건**으로 읽어야 한다 — 느슨하면 안 보이는 상품이 링크로 나간다 */
   {
     const fn = QS.slice(QS.indexOf('async function issuePackageShare'), QS.indexOf('module.exports'));
-    ok('⑩ 판매중만 발급한다', /status = 'open'/.test(fn));
-    ok('⑩ 기한 지난 것은 발급 안 한다', /valid_until >= current_date/.test(fn));
+    /* VS: 조건이 `_lib/packages.js`로 옮겨졌다. 「조건이 있다」와 「그 조건으로 부른다」를
+       둘 다 본다 — 하나만 보면 단일 출처로 옮긴 것과 조건이 사라진 것이 같은 얼굴이 된다. */
+    ok('⑩ 판매중만 발급한다', /status = 'open'/.test(LIB));
+    ok('⑩ 기한 지난 것은 발급 안 한다', /valid_until >= current_date/.test(LIB));
+    ok('⑩ 발급이 그 단일 출처를 부른다', /PKG\.getIssuablePackage\(sql, pkgId\)/.test(fn));
     ok('⑩ 조회가 실패하면 발급하지 않는다', /package_lookup_failed/.test(fn));
     ok('⑩ 인원 범위를 막는다', /PKG_MAX_PAX/.test(QS) && /invalid_pax/.test(fn));
   }
 
   /* ⚠ 패키지 견적서가 맞춤 견적 기준 문구를 그대로 찍으면 **거짓말이 된다** */
-  ok('⑩ 견적서가 패키지를 구분해 그린다', /d\.pkg \? '패키지 상품가/.test(EV));
-  ok('⑩ 「부대비용 미포함」을 패키지에 안 찍는다', /d\.pkg \?[^:]*:[^;]*VAT 별도/.test(EV));
-  ok('⑩ 금액 확인일을 견적서에 찍는다', /금액 확인일<\/div>/.test(EV));
+  /* VS: 패키지 안에서 다시 「대리점가 / 담당자 산출」로 갈렸다. 맞춤 견적과 갈라야
+     한다는 규칙은 그대로고, 갈래가 둘에서 셋이 된 것이다. */
+  ok('⑩ 견적서가 패키지를 구분해 그린다', /패키지 상품가 · 포함\/불포함은 아래 참고/.test(EV));
+  ok('⑩ 담당자 산출을 상품가와 구분해 그린다', /담당자 산출 금액 · 포함\/불포함은 아래 참고/.test(EV));
+  ok('⑩ 「부대비용 미포함」을 패키지에 안 찍는다', /d\.pkg[\s\S]{0,220}: 'VAT 별도 · 부대비용 미포함'/.test(EV));
+  ok('⑩ 금액 확인일을 견적서에 찍는다', /'산출일' : '금액 확인일'/.test(EV));
   ok('⑩ 포함·불포함을 견적서에 낸다', /d\.pkg\.included/.test(EV) && /d\.pkg\.excluded/.test(EV));
   ok('⑩ 견적서가 그 값들을 esc한다', /esc\(s\)/.test(EV));
 

@@ -486,6 +486,23 @@ async function main() {
       /* ── 상태 ── draft(작성중) | open(판매중) | closed(마감) */
       status text not null default 'draft',
 
+      /* ── 종류·출처 (VS) ── 소규모 손님 1회용 견적이 같은 테이블에 들어온다.
+         ⚠ **status에 얹지 않았다.** draft는 「아직 작성중」, adhoc은 「다 됐지만 이
+           손님 전용」 — 뜻이 다르다. 한 칸에 두 뜻을 담는 것이 이 저장소가 반복해서
+           당한 유형이다. 세 축(kind·price_basis·status)은 서로 독립이다.
+         kind        catalog(반복 판매 상품) | adhoc(1회용 소규모 견적)
+         price_basis agency(대리점가를 받아 적음) | assembled(담당자가 항목을 조립)
+         ⚠ 판정·조건은 api/_lib/packages.js 하나가 진실이다. 여기 목록을 다시 적지 말 것. */
+      kind text not null default 'catalog',
+      price_basis text not null default 'agency',
+      /* 누구에게 낸 견적인가 — adhoc은 손님이 특정된다. 고객 견적서에는 안 나간다. */
+      customer_label text,
+      /* 항목별 조립 [{label, amount}] — **있으면 이 합이 price_per_person을 이긴다.**
+         ⚠ 이름을 rows로 짓지 않았다. ROWS는 Postgres 키워드(윈도 프레임·FETCH FIRST)라
+           따옴표 없이 쓰면 자리에 따라 파서가 걸린다. incl_items를 included로
+           짓지 않은 것과 같은 이유다(같은 테이블에서 이미 한 번 밟았다). */
+      line_items jsonb,
+
       /* ── 내용 ── 추출기가 읽어낸 DAY별 일정을 그대로 담는다 */
       itinerary jsonb,
       -- ⚠ 이름을 included/excluded로 짓지 않았다. Postgres의 ON CONFLICT DO UPDATE는
@@ -501,6 +518,15 @@ async function main() {
   `;
   /* 고객 화면이 「판매중 + 출발일 가까운 순」으로 훑는다 */
   await sql`create index if not exists packages_open_idx on packages (status, depart_date)`;
+  /* VS — 이미 만들어진 운영 DB(VP에서 실행 완료)에 칸 넷을 더한다.
+     ⚠ 기존 행은 전부 catalog·agency다. VP·VQ가 만든 것은 전부 대리점가 상품이고,
+       기본값이 그것과 같아야 옛 행의 뜻이 바뀌지 않는다. */
+  await sql`alter table packages add column if not exists kind text not null default 'catalog'`;
+  await sql`alter table packages add column if not exists price_basis text not null default 'agency'`;
+  await sql`alter table packages add column if not exists customer_label text`;
+  await sql`alter table packages add column if not exists line_items jsonb`;
+  /* 고객 목록이 「판매중 + catalog + 출발일 순」으로 훑는다(_lib/packages.js) */
+  await sql`create index if not exists packages_public_idx on packages (kind, status, depart_date)`;
 
   console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations, app_settings, itinerary_overrides, packages tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
 }
