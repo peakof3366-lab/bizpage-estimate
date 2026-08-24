@@ -1116,10 +1116,24 @@ function reconcile(lines, rows, preferGrand, fx) {
   const scale = grand || itemsTotal;
   if (scale && rows.length) {
     const sum = rows.filter((r) => !r.unconvertible).reduce((n, r) => n + r.total, 0);
+    /* 🔴 **「합계」로 잴 때는 「넘었다」가 결함이 아니다**(WD). 코퍼스 45건 중 8건이
+       이 검산에서 깨졌는데, 완전중복(같은 줄·같은 값)을 세어 보니 **8건 모두 0개**였다.
+       원인은 이중 계산이 아니라 「합계」가 **구간 소계**라는 것이다 —
+       KS두레(아오모리+고베)는 두 구간 중 한쪽 합계가, 바모스 오키나와(48명)는
+       관광조/골프조 두 표 중 한쪽이 「합계」로 읽혔다. 줄은 양쪽을 다 읽었으니
+       합이 그 소계를 넘는 게 당연하다.
+       그걸 「같은 줄을 두 번 셌다」고 말하면 **없는 결함을 8건 만들어 내는 것**이고,
+       진짜 이중 계산이 생겼을 때 묻힌다. `grand`(견적 총액)일 때만 결함으로 본다. */
+    const over = sum > scale * 1.02;
     checks.push({
       name: '뽑은 줄 합계 ≤ 총계',
-      ok: sum <= scale * 1.02,
-      detail: `${sum.toLocaleString()} vs ${grand ? '총계' : '항목 합계'} ${scale.toLocaleString()}`,
+      ok: grand ? !over : true,
+      basis: grand ? 'grand' : 'items',
+      /* 「넘지 않았다」와 「넘었지만 소계라서 넘어간다」는 다른 사실이다 — ①의
+         `matched`와 같은 이유로 갈라 남긴다(결함 생성기 ②). */
+      matched: !over,
+      detail: `${sum.toLocaleString()} vs ${grand ? '총계' : '항목 합계'} ${scale.toLocaleString()}`
+        + (over && !grand ? ' — 「합계」가 구간 소계일 수 있다(확인 대상)' : ''),
     });
   }
 

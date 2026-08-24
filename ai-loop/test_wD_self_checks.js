@@ -122,8 +122,18 @@ console.log('\n[5] 뽑은 줄 합계가 총계를 넘으면 잡히는가');
   ]);
   const over = [{ total: 900000 }, { total: 900000 }];   /* 같은 줄을 두 번 셌다 */
   const under = [{ total: 400000 }, { total: 300000 }];
-  ok('🔴 넘으면 깨진다', chk(X.reconcile(lines, over, null, {}), C2).ok === false);
-  ok('✓ 안 넘으면 통과', chk(X.reconcile(lines, under, null, {}), C2).ok === true);
+  /* 🔴 **견적 총액**을 넘으면 결함이다 */
+  ok('🔴 견적 총액을 넘으면 깨진다',
+    chk(X.reconcile(lines, over, 1000000, {}), C2).ok === false);
+  ok('✓ 안 넘으면 통과', chk(X.reconcile(lines, under, 1000000, {}), C2).ok === true);
+  /* ⚪ 「합계」만 있을 때는 넘어도 결함이 아니다 — 구간 소계일 수 있다.
+     실측: 코퍼스 45건 중 8건이 넘었는데 완전중복은 **8건 모두 0개**였다. */
+  {
+    const c = chk(X.reconcile(lines, over, null, {}), C2);
+    ok('⚪ 「합계」만 있을 땐 넘어도 통과', c.ok === true, JSON.stringify(c));
+    ok('🔴 그러나 `matched`는 false — 확인 대상으로 남는다', c.matched === false);
+    ok('detail이 「구간 소계일 수 있다」고 말한다', /구간 소계/.test(c.detail), c.detail);
+  }
 }
 
 /* ══ [6] 감사기와 추출기가 같은 폭을 쓰는가 (결함 생성기 ①) ══ */

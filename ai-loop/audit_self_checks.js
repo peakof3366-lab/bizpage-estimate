@@ -113,9 +113,14 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%';
   console.log('     🔴 깨짐                ' + String(fail1.length).padStart(2)
     + '건  합계가 1인당 표기보다 **크다** = 1인당을 덜 읽었다');
   console.log('   ⚪ 안 돌았다 ' + noRun1 + '건 (총계·1인당·인원 중 하나를 못 읽음)\n');
+  const over2 = ran2.filter((r) => r.c2.ok && !r.c2.matched);
   console.log('검산 ② 뽑은 줄 합계 ≤ 총계');
-  console.log('   돌았다 ' + ran2.length + '건 — 통과 ' + (ran2.length - fail2.length)
-    + ' · 🔴깨짐 ' + fail2.length);
+  console.log('   돌았다 ' + ran2.length + '건');
+  console.log('     ✓ 안 넘음                ' + String(ran2.length - fail2.length - over2.length).padStart(2) + '건');
+  console.log('     ⚪ 넘었지만 「합계」가 소계   ' + String(over2.length).padStart(2)
+    + '건  확인 대상 — 이중 계산이 아니다');
+  console.log('     🔴 견적 총액을 넘음        ' + String(fail2.length).padStart(2)
+    + '건  같은 줄을 두 번 셌다는 뜻');
   console.log('   ⚪ 안 돌았다 ' + (rows.length - ran2.length) + '건\n');
 
   /* ── 🔴 검산 ①이 깨진 건 ──────────────────────────────────────────────── */
@@ -147,12 +152,21 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%';
 
   /* ── 🔴 검산 ②가 깨진 건 ──────────────────────────────────────────────── */
   if (fail2.length) {
-    console.log('\n🔴 검산 ② 깨짐 — 같은 줄을 두 번 셌을 수 있다');
+    console.log('\n🔴 검산 ② 깨짐 — 견적 총액을 넘었다 = 같은 줄을 두 번 셌다');
     console.log(''.padEnd(100, '─'));
     fail2.forEach((r) => console.log('  · ' + pad(r.file, 50) + '  ' + r.c2.detail));
     console.log(''.padEnd(100, '─'));
   } else {
-    console.log('\n✓ 검산 ②가 깨진 문서가 없다.');
+    console.log('\n✓ 견적 총액을 넘은 문서가 없다.');
+  }
+  if (over2.length) {
+    console.log('\n⚪ 확인 대상 — 「합계」를 넘었다. **이중 계산이 아니다.**');
+    console.log('   완전중복(같은 줄·같은 값)을 세어 보니 이 무리 전부 0개였다.');
+    console.log('   「합계」가 구간 소계인 문서다 — KS두레는 아오모리+고베 두 구간,');
+    console.log('   바모스 오키나와(48명)는 관광조/골프조 두 표가 들어 있다.');
+    console.log(''.padEnd(100, '─'));
+    over2.forEach((r) => console.log('  · ' + pad(r.file, 50) + '  ' + r.c2.detail));
+    console.log(''.padEnd(100, '─'));
   }
 
   if (skipped && skipped.length) {
