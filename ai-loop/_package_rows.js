@@ -30,11 +30,18 @@
 
 /* 만들려면 반드시 있어야 하는 것. **없는 것을 지어내지 않는다** — 빈칸으로 만들어 두면
    사람이 채우려고 원본을 다시 열어야 하고, 그럴 바에는 처음부터 안 만든 것이 낫다. */
-function requiredMissing(input) {
+function requiredMissing(input, opts) {
   const i = input || {};
+  const o = opts || {};
   if (!i.title) return '상품명을 못 얻었다';
   if (!(Number(i.pricePerPerson) > 0)) return '1인당 금액을 못 읽었다';
-  if (!i.departDate) return '출발일을 못 읽었다';
+  /* ⚠ **출발일이 필수인 것은 자료의 성격에 달렸다**(VY).
+       견적서 PDF  = 특정 여행 한 건이라 출발일이 없으면 무엇을 견적한 건지 모른다 → 필수
+       대표상품 리스트 = 「오사카 3일 749,000원」처럼 **날짜를 고객이 고르는 상품**이라
+                        출발일 칸이 아예 없다(하나투어 실제 파일 3,550건에 없었다) → 필수 아님
+     여기서 무조건 막았더니 실제 파일 **3,550건이 전부 걸렸다.** 부르는 쪽이 정한다.
+     ⚠ 기본은 true다 — 기존 PDF 경로의 동작을 바꾸지 않는다. */
+  if (o.requireDepart !== false && !i.departDate) return '출발일을 못 읽었다';
   return null;
 }
 
@@ -54,7 +61,7 @@ function buildPackageRow(input, opts) {
   const i = input || {};
   const o = opts || {};
 
-  const why = requiredMissing(i);
+  const why = requiredMissing(i, o);
   if (why) return { ok: false, why };
 
   const asOf = dayOf(i.priceAsOf);
@@ -79,12 +86,15 @@ function buildPackageRow(input, opts) {
       id: i.id,
       source: i.source || 'hanatour',
       sourceCode: i.sourceCode || null,
-      title: i.title,
+      /* ⚠ 눈에 안 보이는 공백을 턴다 — 실제 파일에 상품명 끝에 탭이 여럿 붙어 있었다.
+         그대로 두면 고객 화면과 견적서 제목에 빈 자리가 생긴다. */
+      title: String(i.title).replace(/\s+/g, ' ').trim(),
       destKey: i.destKey || null,
       destLabel: i.destLabel || i.destKey || null,
       nights: i.nights || null,
       days: i.days || null,
-      departDate: i.departDate,
+      /* 대표상품은 날짜를 고객이 고른다 — 없으면 null로 두고 화면이 「출발일 미정」으로 낸다 */
+      departDate: i.departDate || null,
       pricePerPerson: Math.round(Number(i.pricePerPerson)),
       priceAsOf: asOf || (o.today || dayOf(new Date())),
       validUntil: dayOf(i.validUntil),

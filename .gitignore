@@ -32,3 +32,6 @@ ai-loop/.backtest_cache.json
 
 # 운영 요율 오버라이드 캐시 (TR) — 목적지별 단가라 같은 이유로 저장소에 넣지 않는다.
 .rate_overrides_cache.json
+
+# 하나투어 대표상품 리스트 — 거래처 상품가라 저장소에 넣지 않는다(코퍼스 PDF와 같은 이유)
+대표상품리스트/
