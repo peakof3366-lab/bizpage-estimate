@@ -1965,10 +1965,25 @@
 
         <label class="pkg-f" style="margin-top:14px;display:block"><span>일정 <em>— DAY마다 한 줄. 「제목 | 내용」</em></span>
           <textarea id="pkgIti" rows="6" placeholder="인천 출발 · 나하 도착 | 오전 인천공항 집결 / 오후 나하 도착 후 호텔 이동&#10;북부 관광 | 츄라우미 수족관 / 코우리대교"></textarea></label>
-        <p style="margin-top:8px;font-size:12px;color:#777;line-height:1.7">
-          ⚠ 하나투어 견적서 PDF가 있으면 <strong>일정을 손으로 옮길 필요가 없습니다</strong> —
-          견적서 업데이트 화면의 추출기가 DAY별로 읽어냅니다. (연결은 다음 단계)
-        </p>
+        <!-- 📄 PDF에서 불러오기 (WA) — 2026-08-24 대표 방침: 하나투어가 데이터를 안 주므로
+             **파는 상품에만 상세 PDF로 일정을 채운다.**
+             ⚠ **채우기만 하고 저장하지 않는다.** 추출은 사람이 확인할 초안이지 확정이 아니다 —
+               자동 저장하면 잘못 읽은 값이 그대로 상품이 되고, 그게 고객가가 된다.
+             ⚠ 이미 적어 둔 칸은 **덮지 않는다.** 담당자가 손본 값을 자동이 지우면
+               그 수정이 조용히 사라진다(일정 심기에서 이미 겪은 자리다). -->
+        <div style="margin-top:14px;padding:12px 14px;background:#F7F7F5;border:1px solid rgba(0,0,0,.08)">
+          <div style="font-weight:800;font-size:13px;margin-bottom:6px">📄 PDF에서 불러오기</div>
+          <p style="margin:0 0 9px;font-size:12px;color:#666;line-height:1.75">
+            하나투어 상세 PDF를 올리시면 <strong>상품명·기간·금액·일정</strong>을 읽어 위 칸을 채웁니다.
+            <strong>저장은 하지 않습니다</strong> — 값을 확인하신 뒤 직접 「저장」을 누르세요.
+            이미 적어 두신 칸은 건드리지 않습니다.
+          </p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="pkgPdf" accept="application/pdf" style="font-size:12px">
+            <button type="button" class="btn-act btn-outline-p" id="pkgPdfRead">읽어서 채우기</button>
+            <span id="pkgPdfMsg" style="font-size:12px"></span>
+          </div>
+        </div>
         <div style="margin-top:18px;display:flex;gap:8px;align-items:center">
           <button class="btn-act btn-primary" id="pkgSave">저장</button>
           <button class="btn-act btn-outline-d" id="pkgDelete">삭제</button>
@@ -12975,6 +12990,85 @@
     }
   }
 
+  /* ── 📄 PDF에서 불러오기 (WA) ───────────────────────────────────────────────
+     `/api/quotes?action=extractPdf`를 그대로 쓴다 — 「견적서 업데이트」가 쓰는 그 추출기다.
+     ⚠ **새 API를 만들지 않았다.** Vercel Hobby 함수 12개 제한에 이미 도달해 있다. */
+  async function pkgReadPdf() {
+    const msg = document.getElementById('pkgPdfMsg');
+    const file = (document.getElementById('pkgPdf') || {}).files?.[0];
+    if (!file) { msg.style.color = '#B45309'; msg.textContent = 'PDF를 고르세요.'; return; }
+    msg.style.color = '#666'; msg.textContent = '읽는 중… (10초쯤 걸립니다)';
+    let d;
+    try {
+      const b64 = await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(String(fr.result).split(',')[1]);
+        fr.onerror = () => rej(new Error('파일을 읽지 못했습니다'));
+        fr.readAsDataURL(file);
+      });
+      const r = await fetch('/api/quotes?action=extractPdf', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfBase64: b64 }),
+      });
+      d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) {
+        msg.style.color = '#B91C1C';
+        msg.textContent = '읽지 못했습니다 — ' + ({
+          pdf_parse_failed: 'PDF를 열지 못했습니다',
+          no_text_found: '글자가 없는 PDF입니다(사진으로만 된 문서)',
+          invalid_body: '파일이 잘못되었습니다',
+        }[d.error] || (d.error || ('오류 ' + r.status)));
+        return;
+      }
+    } catch (err) {
+      msg.style.color = '#B91C1C'; msg.textContent = '읽지 못했습니다 — ' + String(err.message || err);
+      return;
+    }
+
+    /* ⚠ **빈 칸만 채운다.** 사람이 적어 둔 값을 덮으면 그 수정이 조용히 사라진다. */
+    const filled = [], skippedF = [];
+    const put = (id, val, label) => {
+      const el = document.getElementById(id);
+      if (!el || val == null || val === '') return;
+      if (String(el.value).trim()) { skippedF.push(label); return; }
+      el.value = val; filled.push(label);
+    };
+    const dates = d.dates || {};
+    put('pkgTitle', file.name.replace(/\.pdf$/i, '').replace(/_\d{6,8}$/, '').trim(), '상품명');
+    put('pkgNights', dates.nights || '', '박');
+    put('pkgDays', dates.days || '', '일');
+    put('pkgDepart', dates.departDate || '', '출발일');
+    put('pkgPrice', d.perPerson || '', '1인 금액');
+    /* 🔴 금액 확인일: 문서 작성일 → 없으면 **파일 이름의 날짜**. 오늘은 절대 안 넣는다.
+       규칙은 `ai-loop/_package_rows.js`와 같다(그쪽이 투입 도구의 단일 출처다). */
+    let asOf = dates.quoteDate || '';
+    let asOfFrom = '문서 작성일';
+    if (!asOf) {
+      const m = /_(\d{2})(\d{2})(\d{2})(?:\D|$)/.exec(file.name);
+      if (m && Number(m[2]) >= 1 && Number(m[2]) <= 12 && Number(m[3]) >= 1 && Number(m[3]) <= 31) {
+        asOf = '20' + m[1] + '-' + m[2] + '-' + m[3]; asOfFrom = '파일 이름';
+      }
+    }
+    put('pkgAsOf', asOf ? String(asOf).slice(0, 10) : '', '금액 확인일(' + asOfFrom + ')');
+
+    /* 일정 — 「제목 | 내용」 한 줄씩. 없는 구분(오전/오후)을 지어내지 않는다. */
+    const days = (d.itinerary && Array.isArray(d.itinerary.days)) ? d.itinerary.days : [];
+    if (days.length) {
+      const text = days.map((x) => {
+        const lines = Array.isArray(x.lines) ? x.lines.filter(Boolean) : [];
+        return [String(x.place || x.date || '').trim(), lines.join(' / ')].filter(Boolean).join(' | ');
+      }).join('\n');
+      put('pkgIti', text, '일정 ' + days.length + '일');
+    }
+
+    pkgSyncNotes();
+    msg.style.color = filled.length ? '#166534' : '#B45309';
+    msg.textContent = (filled.length ? '채웠습니다: ' + filled.join(' · ') : '채울 것이 없었습니다')
+      + (skippedF.length ? '  /  이미 적혀 있어 그대로 둠: ' + skippedF.join(' · ') : '')
+      + (days.length ? '' : '  /  ⚠ 일정을 못 읽었습니다 — 손으로 넣으셔야 합니다')
+      + '  →  확인하시고 「저장」을 누르세요.';
+  }
+
   async function pkgSave() {
     const msg = document.getElementById('pkgMsg');
     const g = (id) => (document.getElementById(id) || {}).value || '';
@@ -13076,6 +13170,7 @@
       document.getElementById(id)?.addEventListener('change', pkgSyncNotes));
     document.getElementById('pkgItems')?.addEventListener('input', pkgSyncNotes);
     document.getElementById('pkgIssue')?.addEventListener('click', pkgIssueNow);
+    document.getElementById('pkgPdfRead')?.addEventListener('click', pkgReadPdf);
     document.getElementById('pkgIssueCopy')?.addEventListener('click', () => {
       const el = document.getElementById('pkgIssueUrl');
       el.select();

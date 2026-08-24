@@ -45,6 +45,22 @@ function requiredMissing(input, opts) {
   return null;
 }
 
+/* 파일 이름의 날짜 — `…_260824.xlsx` · `Hanatour 견적서_김보균님(상해)_251127.pdf`
+   ⚠ **문서가 밝힌 작성일이 먼저다.** 이건 그것이 없을 때의 두 번째 후보다.
+     실측: 하나투어 견적서 2건 중 1건이 문서에 작성일이 없어 걸렸는데, 파일 이름에는
+     `_251127`이 있었다. 그 한 건 때문에 「오늘 날짜를 넣자」로 물러나면 안 된다 —
+     파일 이름은 **자료가 스스로 밝힌 날짜**이고 오늘은 아니다.
+   ⚠ 두 자리 연도는 2000년대로 읽는다. 「26」이 1926년일 수는 없다.
+   ⚠ 어디서 왔는지를 note에 남긴다(`asOfSource`) — 「확인한 날」과 성격이 다르다. */
+function dateFromFileName(name) {
+  const m = /_(\d{2})(\d{2})(\d{2})(?:\D|$)/.exec(String(name || '').split(/[\\/]/).pop());
+  if (!m) return null;
+  const y = 2000 + Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const p = (n) => String(n).padStart(2, '0');
+  return y + '-' + p(mo) + '-' + p(d);
+}
+
 /* 날짜를 YYYY-MM-DD로. 못 읽으면 null (조용히 오늘로 떨어지지 않는다). */
 function dayOf(v) {
   if (!v) return null;
@@ -64,10 +80,19 @@ function buildPackageRow(input, opts) {
   const why = requiredMissing(i, o);
   if (why) return { ok: false, why };
 
-  const asOf = dayOf(i.priceAsOf);
+  /* 금액 확인일의 후보 순서 — **자료가 밝힌 것부터**, 오늘은 끝까지 안 쓴다.
+       ① 문서가 밝힌 작성일
+       ② 파일 이름의 날짜 (①이 없을 때만)
+       ③ 없으면 만들지 않는다 (`assumeToday`로만 우회) */
+  let asOf = dayOf(i.priceAsOf);
   let asOfWhy;
+  const fromName = asOf ? null : dateFromFileName(i.fileName || '');
+  if (!asOf && fromName) asOf = fromName;
+
   if (asOf) {
-    asOfWhy = '금액 확인일은 문서의 작성일(' + asOf + ')에서 가져왔습니다 — 실제로 확인한 날로 고쳐 주세요.';
+    asOfWhy = fromName
+      ? '금액 확인일은 **파일 이름의 날짜**(' + asOf + ')에서 가져왔습니다 — 문서에 작성일이 없었습니다. 실제로 확인한 날로 고쳐 주세요.'
+      : '금액 확인일은 문서의 작성일(' + asOf + ')에서 가져왔습니다 — 실제로 확인한 날로 고쳐 주세요.';
   } else if (!o.assumeToday) {
     /* 🔴 여기서 멈추는 것이 이 파일의 핵심이다. 위 머리말 ③ 참고. */
     return {
@@ -115,7 +140,8 @@ function buildPackageRow(input, opts) {
         ? i.imageUrl.trim().slice(0, 500) : null,
       note: asOfWhy + (i.origin ? ' (출처: ' + i.origin + ')' : ''),
       /* 화면 표시용 — DB에 안 들어간다 */
-      _asOfFromDoc: !!asOf,
+      _asOfFromDoc: !!asOf && !fromName,
+      _asOfFromName: !!fromName,
       _dayCount: (i.itinerary || []).length,
     },
   };
@@ -133,4 +159,4 @@ function buildPackageRows(inputs, opts) {
   return { rows, skipped };
 }
 
-module.exports = { buildPackageRow, buildPackageRows, requiredMissing, dayOf };
+module.exports = { buildPackageRow, buildPackageRows, requiredMissing, dayOf, dateFromFileName };

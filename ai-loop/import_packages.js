@@ -146,6 +146,9 @@ async function main() {
       departDate: dates.departDate,
       pricePerPerson: price,
       priceAsOf: dates.quoteDate || null,
+      /* 문서에 작성일이 없을 때 **파일 이름의 날짜**를 두 번째 후보로 준다(WA).
+         실측: 하나투어 견적서 2건 중 1건이 그것 때문에 걸렸는데 파일명엔 _251127이 있었다. */
+      fileName: f,
       itinerary: iti || [],
       origin: '출처 파일: ' + f,
     }, { assumeToday: ASSUME_TODAY });
@@ -163,7 +166,11 @@ async function main() {
       + won(p.pricePerPerson).padStart(11) + '원'
       + '   일정 ' + String(p._dayCount).padStart(2) + '일'
       + '   ' + p._file.slice(0, 40));
-    if (!p._asOfFromDoc) console.log('     ⚠ 금액 확인일이 **투입한 날**이다(문서에 작성일이 없었다) — 확인한 날로 고쳐야 한다');
+    /* ⚠ 셋을 갈라 말한다(WA). 「파일 이름에서 왔다」와 「오늘을 넣었다」는 전혀 다르다 —
+       앞엣것은 자료가 밝힌 날짜고 뒤엣것은 우리가 지어낸 날짜다. 뭉치면 사람이
+       고쳐야 할 것과 안 고쳐도 될 것을 구분하지 못한다. */
+    if (p._asOfFromName) console.log('     ⚠ 금액 확인일이 **파일 이름의 날짜**다(문서에 작성일이 없었다) — 맞는지 봐 주세요');
+    else if (!p._asOfFromDoc) console.log('     🔴 금액 확인일이 **투입한 날**이다 — 우리가 확인한 날이 아니다. 반드시 고쳐야 한다');
     if (!p.destKey) console.log('     ⚠ 목적지를 못 정했다 — 관리자 화면에서 지역명을 적어야 한다');
     if (!p._dayCount) console.log('     ⚠ 일정을 못 읽었다 — 금액만 들어간다');
   });
