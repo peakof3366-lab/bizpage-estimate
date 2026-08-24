@@ -144,7 +144,7 @@
 
               <div class="estimate-step step-active" data-step="1">
                 <label class="fld">
-                  <span class="fld-lbl"><i data-lucide="map-pin" class="ic-sm"></i>연수 목적지 선택</span>
+                  <span class="fld-lbl"><i data-lucide="map-pin" class="ic-sm"></i>여행 목적지</span>
                   <!-- ⚠ 이중 관리 주의: 아래 option value 목록은 data.js의 destinationRates[].destination_key,
                        script.js의 BIZ_ZONES 목록과 반드시 1:1로 일치해야 합니다. 목적지 추가/삭제 시 세 곳 모두 함께 수정.
                        (단, 맨 끝 #customDestOptgroup은 예외 — script.js가 /api/rates 응답으로 자동 채우므로 수동 동기화 대상이 아님) -->
@@ -343,9 +343,12 @@
                   </label>
                 </div>
 
-                <!-- 연수 방식: 공식 방문 포함 여부 (참고용 — 견적서에 표기, 가격 계산에는 영향 없음) -->
-                <label class="fld">
-                  <span class="fld-lbl"><i data-lucide="badge-check" class="ic-sm"></i>연수 방식</span>
+                <!-- 연수 방식: 공식 방문 포함 여부 (참고용 — 견적서에 표기, 가격 계산에는 영향 없음)
+                     ⚠ **휴양에서는 숨긴다**(VX). 「기관·기업 공식 방문」과 「워크숍·팀빌딩」은
+                       가족·친목 손님에게 고를 수 있는 선택지가 아니다 — 둘 다 자기 것이
+                       아니면 그 사람은 이 폼 전체를 남의 것으로 읽는다. -->
+                <label class="fld" id="visitModeField">
+                  <span class="fld-lbl"><i data-lucide="badge-check" class="ic-sm"></i>여행 방식</span>
                   <select id="visitMode">
                     <option value="official">기관·기업 공식 방문 포함</option>
                     <option value="workshop">워크숍·팀빌딩 중심 (공식 방문 없음)</option>
@@ -355,7 +358,7 @@
                 <!-- 날짜 선택기 (기간 자동 계산) -->
                 <div class="date-block">
                   <div class="date-block-header">
-                    <span class="date-block-title">연수 날짜</span>
+                    <span class="date-block-title">여행 날짜</span>
                     <span class="date-block-hint">선택 시 기간 자동 입력</span>
                   </div>
                   <div class="date-inputs-row">
@@ -373,14 +376,14 @@
                   <div class="season-badge hidden" id="seasonBadge"></div>
                 </div>
 
-                <!-- 참가 인원 + 연수 기간 (2열) -->
+                <!-- 여행 인원 + 기간 (2열) — 「참가」·「연수」는 가족·모임 손님에게 남의 말이다(VX) -->
                 <div class="fld-row">
                   <label class="fld">
-                    <span class="fld-lbl"><i data-lucide="users" class="ic-sm"></i>참가 인원</span>
+                    <span class="fld-lbl"><i data-lucide="users" class="ic-sm"></i>여행 인원</span>
                     <input type="number" id="participants" min="1" value="10" required />
                   </label>
                   <label class="fld">
-                    <span class="fld-lbl"><i data-lucide="calendar-days" class="ic-sm"></i>연수 기간 <small class="fld-hint">수정 불가</small></span>
+                    <span class="fld-lbl"><i data-lucide="calendar-days" class="ic-sm"></i>여행 기간 <small class="fld-hint">날짜에서 자동 계산</small></span>
                     <input type="number" id="days" min="1" value="7" required readonly aria-readonly="true" />
                   </label>
                 </div>
@@ -488,12 +491,15 @@
                   <!-- TP: 현장 부대비용 B안 — **아는 것만 넣으면 더 정확해진다.**
                        아무것도 안 골라도 A안 계수(지상비의 20%)가 이미 깔려 있어 실제에 가깝다.
                        여기는 담당자가 아는 조건을 켜서 그만큼을 실제 단가로 바꾸는 자리다. -->
-                  <span class="inc-sec-lbl">현장 부대비용 (아는 것만 넣으세요)</span>
+                  <!-- ⚠ 「지상비」는 업계 말이다(VX). 일반 고객은 그 말을 모르고, 모르는 말이
+                       금액 옆에 있으면 금액 자체를 안 믿는다. 뜻을 그대로 풀어 쓴다. -->
+                  <span class="inc-sec-lbl" id="ancSecLbl">현지에서 드는 그 밖의 비용 (아는 것만 넣으세요)</span>
                   <div class="inc-note" id="ancBaseNote">
-                    기관 섭외·통역, 행사 운영(현수막·기념품·사진), 현장 진행비는
-                    <strong>지상비의 20%</strong>로 이미 반영돼 있습니다 — 견적서 46건 실측 기준입니다.
+                    통역, 행사 운영(현수막·기념품·사진), 현지 진행비 같은 항목은
+                    <strong>현지 비용의 20%</strong>로 이미 더해져 있습니다 — 실제 견적서 46건을 재서 나온 값입니다.
                   </div>
-                  <div class="inc-vip-row">
+                  <!-- 기관 방문·섭외는 **연수에만 있는 일**이라 휴양에서는 숨긴다(VX) -->
+                  <div class="inc-vip-row" id="agencyVisitRow">
                     <span class="grade-label">기관 방문·섭외</span>
                     <input type="number" id="agencyVisits" min="0" step="1" value="0" class="vip-count-inp" />
                     <span class="vip-count-unit">회 (섭외비+통역비)</span>
@@ -546,9 +552,12 @@
               </div>
 
               <div class="estimate-step" data-step="2">
+                <!-- ⚠ **필수를 풀었다**(VX). 가족·친목 모임 손님은 여기 적을 것이 없는데
+                     필수라 **여기서 막혀 나간다.** 라벨도 「모임 이름」을 함께 제시해
+                     적을 것이 있다는 걸 알린다. 회사 손님은 그대로 회사명을 적으면 된다. -->
                 <label>
-                  회사/기관명
-                  <input type="text" id="organization" placeholder="회사 또는 기관명을 입력하세요" required />
+                  회사 / 모임 이름 <small class="fld-hint">없으면 비워 두셔도 됩니다</small>
+                  <input type="text" id="organization" placeholder="예: ○○주식회사 · 김○○ 가족 · 산악회" />
                 </label>
                 <label>
                   담당자 이름
@@ -556,7 +565,7 @@
                 </label>
                 <label>
                   요청 사항
-                  <textarea id="requestDetails" placeholder="원하시는 연수의 핵심 성과와 희망 지역을 적어주세요" required></textarea>
+                  <textarea id="requestDetails" placeholder="원하시는 일정이나 꼭 넣고 싶은 곳을 적어주세요 (예: 3일차는 자유일정으로)" required></textarea>
                 </label>
 
                 <!-- 제출 전 버튼 -->
@@ -652,15 +661,19 @@
                   <p class="inc-label">포함 항목</p>
                   <div class="inc-tags" id="incTagsArea"></div>
 
-                  <!-- 총액 + 1인당 (2분할) -->
+                  <!-- 1인당 + 총액 (VX에서 **순서를 뒤집었다**)
+                       ⚠ 예전엔 총액이 제일 컸다. 8명 여행에서 「₩13,018,259」가 먼저 눈에
+                         들어오면 사람은 놀라서 나간다. **사람은 1인당으로 비교한다** —
+                         이 저장소의 정확도 작업(역검증·요율)도 전부 1인당으로 이야기한다.
+                       ⚠ 총액을 없애지는 않았다. 기업 담당자에게는 그게 결재 숫자다. -->
                   <div class="result-totals">
-                    <div class="total-box total-grand">
-                      <span class="total-lbl">예상 총액</span>
-                      <span class="total-amt" id="resultValue">₩ 0</span>
-                    </div>
                     <div class="total-box total-per">
                       <span class="total-lbl">1인당 금액</span>
                       <span class="total-amt" id="perPersonValue">₩ 0</span>
+                    </div>
+                    <div class="total-box total-grand">
+                      <span class="total-lbl">예상 총액</span>
+                      <span class="total-amt" id="resultValue">₩ 0</span>
                     </div>
                   </div>
 
@@ -670,14 +683,15 @@
                   <!-- 러프 견적 안내 -->
                   <div class="estimate-disclaimer" id="estimateDisclaimer">
                     <p class="disc-main">본 견적은 <strong>참고용 예상 금액</strong>입니다.</p>
-                    <p class="disc-sub">실제 비용은 연수 목적지 현지 사정, 환율, 시즌, 방문 기관 조건에 따라 달라질 수 있습니다. 정확한 견적은 전문 컨설턴트와의 <strong>1:1 상담</strong>을 통해 확정해 드립니다.</p>
+                    <p class="disc-sub">실제 비용은 현지 사정, 환율, 시즌, 항공 좌석 상황에 따라 달라질 수 있습니다. 정확한 견적은 담당자와의 <strong>1:1 상담</strong>을 통해 확정해 드립니다.</p>
                     <a href="#contact" class="disc-cta">정확한 견적 상담 신청 →</a>
                   </div>
                   <p class="result-note" id="resultNote"></p>
                 </div>
 
-                <!-- 기업 단체연수 체크리스트 (참고용 · 접이식) -->
-                <details class="group-checklist">
+                <!-- 기업 단체연수 체크리스트 (참고용 · 접이식)
+                     ⚠ 휴양에서는 숨긴다(VX) — 「내부 결재 준비」·「참가자 명단」은 가족 여행에 없다 -->
+                <details class="group-checklist" id="groupChecklist">
                   <summary class="gcl-head">
                     <span class="gcl-title">기업 단체연수 준비 체크리스트</span>
                   </summary>

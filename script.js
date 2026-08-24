@@ -1175,6 +1175,11 @@ function syncGolfAvailability() {
     const prg = document.getElementById('programType');
     if (!prg) return;
     const note = document.getElementById('leisureNote');
+    /* 연수에만 있는 일 — 휴양에서는 **자리째 숨긴다**(VX).
+       ⚠ 라벨을 바꾸는 것으로는 안 된다. 「기관 방문·섭외 0회」는 이름을 뭐라 붙여도
+         가족 손님이 고를 수 있는 것이 아니고, 고를 수 없는 칸이 보이면 그 사람은
+         **폼 전체를 남의 것으로 읽는다.** 그게 이 화면의 진짜 문제였다. */
+    const TRAINING_ONLY = ['visitModeField', 'agencyVisitRow', 'groupChecklist'];
     const apply = () => {
       const leisure = prg.value === 'leisure';
       ['incVehicle', 'incGuide'].forEach((id) => {
@@ -1187,6 +1192,19 @@ function syncGolfAvailability() {
           el.checked = true; delete el.dataset.autoOff;
         }
       });
+      TRAINING_ONLY.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', leisure);
+      });
+      /* 숨기는 것으로 끝내지 않는다 — 숨긴 칸의 값이 금액에 남아 있으면
+         고객은 자기가 안 고른 비용을 내게 된다(결함 생성기 ②). 0으로 되돌린다. */
+      if (leisure) {
+        const av = document.getElementById('agencyVisits');
+        if (av && Number(av.value) > 0) { av.dataset.autoOff = av.value; av.value = '0'; }
+      } else {
+        const av = document.getElementById('agencyVisits');
+        if (av && av.dataset.autoOff) { av.value = av.dataset.autoOff; delete av.dataset.autoOff; }
+      }
       if (note) note.classList.toggle('hidden', !leisure);
       renderLiveBreakdown();
     };

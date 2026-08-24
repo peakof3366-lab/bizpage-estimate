@@ -801,14 +801,18 @@ p { line-height:1.8; }
 /* 총액 */
 .result-totals { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
 .total-box { padding:18px; border-radius:var(--r); }
-.total-grand { background:var(--ink); border-top:3px solid var(--red); }
-.total-per   { background:var(--bg-off); border:1px solid rgba(0,0,0,.08); }
+/* VX — **1인당이 주인공이다.** 사람은 1인당으로 비교하고, 8명 여행에서 총액이
+   먼저 눈에 들어오면 놀라서 나간다(₩13,018,259 vs ₩1,627,282).
+   그래서 검은 강조 상자를 1인당 쪽으로 옮겼다.
+   ⚠ 총액을 없애지는 않았다 — 기업 담당자에게는 그게 결재 숫자다. */
+.total-per   { background:var(--ink); border-top:3px solid var(--red); }
+.total-grand { background:var(--bg-off); border:1px solid rgba(0,0,0,.08); }
 .total-lbl { font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; margin-bottom:7px; display:block; }
-.total-grand .total-lbl { color:rgba(255,255,255,.65); }
-.total-per   .total-lbl { color:var(--t-sub); }
+.total-per   .total-lbl { color:rgba(255,255,255,.65); }
+.total-grand .total-lbl { color:var(--t-sub); }
 .total-amt { font-size:22px; font-weight:900; letter-spacing:-.03em; display:block; }
-.total-grand .total-amt { color:var(--red); font-size:32px; }
-.total-per   .total-amt { color:var(--t-head); font-size:18px; }
+.total-per   .total-amt { color:var(--red); font-size:32px; }
+.total-grand .total-amt { color:var(--t-head); font-size:18px; }
 .rate-note-badge { font-size:11px; color:var(--t-sub); background:var(--bg-off); border-radius:var(--r); padding:5px 11px; margin-bottom:12px; text-align:center; }
 .estimate-disclaimer { background:rgba(200,16,46,.04); border:1px solid rgba(200,16,46,.12); border-radius:var(--r); padding:16px; }
 .disc-main { font-size:13px; font-weight:700; color:var(--t-head); margin-bottom:6px; }
@@ -1379,7 +1383,7 @@ p { line-height:1.8; }
   .scroll-top-btn { bottom:72px; right:16px; }
 
   .step-tracker { font-size:10px; gap:6px; margin-bottom:18px; }
-  .total-grand .total-amt { font-size:26px; }
+  .total-per .total-amt { font-size:26px; }   /* VX: 강조가 1인당으로 옮겨졌다 */
 }
 
 /* ================================================================
