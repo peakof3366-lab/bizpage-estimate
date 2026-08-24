@@ -56,6 +56,35 @@ const FORM = (() => {
   return raw.replace(/<!--[\s\S]*?-->/g, ' ');
 })();
 
+/* ⚠ **STEP 3까지 함께 본다**(VX 후속). 처음엔 FORM을 STEP 3 앞에서 끊었는데,
+   그 바람에 「연수 일정 탐색하기」·「목적지 연수 일정」·「두 가지 연수 방식 중 팀
+   목적에 맞는…」 셋을 놓쳤다. 셋 다 **휴양 손님에게도 그대로 보이는 자리**였고,
+   프로덕션 화면을 grep해서야 나왔다 — 검사가 보는 범위가 곧 지켜지는 범위다. */
+const FLOW = (() => {
+  const a = INDEX.indexOf('id="estimateForm"');
+  const b = INDEX.indexOf('id="destinations"');
+  const raw = a >= 0 && b > a ? INDEX.slice(a, b) : '';
+  return raw.replace(/<!--[\s\S]*?-->/g, ' ');
+})();
+
+console.log('\n[0] 🔴 고객이 지나는 길 전체에 남은 「연수」— 허용 목록으로만 통과');
+{
+  ok('⓪ STEP1~3 구간을 잘라냈다', FLOW.length > FORM.length, FLOW.length + ' > ' + FORM.length);
+  /* 남아 있어도 되는 것은 **연수를 고른 사람에게만 보이는 것**뿐이다:
+       · 프로그램 유형 선택지 이름 — 그게 그 유형의 정확한 이름이다
+       · 단체연수 체크리스트 안쪽 — 휴양이면 자리째 숨는다(아래 [5]가 확인) */
+  const ALLOWED = [
+    '언어 집중 연수', '산업체 실무 연수', '교육기관 / 연구 연수',
+    '기업 단체연수 준비 체크리스트', '연수 목적 및 핵심 성과 목표 설정', '출발일 · 연수 기간 확정',
+  ];
+  const hits = [...FLOW.matchAll(/[^>]{0,20}연수[^<]{0,20}/g)].map((m) => m[0].trim());
+  const leaked = [...new Set(hits)].filter((h) => !ALLOWED.some((a) => h.includes(a)));
+  ok('⓪ 허용 목록 밖에 「연수」가 없다', leaked.length === 0, leaked.join(' | '));
+  /* 허용 목록이 낡지 않도록 — 목록에 적어 둔 것이 실제로 화면에 있는지도 본다 */
+  ok('⓪ 허용 목록이 실제 화면과 맞다', ALLOWED.every((a) => FLOW.includes(a)),
+    ALLOWED.filter((a) => !FLOW.includes(a)).join(' | ') + ' 가 화면에 없다(목록이 낡았다)');
+}
+
 console.log('\n[1] 입력 화면이 「연수」라고 말하지 않는다');
 {
   ok('① 폼 구간을 잘라냈다', FORM.length > 2000, String(FORM.length));
