@@ -1929,7 +1929,9 @@
             <input type="date" id="pkgDepart"></label>
           <label class="pkg-f"><span>1인 금액 (원) <em>— 고객가 그대로</em></span>
             <input type="number" id="pkgPrice" min="1" placeholder="1190000"></label>
-          <label class="pkg-f"><span>💡 금액 확인일 <em>— 필수</em></span>
+          <!-- 라벨이 「금액의 출처」에 따라 말을 바꾼다(VU) — 대리점가면 「확인한 날」,
+               담당자 산출이면 「만든 날」이다. 같은 칸이지만 묻는 것이 다르다. -->
+          <label class="pkg-f"><span id="pkgAsOfLbl">💡 금액 확인일 <em>— 필수</em></span>
             <input type="date" id="pkgAsOf"></label>
           <label class="pkg-f"><span>유효기간 <em>(선택)</em></span>
             <input type="date" id="pkgValid"></label>
@@ -12623,6 +12625,26 @@
     const t = new Date(d);
     return isNaN(t.getTime()) ? '' : t.toISOString().slice(0, 10);
   };
+  /* ⚠ toISOString()은 UTC라 한국 오전 9시 전에는 **어제**가 나온다. 「오늘 산출했다」를
+     적는 칸에 어제가 들어가면 그 칸의 뜻이 무너진다 — 지역 시간으로 만든다. */
+  const pkgToday = () => {
+    const t = new Date();
+    const p2 = (n) => String(n).padStart(2, '0');
+    return t.getFullYear() + '-' + p2(t.getMonth() + 1) + '-' + p2(t.getDate());
+  };
+  /* 1회용 견적의 id — 사람이 읽을 필요가 없지만 **겹치면 안 된다**(upsert가 덮어쓴다).
+     날짜 + 무작위 넷. 이미 불러온 목록과 대조해 겹치면 다시 뽑는다(최대 20번). */
+  function pkgNewAdhocId() {
+    const day = pkgToday().replace(/-/g, '').slice(2);
+    for (let i = 0; i < 20; i++) {
+      const tail = Math.random().toString(36).slice(2, 6);
+      const id = 'adhoc-' + day + '-' + tail;
+      if (!pkgAll.some((p) => p.id === id)) return id;
+    }
+    /* 20번 다 겹치는 것은 사실상 없다. 그래도 **조용히 겹친 값을 주지 않는다** —
+       시간까지 붙여 반환한다(조용한 폴백 금지). */
+    return 'adhoc-' + day + '-' + Date.now().toString(36);
+  }
 
   async function renderPackages() {
     const box = document.getElementById('pkgList');
@@ -12734,7 +12756,15 @@
     v('pkgCustomer', p ? (p.customerLabel || '') : '');
     v('pkgItems', p && Array.isArray(p.lineItems)
       ? p.lineItems.map(it => it.label + ' | ' + it.amount).join('\n') : '');
-    v('pkgId', p ? p.id : '');
+    /* ⚠ **1회용 견적의 ID는 사람이 지어낼 것이 아니다**(VU). 상품(catalog)은 나중에
+       같은 것을 다시 편집하고 CLI로 골라 쓰기도 해서 `hana-okinawa-1203` 같은 이름이
+       뜻을 갖는다. 1회용은 한 번 쓰고 끝이라 그 이름이 아무 뜻도 없는데, 영문·숫자만
+       받는 칸이라 **손님 앞에서 영문 ID를 짜고 있어야 했다.** 자동으로 붙인다.
+       ⚠ 겹치면 upsert가 **남의 견적을 덮어쓴다** — 이미 불러온 목록과 대조해 다시 뽑는다. */
+    const idEl = document.getElementById('pkgId');
+    if (p) { v('pkgId', p.id); delete idEl.dataset.auto; }
+    else if (kind === 'adhoc') { v('pkgId', pkgNewAdhocId()); idEl.dataset.auto = '1'; }
+    else { v('pkgId', ''); delete idEl.dataset.auto; }
     v('pkgTitle', p ? p.title : '');
     v('pkgDest', p ? (p.destKey || '') : '');
     v('pkgDestLabel', p ? (p.destLabel || '') : '');
@@ -12744,8 +12774,19 @@
     v('pkgPrice', p ? p.pricePerPerson : '');
     /* ⚠ 새 상품의 「금액 확인일」을 **오늘로 미리 채우지 않는다.** 미리 채우면
        담당자가 확인도 안 한 날짜를 그대로 저장하게 되고, 그 순간 이 칸이 무의미해진다.
-       비워 두면 서버가 거절하고, 그 거절이 곧 「확인하고 적으라」는 뜻이다. */
-    v('pkgAsOf', p ? pkgDateStr(p.priceAsOf) : '');
+       비워 두면 서버가 거절하고, 그 거절이 곧 「확인하고 적으라」는 뜻이다.
+
+       ⚠ **단, 「담당자 산출」은 다르다**(VU). 그 칸의 뜻이 갈린다:
+         대리점가  = 「공급사가 그 값을 확인해 준 날」 → 실제로 확인해야 알 수 있다
+         담당자 산출 = 「우리가 그 값을 만든 날」      → 지금 만들고 있으니 오늘이 사실이다
+       확인 안 한 날짜가 굳는 것을 막으려던 규칙이라, 사람이 직접 만드는 값에는
+       그 위험이 없다. 위 규칙을 약화시킨 게 아니라 **적용 범위를 지킨 것이다.**
+       자동으로 넣은 날짜는 `dataset.auto`로 표시해 두고, 출처를 대리점가로 바꾸면 비운다. */
+    const asOfEl = document.getElementById('pkgAsOf');
+    const basisNow = (document.getElementById('pkgBasis') || {}).value;
+    if (p) { v('pkgAsOf', pkgDateStr(p.priceAsOf)); delete asOfEl.dataset.auto; }
+    else if (basisNow === 'assembled') { v('pkgAsOf', pkgToday()); asOfEl.dataset.auto = '1'; }
+    else { v('pkgAsOf', ''); delete asOfEl.dataset.auto; }
     v('pkgValid', p ? pkgDateStr(p.validUntil) : '');
     v('pkgStatus', p ? p.status : 'draft');
     v('pkgSourceCode', p ? (p.sourceCode || '') : '');
@@ -12757,7 +12798,9 @@
           .filter(Boolean).join(' | ')).join('\n')
       : '');
     document.getElementById('pkgMsg').textContent = '';
-    document.getElementById('pkgId').readOnly = !!p;   /* 기존 상품은 id를 못 바꾼다 */
+    /* 기존 건은 id를 못 바꾼다. 새 1회용은 **자동으로 붙었으니** 역시 손대지 않는다 —
+       열어 두면 「여기에 무엇을 적어야 하나」를 다시 고민하게 된다. */
+    document.getElementById('pkgId').readOnly = !!p || kind === 'adhoc';
     pkgSyncNotes();
     pkgIssueReset(p);
     card.style.display = '';
@@ -12780,6 +12823,35 @@
         + (basis === 'assembled'
           ? '금액 출처가 <b>담당자 산출</b>입니다 — 견적서에 「담당자 산출」로 찍히고 엔진 검증을 거치지 않은 것으로 기록됩니다.'
           : '금액 출처가 <b>대리점가</b>입니다 — 공급사에게 받은 값 그대로라는 뜻입니다. 우리가 조립했다면 위에서 바꿔 주세요.');
+    }
+    /* 편집 칸 안에서 종류를 바꿨을 때도 id가 따라온다(VU). **새로 만드는 중일 때만** —
+       이미 저장된 건의 id를 바꾸면 upsert가 새 행을 만들고 원본이 남는다. */
+    const idEl2 = document.getElementById('pkgId');
+    if (idEl2 && !pkgEditing) {
+      if (kind === 'adhoc' && (!idEl2.value || idEl2.dataset.auto)) {
+        if (!idEl2.dataset.auto) { idEl2.value = pkgNewAdhocId(); idEl2.dataset.auto = '1'; }
+        idEl2.readOnly = true;
+      } else if (kind !== 'adhoc') {
+        if (idEl2.dataset.auto) { idEl2.value = ''; delete idEl2.dataset.auto; }
+        idEl2.readOnly = false;
+      }
+    }
+
+    /* 같은 칸이지만 출처에 따라 묻는 것이 다르다(VU) */
+    const lbl = document.getElementById('pkgAsOfLbl');
+    if (lbl) {
+      lbl.innerHTML = basis === 'assembled'
+        ? '💡 산출일 <em>— 이 금액을 만든 날</em>'
+        : '💡 금액 확인일 <em>— 공급사에게 확인한 날 · 필수</em>';
+    }
+    /* 출처를 대리점가로 돌리면 **자동으로 넣은 날짜는 비운다.** 그대로 두면
+       「우리가 만든 날」이 「공급사가 확인해 준 날」로 둔갑한다.
+       ⚠ 사람이 직접 넣은 값은 건드리지 않는다(dataset.auto가 그것을 가른다). */
+    const asOf = document.getElementById('pkgAsOf');
+    if (asOf && asOf.dataset.auto) {
+      if (basis === 'agency') { asOf.value = ''; delete asOf.dataset.auto; }
+    } else if (asOf && basis === 'assembled' && !asOf.value) {
+      asOf.value = pkgToday(); asOf.dataset.auto = '1';
     }
     /* 항목 합을 실시간으로 보여준다 — 저장 뒤에야 알면 이미 늦다 */
     const sumBox = document.getElementById('pkgItemsSum');
