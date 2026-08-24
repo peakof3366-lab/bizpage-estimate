@@ -176,7 +176,7 @@ async function issuePackageShare(req, res) {
 
   try {
     await sql`
-      insert into quote_shares (id, payload, quote_no, issued_by, customer_label)
+      insert into quote_shares (id, payload, quote_no, issued_by, customer_label, customer_tel)
       values (${id}, ${JSON.stringify({
         ...share,
         /* 🔴 발행일. 예전에 패키지 경로만 이 칸을 안 넣어서 `calcValidity(undefined)`가
@@ -200,7 +200,8 @@ async function issuePackageShare(req, res) {
       })}::jsonb,
         ${quoteNo},
         ${(req.user && (req.user.displayName || req.user.username)) || '고객'},
-        ${p.customer_label || p.title || null})
+        ${p.customer_label || p.title || null},
+        ${/* 🔴 **컬럼에만 들어간다. 위 payload에는 없다**(WC) */ QNO.normalizeTel(b.customerTel)})
       on conflict (id) do nothing`;
     return res.status(200).json({ ok: true, id, quoteNo, verdict: 'package' });
   } catch (err) {
@@ -232,7 +233,7 @@ async function handleList(req, res) {
     const like = q ? '%' + q + '%' : null;
     const rows = q
       ? await sql`
-          select id, quote_no, created_at, issued_by, customer_label, status, status_by, status_at,
+          select id, quote_no, created_at, issued_by, customer_label, customer_tel, status, status_by, status_at,
                  payload->>'dt' dest, payload->>'org' org, payload->>'cn' cn,
                  payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
                  payload->'_verify'->>'verdict' verdict
@@ -240,9 +241,10 @@ async function handleList(req, res) {
            where quote_no ilike ${like} or customer_label ilike ${like}
               or payload->>'dt' ilike ${like} or payload->>'org' ilike ${like}
               or payload->>'cn' ilike ${like} or issued_by ilike ${like}
+              or customer_tel ilike ${like}
            order by created_at desc limit ${LIST_MAX}`
       : await sql`
-          select id, quote_no, created_at, issued_by, customer_label, status, status_by, status_at,
+          select id, quote_no, created_at, issued_by, customer_label, customer_tel, status, status_by, status_at,
                  payload->>'dt' dest, payload->>'org' org, payload->>'cn' cn,
                  payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
                  payload->'_verify'->>'verdict' verdict
@@ -331,7 +333,7 @@ module.exports = async (req, res) => {
 
   try {
     await sql`
-      insert into quote_shares (id, payload, quote_no, issued_by, customer_label)
+      insert into quote_shares (id, payload, quote_no, issued_by, customer_label, customer_tel)
       values (${id}, ${JSON.stringify({
         ...share,
         /* ⚠ 화면이 넣어 준 iso가 있으면 그대로 둔다(그 화면의 발급 시각이다).
@@ -347,7 +349,10 @@ module.exports = async (req, res) => {
       })}::jsonb,
         ${quoteNo},
         ${isStaffIssue ? ((req.user && (req.user.displayName || req.user.username)) || 'staff') : '고객 직접'},
-        ${(share && (share.org || share.cn)) || null})
+        ${(share && (share.org || share.cn)) || null},
+        ${/* 🔴 **컬럼에만 들어간다. 위 payload에는 없다**(WC) — 링크를 아는 사람은
+             누구나 payload를 보기 때문이다. body에서 따로 받는다. */
+          QNO.normalizeTel((req.body || {}).customerTel)})
       on conflict (id) do nothing
     `;
     return res.status(200).json({ ok: true, id, quoteNo, verdict: result.verdict });

@@ -65,4 +65,19 @@ async function nextQuoteNo(sql) {
   return formatQuoteNo(rows[0].day, rows[0].n);
 }
 
-module.exports = { QUOTE_NO_RE, formatQuoteNo, kstToday, nextQuoteNo };
+/* ── 고객 연락처 (WC) ──────────────────────────────────────────────────────
+   🔴 **이 값은 payload에 절대 넣지 않는다.** 견적서 링크는 인증이 없어서, 링크를 아는
+     사람은 누구나 payload를 본다. 고객이 결재권자에게 링크를 넘기는 것은 정상 동선이고,
+     그 링크가 더 퍼지면 **고객 연락처가 같이 퍼진다.** 대장 컬럼에만 둔다.
+   ⚠ 형식을 빡빡하게 잡지 않는다 — 「010-1234-5678」·「01012345678」·「02)123-4567」·
+     내선·해외번호가 다 온다. 숫자가 **9자 이상**이면 받고, 나머지는 그대로 보관한다.
+     너무 조이면 진짜 번호가 막히고, 막히면 사람이 아예 안 적는다. */
+function normalizeTel(raw) {
+  if (typeof raw !== 'string') return null;
+  const t = raw.trim().slice(0, 40);
+  if (!t) return null;
+  const digits = t.replace(/\D/g, '');
+  return digits.length >= 9 && digits.length <= 20 ? t : null;
+}
+
+module.exports = { QUOTE_NO_RE, formatQuoteNo, kstToday, nextQuoteNo, normalizeTel };

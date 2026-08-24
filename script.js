@@ -3985,7 +3985,14 @@ function showCourse(id, btn) {
   fetch('/api/quote-shares', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ share: shareData, quote: window._lastQuoteRecord || null }),
+    /* 🔴 연락처는 `share`(=payload)가 아니라 **바깥 칸으로** 보낸다(WC).
+       payload에 넣으면 견적서 링크를 아는 사람이 전부 보게 된다 — 서버가 대장
+       컬럼에만 저장한다. `test_wC`가 payload에 안 섞였는지 검사한다. */
+    body: JSON.stringify({
+      share: shareData,
+      quote: window._lastQuoteRecord || null,
+      customerTel: (document.getElementById('contactTel') || {}).value || '',
+    }),
   }).then(r => r.json().catch(() => null))
     .then((data) => {
       clearSteps();

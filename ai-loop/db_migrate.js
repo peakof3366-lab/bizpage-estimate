@@ -54,6 +54,13 @@ async function main() {
   await sql`alter table quote_shares add column if not exists quote_no text`;
   await sql`alter table quote_shares add column if not exists issued_by text`;
   await sql`alter table quote_shares add column if not exists customer_label text`;
+  /* 🔴 고객 연락처 (WC) — 대표: 「연락처 정보가 필요할 것 같다」.
+     ⚠ **payload에 넣지 않고 컬럼에만 둔다.** 견적서 링크는 인증이 없어서, 링크를 아는
+       사람은 누구나 payload를 본다. 고객이 결재권자에게 링크를 넘기는 것은 정상 동선인데
+       그 링크가 더 퍼지면 **고객 연락처가 같이 퍼진다.**
+       이름·회사명은 공문 성격상 문서에 찍혀야 하지만, 연락처는 찍힐 이유가 없다.
+     → 대장(로그인한 직원만)에서만 보인다. `test_wC`가 payload에 안 들어가는지 검사한다. */
+  await sql`alter table quote_shares add column if not exists customer_tel text`;
   /* issued(발급) | won(계약) | lost(무산) | void(취소) — 휴가 중에도 진행 상황을 안다 */
   await sql`alter table quote_shares add column if not exists status text not null default 'issued'`;
   await sql`alter table quote_shares add column if not exists status_by text`;

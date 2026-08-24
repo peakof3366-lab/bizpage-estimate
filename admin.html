@@ -1261,7 +1261,7 @@
       </div>
 
       <div class="iti-bar">
-        <input type="search" id="ledSearch" placeholder="견적번호 · 고객/회사명 · 목적지 · 담당자로 검색"
+        <input type="search" id="ledSearch" placeholder="견적번호 · 고객/회사명 · 연락처 · 목적지 · 담당자로 검색"
                style="flex:1;min-width:240px;font-size:13px">
         <button type="button" class="btn-act btn-primary" id="ledFind">찾기</button>
         <button type="button" class="btn-act btn-outline-p" id="ledReload">전체</button>
@@ -2038,9 +2038,16 @@
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label for="pkgIssuePax" style="font-size:13px;color:#666">인원</label>
             <input type="number" id="pkgIssuePax" min="1" max="500" value="2" style="width:90px">
+            <!-- 연락처 (WC) — 🔴 견적서에 안 찍히고 링크에도 안 실린다. 대장에만 남는다. -->
+            <label for="pkgIssueTel" style="font-size:13px;color:#666">고객 연락처</label>
+            <input type="tel" id="pkgIssueTel" placeholder="010-0000-0000" style="width:140px">
             <button class="btn-act btn-primary" id="pkgIssue">견적서 만들기</button>
             <span id="pkgIssueMsg" style="font-size:13px"></span>
           </div>
+          <p style="margin:8px 0 0;font-size:12px;color:#777;line-height:1.7">
+            연락처는 <strong>견적서에 표시되지 않고 링크에도 실리지 않습니다</strong> —
+            대장에만 남아 담당자가 자리를 비웠을 때 다른 분이 이어받는 데 씁니다.
+          </p>
           <div id="pkgIssueOut" class="hidden" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <input type="text" id="pkgIssueUrl" readonly style="flex:1;min-width:260px;font-size:12px">
             <button class="btn-act btn-outline-p" id="pkgIssueCopy">링크 복사</button>
@@ -13002,7 +13009,9 @@
       /* ⚠ **금액을 보내지 않는다.** id와 인원만 보내고 나머지는 서버가 DB에서 읽는다. */
       const r = await fetch('/api/quote-shares?action=package', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packageId: pkgEditing, pax: pax }),
+        body: JSON.stringify({ packageId: pkgEditing, pax: pax,
+          /* 🔴 payload가 아니라 바깥 칸이다(WC) — 서버가 대장 컬럼에만 저장한다 */
+          customerTel: (document.getElementById("pkgIssueTel") || {}).value || "" }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.id) {
@@ -13069,7 +13078,7 @@
     const won = (n) => Number(n || 0).toLocaleString();
     const day = (v) => (v ? String(v).slice(0, 10) : '');
     box.innerHTML = '<table class="tbl" style="width:100%;font-size:12.5px">'
-      + '<thead><tr><th>견적번호</th><th>발행일</th><th>고객</th><th>목적지</th>'
+      + '<thead><tr><th>견적번호</th><th>발행일</th><th>고객</th><th>연락처</th><th>목적지</th>'
       + '<th style="text-align:right">1인당</th><th>인원</th><th>발급자</th><th>상태</th><th></th></tr></thead><tbody>'
       + ledRows.map((r, i) => {
         const cust = r.org || r.customer_label || r.cn || '—';
@@ -13079,6 +13088,11 @@
           + '<td style="font-weight:700;white-space:nowrap">' + esc(r.quote_no || '—') + '</td>'
           + '<td style="white-space:nowrap">' + esc(day(r.iso) || day(r.created_at)) + '</td>'
           + '<td>' + esc(cust) + '</td>'
+          /* 연락처 (WC) — 대장에만 있다. 견적서·링크에는 없다. 눌러서 바로 걸 수 있게 한다. */
+          + '<td style="white-space:nowrap">' + (r.customer_tel
+              ? '<a href="tel:' + esc(String(r.customer_tel).replace(/[^0-9+]/g, '')) + '">'
+                + esc(r.customer_tel) + '</a>'
+              : '—') + '</td>'
           + '<td>' + esc(r.dest || '—') + (vd ? ' <span class="pkg-st draft">' + esc(vd) + '</span>' : '') + '</td>'
           + '<td style="text-align:right;white-space:nowrap">' + won(r.per) + '원</td>'
           + '<td style="white-space:nowrap">' + esc(String(r.pax || '—')) + '명</td>'

@@ -140,6 +140,9 @@ const setDest = (window, doc, key) => {
   doc.getElementById('nextStepButton').click();
   doc.getElementById('organization').value = '테스트기업';
   doc.getElementById('contactName').value = '김담당';
+  /* WC: 연락처가 필수가 됐다 — 대장에서 담당자 부재 시 이어받는 데 쓴다.
+     ⚠ 이 값은 견적서·링크에 안 실린다(payload 밖으로 간다). */
+  doc.getElementById('contactTel').value = '010-1234-5678';
   doc.getElementById('requestDetails').value = '연수 문의';
   doc.getElementById('estimateForm').dispatchEvent(
     new window.Event('submit', { bubbles: true, cancelable: true }));

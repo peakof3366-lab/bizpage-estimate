@@ -563,6 +563,18 @@
                   담당자 이름
                   <input type="text" id="contactName" placeholder="담당자 이름을 입력하세요" required />
                 </label>
+                <!-- 연락처 (WC) — 대표: 「연락처 정보가 필요할 것 같다」.
+                     ⚠ **필수다.** 회사명은 없을 수 있어도(가족 여행) 연락처는 견적을
+                       받으려는 분이면 반드시 있고, **연락처 없는 견적은 우리가 먼저
+                       연락할 수 없어 리드가 아니다.** 담당자가 휴가일 때 다른 사람이
+                       이어받는 것도 이 칸이 있어야 된다.
+                     🔴 **이 값은 견적서에 안 찍히고 링크에도 안 실린다.** 견적서 링크는
+                       인증이 없어서, 실으면 링크가 퍼질 때 연락처도 같이 퍼진다.
+                       우리 대장(로그인한 직원만)에만 남는다. -->
+                <label>
+                  연락처 <small class="fld-hint">견적서에는 표시되지 않습니다 — 담당자 연락용입니다</small>
+                  <input type="tel" id="contactTel" placeholder="010-0000-0000" required />
+                </label>
                 <label>
                   요청 사항
                   <textarea id="requestDetails" placeholder="원하시는 일정이나 꼭 넣고 싶은 곳을 적어주세요 (예: 3일차는 자유일정으로)" required></textarea>
