@@ -502,6 +502,12 @@ async function main() {
            따옴표 없이 쓰면 자리에 따라 파서가 걸린다. incl_items를 included로
            짓지 않은 것과 같은 이유다(같은 테이블에서 이미 한 번 밟았다). */
       line_items jsonb,
+      /* 대표이미지 URL (VZ) — 공급사 상품 리스트가 주는 칸이다. 고객 화면이 카드라
+         사진이 있는 쪽이 훨씬 낫다.
+         ⚠ **외부 주소를 그대로 싣는다**(image.hanatour.com). 우리가 호스팅하지 않으므로
+           그쪽이 지우면 사진이 깨진다 — 화면이 그때 사진 자리를 접어야지, 빈 상자를
+           남기면 안 된다. 그리고 https만 받는다(http면 브라우저가 막는다). */
+      image_url text,
 
       /* ── 내용 ── 추출기가 읽어낸 DAY별 일정을 그대로 담는다 */
       itinerary jsonb,
@@ -525,6 +531,7 @@ async function main() {
   await sql`alter table packages add column if not exists price_basis text not null default 'agency'`;
   await sql`alter table packages add column if not exists customer_label text`;
   await sql`alter table packages add column if not exists line_items jsonb`;
+  await sql`alter table packages add column if not exists image_url text`;
   /* 고객 목록이 「판매중 + catalog + 출발일 순」으로 훑는다(_lib/packages.js) */
   await sql`create index if not exists packages_public_idx on packages (kind, status, depart_date)`;
 

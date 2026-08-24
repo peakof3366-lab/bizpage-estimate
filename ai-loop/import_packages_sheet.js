@@ -47,7 +47,11 @@ const flag = (name, def) => {
 };
 const APPLY = argv.includes('--apply');
 const ASSUME_TODAY = argv.includes('--assume-today');
-const KINDS = flag('kind', '패키지,단독패키지').split(',').map((s) => s.trim()).filter(Boolean);
+/* 기본으로 넣을 상품 구분 (2026-08-24 대표 승인).
+   ⚠ 「현지투어」(376건·중앙 99,900원)는 **반일/1일 투어**라 여행 상품이 아니다 — 뺀다.
+   ⚠ 「ZEUS」(272건·중앙 1,100만원)는 최고가대라 **대표가 따로 판단**하기로 했다 — 뺀다.
+     넣으려면 `--kind "패키지,단독패키지,골프,허니문,ZEUS"`. */
+const KINDS = flag('kind', '패키지,단독패키지,골프,허니문').split(',').map((s) => s.trim()).filter(Boolean);
 const REGION = flag('region', null);
 /* 🔴 **국내(지역=한국)는 기본에서 뺀다**(VY). 실제 파일에서 그 구간의 「도시명」이
    **도착지가 아니라 출발지**인 행이 섞여 있었다:
@@ -211,8 +215,9 @@ async function main() {
       nights: days ? days - 1 : null,
       pricePerPerson: price,
       priceAsOf: asOf,
-      origin: '대표상품리스트 ' + path.basename(FILE) + ' · 구분 ' + k
-        + (r[map.image] ? ' · 이미지 ' + String(r[map.image]) : ''),
+      /* 형식 검사는 `_package_rows.js`가 한다(https만) — 여기서 다시 거르지 않는다 */
+      imageUrl: r[map.image] ? String(r[map.image]) : null,
+      origin: '대표상품리스트 ' + path.basename(FILE) + ' · 구분 ' + k,
     });
   }
 
@@ -272,12 +277,12 @@ async function main() {
     await sql`
       insert into packages (
         id, source, source_code, title, dest_key, dest_label, nights, days, depart_date,
-        price_per_person, price_asof, status, kind, price_basis, itinerary, note, updated_by
+        price_per_person, price_asof, status, kind, price_basis, image_url, itinerary, note, updated_by
       ) values (
         ${p.id}, ${p.source}, ${p.sourceCode}, ${p.title}, ${p.destKey}, ${p.destLabel},
         ${p.nights}, ${p.days}, ${p.departDate},
         ${p.pricePerPerson}, ${new Date(p.priceAsOf).toISOString()},
-        ${p.status}, ${p.kind}, ${p.priceBasis},
+        ${p.status}, ${p.kind}, ${p.priceBasis}, ${p.imageUrl},
         ${p.itinerary == null ? null : JSON.stringify(p.itinerary)},
         ${p.note}, ${'import_packages_sheet'}
       )`;

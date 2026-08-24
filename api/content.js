@@ -351,6 +351,9 @@ function pkgRowOut(r) {
     priceBasis: r.price_basis || 'agency',
     customerLabel: r.customer_label || null,
     lineItems: PKG.lineItemsOf(r),
+    /* ⚠ 나갈 때도 https만 통과시킨다(VZ). DB를 직접 고쳤거나 옛 행이 있을 수 있어
+       화면 바로 앞에서 한 번 더 막는다 — 화면은 이 값을 <img src>에 그대로 쓴다. */
+    imageUrl: (typeof r.image_url === 'string' && /^https:\/\/[^\s"'<>]+$/i.test(r.image_url)) ? r.image_url : null,
     itinerary: r.itinerary, included: r.incl_items, excluded: r.excl_items,
     note: r.note,
     updatedAt: r.updated_at, updatedBy: r.updated_by,
@@ -470,7 +473,7 @@ async function handlePackages(req, res) {
         insert into packages (
           id, source, source_code, title, dest_key, dest_label, nights, days, depart_date,
           price_per_person, price_currency, price_asof, valid_until, status,
-          kind, price_basis, customer_label, line_items,
+          kind, price_basis, customer_label, line_items, image_url,
           itinerary, incl_items, excl_items, note, updated_by, updated_at
         ) values (
           ${id},
@@ -486,6 +489,9 @@ async function handlePackages(req, res) {
           ${kind}, ${priceBasis},
           ${typeof b.customerLabel === 'string' ? b.customerLabel.trim().slice(0, 80) || null : null},
           ${lineItems.length ? JSON.stringify(lineItems) : null},
+          ${/* https만 저장한다 — 화면이 <img src>에 그대로 쓴다(VZ) */
+            (typeof b.imageUrl === 'string' && /^https:\/\/[^\s"'<>]+$/i.test(b.imageUrl.trim()))
+              ? b.imageUrl.trim().slice(0, 500) : null},
           ${b.itinerary == null ? null : JSON.stringify(b.itinerary)},
           ${b.included == null ? null : JSON.stringify(b.included)},
           ${b.excluded == null ? null : JSON.stringify(b.excluded)},
@@ -501,6 +507,7 @@ async function handlePackages(req, res) {
           status = excluded.status,
           kind = excluded.kind, price_basis = excluded.price_basis,
           customer_label = excluded.customer_label, line_items = excluded.line_items,
+          image_url = excluded.image_url,
           itinerary = excluded.itinerary, incl_items = excluded.incl_items, excl_items = excluded.excl_items,
           note = excluded.note, updated_by = excluded.updated_by, updated_at = now()
       `;

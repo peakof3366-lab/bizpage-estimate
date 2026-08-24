@@ -198,6 +198,32 @@ console.log('\n[7] 이 자료에 **없는 것**을 있는 척하지 않는다');
   ok('⑦ 전부 「작성중」으로 들어간다고 말한다', /전부 「작성중」/.test(src));
 }
 
+console.log('\n[8] 🔴 상품 사진 — 아무 주소나 화면에 싣지 않는다');
+{
+  const base = { id: 'a', title: '마카오 3일', pricePerPerson: 749000, priceAsOf: '2026-08-24' };
+  const mk = (u) => R.buildPackageRow(Object.assign({}, base, { imageUrl: u }), { requireDepart: false });
+  ok('⑧ https 주소는 받는다',
+    mk('https://image.hanatour.com/a.jpg').row.imageUrl === 'https://image.hanatour.com/a.jpg');
+  /* http는 브라우저가 막아 **깨진 사진 자리만** 남는다 */
+  ok('⑧ http는 안 받는다', mk('http://image.hanatour.com/a.jpg').row.imageUrl === null);
+  /* 🔴 주소가 아닌 것 — 화면이 이 값을 <img src>에 그대로 쓴다 */
+  ok('⑧ javascript: 는 안 받는다', mk('javascript:alert(1)').row.imageUrl === null);
+  ok('⑧ data: 는 안 받는다', mk('data:text/html,<script>x</script>').row.imageUrl === null);
+  ok('⑧ 따옴표가 든 주소는 안 받는다(속성을 깨고 나온다)',
+    mk('https://x/a.jpg" onerror="alert(1)').row.imageUrl === null);
+  ok('⑧ 없으면 null이다', mk(null).row.imageUrl === null && mk(undefined).row.imageUrl === null);
+
+  const API = fs.readFileSync(path.join(ROOT, 'api', 'content.js'), 'utf8');
+  const PKGHTML = fs.readFileSync(path.join(ROOT, 'packages.html'), 'utf8');
+  ok('⑧ 서버가 나갈 때도 한 번 더 막는다', /image_url[\s\S]{0,120}\^https:/.test(API));
+  ok('⑧ 저장할 때도 막는다', /b\.imageUrl[\s\S]{0,120}\^https:/.test(API));
+  /* 사진이 깨지면 **자리째 접는다** — 빈 회색 상자가 남으면 상품이 고장 난 것처럼 보인다 */
+  ok('⑧ 사진이 깨지면 자리를 접는다', /onerror="this\.parentElement\.remove\(\)"/.test(PKGHTML));
+  ok('⑧ 사진 주소를 esc한다', /esc\(p\.imageUrl\)/.test(PKGHTML));
+  /* 비율을 고정하지 않으면 사진이 늦게 오면서 목록이 출렁인다 */
+  ok('⑧ 세로 비율을 고정한다', /\.pk-thumb[\s\S]{0,160}aspect-ratio/.test(PKGHTML));
+}
+
 console.log('\n' + '─'.repeat(64));
 console.log(`결과: ${pass} pass / ${fail} fail  — VY 엑셀 상품리스트 투입`);
 process.exit(fail ? 1 : 0);

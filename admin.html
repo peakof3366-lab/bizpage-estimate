@@ -1943,6 +1943,9 @@
             </select></label>
           <label class="pkg-f"><span>공급사 상품코드 <em>(선택)</em></span>
             <input type="text" id="pkgSourceCode" placeholder="HNT-OKA-2512"></label>
+          <!-- 사진 (VZ) — 고객 목록 카드에 나간다. https 주소만 저장된다(서버가 거른다). -->
+          <label class="pkg-f"><span>상품 사진 주소 <em>— https만 · 비우면 사진 없이 나갑니다</em></span>
+            <input type="url" id="pkgImage" placeholder="https://image.hanatour.com/..."></label>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
           <label class="pkg-f"><span>포함 사항 <em>— 한 줄에 하나</em></span>
@@ -12794,6 +12797,7 @@
     v('pkgValid', p ? pkgDateStr(p.validUntil) : '');
     v('pkgStatus', p ? p.status : 'draft');
     v('pkgSourceCode', p ? (p.sourceCode || '') : '');
+    v('pkgImage', p ? (p.imageUrl || '') : '');
     const lines = (arr) => Array.isArray(arr) ? arr.join('\n') : (arr || '');
     v('pkgIncl', p ? lines(p.included) : '');
     v('pkgExcl', p ? lines(p.excluded) : '');
@@ -12998,6 +13002,7 @@
          금액을 브라우저가 정하게 두는 순간 그게 위조 경로다(VQ 원칙). */
       lineItems: pkgParseItems(g('pkgItems')),
       sourceCode: g('pkgSourceCode').trim() || null,
+      imageUrl: g('pkgImage').trim() || null,
       included: pkgLines('pkgIncl'),
       excluded: pkgLines('pkgExcl'),
       itinerary: pkgParseIti(g('pkgIti')),

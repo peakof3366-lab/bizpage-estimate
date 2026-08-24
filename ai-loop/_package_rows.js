@@ -108,6 +108,11 @@ function buildPackageRow(input, opts) {
       itinerary: (Array.isArray(i.itinerary) && i.itinerary.length) ? i.itinerary : null,
       inclItems: (Array.isArray(i.included) && i.included.length) ? i.included : null,
       exclItems: (Array.isArray(i.excluded) && i.excluded.length) ? i.excluded : null,
+      /* ⚠ **https만 받는다**(VZ). http면 브라우저가 막아 깨진 사진 자리만 남고,
+         javascript:·data: 같은 것은 애초에 주소가 아니다. 형식이 아니면 **비운다** —
+         「사진 없음」은 화면이 접으면 되지만, 이상한 주소는 그대로 렌더된다. */
+      imageUrl: (typeof i.imageUrl === 'string' && /^https:\/\/[^\s"'<>]+$/i.test(i.imageUrl.trim()))
+        ? i.imageUrl.trim().slice(0, 500) : null,
       note: asOfWhy + (i.origin ? ' (출처: ' + i.origin + ')' : ''),
       /* 화면 표시용 — DB에 안 들어간다 */
       _asOfFromDoc: !!asOf,

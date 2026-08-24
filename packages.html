@@ -68,6 +68,14 @@
   padding: 20px; display: flex; flex-direction: column; gap: 12px; transition: .18s;
 }
 .pk-card:hover { border-color: var(--rule-md); transform: translateY(-2px); }
+/* 사진 (VZ) — 카드 위쪽을 꽉 채운다. 카드에 padding이 있어 음수 margin으로 끌어낸다.
+   ⚠ 세로 비율을 고정한다(16:10). 안 그러면 사진이 늦게 오면서 카드 높이가 튀어
+     목록 전체가 한 번 출렁인다 — 고객이 누르려던 카드가 그 순간 움직인다. */
+.pk-thumb {
+  margin: -20px -20px 0; border-radius: 14px 14px 0 0; overflow: hidden;
+  aspect-ratio: 16 / 10; background: var(--bg-off);
+}
+.pk-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pk-card-top { display: flex; align-items: center; gap: 8px; }
 .pk-dest { font-size: 12px; font-weight: 700; color: var(--red); letter-spacing: .04em; }
 .pk-dur { font-size: 12px; color: var(--t-sub); }
@@ -220,6 +228,14 @@
       var stale = age != null && age > STALE_DAYS;
       var dur = (p.nights && p.days) ? (p.nights + '박 ' + p.days + '일') : '';
       return '<article class="pk-card">'
+        /* 사진 (VZ) — 공급사가 준 주소를 그대로 싣는다(우리가 호스팅하지 않는다).
+           ⚠ **그쪽이 지우면 사진이 깨진다.** 그때 빈 상자를 남기면 상품이 고장 난 것처럼
+             보이므로, onerror로 **자리째 접는다**. 안 접으면 회색 네모가 카드마다 남는다.
+           ⚠ 주소는 서버가 https만 통과시킨다. 여기서도 esc()로 속성을 닫는다. */
+        + (p.imageUrl
+            ? '<div class="pk-thumb"><img src="' + esc(p.imageUrl) + '" alt="" loading="lazy"'
+              + ' onerror="this.parentElement.remove()"></div>'
+            : '')
         + '<div class="pk-card-top">'
         +   '<span class="pk-dest">' + esc(p.destLabel || p.destKey || '') + '</span>'
         +   (dur ? '<span class="pk-dur">· ' + esc(dur) + '</span>' : '')
