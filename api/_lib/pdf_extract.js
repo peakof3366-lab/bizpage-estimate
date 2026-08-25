@@ -2466,24 +2466,69 @@ const SUMMARY_ROWS = {
   insurance: /^보험(료)?$/,
   margin: /^(하나|HNT|현지)?\s*수익$/i,
   deposit: /^입금가$/,
-  agent: /^(대리점|여행사)\s*수익$/,
+  /* 우리 몫의 수익 줄. ⚠ **회사마다 이름이 다르다** — 「트립 수익」은 실측(푸켓·보홀·세부)
+     에서 나온 이름이다. 이름을 못 알아보면 이 줄이 0이 되어 `입금가 + 0 == 판매가`가
+     깨지고, **문서 전체가 이 양식이 아닌 것으로 버려진다.** 값이 아니라 검산이 걸린다. */
+  agent: /^(대리점|여행사|트립|트립페이지|EnBT)\s*수익$/i,
   sell: /^(판매가|고객가)$/,
 };
+/* 요약표가 **본문 표 오른쪽에 나란히** 붙은 양식의 왼쪽 경계를 찾는다 (WG).
+   ⚠ 라벨이 줄 맨 앞에 없다 — 첫 칸은 본문 표 것이다:
+       「현지인가이드비 4,800 $ 155 1 1 $ 155 223,689 **항공 310,000**」
+     그래서 `cells[0]`만 보면 이 양식은 통째로 안 읽힌다(실측 푸켓·보홀·세부).
+   ⚠ **낱말로 찾지 않는다.** 「항공」은 본문 줄에도 흔히 나온다("인솔자 항공 380,000").
+     `구분 요금` **머리글의 x**를 경계로 삼는다 — 문서가 스스로 밝힌 자리라
+     짐작이 아니다(splitSideTables가 총액 열의 x로 표를 가르는 것과 같은 방법).
+
+   🔴 **경계는 「진짜 옆에 붙은 표」일 때만 건다.** 머리글이 줄 맨 앞에 있으면 그 표가
+     곧 본문이다(실측 마카오: 「구분 요금 요금 요금 …」으로 줄이 시작한다). 그때 경계를
+     걸면 **자기 라벨이 잘려 나가** 유류·수익 줄을 못 읽고, 세로 합이 깨져 문서 전체가
+     버려진다 — 실제로 그렇게 만들었다가 마카오가 값을 잃는 것을 전/후 대조로 잡았다.
+     → 머리글 **왼쪽에 다른 칸이 있을 때만** 옆 표로 본다. 이것도 문서가 밝힌 사실이다.
+   경계가 없으면 null을 준다 — 그러면 예전처럼 줄 전체를 본다. */
+function summaryBlockX(lines) {
+  for (const ln of lines) {
+    const cells = ln.cells || [];
+    for (let i = 0; i < cells.length; i++) {
+      if (!/^구분$/.test(String(cells[i].s).trim())) continue;
+      /* 바로 오른쪽 칸이 「요금」이어야 이 표의 머리글이다 */
+      const next = cells[i + 1];
+      if (!next || !/^요\s*금$/.test(String(next.s).trim())) continue;
+      /* 왼쪽에 본문 표가 있는가 — 없으면 이 표가 본문이므로 경계를 걸지 않는다 */
+      const hasLeft = cells.some((c) => c.x < cells[i].x - 4);
+      return hasLeft ? cells[i].x : null;
+    }
+  }
+  return null;
+}
+
 function readSummaryTable(lines, perPerson) {
   const got = {};
+  const sideX = summaryBlockX(lines);
   lines.forEach((ln) => {
-    const cells = ln.cells || [];
+    /* 경계가 있으면 그 오른쪽만 본다(옆에 붙은 표). 없으면 **예전 그대로 줄 전체**를
+       본다 — 잘 읽던 문서의 경로를 한 줄도 바꾸지 않기 위해서다. */
+    const cells = sideX == null ? (ln.cells || [])
+      : (ln.cells || []).filter((c) => c.x >= sideX - 4);
     if (!cells.length) return;
     const head = String(cells[0].s).replace(/\s+/g, '').trim();
     Object.keys(SUMMARY_ROWS).forEach((k) => {
       if (got[k] || !SUMMARY_ROWS[k].test(head)) return;
-      const ns = String(ln.text).slice(head.length)
-        .match(/\d{1,3}(?:,\d{3})+|\d{5,}/g);
+      /* ⚠ 경계가 있을 때는 **그 표 안에서만** 숫자를 줍는다. 줄 전체에서 주우면
+         본문 표의 금액이 요약표 값으로 섞여 들어온다(경계가 있을 때만 생기는 위험이다). */
+      const src = sideX == null
+        ? String(ln.text).slice(head.length)
+        : cells.slice(1).map((c) => String(c.s)).join(' ');
+      const ns = src.match(/\d{1,3}(?:,\d{3})+|\d{5,}/g);
       if (ns && ns.length) got[k] = ns.map((s) => Number(s.replace(/,/g, '')));
     });
   });
-  /* 안의 개수는 **판매가 행이 정한다** — 다른 행에는 옆 표가 붙어 있을 수 있다 */
-  if (!got.sell || !got.deposit || got.sell.length < 2) return null;
+  /* 안의 개수는 **판매가 행이 정한다** — 다른 행에는 옆 표가 붙어 있을 수 있다.
+     ⚠ **한 열짜리도 받는다**(WG). 예전엔 `< 2`라 안이 하나뿐인 양식을 통째로 버렸다.
+       안이 여럿인 것은 「고를 것이 여럿」이라는 뜻일 뿐이고, **이 층이 값을 믿는 근거는
+       열의 개수가 아니라 세로 합 검산**이다. 열이 하나여도 그 검산은 똑같이 돈다.
+       실측: 푸켓·보홀·세부가 정확히 한 열이라 여기서 걸렸다. */
+  if (!got.sell || !got.deposit || got.sell.length < 1) return null;
   const n = Math.min(got.sell.length, got.deposit.length);
   const at = (k, c) => ((got[k] || [])[c] || 0);
 
@@ -2571,9 +2616,20 @@ function readOneBlock(lines, fx, blockTotal) {
   /* 골프비 — 관광비에서 빼기만 하던 것을 **값으로 만든다**(1인 1회 라운딩) */
   const golf = golfPerRound(rows, pax, crews);
 
-  /* L2.9 — **검산줄이 하나도 없을 때만** 1인 기준 안 비교표를 본다(위 주석).
-     정상 표가 있는 문서는 건드리지 않는다. */
-  const summary = rows.length ? null : readSummaryTable(lines, rec.perPerson);
+  /* L2.9 — 1인 기준 요약표 (UG · WG에서 게이트를 풀었다).
+     🔴 **예전엔 검산줄이 하나도 없을 때만 돌았다.** 「정상 표가 있는 문서는 건드리지
+       않는다」가 이유였는데, 실측이 그 전제를 깼다 — **본문 표가 멀쩡히 있으면서
+       오른쪽에 이 요약표가 나란히 붙은 양식**이 코퍼스에 3건 있다(푸켓·보홀·세부).
+       PDF가 줄 단위로 납작해지면서 그 칸이 본문 줄 꼬리에 붙는다:
+         「현지인가이드비 4,800 $ 155 1 1 $ 155 223,689  **항공 310,000**」
+       그래서 그 3건은 **항공·유류를 통째로 못 읽고 있었다.**
+     ⚠ **건드리지 않는다는 약속은 지켜진다** — 아래 `values`에서 본문 줄(airfare·fuel)이
+       **언제나 이긴다.** 요약표는 본문이 못 준 칸에만 들어간다(폴백). 즉 지금 잘 읽는
+       문서는 값이 1원도 안 바뀐다. 실측으로 45건 전수 대조해 확인했다.
+     ⚠ 값을 믿는 근거는 여전히 **세로 합 검산 하나뿐**이다
+       (항공+유류+지상+보험+수익 == 입금가, 입금가+대리점수익 == 판매가,
+        그리고 그 판매가가 이미 읽어 둔 1인당과 같은 열). 안 맞으면 null이다. */
+  const summary = readSummaryTable(lines, rec.perPerson);
 
   /* 호텔명 — 호텔 줄의 라벨이 곧 호텔명이다(예: '노보텔'). 라벨이 비면 비고에서 찾는다. */
   /* 호텔명 — 호텔 줄의 라벨이 곧 호텔명이다. 다만 두 가지를 걷어내야 한다:
@@ -2864,4 +2920,7 @@ module.exports = {
   coversDuration,
   /* TF: 「한 도시 견적인가」의 잣대 — 화면·감사기가 같은 것을 쓴다 */
   MULTI_CITY_STAYS, stayKey, distinctStays,
+  /* WG: 1인 기준 요약표. **옆에 붙은 표**를 가르는 경계까지 함께 내보낸다 —
+     검사가 코퍼스 PDF 없이 이 층만 따로 걸어 볼 수 있어야 한다(코퍼스는 저장소에 없다). */
+  readSummaryTable, summaryBlockX,
 };
