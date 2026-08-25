@@ -112,6 +112,18 @@ async function issuePackageShare(req, res) {
     return res.status(400).json({ error: 'invalid_pax' });
   }
 
+  /* 🔴 연락처가 없으면 발급하지 않는다 (WF 후속 · 2026-08-25 대표 승인).
+     WF까지는 **화면만** 막고 있었다. 화면 검사는 안내지 방어가 아니다 — 폼을 우회한
+     요청은 그대로 통과했고, 그렇게 들어온 건은 대장에 연락처 없이 쌓인다.
+     그리고 이 경로는 **고객이 담당자 없이 스스로 뽑는 길**이라, 비어서 들어온 것을
+     나중에 사람이 알아채고 채울 기회가 없다 — 그래서 여기부터 막는다.
+   ⚠ 기준은 `normalizeTel` **하나뿐**이다. 여기서 자릿수를 다시 세면 화면·서버가
+     서로 다른 기준을 갖게 되고, 그 어긋남은 조용하다(결함 생성기 ①).
+   ⚠ 1회용(adhoc)도 같이 막는다. 담당자가 만드는 값이라고 예외를 주면 「휴가여도
+     응대」가 정확히 그 건들에서 깨진다 — 대장을 만든 이유가 그것이다. */
+  const custTel = QNO.normalizeTel(b.customerTel);
+  if (!custTel) return res.status(400).json({ error: 'tel_required' });
+
   let p;
   try {
     /* ⚠ 조건은 **`_lib/packages.js` 하나가 진실**이다(VS). 예전엔 여기 쿼리를 직접
@@ -219,7 +231,9 @@ async function issuePackageShare(req, res) {
            ⚠ 폴백은 그대로 남긴다: 1회용(adhoc)은 담당자가 적은 「고객 표시」가 있고,
              그것도 없으면 상품명이라도 있어야 대장에서 무엇인지 알아본다. */
           pkgCustomerLabel(b.customerName) || p.customer_label || p.title || null},
-        ${/* 🔴 **컬럼에만 들어간다. 위 payload에는 없다**(WC) */ QNO.normalizeTel(b.customerTel)})
+        ${/* 🔴 **컬럼에만 들어간다. 위 payload에는 없다**(WC).
+             위에서 이미 걸러 낸 값을 쓴다 — 두 번 정규화하면 기준이 갈릴 자리가 생긴다. */
+          custTel})
       on conflict (id) do nothing`;
     return res.status(200).json({ ok: true, id, quoteNo, verdict: 'package' });
   } catch (err) {

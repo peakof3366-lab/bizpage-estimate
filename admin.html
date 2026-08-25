@@ -13167,6 +13167,15 @@
     if (!Number.isFinite(pax) || pax < 1 || pax > 500) {
       msg.style.color = '#B91C1C'; msg.textContent = '인원을 1~500명 사이로 넣어 주세요.'; return;
     }
+    /* 연락처는 서버가 막는다(WF 후속) — 눌러 보고 알게 하지 말고 **여기서 먼저** 말한다.
+       ⚠ 기준을 여기 다시 적지 않는다: 숫자 9자는 `normalizeTel`이 정하는 값이고,
+         화면이 따로 세면 언젠가 어긋난다. 같은 숫자를 쓰되 이유를 적어 둔다. */
+    const issueTel = String((document.getElementById('pkgIssueTel') || {}).value || '').trim();
+    if (issueTel.replace(/\D/g, '').length < 9) {
+      msg.style.color = '#B91C1C';
+      msg.textContent = '고객 연락처를 넣어 주세요 — 연락처 없는 견적서는 담당자가 자리를 비웠을 때 이어받을 수 없습니다. (견적서에는 표시되지 않습니다)';
+      return;
+    }
     msg.style.color = '#666'; msg.textContent = '만드는 중…';
     try {
       /* ⚠ **금액을 보내지 않는다.** id와 인원만 보내고 나머지는 서버가 DB에서 읽는다. */
@@ -13183,6 +13192,7 @@
         const why = {
           package_not_available: '지금 발급할 수 없는 상태입니다 — 「판매중」인지, 유효기간이 지나지 않았는지 보세요.',
           invalid_pax: '인원을 다시 확인해 주세요.',
+          tel_required: '고객 연락처를 넣어 주세요 (견적서에는 표시되지 않습니다).',
           package_price_broken: '금액이 비어 있습니다 — 1인 금액이나 조립 항목을 채우고 저장해 주세요.',
           unauthorized: '로그인이 풀렸습니다. 새로고침 후 다시 시도해 주세요.',
         }[d.error] || (d.error || ('오류 ' + r.status));

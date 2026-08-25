@@ -122,6 +122,38 @@ console.log('\n[4] 대장 「고객」 칸 — 사람 이름이 먼저, 없을 �
   }
 }
 
+console.log('\n[4-b] 🔴 서버가 막는다 — 화면 검사는 안내지 방어가 아니다');
+{
+  /* 2026-08-25 대표 승인. WF까지는 **화면만** 막았다 — 폼을 우회한 요청은 그대로
+     통과했고, 그렇게 들어온 건은 대장에 연락처 없이 쌓인다. 이 경로는 **고객이
+     담당자 없이 스스로 뽑는 길**이라 나중에 사람이 알아채고 채울 기회가 없다. */
+  ok('④b 연락처가 없으면 발급하지 않는다',
+    /const custTel = QNO\.normalizeTel\(b\.customerTel\);/.test(SHARES)
+    && /if \(!custTel\) return res\.status\(400\)\.json\(\{ error: 'tel_required' \}\);/.test(SHARES));
+
+  /* ⚠ 인원 검사보다 **뒤**, 상품 조회보다 **앞**이어야 한다 — 없는 상품에까지
+     연락처를 먼저 요구하면 「무엇이 문제인지」가 뒤바뀐다. 순서를 자리로 잰다. */
+  const iPax = SHARES.indexOf("error: 'invalid_pax'");
+  const iTel = SHARES.indexOf("error: 'tel_required'");
+  const iPkg = SHARES.indexOf('PKG.getIssuablePackage');
+  ok('④b 인원 다음 · 상품 조회 앞에서 막는다', iPax > 0 && iTel > iPax && iPkg > iTel,
+    'pax=' + iPax + ' tel=' + iTel + ' pkg=' + iPkg);
+
+  /* 🔴 기준은 **하나**여야 한다 — 서버가 자릿수를 다시 세면 화면과 조용히 갈린다 */
+  ok('④b 자릿수를 다시 세지 않고 normalizeTel 하나를 쓴다',
+    !/customerTel[\s\S]{0,140}length\s*[<>]=?\s*9/.test(SHARES));
+  /* 걸러 낸 값을 그대로 저장한다 — 두 번 정규화하면 기준이 갈릴 자리가 또 생긴다 */
+  ok('④b 저장도 그 값을 쓴다', /custTel\}\)\s*\n\s*on conflict/.test(SHARES));
+
+  /* 두 화면이 그 거절을 **사람 말로** 옮긴다 — 뭉뚱그리면 고객은 다시 누르기만 한다 */
+  ok('④b 고객 화면이 tel_required를 사람 말로 옮긴다',
+    /tel_required: '연락처를 넣어 주세요/.test(PKGHTML));
+  ok('④b 관리자 화면도 옮긴다', /tel_required: '고객 연락처를 넣어 주세요/.test(ADMIN));
+  /* ⚠ 그리고 **누르기 전에** 막는다 — 눌러 보고 알게 하지 않는다 */
+  ok('④b 관리자는 보내기 전에 먼저 막는다',
+    /issueTel\.replace\(\/\\D\/g, ''\)\.length < 9/.test(ADMIN));
+}
+
 console.log('\n[5] 담당자 발급 칸도 같은 구멍이 있었다');
 {
   ok('⑤ 관리자 발급에 고객명 칸이 생겼다', /id="pkgIssueName"/.test(ADMIN));
