@@ -125,6 +125,17 @@
   width: 90px; padding: 9px 10px; border: 1px solid var(--rule-md); border-radius: 8px;
   font-family: inherit; font-size: 14px; color: var(--t-head);
 }
+/* 받으실 분·연락처 (WF) — 인원 칸과 달리 한 줄에 하나씩 세로로 쌓는다.
+   ⚠ 안내(「견적서에는 표시되지 않습니다」)를 흐리게 쓰지 않는다 — 이 한 줄이
+     연락처를 적게 만드는 유일한 이유라, 안 읽히면 칸이 비어서 온다. */
+.pk-lead { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+.pk-lead label { font-size: 13px; color: var(--t-mute); margin-top: 6px; }
+.pk-lead label b { color: var(--red); font-weight: 800; }
+.pk-lead label small { display: block; margin-top: 3px; font-size: 11.5px; color: var(--t-sub); line-height: 1.6; }
+.pk-lead input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--rule-md); border-radius: 8px;
+  font-family: inherit; font-size: 14px; color: var(--t-head);
+}
 .pk-sec-h { font-size: 13px; font-weight: 800; color: var(--t-head); margin: 22px 0 10px; }
 .pk-list { font-size: 13px; color: var(--t-body); line-height: 1.9; padding-left: 18px; }
 
@@ -318,6 +329,19 @@
       +   '<input type="number" id="pkPax" min="1" max="500" value="4">'
       +   '<span>명</span>'
       + '</div>'
+      /* 🔴 이름·연락처 (WF) — 예전에는 인원만 받고 견적서를 내줬다. 그래서 고객이
+         견적서를 받아 가고 조용히 있으면 **누구인지도 모르고 먼저 연락할 수도 없었다.**
+         대장에는 상품명이 「고객」으로 찍히고 연락처는 빈칸이었다.
+         WC가 연락처를 세 입구(고객 계산기·담당자 견적 도구·관리자 발급)에 넣었는데
+         **이 네 번째 입구가 빠져 있었다** — 그런데 여기가 패키지의 주력 경로다.
+         ⚠ 「견적서에는 표시되지 않습니다」를 **먼저** 말한다. 안 말하면 고객은
+           연락처가 문서에 박히는 줄 알고 안 적는다(WC에서 세운 규칙 그대로). */
+      + '<div class="pk-lead">'
+      +   '<label for="pkName">받으실 분 <b>*</b></label>'
+      +   '<input type="text" id="pkName" placeholder="예: 김보균 · ○○교회 김집사" maxlength="80">'
+      +   '<label for="pkTel">연락처 <b>*</b> <small>견적서에는 표시되지 않습니다 — 담당자 연락용입니다</small></label>'
+      +   '<input type="tel" id="pkTel" placeholder="010-0000-0000" maxlength="40">'
+      + '</div>'
       + '<button class="pk-cta" id="pkAsk" style="margin-top:12px">이 상품으로 견적서 받기</button>'
       + '<p id="pkAskMsg" style="margin-top:10px;font-size:12px;line-height:1.8"></p>'
       + '<p style="margin-top:6px;font-size:12px;color:var(--t-sub);line-height:1.8">'
@@ -335,6 +359,22 @@
           msg.textContent = '인원을 1~500명 사이로 넣어 주세요.';
           return;
         }
+        var nm = ((document.getElementById('pkName') || {}).value || '').trim();
+        var tel = ((document.getElementById('pkTel') || {}).value || '').trim();
+        if (!nm) {
+          msg.style.color = 'var(--red)';
+          msg.textContent = '받으실 분 이름을 넣어 주세요.';
+          return;
+        }
+        /* ⚠ 서버(`normalizeTel`)와 **같은 기준**으로 본다 — 숫자 9자 이상.
+           화면이 통과시킨 값을 서버가 조용히 버리면 대장에 연락처가 안 남고,
+           고객은 적었다고 생각한다(결함 생성기 ②). 형식은 조이지 않는다:
+           「01012345678」·「02)123-4567」·「+82 10 …」·내선이 다 온다. */
+        if (tel.replace(/\D/g, '').length < 9) {
+          msg.style.color = 'var(--red)';
+          msg.textContent = '연락처를 다시 확인해 주세요. (숫자 9자 이상)';
+          return;
+        }
         ask.disabled = true;
         msg.style.color = 'var(--t-sub)';
         msg.textContent = '견적서를 만드는 중…';
@@ -343,7 +383,11 @@
            (`api/quote-shares.js`의 issuePackageShare 머리말 참고) */
         fetch('/api/quote-shares?action=package', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ packageId: p.id, pax: pax }),
+          /* 🔴 연락처는 payload가 아니라 **바깥 칸**으로 보낸다(WC) — 서버가 대장
+             컬럼에만 저장한다. 이름도 마찬가지로 대장 「고객」 칸으로 간다. */
+          body: JSON.stringify({
+            packageId: p.id, pax: pax, customerName: nm, customerTel: tel,
+          }),
         })
           .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
           .then(function (o) {

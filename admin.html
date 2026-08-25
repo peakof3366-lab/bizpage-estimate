@@ -2133,6 +2133,11 @@
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label for="pkgIssuePax" style="font-size:13px;color:#666">인원</label>
             <input type="number" id="pkgIssuePax" min="1" max="500" value="2" style="width:90px">
+            <!-- 고객명 (WF) — 🔴 없으면 대장 「고객」 칸에 **상품명**이 찍힌다.
+                 1회용 견적은 위 「고객 표시」가 그 일을 하지만, 패키지 상품에는 그 칸이
+                 없어서 「오키나와 3박4일」이 고객이 되어 있었다. -->
+            <label for="pkgIssueName" style="font-size:13px;color:#666">고객명</label>
+            <input type="text" id="pkgIssueName" placeholder="김보균 · ○○교회" maxlength="80" style="width:150px">
             <!-- 연락처 (WC) — 🔴 견적서에 안 찍히고 링크에도 안 실린다. 대장에만 남는다. -->
             <label for="pkgIssueTel" style="font-size:13px;color:#666">고객 연락처</label>
             <input type="tel" id="pkgIssueTel" placeholder="010-0000-0000" style="width:140px">
@@ -13124,6 +13129,18 @@
     const msg = document.getElementById('pkgIssueMsg');
     if (out) out.classList.add('hidden');
     if (msg) msg.textContent = '';
+    /* 🔴 **앞 손님의 값을 비운다**(WF). 이 함수는 상품을 열 때마다 불리는데 인원·이름·
+       연락처를 안 지우고 있었다 — 김보균님께 발급한 뒤 다른 상품을 열면 그 칸이 그대로
+       남아, 다음 견적서가 **남의 이름과 연락처로** 대장에 박힌다. 인원도 마찬가지다:
+       앞 건의 4명이 남으면 총액이 조용히 틀린 채 고객에게 나간다.
+       ⚠ 감추는 것과 비우는 것은 다르다 — 여기는 **비우는 게 맞는** 자리다(사람이
+         바뀌었다). 편집 폼에서 값을 지키는 것과 반대 방향이지만 이유가 다르다. */
+    ['pkgIssueName', 'pkgIssueTel'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const paxEl = document.getElementById('pkgIssuePax');
+    if (paxEl) paxEl.value = '2';
     let why = '';
     if (!p) why = '먼저 저장하세요 — 견적서는 저장된 내용을 서버가 읽어서 만듭니다.';
     else if (p.status !== 'open') {
@@ -13156,7 +13173,9 @@
       const r = await fetch('/api/quote-shares?action=package', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ packageId: pkgEditing, pax: pax,
-          /* 🔴 payload가 아니라 바깥 칸이다(WC) — 서버가 대장 컬럼에만 저장한다 */
+          /* 🔴 payload가 아니라 바깥 칸이다(WC·WF) — 서버가 대장 컬럼에만 저장한다.
+             ⚠ 비워 두면 서버가 「고객 표시 → 상품명」 순으로 채운다(지우지 않았다). */
+          customerName: (document.getElementById("pkgIssueName") || {}).value || "",
           customerTel: (document.getElementById("pkgIssueTel") || {}).value || "" }),
       });
       const d = await r.json().catch(() => ({}));

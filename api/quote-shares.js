@@ -90,6 +90,16 @@ async function loadContext(destKey) {
    ═══════════════════════════════════════════════════════════════════════════ */
 const PKG_MAX_PAX = 500;
 
+/* 고객이 적은 이름 (WF). **공개 POST로 오는 값**이라 그대로 믿지 않는다(결함 생성기 ④) —
+   대장 화면이 렌더하므로 길이를 자르고, 빈 값은 null로 떨어뜨려 폴백이 살아나게 한다.
+   ⚠ 형식은 조이지 않는다. 「김보균」·「○○교회 김집사」·「(주)한빛 총무팀」이 다 온다 —
+     연락처와 같은 이유다: 너무 조이면 진짜 이름이 막히고, 막히면 아예 안 적는다. */
+function pkgCustomerLabel(raw) {
+  if (typeof raw !== 'string') return null;
+  const t = raw.trim().replace(/\s+/g, ' ').slice(0, 80);
+  return t || null;
+}
+
 async function issuePackageShare(req, res) {
   const b = req.body || {};
   const pkgId = typeof b.packageId === 'string' ? b.packageId : '';
@@ -200,7 +210,15 @@ async function issuePackageShare(req, res) {
       })}::jsonb,
         ${quoteNo},
         ${(req.user && (req.user.displayName || req.user.username)) || '고객'},
-        ${p.customer_label || p.title || null},
+        ${/* 🔴 **고객이 적은 이름이 먼저다**(WF). 예전에는 이 자리가 곧바로
+             `p.customer_label || p.title`이라, 고객이 직접 뽑은 패키지 견적서는
+             대장 「고객」 칸에 **상품명**이 찍혔다(「오키나와 3박4일」이 고객이 된다).
+             연락처까지 비어 있어서, 고객이 견적서만 받아 가고 조용히 있으면
+             **누구인지도 모르고 먼저 연락할 수도 없었다** — WB·WC가 만든 대장의
+             목적이 패키지의 주력 경로에서 통째로 깨지던 자리다.
+           ⚠ 폴백은 그대로 남긴다: 1회용(adhoc)은 담당자가 적은 「고객 표시」가 있고,
+             그것도 없으면 상품명이라도 있어야 대장에서 무엇인지 알아본다. */
+          pkgCustomerLabel(b.customerName) || p.customer_label || p.title || null},
         ${/* 🔴 **컬럼에만 들어간다. 위 payload에는 없다**(WC) */ QNO.normalizeTel(b.customerTel)})
       on conflict (id) do nothing`;
     return res.status(200).json({ ok: true, id, quoteNo, verdict: 'package' });
