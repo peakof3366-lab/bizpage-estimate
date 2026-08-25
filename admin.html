@@ -640,10 +640,34 @@
       font-family: inherit; font-size: .84rem; color: var(--heading); background: #fff;
     }
     .pkg-f textarea { resize: vertical; line-height: 1.7; }
+    /* 하는 순서 (WE) — 세 단계가 한 카드 안에 평평하게 놓여 있어서 어디까지 했는지가
+       안 보였다. 대표가 「어떻게 써야 할지 모르겠다」고 한 자리가 정확히 여기다.
+       ⚠ 색을 옅게 쓰지 않는다 — 안내문이 흐리면 아무도 안 읽는다(check_contrast.py). */
+    .pkg-steps {
+      display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; padding: 0; list-style: none;
+    }
+    .pkg-steps li {
+      flex: 1 1 210px; padding: .6rem .8rem; background: #FAFAF8;
+      border: 1px solid #E2E2DC; border-left: 3px solid var(--primary);
+      font-size: .78rem; color: var(--heading); line-height: 1.6;
+    }
+    .pkg-steps li b { font-weight: 800; }
+    .pkg-steps li em { display: block; margin-top: .2rem; font-style: normal;
+      font-size: .71rem; color: #6E6E6E; }
     .pkg-row {
-      display: grid; grid-template-columns: 1fr auto auto auto; gap: .6rem; align-items: center;
+      display: grid; grid-template-columns: auto 1fr auto auto auto; gap: .6rem; align-items: center;
       padding: .65rem .2rem; border-bottom: 1px solid #ECECE8; cursor: pointer;
     }
+    /* 목록 썸네일 (WE) — 30건을 훑어 고르는 일이라 이름만으로는 안 골라진다.
+       ⚠ 자리를 **항상 차지한다**(사진이 없어도). 있는 줄만 넓어지면 목록이 들쭉날쭉해서
+         훑는 눈이 걸린다. 깨지면 JS가 onerror로 자리만 남긴다(VZ와 같은 규칙). */
+    .pkg-thumb {
+      width: 64px; height: 40px; object-fit: cover; background: #F1F1ED;
+      border: 1px solid #E2E2DC; display: block;
+    }
+    .pkg-thumb-none { width: 64px; height: 40px; background: #F1F1ED; border: 1px solid #E2E2DC; }
+    /* 소규모 견적은 사진 칸을 안 쓴다 — 썸네일 열이 통째로 없다 */
+    .pkg-row--nothumb { grid-template-columns: 1fr auto auto auto; }
     .pkg-row:hover { background: #FAFAF8; }
     .pkg-row-t { font-weight: 700; color: var(--heading); }
     .pkg-row-s { font-size: .72rem; color: var(--muted); }
@@ -1014,6 +1038,17 @@
                담당자가 화면을 열어봐야만 새 건을 알 수 있었다. -->
           <span class="si-badge" id="sb-new-quotes" style="display:none"></span>
         </button>
+        <!-- 소규모 견적 (WE) — **패키지 상품에서 떼어 냈다.**
+             2026-08-25 대표 확인: 「견적서를 취합해서 올리는 사람과, 견적서를 만들어
+             고객에게 제공하는 사람은 다른 사람이다.」
+             → 두 일이 한 화면에 있으면 **둘 다 못 쓴다**(대표가 직접 못 쓰겠다고 했다).
+               상품을 올리는 일은 「패키지 상품」, 손님께 견적을 내는 일은 여기다.
+             ⚠ 자리를 여기로 잡은 이유: 이 일은 「문의 → 견적 → 낸 문서」 흐름에 속한다.
+               위아래가 견적 관리·견적서 대장이라 읽는 순서가 그대로 일하는 순서다.
+               상품 카탈로그(패키지 상품) 옆에 두면 다시 상품 관리로 읽힌다. -->
+        <button class="sidebar-item" data-tab="adhoc" id="navAdhoc">
+          <span class="si-icon"><i data-lucide="user-round-pen"></i></span><span class="si-label">소규모 견적</span>
+        </button>
         <!-- 견적서 대장 (WB) — 대표 요구: 「담당자가 연차·휴가여도 응대가 가능해야 한다」.
              ⚠ 「견적 관리」와 다른 것이다: 그쪽은 **고객이 남긴 요청**(quotes)이고
                여기는 **우리가 발급한 문서**(quote_shares)다. 섞으면 둘 다 못 찾는다.
@@ -1067,7 +1102,7 @@
              이 메뉴만 「이미 값이 정해진 상품」을 다룬다. 그래서 구분선 위에 따로 둔다 —
              같은 묶음에 섞으면 담당자가 여기서도 요율을 만질 수 있다고 읽는다. -->
         <button class="sidebar-item" data-tab="packages">
-          <span class="si-icon"><i data-lucide="package"></i></span><span class="si-label">패키지 · 소규모 견적</span>
+          <span class="si-icon"><i data-lucide="package"></i></span><span class="si-label">패키지 상품</span>
           <!-- 가격 확인이 오래된 상품 수 — 목록을 열어야만 보이면 아무도 안 본다(결함 생성기 ③) -->
           <span class="si-badge" id="sb-pkg-stale" style="display:none"></span>
         </button>
@@ -1884,30 +1919,23 @@
         <br>
         <strong>「금액 확인일」은 비워 둘 수 없습니다.</strong> 패키지가는 자주 바뀌는데
         우리는 그 값으로 팔아야 합니다 — 언제 확인한 값인지가 고객 화면과 견적서에 함께 찍힙니다.
-        <br><br>
-        <strong>여기서 다루는 것은 두 가지입니다.</strong>
-        <b>패키지 상품</b>은 반복해서 파는 것이라 고객 화면(패키지 여행)에 나갑니다.
-        <b>소규모 견적</b>은 이 손님 한 분을 위한 1회용이라 <b>고객 목록에는 절대 나가지 않고</b>,
-        견적서 링크로만 나갑니다 — 발급도 로그인한 담당자만 됩니다.
         <br>
-        ⚠ 소규모 손님을 <b>견적 엔진으로 계산하지 않는 이유</b>는 실측입니다. 같은 하나투어
-        상품을 우리 엔진으로 다시 뽑으면 <b>+21.5%·+41.7%</b> 비싸게 나오고, 10명 이하
-        표본이 <b>2건</b>뿐이라 보정할 근거가 없습니다. 그래서 금액은 사람이 정하고,
-        시스템은 그 값이 어디서 왔는지를 지킵니다.
+        여기 있는 상품은 <b>반복해서 파는 것</b>이라 「판매중」으로 열면 고객 화면
+        (<b>패키지 여행</b>)에 나갑니다. 손님 한 분을 위한 1회용 견적은
+        왼쪽 <b>「소규모 견적」</b> 메뉴에 있습니다.
       </div>
+
+      <!-- 하는 순서 (WE) — 「저장」과 「판매중」이 한 카드 안에 평평하게 놓여 있어서
+           **어디까지 했는지가 안 보였다.** 순서를 화면에 그린다. -->
+      <ol class="pkg-steps">
+        <li><b>①</b> 목록에서 상품을 고르거나 <b>「+ 새 상품」</b><em>사진이 있으면 목록에 함께 보입니다</em></li>
+        <li><b>②</b> 값을 채우고 <b>「저장」</b><em>📄 PDF를 올리면 일정까지 채워집니다</em></li>
+        <li><b>③</b> 상태를 <b>「판매중」</b>으로<em>그때부터 고객 화면에 보입니다</em></li>
+      </ol>
 
       <div class="iti-bar">
         <button type="button" class="btn-act btn-primary" id="pkgNew">+ 새 상품</button>
-        <!-- 1회용 견적은 매니저 이상만 만든다(2026-08-24 대표 결정) — 권한이 없으면
-             이 버튼을 아예 안 보여준다. 다만 **방어선은 서버**다(화면은 안내일 뿐). -->
-        <button type="button" class="btn-act btn-outline-p" id="pkgNewAdhoc">+ 소규모 견적</button>
         <span class="iti-spacer"></span>
-        <label for="pkgFilterKind" style="font-size:13px;color:#666">종류</label>
-        <select id="pkgFilterKind">
-          <option value="">전체</option>
-          <option value="catalog">패키지 상품</option>
-          <option value="adhoc">소규모 견적</option>
-        </select>
         <label for="pkgFilterStatus" style="font-size:13px;color:#666">상태</label>
         <select id="pkgFilterStatus">
           <option value="">전체</option>
@@ -1923,7 +1951,74 @@
         <div id="pkgList" style="padding:4px 0 8px"></div>
       </div>
 
-      <!-- 편집 칸 — 목록에서 고르면 채워진다 -->
+      <!-- 편집 칸이 들어올 자리. 카드 자체는 **한 벌**이고 JS가 여기로 옮긴다 —
+           두 탭에 같은 20칸을 복사하면 한쪽만 고쳐진다(결함 생성기 ①). -->
+      <div id="pkgHostCatalog"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         소규모 견적 (WE) — **패키지 상품에서 떼어 냈다**
+
+         2026-08-25 대표 확인: 「견적서를 취합해서 올리는 사람은 다른 사람이고,
+         견적서를 만들어 고객들에게 제공하는 사람은 내부 직원들이다.」
+         → 한 화면에 두 일이 있으면 목록도 폼도 섞인다. 특히 **소규모 견적은
+           손님 수만큼 늘어나서**, 두면 시간이 갈수록 상품이 파묻힌다.
+         ⚠ 상품 목록과 이 목록은 같은 테이블(packages)이지만 **다른 일**이다.
+           kind로만 갈린다 — 서버·API는 그대로다(화면 배치만 갈랐다).
+         ══════════════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-adhoc">
+      <div class="rate-update-info">
+        <strong>이 손님 한 분을 위한 1회용 견적입니다</strong> — 가족·친목 모임·소수 기업 팀.
+        <b>고객 목록(패키지 여행)에는 절대 나가지 않고</b> 견적서 링크로만 나갑니다.
+        <br>
+        <strong>금액은 사람이 정합니다 — 계산기가 안 붙습니다.</strong>
+        요율·계수·마진이 하나도 안 붙어서 여기 적은 1인 금액이 고객가 그대로입니다.
+        <br>
+        ⚠ <b>견적 엔진으로 계산하지 않는 이유</b>는 실측입니다. 같은 하나투어 상품을 우리
+        엔진으로 다시 뽑으면 <b>+21.5%·+41.7%</b> 비싸게 나오고, 10명 이하 표본이
+        <b>2건</b>뿐이라 보정할 근거가 없습니다. 그래서 시스템은 계산하지 않고
+        <b>그 값이 어디서 왔는지</b>를 지킵니다.
+      </div>
+
+      <ol class="pkg-steps">
+        <li><b>①</b> <b>「+ 소규모 견적」</b>으로 적는다<em>고객 표시 · 금액 · 금액의 출처</em></li>
+        <li><b>②</b> 저장하고 상태를 <b>「확정」</b>으로<em>「이 값으로 견적서를 내도 된다」는 뜻입니다</em></li>
+        <li><b>③</b> 인원·연락처 넣고 <b>「견적서 만들기」</b><em>링크가 나옵니다. 연락처는 견적서에 안 찍힙니다</em></li>
+      </ol>
+
+      <div class="iti-bar">
+        <!-- 1회용 견적은 매니저 이상만 만든다(2026-08-24 대표 결정) — 권한이 없으면
+             이 버튼을 아예 안 보여준다. 다만 **방어선은 서버**다(화면은 안내일 뿐). -->
+        <button type="button" class="btn-act btn-primary" id="pkgNewAdhoc">+ 소규모 견적</button>
+        <span class="iti-spacer"></span>
+        <label for="adhocFilterStatus" style="font-size:13px;color:#666">상태</label>
+        <select id="adhocFilterStatus">
+          <option value="">전체</option>
+          <option value="open">확정</option>
+          <option value="draft">작성중</option>
+          <option value="closed">종료</option>
+        </select>
+      </div>
+
+      <!-- ⚠ 버튼을 조용히 숨기지 않는다 — 빈 화면만 남으면 담당자는 **고장 난 줄 안다**
+           (결함 생성기 ②). 왜 못 만드는지를 그 자리에서 말한다. -->
+      <p id="adhocGate" class="hidden" style="margin:0 0 14px;padding:11px 14px;background:#FEF3C7;
+         border:1px solid #FCD34D;font-size:12px;color:#92400E;line-height:1.75">
+        소규모 견적은 <strong>매니저 이상만 만들 수 있습니다.</strong> 엔진 검증을 거치지 않은
+        금액이 그대로 고객에게 나가기 때문입니다 — 만드실 일이 있으면 팀장님께 요청해 주세요.
+        <strong>이미 만들어진 건은 아래 목록에서 열어 견적서를 발급하실 수 있습니다.</strong>
+      </p>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">소규모 견적 목록</span></div>
+        <div id="adhocList" style="padding:4px 0 8px"></div>
+      </div>
+
+      <div id="pkgHostAdhoc"></div>
+    </div>
+
+    <!-- 편집 칸 — **한 벌만 있다.** 목록에서 고르면 JS가 위 두 자리 중 맞는 쪽으로
+         옮긴 뒤 채운다(pkgOpen). 숨어 있을 때는 어느 탭에도 안 속한다. -->
       <div class="card" id="pkgEditCard" style="display:none">
         <div class="card-header">
           <span class="card-title" id="pkgEditTitle">상품 편집</span>
@@ -1942,7 +2037,7 @@
               <option value="agency">대리점가 — 공급사에게 받아 적음</option>
               <option value="assembled">담당자 산출 — 항목을 조립해 만듦</option>
             </select></label>
-          <label class="pkg-f"><span>고객 표시 <em>(소규모용 · 견적서엔 안 나감)</em></span>
+          <label class="pkg-f" data-pkg-only="adhoc"><span>고객 표시 <em>(목록에서 찾을 때 씁니다 · 견적서엔 안 나감)</em></span>
             <input type="text" id="pkgCustomer" placeholder="김보균님 / ○○교회 20명"></label>
         </div>
         <p id="pkgKindNote" style="margin:8px 0 0;font-size:12px;color:#777;line-height:1.7"></p>
@@ -1977,10 +2072,10 @@
               <option value="open">판매중 (고객에게 보임)</option>
               <option value="closed">마감 (고객에게 안 보임)</option>
             </select></label>
-          <label class="pkg-f"><span>공급사 상품코드 <em>(선택)</em></span>
+          <label class="pkg-f" data-pkg-only="catalog"><span>공급사 상품코드 <em>(선택)</em></span>
             <input type="text" id="pkgSourceCode" placeholder="HNT-OKA-2512"></label>
           <!-- 사진 (VZ) — 고객 목록 카드에 나간다. https 주소만 저장된다(서버가 거른다). -->
-          <label class="pkg-f"><span>상품 사진 주소 <em>— https만 · 비우면 사진 없이 나갑니다</em></span>
+          <label class="pkg-f" data-pkg-only="catalog"><span>상품 사진 주소 <em>— https만 · 비우면 사진 없이 나갑니다</em></span>
             <input type="url" id="pkgImage" placeholder="https://image.hanatour.com/..."></label>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
@@ -2055,7 +2150,6 @@
           </div>
         </div>
       </div>
-    </div>
 
     <!-- ── 콘텐츠 관리 (신규) ── 필드 110개는 CMS_FIELDS 데이터에서 renderContent()가
          섹션별 카드로 동적 생성한다(요율 관리가 55개 목적지 행을 RATE_META에서 동적으로
@@ -3008,6 +3102,11 @@
          **방어선은 서버**다(content.js가 403 adhoc_requires_manager로 막는다). */
     const btnNewAdhoc = document.getElementById('pkgNewAdhoc');
     if (btnNewAdhoc) btnNewAdhoc.classList.toggle('hidden', !isManagerUp);
+    /* ⚠ 버튼만 조용히 감추면 직원에게는 **빈 화면**만 남는다 — 고장으로 읽는다
+       (결함 생성기 ②). 왜 못 만드는지와, 그래도 할 수 있는 것을 그 자리에서 말한다.
+       탭이 갈리면서 이 화면이 통째로 「소규모 견적」이 됐으니 더 필요해졌다(WE). */
+    const adhocGate = document.getElementById('adhocGate');
+    if (adhocGate) adhocGate.classList.toggle('hidden', isManagerUp);
 
     /* 문의·견적 개별 삭제도 매니저 이상 (신규) — 서버에서 403으로 막고 있으므로
        여기서 숨기는 건 "눌렀는데 안 되는" 경험을 없애기 위한 것이다. 화면만 숨기고
@@ -4130,7 +4229,8 @@
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', pricereport:'견적서 업데이트',
     rates:'요율 관리', quotetool:'내부 견적 산출',
-    itineraries:'일정 · 방식 A·B', packages:'패키지 · 소규모 견적', ledger:'견적서 대장', content:'콘텐츠 관리',
+    itineraries:'일정 · 방식 A·B', packages:'패키지 상품', adhoc:'소규모 견적',
+    ledger:'견적서 대장', content:'콘텐츠 관리',
     manual:'매뉴얼', settings:'설정'
   };
 
@@ -4162,7 +4262,9 @@
     else if (name==='quotetool') renderQuoteTool();
     else if (name==='manual') renderManual();
     else if (name==='itineraries') renderItineraries();
-    else if (name==='packages') renderPackages();
+    /* 두 탭이 **같은 자료**(packages)를 본다 — kind로만 갈린다. 불러오는 함수는 하나다
+       (WE). 두 벌로 만들면 한쪽만 새로고침되는 상태가 생긴다(결함 생성기 ①). */
+    else if (name==='packages' || name==='adhoc') renderPackages();
     else if (name==='ledger') renderLedger();
     else if (name==='content') renderContent();
   }
@@ -12708,10 +12810,23 @@
     return 'adhoc-' + day + '-' + Date.now().toString(36);
   }
 
+  /* 두 목록의 자리 (WE). 종류마다 상자·상태필터·빈 목록 문구가 다르다 — 여기 한 곳에서만
+     가른다. 화면 여러 곳에 `kind === 'adhoc'`를 흩으면 반드시 한 곳이 빠진다. */
+  const PKG_VIEWS = [
+    { kind: 'catalog', box: 'pkgList',   filter: 'pkgFilterStatus',
+      empty: '등록된 상품이 없습니다. 「+ 새 상품」으로 시작하세요.',
+      none:  '그 상태의 상품이 없습니다.' },
+    { kind: 'adhoc',   box: 'adhocList', filter: 'adhocFilterStatus',
+      empty: '아직 만든 소규모 견적이 없습니다. 「+ 소규모 견적」으로 시작하세요.',
+      none:  '그 상태의 견적이 없습니다.' },
+  ];
+
   async function renderPackages() {
-    const box = document.getElementById('pkgList');
-    if (!box) return;
-    box.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">불러오는 중…</div>';
+    /* ⚠ 두 탭 중 **열려 있는 쪽만** 있는 것이 아니다 — 둘 다 그려 둔다. 탭을 옮길 때마다
+       다시 부르지만, 한쪽만 그리면 돌아왔을 때 옛 목록이 남는다. */
+    const boxes = PKG_VIEWS.map(v => document.getElementById(v.box)).filter(Boolean);
+    if (!boxes.length) return;
+    boxes.forEach(b => { b.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">불러오는 중…</div>'; });
     try {
       /* 관리자는 초안·마감까지 봐야 관리가 된다 — `all=1` */
       const r = await fetch('/api/content?action=packages&all=1');
@@ -12721,9 +12836,11 @@
     } catch (err) {
       /* ⚠ **못 불러온 것을 「0건」으로 보여주지 않는다.** 그러면 담당자가 상품이
          지워진 줄 알고 다시 만든다(결함 생성기 ②). */
-      box.innerHTML = '<div style="padding:16px;color:#B91C1C;font-size:.85rem">'
-        + '목록을 불러오지 못했습니다 — <strong>「상품이 없다」는 뜻이 아닙니다.</strong> '
-        + '잠시 뒤 다시 열어 주세요. (' + String(err.message || err) + ')</div>';
+      boxes.forEach(b => {
+        b.innerHTML = '<div style="padding:16px;color:#B91C1C;font-size:.85rem">'
+          + '목록을 불러오지 못했습니다 — <strong>「없다」는 뜻이 아닙니다.</strong> '
+          + '잠시 뒤 다시 열어 주세요. (' + String(err.message || err) + ')</div>';
+      });
       return;
     }
     pkgDrawList();
@@ -12731,12 +12848,13 @@
   }
 
   function pkgDrawList() {
-    const box = document.getElementById('pkgList');
-    const want = (document.getElementById('pkgFilterStatus') || {}).value || '';
-    const wantKind = (document.getElementById('pkgFilterKind') || {}).value || '';
-    const list = pkgAll.filter(p => (!want || p.status === want)
-      && (!wantKind || (p.kind || 'catalog') === wantKind));
+    /* 종류마다 자기 상자에만 그린다 (WE) — 예전에는 한 목록에 둘을 섞고 필터로 갈랐는데,
+       소규모 견적은 **손님 수만큼 늘어나므로** 시간이 갈수록 상품이 파묻힌다. */
+    PKG_VIEWS.forEach(pkgDrawOne);
+    pkgDrawStale();
+  }
 
+  function pkgDrawStale() {
     /* 금액 확인이 오래된 것 — 사이드바 배지와 위쪽 안내에 같은 수를 쓴다 */
     /* ⚠ **패키지 상품만 센다**(VS). 1회용 소규모 견적은 기한(valid_until)이 그 일을
        이미 하고 있어서, 여기까지 세면 배지가 늘 켜져 있고 그러면 아무도 안 본다. */
@@ -12754,10 +12872,19 @@
         ? `⚠ 금액 확인이 ${PKG_STALE_DAYS}일 넘은 판매중 상품 ${stale.length}건`
         : '';
     }
+  }
+
+  function pkgDrawOne(view) {
+    const box = document.getElementById(view.box);
+    if (!box) return;
+    const want = (document.getElementById(view.filter) || {}).value || '';
+    const mine = pkgAll.filter(p => (p.kind || 'catalog') === view.kind);
+    const list = mine.filter(p => !want || p.status === want);
+    const isAdhocView = view.kind === 'adhoc';
 
     if (!list.length) {
       box.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">'
-        + (pkgAll.length ? '그 상태의 상품이 없습니다.' : '등록된 상품이 없습니다. 「+ 새 상품」으로 시작하세요.')
+        + (mine.length ? view.none : view.empty)
         + '</div>';
       return;
     }
@@ -12768,16 +12895,23 @@
       const dur = (p.nights && p.days) ? `${p.nights}박 ${p.days}일` : '';
       /* 목록에서도 같은 말을 쓴다(VU) — 목록은 「판매중」, 편집 칸은 「확정」이면
          담당자는 자기가 무엇을 눌렀는지 확신하지 못한다. */
-      const isAdhocRow = (p.kind || 'catalog') === 'adhoc';
-      const stLabel = (isAdhocRow
+      const stLabel = (isAdhocView
         ? { open: '확정', draft: '작성중', closed: '종료' }
         : { open: '판매중', draft: '작성중', closed: '마감' })[p.status] || p.status;
-      /* ⚠ 종류를 목록에서 **한눈에** 갈라 보여준다. 안 그러면 1회용 견적이 상품
-         목록에 섞여 보이고, 담당자가 그걸 상품인 줄 알고 손댄다. */
-      const kindTag = isAdhocRow ? '<span class="pkg-st draft">소규모</span> ' : '';
-      return '<div class="pkg-row" data-i="' + i + '">'
+      /* 썸네일 (WE) — 30건을 훑어 고르는 일이라 이름만으로는 안 골라진다.
+         ⚠ **패키지 상품에만** 붙인다. 소규모 견적은 사진 칸을 안 쓴다.
+         ⚠ 사진이 없어도 자리를 남긴다 — 있는 줄만 넓어지면 목록이 들쭉날쭉해진다.
+         ⚠ https만 통과한 값이지만(서버가 거른다) 그래도 esc()로 속성을 닫는다.
+           깨지면 자리만 남긴다(VZ 카드와 같은 규칙 — 빈 상자가 고장으로 보인다). */
+      const thumb = isAdhocView ? ''
+        : (p.imageUrl
+            ? '<img class="pkg-thumb" src="' + esc(p.imageUrl) + '" alt="" loading="lazy"'
+              + ' onerror="this.className=\'pkg-thumb-none\';this.removeAttribute(\'src\')">'
+            : '<div class="pkg-thumb-none"></div>');
+      return '<div class="pkg-row' + (isAdhocView ? ' pkg-row--nothumb' : '') + '" data-i="' + i + '">'
+        + thumb
         + '<div>'
-        +   '<div class="pkg-row-t">' + kindTag + esc(p.title) + '</div>'
+        +   '<div class="pkg-row-t">' + esc(p.title) + '</div>'
         +   '<div class="pkg-row-s">' + esc([p.customerLabel || null,
               p.destLabel || p.destKey || '지역 미지정', dur,
               p.departDate ? '출발 ' + pkgDateStr(p.departDate) : ''].filter(Boolean).join(' · ')) + '</div>'
@@ -12811,6 +12945,11 @@
     if (!card) return;
     pkgEditing = p ? p.id : null;
     const kind = p ? (p.kind || 'catalog') : (newKind === 'adhoc' ? 'adhoc' : 'catalog');
+    /* 편집 카드는 **한 벌뿐**이라 열 때마다 맞는 탭으로 옮긴다 (WE).
+       ⚠ 두 탭에 같은 20칸을 복사하지 않는 이유다 — 두 벌이 되면 한쪽만 고쳐지고,
+         담당자는 어느 화면을 열었느냐에 따라 다른 폼을 보게 된다(결함 생성기 ①). */
+    const host = document.getElementById(kind === 'adhoc' ? 'pkgHostAdhoc' : 'pkgHostCatalog');
+    if (host && card.parentNode !== host) host.appendChild(card);
     document.getElementById('pkgEditTitle').textContent = p
       ? ((kind === 'adhoc' ? '소규모 견적 — ' : '상품 편집 — ') + p.title)
       : (kind === 'adhoc' ? '새 소규모 견적' : '새 상품');
@@ -12880,6 +13019,13 @@
   function pkgSyncNotes() {
     const kind = (document.getElementById('pkgKind') || {}).value || 'catalog';
     const basis = (document.getElementById('pkgBasis') || {}).value || 'agency';
+    /* 그 일에 안 쓰는 칸은 감춘다 (WE) — 폼이 20칸인데 절반이 안 쓰이면 **쓰는 칸을
+       못 찾는다.** 대표가 「어떻게 써야 할지 모르겠다」고 한 이유의 절반이 이것이다.
+       ⚠ **값은 지우지 않는다.** 감추는 것과 비우는 것은 다르다 — 종류를 잘못 골랐다
+         되돌리면 적어 둔 값이 사라져 있으면 안 된다(VS에서 세운 「감춘 것 ≠ 막은 것」). */
+    document.querySelectorAll('#pkgEditCard [data-pkg-only]').forEach((el) => {
+      el.classList.toggle('hidden', el.dataset.pkgOnly !== kind);
+    });
     const note = document.getElementById('pkgKindNote');
     if (note) {
       note.innerHTML = (kind === 'adhoc'
@@ -13303,8 +13449,10 @@
     document.getElementById('pkgCancel')?.addEventListener('click', () => {
       document.getElementById('pkgEditCard').style.display = 'none';
     });
+    /* 종류 필터는 없앴다 (WE) — **탭이 곧 종류**다. 남겨 두면 「소규모 견적」 탭에서
+       종류를 「패키지 상품」으로 골라 빈 목록을 보는 상태가 만들어진다. */
     document.getElementById('pkgFilterStatus')?.addEventListener('change', pkgDrawList);
-    document.getElementById('pkgFilterKind')?.addEventListener('change', pkgDrawList);
+    document.getElementById('adhocFilterStatus')?.addEventListener('change', pkgDrawList);
     /* 종류·출처·항목을 고치면 안내와 합계가 **그 자리에서** 따라간다 */
     ['pkgKind', 'pkgBasis'].forEach(id =>
       document.getElementById(id)?.addEventListener('change', pkgSyncNotes));

@@ -176,14 +176,26 @@ console.log('\n[7] 기한 — 1회용 견적이 옛 값으로 남지 않는다')
 console.log('\n[8] 화면 — 엔진 값을 미리 채우지 않고, 상태를 말한다');
 {
   ok('⑧ 조립 칸에 엔진 값을 미리 채우지 않는다', /엔진 값을 여기 미리 채우지 않는다/.test(ADMIN));
+  /* WE로 문구가 「소규모 견적」 탭으로 옮겨 갔다. 줄바꿈이 끼므로 공백을 헐겁게 본다 —
+     **여기서 재는 것은 자리가 아니라 「근거가 화면에 적혀 있는가」**다. */
   ok('⑧ 그 근거(+21~42%)와 표본 2건이 화면에 적혀 있다',
-    /\+21~42%/.test(ADMIN) && /표본이 <b>2건<\/b>/.test(ADMIN));
-  ok('⑧ 1회용은 고객 목록에 안 나간다고 화면이 말한다', /고객 목록에는 절대 나가지 않고/.test(ADMIN));
+    /\+21~42%/.test(ADMIN) && /표본이\s+<b>2건<\/b>/.test(ADMIN));
+  ok('⑧ 1회용은 고객 목록에 안 나간다고 화면이 말한다',
+    /고객 목록\(패키지 여행\)에는 절대 나가지 않고/.test(ADMIN));
   ok('⑧ 발급이 막히면 이유를 말한다',
     /pkgIssueGate/.test(ADMIN) && /「판매중」 상태에서만 발급/.test(ADMIN));
   ok('⑧ 발급이 금액을 안 보낸다(id와 인원만)',
     /packageId: pkgEditing, pax: pax/.test(ADMIN) && /금액을 보내지 않는다/.test(ADMIN));
-  ok('⑧ 목록이 종류를 갈라 보여준다', /pkgFilterKind/.test(ADMIN) && /소규모<\/span>/.test(ADMIN));
+  /* 🔴 **WE에서 더 세게 갈렸다** — 예전에는 한 목록에 섞고 종류 필터로 갈랐는데,
+     소규모 견적은 손님 수만큼 늘어나므로 그러면 시간이 갈수록 상품이 파묻힌다.
+     이제 **탭이 곧 종류**다. 종류 필터는 없앴다(탭 안에서 다른 종류를 고르면
+     빈 목록만 보이는 상태가 만들어진다). */
+  ok('⑧ 목록이 종류를 갈라 보여준다',
+    !/pkgFilterKind/.test(ADMIN)
+    && /kind: 'catalog', box: 'pkgList'/.test(ADMIN)
+    && /kind: 'adhoc',\s+box: 'adhocList'/.test(ADMIN));
+  ok('⑧ 두 목록이 서로의 종류를 안 보여준다',
+    /pkgAll\.filter\(p => \(p\.kind \|\| 'catalog'\) === view\.kind\)/.test(ADMIN));
   /* 낡은 금액 배지는 패키지 상품만 센다 — 1회용까지 세면 늘 켜져 있어 아무도 안 본다 */
   ok('⑧ 낡은 금액 배지가 1회용을 세지 않는다',
     /\(p\.kind \|\| 'catalog'\) === 'catalog'[\s\S]{0,90}PKG_STALE_DAYS/.test(ADMIN));
