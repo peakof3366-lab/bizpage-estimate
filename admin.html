@@ -668,6 +668,21 @@
     .pkg-thumb-none { width: 64px; height: 40px; background: #F1F1ED; border: 1px solid #E2E2DC; }
     /* 소규모 견적은 사진 칸을 안 쓴다 — 썸네일 열이 통째로 없다 */
     .pkg-row--nothumb { grid-template-columns: 1fr auto auto auto; }
+    /* 빠진 칸 표시 (WH) — ⚠ **결함처럼 빨갛게 쓰지 않는다.** 아직 안 채운 것이지
+       고장이 아니다. 빨간 목록을 31줄 보면 사람은 전부 무시하게 된다. */
+    .pkg-gaps { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .28rem; }
+    .pkg-gap {
+      font-size: .67rem; font-weight: 700; padding: .1rem .38rem;
+      background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; border-radius: 3px;
+    }
+    .pkg-gap.is-ok { background: #DCFCE7; color: #166534; border-color: #86EFAC; }
+    /* 목록 전체의 모양 한 줄 (WH) */
+    .pkg-shape {
+      margin: 0 0 .9rem; padding: .7rem .9rem; background: #FAFAF8;
+      border: 1px solid #E2E2DC; border-left: 3px solid var(--primary);
+      font-size: .8rem; color: var(--heading); line-height: 1.75;
+    }
+    .pkg-shape-why { display: inline-block; margin-top: .25rem; font-size: .74rem; color: #6E6E6E; }
     .pkg-row:hover { background: #FAFAF8; }
     .pkg-row-t { font-weight: 700; color: var(--heading); }
     .pkg-row-s { font-size: .72rem; color: var(--muted); }
@@ -1936,6 +1951,12 @@
       <div class="iti-bar">
         <button type="button" class="btn-act btn-primary" id="pkgNew">+ 새 상품</button>
         <span class="iti-spacer"></span>
+        <label for="pkgFilterGap" style="font-size:13px;color:#666">채움</label>
+        <select id="pkgFilterGap">
+          <option value="">전체</option>
+          <option value="ready">팔 준비된 것</option>
+          <option value="gap">덜 채워진 것</option>
+        </select>
         <label for="pkgFilterStatus" style="font-size:13px;color:#666">상태</label>
         <select id="pkgFilterStatus">
           <option value="">전체</option>
@@ -1945,6 +1966,10 @@
         </select>
         <span id="pkgStaleNote" class="iti-pending-total hidden"></span>
       </div>
+
+      <!-- 목록이 어떤 모양인지 **스크롤 전에** 말한다 (WH) — 31건을 하나씩 열어 봐야
+           알 수 있던 것이 대표가 「내용 확인이 어렵다」고 한 자리다. -->
+      <p id="pkgShape" class="pkg-shape hidden"></p>
 
       <div class="card">
         <div class="card-header"><span class="card-title">상품 목록</span></div>
@@ -2041,6 +2066,9 @@
             <input type="text" id="pkgCustomer" placeholder="김보균님 / ○○교회 20명"></label>
         </div>
         <p id="pkgKindNote" style="margin:8px 0 0;font-size:12px;color:#777;line-height:1.7"></p>
+        <!-- 덜 채워진 채로 열리는 것을 그 자리에서 말한다 (WH) -->
+        <p id="pkgGapNote" class="hidden" style="margin:8px 0 0;padding:9px 12px;background:#FEF3C7;
+           border:1px solid #FCD34D;font-size:12px;color:#92400E;line-height:1.75"></p>
 
         <div style="padding:14px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
           <label class="pkg-f"><span>상품 ID <em>(영문·숫자·- _ )</em></span>
@@ -12877,20 +12905,63 @@
         ? `⚠ 금액 확인이 ${PKG_STALE_DAYS}일 넘은 판매중 상품 ${stale.length}건`
         : '';
     }
+
+    /* 31건이 어떤 모양인지 **스크롤 전에** 한 줄로 말한다 (WH).
+       ⚠ 목록을 다 내려 봐야 아는 것은 안 본 것과 같다 — 대표가 31번 열어 본 자리다. */
+    const shape = document.getElementById('pkgShape');
+    if (shape) {
+      const cat = pkgAll.filter((p) => (p.kind || 'catalog') === 'catalog');
+      const ready = cat.filter(pkgSellable).length;
+      const noIti = cat.filter((p) => !(Array.isArray(p.itinerary) && p.itinerary.length)).length;
+      shape.classList.toggle('hidden', !cat.length);
+      shape.innerHTML = !cat.length ? '' :
+        '상품 <b>' + cat.length + '건</b> · 팔 준비된 것 <b>' + ready + '건</b>'
+        + (noIti ? ' · <b>일정이 없는 것 ' + noIti + '건</b>' : '')
+        + (noIti ? '<br><span class="pkg-shape-why">엑셀로 들여온 상품은 이름·지역·기간·금액·사진만 들어옵니다 — '
+            + '<b>일정과 포함사항은 하나투어가 자료를 주지 않아</b> 상세 PDF로 채웁니다'
+            + '(상품을 열고 「📄 PDF에서 불러오기」).</span>' : '');
+    }
   }
+
+  /* ═══ 「팔 준비가 됐는가」 (WH) ══════════════════════════════════════════════
+     🔴 대표: 「패키지 상품 페이지에서 내용 확인이 너무 어렵다.」
+     열어 보니 **확인할 내용이 아직 없었다.** 엑셀 투입(VY·VZ)이 채우는 것은
+     이름·지역·기간·1인 금액·사진 다섯뿐이고, **일정·포함/불포함·출발일은 안 채운다**
+     (하나투어가 그 자료를 안 준다 — 그래서 WA에서 PDF로 채우는 길을 만들었다).
+     즉 30건이 껍데기인데, **그걸 알려면 31번을 하나씩 열어 봐야 했다.**
+     → 무엇이 비었는지를 **목록에서** 말한다. 훑는 일이 열어 보는 일이 되면 안 된다.
+     ⚠ 「없음」을 결함처럼 빨갛게 쓰지 않는다 — 아직 안 채운 것이지 고장이 아니다.
+     ⚠ 소규모 견적에는 안 붙인다. 그쪽은 일정·포함사항이 없는 게 정상이다. */
+  const PKG_GAPS = [
+    { key: 'iti',  label: '일정',   has: (p) => Array.isArray(p.itinerary) && p.itinerary.length > 0 },
+    { key: 'incl', label: '포함사항', has: (p) => Array.isArray(p.inclItems) && p.inclItems.length > 0 },
+    { key: 'img',  label: '사진',   has: (p) => !!p.imageUrl },
+  ];
+  const pkgGaps = (p) => PKG_GAPS.filter((g) => !g.has(p));
+  /* 고객에게 내보내도 되는 상태인가 — 일정과 포함사항이 이 판단의 전부다.
+     ⚠ 사진은 없어도 팔린다(카드가 사진 없이도 그려진다). 그래서 여기 안 센다. */
+  const pkgSellable = (p) => PKG_GAPS.filter((g) => g.key !== 'img').every((g) => g.has(p));
 
   function pkgDrawOne(view) {
     const box = document.getElementById(view.box);
     if (!box) return;
     const want = (document.getElementById(view.filter) || {}).value || '';
+    /* 「채움」 필터는 패키지 상품에만 있다 — 소규모 견적은 일정·포함사항이 없는 게 정상 */
+    const wantGap = view.kind === 'catalog'
+      ? ((document.getElementById('pkgFilterGap') || {}).value || '') : '';
     const mine = pkgAll.filter(p => (p.kind || 'catalog') === view.kind);
-    const list = mine.filter(p => !want || p.status === want);
+    const list = mine.filter(p => (!want || p.status === want)
+      && (!wantGap || (wantGap === 'ready' ? pkgSellable(p) : !pkgSellable(p))));
     const isAdhocView = view.kind === 'adhoc';
 
     if (!list.length) {
-      box.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">'
-        + (mine.length ? view.none : view.empty)
-        + '</div>';
+      /* ⚠ 왜 비었는지를 **거른 조건에 맞춰** 말한다. 「그 상태의 상품이 없습니다」를
+         채움 필터에도 쓰면 담당자는 상태를 들여다보며 헤맨다. */
+      const why = !mine.length ? view.empty
+        : wantGap === 'ready' ? '팔 준비가 된 상품이 아직 없습니다 — 일정과 포함사항을 채우면 여기 올라옵니다.'
+        : wantGap === 'gap' ? '덜 채워진 상품이 없습니다. 전부 팔 준비가 됐습니다.'
+        : view.none;
+      box.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">' + why + '</div>';
       return;
     }
 
@@ -12920,6 +12991,14 @@
         +   '<div class="pkg-row-s">' + esc([p.customerLabel || null,
               p.destLabel || p.destKey || '지역 미지정', dur,
               p.departDate ? '출발 ' + pkgDateStr(p.departDate) : ''].filter(Boolean).join(' · ')) + '</div>'
+        /* 빠진 칸을 그 자리에서 말한다 (WH) — 열어 보지 않고 훑을 수 있어야 한다 */
+        +   (isAdhocView ? '' : (() => {
+              const gaps = pkgGaps(p);
+              return gaps.length
+                ? '<div class="pkg-gaps">' + gaps.map((g) =>
+                    '<span class="pkg-gap">' + esc(g.label) + ' 없음</span>').join('') + '</div>'
+                : '<div class="pkg-gaps"><span class="pkg-gap is-ok">✓ 팔 준비됨</span></div>';
+            })())
         + '</div>'
         + '<div style="text-align:right;font-weight:800">' + Number(p.pricePerPerson || 0).toLocaleString() + '원</div>'
         + '<div class="pkg-stale">' + (old ? '⚠ ' + age + '일 전 금액' : '') + '</div>'
@@ -13041,6 +13120,26 @@
         + (basis === 'assembled'
           ? '금액 출처가 <b>담당자 산출</b>입니다 — 견적서에 「담당자 산출」로 찍히고 엔진 검증을 거치지 않은 것으로 기록됩니다.'
           : '금액 출처가 <b>대리점가</b>입니다 — 공급사에게 받은 값 그대로라는 뜻입니다. 우리가 조립했다면 위에서 바꿔 주세요.');
+    }
+    /* 🔴 **일정·포함사항이 빈 채로 「판매중」이 되는 것을 그 자리에서 말한다** (WH).
+       고객 화면은 빈 칸을 **그냥 안 그린다** — 사진·제목·금액만 있는 얇은 상품이 되고,
+       그 상태로 받아 간 견적서에는 일정이 없다. 막지는 않는다(팔지 말지는 대표 판단이고
+       일정 없이 파는 상품도 있을 수 있다). 다만 **모르고 열리는 일은 없어야 한다.** */
+    const gapNote = document.getElementById('pkgGapNote');
+    if (gapNote) {
+      const cur = {
+        itinerary: pkgParseIti((document.getElementById('pkgIti') || {}).value),
+        inclItems: pkgLines('pkgIncl'),
+        imageUrl: (document.getElementById('pkgImage') || {}).value || null,
+      };
+      const gaps = kind === 'adhoc' ? [] : pkgGaps(cur);
+      const blocking = gaps.filter((g) => g.key !== 'img');
+      gapNote.classList.toggle('hidden', !blocking.length);
+      gapNote.innerHTML = !blocking.length ? '' :
+        '⚠ <b>' + blocking.map((g) => g.label).join(' · ') + '</b>이(가) 비어 있습니다. '
+        + '이대로 「판매중」으로 두면 고객 화면에 <b>그 칸이 아예 안 나오고</b>, '
+        + '받아 가는 견적서에도 안 실립니다. '
+        + '<b>📄 PDF에서 불러오기</b>로 채우실 수 있습니다.';
     }
     /* 편집 칸 안에서 종류를 바꿨을 때도 id가 따라온다(VU). **새로 만드는 중일 때만** —
        이미 저장된 건의 id를 바꾸면 upsert가 새 행을 만들고 원본이 남는다. */
@@ -13481,11 +13580,16 @@
     /* 종류 필터는 없앴다 (WE) — **탭이 곧 종류**다. 남겨 두면 「소규모 견적」 탭에서
        종류를 「패키지 상품」으로 골라 빈 목록을 보는 상태가 만들어진다. */
     document.getElementById('pkgFilterStatus')?.addEventListener('change', pkgDrawList);
+    document.getElementById('pkgFilterGap')?.addEventListener('change', pkgDrawList);
     document.getElementById('adhocFilterStatus')?.addEventListener('change', pkgDrawList);
     /* 종류·출처·항목을 고치면 안내와 합계가 **그 자리에서** 따라간다 */
     ['pkgKind', 'pkgBasis'].forEach(id =>
       document.getElementById(id)?.addEventListener('change', pkgSyncNotes));
     document.getElementById('pkgItems')?.addEventListener('input', pkgSyncNotes);
+    /* 일정·포함사항·사진을 채우면 「비어 있습니다」 안내가 **그 자리에서** 사라져야 한다
+       (WH). 안 사라지면 담당자는 채웠는데도 못 채운 줄 알고 다시 연다. */
+    ['pkgIti', 'pkgIncl', 'pkgImage'].forEach(id =>
+      document.getElementById(id)?.addEventListener('input', pkgSyncNotes));
     document.getElementById('pkgIssue')?.addEventListener('click', pkgIssueNow);
     document.getElementById('pkgPdfRead')?.addEventListener('click', pkgReadPdf);
     document.getElementById('ledFind')?.addEventListener('click', () => renderLedger(document.getElementById('ledSearch').value.trim()));
