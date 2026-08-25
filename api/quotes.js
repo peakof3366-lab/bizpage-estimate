@@ -9,6 +9,8 @@ const { safeId, payloadTooLarge, toNumberOrNull, trimText } = require('./_lib/pu
 const { verifyQuote } = require('./_lib/quote_verify');
 /* 견적서 PDF 층 구조 추출 (RZ) — 왜 이렇게 나눴는지는 그 파일 머리말에 있다 */
 const pdfExtract = require('./_lib/pdf_extract');
+/* 하나투어 상품 읽기 (WJ) — CLI와 **같은 파일**을 쓴다 */
+const hanatour = require('./_lib/hanatour');
 /* 「이 값을 실측으로 반영해도 되는가」의 잣대 — 화면·감사기와 **같은 파일**을 쓴다.
    여기에 규칙을 다시 적으면 서버는 빼고 화면은 반영하는 상태가 된다(결함 생성기 ①). */
 const PLAUSIBILITY = require('../plausibility');
@@ -1038,12 +1040,49 @@ async function handleConfirmReportField(req, res) {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   ?action=hanatour (WJ) — 하나투어 상품 하나를 읽어 상품 칸을 채운다
+   ───────────────────────────────────────────────────────────────────────────
+   2026-08-25 대표 결정: 「하나투어 답은 없어. 그냥 임의로 우리가 진행하면 될 것 같아.」
+
+   ⚠ **브라우저가 직접 못 부른다** — 우리 Origin에는 403이 온다(실측). 서버가 부른다.
+   ⚠ **새 파일을 만들지 않았다.** Vercel Hobby 함수 12개 제한에 이미 도달해 있어
+     `?action=`으로 붙인다(WA에서 extractPdf가 이 파일에 붙은 것과 같은 이유).
+   ⚠ 읽는 규칙은 여기 없다 — `_lib/hanatour.js` 한 곳이고 CLI도 그것을 쓴다.
+
+   🔴 **로그인한 직원만.** 공개로 두면 우리 서버가 남의 사이트를 대신 긁어 주는
+     통로가 된다(공개 입력을 믿지 않는다 — 결함 생성기 ④).
+   🔴 **한 번에 한 건.** 목록을 훑는 기능은 만들지 않는다.
+   🔴 **저장하지 않는다.** 값을 돌려주기만 하고 상품을 만드는 것은 사람이 누른다. */
+async function handleHanatour(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  const body = req.body || {};
+  if (payloadTooLarge(body)) return res.status(413).json({ error: 'payload_too_large' });
+  const input = typeof body.url === 'string' ? body.url : '';
+  if (!input || input.length > 500) return res.status(400).json({ error: 'invalid_url' });
+
+  let r;
+  try {
+    r = await hanatour.fetchProduct(input);
+  } catch (err) {
+    /* ⚠ 예외를 **빈 상품으로 바꾸지 않는다.** 그러면 담당자가 「상품에 아무것도 없네」로
+       읽고 손으로 채우기 시작하는데, 사실은 우리가 못 읽은 것이다(결함 생성기 ②). */
+    console.error('[quotes hanatour] 실패:', err);
+    return res.status(502).json({ error: 'fetch_failed', why: '하나투어에서 읽지 못했습니다.' });
+  }
+  if (!r.ok) return res.status(422).json({ error: 'not_readable', why: r.why });
+  return res.status(200).json({
+    ok: true, row: r.row, missing: r.missing || [], notProvided: r.notProvided || [],
+  });
+}
+
 /* 견적서 단가 뽑기의 **순수 함수**를 테스트가 직접 부를 수 있게 내보낸다 (RN).
    ⚠ 핸들러(module.exports)에 얹는 형태다 — Vercel은 함수 export만 보므로 영향이 없다.
    테스트가 이 함수를 복사해 쓰면 곧 어긋나므로, 진짜 코드를 그대로 부르게 한다. */
 module.exports = async (req, res) => {
   const action = req.query && req.query.action;
   if (action === 'extractPdf' && req.method === 'POST') return handleExtractPdf(req, res);
+  if (action === 'hanatour' && req.method === 'POST') return handleHanatour(req, res);
   if (action === 'priceReport' && req.method === 'POST') return handlePriceReport(req, res);
   if (action === 'priceReports' && req.method === 'GET') return handlePriceReports(req, res);
   if (action === 'deletePriceReport' && req.method === 'DELETE') return handleDeletePriceReport(req, res);

@@ -2124,6 +2124,31 @@
 
         <label class="pkg-f" style="margin-top:14px;display:block"><span>일정 <em>— DAY마다 한 줄. 「제목 | 내용」</em></span>
           <textarea id="pkgIti" rows="6" placeholder="인천 출발 · 나하 도착 | 오전 인천공항 집결 / 오후 나하 도착 후 호텔 이동&#10;북부 관광 | 츄라우미 수족관 / 코우리대교"></textarea></label>
+        <!-- 🔗 하나투어 상품 주소로 불러오기 (WJ) — 2026-08-25 대표 결정:
+             「하나투어 답은 없어. 그냥 임의로 우리가 진행하면 될 것 같아.」
+             🔴 8/24에 「홈페이지에서 가져오는 길은 막혔다」고 적었는데 그건 **SSR HTML만
+               보고 내린 판단**이었다. 브라우저가 뒤에 부르는 API를 직접 부르면 상품명·
+               금액·지역·기간·출발일·**일차별 일정**이 그대로 온다(상품 10건 전수 성공).
+             ⚠ **브라우저가 직접 못 부른다** — 우리 Origin에는 403이 온다. 서버를 거친다.
+             ⚠ PDF 경로와 **같은 규칙**이다: 채우기만 하고 저장 안 함, 이미 적은 칸은 안 덮음.
+             ⚠ 문서화된 API가 아니라 예고 없이 바뀐다 — 못 읽으면 **빈 값으로 채우지 말고
+               못 읽었다고 말한다**(그래야 담당자가 손으로 채울 줄 안다). -->
+        <div style="margin-top:14px;padding:12px 14px;background:#F7F7F5;border:1px solid rgba(0,0,0,.08)">
+          <div style="font-weight:800;font-size:13px;margin-bottom:6px">🔗 하나투어 상품 주소로 불러오기</div>
+          <p style="margin:0 0 9px;font-size:12px;color:#666;line-height:1.75">
+            하나투어에서 파실 상품을 찾아 <strong>주소창의 주소를 그대로</strong> 붙여넣으세요 —
+            <strong>상품명·지역·기간·금액·출발일·일정</strong>을 읽어 위 칸을 채웁니다.
+            <strong>저장은 하지 않습니다.</strong> 이미 적어 두신 칸은 건드리지 않습니다.
+            <br>⚠ <strong>포함/불포함 사항은 하나투어가 주지 않습니다</strong> — 그 칸은 직접 적어 주세요.
+          </p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="url" id="pkgHtUrl" placeholder="https://www.hanatour.com/trp/pkg/...?pkgCd=..."
+                   style="flex:1;min-width:280px;padding:8px 10px;border:1px solid #D8D8D2;font-size:12px">
+            <button type="button" class="btn-act btn-outline-p" id="pkgHtRead">읽어서 채우기</button>
+          </div>
+          <p id="pkgHtMsg" style="margin:8px 0 0;font-size:12px;line-height:1.7"></p>
+        </div>
+
         <!-- 📄 PDF에서 불러오기 (WA) — 2026-08-24 대표 방침: 하나투어가 데이터를 안 주므로
              **파는 상품에만 상세 PDF로 일정을 채운다.**
              ⚠ **채우기만 하고 저장하지 않는다.** 추출은 사람이 확인할 초안이지 확정이 아니다 —
@@ -13407,6 +13432,72 @@
     }));
   }
 
+  /* 🔗 하나투어 상품 주소로 불러오기 (WJ).
+     ⚠ PDF 경로(pkgReadPdf)와 **같은 규칙**을 쓴다 — 빈 칸만 채우고, 저장은 안 하고,
+       무엇을 채우고 무엇을 그대로 뒀는지 말한다. 규칙이 갈리면 담당자는 두 버튼이
+       서로 다르게 동작한다고 배우게 된다. */
+  async function pkgReadHanatour() {
+    const msg = document.getElementById('pkgHtMsg');
+    const url = String((document.getElementById('pkgHtUrl') || {}).value || '').trim();
+    if (!url) { msg.style.color = '#B91C1C'; msg.textContent = '하나투어 상품 주소를 넣어 주세요.'; return; }
+    msg.style.color = '#666'; msg.textContent = '하나투어에서 읽는 중…';
+
+    let d;
+    try {
+      const r = await fetch('/api/quotes?action=hanatour', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) {
+        /* 🔴 **왜 안 됐는지를 그대로 말한다.** 「실패」로 뭉뚱그리면 담당자는 다시
+           누르기만 하고, 그러다 손으로 채워야 하는 상황을 못 알아챈다. */
+        msg.style.color = '#B91C1C';
+        msg.textContent = '읽지 못했습니다 — ' + (d.why || {
+          invalid_url: '주소가 잘못됐습니다.',
+          fetch_failed: '하나투어에 물어보지 못했습니다. 잠시 뒤 다시 눌러 주세요.',
+          unauthorized: '로그인이 풀렸습니다. 새로고침 후 다시 시도해 주세요.',
+        }[d.error] || (d.error || ('오류 ' + r.status)));
+        return;
+      }
+    } catch (err) {
+      msg.style.color = '#B91C1C'; msg.textContent = '읽지 못했습니다 — ' + String(err.message || err);
+      return;
+    }
+
+    const row = d.row || {};
+    /* ⚠ **빈 칸만 채운다.** 사람이 적어 둔 값을 덮으면 그 수정이 조용히 사라진다. */
+    const filled = [], kept = [];
+    const put = (id, val, label) => {
+      const el = document.getElementById(id);
+      if (!el || val == null || val === '') return;
+      if (String(el.value).trim()) { kept.push(label); return; }
+      el.value = val; filled.push(label);
+    };
+    put('pkgTitle', row.title, '상품명');
+    put('pkgDestLabel', row.destLabel, '지역');
+    put('pkgNights', row.nights, '박');
+    put('pkgDays', row.days, '일');
+    put('pkgDepart', row.departDate, '출발일');
+    put('pkgPrice', row.pricePerPerson, '1인 금액');
+    put('pkgSourceCode', row.sourceCode, '공급사 상품코드');
+    if (row.itinerary && row.itinerary.length) {
+      put('pkgIti', row.itinerary.map((x) => (x.title || ('DAY ' + x.day)) + ' | ' + (x.am || '')).join('\n'), '일정');
+    }
+    /* 🔴 **금액 확인일은 오늘로 채우지 않는다**(VP·WA에서 세운 원칙). 이 값은 「공급사가
+       확인해 준 날」이라, 우리가 읽은 날을 넣으면 그 칸의 뜻이 무너진다. 사람이 넣는다. */
+
+    const bits = [];
+    if (filled.length) bits.push('채웠습니다: ' + filled.join(' · '));
+    if (kept.length) bits.push('이미 적혀 있어 그대로 둔 칸: ' + kept.join(' · '));
+    if ((d.missing || []).length) bits.push('🔴 못 읽은 칸: ' + d.missing.join(' · '));
+    (d.notProvided || []).forEach((t) => bits.push('⚠ ' + t));
+    bits.push('저장은 하지 않았습니다 — 값을 확인하신 뒤 「저장」을 누르세요.');
+    msg.style.color = (d.missing || []).length ? '#92400E' : '#166534';
+    msg.innerHTML = bits.map(esc).join('<br>');
+    pkgSyncNotes();
+  }
+
   async function pkgReadPdf() {
     const msg = document.getElementById('pkgPdfMsg');
     const file = (document.getElementById('pkgPdf') || {}).files?.[0];
@@ -13592,6 +13683,7 @@
       document.getElementById(id)?.addEventListener('input', pkgSyncNotes));
     document.getElementById('pkgIssue')?.addEventListener('click', pkgIssueNow);
     document.getElementById('pkgPdfRead')?.addEventListener('click', pkgReadPdf);
+    document.getElementById('pkgHtRead')?.addEventListener('click', pkgReadHanatour);
     document.getElementById('ledFind')?.addEventListener('click', () => renderLedger(document.getElementById('ledSearch').value.trim()));
     document.getElementById('ledReload')?.addEventListener('click', () => { document.getElementById('ledSearch').value=''; renderLedger(); });
     document.getElementById('ledSearch')?.addEventListener('keydown', (e) => { if (e.key==='Enter') { e.preventDefault(); renderLedger(e.target.value.trim()); } });
