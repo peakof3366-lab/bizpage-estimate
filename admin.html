@@ -13369,6 +13369,24 @@
         ? '「확정」 상태에서만 발급됩니다. 지금은 「' + now + '」입니다 — 확인 안 된 금액으로 견적서가 나가면 그 금액을 우리가 물게 됩니다.'
         : '「판매중」 상태에서만 발급됩니다. 지금은 「' + now + '」입니다 — 마감·작성중인 값으로 견적서가 나가면 그 금액을 우리가 물게 됩니다.';
     }
+    /* 🔴 **서버는 세 가지를 본다**(`_lib/packages.js`의 `getIssuablePackage`, WR):
+         ① status='open'  ② 유효기간이 안 지남  ③ **출발일이 안 지남**
+       그런데 이 화면은 **①만** 보고 있었다. 그래서 기한이나 출발일이 지난 건은
+       **버튼이 눌리고, 눌러 보고서야 404로 거절**당했다 — `limits.js`의 MAX_DAYS
+       주석이 말한 바로 그 상황이다(「화면이 막지 않고 서버만 거절하면 담당자는
+       눌러서야 안다」). 그리고 그때 뜨던 문구는 **출발일을 언급도 안 했다**(WR에서
+       조건을 늘렸는데 문구가 안 따라갔다).
+     ⚠ 조건이 서버·화면 두 곳에 있게 된다 — `test_xG`가 **셋이 같은지 대조**한다.
+     ⚠ 값이 **비어 있는 것은 「지났다」가 아니다**(서버와 같은 규칙). */
+    else {
+      const today = new Date().toISOString().slice(0, 10);
+      const day = (v) => (v ? String(v).slice(0, 10) : '');
+      if (day(p.validUntil) && day(p.validUntil) < today) {
+        why = '유효기간이 지났습니다 (' + day(p.validUntil) + ') — 기한을 늘리고 저장하신 뒤에 발급됩니다.';
+      } else if (day(p.departDate) && day(p.departDate) < today) {
+        why = '출발일이 지났습니다 (' + day(p.departDate) + ') — 지난 출발편으로 견적서가 나가면 그 금액을 우리가 물게 됩니다.';
+      }
+    }
     if (gate) gate.textContent = why;
     if (btn) btn.disabled = !!why;
   }
@@ -13404,7 +13422,9 @@
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.id) {
         const why = {
-          package_not_available: '지금 발급할 수 없는 상태입니다 — 「판매중」인지, 유효기간이 지나지 않았는지 보세요.',
+          /* ⚠ WR에서 발급 조건에 **출발일**이 더해졌는데 이 문구는 안 따라갔다.
+             서버가 막는 이유를 다 적어야 담당자가 무엇을 고칠지 안다. */
+          package_not_available: '지금 발급할 수 없는 상태입니다 — 「판매중(확정)」인지, 유효기간과 **출발일**이 지나지 않았는지 보세요.',
           invalid_pax: '인원을 다시 확인해 주세요.',
           tel_required: '고객 연락처를 넣어 주세요 (견적서에는 표시되지 않습니다).',
           package_price_broken: '금액이 비어 있습니다 — 1인 금액이나 조립 항목을 채우고 저장해 주세요.',
