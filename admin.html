@@ -13415,8 +13415,13 @@
     const won = (n) => Number(n || 0).toLocaleString();
     const day = (v) => (v ? String(v).slice(0, 10) : '');
     box.innerHTML = '<table class="tbl" style="width:100%;font-size:12.5px">'
+      /* 🔴 총액을 더했다 (WV). 서버는 처음부터 `payload->>'t'`를 실어 보내는데
+         **화면이 한 번도 안 읽고 있었다.** 고객이 전화로 가장 먼저 묻는 값인데
+         담당자가 1인당 × 인원을 암산해야 했다 — 값을 보내 놓고 아무도 안 읽는
+         자리다(결함 생성기 ③의 변형). */
       + '<thead><tr><th>견적번호</th><th>발행일</th><th>고객</th><th>연락처</th><th>목적지</th>'
-      + '<th style="text-align:right">1인당</th><th>인원</th><th>발급자</th><th>상태</th><th></th></tr></thead><tbody>'
+      + '<th style="text-align:right">1인당</th><th style="text-align:right">총액</th>'
+      + '<th>인원</th><th>발급자</th><th>상태</th><th></th></tr></thead><tbody>'
       + ledRows.map((r, i) => {
         const cust = r.org || r.customer_label || r.cn || '—';
         /* 엔진 검증을 거친 것과 아닌 것을 구분해 보여준다 — 나중에 금액을 다툴 때 근거다 */
@@ -13432,11 +13437,19 @@
               : '—') + '</td>'
           + '<td>' + esc(r.dest || '—') + (vd ? ' <span class="pkg-st draft">' + esc(vd) + '</span>' : '') + '</td>'
           + '<td style="text-align:right;white-space:nowrap">' + won(r.per) + '원</td>'
+          + '<td style="text-align:right;white-space:nowrap;font-weight:700">' + won(r.total) + '원</td>'
           + '<td style="white-space:nowrap">' + esc(String(r.pax || '—')) + '명</td>'
           + '<td>' + esc(r.issued_by || '—') + '</td>'
           + '<td><select class="led-st" data-i="' + i + '" style="font-size:12px">'
           +   Object.keys(LED_STATUS).map(k => '<option value="' + k + '"'
                 + (k === (r.status || 'issued') ? ' selected' : '') + '>' + LED_STATUS[k] + '</option>').join('')
+          /* 🔴 누가 언제 바꿨는지 (WV) — 이것도 서버가 보내는데 안 읽고 있었다.
+             「휴가 중 이어받기」가 목적인 대장에서 **「이거 누가 계약으로 바꿨죠?」**를
+             못 보면 이어받은 사람이 다시 물어봐야 한다. */
+          + (r.status_by
+              ? '<div style="font-size:11px;color:#888;margin-top:2px">'
+                + esc(r.status_by) + (r.status_at ? ' · ' + esc(day(r.status_at)) : '') + '</div>'
+              : '')
           + '</select></td>'
           + '<td style="white-space:nowrap"><button class="btn-act btn-outline-p led-open" data-i="' + i + '">열기</button>'
           +   ' <button class="btn-act btn-outline-p led-copy" data-i="' + i + '">링크</button></td>'
