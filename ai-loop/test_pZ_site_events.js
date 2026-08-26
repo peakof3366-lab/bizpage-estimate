@@ -139,9 +139,14 @@ ok('대시보드 "총 방문"도 총계를 쓴다',
 ok('퍼널 분모가 총계다 (전환율이 부풀려지지 않게)',
   /const vTotal = visitMeta\(\)\.total;/.test(adminSrc));
 ok('절단 시 안내를 띄울 자리가 있다', /id="s-trunc-note"/.test(adminSrc));
+/* ⚠ WX(2026-08-26)에서 이 자리에 안내가 **하나 더** 생겼다(통계가 낡았다는 표시).
+   그래서 「truncated면 remove, 아니면 add」라는 옛 모양이 아니라, **줄을 모아
+   있으면 보이고 없으면 감추는** 모양이 됐다. 이 검사가 지키려던 것은 코드 모양이
+   아니라 「평소엔 소음이 되지 않는다」이므로, 그 뜻을 고정하도록 고쳤다(지우지 않았다).
+   실동작은 아래 [실동작] 묶음과 `test_wX_sync_signals.js`가 직접 렌더해서 잰다. */
 ok('절단됐을 때만 보인다 (평소엔 소음이 되지 않게)',
-  /if \(vm\.truncated\) \{[\s\S]{0,400}?note\.classList\.remove\('hidden'\)/.test(adminSrc)
-  && /\} else \{\s*note\.classList\.add\('hidden'\)/.test(adminSrc));
+  /if \(vm\.truncated\) \{[\s\S]{0,400}?lines\.push\(/.test(adminSrc)
+  && /note\.classList\.toggle\('hidden', lines\.length === 0\)/.test(adminSrc));
 
 /* ══ 실동작 ══ */
 (async () => {
