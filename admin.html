@@ -12991,7 +12991,13 @@
      ⚠ 소규모 견적에는 안 붙인다. 그쪽은 일정·포함사항이 없는 게 정상이다. */
   const PKG_GAPS = [
     { key: 'iti',  label: '일정',   has: (p) => Array.isArray(p.itinerary) && p.itinerary.length > 0 },
-    { key: 'incl', label: '포함사항', has: (p) => Array.isArray(p.inclItems) && p.inclItems.length > 0 },
+    /* 🔴 여기가 `p.inclItems`였다 (WR). 서버가 주는 이름은 **`included`**다
+       (`api/content.js`의 `pkgRowOut`). 그래서 목록에서는 **포함사항을 채워도
+       「포함사항 없음」이 안 사라지고**, 「✓ 팔 준비됨」이 **한 번도 안 떴다** —
+       「채움」 필터의 「팔 준비된 것」도 늘 0건이었다.
+       편집 폼 미리보기만 같은 틀린 이름을 써서 거기서는 멀쩡해 보였다(그래서 못 봤다).
+     ⚠ 한 값에 이름을 두 개 두지 않는다 — 서버가 부르는 이름 하나로 간다. */
+    { key: 'incl', label: '포함사항', has: (p) => Array.isArray(p.included) && p.included.length > 0 },
     { key: 'img',  label: '사진',   has: (p) => !!p.imageUrl },
   ];
   const pkgGaps = (p) => PKG_GAPS.filter((g) => !g.has(p));
@@ -13186,7 +13192,7 @@
     if (gapNote) {
       const cur = {
         itinerary: pkgParseIti((document.getElementById('pkgIti') || {}).value),
-        inclItems: pkgLines('pkgIncl'),
+        included: pkgLines('pkgIncl'),
         imageUrl: (document.getElementById('pkgImage') || {}).value || null,
       };
       const gaps = kind === 'adhoc' ? [] : pkgGaps(cur);

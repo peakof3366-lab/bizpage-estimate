@@ -90,7 +90,23 @@ function shareRowsOf(pkg, fallbackLabel) {
    ⚠ 두 함수 모두 **서버가 거른다.** 화면에서 거르면 그건 방어가 아니다 —
      화면을 안 거치는 경로(직접 호출·캐시·다음에 만들 다른 화면)가 반드시 생긴다. */
 
-/* 고객 목록 — 판매중 · 기한 안 지남 · **catalog만**.
+/* 🔴 **「지금 팔 수 있는가」의 조건 (WR)** — 세 가지다:
+     ① `status = 'open'`                          담당자가 열어 둔 것
+     ② `valid_until`이 안 지났다                  공급사가 정한 기한
+     ③ 🔴 **`depart_date`가 안 지났다**            ← 이게 빠져 있었다
+
+   ③이 없어서 **출발일이 지난 상품이 고객 목록에 그대로 남고, 그 상품으로 견적서까지
+   발급됐다.** 유효기간이 9월 말인데 출발이 8월이면 조건 ②만으로는 안 걸린다.
+   패키지 방침 3번(「마감된 상품 방어 — 마감 상품으로 견적서가 나가면 사고다」)이
+   막으려던 바로 그 자리인데, 「마감」을 유효기간으로만 재고 있었다.
+   ⚠ 출발일이 **비어 있는** 상품(출발일 미정)은 거르지 않는다 — 그건 「지났다」가 아니다.
+   ⚠ 출발 당일은 살려 둔다(`>=`). 실제 마감은 공급사가 하고, 우리 화면은 담당자
+     확인을 안내한다 — 우리가 하루 먼저 닫을 이유가 없다.
+   ⚠ 아래 두 함수가 **같은 조건**을 쓴다. 태그드 템플릿이라 조각을 나눠 쓸 수 없어
+     손으로 두 번 적었다 — `test_wR_package_open.js`가 두 조건을 원문으로 대조한다
+     (CLAUDE.md: 불가피하게 나뉘면 테스트로 대조한다). */
+
+/* 고객 목록 — 위 세 조건 · **catalog만**.
    1회용 견적이 여기 섞이면 남의 손님 견적이 상품인 척 뜬다. */
 async function listPublicPackages(sql) {
   return sql`
@@ -98,6 +114,7 @@ async function listPublicPackages(sql) {
      where status = 'open'
        and kind = 'catalog'
        and (valid_until is null or valid_until >= current_date)
+       and (depart_date is null or depart_date >= current_date)
      order by coalesce(depart_date, '2999-12-31') asc`;
 }
 
@@ -107,13 +124,16 @@ async function listAllPackages(sql) {
     select * from packages order by coalesce(depart_date, '2999-12-31') asc, updated_at desc`;
 }
 
-/* 견적서를 낼 수 있는 상품 — 판매중 · 기한 안 지남. **kind는 안 따진다**(위 머리말).
-   ⚠ 마감·초안·기한 지난 상품으로 견적서가 나가면 대리점인 우리가 그 값으로 문다. */
+/* 견적서를 낼 수 있는 상품 — **위 세 조건과 같다**. `kind`는 안 따진다(위 머리말).
+   ⚠ 마감·초안·기한 지난·**출발일 지난** 상품으로 견적서가 나가면 대리점인 우리가
+     그 값으로 문다. 목록에서 감추는 것만으로는 안 된다 — id를 아는 사람은 공개
+     POST로 그대로 뽑아 갈 수 있다(VS에서 세운 규칙과 같은 이유). */
 async function getIssuablePackage(sql, id) {
   const rows = await sql`
     select * from packages
      where id = ${String(id)} and status = 'open'
        and (valid_until is null or valid_until >= current_date)
+       and (depart_date is null or depart_date >= current_date)
      limit 1`;
   return rows.length ? rows[0] : null;
 }

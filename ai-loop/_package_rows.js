@@ -131,8 +131,12 @@ function buildPackageRow(input, opts) {
       kind: 'catalog',
       priceBasis: 'agency',
       itinerary: (Array.isArray(i.itinerary) && i.itinerary.length) ? i.itinerary : null,
-      inclItems: (Array.isArray(i.included) && i.included.length) ? i.included : null,
-      exclItems: (Array.isArray(i.excluded) && i.excluded.length) ? i.excluded : null,
+      /* ⚠ 이름을 `included`/`excluded`로 맞춘다 (WR). 예전엔 여기만 `inclItems`였는데,
+         서버(`api/content.js`)도 API 응답도 관리자 저장도 전부 `included`다. 이름이
+         갈리면 **읽는 쪽이 조용히 못 찾는다** — 실제로 관리자 목록의 「포함사항 없음」
+         배지가 그래서 늘 켜져 있었다(결함 생성기 ①). */
+      included: (Array.isArray(i.included) && i.included.length) ? i.included : null,
+      excluded: (Array.isArray(i.excluded) && i.excluded.length) ? i.excluded : null,
       /* ⚠ **https만 받는다**(VZ). http면 브라우저가 막아 깨진 사진 자리만 남고,
          javascript:·data: 같은 것은 애초에 주소가 아니다. 형식이 아니면 **비운다** —
          「사진 없음」은 화면이 접으면 되지만, 이상한 주소는 그대로 렌더된다. */

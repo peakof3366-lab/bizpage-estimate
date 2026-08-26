@@ -43,19 +43,19 @@ const FIX = [
   { id: 'hana-oka-1', kind: 'catalog', title: '오키나와 3박4일', status: 'draft',
     pricePerPerson: 1190000, nights: 3, days: 4, destLabel: '오키나와',
     imageUrl: 'https://img.example.com/a.jpg', priceAsOf: '2026-08-24',
-    itinerary: null, inclItems: null, exclItems: null },              /* 엑셀 투입분 */
+    itinerary: null, included: null, excluded: null },              /* 엑셀 투입분 */
   { id: 'hana-sai-2', kind: 'catalog', title: '사이판 4박5일', status: 'draft',
     pricePerPerson: 1590000, nights: 4, days: 5, destLabel: '사이판',
     imageUrl: null, priceAsOf: '2026-08-24',
-    itinerary: null, inclItems: null, exclItems: null },              /* 사진도 없다 */
+    itinerary: null, included: null, excluded: null },              /* 사진도 없다 */
   { id: 'hana-dan-3', kind: 'catalog', title: '다낭 4박5일', status: 'open',
     pricePerPerson: 1290000, nights: 4, days: 5, destLabel: '다낭',
     imageUrl: 'https://img.example.com/c.jpg', priceAsOf: '2026-08-24',
     itinerary: [{ title: '인천 출발' }, { title: '시내 관광' }],
-    inclItems: ['왕복 항공권', '호텔 4박'], exclItems: ['개인 경비'] }, /* PDF로 채운 것 */
+    included: ['왕복 항공권', '호텔 4박'], excluded: ['개인 경비'] }, /* PDF로 채운 것 */
   { id: 'adhoc-260825-ab12', kind: 'adhoc', title: '김보균님 가족 오사카', status: 'draft',
     pricePerPerson: 890000, customerLabel: '김보균님 4명', destLabel: '오사카',
-    priceAsOf: '2026-08-25', itinerary: null, inclItems: null },
+    priceAsOf: '2026-08-25', itinerary: null, included: null },
 ];
 
 const dom = new JSDOM(ADMIN, {
@@ -187,9 +187,9 @@ function run() {
     /* 사진 없이도 카드가 그려진다(VZ) — 사진까지 필수로 하면 팔 수 있는 상품이
        「준비 안 됨」으로 묶여 진짜 빈 상품과 구분이 안 된다 */
     ok('⑥ 사진 없는 상품도 「팔 준비」 판정에 안 걸린다',
-      w.eval('pkgSellable({itinerary:[{}],inclItems:["a"],imageUrl:null})') === true);
+      w.eval('pkgSellable({itinerary:[{}],included:["a"],imageUrl:null})') === true);
     ok('⑥ 일정이 없으면 걸린다',
-      w.eval('pkgSellable({itinerary:null,inclItems:["a"],imageUrl:"https://x/y.jpg"})') === false);
+      w.eval('pkgSellable({itinerary:null,included:["a"],imageUrl:"https://x/y.jpg"})') === false);
   }
 
   done();
