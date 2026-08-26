@@ -371,5 +371,43 @@ function render(payload) {
       !/customerTel[\s\S]{0,60}share/.test(api) && /custTel\}\)/.test(api));
   }
 
+  console.log('\n[12] XE — 🔴 금액 표가 무슨 기준인지 말한다');
+  {
+    /* 🔴 담당자가 조립한 견적서에서 **항목 합과 TOTAL이 안 맞아 보인다**:
+         항공 620,000 + 호텔 380,000 + 지상비 190,000 = 1,190,000 (1인 기준)
+         TOTAL 4,760,000 (4명)
+       고객은 표를 못 믿거나 우리가 잘못 더한 줄 안다. 값을 곱해서 고치지 않고
+       **무슨 기준인지 표가 말하게** 했다(값을 바꾸면 담당자가 넣은 숫자와 달라진다). */
+    const ADHOC = {
+      dk: null, dt: '오키나와', n: 4, d: 4, ng: 3, sd: '2026-12-03',
+      t: 4760000, pp: 1190000, iso: '2026-08-26', qno: 'Q260826-02',
+      ptx: '담당자 산출', cn: '최현욱',
+      rows: [['항공', 620000], ['호텔 3박', 380000], ['지상비', 190000]],
+      pkg: { id: 'adhoc-1', title: '최현욱님 오키나와 휴가', source: 'hanatour', basis: 'assembled',
+        asOf: '2026-08-25', validUntil: '2026-09-24', included: ['왕복 항공권'], excluded: [] },
+      ia: null,
+    };
+    const w = await render(ADHOC);
+    const heads = [...w.document.querySelectorAll('.price-tbl th')].map((e) => e.textContent.trim());
+    ok('⑬ 🔴 금액 표가 「1인 기준」이라고 말한다', heads.includes('금액 (1인 기준)'), JSON.stringify(heads));
+    /* ⚠ 조립 견적은 「패키지」가 아니다 — 고객이 정해진 상품을 산 것으로 읽으면 안 된다(VS) */
+    ok('⑬ 🔴 조립 견적을 「TRAVEL PACKAGE」라 부르지 않는다',
+      w.document.getElementById('hero-label').textContent === 'CUSTOM TRAVEL PLAN',
+      w.document.getElementById('hero-label').textContent);
+    ok('⑬ 금액 문구도 「담당자 산출」로 갈린다', /담당자 산출 금액/.test(visibleText(w)));
+
+    /* 대리점가 패키지는 그대로 「TRAVEL PACKAGE」 */
+    const w2 = await render(PKG);
+    ok('⑬ 대리점가 패키지는 TRAVEL PACKAGE',
+      w2.document.getElementById('hero-label').textContent === 'TRAVEL PACKAGE',
+      w2.document.getElementById('hero-label').textContent);
+
+    /* 🔴 맞춤 견적의 rows는 **총액 기준**이다 — 거기 「1인 기준」을 붙이면 거짓말이 된다 */
+    const w3 = await render(TRAINING);
+    const heads3 = [...w3.document.querySelectorAll('.price-tbl th')].map((e) => e.textContent.trim());
+    ok('⑬ 🔴 맞춤 견적에는 「1인 기준」을 안 붙인다',
+      heads3.includes('금액') && !heads3.includes('금액 (1인 기준)'), JSON.stringify(heads3));
+  }
+
   done();
 })().catch((e) => { console.error('실행 오류:', e); process.exit(1); });

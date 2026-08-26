@@ -485,7 +485,11 @@ function renderPage(d) {
      패키지·휴양 견적서가 「오키나와 연수 견적서」로 나갔다. 연수인 것만 연수라 부른다. */
   document.getElementById('hero-title').textContent = d.dt + (d.pkg ? ' 여행 견적서' : ' 연수 견적서');
   /* 라벨도 같이 갈린다 — 패키지 여행 문서에 「TRAINING PROGRAM」이 박혀 있었다(WP) */
-  document.getElementById('hero-label').textContent = d.pkg ? 'TRAVEL PACKAGE' : 'OVERSEAS TRAINING PROGRAM';
+  /* ⚠ **조립 견적은 「패키지」가 아니다**(VS). 담당자가 항목을 짜 만든 값인데
+     「TRAVEL PACKAGE」라고 부르면 고객은 **정해진 상품을 산 것**으로 읽는다 —
+     금액 문구를 갈라 둔 것과 같은 이유로 라벨도 가른다. */
+  document.getElementById('hero-label').textContent = !d.pkg ? 'OVERSEAS TRAINING PROGRAM'
+    : (d.pkg.basis === 'assembled' ? 'CUSTOM TRAVEL PLAN' : 'TRAVEL PACKAGE');
   /* 푸터의 「발급일로부터 30일간 유효」도 맞춤 견적 규칙이다 — 패키지는 다르다 */
   const footTerms = document.getElementById('footer-terms');
   if (footTerms && d.pkg) {
@@ -721,7 +725,16 @@ function renderPage(d) {
 
       <div class="sec-title">견적 금액 내역</div>
       <table class="price-tbl">
-        <thead><tr><th>항목</th><th>금액</th></tr></thead>
+        ${/* 🔴 **무슨 기준의 금액인지 표가 말한다** (XE).
+              패키지·조립 견적의 항목은 **1인 기준**인데 그 아래 TOTAL은 총액이다.
+              실측: 담당자가 조립한 견적서에서 항목 합이 1,190,000인데 TOTAL이
+              4,760,000(4명)으로 찍혔다 — **표가 스스로 안 맞아 보인다.**
+              고객은 표를 못 믿거나 우리가 잘못 더한 줄 안다.
+            ⚠ 값을 곱해서 고치지 않는다 — 담당자가 넣은 숫자와 문서의 숫자가 달라진다.
+              **무엇인지 말한다**(이 저장소가 반복해서 택한 쪽이다).
+            ⚠ 맞춤 견적의 rows는 **총액 기준**이라 그대로 둔다 — 거기 「1인 기준」을
+              붙이면 그게 거짓말이 된다. */''}
+        <thead><tr><th>항목</th><th>금액${d.pkg ? ' (1인 기준)' : ''}</th></tr></thead>
         <tbody>${priceRows}</tbody>
       </table>
 
