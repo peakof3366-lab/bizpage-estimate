@@ -8,7 +8,9 @@
 <meta name="robots" content="noindex, nofollow" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css" />
-<script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+<!-- 🔴 `defer` (XM) — 남의 CDN을 다 받을 때까지 문서 파싱이 멈추던 자리.
+     ⚠ 여기서는 아이콘을 **로그인 통과 뒤**(비동기)에 그리므로 defer로 미뤄도 안전하다. -->
+<script defer src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
 <!-- 견적 계산 엔진(script.js)이 참조하는 <select>/<input>들을 그대로 두고(값 읽기용),
      화면에는 그 위에 이 페이지 전용의 "리스트형 체크" UI를 덧씌운다. 원본 select/radio는
      숨겨진 채로 계산 로직의 진짜 입력값 역할만 한다 — script.js는 전혀 건드리지 않는다. -->

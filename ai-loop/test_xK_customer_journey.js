@@ -49,6 +49,19 @@ console.log('\n[1] 「엑셀」을 부르는 화면은 **셋** — 셋 다 같�
       /<script defer src="https:\/\/cdn\.jsdelivr\.net\/npm\/xlsx/.test(s)
       || !/cdn\.jsdelivr\.net\/npm\/xlsx/.test(s));
   });
+  /* 🔴 **남의 서버 스크립트가 첫 화면을 막지 않는다** (XM).
+     `<script src="https://…">`를 그냥 두면 브라우저는 그 파일을 다 받을 때까지
+     문서 파싱을 멈춘다 — 아이콘·엑셀 라이브러리 하나 때문에 **화면 전체가** 기다린다.
+     기관·대기업 망에서 그 CDN이 느리거나 막혀 있으면 그동안 흰 화면이다.
+   ⚠ 새 화면을 만들 때 여기서 걸린다. `defer`를 붙였으면 그 파일을 쓰는 **호출 시점**도
+     같이 옮겼는지 확인할 것(안 옮기면 아이콘이 통째로 안 그려진다). */
+  ['index.html', 'packages.html', 'estimate-view.html', 'admin.html', 'admin-quote.html', '404.html'].forEach((f) => {
+    const s = read(f);
+    const blocking = (s.match(/<script(?![^>]*\b(defer|async)\b)[^>]*src="https?:\/\/[^"]+"/g) || []);
+    ok('① ' + f + ' 는 바깥 스크립트로 첫 화면을 막지 않는다', blocking.length === 0,
+      blocking.join(' | ').slice(0, 160));
+  });
+
   /* ⚠ 로직을 화면마다 다시 적지 않았는지 — 적으면 한쪽만 고쳐진다 */
   const dl = read('sheet_download.js');
   ok('① 갈라 주는 자가 파일 하나로 있다', /function downloadSheet/.test(dl) && /function toCsv/.test(dl));
