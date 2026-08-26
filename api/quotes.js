@@ -1072,7 +1072,11 @@ async function handleHanatour(req, res) {
   }
   if (!r.ok) return res.status(422).json({ error: 'not_readable', why: r.why });
   return res.status(200).json({
-    ok: true, row: r.row, missing: r.missing || [], notProvided: r.notProvided || [],
+    ok: true, row: r.row, missing: r.missing || [],
+    /* ⚠ 「못 읽음」과 **「읽었는데 앞뒤가 안 맞음」**을 갈라서 보낸다(WL) —
+       뭉치면 담당자가 「그런가 보다」로 넘기고, 그 사이에 틀린 금액이 나간다. */
+    warnings: r.warnings || [],
+    notProvided: r.notProvided || [],
   });
 }
 

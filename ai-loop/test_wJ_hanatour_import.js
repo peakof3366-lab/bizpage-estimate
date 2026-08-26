@@ -117,11 +117,19 @@ console.log('\n[4] 🔴 못 읽을 때 **빈 상품이 아니라 실패**를 준
   ok('④ 빈 상품을 돌려주지 않는다', !/row: \{\}/.test(QUOTES));
   /* 라이브러리: 못 읽은 칸을 세어서 넘긴다 */
   ok('④ 못 읽은 칸을 missing으로 넘긴다', /missing\.push\('금액'\)/.test(LIB) && /missing\.push\('일정'\)/.test(LIB));
-  /* 🔴 **안 오는 것**과 **못 읽은 것**을 갈라서 말한다 */
-  ok('④ 「애초에 안 오는 것」을 따로 적는다',
-    /notProvided/.test(LIB) && /포함\/불포함 사항/.test(LIB));
-  /* 포함사항을 일정에서 **지어내지 않는다** */
-  ok('④ 포함/불포함을 지어내지 않는다', /included: null, excluded: null/.test(LIB));
+  /* 🔴 **못 읽은 것**·**앞뒤가 안 맞는 것**·**안 오는 것**을 갈라서 말한다.
+     ⚠ WL(2026-08-26)에서 자리가 바뀌었다 — 포함/불포함은 「안 오는 것」이 아니라
+       **오는데 우리가 안 읽고 있던 것**이었다(WJ의 결론이 틀렸다). 그래서 이 검사도
+       「그 문구가 있는가」가 아니라 **갈래가 셋 다 살아 있는가**를 잰다. */
+  ok('④ 「애초에 안 오는 것」 자리를 남겨 둔다',
+    /notProvided/.test(LIB) && /notProvided: \[\]/.test(QUOTES) === false && /notProvided: r\.notProvided/.test(QUOTES));
+  ok('④ 「읽었는데 앞뒤가 안 맞는 것」을 따로 넘긴다',
+    /const warnings = \[\]/.test(LIB) && /warnings: r\.warnings/.test(QUOTES));
+  /* 포함사항을 **일정에서 지어내지 않는다** — 하나투어가 준 목록에서만 온다(WL) */
+  ok('④ 포함/불포함을 지어내지 않는다 (준 목록에서만 온다)',
+    /expenseLines\(P\.trvlExpnInclList/.test(LIB)
+    && /expenseLines\(P\.trvlExpnNoneInclList/.test(LIB)
+    && !/included[\s\S]{0,80}itinerary\.map/.test(LIB));
   /* 금액이 0이거나 없으면 비운다 — 다른 칸에서 끌어오지 않는다 */
   ok('④ 금액이 없으면 비운다', /Number\(P\.adtTotlAmt\) > 0 \? Number\(P\.adtTotlAmt\) : null/.test(LIB));
 }
@@ -136,12 +144,19 @@ console.log('\n[5] 화면 — 빈 칸만 채우고 **저장하지 않는다**(PD
   ok('⑤ 무엇을 채우고 무엇을 뒀는지 말한다',
     /채웠습니다: /.test(ADMIN) && /이미 적혀 있어 그대로 둔 칸: /.test(ADMIN));
   ok('⑤ 저장하지 않는다고 말한다', /저장은 하지 않았습니다/.test(ADMIN));
-  /* 🔴 **금액 확인일을 오늘로 채우지 않는다**(VP에서 세운 원칙) */
-  ok('⑤ 금액 확인일을 자동으로 넣지 않는다',
-    !/put\('pkgAsOf'/.test(ADMIN.slice(ADMIN.indexOf('pkgReadHanatour'), ADMIN.indexOf('async function pkgReadPdf'))));
+  /* 🔴 **금액 확인일을 「오늘」로 채우지 않는다**(VP에서 세운 원칙).
+     ⚠ WL부터는 그 칸을 채우기는 한다 — 다만 **오늘이 아니라 하나투어가 이 상품을
+       마지막으로 고친 날**(`updDttm`)이다. 그건 「공급사가 확인해 준 날」이라 이 칸의
+       뜻에 맞는다. 우리가 읽은 날을 넣는 순간 이 칸은 아무 뜻도 없어진다. */
+  ok('⑤ 금액 확인일을 오늘 날짜로 채우지 않는다',
+    !/put\('pkgAsOf',\s*(new Date|today)/.test(ADMIN)
+    && /put\('pkgAsOf', row\.priceAsOf/.test(ADMIN)
+    && /priceAsOf: ymdOfDttm\(P\.updDttm\)/.test(LIB));
   /* 못 읽은 칸을 화면이 그대로 전한다 */
   ok('⑤ 못 읽은 칸을 화면이 말한다', /🔴 못 읽은 칸: /.test(ADMIN));
-  ok('⑤ 포함사항은 직접 적으라고 말한다', /포함\/불포함 사항은 하나투어가 주지 않습니다/.test(ADMIN));
+  /* WL — 포함/불포함이 오게 됐으니 화면 안내도 그에 맞게 바뀌었다.
+     ⚠ 화면과 실제가 다른 말을 하면 담당자는 **화면을 믿는다.** 그래서 여기서 잠근다. */
+  ok('⑤ 읽어 온 글을 다듬으라고 말한다', /읽어 온 글은 하나투어 상품 기준/.test(ADMIN));
 }
 
 console.log('\n[6] 🔴 로그인한 직원만 — 공개면 우리 서버가 남의 사이트를 대신 긁어 준다');
