@@ -13542,6 +13542,14 @@
     }
 
     const bits = [];
+    /* 🔴 상품명에서 뺀 해시태그를 **버리지 않고 보여준다** (WU).
+       하나투어 상품명의 99%가 「… #이비스 스타일스 실롬 #위치BEST」 꼴이라 그대로 두면
+       고객 견적서 제목이 태그 범벅이 된다. 그렇다고 조용히 지우면 담당자는 무엇이
+       사라졌는지 모른다 — 뺀 것을 그 자리에서 말하고, 필요하면 직접 붙이게 한다. */
+    if ((row.titleTags || []).length) {
+      bits.push('상품명에서 태그를 뺐습니다 — ' + row.titleTags.map((t) => '#' + t).join(' ')
+        + ' (필요하면 제목 칸에 직접 붙이세요)');
+    }
     if (filled.length) bits.push('채웠습니다: ' + filled.join(' · '));
     if (kept.length) bits.push('이미 적혀 있어 그대로 둔 칸: ' + kept.join(' · '));
     if ((d.missing || []).length) bits.push('🔴 못 읽은 칸: ' + d.missing.join(' · '));

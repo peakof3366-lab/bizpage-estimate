@@ -88,20 +88,25 @@ function post(pathname, body) {
 const CATG_SKIP = /텍스트입력/;
 const uniq = (a) => a.filter((v, i) => a.indexOf(v) === i);
 
+/* 🔴 일정도 **고객 견적서에 그대로 나가는 글**이다 (WU). 카드 이름에 HTML이 섞여 온다 —
+   표본 100건(일정 473줄)에서 `<BR>`이 든 줄이 실제로 나왔다:
+     「▶ 황산의 하이라이트 서해대협곡<BR> 서쪽의 구름바다를…」
+   포함/불포함은 처음부터 벗기고 있었는데(WL) **일정만 안 벗기고 있었다** —
+   같은 성격의 값을 두 자리에서 다르게 다룬 것이다. 이제 같은 함수를 쓴다. */
 function dayLine(d) {
   const moves = [], meals = [], sights = [], stays = [];
   (d.schdMainInfoList || []).forEach((m) => {
-    const nm = String(m.schdCatgNm || '').trim();
+    const nm = stripHtml(m.schdCatgNm);
     if (CATG_SKIP.test(nm)) return;
-    const card = String(m.cardNm || '').trim();
+    const card = stripHtml(m.cardNm);
     if (/도시간이동/.test(nm)) {
-      const from = String(m.depCityNm || '').trim();
-      const to = String(m.arrCityNm || '').trim();
+      const from = stripHtml(m.depCityNm);
+      const to = stripHtml(m.arrCityNm);
       if (from) moves.push(from + (to ? ' → ' + to : ''));
       return;
     }
     if (/식사/.test(nm)) {
-      const v = String(m.mealTypeNm || '').trim() || String(m.mealCont || '').trim();
+      const v = stripHtml(m.mealTypeNm) || stripHtml(m.mealCont);
       if (v) meals.push(v);
       return;
     }
@@ -115,7 +120,7 @@ function dayLine(d) {
   if (meals.length) parts.push('식사: ' + meals.join(' / '));
   /* 호텔은 htlInfoList가 비어 오는 일이 있어(실측 null) 카드 이름을 함께 본다 */
   const htl = uniq(stays.concat((d.htlInfoList || [])
-    .map((h) => String(h.htlNm || h.htlKorNm || '').trim()).filter(Boolean)));
+    .map((h) => stripHtml(h.htlNm || h.htlKorNm)).filter(Boolean)));
   if (htl.length) parts.push('숙박: ' + htl.join(' / '));
   return parts.join(' / ');
 }
@@ -167,6 +172,25 @@ function expenseLines(list, cap) {
     if (cap && out.length >= cap) break;
   }
   return out;
+}
+
+/* 🔴 상품명이 해시태그 범벅이다 (WU) — 표본 100건 중 **99건**이 그렇다:
+     「방콕 자유여행 5일 #이비스 스타일스 실롬 #살라댕역5분거리 #위치BEST #공항→호텔 편도 픽업 포함」
+   하나투어 홈페이지는 그 태그를 따로 꾸며 보여주지만, **우리 견적서에는 제목 줄에
+   그대로 찍힌다.** 공문 성격의 문서에 「#위치BEST」가 들어가는 셈이다.
+   → 제목은 **첫 `#` 앞까지**, 태그는 따로 돌려준다.
+   ⚠ 버리지 않는다 — 화면이 「이런 태그를 뺐습니다」라고 담당자에게 보여준다.
+     그리고 태그의 내용(호텔명 등)은 대개 일정의 「숙박:」 줄에 이미 들어 있다.
+   ⚠ 자른 결과가 너무 짧으면(6자 미만) **원문을 그대로 둔다** — 제목이 「방콕」만
+     남는 것보다 태그가 붙은 원문이 낫다. 짐작해서 망가뜨리지 않는다. */
+function splitTitleTags(raw) {
+  const full = stripHtml(raw);
+  const i = full.indexOf('#');
+  if (i < 0) return { title: full, tags: [] };
+  const head = full.slice(0, i).trim().replace(/[·\-–—,]+$/, '').trim();
+  const tags = full.slice(i).split('#').map((t) => t.trim()).filter(Boolean);
+  if (head.length < 6) return { title: full, tags: [] };
+  return { title: head, tags };
 }
 
 /* 대표 이미지 — **https만 받는다.** VZ가 세운 규칙 그대로다(화면이 `<img src>`에 그대로
@@ -224,6 +248,7 @@ async function fetchProduct(input) {
     am: dayLine(d), pm: '', eve: '',
   })).filter((d) => d.am);
 
+  const titleParts = splitTitleTags(P.saleProdNm);
   const city = (((P.cityBasInfoList || [])[0]) || {});
   /* ⚠ 금액이 없으면 **비운다.** 다른 칸에서 끌어와 채우지 않는다 — 그 값이 곧 고객가다. */
   const price = Number(P.adtTotlAmt) > 0 ? Number(P.adtTotlAmt) : null;
@@ -266,7 +291,9 @@ async function fetchProduct(input) {
     source: 'hanatour',
     sourceCode: String(P.saleProdCd),
     rprsProdCd: P.rprsProdCd ? String(P.rprsProdCd) : null,
-    title: String(P.saleProdNm).trim(),
+    title: titleParts.title,
+    /* 제목에서 뺀 태그 — 화면이 담당자에게 보여준다(버리지 않는다) */
+    titleTags: titleParts.tags,
     destLabel: String(city.cityNm || P.arrCityNm || city.cntryNm || '').trim() || null,
     days: dayTotal,
     nights: nightTotal,
@@ -340,5 +367,5 @@ async function fetchProduct(input) {
    검사가 정규식으로 소스만 보면 「있다」까지밖에 못 재고, 복사해 쓰면 곧 어긋난다. */
 module.exports = {
   fetchProduct, pkgCdOf, dayLine, GW, BASE, INP_PATH,
-  stripHtml, expenseLines, firstImage, ymdOfDttm,
+  stripHtml, expenseLines, firstImage, ymdOfDttm, splitTitleTags,
 };

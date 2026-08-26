@@ -107,6 +107,35 @@ console.log('\n[4] 금액 확인일 — 하나투어가 마지막으로 고친 �
   ok('④ 없으면 null', H.ymdOfDttm(null) === null);
 }
 
+console.log('\n[4-b] WU — 일정도 HTML을 벗긴다 · 상품명에서 태그를 가른다');
+{
+  /* 🔴 일정은 **고객 견적서에 그대로 나가는 글**인데 HTML을 안 벗기고 있었다.
+     표본 100건(일정 473줄)에서 실제로 나온 값이다:
+       「▶ 황산의 하이라이트 서해대협곡<BR> 서쪽의 구름바다를…」
+     포함/불포함은 처음부터 벗기고 있었으니(WL) **같은 성격의 값을 두 자리에서
+     다르게 다루고 있던 것**이다. */
+  const line = H.dayLine({
+    schdMainInfoList: [
+      { schdCatgNm: '관광지', cardNm: '서해대협곡<BR> 서쪽의 구름바다' },
+      { schdCatgNm: '식사', mealTypeNm: '호텔식&nbsp;' },
+      { schdCatgNm: '호텔', cardNm: '<b>서해 호텔</b>(5성)' },
+    ],
+  });
+  ok('④b 일정에서 태그를 벗긴다', !/<[a-z/]|&nbsp;/i.test(line), JSON.stringify(line));
+  ok('④b 🔴 <BR>이 공백이 되어 글자가 안 붙는다', /서해대협곡 서쪽의/.test(line), JSON.stringify(line));
+  ok('④b 호텔 이름도 벗긴다', /숙박: 서해 호텔\(5성\)/.test(line), JSON.stringify(line));
+
+  /* 상품명 — 표본 100건 중 99건이 해시태그 범벅이다 */
+  const t1 = H.splitTitleTags('방콕 자유여행 5일 #이비스 스타일스 실롬 #위치BEST');
+  ok('④b 제목은 첫 # 앞까지', t1.title === '방콕 자유여행 5일', JSON.stringify(t1.title));
+  ok('④b 뺀 태그를 버리지 않는다', t1.tags.length === 2 && /이비스/.test(t1.tags[0]), JSON.stringify(t1.tags));
+  ok('④b 태그가 없으면 그대로', H.splitTitleTags('오키나와 3박4일').title === '오키나와 3박4일');
+  /* ⚠ 자르면 너무 짧아지는 것은 **원문을 지킨다** — 짐작해서 망가뜨리지 않는다 */
+  const t2 = H.splitTitleTags('도쿄 #호텔');
+  ok('④b 🔴 자른 결과가 너무 짧으면 원문 유지', t2.title === '도쿄 #호텔' && t2.tags.length === 0,
+    JSON.stringify(t2));
+}
+
 console.log('\n[5] 소스 규칙 — 되돌리면 여기서 걸린다');
 {
   /* 🔴 박·일수: 하나투어 값이 이긴다 */

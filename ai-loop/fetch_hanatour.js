@@ -34,6 +34,10 @@ const won = (n) => Number(n || 0).toLocaleString();
 
   console.log('─'.repeat(72));
   console.log('상품명       ' + row.title);
+  /* 뺀 태그를 버리지 않고 보여준다 (WU) — 터미널과 화면이 같은 말을 해야 한다 */
+  if ((row.titleTags || []).length) {
+    console.log('  ↳ 뺀 태그   ' + row.titleTags.map((t) => '#' + t).join(' '));
+  }
   console.log('판매상품코드   ' + row.sourceCode);
   console.log('대표상품코드   ' + (row.rprsProdCd || '(없음)') + '   ← 엑셀과 맞추는 다리');
   console.log('지역         ' + (row.destLabel || '🔴 못 읽음'));
