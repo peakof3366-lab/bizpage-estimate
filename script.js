@@ -425,6 +425,156 @@ function validateStep(step) {
   return inputs.every((input) => input.value.trim());
 }
 
+/* ══ 무엇이 비었는지 **말해 준다** (XK) ═══════════════════════════════════
+   예전에는 필수 칸이 비면 이렇게만 했다:
+       if (invalidField) { invalidField.focus(); return; }
+   화면에는 **아무 말도 안 나온다.** 고객이 「다음 단계로 이동」·「견적 확인하기」를
+   눌러도 커서만 옮겨 갈 뿐이라, 누른 사람은 **버튼이 고장 났다고 읽는다**
+   (특히 휴대폰에서는 포커스가 눈에 안 띈다). 계산기 앞에서 이탈하는 자리다.
+   ⚠ 브라우저 기본 안내(말풍선)는 여기서 안 뜬다 — 제출을 `preventDefault`로
+     가로채고, 「다음 단계」는 애초에 제출이 아니다.
+   → 무엇이 비었는지, 몇 개 남았는지를 **그 자리에 글자로** 띄운다.
+
+   ⚠ 칸 이름은 라벨에서 가져온다. 여기에 이름 목록을 새로 적으면 라벨을 고칠 때
+     안내 문구만 옛 이름으로 남는다(결함 생성기 ①). */
+function fieldLabelText(el) {
+  const lab = el.closest('label');
+  if (lab) {
+    const clone = lab.cloneNode(true);
+    /* 힌트·입력칸은 이름이 아니다 — 「연락처 견적서에는 표시되지 않습니다…」가 되면
+       안내가 문장이 아니라 덩어리가 된다 */
+    clone.querySelectorAll('input, textarea, select, small, .fld-hint').forEach((n) => n.remove());
+    const t = clone.textContent.replace(/\s+/g, ' ').replace(/\*/g, '').trim();
+    if (t) return t;
+  }
+  return el.getAttribute('placeholder') || el.id || '입력';
+}
+
+/* 문구는 **한 곳에서만** 만든다 — 두 자리(처음 막을 때 / 채우는 중)에서 각자 지으면
+   같은 상황에 다른 말을 하게 된다(결함 생성기 ①).
+   ⚠ **비어 있는 것과 값이 이상한 것을 가른다.** 「입력해 주세요」는 숫자를 999로 적은
+     사람에게는 틀린 말이다 — 그 사람은 이미 적었고, 무엇이 문제인지 모른 채 다시 누른다. */
+function fieldProblem(el) {
+  const v = el.validity || {};
+  const name = fieldLabelText(el);
+  if (v.valueMissing || !String(el.value || '').trim()) return { kind: 'empty', text: `「${name}」을(를) 입력해 주세요` };
+  if (v.rangeUnderflow || v.rangeOverflow) {
+    const lo = el.getAttribute('min'), hi = el.getAttribute('max');
+    return { kind: 'range', text: `「${name}」은(는) ${lo || '?'}~${hi || '?'} 사이로 넣어 주세요` };
+  }
+  if (v.tooShort || v.tooLong) return { kind: 'len', text: `「${name}」의 길이를 확인해 주세요` };
+  if (v.patternMismatch || v.typeMismatch || v.badInput) return { kind: 'form', text: `「${name}」 형식을 확인해 주세요` };
+  return { kind: 'other', text: `「${name}」을(를) 확인해 주세요` };
+}
+
+function missingMessage(list) {
+  if (!list.length) return '';
+  const p = fieldProblem(list[0]);
+  if (list.length === 1) return p.kind === 'empty' ? `「${fieldLabelText(list[0])}」만 입력하시면 됩니다.` : p.text + '.';
+  return `${p.text} — 아직 ${list.length}칸이 남았습니다.`;
+}
+
+/* 한 칸을 채우면 그 칸 표시를 지우고, **남은 칸이 있으면 문구를 다시 센다.**
+   ⚠ 그냥 지워 버리면 「이제 다 됐구나」로 읽히고, 다시 눌렀을 때 또 막힌다 —
+     안내가 사라지는 것과 조건이 풀리는 것은 다르다. */
+function clearMissingMark(el) {
+  if (!el) return;
+  el.classList.remove('fld-missing');
+  const step = el.closest('.estimate-step');
+  const box = step && step.querySelector('.step-missing');
+  if (!box) return;
+  box.textContent = missingMessage(Array.from(step.querySelectorAll('[required], input, select, textarea'))
+    .filter((x) => {
+      if (x.type === 'hidden' || x.disabled) return false;
+      if (x.hasAttribute('required') && !String(x.value || '').trim()) return true;
+      return !!(x.validity && !x.validity.valid);
+    }));
+}
+
+/* 입력칸 상한을 **서버가 아는 값으로** 건다 (XK).
+   ⚠ HTML에 숫자를 적어 두지 않는다 — `limits.js`를 고치면 화면이 따라와야 한다.
+   ⚠ `limits.js`를 못 실은 화면에서는 **아무 것도 하지 않는다**(상한 없이 예전처럼
+     동작). 여기서 임의의 기본값을 넣으면 그게 곧 두 번째 진실이 된다. */
+(function applyQuoteLimits() {
+  if (typeof LIMITS === 'undefined') return;
+  const pax = document.getElementById('participants');
+  if (pax && LIMITS.QUOTE_MAX_PAX) {
+    pax.setAttribute('max', String(LIMITS.QUOTE_MAX_PAX));
+    /* 숫자를 문구에도 그대로 — 「최대 몇 명까지 되나」를 눌러 보기 전에 알 수 있게 */
+    const lab = pax.closest('label');
+    const hint = lab && lab.querySelector('.fld-hint');
+    if (hint && !/명/.test(hint.textContent)) {
+      hint.textContent = (hint.textContent + ' · 최대 ' + LIMITS.QUOTE_MAX_PAX.toLocaleString() + '명').trim();
+    }
+  }
+  const days = document.getElementById('days');
+  if (days && LIMITS.QUOTE_MAX_DAYS) days.setAttribute('max', String(LIMITS.QUOTE_MAX_DAYS));
+})();
+
+/* 🔴 **브라우저 말풍선 대신 우리 안내를 쓴다** (XK).
+   `estimateForm`의 칸에는 `required`가 붙어 있어서, 제출을 누르면 브라우저가 먼저
+   막고 자기 말풍선을 띄운다 — 그래서 우리 `submit` 처리는 **아예 불리지 않는다.**
+   ⚠ 그런데 막힌 칸이 **감춰진 1단계**에 있으면 브라우저는 말풍선을 띄울 자리가 없어
+     「focusable하지 않다」며 **아무 말 없이 제출만 막는다.** 고객에게는 버튼이 죽은
+     것과 같다. 그 자리를 여기서 받는다: 말풍선을 접고, 그 단계를 열고, 문장으로 말한다.
+   ⚠ `required` 자체를 떼거나 `novalidate`를 걸지 않는다 — 숫자 범위·형식 검사는
+     브라우저 쪽이 더 촘촘하다. **막는 것은 브라우저, 설명은 우리**로 나눈다. */
+if (typeof form !== 'undefined' && form) {
+  form.addEventListener('invalid', function (e) {
+    e.preventDefault();
+    reportMissingField(form);
+  }, true);
+}
+
+/* 막힌 칸으로 데려가고 **왜 멈췄는지** 적는다. 막힌 것이 없으면 null.
+   ⚠ 비어 있는 것만 보지 않는다 — 숫자 범위·형식이 어긋난 칸도 브라우저가 제출을
+     막는데, 그때 우리가 아무 말도 안 하면 **버튼이 고장 난 것처럼 보인다.** */
+function reportMissingField(scopeEl) {
+  const fields = Array.from(scopeEl.querySelectorAll('[required], input, select, textarea'));
+  const missing = fields.filter((el) => {
+    if (el.type === 'hidden' || el.disabled) return false;
+    if (el.hasAttribute('required') && !String(el.value || '').trim()) return true;
+    return !!(el.validity && !el.validity.valid);
+  });
+  if (!missing.length) return null;
+  const first = missing[0];
+
+  /* 🔴 **감춰진 단계에 있는 칸이면 그 단계를 먼저 연다.** 안 그러면 focus가 아무
+     일도 안 한 것처럼 보이고(감춘 요소는 포커스를 못 받는다), 고객에게는 진짜로
+     「눌러도 아무 반응이 없는 버튼」이 된다. */
+  const stepEl = first.closest('.estimate-step');
+  if (stepEl && !stepEl.classList.contains('step-active')) {
+    const n = Number(stepEl.getAttribute('data-step'));
+    if (n && typeof setActiveStep === 'function') setActiveStep(n);
+  }
+
+  const host = (stepEl && stepEl.querySelector('.step-actions')) || null;
+  if (host) {
+    let box = stepEl.querySelector('.step-missing');
+    if (!box) {
+      box = document.createElement('p');
+      box.className = 'step-missing';
+      box.setAttribute('role', 'status');   /* 화면 낭독기도 읽는다 */
+      host.parentNode.insertBefore(box, host);
+    }
+    box.textContent = missingMessage(missing);
+  }
+
+  missing.forEach((el) => {
+    el.classList.add('fld-missing');
+    /* 채우면 표시를 지운다 — 다 채웠는데 빨간 줄이 남아 있으면 그게 또 거짓말이다 */
+    if (!el.dataset.missingWatch) {
+      el.dataset.missingWatch = '1';
+      const off = () => { if (String(el.value || '').trim()) clearMissingMark(el); };
+      el.addEventListener('input', off);
+      el.addEventListener('change', off);
+    }
+  });
+
+  first.focus();
+  return first;
+}
+
 function getDestinationByKey(key) {
   return destinationRates.find((item) => item.destination_key === key);
 }
@@ -1311,7 +1461,9 @@ function handlePartnerLogoError(img) {
 
 nextButton.addEventListener('click', () => {
   if (!validateStep(1)) {
-    document.querySelector('.estimate-step[data-step="1"] [required]:invalid')?.focus();
+    /* ⚠ 예전엔 `:invalid`를 찾아 focus만 했다 — **화면에는 아무 말도 안 나왔다**(XK).
+       무엇이 비었는지 그 자리에 적는다. */
+    reportMissingField(document.querySelector('.estimate-step[data-step="1"]'));
     return;
   }
   setActiveStep(2);
@@ -1324,9 +1476,10 @@ backButton.addEventListener('click', () => {
 form.addEventListener('submit', (event) => {
   event.preventDefault();
 
-  const requiredFields = Array.from(form.querySelectorAll('[required]'));
-  const invalidField = requiredFields.find((field) => !field.value.trim());
-  if (invalidField) { invalidField.focus(); return; }
+  /* ⚠ 예전엔 첫 빈 칸에 `focus()`만 하고 조용히 돌아갔다 — 고객에게는 「견적 확인하기가
+     안 눌린다」로 보인다. 그리고 그 칸이 **감춰진 1단계**에 있으면 focus조차 아무 일도
+     안 한다. 이제 그 단계를 열고, 무엇이 비었는지 적는다(XK). */
+  if (reportMissingField(form)) return;
 
   /* 견적 재계산 후 결과 패널 업데이트 */
   renderLiveBreakdown();

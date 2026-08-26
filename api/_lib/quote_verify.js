@@ -23,6 +23,7 @@
    → 그래서 결과는 ok/fail 두 값이 아니라 단계별 기록으로 남긴다. 관리자가 어느
      단계에서 걸렸는지 보고 판단할 수 있어야 한다. */
 const destinationRates = require('../../data');
+const LIMITS = require('../../limits');
 
 const BUILTIN = new Map(destinationRates.map((d) => [d.destination_key, d]));
 
@@ -102,10 +103,15 @@ function verifyQuote(payload, ctx = {}) {
   const dest = authoritativeRate(destKey, ctx.overrides, ctx.customRow);
   step('dest', '목적지 확인', !!dest, dest ? destKey : `알 수 없는 목적지: ${destKey}`);
 
+  /* ⚠ 상한은 `limits.js` 하나가 안다(XK) — 예전엔 여기 숫자로 박혀 있어서 **고객
+     화면의 입력칸은 그 값을 몰랐다.** 그래서 3000명짜리 견적이 화면에서는 멀쩡히
+     계산되고 마지막 걸음에서만 거절됐다. */
   const pax = num(p.participants);
   const days = num(p.days);
-  step('pax', '인원 범위', pax !== null && pax >= 1 && pax <= 1000, `인원 ${p.participants}`);
-  step('days', '일수 범위', days !== null && days >= 1 && days <= 60, `일수 ${p.days}`);
+  step('pax', '인원 범위', pax !== null && pax >= 1 && pax <= LIMITS.QUOTE_MAX_PAX,
+    `인원 ${p.participants} (허용 1~${LIMITS.QUOTE_MAX_PAX})`);
+  step('days', '일수 범위', days !== null && days >= 1 && days <= LIMITS.QUOTE_MAX_DAYS,
+    `일수 ${p.days} (허용 1~${LIMITS.QUOTE_MAX_DAYS})`);
 
   /* 출발일은 과거여도 견적 자체는 성립한다(지난 일정 재견적). 다만 리드타임 계수가
      의미를 잃으므로 기록만 남기고 실패로 치지 않는다. */

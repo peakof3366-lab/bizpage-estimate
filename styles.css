@@ -595,6 +595,17 @@ p { line-height:1.8; }
 .step-actions { display:flex; gap:10px; margin-top:8px; }
 .step-actions .button { flex:1; }
 
+/* 무엇이 비었는지 말해 주는 자리 (XK) — 예전엔 버튼을 눌러도 커서만 옮겨 갔다.
+   ⚠ 비어 있을 때만 보인다: `:empty`면 자리를 아예 안 차지한다(늘 떠 있으면 아무도 안 본다). */
+.step-missing {
+  margin: 10px 0 0; padding: 10px 14px;
+  background: #FEF0F2; border-left: 3px solid #CC001A;
+  color: #8F0B20; font-size: 13px; font-weight: 600; line-height: 1.6;
+}
+.step-missing:empty { display: none; }
+/* 빈 칸 자체도 표시한다 — 문장만으로는 여러 칸 중 어디인지 눈이 못 찾는다 */
+.fld-missing { border-color: #CC001A !important; background: #FFF7F8; }
+
 /* ── Step 2 시선 유도 ── */
 .step2-dots {
   display:flex; align-items:center; gap:10px; flex-wrap:wrap;
