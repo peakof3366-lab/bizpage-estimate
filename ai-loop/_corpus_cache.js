@@ -88,7 +88,7 @@ function specHintsOf(text) {
 /* 문서 돈의 몇 %가 **우리 9칸 어디에도 안 들어가는가**.
    ⚠ `audit_item_taxonomy`·`audit_gap_source`와 **같은 목록**을 써야 한다 —
      세 곳이 다른 칸을 세면 어느 쪽을 믿을지 알 수 없다(결함 생성기 ①). */
-const RATE_CATS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'golf'];
+const RATE_CATS = require('../api/_lib/item_keys').CORPUS_ITEM_KEYS;
 
 function shapeOf(r) {
   const cands = (r.candidates || []).filter((c) => !c.unconvertible);

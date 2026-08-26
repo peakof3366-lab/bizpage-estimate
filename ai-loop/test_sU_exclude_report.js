@@ -70,8 +70,16 @@ const REPORTS = [
 
   const api = read('api/quotes.js');
   ok('조회가 excludedFields를 내려준다', /excludedFields:/.test(api));
-  ok('뺄 수 있는 항목이 한 곳에 정의돼 있다',
-    /const EXCLUDABLE = \['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight'\]/.test(api));
+  /* 🔴 XQ에서 항목 키를 `api/_lib/item_keys.js` **한 곳**으로 모았다. 그래서 이 검사도
+     「서버 파일에 그 글자가 있는가」가 아니라 **같은 목록을 쓰는가**를 본다 —
+     글자를 보면, 목록을 한 곳으로 모으는 순간 멀쩡한 정리가 결함으로 잡힌다. */
+  const ITEM_KEYS = require(path.join(ROOT, 'api', '_lib', 'item_keys.js'));
+  ok('뺄 수 있는 항목이 한 곳에서 온다',
+    /const EXCLUDABLE = ITEM_KEYS\.RATE_ITEM_KEYS/.test(api)
+    && ITEM_KEYS.RATE_ITEM_KEYS.length === 7);
+  ok('그 목록이 요율표 일곱 칸이다',
+    ITEM_KEYS.RATE_ITEM_KEYS.join(',') === 'airfare,fuel,hotel,meal,vehicle,guide,sight',
+    ITEM_KEYS.RATE_ITEM_KEYS.join(','));
   ok('모르는 항목은 거절한다', /EXCLUDABLE\.indexOf\(field\) < 0/.test(api));
   ok('사유가 비면 **해제**로 본다', /if \(reason\) map\[field\] = reason; else delete map\[field\]/.test(api));
   ok('새 API는 새 파일이 아니라 ?action= 분기다 (Hobby 12개 제한)',

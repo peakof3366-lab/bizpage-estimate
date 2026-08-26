@@ -228,8 +228,8 @@ if (!IS_LIVE) {
    PQ: 정적값이 아니라 라이브 병합값을 본다 — 오타로 0을 저장한 오버라이드나 커스텀
    목적지의 잘못된 값은 정적표에 안 나타나므로 예전엔 통과했다. */
 console.log('\n■ 요율 값 형식');
-const NUM = ['airfare','fuel_surcharge','hotel_per_room','meal_per_person',
-             'vehicle_large','vehicle_small','guide_fee','sightseeing_fee','margin_per_traveler'];
+/* XQ: 서버 검증과 **같은 목록**을 본다 — 여기 다시 적으면 새 칸이 검사에서만 빠진다 */
+const NUM = require('../api/_lib/rate_fields').RATE_NUMERIC_FIELDS;
 let bad = 0;
 for (const d of LIVE_RATES) for (const f of NUM) {
   const v = d[f];

@@ -7,6 +7,7 @@ const destinationRates = require('../data');
 const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key));
 const { safeId, payloadTooLarge, toNumberOrNull, trimText } = require('./_lib/public_input');
 const { verifyQuote } = require('./_lib/quote_verify');
+const ITEM_KEYS = require('./_lib/item_keys');
 /* 견적서 PDF 층 구조 추출 (RZ) — 왜 이렇게 나눴는지는 그 파일 머리말에 있다 */
 const pdfExtract = require('./_lib/pdf_extract');
 /* 하나투어 상품 읽기 (WJ) — CLI와 **같은 파일**을 쓴다 */
@@ -697,7 +698,8 @@ async function handlePriceReport(req, res) {
        — 조용히 버리면 그 제보는 영영 되돌릴 수 없는 값으로 남는다.
      ⚠ 자릿수 검사는 추출기와 **같은 함수**를 쓴다(`fxPlausible`). 두 곳에 다른 기준을 적으면
        화면은 통과시키고 서버가 거절하거나 그 반대가 된다(결함 생성기 ①). */
-  const FX_FIELD_KEYS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'sell'];
+  /* XQ: 목록은 `_lib/item_keys.js` 한 곳이다 — 여기 다시 적으면 도구들과 갈라진다 */
+  const FX_FIELD_KEYS = ITEM_KEYS.FX_FIELD_KEYS;
   let fxCur = null, fxR = null, fxF = null;
   const fxGiven = [fxCurrency, fxRate, fxFields].filter((v) => v !== undefined && v !== null && v !== '');
   if (fxGiven.length) {
@@ -734,7 +736,7 @@ async function handlePriceReport(req, res) {
      ⚠ `by`는 클라이언트 값을 믿지 않고 **세션의 표시명**으로 덮어쓴다(author와 같은 원칙).
      ⚠ `how`(어떻게 나온 값인가)를 안 받으면 나중에 근거를 잃는다 — 화면이 채워 보낸다.
      ⚠ 모르는 항목 키는 **버리지 않고 거절**한다. 조용히 버리면 화면은 저장됐다고 믿는다. */
-  const MANUAL_FIELD_KEYS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'golf', 'sell'];
+  const MANUAL_FIELD_KEYS = ITEM_KEYS.MANUAL_FIELD_KEYS;
   let manualJson = null;
   if (manualFields !== undefined && manualFields !== null && manualFields !== '') {
     if (typeof manualFields !== 'object' || Array.isArray(manualFields)) {
@@ -928,7 +930,7 @@ function autoExcludedFields(values, sources) {
    ⚠ **사유를 반드시 받는다.** 사유 없이 빠진 값은 나중에 아무도 이유를 몰라
      "왜 이 견적서만 빠졌지"가 되고, 결국 누군가 되돌려 놓는다.
    reason이 비어 있으면 **해제**(다시 평균에 넣는다)로 본다. */
-const EXCLUDABLE = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight'];
+const EXCLUDABLE = ITEM_KEYS.RATE_ITEM_KEYS;
 async function handleExcludeReportField(req, res) {
   if (!(await requireAdmin(req, res))) return;
   const body = req.body || {};

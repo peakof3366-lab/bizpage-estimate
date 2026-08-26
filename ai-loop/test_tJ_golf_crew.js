@@ -361,9 +361,17 @@ ok('없는 목적지 이름에도 안전하다', DATA.getGolfFee('없는곳') ==
 
   /* ⚠ golf_fee를 NUMERIC_FIELDS에 넣으면 **새 목적지를 만들 수 없게 된다** —
      그 집합은 isValidNewDestination이 「반드시 있어야 하는 칸」으로도 쓴다. */
-  ok('**golf_fee는 필수 칸 목록(NUMERIC_FIELDS)에 없다** (새 목적지 생성이 막힌다)',
-    !/'sightseeing_fee', 'margin_per_traveler',\s*'golf_fee'/.test(apiRates)
-    && /OPTIONAL_NUMERIC_FIELDS = new Set\(\['golf_fee'\]\)/.test(apiRates));
+  /* 🔴 XQ에서 칸 목록을 `api/_lib/rate_fields.js` **한 곳**으로 모았다. 그래서 소스
+     글자가 아니라 **값**을 본다 — 글자를 보면, 목록을 한 곳으로 모으는 정리가
+     그대로 결함으로 잡힌다(어제 보험 권역에서 같은 자리를 세 번 겪었다). */
+  const RF = require(path.join(ROOT, 'api', '_lib', 'rate_fields.js'));
+  ok('**golf_fee는 필수 칸 목록에 없다** (새 목적지 생성이 막힌다)',
+    !RF.RATE_NUMERIC_FIELDS.includes('golf_fee')
+    && RF.RATE_OPTIONAL_NUMERIC_FIELDS.includes('golf_fee'),
+    RF.RATE_NUMERIC_FIELDS.join(','));
+  ok('서버가 그 목록을 읽는다(자기가 적지 않는다)',
+    /NUMERIC_FIELDS = new Set\(RATE_FIELDS\.RATE_NUMERIC_FIELDS\)/.test(apiRates)
+    && /OPTIONAL_NUMERIC_FIELDS = new Set\(RATE_FIELDS\.RATE_OPTIONAL_NUMERIC_FIELDS\)/.test(apiRates));
   ok('그래도 고칠 수는 있다 (isValidChange가 받는다)',
     /NUMERIC_FIELDS\.has\(c\.field\) \|\| OPTIONAL_NUMERIC_FIELDS\.has\(c\.field\)/.test(apiRates));
   /* ⚠ 상한 초과를 findOutOfRange가 못 보면 400이 아니라 **조용히 버려진다** */

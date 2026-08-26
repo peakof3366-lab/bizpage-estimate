@@ -20,10 +20,10 @@ const { requireAdmin, requireRole } = require('./_lib/auth');
 const DEST_CURRENCY = require('../dest_currency');
 const destinationRates = require('../data');
 
-const NUMERIC_FIELDS = new Set([
-  'airfare', 'fuel_surcharge', 'hotel_per_room', 'meal_per_person',
-  'vehicle_large', 'vehicle_small', 'guide_fee', 'sightseeing_fee', 'margin_per_traveler',
-]);
+/* XQ: 칸 이름은 `_lib/rate_fields.js` 한 곳이다 — 감사 도구 둘도 같은 것을 읽는다.
+   예전엔 세 곳에 손으로 적혀 있어, 칸을 늘리면 **검사에서만 조용히 빠질** 수 있었다. */
+const RATE_FIELDS = require('./_lib/rate_fields');
+const NUMERIC_FIELDS = new Set(RATE_FIELDS.RATE_NUMERIC_FIELDS);
 
 /* TJ: 고칠 수는 있지만 **없어도 되는** 요율 칸.
    ⚠ 골프를 위 NUMERIC_FIELDS에 넣으면 안 된다 — 그 집합은 PATCH 검증뿐 아니라
@@ -32,7 +32,7 @@ const NUMERIC_FIELDS = new Set([
      안 파는 목적지를 새로 만들 수가 없게 된다.
    골프는 **파는 곳에서만** 값이 있다(0 = 안 판다). 그래서 「고칠 수 있는 칸」과
    「반드시 있어야 하는 칸」을 갈랐다. */
-const OPTIONAL_NUMERIC_FIELDS = new Set(['golf_fee']);
+const OPTIONAL_NUMERIC_FIELDS = new Set(RATE_FIELDS.RATE_OPTIONAL_NUMERIC_FIELDS);
 
 /* 오타 상한 (신규) — 지금까지 서버 검증은 "숫자이고 0 이상"이 전부였다. 즉 호텔
    단가에 0을 하나 더 붙여도 그대로 저장되고, 저장 즉시 고객 견적서 금액이 바뀐다.

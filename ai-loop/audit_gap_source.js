@@ -40,7 +40,7 @@ const { destFromName } = require('./_dest_from_name');
 /* 우리 요율표가 실제로 가진 칸 — 이 밖의 돈은 엔진이 낼 수 없다.
    ⚠ audit_item_taxonomy.js와 **같은 목록**이어야 한다. 두 도구가 다른 말을 하면
      어느 쪽을 믿을지 알 수 없다(결함 생성기 ①). */
-const RATE_CATS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'golf'];
+const RATE_CATS = require('../api/_lib/item_keys').CORPUS_ITEM_KEYS;
 
 const pct = (n) => (n == null ? '  —  ' : ((n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%'));
 const won = (n) => (n == null ? '—' : Number(Math.round(n)).toLocaleString());

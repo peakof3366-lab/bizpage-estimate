@@ -78,7 +78,8 @@ const PLAUSIBILITY = require(path.join(ROOT, 'plausibility.js'));
 const destinationRates = require(path.join(ROOT, 'data.js'));
 const DATA = require(path.join(ROOT, 'data.js'));
 
-const CELLS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'golf'];
+/* XQ: 항목 키는 `api/_lib/item_keys.js` 한 곳에서 온다 */
+const CELLS = require('../api/_lib/item_keys').CORPUS_ITEM_KEYS;
 const COL = {
   airfare: 'airfare_unit', fuel: 'fuel_unit', hotel: 'hotel_unit', meal: 'meal_unit',
   vehicle: 'vehicle_unit', guide: 'guide_unit', sight: 'sight_unit', golf: 'golf_unit',

@@ -33,11 +33,10 @@ const zoneOf = k => (DATA_MOD.DEST_CLASSIFY[k] || {}).zone
   || (DR.find(d => d.destination_key === k) || {}).__zone
   || 'short';
 
-const FIELDS = ['airfare','fuel_surcharge','hotel_per_room','meal_per_person',
-                'vehicle_large','vehicle_small','guide_fee','sightseeing_fee','margin_per_traveler'];
-const LBL = { airfare:'항공료', fuel_surcharge:'유류할증료', hotel_per_room:'호텔(1박)',
-  meal_per_person:'1인 1일 식비', vehicle_large:'대형차량', vehicle_small:'소형차량',
-  guide_fee:'가이드비', sightseeing_fee:'관광비', margin_per_traveler:'1인 마진' };
+/* XQ: 칸 이름·이름표는 `api/_lib/rate_fields.js` 한 곳에서 온다(서버 검증과 같은 목록) */
+const RATE_FIELDS = require('../api/_lib/rate_fields');
+const FIELDS = RATE_FIELDS.RATE_NUMERIC_FIELDS;
+const LBL = RATE_FIELDS.RATE_FIELD_LABELS;
 
 const won = n => Math.round(n).toLocaleString('ko-KR');
 const median = a => { const s=[...a].sort((x,y)=>x-y); const m=s.length>>1;

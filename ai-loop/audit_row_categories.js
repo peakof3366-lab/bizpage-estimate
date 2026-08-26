@@ -41,7 +41,7 @@ const CORPUS = argv.filter((a, i) => !a.startsWith('--') && i !== jsonAt + 1)[0]
    ⚠ 숫자를 그냥 갱신하지 말 것 — 왜 움직였는지 먼저 설명할 수 있어야 한다. */
 const BASELINE = { rows: 960, unclassified: 224, noHotel: 22 };
 
-const FIELDS = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight'];
+const FIELDS = require('../api/_lib/item_keys').RATE_ITEM_KEYS;
 
 (async () => {
   if (!fs.existsSync(CORPUS)) {

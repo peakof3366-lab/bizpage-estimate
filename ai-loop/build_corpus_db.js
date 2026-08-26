@@ -31,6 +31,8 @@
 const fs = require('fs');
 const path = require('path');
 const { corpusFiles } = require('./_corpus_files.js');
+/* XQ: 항목 키는 `api/_lib/item_keys.js` 한 곳에서 온다(서버·도구가 같은 목록을 본다) */
+const ITEM_KEYS = require('../api/_lib/item_keys');
 
 const ROOT = path.join(__dirname, '..');
 const DEFAULT_CORPUS = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');
@@ -116,13 +118,13 @@ function blockers(r, dest) {
     const classSum = usable.filter((c) => c.category).reduce((n, c) => n + (c.total || 0), 0);
     const v = r.values || {};
     const ev = r.evidence || {};
-    const filled = ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight']
+    const filled = ITEM_KEYS.RATE_ITEM_KEYS
       .filter((k) => v[k] != null).length;
 
     /* 항목별 값 + **어떻게 나온 값인가**를 함께 담는다 — 값만 있는 DB는 나중에
        「이 숫자를 믿어도 되나」에 답할 수 없다(이 저장소가 반복해서 당한 자리다). */
     const items = {};
-    ['airfare', 'fuel', 'hotel', 'meal', 'vehicle', 'guide', 'sight', 'golf', 'sell'].forEach((k) => {
+    ITEM_KEYS.MANUAL_FIELD_KEYS.forEach((k) => {
       if (v[k] == null) return;
       items[k] = { value: v[k], via: (ev[k] && ev[k].via) || null, calc: (ev[k] && ev[k].calc) || '' };
     });
