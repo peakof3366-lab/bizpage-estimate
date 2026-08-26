@@ -246,6 +246,63 @@ console.log('\n[2] CSV로 떨어질 때의 내용 — 엑셀이 열 수 있어�
     }
   }
 
+  console.log('\n[9] 견적서에서 **돌아온** 고객 — 조건이 그대로 채워져 있는가');
+  {
+    /* 견적서의 「연수 일정 더 탐색하기」가 만드는 주소다. 여기서 빈 계산기가 뜨면
+       고객은 조건을 처음부터 다시 넣어야 한다 — 대개는 그냥 나간다. */
+    const R = bootPage('index.html', { query: '?dest=%EB%8B%A4%EB%82%AD&days=4&pt=industry#estimate' });
+    await R.ready; await R.tick(350);
+    ok('⑨ 목적지가 채워져 있다', R.doc.getElementById('destination').value === '다낭',
+      R.doc.getElementById('destination').value);
+    ok('⑨ 일수도 채워져 있다', R.doc.getElementById('days').value === '4');
+    ok('⑨ 프로그램 유형도 채워져 있다', R.doc.getElementById('programType').value === 'industry');
+    ok('⑨ 일정 섹션이 열려 있다',
+      !R.doc.getElementById('step3Section').classList.contains('hidden'));
+    ok('⑨ 오류 없이 떴다', R.log.errors.length === 0, R.log.errors.map((e) => e.msg).join(' | '));
+  }
+
+  console.log('\n[10] 휴대폰 메뉴 — 열리고 닫히는가');
+  {
+    const header = doc.querySelector('.site-header');
+    const tog = doc.getElementById('navToggle');
+    ok('⑩ 메뉴 버튼이 있다', !!tog);
+    tog.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true, view: win }));
+    await tick(40);
+    ok('⑩ 누르면 열린다', header.classList.contains('nav-mobile-open'));
+    ok('⑩ 화면 낭독기도 알 수 있다(aria-expanded)', tog.getAttribute('aria-expanded') === 'true');
+    doc.querySelector('.nav-links a').dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true, view: win }));
+    await tick(40);
+    ok('⑩ 항목을 누르면 닫힌다', !header.classList.contains('nav-mobile-open'));
+  }
+
+  console.log('\n[11] 「이 견적으로 바로 상담 신청」 — 끝까지 간다');
+  {
+    doc.getElementById('consultBtn').dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true, view: win }));
+    await tick(60);
+    ok('⑪ 신청 폼이 열린다', !doc.getElementById('consultFormWrap').classList.contains('hidden'));
+    const saysBefore = log.says.length;
+    win.submitConsult();
+    await tick(60);
+    ok('⑪ 빈 채로 누르면 무엇이 필요한지 말한다',
+      log.says.slice(saysBefore).some((s) => /이름과 연락처/.test(s.text)),
+      JSON.stringify(log.says.slice(saysBefore).map((s) => s.text)));
+    doc.getElementById('consultName').value = '김보균';
+    doc.getElementById('consultTel').value = '010-1234-5678';
+    const before = log.requests.length;
+    win.submitConsult();
+    await tick(250);
+    ok('⑪ 채우면 서버로 간다',
+      log.requests.slice(before).some((r) => r.url.includes('/api/inquiries')));
+    const okEl = doc.getElementById('consultSuccess');
+    ok('⑪ 접수됐다고 말한다', !!okEl && !okEl.classList.contains('hidden')
+      && /완료/.test(visibleText(okEl)), visibleText(okEl).slice(0, 50));
+    /* 🔴 이 리드는 **견적과 연결**되어야 담당자가 무엇에 대한 상담인지 안다 */
+    const req = log.requests.slice(before).find((r) => r.url.includes('/api/inquiries'));
+    ok('⑪ 어떤 견적에 대한 상담인지 함께 보낸다',
+      !!req && !!req.body && (!!req.body.linkedQuoteId || /견적 기반/.test(req.body.message || '')),
+      req && JSON.stringify(req.body).slice(0, 120));
+  }
+
   console.log('\n[8] 없는 주소 — 회사 이름도 없는 영문 오류를 보여주지 않는다');
   {
     /* 실측(2026-08-26): 예전에는 Vercel 기본 화면이 나갔다 —
