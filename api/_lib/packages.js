@@ -41,8 +41,9 @@ const PKG_BASIS = ['agency', 'assembled'];
 const PKG_STATUS = ['draft', 'open', 'closed'];
 
 /* 조립 항목 상한. 인증 계정 하나가 붙여넣기 사고로 DB를 채우지 못하게 한다. */
-const PKG_MAX_ITEMS = 40;
-const PKG_MAX_ITEM_LABEL = 60;
+/* ⚠ 이 두 값은 **`limits.js` 하나가 진실**이다 (XF). 예전엔 여기에만 있어서
+   편집 화면이 상한을 몰랐고, 넘긴 줄이 저장할 때 조용히 사라졌다. */
+const { PKG_MAX_ITEMS, PKG_MAX_ITEM_LABEL } = require('../../limits');
 
 /* 1회용 견적의 기본 유효기간(일). 소규모는 항공가 변동이 그대로 손실인데,
    기한 없는 1회용 견적이 쌓이면 언젠가 옛 값으로 발급된다.

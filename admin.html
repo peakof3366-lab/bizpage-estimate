@@ -2123,7 +2123,7 @@
                화면과 견적서가 다른 금액을 말하지 않게 하기 위함이다.
              ⚠ 엔진 값을 여기 미리 채우지 않는다 — 소규모 구간에서 엔진이 실측 기준
                +21~42% 틀리는데, 값이 들어가 있으면 담당자는 그대로 저장한다. -->
-        <label class="pkg-f" style="margin-top:14px;display:block"><span>항목별 조립 <em>— 한 줄에 하나. 「이름 | 금액」 · 비우면 위 1인 금액을 그대로 씁니다</em></span>
+        <label class="pkg-f" style="margin-top:14px;display:block"><span>항목별 조립 <em>— 한 줄에 하나. 「이름 | 금액」 · 비우면 위 1인 금액을 그대로 씁니다 · 최대 <span data-fact="PKG_MAX_ITEMS">40</span>줄, 이름 <span data-fact="PKG_MAX_ITEM_LABEL">60</span>자</em></span>
           <textarea id="pkgItems" rows="5" placeholder="항공 | 620000&#10;호텔 3박 | 380000&#10;지상비 | 190000"></textarea></label>
         <p id="pkgItemsSum" style="margin:6px 0 0;font-size:12px;color:#777"></p>
 
@@ -3066,6 +3066,14 @@
       console.warn('[admin] limits.js를 못 불러왔습니다 — 화면 안내 숫자가 낡았을 수 있습니다.');
       return;
     }
+    /* 🔴 `data-fact` — **글자 자리**에 값을 채운다 (XF). placeholder만 채우던 것을
+       넓혔다: 안내 문구 안의 숫자도 limits.js에서 와야 화면과 서버가 안 갈린다.
+       ⚠ HTML에 적힌 원래 글자는 못 불러왔을 때의 보루로 남는다(위와 같은 규칙). */
+    document.querySelectorAll('[data-fact]').forEach((el) => {
+      const k = el.getAttribute('data-fact');
+      if (LIMITS[k] === undefined) { console.warn('[admin] limits.js에 없는 키:', k); return; }
+      el.textContent = String(LIMITS[k]);
+    });
     document.querySelectorAll('[data-fact-ph]').forEach((el) => {
       const raw = el.getAttribute('data-fact-ph');
       const cut = raw.indexOf(':');
@@ -13275,10 +13283,31 @@
     const sumBox = document.getElementById('pkgItemsSum');
     if (sumBox) {
       const items = pkgParseItems((document.getElementById('pkgItems') || {}).value);
+      /* 🔴 **상한을 넘으면 저장할 때 조용히 사라진다** (XF).
+         서버(`lineItemsOf`)가 41번째부터 잘라 내고, 이름이 긴 것은 60자에서 자른다.
+         그런데 **항목 합이 곧 1인 금액**이라(그 위에 그렇게 적혀 있다) 잘린 만큼
+         **고객가가 조용히 줄어든다.** 화면이 「덮어씁니다」라고 약속해 놓고 다른 값이
+         저장되는 셈이다 — 저장을 누르기 전에 그 자리에서 말한다.
+       ⚠ **막지는 않는다.** 저장 자체를 못 하게 하면 담당자가 적어 둔 것을 잃는다.
+         무엇이 잘릴지 알려 주고 판단은 사람이 한다(MAX_DAYS에서 세운 규칙과 같다). */
+      const maxItems = (typeof LIMITS !== 'undefined' && LIMITS.PKG_MAX_ITEMS) || 40;
+      const maxLabel = (typeof LIMITS !== 'undefined' && LIMITS.PKG_MAX_ITEM_LABEL) || 60;
+      const over = items.length > maxItems;
+      const longLabels = items.filter((it) => it.label.length > maxLabel);
+      const warn = [];
+      if (over) {
+        warn.push('🔴 ' + maxItems + '줄을 넘었습니다 — ' + (maxItems + 1) + '번째부터는 **저장되지 않고**, '
+          + '그만큼 1인 금액이 줄어듭니다(' + items.slice(maxItems).reduce((s, it) => s + it.amount, 0).toLocaleString() + '원).');
+      }
+      if (longLabels.length) {
+        warn.push('🔴 이름이 ' + maxLabel + '자를 넘는 줄 ' + longLabels.length + '개 — 저장할 때 잘립니다.');
+      }
       sumBox.textContent = items.length
         ? '항목 ' + items.length + '개 · 합계 ' + items.reduce((s, it) => s + it.amount, 0).toLocaleString()
           + '원 → 저장하면 이 값이 위 「1인 금액」을 덮어씁니다.'
+          + (warn.length ? '  ' + warn.join('  ') : '')
         : '';
+      sumBox.style.color = warn.length ? '#B91C1C' : '#777';
     }
   }
 
