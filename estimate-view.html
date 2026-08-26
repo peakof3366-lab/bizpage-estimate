@@ -434,7 +434,11 @@ function calcValidity(isoDate) {
 }
 
 function renderPage(d) {
-  document.title = `견적서 · ${d.dt} · 비즈페이지`;
+  /* 탭 제목·인쇄물 머리글·즐겨찾기 이름이 되는 자리. **여기 한 곳뿐이다** —
+     WO에서 아래(히어로 제목 옆)에 한 줄 더 썼다가 지웠다. 같은 값을 두 곳에서
+     정하면 반드시 어긋난다(결함 생성기 ①). 히어로와 같은 규칙으로 갈린다.
+     ⚠ 고객사명·금액은 넣지 않는다 — 탭 제목은 화면 공유·스크린샷에 그대로 남는다. */
+  document.title = `${d.dt} ${d.pkg ? '여행' : '연수'} 견적서 · 비즈페이지`;
 
   /* ── 히어로 ── */
   if (d.cover) {
@@ -587,13 +591,18 @@ function renderPage(d) {
         <div class="field-box"><div class="field-box-label">기관 유형</div><div class="field-box-value">${esc(d.ot) || '—'}</div></div>
       </div>
 
-      <div class="sec-title">연수 계획</div>
+      ${/* 🔴 패키지 손님에게 「연수」라고 말하지 않는다 (WO) — hero 제목만 갈려 있었고
+             (VR) **이 표는 그대로 「연수 목적지·연수 방식·연수 기간」이었다.**
+             친목 모임 손님이 받는 문서다. 연수인 것만 연수라 부른다. */''}
+      <div class="sec-title">${d.pkg ? '여행 계획' : '연수 계획'}</div>
       <div class="field-grid">
-        <div class="field-box"><div class="field-box-label">연수 목적지</div><div class="field-box-value">${esc(d.dt)}</div></div>
-        <div class="field-box"><div class="field-box-label">프로그램 유형</div><div class="field-box-value">${esc(d.ptx)}</div></div>
-        <div class="field-box"><div class="field-box-label">연수 방식</div><div class="field-box-value">${esc(d.vm) || '—'}</div></div>
-        <div class="field-box"><div class="field-box-label">참가 인원</div><div class="field-box-value">${Number(d.n) || 0}명</div></div>
-        <div class="field-box"><div class="field-box-label">연수 기간</div><div class="field-box-value">${Number(d.ng) || 0}박 ${Number(d.d) || 0}일<br>${fmtDate(d.sd)} ~ ${fmtDate(d.ed)}</div></div>
+        <div class="field-box"><div class="field-box-label">${d.pkg ? '여행' : '연수'} 목적지</div><div class="field-box-value">${esc(d.dt)}</div></div>
+        <div class="field-box"><div class="field-box-label">${d.pkg ? '상품 구분' : '프로그램 유형'}</div><div class="field-box-value">${esc(d.ptx)}</div></div>
+        ${/* ⚠ 「연수 방식」(방문/체험)은 패키지에 **없는 칸**이다. 빈 칸에 「—」를 찍으면
+              고객은 우리가 뭔가 빠뜨린 줄 안다 — 없는 칸은 아예 안 그린다. */''}
+        ${d.pkg ? '' : `<div class="field-box"><div class="field-box-label">연수 방식</div><div class="field-box-value">${esc(d.vm) || '—'}</div></div>`}
+        <div class="field-box"><div class="field-box-label">${d.pkg ? '인원' : '참가 인원'}</div><div class="field-box-value">${Number(d.n) || 0}명</div></div>
+        <div class="field-box"><div class="field-box-label">${d.pkg ? '여행' : '연수'} 기간</div><div class="field-box-value">${Number(d.ng) || 0}박 ${Number(d.d) || 0}일<br>${fmtDate(d.sd)} ~ ${fmtDate(d.ed)}</div></div>
         <div class="field-box"><div class="field-box-label">호텔 등급</div><div class="field-box-value">${esc(d.hgl) || '—'}</div></div>
         <div class="field-box"><div class="field-box-label">시즌</div><div class="field-box-value">${esc(d.sl) || '—'}</div></div>
         ${/* 항공료를 가장 크게 좌우하는 두 조건인데 그동안 견적서에 안 적혔다.
@@ -677,7 +686,13 @@ function renderPage(d) {
     <div class="cta-section no-print">
       <div class="cta-eyebrow">CONSULTATION</div>
       <div class="cta-headline">이 견적서로 바로 상담하세요</div>
-      <div class="cta-sub">전문 컨설턴트가 맞춤 연수 프로그램을 상세히 안내해 드립니다</div>
+      <!-- 🔴 패키지 견적서에 「연수」라고 말하지 않는다 (WO).
+           VX가 견적 화면의 문구를, VR·VS가 견적서의 금액 문구를 갈랐는데 **이 아래
+           상담 블록만 남아 있었다** — 친목 모임 손님이 「방콕 자유여행 5일」 견적서를
+           받고 「맞춤 **연수** 프로그램」 안내를 읽는다(결함 생성기 ①: 목록의 산포). -->
+      <div class="cta-sub">${d.pkg
+        ? '담당자가 이 상품의 일정과 조건을 자세히 안내해 드립니다'
+        : '전문 컨설턴트가 맞춤 연수 프로그램을 상세히 안내해 드립니다'}</div>
       <div class="cta-btns">
         <a href="tel:1661-8665" class="cta-btn cta-btn-primary">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.63 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 5.55 5.55l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -687,10 +702,22 @@ function renderPage(d) {
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           카카오톡 상담
         </a>
-        <a href="index.html?dest=${encodeURIComponent(d.dk || '')}&days=${encodeURIComponent(d.d || '')}&pt=${encodeURIComponent(d.pt || '')}#estimate" class="cta-btn cta-btn-secondary">
+        ${/* 🔴 **패키지 손님을 맞춤 견적 계산기로 보내지 않는다** (WO).
+             VV에서 확인된 것: 휴양·일반 고객이 그 계산기의 칸을 열면 **소매가의 두 배**를
+             부른다(연수 원가 조립 + 계수 + 마진이 붙는 엔진이라 그렇다).
+             방금 639,000원짜리 패키지 견적서를 받은 손님이 이 버튼을 눌러 그 금액을 보면
+             **우리 견적서를 못 믿게 된다.** 패키지 손님은 패키지 목록으로 보낸다.
+           ⚠ 맞춤 견적인데 목적지 키가 없으면 빈 쿼리(`?dest=&days=&pt=`)로 열린다 —
+             그러면 계산기가 아무것도 고른 것 없이 뜬다. 그럴 바엔 쿼리를 안 붙인다. */''}
+        ${d.pkg ? `
+        <a href="packages.html" class="cta-btn cta-btn-secondary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          다른 패키지 상품 보기
+        </a>` : `
+        <a href="index.html${d.dk ? `?dest=${encodeURIComponent(d.dk)}&days=${encodeURIComponent(d.d || '')}&pt=${encodeURIComponent(d.pt || '')}` : ''}#estimate" class="cta-btn cta-btn-secondary">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           연수 일정 더 탐색하기
-        </a>
+        </a>`}
         <a href="index.html" class="cta-btn cta-btn-secondary">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           홈페이지 방문
@@ -749,7 +776,7 @@ function downloadEstimateExcelShared() {
     ['프로그램', d.ptx || '—'],
     ['기관 유형', d.ot || '—'],
     ['참가 인원', (d.n || 0) + '명'],
-    ['연수 기간', (d.d || 0) + '일'],
+    [(d.pkg ? '여행 기간' : '연수 기간'), (d.d || 0) + '일'],
     ['신청 기관', d.org || '—'],
     ['담당자', d.cn || '—'],
     [],
