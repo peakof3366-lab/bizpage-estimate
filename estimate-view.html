@@ -22,9 +22,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script src="company-info.js"></script>
+<!-- 표를 파일로 내려주는 자 (XK) — 엑셀이 없으면 CSV로 떨어진다. **우리 파일이라
+     늘 있다**: 아래 CDN이 막혀도 「엑셀」 버튼이 빈손으로 끝나지 않는 근거다. -->
+<script src="sheet_download.js"></script>
 <!-- 엑셀 견적서 다운로드 기능용 (되돌리려면 이 줄과 하단의 downloadEstimateExcelShared() 함수,
-     #downloadExcelBtn 버튼만 삭제하면 됨) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+     #downloadExcelBtn 버튼만 삭제하면 됨)
+     🔴 **`defer`다** (XK). 예전엔 그냥 `<script src>`라 **견적서 화면이 남의 CDN 응답을
+       기다린 뒤에야 그려졌다** — 400KB짜리를, 그것도 고객이 「엑셀」을 누를 때만 쓰는
+       것을 기다렸다. 고객사·기관 망에서 CDN이 느리거나 막히면 그동안 흰 화면이다.
+     ⚠ 그래서 **이 파일이 없어도 엑셀 버튼은 동작해야 한다** — 아래 `downloadEstimate…`가
+       CSV로 떨어진다(엑셀에서 그대로 열린다). 「잠시 후 다시」는 막힌 망에서는 거짓말이다. -->
+<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 /* ── RESET ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -897,10 +905,6 @@ function renderPage(d) {
 /* 엑셀 견적서 다운로드 (신규 — 되돌리려면 이 함수와 위 _quoteData 변수,
    #downloadExcelBtn 버튼, SheetJS <script> 태그만 삭제하면 완전히 원상복귀됨) */
 function downloadEstimateExcelShared() {
-  if (typeof XLSX === 'undefined') {
-    alert('엑셀 다운로드 기능을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
-    return;
-  }
   const d = _quoteData;
   if (!d) return;
 
@@ -946,13 +950,18 @@ function downloadEstimateExcelShared() {
     ...((d.pkg && (d.pkg.excluded || []).length) ? [[], ['불포함 사항'], ...d.pkg.excluded.map((x) => [x])] : []),
   ];
 
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{ wch: 28 }, { wch: 18 }];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '견적서');
-
   const fileDate = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `비즈페이지_견적서_${d.dt || ''}_${fileDate}.xlsx`);
+  const baseName = `비즈페이지_견적서_${d.dt || ''}_${fileDate}`;
+
+  /* 🔴 **엑셀 라이브러리가 없어도 파일은 나간다** (XK). 예전에는 「불러오지 못했습니다.
+     잠시 후 다시 시도해 주세요」로 끝났는데, 그 라이브러리는 남의 CDN에서 온다 —
+     기관·대기업 망에서 막혀 있으면 **잠시 후에도 영영 안 된다.**
+     가르는 규칙과 문구는 `sheet_download.js` 한 곳에 있다(두 화면이 같은 말을 하도록). */
+  if (typeof downloadSheet !== 'function') {
+    alert('다운로드 기능을 불러오지 못했습니다. 「인쇄 / PDF」로 저장하실 수 있습니다.');
+    return;
+  }
+  sayAfterDownload(downloadSheet(aoa, baseName, { sheetName: '견적서' }));
 }
 </script>
 </body>

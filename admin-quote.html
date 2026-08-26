@@ -802,7 +802,12 @@
 <script src="company-info.js"></script>
 <!-- 방식 A·B가 비었을 때 나가는 문구 (RJ) — ⚠ script.js보다 먼저 실어야 한다. -->
 <script src="rec_fallbacks.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- 표를 파일로 내려주는 자 (XK) — `script.js`의 엑셀 버튼이 이 함수를 부른다.
+     ⚠ **빠뜨리면 담당자 도구에서만 엑셀 버튼이 죽는다**(고객 화면 둘은 멀쩡한 채로).
+       같은 함수를 부르는 화면이 셋이라 셋 다 실어야 한다 — 목록이 흩어진 자리다. -->
+<script src="sheet_download.js"></script>
+<!-- 🔴 `defer` — 남의 CDN 400KB를 기다리느라 `script.js`(견적 엔진)가 늦게 살아나던 자리 -->
+<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="script.js"></script>
 <script>
 

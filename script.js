@@ -3367,8 +3367,12 @@ function _buildDisplayDays(course, destKey, plan, totalDays) {
    ════════════════════════════════════════════════════════════════════ */
 function downloadEstimateExcel() {
   if (!FEATURE_EXCEL_EXPORT) return;
-  if (typeof XLSX === 'undefined') {
-    alert('엑셀 다운로드 기능을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  /* ⚠ 예전엔 여기서 `XLSX`가 없으면 「잠시 후 다시 시도해 주세요」로 끝났다. 그 파일은
+     남의 CDN에서 오고, 기관·대기업 망에서는 막혀 있는 경우가 흔하다 — 그런 고객에게
+     「잠시 후」는 거짓말이고, 결재에 붙일 파일을 영영 못 받는다(XK).
+     이제 `sheet_download.js`가 엑셀/CSV를 갈라 준다. 그 파일은 **우리 것이라 늘 있다.** */
+  if (typeof downloadSheet !== 'function') {
+    alert('다운로드 기능을 불러오지 못했습니다. 화면의 「견적서 확인하기」로 인쇄·PDF 저장하실 수 있습니다.');
     return;
   }
   const data = getBreakdownData();
@@ -3405,13 +3409,11 @@ function downloadEstimateExcel() {
     ['1인당 금액', data.perPerson],
   ];
 
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{ wch: 28 }, { wch: 18 }];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '견적서');
-
   const fileDate = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `비즈페이지_견적서_${destText}_${fileDate}.xlsx`);
+  /* 🔴 엑셀 라이브러리(남의 CDN)가 막혀 있어도 **파일은 나간다** — CSV로 떨어진다(XK).
+     가르는 규칙과 안내 문구는 `sheet_download.js` 한 곳에 있다. 여기서 또 적으면
+     견적서 화면과 계산기가 서로 다른 말을 하게 된다(결함 생성기 ①). */
+  sayAfterDownload(downloadSheet(aoa, `비즈페이지_견적서_${destText}_${fileDate}`, { sheetName: '견적서' }));
 }
 
 /* ════════════════════════════════════════════════════════════════════
