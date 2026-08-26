@@ -123,6 +123,42 @@ const pct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%';
     + '건  같은 줄을 두 번 셌다는 뜻');
   console.log('   ⚪ 안 돌았다 ' + (rows.length - ran2.length) + '건\n');
 
+  /* ── 🔴 「안 돌았다」를 **이름으로 부른다** (WZ) ─────────────────────────────
+     숫자만 있으면 다음 사람이 **무엇을 고쳐야 할지 못 고른다.** WG에서 배운 것과
+     같은 자리다 — 「항공을 못 읽는 9건」이 세어 보니 3건이었고 원인이 하나였다.
+     여기서도 7건이 세 무리로 갈린다: 1인당만 없음 · 총계만 없음 · 둘 다 없음.
+   ⚠ 「없다」가 곧 「결함」은 아니다. 문서에 그 값이 애초에 없을 수 있고(원가 시트),
+     환율이 안 정해져 원화 총계가 없는 것일 수도 있다(대기열 0-f). 그래서 **원인이
+     아니라 무엇이 없는지**만 적는다 — 판단은 사람이 한다. */
+  const noRunRows = rows.filter((r) => !r.c1);
+  if (noRunRows.length) {
+    console.log('⚪ 검산 ①이 안 돈 ' + noRunRows.length + '건 — **무엇이 없어서인지**');
+    console.log('   (「없다」가 곧 결함은 아니다. 무엇을 채우면 정답지가 느는지를 보여줄 뿐이다)');
+    console.log(''.padEnd(96, '─'));
+    const groups = new Map();
+    for (const r of noRunRows) {
+      const miss = [];
+      if (!r.pax) miss.push('인원');
+      if (!r.grand && !r.itemsTotal) miss.push('총계');
+      if (!r.perPerson) miss.push('1인당');
+      const key = miss.length ? miss.join(' · ') : '(모르겠다)';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(r);
+    }
+    for (const [key, list] of [...groups.entries()].sort((a, b) => b[1].length - a[1].length)) {
+      console.log('  없는 것: ' + key + '  — ' + list.length + '건');
+      for (const r of list) {
+        const bits = [];
+        if (r.pax) bits.push('인원 ' + r.pax + '명');
+        if (r.grand) bits.push('총계 ' + Number(r.grand).toLocaleString());
+        else if (r.itemsTotal) bits.push('줄 합계 ' + Number(r.itemsTotal).toLocaleString());
+        if (r.perPerson) bits.push('1인당 ' + Number(r.perPerson).toLocaleString());
+        console.log('     · ' + pad(String(r.file), 44) + (bits.join(' · ') || '읽은 값 없음'));
+      }
+    }
+    console.log(''.padEnd(96, '─') + '\n');
+  }
+
   /* ── 🔴 검산 ①이 깨진 건 ──────────────────────────────────────────────── */
   if (fail1.length) {
     console.log('🔴 검산 ① 깨짐 — **역검증의 정답지가 이만큼 어긋나 있다**');
