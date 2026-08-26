@@ -12674,14 +12674,39 @@
       itiB: itiSnap ? itiSnap.b : null,
     };
 
+    /* 🔴 연락처 없이는 발급하지 않는다 (WK). 이 경로가 **대장에 연락처를 한 번도 남긴
+         적이 없다** — 담당자 도구(admin-quote.html)에 WC가 넣은 칸은 견적 기록에 저장되지
+         않아, 저장해 뒀다가 여기서 발급하면 그 값이 사라진 뒤였다. 「담당자가 휴가여도
+         응대」가 정확히 이 경로에서 깨져 있었다.
+       ⚠ 기준을 여기서 새로 세지 않는다 — 숫자 9자는 서버 `normalizeTel`이 정하는 값이고,
+         패키지 발급 칸도 같은 숫자를 쓴다(결함 생성기 ①).
+       ⚠ 옛 견적 기록에는 이 칸이 없다. 그래서 **막지 말고 그 자리에서 받는다** —
+         못 발급한다고만 하면 담당자는 견적을 처음부터 다시 만든다. */
+    let custTel = String((rec && rec.contactTel) || '').trim();
+    if (custTel.replace(/\D/g, '').length < 9) {
+      const typed = prompt('고객 연락처를 입력해 주세요.\n견적서에는 표시되지 않고, 견적서 대장에만 남습니다.', custTel);
+      if (typed === null) return;   /* 취소 = 발급 안 함. 조용히 빈 채로 내보내지 않는다 */
+      custTel = String(typed).trim();
+      if (custTel.replace(/\D/g, '').length < 9) {
+        alert('연락처를 확인해 주세요 — 숫자 9자 이상이어야 합니다.\n연락처 없는 견적서는 담당자가 자리를 비웠을 때 이어받을 수 없습니다.');
+        return;
+      }
+    }
+
     try {
       const res = await fetch('/api/quote-shares?action=issue', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ share, quote: rec }),
+        /* 🔴 payload(`share`)가 아니라 **바깥 칸**이다(WC) — 서버가 대장 컬럼에만 넣는다.
+             견적서 링크에는 인증이 없어서 payload는 링크를 아는 사람이 전부 본다. */
+        body: JSON.stringify({ share, quote: rec, customerTel: custTel }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data || !data.id) {
-        alert(rateSaveErrorMessage(data, res.status));
+        /* 서버의 거절을 사람 말로 옮긴다(WF 후속의 규칙). 「발급 실패」로 뭉뚱그리면
+           담당자는 이유를 모른 채 다시 누르기만 한다. */
+        alert(data && data.error === 'tel_required'
+          ? '고객 연락처가 없어 발급하지 않았습니다 (견적서에는 표시되지 않습니다).'
+          : rateSaveErrorMessage(data, res.status));
         return;
       }
       const url = location.origin + '/estimate-view.html?id=' + data.id;

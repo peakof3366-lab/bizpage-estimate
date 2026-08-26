@@ -1430,6 +1430,13 @@ form.addEventListener('submit', (event) => {
     const orgEl     = document.getElementById('organizationType');
     const orgName   = document.getElementById('organization')?.value.trim() || '';
     const contact   = document.getElementById('contactName')?.value.trim() || '';
+    /* 🔴 연락처를 **견적 기록에** 남긴다 (WK). WC가 세 화면에 칸을 넣었지만 그 값은
+       「지금 바로 링크를 발급할 때」만 쓰였다. 담당자 도구에서 견적을 저장해 두고
+       나중에 관리자 → 견적 관리에서 발급하면, 담당자가 적은 연락처가 어디에도 없어
+       대장에 빈 칸으로 쌓였다 — 「담당자가 휴가여도 응대」가 그 건들에서 깨진다.
+       ⚠ 이 값은 `quotes.payload`(로그인한 직원만 읽는다)에 들어간다. 고객 견적서
+         payload(`shareData`)에는 **여전히 안 들어간다** — 그쪽은 링크만 알면 누구나 본다. */
+    const contactTel = document.getElementById('contactTel')?.value.trim() || '';
     const request   = document.getElementById('requestDetails')?.value.trim() || '';
 
     const estRecord = {
@@ -1465,6 +1472,7 @@ form.addEventListener('submit', (event) => {
       })),
       orgName,
       contact,
+      contactTel,
       request,
       /* v3 신규 — 출발 공항 · 좌석 등급 · 객실 구성 */
       departureCity:      bd.departureCityVal,

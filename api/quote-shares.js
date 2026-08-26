@@ -336,6 +336,18 @@ module.exports = async (req, res) => {
 
   if (isStaffIssue && !(await requireAdmin(req, res))) return;
 
+  /* 🔴 담당자 발급은 연락처 없이 통과시키지 않는다 (WK).
+     ⚠ **여기만 서버로 올린다.** 고객 계산기(비로그인 공개 POST)는 화면에서만 막는 상태를
+       그대로 둔다 — 그쪽은 우리가 부르는 쪽을 통제하지 못한다. 캐시된 옛 `script.js`가
+       열려 있는 브라우저가 400을 맞으면 **리드가 통째로 사라진다.** 연락처 없는 리드가
+       연락처 없이도 남는 것보다 나쁘다. (하위호환 분기가 바로 위에 있는 것이 그 증거다.)
+       담당자 발급은 반대다 — 부르는 곳이 `admin.html` 하나뿐이고, 막히면 로그인한
+       직원이 그 자리에서 다시 넣을 수 있다.
+     ⚠ 기준은 `normalizeTel` 하나다. 여기서 자릿수를 다시 세지 않는다(결함 생성기 ①).
+     ⚠ 걸러 낸 값을 **그대로 저장까지 쓴다** — 두 번 정규화하면 기준이 갈릴 자리가 또 생긴다. */
+  const custTel = QNO.normalizeTel(body.customerTel);
+  if (isStaffIssue && !custTel) return res.status(400).json({ error: 'tel_required' });
+
   const ctx = await loadContext(share.dk);
   if (ctx.unavailable && !isStaffIssue) {
     return res.status(503).json({ ok: false, verdict: 'unavailable', error: 'verification_unavailable' });
@@ -383,8 +395,8 @@ module.exports = async (req, res) => {
         ${isStaffIssue ? ((req.user && (req.user.displayName || req.user.username)) || 'staff') : '고객 직접'},
         ${(share && (share.org || share.cn)) || null},
         ${/* 🔴 **컬럼에만 들어간다. 위 payload에는 없다**(WC) — 링크를 아는 사람은
-             누구나 payload를 보기 때문이다. body에서 따로 받는다. */
-          QNO.normalizeTel((req.body || {}).customerTel)})
+             누구나 payload를 보기 때문이다. 위에서 한 번 걸러 둔 값을 그대로 쓴다(WK). */
+          custTel})
       on conflict (id) do nothing
     `;
     return res.status(200).json({ ok: true, id, quoteNo, verdict: result.verdict });

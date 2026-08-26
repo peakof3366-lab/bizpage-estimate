@@ -55,8 +55,12 @@ console.log('\n[1] 🔴 연락처가 견적서 payload에 안 들어간다 — �
     bodies.map((b, i) => i + ':' + (/(tel|phone)/i.exec(b) || [''])[0]).join(' '));
   /* 컬럼으로는 들어가야 한다 */
   ok('① 컬럼에는 저장한다', (SHARES.split('customer_tel').length - 1) >= 3);
+  /* ⚠ WK에서 자리가 한 번 옮겨졌다 — 저장 직전에 정규화하던 것을 **위에서 한 번**
+     걸러 두고 그 값을 그대로 저장한다(담당자 발급은 그 값이 없으면 400이다).
+     검사는 「어느 줄에 있는가」가 아니라 **payload가 아니라 body 바깥 칸에서 온다**를
+     지킨다 — 그것이 WC가 세운 규칙이다. */
   ok('① 값은 body의 바깥 칸에서 온다',
-    SHARES.includes('QNO.normalizeTel((req.body || {}).customerTel)')
+    SHARES.includes('QNO.normalizeTel(body.customerTel)')
     && SHARES.includes('QNO.normalizeTel(b.customerTel)'));
   ok('① 왜 payload에 넣으면 안 되는지가 적혀 있다',
     /링크를 아는[\s\S]{0,80}payload를 본다/.test(SHARES + read('api/_lib/quote_no.js')));
