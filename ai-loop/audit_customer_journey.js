@@ -121,7 +121,7 @@ async function auditPage(file) {
 }
 
 (async () => {
-  const PAGES = ONLY ? [ONLY] : ['index.html', 'packages.html', 'estimate-view.html'];
+  const PAGES = ONLY ? [ONLY] : ['index.html', 'packages.html', 'estimate-view.html', '404.html'];
   let broken = 0, deadCount = 0, quiet = 0, clicks = 0;
 
   for (const file of PAGES) {

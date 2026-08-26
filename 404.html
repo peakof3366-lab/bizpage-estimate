@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>주소를 찾을 수 없습니다 · 비즈페이지</title>
+<!-- 🔴 왜 이 파일이 있나 (XM)
+     예전에는 주소를 잘못 누른 고객에게 Vercel 기본 화면이 나갔다:
+       「The page could not be found  NOT_FOUND  icn1::7x7xx-…」
+     회사 이름도, 돌아갈 길도, 연락할 곳도 없다. 실측으로 확인했다.
+   ⚠ 이 자리는 **드문 일이 아니다.** 우리 고객은 견적서 링크를 카카오톡·문자로
+     주고받는데, 그 과정에서 **주소가 잘리는 일이 흔하다.** 잘린 링크를 누른 사람이
+     보는 첫 화면이 저 영문 오류면, 그 견적은 거기서 끝난다.
+   ⚠ 바깥 자원을 하나도 안 쓴다(글꼴·아이콘 CDN 없음) — 이 화면까지 남의 서버를
+     기다리면 오류 화면이 느려지는 우스운 일이 된다. -->
+<meta name="robots" content="noindex, nofollow">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    background: #F4F4F2; color: #0D0D0D; line-height: 1.75;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .wrap { max-width: 560px; width: 100%; background: #fff; border: 1px solid #E5E2DC; padding: 40px 32px; }
+  .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: #CC001A; margin-bottom: 12px; }
+  h1 { font-size: 24px; font-weight: 800; letter-spacing: -.02em; line-height: 1.4; margin-bottom: 14px; }
+  p { font-size: 14px; color: #5A5A5A; }
+  .why { margin: 20px 0 26px; padding: 14px 16px; background: #FAFAF8; border-left: 3px solid #E5E2DC; font-size: 13px; color: #5A5A5A; }
+  .why b { color: #0D0D0D; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+  .btn {
+    flex: 1 1 160px; text-align: center; padding: 13px 16px; font-size: 13px; font-weight: 700;
+    border: 1.5px solid #E5E2DC; color: #0D0D0D; text-decoration: none; background: #fff;
+  }
+  .btn-primary { background: #CC001A; border-color: #CC001A; color: #fff; }
+  .contact { border-top: 1px solid #EFEDE8; padding-top: 18px; font-size: 13px; color: #5A5A5A; }
+  .contact a { color: #CC001A; font-weight: 700; text-decoration: none; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="eyebrow">404 · PAGE NOT FOUND</div>
+    <h1>주소를 찾을 수 없습니다</h1>
+    <p>요청하신 주소가 없거나, 링크가 바뀌었을 수 있습니다.</p>
+
+    <!-- ⚠ 원인을 짐작해서 말해 준다. 「없습니다」만으로는 고객이 할 수 있는 일이 없다.
+         카톡·문자에서 링크가 잘리는 것이 실제로 가장 흔한 원인이다. -->
+    <div class="why">
+      <b>견적서 링크를 받으셨나요?</b><br>
+      카카오톡·문자로 주소가 <b>잘려서</b> 전달되는 경우가 있습니다.
+      보내 주신 분께 링크를 <b>다시 받아</b> 주소 전체를 눌러 주세요.
+    </div>
+
+    <div class="btns">
+      <a class="btn btn-primary" href="index.html">기업·공공기관 맞춤 견적</a>
+      <a class="btn" href="packages.html">패키지 여행 보기</a>
+    </div>
+
+    <div class="contact" id="contact">
+      바로 도움이 필요하시면 담당자에게 연락 주세요.
+    </div>
+  </div>
+
+  <!-- 회사 정보는 한 곳에서만 온다(company-info.js) — 여기에 전화번호를 적어 두면
+       번호가 바뀌는 날 이 화면만 옛 번호를 말한다(결함 생성기 ①).
+       ⚠ 못 불러오면 **연락처 줄을 그냥 두고** 틀린 번호를 지어내지 않는다. -->
+  <script src="company-info.js"></script>
+  <script>
+    (function () {
+      var CI = window.COMPANY_INFO;
+      var el = document.getElementById('contact');
+      if (!CI || !el) return;
+      var bits = [];
+      if (CI.tel) bits.push('<a href="tel:' + CI.tel.replace(/[^0-9+]/g, '') + '">' + CI.tel + '</a>');
+      if (CI.email) bits.push('<a href="mailto:' + CI.email + '">' + CI.email + '</a>');
+      if (bits.length) el.innerHTML = '바로 도움이 필요하시면 연락 주세요 · ' + bits.join(' · ');
+    })();
+  </script>
+</body>
+</html>

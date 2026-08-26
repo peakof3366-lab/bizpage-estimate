@@ -233,6 +233,25 @@ console.log('\n[2] CSV로 떨어질 때의 내용 — 엑셀이 열 수 있어�
     }
   }
 
+  console.log('\n[8] 없는 주소 — 회사 이름도 없는 영문 오류를 보여주지 않는다');
+  {
+    /* 실측(2026-08-26): 예전에는 Vercel 기본 화면이 나갔다 —
+       「The page could not be found  NOT_FOUND  icn1::7x7xx-…」
+       ⚠ 드문 일이 아니다. 견적서 링크는 카톡·문자로 오가며 **주소가 잘린다.** */
+    const F = bootPage('404.html');
+    await F.ready; await F.tick(150);
+    const text = visibleText(F.doc.body);
+    ok('⑧ 우리 화면이 뜬다', /주소를 찾을 수 없습니다/.test(text));
+    ok('⑧ 왜 그런지 짐작해 말해 준다(링크 잘림)', /잘려서|잘린/.test(text), text.slice(0, 80));
+    ok('⑧ 견적 계산기로 가는 길이 있다', !!F.doc.querySelector('a[href="index.html"]'));
+    ok('⑧ 패키지로 가는 길도 있다', !!F.doc.querySelector('a[href="packages.html"]'));
+    ok('⑧ 연락처가 회사 정보 파일에서 온다', /02-2088-4253/.test(text), text.slice(-80));
+    /* ⚠ 오류 화면까지 남의 서버를 기다리게 하지 않는다 */
+    ok('⑧ 바깥 자원을 하나도 안 쓴다', F.log.external.length === 0,
+      F.log.external.join(' · '));
+    ok('⑧ 검색엔진에 안 실린다', /noindex/.test(read('404.html')));
+  }
+
   console.log('\n[7] 잘못된 링크 — 고객이 막다른 곳에 서지 않는가');
   {
     const V = bootPage('estimate-view.html', { query: '?id=없는건', fixtures: { shareDoc: null } });
