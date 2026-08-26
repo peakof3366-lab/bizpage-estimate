@@ -81,6 +81,41 @@ function deadLinks(doc) {
   return out;
 }
 
+/* 눈으로 보지 않는 고객도 있다 — **이름 없는 조작 장치**를 센다 (XP 후속).
+   화면 낭독기는 글자를 읽는다. 아이콘만 든 버튼, 라벨 없는 입력칸, alt 없는 사진은
+   그 사람에게 「버튼」·「편집」·「이미지」로만 들린다 — 그게 곧 못 쓰는 화면이다.
+ ⚠ 여기서도 판정하지 않고 **센다.** 장식용 사진의 `alt=""`는 정상이고(일부러 비운다),
+   `aria-hidden` 아이콘도 정상이다. 그런 것은 빼고 센다. */
+function namelessControls(doc) {
+  const out = { inputs: [], buttons: [], images: [], links: [] };
+  const txt = (el) => (visibleText(el) || '').trim();
+  const labelled = (el) => {
+    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.getAttribute('title')) return true;
+    if (el.id && doc.querySelector('label[for="' + el.id + '"]')) return true;
+    if (el.closest('label')) return true;
+    return false;
+  };
+  Array.from(doc.querySelectorAll('input, select, textarea')).forEach((el) => {
+    if (el.type === 'hidden' || el.disabled) return;
+    /* ⚠ 화면에서 감춘 칸(엔진이 값만 읽는 라디오 등)은 낭독기도 안 읽는다 — 세지 않는다.
+       세면 **고칠 것이 없는 항목**이 목록에 남고, 그러면 목록 전체를 안 보게 된다. */
+    if (el.getAttribute('aria-hidden') === 'true') return;
+    if ((el.getAttribute('style') || '').replace(/\s/g, '').includes('display:none')) return;
+    if (!labelled(el)) out.inputs.push(el.id || el.name || el.type);
+  });
+  Array.from(doc.querySelectorAll('button, [role="button"]')).forEach((el) => {
+    if (el.getAttribute('aria-hidden') === 'true') return;
+    if (!txt(el) && !labelled(el)) out.buttons.push(el.id || el.className || '(이름 없음)');
+  });
+  Array.from(doc.querySelectorAll('img')).forEach((el) => {
+    if (el.getAttribute('alt') === null) out.images.push(el.getAttribute('src') || '(src 없음)');
+  });
+  Array.from(doc.querySelectorAll('a[href]')).forEach((el) => {
+    if (!txt(el) && !labelled(el)) out.links.push(el.getAttribute('href'));
+  });
+  return out;
+}
+
 async function auditPage(file) {
   const B = bootPage(file);
   const { win, doc, log, tick } = B;
@@ -117,7 +152,7 @@ async function auditPage(file) {
       acted: after.print > before.print || after.down > before.down,
     });
   }
-  return { file, loadErrors, dead, results, log };
+  return { file, loadErrors, dead, results, log, nameless: namelessControls(doc) };
 }
 
 (async () => {
@@ -168,6 +203,16 @@ async function auditPage(file) {
     quiet += silent.length;
     console.log('\n⚠ 눌러도 아무 일도 안 나는 것 ' + silent.length + '개 (확인 대상 — 결함이 아닐 수 있다)');
     if (VERBOSE || silent.length <= 6) silent.forEach((x) => console.log('   · ' + x.label));
+
+    const nm = r.nameless;
+    const nmTotal = nm.inputs.length + nm.buttons.length + nm.images.length + nm.links.length;
+    if (nmTotal) {
+      console.log('\n⚠ 이름 없는 조작 장치 ' + nmTotal + '개 (화면 낭독기가 무엇인지 못 말해 준다)');
+      if (nm.inputs.length) console.log('   · 라벨 없는 입력칸 ' + nm.inputs.length + ': ' + nm.inputs.slice(0, 8).join(', '));
+      if (nm.buttons.length) console.log('   · 글자 없는 버튼 ' + nm.buttons.length + ': ' + nm.buttons.slice(0, 8).join(', '));
+      if (nm.images.length) console.log('   · alt 없는 사진 ' + nm.images.length + ': ' + nm.images.slice(0, 5).join(', '));
+      if (nm.links.length) console.log('   · 글자 없는 링크 ' + nm.links.length + ': ' + nm.links.slice(0, 5).join(', '));
+    }
 
     const navd = r.results.filter((x) => x.navs.length).length;
     const ext = [...new Set(r.log.external.map((u) => (u.match(/^https?:\/\/[^/]+/) || [u])[0]))];

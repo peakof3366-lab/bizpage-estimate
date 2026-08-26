@@ -246,6 +246,34 @@ console.log('\n[2] CSV로 떨어질 때의 내용 — 엑셀이 열 수 있어�
     }
   }
 
+  console.log('\n[12] 눈으로 보지 않는 고객 — 조작 장치에 **이름**이 있는가');
+  {
+    /* 화면 낭독기는 글자를 읽는다. 라벨 없는 입력칸은 「편집」으로만 들린다 —
+       그 사람에게는 그 칸이 무엇인지 알 방법이 없다.
+     ⚠ 감춘 칸(엔진이 값만 읽는 라디오)은 낭독기도 안 읽으므로 세지 않는다. */
+    const nameless = (docu) => Array.from(docu.querySelectorAll('input, select, textarea'))
+      .filter((el) => {
+        if (el.type === 'hidden' || el.disabled) return false;
+        if (el.getAttribute('aria-hidden') === 'true') return false;
+        if ((el.getAttribute('style') || '').replace(/\s/g, '').includes('display:none')) return false;
+        if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.getAttribute('title')) return false;
+        if (el.id && docu.querySelector('label[for="' + el.id + '"]')) return false;
+        return !el.closest('label');
+      })
+      .map((el) => el.id || el.name || el.type);
+
+    const idx = nameless(doc);
+    ok('⑫ 계산기에 이름 없는 입력칸이 없다', idx.length === 0, idx.join(', '));
+    const P2 = bootPage('packages.html');
+    await P2.ready; await P2.tick(200);
+    /* 상세를 열어야 인원·이름·연락처 칸이 생긴다 — 열고 나서 센다 */
+    const cta2 = P2.doc.querySelector('#pkGrid .pk-cta');
+    if (cta2) cta2.dispatchEvent(new P2.win.MouseEvent('click', { bubbles: true, cancelable: true, view: P2.win }));
+    await P2.tick(60);
+    const pk = nameless(P2.doc);
+    ok('⑫ 패키지 화면도 마찬가지다', pk.length === 0, pk.join(', '));
+  }
+
   console.log('\n[9] 견적서에서 **돌아온** 고객 — 조건이 그대로 채워져 있는가');
   {
     /* 견적서의 「연수 일정 더 탐색하기」가 만드는 주소다. 여기서 빈 계산기가 뜨면

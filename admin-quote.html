@@ -588,12 +588,12 @@
             <div class="date-inputs-row">
               <div class="date-input-wrap">
                 <span class="date-inp-label">출발일</span>
-                <input type="date" id="startDate" class="date-inp" />
+                <input type="date" id="startDate" class="date-inp" aria-label="출발일" />
               </div>
               <span class="date-arrow-icon">→</span>
               <div class="date-input-wrap">
                 <span class="date-inp-label">귀국일</span>
-                <input type="date" id="endDate" class="date-inp" />
+                <input type="date" id="endDate" class="date-inp" aria-label="귀국일" />
               </div>
             </div>
             <div class="date-result-bar" id="dateResultBar">날짜를 선택하면 기간이 자동으로 계산됩니다.</div>
@@ -671,7 +671,7 @@
 
           <div class="aq-field-block inc-vip-row hidden" id="vipCountRow">
             <div class="aq-field-lbl">1인 1실 인원 (임원 · 단독)</div>
-            <input type="number" id="vipCount" min="0" value="0" style="height:48px;font-size:1rem;padding:0 1rem;border:1.6px solid var(--border);width:160px" />
+            <input type="number" id="vipCount" min="0" value="0" style="height:48px;font-size:1rem;padding:0 1rem;border:1.6px solid var(--border);width:160px" aria-label="1인 1실 인원(명)" />
           </div>
 
           <input type="radio" name="vehicleType" value="auto" checked style="display:none" aria-hidden="true" />

@@ -389,12 +389,12 @@
                   <div class="date-inputs-row">
                     <div class="date-input-wrap">
                       <span class="date-inp-label">출발일</span>
-                      <input type="date" id="startDate" class="date-inp" />
+                      <input type="date" id="startDate" class="date-inp" aria-label="출발일" />
                     </div>
                     <span class="date-arrow-icon">→</span>
                     <div class="date-input-wrap">
                       <span class="date-inp-label">귀국일</span>
-                      <input type="date" id="endDate" class="date-inp" />
+                      <input type="date" id="endDate" class="date-inp" aria-label="귀국일" />
                     </div>
                   </div>
                   <div class="date-result-bar" id="dateResultBar">날짜를 선택하면 기간이 자동으로 계산됩니다.</div>
@@ -459,7 +459,7 @@
                        (임원이 1인 1실을 쓰면서 이코노미를 타거나, 그 반대도 가능하므로). -->
                   <div class="inc-vip-row hidden" id="bizCountRow">
                     <span class="grade-label">비즈니스 인원</span>
-                    <input type="number" id="bizCount" min="0" step="1" value="0" class="vip-count-inp" />
+                    <input type="number" id="bizCount" min="0" step="1" value="0" class="vip-count-inp" aria-label="비즈니스 좌석 인원(명)" />
                     <span class="vip-count-unit">명 (나머지는 이코노미)</span>
                   </div>
 
@@ -504,9 +504,9 @@
                        라운딩 횟수만큼 요금이 붙는다. -->
                   <div class="inc-vip-row hidden" id="golfCountRow">
                     <span class="grade-label">골프조 인원</span>
-                    <input type="number" id="golfCount" min="0" step="1" value="0" class="vip-count-inp" />
+                    <input type="number" id="golfCount" min="0" step="1" value="0" class="vip-count-inp" aria-label="골프조 인원(명)" />
                     <span class="vip-count-unit">명 ×</span>
-                    <input type="number" id="golfRounds" min="1" step="1" value="1" class="vip-count-inp" />
+                    <input type="number" id="golfRounds" min="1" step="1" value="1" class="vip-count-inp" aria-label="골프 라운딩 횟수(회)" />
                     <span class="vip-count-unit">회 라운딩 (나머지 인원은 관광조)</span>
                   </div>
                   <div class="inc-note hidden" id="golfNoRateNote">
@@ -526,7 +526,7 @@
                   <!-- 기관 방문·섭외는 **연수에만 있는 일**이라 휴양에서는 숨긴다(VX) -->
                   <div class="inc-vip-row" id="agencyVisitRow">
                     <span class="grade-label">기관 방문·섭외</span>
-                    <input type="number" id="agencyVisits" min="0" step="1" value="0" class="vip-count-inp" />
+                    <input type="number" id="agencyVisits" min="0" step="1" value="0" class="vip-count-inp" aria-label="기관 방문·섭외 횟수(회)" />
                     <span class="vip-count-unit">회 (섭외비+통역비)</span>
                   </div>
                   <div class="inc-chips">
@@ -564,7 +564,7 @@
                   </div>
                   <div class="inc-vip-row hidden" id="vipCountRow">
                     <span class="grade-label">1인 1실 인원</span>
-                    <input type="number" id="vipCount" min="0" value="0" class="vip-count-inp" />
+                    <input type="number" id="vipCount" min="0" value="0" class="vip-count-inp" aria-label="1인 1실 인원(명)" />
                     <span class="vip-count-unit">명 (임원 · 단독)</span>
                   </div>
 
