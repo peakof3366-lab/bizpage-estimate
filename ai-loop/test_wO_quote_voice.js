@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   WO — 견적서가 **받는 사람에게 맞는 말**을 하는가
+   WO·WP — 견적서가 **받는 사람에게 맞는 말**을 하는가
+   (WP에서 [5]~[7]을 더했다 — 같은 하네스를 두 벌로 만들지 않는다)
 
    ■ 🔴 무엇이 잘못돼 있었나 (2026-08-26)
 
@@ -62,6 +63,16 @@ const PKG = Object.assign({}, BASE, {
 const TRAINING = Object.assign({}, BASE, {
   ptx: '산업시찰', vm: '기관 방문', ot: '기업', hgl: '4성급', sl: '평시',
 });
+
+/* 🔴 **화면 글자만 본다.** `body.textContent`에는 페이지 안쪽 `<script>`의 **소스가
+   통째로** 들어 있다 — 그걸 그대로 검사하면 「TRAINING PROGRAM」이 코드 주석·분기에
+   남아 있다는 이유로 걸린다. 실제로 이 검사를 처음 돌렸을 때 5건이 그렇게 잘못 걸렸다.
+   (없는 결함을 만들지 않는 것 — 이 저장소가 반복해서 배운 것이다.) */
+function visibleText(w) {
+  const clone = w.document.body.cloneNode(true);
+  clone.querySelectorAll('script, style, template').forEach((e) => e.remove());
+  return clone.textContent;
+}
 
 function render(payload) {
   return new Promise((resolve) => {
@@ -155,6 +166,68 @@ function render(payload) {
     ok('⑤ 탭 제목을 정하는 곳이 하나뿐이다',
       (src.match(/document\.title\s*=/g) || []).length === 1,
       String((src.match(/document\.title\s*=/g) || []).length));
+  }
+
+  console.log('\n[5] WP — 유효기간이 한 문서에 두 개 찍히지 않는다');
+  {
+    /* 🔴 실측으로 나온 것: 상단 바는 「발급 + 30일」(9/25), 금액 기준 박스는 상품
+       유효기간(9/30). **같은 문서에 두 날짜**가 찍혔다. 고객은 어느 쪽을 믿나. */
+    /* PKG 기본 픽스처는 validUntil이 null이다 — 상품 유효기간이 **있는** 경우를 잰다 */
+    const withUntil = JSON.parse(JSON.stringify(PKG));
+    withUntil.pkg.validUntil = '2026-09-30';
+    const w = await render(withUntil);
+    const body = w.document.body;
+    const vis = visibleText(w);
+    const bar = w.document.getElementById('validity-bar').textContent;
+    ok('⑥ 상단 유효기간이 상품 유효기간이다', /9월 30일/.test(bar), bar);
+    ok('⑥ 🔴 「발급 + 30일」로 계산한 날짜가 안 보인다', !/9월 25일/.test(vis));
+    /* 배너도 「발급 →」이라 말하지 않는다 — 그 날짜는 발급과 무관하다 */
+    ok('⑥ 배너가 「상품 유효기간」이라고 말한다', /상품 유효기간/.test(vis));
+
+    ok('⑥ 라벨이 TRAVEL PACKAGE', /TRAVEL PACKAGE/.test(vis));
+    ok('⑥ 🔴 「TRAINING PROGRAM」이 없다', !/TRAINING PROGRAM/.test(vis));
+
+    /* 🔴 「우리 요율로 산출했다」는 패키지에 거짓말이다 */
+    ok('⑥ 🔴 「요율 기준으로 산출」이라고 안 한다', !/요율 기준으로 산출/.test(vis));
+    ok('⑥ 「공급사 판매가」라고 말한다', /공급사 판매가/.test(vis));
+    ok('⑥ 조기 마감 가능성을 알린다', /조기 마감/.test(vis));
+    /* 푸터의 「발급일로부터 30일간 유효」도 맞춤 견적 규칙이다 */
+    ok('⑥ 푸터도 30일 규칙을 말하지 않는다', !/발급일로부터 30일간/.test(vis));
+
+    const said = [...body.querySelectorAll('.sec-title, .field-box-label')].map((e) => e.textContent.trim());
+    ok('⑥ 없는 칸을 안 그린다 (호텔 등급·시즌·기관 유형)',
+      !said.includes('호텔 등급') && !said.includes('시즌') && !said.includes('기관 유형'),
+      JSON.stringify(said));
+    ok('⑥ 「요율 기준 · —」을 안 찍는다', !/요율 기준/.test(vis));
+    ok('⑥ 🔴 종료일이 없으면 「~ —」를 안 그린다', !/~\s*—/.test(vis),
+      (vis.match(/.{0,20}~.{0,10}/) || [''])[0]);
+    /* 포함사항이 두 번 찍히지 않는다 */
+    ok('⑥ 「포함 항목」이 「포함 사항」과 겹쳐 찍히지 않는다',
+      !said.includes('포함 항목') && said.includes('포함 사항'), JSON.stringify(said));
+  }
+
+  console.log('\n[6] WP — 🔴 마감된 상품을 「아직 유효」라고 말하지 않는다');
+  {
+    /* 패키지 방침 3번이 막으려던 자리다. 상품 유효기간이 지났는데 「발급 + 30일」로
+       재면 아직 유효한 것으로 보인다 — 그 상태로 고객이 결재를 올린다. */
+    const expired = JSON.parse(JSON.stringify(PKG));
+    expired.pkg.validUntil = '2026-08-01';        /* 오늘(8/26)보다 前 */
+    const w = await render(expired);
+    ok('⑦ 🔴 만료로 표시된다', /유효기간이 만료|유효기간 만료/.test(visibleText(w)),
+      w.document.getElementById('validity-bar').textContent);
+  }
+
+  console.log('\n[7] WP — 발급일 자리에 견적 기록 id를 찍지 않는다');
+  {
+    /* 🔴 `d.id`는 경로마다 뜻이 다르다: 고객 계산기는 한글 날짜, 담당자 발급은
+       **견적 기록 id**(`mfa3k2x`). 그래서 담당자가 낸 견적서를 받은 고객은
+       「견적 유효기간: mfa3k2x 발급 → …」을 읽고 있었다. */
+    const w = await render(Object.assign({}, TRAINING, { id: 'mfa3k2x' }));
+    const t = visibleText(w);
+    ok('⑧ 🔴 기록 id가 화면에 안 보인다', !/mfa3k2x/.test(t),
+      (t.match(/.{0,30}mfa3k2x.{0,20}/) || [''])[0]);
+    ok('⑧ 발급일이 날짜로 나온다', /2026년 8월 26일 발급/.test(t),
+      (t.match(/견적 유효기간.{0,40}/) || [''])[0]);
   }
 
   done();

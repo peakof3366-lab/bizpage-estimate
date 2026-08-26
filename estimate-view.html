@@ -326,7 +326,7 @@ a { color: inherit; text-decoration: none; }
 <div class="hero-strip" id="hero-strip">
   <img id="hero-img" src="" alt="" onerror="this.style.display='none'">
   <div class="hero-strip-overlay">
-    <div class="hero-strip-label">OVERSEAS TRAINING PROGRAM</div>
+    <div class="hero-strip-label" id="hero-label">OVERSEAS TRAINING PROGRAM</div>
     <div class="hero-strip-title" id="hero-title">해외연수 견적서</div>
     <div class="hero-strip-sub" id="hero-sub"></div>
     <!-- 견적번호 (WB) — ⚠ **인쇄물에 나와야 한다.** 상단 바는 `no-print`라 인쇄하면
@@ -348,7 +348,7 @@ a { color: inherit; text-decoration: none; }
 <footer class="view-footer">
   <p>
     <a href="index.html" style="color:inherit;font-weight:700;text-decoration:none;cursor:pointer">비즈페이지</a> · 해외연수 전문 기업<br>
-    본 견적서는 발급일로부터 30일간 유효합니다. 견적 내용은 환율·항공권 시세에 따라 변동될 수 있습니다.<br>
+    <span id="footer-terms">본 견적서는 발급일로부터 30일간 유효합니다. 견적 내용은 환율·항공권 시세에 따라 변동될 수 있습니다.</span><br>
     <span id="footer-contact">문의: 비즈페이지 고객센터</span>
   </p>
 </footer>
@@ -423,11 +423,29 @@ async function loadShareData() {
    실측: 패키지 발급 경로가 `iso`를 안 넣어서, 만료된 견적서가 만료가 아닌 것으로
    보이고 있었다. 지금은 세 발급 경로가 전부 `iso`를 넣지만(서버가 채운다), 옛 링크와
    앞으로 생길 경로를 위해 **여기서도 막는다** — 모르면 「모른다」고 말한다. */
-function calcValidity(isoDate) {
+function calcValidity(isoDate, pkgValidUntil) {
+  /* 🔴 **패키지는 공급사가 정한 유효기간이 진실이다** (WP).
+     우리의 「발급 후 30일」은 맞춤 견적 규칙이다. 패키지에 그대로 적용했더니
+     **한 문서에 유효기간이 두 개** 찍혔다(실측: 상단 바 9/25까지 · 금액 기준 박스
+     9/30까지). 고객은 어느 쪽을 믿어야 할지 알 수 없고, 더 나쁜 경우는 상품이 먼저
+     마감되는 때다 — **마감된 상품을 「아직 유효」라고 말하게 된다**(패키지 방침 3번이
+     막으려던 바로 그것). 그래서 그 날짜가 있으면 그것이 이긴다. */
+  if (pkgValidUntil) {
+    const until = new Date(pkgValidUntil);
+    if (!isNaN(until.getTime())) {
+      /* ⚠ 「9월 30일까지」는 **그날 하루를 포함한다.** 자정으로 재면 그날 아침에
+         이미 만료로 뜬다 — 사람이 읽는 「까지」와 어긋난다. */
+      until.setHours(23, 59, 59, 999);
+      const daysLeft = Math.ceil((until - new Date()) / 86400000);
+      return { expires: until, daysLeft, expired: daysLeft < 0, fromPackage: true };
+    }
+  }
   const issued = new Date(isoDate);
   if (isNaN(issued.getTime())) return { expires: null, daysLeft: null, expired: false, unknown: true };
   const expires = new Date(issued);
   expires.setDate(expires.getDate() + 30);
+  /* ⚠ 위와 같은 이유로 마지막 날을 포함한다 — 「30일간 유효」의 30일째가 살아 있어야 한다 */
+  expires.setHours(23, 59, 59, 999);
   const now = new Date();
   const daysLeft = Math.ceil((expires - now) / 86400000);
   return { expires, daysLeft, expired: daysLeft < 0 };
@@ -450,10 +468,21 @@ function renderPage(d) {
   /* ⚠ 예전엔 무조건 「○○ 연수 견적서」였다(WB). 가족·친목 손님이 받는 문서에도 그랬다 —
      패키지·휴양 견적서가 「오키나와 연수 견적서」로 나갔다. 연수인 것만 연수라 부른다. */
   document.getElementById('hero-title').textContent = d.dt + (d.pkg ? ' 여행 견적서' : ' 연수 견적서');
+  /* 라벨도 같이 갈린다 — 패키지 여행 문서에 「TRAINING PROGRAM」이 박혀 있었다(WP) */
+  document.getElementById('hero-label').textContent = d.pkg ? 'TRAVEL PACKAGE' : 'OVERSEAS TRAINING PROGRAM';
+  /* 푸터의 「발급일로부터 30일간 유효」도 맞춤 견적 규칙이다 — 패키지는 다르다 */
+  const footTerms = document.getElementById('footer-terms');
+  if (footTerms && d.pkg) {
+    footTerms.textContent = d.pkg.validUntil
+      ? '본 견적서의 유효기간은 위에 적힌 상품 유효기간을 따릅니다. 출발일·좌석 상황에 따라 조기 마감될 수 있습니다.'
+      : '본 견적서의 유효기간은 담당자에게 확인해 주세요. 출발일·좌석 상황에 따라 조기 마감될 수 있습니다.';
+  }
   document.getElementById('hero-sub').textContent = d.ptx + ' · ' + d.n + '명 · ' + (d.ng ? d.ng + '박 ' : '') + d.d + '일';
 
   /* ── 유효기간 ── */
-  const validity = calcValidity(d.iso || (d.id || '').replace(/[년 월일]/g, m => m === '년' ? '-' : m === '월' ? '-' : ''));
+  const validity = calcValidity(
+    d.iso || (d.id || '').replace(/[년 월일]/g, m => m === '년' ? '-' : m === '월' ? '-' : ''),
+    d.pkg && d.pkg.validUntil);
   const expiresStr = validity.expires
     ? validity.expires.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
     : null;
@@ -555,8 +584,17 @@ function renderPage(d) {
       </div>`
     : `<div class="validity-banner">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        ${/* 🔴 발급일 자리에 `d.id`를 찍고 있었다 (WP). 이 칸은 **경로마다 뜻이 다르다**:
+               · 고객 계산기 → 「2026년 8월 26일」(한글 날짜)
+               · 담당자 발급 → **견적 기록 id**(`mfa3k2x` 같은 값)
+             그래서 담당자가 낸 견적서를 받은 고객은
+             「견적 유효기간: **mfa3k2x** 발급 → …」을 읽고 있었다.
+             한 칸에 두 뜻을 담은 자리다 — **발급일의 진실은 `iso`**(세 경로가 모두 넣는다).
+           ⚠ 패키지는 유효기간이 상품 것이라 「발급 →」이라는 말 자체가 안 맞는다. */''}
         <div class="validity-banner-text">
-          견적 유효기간: <strong>${esc(d.id)}</strong> 발급 &nbsp;→&nbsp; <strong>${expiresStr}까지</strong>
+          ${validity.fromPackage
+            ? `상품 유효기간: <strong>${expiresStr}까지</strong>`
+            : `견적 유효기간: ${d.iso ? `<strong>${esc(fmtDate(d.iso))}</strong> 발급 &nbsp;→&nbsp; ` : ''}<strong>${expiresStr}까지</strong>`}
           &nbsp;(<strong>${validity.daysLeft}일</strong> 남음)
         </div>
       </div>`;
@@ -578,9 +616,18 @@ function renderPage(d) {
           <div class="brand-sub">해외연수 전문 기업 · 견적서</div>
         </div>
         <div class="meta-blk">
-          <div class="issue">${esc(d.id)}</div>
-          <div>발급번호 · ${esc(d.rv) || '—'}</div>
-          <div>요율 기준 · ${esc(d.rd) || '—'}</div>
+          ${/* 🔴 여기도 `d.id`였다 (WP) — 문서 머리의 **발행일 자리**다.
+                 담당자가 낸 견적서에서는 그 칸에 견적 기록 id(`mfa3k2x`)가 찍혔다.
+                 발행일의 진실은 `iso`다(세 발급 경로가 모두 넣는다).
+               ⚠ 옛 링크는 `id`에 한글 날짜(「2026년 8월 26일」)가 들어 있다 —
+                 **날짜처럼 생겼을 때만** 그것으로 물러난다. 아무 값이나 받으면
+                 지금 고치는 이 결함이 그대로 되살아난다. */''}
+          <div class="issue">${esc(d.iso ? fmtDate(d.iso) : (/[0-9]{4}[.\-년]/.test(String(d.id || '')) ? d.id : ''))}</div>
+          ${/* ⚠ 「요율 기준」은 **맞춤 견적에만 있는 개념**이다(우리 요율표 버전).
+                 패키지는 요율을 안 타므로 이 줄이 늘 「—」로 남는다 — 없는 칸에 줄표를
+                 찍으면 고객은 우리가 빠뜨린 줄 안다(WP). */''}
+          ${d.pkg ? '' : `<div>발급번호 · ${esc(d.rv) || '—'}</div>
+          <div>요율 기준 · ${esc(d.rd) || '—'}</div>`}
         </div>
       </div>
 
@@ -588,7 +635,8 @@ function renderPage(d) {
       <div class="field-grid">
         <div class="field-box"><div class="field-box-label">기관명</div><div class="field-box-value">${esc(d.org) || '—'}</div></div>
         <div class="field-box"><div class="field-box-label">담당자</div><div class="field-box-value">${esc(d.cn) || '—'}</div></div>
-        <div class="field-box"><div class="field-box-label">기관 유형</div><div class="field-box-value">${esc(d.ot) || '—'}</div></div>
+        ${/* 기관 유형(기업·공공기관…)은 연수 견적의 칸이다. 친목 모임 손님에게는 없다. */''}
+        ${d.pkg ? '' : `<div class="field-box"><div class="field-box-label">기관 유형</div><div class="field-box-value">${esc(d.ot) || '—'}</div></div>`}
       </div>
 
       ${/* 🔴 패키지 손님에게 「연수」라고 말하지 않는다 (WO) — hero 제목만 갈려 있었고
@@ -602,9 +650,11 @@ function renderPage(d) {
               고객은 우리가 뭔가 빠뜨린 줄 안다 — 없는 칸은 아예 안 그린다. */''}
         ${d.pkg ? '' : `<div class="field-box"><div class="field-box-label">연수 방식</div><div class="field-box-value">${esc(d.vm) || '—'}</div></div>`}
         <div class="field-box"><div class="field-box-label">${d.pkg ? '인원' : '참가 인원'}</div><div class="field-box-value">${Number(d.n) || 0}명</div></div>
-        <div class="field-box"><div class="field-box-label">${d.pkg ? '여행' : '연수'} 기간</div><div class="field-box-value">${Number(d.ng) || 0}박 ${Number(d.d) || 0}일<br>${fmtDate(d.sd)} ~ ${fmtDate(d.ed)}</div></div>
-        <div class="field-box"><div class="field-box-label">호텔 등급</div><div class="field-box-value">${esc(d.hgl) || '—'}</div></div>
-        <div class="field-box"><div class="field-box-label">시즌</div><div class="field-box-value">${esc(d.sl) || '—'}</div></div>
+        <div class="field-box"><div class="field-box-label">${d.pkg ? '여행' : '연수'} 기간</div><div class="field-box-value">${Number(d.ng) || 0}박 ${Number(d.d) || 0}일<br>${fmtDate(d.sd)}${d.ed ? ' ~ ' + fmtDate(d.ed) : ''}</div></div>
+        ${/* ⚠ 호텔 등급·시즌은 **맞춤 견적이 고르는 조건**이다. 패키지에는 그런 칸이
+              없어서 늘 「—」로 남는다 — 「연수 방식」과 같은 자리다(WO·WP). */''}
+        ${d.pkg ? '' : `<div class="field-box"><div class="field-box-label">호텔 등급</div><div class="field-box-value">${esc(d.hgl) || '—'}</div></div>
+        <div class="field-box"><div class="field-box-label">시즌</div><div class="field-box-value">${esc(d.sl) || '—'}</div></div>`}
         ${/* 항공료를 가장 크게 좌우하는 두 조건인데 그동안 견적서에 안 적혔다.
               비즈니스는 이코노미의 2.5~4배라, 이 금액이 어느 좌석 기준인지 문서에
               남지 않으면 나중에 분쟁 소지가 된다. 객실 구성도 호텔비가 최대 2배 차이.
@@ -656,14 +706,27 @@ function renderPage(d) {
         <div class="inc-tags">${(d.pkg.excluded || []).map(s => `<span class="inc-tag">${esc(s)}</span>`).join('')}</div>` : ''}
       ` : ''}
 
+      ${/* ⚠ 패키지가 **진짜 포함사항**(공급사가 준 목록)을 갖고 있으면 이 줄은 중복이다.
+             바로 위에 「포함 사항」이 있는데 그 아래 「포함 항목」에 금액 행 이름
+             (「패키지 상품가 (1인)」)이 태그로 또 찍힌다 — 고객은 둘을 대조하며 헷갈린다. */''}
+      ${(d.pkg && (d.pkg.included || []).length) ? '' : `
       <div class="sec-title">포함 항목</div>
-      <div class="inc-tags">${incTags}</div>
+      <div class="inc-tags">${incTags}</div>`}
 
       ${reqHtml}
 
+      ${/* 🔴 패키지에 「우리 요율로 산출했다」고 쓰면 **거짓말이다**(WP).
+             패키지는 공급사 판매가를 그대로 받아 적은 값이다(2026-08-21 대표 결정) —
+             우리가 계산한 것이 아니고, 환율·항공권 시세로 우리가 다시 매기지도 않는다.
+             VS 주석이 「패키지는 그 값에 다 들어 있어서 맞춤 견적 기준 문구가 거짓말이
+             된다」고 적어 둔 자리인데, 이 문단만 남아 있었다. */''}
       <div style="margin-top:24px;padding:14px 16px;background:#FAFAFA;border:1px solid #F0F0F0;font-size:12px;color:#6E6E6E;line-height:1.8">
+        ${d.pkg ? `
+        이 금액은 ${d.pkg.basis === 'assembled' ? '담당자가 항목별로 산출한 금액' : '공급사 판매가'}입니다.
+        포함·불포함은 위 목록을 따릅니다. 출발일과 좌석 상황에 따라 <strong>조기 마감</strong>될 수 있으니,
+        확정 전에 담당자에게 잔여 여부를 확인해 주세요.` : `
         본 견적서는 견적 요청 기준일의 항공·호텔 요율 기준으로 산출되었습니다.
-        실제 계약 시 환율 변동 및 항공권 시세에 따라 최종 금액이 달라질 수 있습니다.
+        실제 계약 시 환율 변동 및 항공권 시세에 따라 최종 금액이 달라질 수 있습니다.`}
       </div>
     </div><!-- /quote-card -->
 
