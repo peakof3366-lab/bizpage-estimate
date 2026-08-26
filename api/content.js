@@ -339,6 +339,12 @@ function pkgRowOut(r) {
     nights: r.nights, days: r.days,
     departDate: r.depart_date,
     pricePerPerson: r.price_per_person == null ? null : Number(r.price_per_person),
+    /* 🔴 **고객이 실제로 낼 1인 금액** (XO 후속). `pricePerPerson`과 다를 수 있다:
+       항목별로 조립한 상품은 서버가 **항목 합**을 쓴다(`perPersonOf`). 그런데 화면은
+       `pricePerPerson`을 그리고 있어서, **목록에서 본 금액과 받은 견적서의 금액이
+       달라질 수 있었다.** 어느 쪽이 이기는지는 서버가 아는 규칙이니 **서버가 계산해
+       내보낸다** — 화면이 그 규칙을 다시 구현하면 언젠가 갈라진다(결함 생성기 ①). */
+    perPerson: PKG.perPersonOf(r),
     priceCurrency: r.price_currency,
     /* ⚠ **언제 값인지를 항상 함께 준다.** 이 칸이 화면까지 안 가면 고객 견적서에
        조회 시점을 못 찍고, 그러면 낡은 값인지 아무도 모른다. */

@@ -132,6 +132,18 @@
   width: 90px; padding: 9px 10px; border: 1px solid var(--rule-md); border-radius: 8px;
   font-family: inherit; font-size: 14px; color: var(--t-head);
 }
+/* 총액 미리보기 (XO 후속) — 인원을 넣는 즉시 「1인 금액 × 인원 = 총액」을 보여 준다.
+   ⚠ 비어 있으면 자리를 차지하지 않는다(`:empty`) — 인원이 이상할 때 빈 상자가
+     남으면 그것도 「뭔가 잘못됐나」로 읽힌다. */
+.pk-total {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-top: 12px; padding: 12px 14px; background: var(--bg-soft, #FAFAF8);
+  border: 1px solid var(--rule-md); border-radius: 8px;
+  font-size: 13px; color: var(--t-mute);
+}
+.pk-total:empty { display: none; }
+.pk-total strong { font-size: 20px; font-weight: 800; color: var(--t-head); letter-spacing: -.02em; }
+
 /* 받으실 분·연락처 (WF) — 인원 칸과 달리 한 줄에 하나씩 세로로 쌓는다.
    ⚠ 안내(「견적서에는 표시되지 않습니다」)를 흐리게 쓰지 않는다 — 이 한 줄이
      연락처를 적게 만드는 유일한 이유라, 안 읽히면 칸이 비어서 온다. */
@@ -223,6 +235,17 @@
   };
   var STALE_DAYS = 7;
 
+  /* 🔴 **고객이 낼 1인 금액은 서버가 정한다** (XO 후속).
+     항목별로 조립한 상품은 서버(`perPersonOf`)가 **항목 합**을 쓰는데, 화면은
+     `pricePerPerson`을 그리고 있었다 — 그러면 **목록에서 본 금액과 받은 견적서의
+     금액이 다를 수 있다.** 어느 쪽이 이기는지는 서버가 아는 규칙이라 서버가 계산해
+     보내 준다(`perPerson`). 화면은 그것을 쓰기만 한다.
+   ⚠ 옛 응답(캐시)에는 그 칸이 없을 수 있어 `pricePerPerson`으로 떨어진다 — 그건
+     지금까지와 같은 동작이라 나빠지지 않는다. */
+  var perPersonOf = function (p) {
+    return (p && p.perPerson != null) ? p.perPerson : (p && p.pricePerPerson);
+  };
+
   function render() {
     var list = destFilter ? ALL.filter(function (p) { return (p.destLabel || p.destKey) === destFilter; }) : ALL;
     var grid = document.getElementById('pkGrid');
@@ -263,7 +286,7 @@
         +   (p.departDate ? '출발 ' + esc(fmtDate(p.departDate)) : '출발일 협의')
         + '</div>'
         + '<div class="pk-price-row">'
-        +   '<div class="pk-price">' + won(p.pricePerPerson) + '<small>원 / 1인</small></div>'
+        +   '<div class="pk-price">' + won(perPersonOf(p)) + '<small>원 / 1인</small></div>'
         +   '<div class="pk-asof' + (stale ? ' stale' : '') + '">'
         +     (age == null ? '' : (stale
               ? '⚠ ' + esc(fmtDate(p.priceAsOf)) + ' 기준 — 확인이 필요합니다'
@@ -316,7 +339,7 @@
       +   (p.departDate ? ' · 출발 ' + esc(fmtDate(p.departDate)) : '')
       + '</div>'
       + '<div class="pk-price-row" style="margin-top:16px">'
-      +   '<div class="pk-price">' + won(p.pricePerPerson) + '<small>원 / 1인</small></div>'
+      +   '<div class="pk-price">' + won(perPersonOf(p)) + '<small>원 / 1인</small></div>'
       +   '<div class="pk-asof">' + esc(fmtDate(p.priceAsOf)) + ' 기준 금액'
       +     (p.validUntil ? ' · ' + esc(fmtDate(p.validUntil)) + '까지 유효' : '') + '</div>'
       + '</div>'
@@ -336,6 +359,13 @@
       +   '<input type="number" id="pkPax" min="1" max="500" value="4">'
       +   '<span>명</span>'
       + '</div>'
+      /* 🔴 **총액을 누르기 전에 보여 준다** (XO 후속). 예전에는 1인 금액만 보이고,
+         인원을 넣어도 화면에 아무 변화가 없었다 — 고객은 **견적서를 받고 나서야**
+         자기가 낼 총액을 처음 본다. 그 자리가 곧 「생각보다 비싼데?」로 이탈하는
+         자리다. 서버가 하는 계산과 **같은 곱셈**을 그대로 보여 준다(1인 금액 × 인원).
+       ⚠ 여기서 할인·계수 같은 것을 얹지 않는다. 패키지는 대리점가 그대로다 —
+         화면이 다른 규칙을 쓰기 시작하면 그게 곧 「엔진을 태우는」 첫걸음이다. */
+      + '<div class="pk-total" id="pkTotal" aria-live="polite"></div>'
       /* 🔴 이름·연락처 (WF) — 예전에는 인원만 받고 견적서를 내줬다. 그래서 고객이
          견적서를 받아 가고 조용히 있으면 **누구인지도 모르고 먼저 연락할 수도 없었다.**
          대장에는 상품명이 「고객」으로 찍히고 연락처는 빈칸이었다.
@@ -356,6 +386,27 @@
       + '</p>';
 
     document.getElementById('pkModal').classList.add('on');
+
+    /* 인원을 바꿀 때마다 총액을 다시 적는다 — 곱셈은 서버가 하는 것과 같다 */
+    var paxEl = document.getElementById('pkPax');
+    var totalEl = document.getElementById('pkTotal');
+    var per = perPersonOf(p);
+    var drawTotal = function () {
+      if (!totalEl) return;
+      var n = Number(paxEl && paxEl.value);
+      if (!(n >= 1 && n <= 500) || !(per > 0)) { totalEl.textContent = ''; return; }
+      /* ⚠ 「1인 금액 × 인원 = 총액」을 **식 그대로** 보여 준다. 총액만 적으면
+         고객이 무엇이 곱해진 값인지 확인할 수 없다(XE에서 배운 것: 표가 스스로
+         설명하지 않으면 고객은 우리가 잘못 더한 줄 안다). */
+      totalEl.innerHTML = '<span>' + won(per) + '원 × ' + n + '명</span>'
+        + '<strong>' + won(per * n) + '원</strong>';
+    };
+    if (paxEl) {
+      paxEl.addEventListener('input', drawTotal);
+      paxEl.addEventListener('change', drawTotal);
+    }
+    drawTotal();
+
     var ask = document.getElementById('pkAsk');
     if (ask) {
       ask.addEventListener('click', function () {
