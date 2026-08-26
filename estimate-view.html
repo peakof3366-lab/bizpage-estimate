@@ -684,8 +684,12 @@ function renderPage(d) {
 
       <div class="sec-title">수신처 정보</div>
       <div class="field-grid">
-        <div class="field-box"><div class="field-box-label">기관명</div><div class="field-box-value">${esc(d.org) || '—'}</div></div>
-        <div class="field-box"><div class="field-box-label">담당자</div><div class="field-box-value">${esc(d.cn) || '—'}</div></div>
+        ${/* 🔴 패키지 손님에게는 **기관명 칸이 없다** (XD). 친목 모임·가족 손님이라
+              기관이 없고, 서버도 그 값을 안 싣는다 — 늘 「—」로 남는 칸이다.
+              (WP에서 없는 칸에 줄표를 안 찍기로 한 것과 같은 규칙.)
+            ⚠ 맞춤 견적은 그대로 둔다. 기업 견적서에 기관명이 빠지면 공문이 아니다. */''}
+        ${d.pkg ? '' : `<div class="field-box"><div class="field-box-label">기관명</div><div class="field-box-value">${esc(d.org) || '—'}</div></div>`}
+        <div class="field-box"><div class="field-box-label">${d.pkg ? '받으시는 분' : '담당자'}</div><div class="field-box-value">${esc(d.cn) || '—'}</div></div>
         ${/* 기관 유형(기업·공공기관…)은 연수 견적의 칸이다. 친목 모임 손님에게는 없다. */''}
         ${d.pkg ? '' : `<div class="field-box"><div class="field-box-label">기관 유형</div><div class="field-box-value">${esc(d.ot) || '—'}</div></div>`}
       </div>

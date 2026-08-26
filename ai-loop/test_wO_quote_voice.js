@@ -339,5 +339,37 @@ function render(payload) {
       w3.document.querySelectorAll('.pkg-iti-day').length === 0);
   }
 
+  console.log('\n[11] XD — 🔴 받으시는 분의 이름이 문서에 실린다');
+  {
+    /* WF는 이름을 받아 **대장 컬럼에만** 넣었다. 그래서 고객이 「받으실 분」에 이름을
+       적고 견적서를 받아도 그 문서의 수신처가 「기관명 —」 「담당자 —」로 비어 있었다.
+       ⚠ WC의 규칙은 「**연락처**는 문서에 찍힐 이유가 없다」였지 이름까지 빼라는 것이
+         아니었다 — 같은 주석이 「이름·회사명은 공문 성격상 문서에 찍혀야 한다」고 한다. */
+    const named = Object.assign({}, PKG, { cn: '김보균' });
+    delete named.org;
+    const w = await render(named);
+    const boxes = [...w.document.querySelectorAll('.field-box')]
+      .map((e) => e.textContent.replace(/\s+/g, ' ').trim());
+    ok('⑫ 🔴 이름이 문서에 찍힌다', boxes.some((b) => /김보균/.test(b)), JSON.stringify(boxes.slice(0, 3)));
+    ok('⑫ 「받으시는 분」이라고 부른다', boxes.some((b) => /^받으시는 분/.test(b)), JSON.stringify(boxes.slice(0, 3)));
+    /* ⚠ 패키지 손님에게는 기관이 없다 — 늘 「—」로 남는 칸을 안 그린다 */
+    ok('⑫ 패키지에는 「기관명」 칸이 없다', !boxes.some((b) => /^기관명/.test(b)), JSON.stringify(boxes.slice(0, 3)));
+    /* 🔴 연락처는 여전히 문서에 없다 */
+    ok('⑫ 🔴 연락처는 문서에 없다', !/010|1234-5678/.test(visibleText(w)));
+
+    /* 맞춤 견적서는 그대로 — 기업 견적서에 기관명이 빠지면 공문이 아니다 */
+    const w2 = await render(TRAINING);
+    const boxes2 = [...w2.document.querySelectorAll('.field-box')]
+      .map((e) => e.textContent.replace(/\s+/g, ' ').trim());
+    ok('⑫ 맞춤 견적서에는 「기관명」이 그대로', boxes2.some((b) => /^기관명/.test(b)), JSON.stringify(boxes2.slice(0, 3)));
+    ok('⑫ 맞춤 견적서는 「담당자」라고 부른다', boxes2.some((b) => /^담당자/.test(b)));
+
+    /* 서버가 실제로 이름을 싣는지도 원문으로 잰다 — 화면만 고치면 값이 안 온다 */
+    const api = read('api/quote-shares.js');
+    ok('⑫ 서버가 payload에 이름을 싣는다', /cn: pkgCustomerLabel\(b\.customerName\)/.test(api));
+    ok('⑫ 🔴 그런데 연락처는 payload에 안 싣는다',
+      !/customerTel[\s\S]{0,60}share/.test(api) && /custTel\}\)/.test(api));
+  }
+
   done();
 })().catch((e) => { console.error('실행 오류:', e); process.exit(1); });
