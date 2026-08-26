@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 비즈페이지 사이트맵 (WN, 2026-08-26)
+     ⚠ **고객이 보는 페이지만** 넣는다. 관리자 화면·견적서 링크는 여기 없다 —
+       사이트맵은 공개 문서이고, 견적서 주소는 애초에 개별 링크라 목록에 있을 것이
+       아니다. 페이지를 새로 만들면 여기에도 한 줄 더한다. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://bizpage-estimate.vercel.app/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://bizpage-estimate.vercel.app/packages.html</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>

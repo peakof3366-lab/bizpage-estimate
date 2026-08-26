@@ -1,0 +1,17 @@
+# 비즈페이지 — 검색엔진 안내 (WN, 2026-08-26)
+#
+# 지금까지 이 파일이 없어서(404) 크롤러는 **아무 안내 없이** 전부 훑을 수 있었다.
+#
+# ⚠ **관리자 화면·견적서 주소를 여기 적지 않는다.** robots.txt는 누구나 읽는 공개
+#   문서라, 숨기고 싶은 주소를 적으면 「여기 있다」고 알려주는 꼴이 된다.
+#   그 페이지들은 각자 <meta name="robots" content="noindex"> 로 스스로 말한다
+#   (admin.html · admin-quote.html · estimate-view.html · manual.html).
+#
+# ⚠ 크롤링을 막는 것과 색인을 막는 것은 다르다. 여기서 막으면 크롤러가 페이지를
+#   **읽지 못해 noindex도 못 본다** — 그래서 오히려 색인에 남을 수 있다.
+#   읽게 두고, 페이지가 「싣지 말라」고 말하는 쪽이 맞다.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://bizpage-estimate.vercel.app/sitemap.xml

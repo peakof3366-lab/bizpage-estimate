@@ -4,6 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>해외연수 견적서 · 비즈페이지</title>
+<!-- 🔴 검색엔진에 실리면 안 된다 (WN). 이 링크에는 **인증이 없고**(WC), 고객이
+     결재권자에게 넘기는 것이 정상 동선이다. 그 링크가 블로그·카페에 한 번이라도
+     붙으면 크롤러가 따라와 **남의 견적서가 검색 결과에 뜬다.**
+     ⚠ robots.txt에 적어 막지 않는다 — robots.txt는 공개 문서라 「여기 견적서가
+       있다」고 알려주는 꼴이 된다. 페이지가 스스로 말하게 한다. -->
+<meta name="robots" content="noindex, nofollow" />
+<!-- 공유 미리보기 — 카카오톡·메신저로 링크를 보낼 때 뜨는 카드.
+     🔴 **여기에 견적 내용을 넣지 않는다.** 미리보기는 링크를 받은 사람 누구에게나
+       보인다 — 고객사명·금액이 카드에 찍히면 그게 곧 유출이다. 그래서 이 값들은
+       **정적 문구**다(payload를 읽지 않는다). WC에서 연락처를 payload에 안 넣은 것과 같은 결. -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="비즈페이지" />
+<meta property="og:title" content="해외연수 견적서 · 비즈페이지" />
+<meta property="og:description" content="요청하신 조건으로 산출한 견적서입니다. 링크를 열면 항목별 금액과 일정을 확인하실 수 있습니다." />
+<meta name="twitter:card" content="summary" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script src="company-info.js"></script>

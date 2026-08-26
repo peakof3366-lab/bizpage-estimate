@@ -129,7 +129,40 @@ function staticAudit() {
       why: '이 도구가 흉내내지 못하는 모양입니다 — 배포 제외 검사가 이 줄들에는 안 걸립니다.',
     });
   }
-  return { errors, notes, files, dynamicSkipped };
+
+  /* ── ⑦ 검색엔진 · 공유 미리보기 (WN) ───────────────────────────────────
+     🔴 **목록을 손으로 적지 않는다.** 「어느 페이지가 공개인가」의 진실은
+       `sitemap.xml` 하나다. 사이트맵에 있으면 공개(공유 카드가 있어야 한다),
+       없으면 비공개(색인되면 안 된다). 이렇게 묶어 두면 **새 페이지를 만들 때
+       둘 중 하나를 반드시 하게 된다** — 목록이 흩어져 하나를 빠뜨리는
+       결함 생성기 ①을 애초에 만들지 않는 방법이다. */
+  const smPath = path.join(ROOT, 'sitemap.xml');
+  const publicPages = new Set();
+  if (fs.existsSync(smPath)) {
+    const sm = fs.readFileSync(smPath, 'utf8');
+    for (const m of sm.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)) {
+      const u = m[1].replace(/^https?:\/\/[^/]+\//, '');
+      publicPages.add(u === '' ? 'index.html' : u);
+    }
+  } else {
+    notes.push({ page: 'sitemap.xml', kind: '없음', detail: '-', why: '어느 페이지가 공개인지 판단할 근거가 없습니다.' });
+  }
+  for (const page of files) {
+    const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
+    const noindex = /<meta[^>]+name=["']robots["'][^>]*noindex/i.test(html);
+    const hasOg = /<meta[^>]+property=["']og:title["']/i.test(html);
+    if (publicPages.has(page)) {
+      if (noindex) errors.push({ page, kind: '공개 페이지인데 noindex', detail: 'sitemap.xml에 있는 페이지', why: '검색에 안 실립니다 — 둘 중 하나가 틀렸습니다.' });
+      if (!hasOg) errors.push({ page, kind: '공유 미리보기 없음', detail: 'og:title 없음', why: '카카오톡·메신저로 보내면 제목도 설명도 없는 맨 링크로 나갑니다.' });
+    } else if (!noindex) {
+      errors.push({
+        page, kind: '🔴 색인될 수 있다', detail: 'noindex도 없고 sitemap에도 없음',
+        why: '고객에게 안 보여야 할 화면이면 <meta name="robots" content="noindex">를, 공개할 페이지면 sitemap.xml에 넣으세요.',
+      });
+    }
+  }
+
+  return { errors, notes, files, dynamicSkipped, publicPages: [...publicPages] };
 }
 
 /* ── ⑤: 페이지가 뜨는가 (jsdom) ──────────────────────────────────────────
@@ -181,6 +214,35 @@ async function renderAudit(files) {
       dom.window.addEventListener('load', res);
       setTimeout(res, 4000);
     });
+    /* ── 구조 검사 (WN) — 실제로 그려진 DOM을 보고 잰다 ────────────────
+       🔴 **중복 id**가 가장 위험하다. `getElementById`는 **첫 번째만** 돌려주므로,
+         두 번째 칸은 읽히지도 쓰이지도 않으면서 화면에는 멀쩡히 보인다.
+         담당자는 값을 넣었는데 저장이 안 되는 것으로 겪는다 — 조용한 결함이다. */
+    const doc = dom.window.document;
+    const seen = new Map();
+    doc.querySelectorAll('[id]').forEach((el) => {
+      const k = el.id;
+      if (!k) return;
+      seen.set(k, (seen.get(k) || 0) + 1);
+    });
+    [...seen.entries()].filter(([, n]) => n > 1).slice(0, 5).forEach(([k, n]) => {
+      errors.push({ page, kind: '🔴 중복 id', detail: k + ' × ' + n,
+        why: 'getElementById는 첫 번째만 찾습니다 — 두 번째 칸은 조용히 무시됩니다.' });
+    });
+    /* 대체 텍스트 — 이미지가 안 뜨는 날(공급사가 지우면 실제로 그렇다) 무엇이었는지 남는다 */
+    const noAlt = [...doc.querySelectorAll('img:not([alt])')];
+    if (noAlt.length) {
+      errors.push({ page, kind: '대체 텍스트 없는 이미지', detail: noAlt.length + '개',
+        why: '이미지가 안 뜨면 빈 자리만 남습니다. 화면 읽기 프로그램도 못 읽습니다.' });
+    }
+    /* 페이지 안 링크가 **없는 자리**를 가리키면 눌러도 아무 일이 안 일어난다 */
+    const deadAnchors = [...new Set([...doc.querySelectorAll('a[href^="#"]')]
+      .map((a) => a.getAttribute('href').slice(1))
+      .filter((id) => id && !doc.getElementById(id)))];
+    deadAnchors.slice(0, 5).forEach((id) => {
+      errors.push({ page, kind: '없는 자리로 가는 링크', detail: '#' + id, why: '눌러도 아무 일이 안 일어납니다.' });
+    });
+
     /* 화면이 **비어 있지 않은지**도 본다 — 스크립트가 첫 줄에서 죽으면 백지가 된다 */
     const text = (dom.window.document.body && dom.window.document.body.textContent || '').trim();
     if (text.length < 40) errors.push({ page, kind: '화면이 비었다', detail: text.length + '자', why: '본문이 거의 없습니다.' });

@@ -79,6 +79,37 @@ console.log('\n[3] 합성 입력 — 망가뜨리면 실제로 잡는가');
   ok('③ styles.css 는 로컬이다', A.isLocal('styles.css'));
 }
 
+console.log('\n[4] 검색엔진 · 공유 미리보기 — 목록을 손으로 적지 않는다');
+{
+  const s = A.staticAudit();
+  /* 🔴 「어느 페이지가 공개인가」의 진실은 sitemap.xml 하나다.
+     사이트맵에 있으면 공유 카드가 있어야 하고, 없으면 색인되면 안 된다.
+     새 페이지를 만들면 둘 중 하나를 반드시 하게 된다 — 목록이 흩어지지 않는다. */
+  ok('④ 공개 페이지를 sitemap.xml에서 읽는다', (s.publicPages || []).length >= 2,
+    JSON.stringify(s.publicPages));
+  ok('④ index.html이 공개다', (s.publicPages || []).includes('index.html'));
+  ok('④ packages.html이 공개다', (s.publicPages || []).includes('packages.html'));
+
+  const p2 = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+  /* 🔴 견적서 링크는 인증이 없다(WC) — 색인되면 남의 견적서가 검색에 뜬다 */
+  ok('④ 🔴 견적서 화면은 noindex', /name="robots"[^>]*noindex/.test(p2('estimate-view.html')));
+  ok('④ 관리자 화면도 noindex', /name="robots"[^>]*noindex/.test(p2('admin.html')));
+  ok('④ 담당자 견적 도구도 noindex', /name="robots"[^>]*noindex/.test(p2('admin-quote.html')));
+
+  /* ⚠ 견적서 미리보기에 **견적 내용이 들어가면 안 된다** — 링크를 받은 누구에게나 보인다.
+     정적 문구뿐인지 실제 태그를 잘라서 본다(WC에서 연락처를 payload에 안 넣은 것과 같은 결). */
+  const og = (p2('estimate-view.html').match(/<meta property="og:[^>]*>/g) || []).join(' ');
+  ok('④ 🔴 견적서 미리보기가 정적 문구뿐이다 (금액·고객사 안 들어간다)',
+    og.length > 0 && !/\$\{|payload|총액|원 |[0-9]{4,}/.test(og), og.slice(0, 140));
+
+  /* robots.txt가 관리자 주소를 알려주지 않는다 — 공개 문서에 숨길 곳을 적으면 알려주는 꼴 */
+  const rb = fs.existsSync(path.join(ROOT, 'robots.txt')) ? p2('robots.txt') : '';
+  ok('④ robots.txt가 있다', rb.length > 0);
+  ok('④ 🔴 robots.txt가 관리자 주소를 적지 않는다',
+    !/^\s*Disallow:.*(admin|estimate-view|manual)/mi.test(rb));
+  ok('④ 사이트맵 위치를 알려준다', /Sitemap:\s*https:\/\//i.test(rb));
+}
+
 console.log('\n' + '─'.repeat(64));
 console.log(`결과: ${pass} pass / ${fail} fail  — WM 홈페이지 훑기`);
 process.exit(fail ? 1 : 0);
