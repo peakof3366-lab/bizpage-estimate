@@ -1491,6 +1491,20 @@ form.addEventListener('submit', (event) => {
       /* Level 2: 요율 버전 추적 */
       rateDate:    (getDestinationByKey(destKey)?.rateDate) || '',
       rateVersion: typeof RATE_META !== 'undefined' ? RATE_META.version : '',
+      /* 🔴 **이 견적이 어느 요율표로 계산됐는가** (XI). `/api/rates`를 못 받으면 금액이
+         data.js 기본값으로 조용히 계산된다 — 실측(2026-08-26, 30명 4일): 오버라이드가
+         있는 **23개 목적지 전부**가 움직이고 중앙값 5.9% · 최대 27.3%다. 방향도 갈린다
+         (동유럽 −19.5% = 너무 싸게 부른다 · 오키나와 +27.3% = 너무 비싸게 부른다).
+         그런데 그 견적은 **저장되고 견적서 링크까지 나갔다** — 서버의 「요율 기준월」
+         검사는 오버라이드가 `rateDate`를 함께 갖고 있을 때만 도는데 실제로는
+         **23곳 중 2곳뿐**이다(WW가 센 「21곳 59칸」이 그 자리다).
+       ⚠ 이건 보안 표식이 아니라 **출처 표식**이다. 조작 방어는 verifyQuote의 다른
+         단계들이 한다. 여기 목적은 「기본값으로 계산된 견적을 사람이 알아보게」다. */
+      rateSource: (function () {
+        const s = window.__RATE_SOURCE__ || {};
+        return { state: s.state || 'unknown', n: (s.applied || []).length, fx: s.fx || 0,
+                 error: String(s.error || '').slice(0, 80) };
+      })(),
       destNotes:   (getDestinationByKey(destKey)?.notes) || '',
       /* P6: 계수 역검증용 스냅샷 — 이 견적 계산 당시의 출발일과 각 계수를 남겨두면,
          나중에 실제 계약가(actual*)와 대조해 어떤 계수(시즌·리드타임·피크·환율·인원)가

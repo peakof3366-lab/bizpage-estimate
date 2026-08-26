@@ -35,8 +35,17 @@ console.log('\n[1] 엔진 부팅이 한 곳에서 온다');
     ok('① ' + f + ' 가 jsdom을 직접 띄우지 않는다', !/new JSDOM\(/.test(s));
   });
   /* 한 벌만 빠뜨려도 그 도구만 조용히 다른 것을 재는 세 가지 */
-  ok('① 네트워크를 막는다', /window\.fetch = \(\) => new Promise/.test(boot));
+  /* ⚠ XI에서 갈래가 하나 생겼다 — `opts.ratesResponse`를 주면 `/api/rates`만
+     **주입한 값으로** 답한다(「요율을 못 받은 브라우저」를 재려면 그 경로가 검사
+     대상이라서다). 그건 네트워크가 아니라 우리가 넣은 값이고, **나머지는 그대로
+     영원히 안 오는 약속**이다. 그래서 기본 갈래를 그대로 잰다. */
+  ok('① 네트워크를 막는다',
+    /window\.fetch = \(url\) =>/.test(boot) && /return new Promise\(\(\) => \{\}\);/.test(boot));
+  ok('① 갈라 준 요율 응답도 네트워크를 안 탄다',
+    /o\.ratesResponse === 'fail'/.test(boot) && !/fetch\(['"]https?:/.test(boot));
   ok('① 운영 요율을 얹는다', /applyOverrides\(window\.__DR/.test(boot));
+  /* 🔴 주입 모드에서는 **수동으로 또 얹지 않는다** — 두 번 얹으면 무엇을 쟀는지 모른다 */
+  ok('① 주입 모드에서는 두 번 얹지 않는다', /selfLoad\s*\?/.test(boot) && /const selfLoad = /.test(boot));
   ok('① rec_fallbacks.js를 함께 eval한다', BOOT.APP_FILES.includes('rec_fallbacks.js'),
     BOOT.APP_FILES.join(','));
   ok('① 합치는 순서가 CLAUDE.md 그대로다',

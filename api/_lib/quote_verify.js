@@ -154,11 +154,39 @@ function verifyQuote(payload, ctx = {}) {
   }
 
   /* ── 6단계: 이 견적이 만들어진 뒤 요율이 바뀌었는가 ───────────
-     조작이 아니라 신선도 문제다. 바뀌었으면 담당자가 재산출해야 한다. */
+     조작이 아니라 신선도 문제다. 바뀌었으면 담당자가 재산출해야 한다.
+   ⚠ **이 검사는 오버라이드가 `rateDate`를 함께 가질 때만 돈다.** 실측(2026-08-26)으로
+     운영 오버라이드 23곳 중 **2곳만** 그렇다 — 나머지 21곳은 금액만 바뀌고 기준월이
+     data.js 값 그대로라(WW의 「21곳 59칸」), 기본 요율로 만든 견적과 구별되지 않는다.
+     그래서 7단계가 따로 있다. 이 둘을 하나로 여기지 말 것. */
   if (dest) {
     const same = !p.rateDate || !dest.rateDate || p.rateDate === dest.rateDate;
     step('freshness', '요율 기준월 일치', same,
       same ? `기준월 ${dest.rateDate || '—'}` : `견적 ${p.rateDate} vs 현재 ${dest.rateDate} — 재산출 권장`);
+  }
+
+  /* ── 7단계: 이 견적이 **운영 요율로** 계산됐는가 (XI) ──────────
+     브라우저가 `/api/rates`를 못 받으면 엔진은 `data.js` 기본값으로 계산한다. 화면에는
+     그냥 「견적 금액」으로 보이고, 지금까지는 그 견적이 저장되고 **견적서 링크까지**
+     나갔다. 실측(2026-08-26 · 30명 4일): 오버라이드가 있는 23개 목적지 **전부**가
+     움직이고 중앙값 5.9% · 최대 27.3%다. 방향이 아래로 벌어지면(동유럽 −19.5%)
+     **우리가 그 차액을 문다.**
+   ⚠ 이건 조작 방어가 아니다 — 표식을 지우고 보내면 그만이다. 조작은 다른 단계가
+     본다. 여기서 막는 것은 **우리 쪽 사고**(요율 로드 실패)로 만들어진 문서다.
+   ⚠ 없으면 통과시킨다. 캐시된 옛 `script.js`가 열려 있는 브라우저는 이 칸을 안 보내는데,
+     그걸 실패로 치면 **멀쩡히 돌던 견적이 통째로 「담당자 확인」으로 떨어진다.** */
+  if (p.rateSource && typeof p.rateSource === 'object') {
+    const st = String(p.rateSource.state || 'unknown');
+    const WHY = {
+      failed:  '운영 요율을 못 받아 기본값으로 계산됨',
+      pending: '운영 요율이 도착하기 전에 계산됨',
+      skipped: '요율표 자체가 로드되지 않음',
+      unknown: '요율 출처를 알 수 없음',
+    };
+    step('ratesrc', '운영 요율로 계산', st === 'applied',
+      st === 'applied'
+        ? `오버라이드 ${Number(p.rateSource.n) || 0}곳 · 환율 ${Number(p.rateSource.fx) || 0}건`
+        : `${WHY[st] || st} — 재산출 필요` + (p.rateSource.error ? ` (${String(p.rateSource.error).slice(0, 80)})` : ''));
   }
 
   const failed = steps.filter((s) => !s.ok);

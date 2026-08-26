@@ -37,17 +37,32 @@ async function bootEngine(opts) {
   const say = o.quiet ? () => {} : (m) => console.log(m);
 
   /* ⚠ **운영 요율을 얹고 잰다**(TR·VB). 안 얹으면 data.js 기본값으로 재는데 고객은
-     오버라이드로 계산된 금액을 본다 — 그러면 그 표는 고객이 겪는 오차가 아니다. */
+     오버라이드로 계산된 금액을 본다 — 그러면 그 표는 고객이 겪는 오차가 아니다.
+
+   🔴 예외 하나 (XI): `opts.ratesResponse`를 주면 **`script.js`가 스스로 `/api/rates`를
+     받게** 한다(값 그대로 응답, `'fail'`이면 거절). 「요율을 못 받은 브라우저」를
+     재려면 그 경로 자체가 검사 대상이라, 우리가 대신 얹으면 아무것도 못 잰다.
+   ⚠ 이때는 **수동 applyOverrides를 하지 않는다** — 두 번 얹으면 무엇을 쟀는지 모른다. */
+  const selfLoad = o.ratesResponse !== undefined;
   const { loadOverrides, applyOverrides } = require('./_rate_overrides');
-  const ov = await loadOverrides();
+  const ov = selfLoad ? { overrides: {}, from: 'script.js가 직접 받음' } : await loadOverrides();
 
   const EXPOSE = '\n;try{window.__DR=destinationRates;}catch(e){}';
   const APP = APP_FILES.map(read).join('\n') + EXPOSE;
   const dom = new JSDOM(read('index.html'), {
     runScripts: 'dangerously', url: 'http://localhost/',
     beforeParse(window) {
-      /* ⚠ 네트워크를 막는다 — 안 막으면 운영 DB의 site_events에 행이 쌓인다. */
-      window.fetch = () => new Promise(() => {});
+      /* ⚠ 네트워크를 막는다 — 안 막으면 운영 DB의 site_events에 행이 쌓인다.
+         ⚠ 막는 방식은 **영원히 안 오는 약속**이다(거절이 아니다). 거절로 바꾸면
+           `.catch`가 도는 코드가 기본 동작이 되어, 지금까지 잰 표들과 달라진다. */
+      window.fetch = (url) => {
+        if (selfLoad && String(url).includes('/api/rates')) {
+          return o.ratesResponse === 'fail'
+            ? Promise.reject(new Error('rates_unreachable'))
+            : Promise.resolve({ ok: true, json: () => Promise.resolve(o.ratesResponse) });
+        }
+        return new Promise(() => {});
+      };
       const ctx = new Proxy({}, { get: () => (() => ctx) });
       window.HTMLCanvasElement.prototype.getContext = () => ctx;
       window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
@@ -59,7 +74,9 @@ async function bootEngine(opts) {
   if (typeof window.getBreakdownData !== 'function') {
     throw new Error('엔진 로드 실패 — getBreakdownData 없음');
   }
-  say('요율 오버라이드 ' + applyOverrides(window.__DR, ov.overrides) + '칸 적용 — ' + ov.from);
+  say(selfLoad
+    ? '요율 — ' + ov.from + ' (state=' + ((window.__RATE_SOURCE__ || {}).state || '?') + ')'
+    : '요율 오버라이드 ' + applyOverrides(window.__DR, ov.overrides) + '칸 적용 — ' + ov.from);
 
   const doc = window.document;
   const DR = window.__DR;
