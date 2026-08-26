@@ -52,18 +52,39 @@ function applyLiveRates(staticRates, live) {
     }
   }
 
+  /* 🔴 **금액은 바뀌었는데 「요율 기준월」은 안 바뀐 목적지** (WW).
+     `rateDate`는 고객 견적서에 「요율 기준: 2026년 06월」로 찍히는 값이다. 그런데
+     `ai-loop/apply_rate_updates.js`(견적서 실측 중앙값을 얹는 도구)는 숫자 칸만 쓰고
+     `rateDate`는 **일부러 안 건드린다** — 실측은 코퍼스 전체(2025~2026)에서 나온 값이라
+     「그 달에 확인했다」가 아니기 때문이다(오늘로 채우면 그게 지어내기다).
+     그 결과 **값과 기준월이 어긋난 채로 고객 문서에 나간다.** 감사가 이것을 센다.
+   ⚠ 여기서 고치지 않는다. 어떻게 표기할지는 대표 결정이고(대기열), 기준월을 올리면
+     「오래된 요율」 경고(QG)가 함께 꺼진다 — 못 지킬 안심을 주는 쪽이다. */
+  const NUMERIC_RATE_FIELDS = new Set(['airfare', 'fuel_surcharge', 'hotel_per_room',
+    'meal_per_person', 'vehicle_large', 'vehicle_small', 'guide_fee', 'sightseeing_fee',
+    'margin_per_traveler', 'golf_fee']);
   const changed = [];
+  const dateNotUpdated = [];
   if (live.overrides && typeof live.overrides === 'object') {
     for (const [key, fields] of Object.entries(live.overrides)) {
       const dest = byKey.get(key);
       if (!dest || !fields || typeof fields !== 'object') continue;
+      const shownDate = dest.rateDate || null;
+      const numChanged = [];
       for (const [f, v] of Object.entries(fields)) {
-        if (dest[f] !== v) changed.push({ key, field: f, from: dest[f], to: v });
+        if (dest[f] !== v) {
+          changed.push({ key, field: f, from: dest[f], to: v });
+          if (NUMERIC_RATE_FIELDS.has(f)) numChanged.push(f);
+        }
         dest[f] = v;
+      }
+      /* 숫자가 바뀌었는데 오버라이드에 `rateDate`가 없으면 화면은 **옛 기준월**을 계속 말한다 */
+      if (numChanged.length && !fields.rateDate) {
+        dateNotUpdated.push({ key, shownDate, fields: numChanged });
       }
     }
   }
-  return { rates: merged, changed, customCount: (live.customDestinations || []).length };
+  return { rates: merged, changed, dateNotUpdated, customCount: (live.customDestinations || []).length };
 }
 
 /* 감사 스크립트 공통 진입점.
@@ -83,7 +104,7 @@ function loadRatesForAudit(staticRates, argv = process.argv) {
     console.log('  관리자 화면에서 수정된 단가는 이 감사에 반영되지 않았습니다.\n');
     return { rates: staticRates, live: false };
   }
-  const { rates, changed, customCount } = applyLiveRates(staticRates, live);
+  const { rates, changed, dateNotUpdated, customCount } = applyLiveRates(staticRates, live);
   console.log(`· 요율 소스: 운영 실판매가 (${DEFAULT_URL})`);
   console.log(`  정적값과 다른 항목 ${changed.length}건, 관리자 추가 목적지 ${customCount}건 반영`);
   if (changed.length) {
@@ -92,8 +113,19 @@ function loadRatesForAudit(staticRates, argv = process.argv) {
     }
     if (changed.length > 12) console.log(`    · ... 외 ${changed.length - 12}건`);
   }
+  /* 🔴 값과 기준월이 어긋난 것을 **숫자로** 말한다 — 조용히 두면 고객 문서가
+     계속 옛 기준월을 말한다(WW). */
+  if (dateNotUpdated && dateNotUpdated.length) {
+    const cells = dateNotUpdated.reduce((n, x) => n + x.fields.length, 0);
+    console.log(`  🔴 금액은 바뀌었는데 「요율 기준월」이 그대로인 목적지 ${dateNotUpdated.length}곳 (${cells}칸)`);
+    console.log('     → 고객 견적서에 그 옛 기준월이 그대로 찍힙니다. 표기를 어떻게 할지는 대표 결정입니다.');
+    for (const x of dateNotUpdated.slice(0, 8)) {
+      console.log(`     · ${x.key} — 화면 표기 「${x.shownDate || '(없음)'}」 · 바뀐 칸 ${x.fields.length}개`);
+    }
+    if (dateNotUpdated.length > 8) console.log(`     · ... 외 ${dateNotUpdated.length - 8}곳`);
+  }
   console.log('');
-  return { rates, live: true, changed };
+  return { rates, live: true, changed, dateNotUpdated };
 }
 
 module.exports = { fetchLiveRates, applyLiveRates, loadRatesForAudit, DEFAULT_URL };
