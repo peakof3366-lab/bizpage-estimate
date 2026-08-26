@@ -83,6 +83,17 @@ console.log('\n[1] 소스에 남아 있으면 안 되는 것');
   const inp = d2.getElementById('share-url-inp');
   ok('② 링크 칸에 견적서 주소가 들어 있다', !!inp && /estimate-view\.html\?id=/.test(inp.value), inp && inp.value);
 
+  console.log('\n[2-b] 🔴 인쇄되는 문서에도 **견적번호**가 있는가');
+  {
+    /* 이 창에서 바로 「이 견적서 인쇄하기」를 누르는 고객이 있다. 그 종이에 번호가
+       없으면 전화가 왔을 때 **고객도 우리도 무엇에 대한 이야기인지 못 찾는다**
+       (WB가 번호를 만든 이유가 그것이다). 링크로 여는 견적서에만 있었다. */
+    const docText = visibleText(d2.getElementById('quote'));
+    ok('②b 견적서 문서에 번호가 찍힌다', /견적번호 Q-260826-001/.test(docText),
+      docText.slice(0, 80));
+    ok('②b 발행일도 함께 있다', /\d{4}년 \d{1,2}월 \d{1,2}일/.test(docText));
+  }
+
   const press = async () => {
     d2.getElementById('copy-btn').dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true, view: w }));
     await new Promise((r) => w.setTimeout(r, 60));
@@ -140,6 +151,32 @@ console.log('\n[1] 소스에 남아 있으면 안 되는 것');
     d2.querySelector('.btn-close').dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true, view: w }));
     await tick(40);
     ok('⑥ 「닫기」가 창을 닫는다', w.closed === true, String(w.closed));
+  }
+
+  console.log('\n[6-b] 번호를 못 받았으면 **자리를 접는다**');
+  {
+    /* 옛 서버·부분 응답에서 번호가 없을 수 있다. 「견적번호 undefined」가 찍히면
+       그게 더 나쁘다 — 없는 것은 안 보이는 쪽이 맞다. */
+    const N = bootPage('index.html', { fixtures: { shares: { ok: true, id: 'noqno', verdict: 'verified' } } });
+    await N.ready; await N.tick(250);
+    const setN = (id, v) => { const el = N.doc.getElementById(id); if (el) { el.value = v; el.dispatchEvent(new N.win.Event('change', { bubbles: true })); } };
+    setN('destination', '다낭'); setN('participants', '30'); setN('days', '4');
+    setN('startDate', dep.toISOString().slice(0, 10));
+    N.doc.querySelectorAll('#estimateForm [required]').forEach((el) => {
+      if (String(el.value || '').trim()) return;
+      if (el.tagName === 'SELECT') el.value = el.options[el.options.length - 1].value;
+      else if (el.type === 'tel') el.value = '010-1234-5678';
+      else el.value = '테스트';
+    });
+    N.doc.getElementById('estimateForm').dispatchEvent(new N.win.Event('submit', { bubbles: true, cancelable: true }));
+    await N.tick(250);
+    N.doc.getElementById('downloadEstimate').dispatchEvent(new N.win.MouseEvent('click', { bubbles: true, cancelable: true, view: N.win }));
+    await N.tick(400);
+    const nw = N.log.opened[0];
+    const el = nw && nw.document.getElementById('doc-qno');
+    ok('⑥b 번호 자리가 접혀 있다', !!el && el.style.display === 'none', el && el.style.display);
+    ok('⑥b 「undefined」가 찍히지 않는다',
+      !/견적번호/.test(visibleText(nw.document.getElementById('quote'))));
   }
 
   console.log('\n[7] 팝업이 막힌 브라우저 — 그냥 아무 일도 안 일어나면 안 된다');

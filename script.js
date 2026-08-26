@@ -3849,6 +3849,8 @@ a{color:inherit;text-decoration:none}
 .brand-sub{font-size:11px;color:#6E6E6E;margin-top:2px}
 .meta-blk{text-align:right;font-size:12px;color:#5A5A5A;line-height:1.8}
 .meta-blk .issue{font-size:14px;font-weight:700;color:#0D0D0D}
+/* 견적번호 — 전화가 왔을 때 고객이 부를 수 있는 유일한 이름이라 인쇄에도 남는다(XP 후속) */
+.meta-blk .issue-qno{font-size:12px;font-weight:700;color:#CC001A;letter-spacing:.02em}
 .sec-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6E6E6E;border-bottom:1px solid #F0F0F0;padding-bottom:6px;margin-bottom:10px;margin-top:22px}
 .info-tbl{width:100%;border-collapse:collapse;margin-bottom:4px}
 .info-tbl td{padding:7px 10px;font-size:13px;border-bottom:1px solid #FAFAFA}
@@ -4039,6 +4041,15 @@ a{color:inherit;text-decoration:none}
       </div>
       <div class="meta-blk">
         <div class="issue">${issueDate}</div>
+        ${/* 🔴 **이 문서에는 견적번호가 없었다** (XP 후속). 고객은 이 창에서 바로
+             「이 견적서 인쇄하기」를 눌러 종이로 만들거나 PDF로 저장한다. 그런데
+             번호는 링크로 여는 견적서에만 있었다 —
+             **전화가 오면 그 사람은 자기 견적을 부를 이름이 없다**(WB가 번호를
+             만든 이유가 정확히 그것이다: 담당자가 휴가여도 응대할 수 있게).
+           ⚠ 번호는 **서버가 발급한 뒤에야** 안다(요청을 보내기 전에는 없다).
+             그래서 자리만 만들어 두고, 응답이 오면 그때 채운다. 못 받으면
+             **빈칸으로 남긴다** — 없는 번호를 지어내지 않는다. */''}
+        <div class="issue-qno" id="doc-qno" style="display:none"></div>
         <div>${ciLegalName}</div>
         <div>${ciTel}</div>
       </div>
@@ -4263,6 +4274,15 @@ function shareCopyLink() {
       if (inp) inp.value = base + 'estimate-view.html?id=' + data.id;
       if (verifying) verifying.style.display = 'none';
       if (ready) ready.style.display = 'flex';
+      /* 🔴 **인쇄되는 문서에도 견적번호를 찍는다** (XP 후속). 이 창에서 바로 인쇄·PDF로
+         저장하는 고객이 있는데, 그 종이에 번호가 없으면 전화가 왔을 때 우리도 고객도
+         무엇에 대한 이야기인지 못 찾는다. 번호는 방금 서버가 준 값이다.
+       ⚠ 못 받았으면 **자리를 접는다** — 「견적번호 undefined」가 찍히면 그게 더 나쁘다. */
+      const qnoEl = w.document.getElementById('doc-qno');
+      if (qnoEl && data.quoteNo) {
+        qnoEl.textContent = '견적번호 ' + data.quoteNo;
+        qnoEl.style.display = '';
+      }
     })
     .catch(() => { clearSteps(); showReview(); });
 }
