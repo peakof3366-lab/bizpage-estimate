@@ -1159,7 +1159,10 @@ async function saveQuote(req, res, origin) {
        남겨, 관리자가 견적 상세에서 "이 건은 어느 단계에서 걸렸는지"를 볼 수 있게 한다.
        걸려도 저장은 한다 — 고객 리드를 버리는 쪽이 훨씬 큰 손해다. 링크 발급
        (api/quote-shares)에서 한 번 더, 그때는 통과해야만 발급된다. */
-    const vctx = await loadVerifyContext(payload.destination);
+    /* ⚠ 목적지 이름이 둘이다 — 브라우저 스냅샷은 `destKey`다(XJ). 여기서 `destination`만
+       보면 **관리자가 추가한 목적지의 요율 행(customRow)을 못 찾아** 그 목적지의 견적이
+       전부 「알 수 없는 목적지」로 걸린다. 판정 쪽과 **같은 순서**로 고른다. */
+    const vctx = await loadVerifyContext(payload.destination || payload.destKey);
     const verified = verifyQuote(payload, vctx);
     /* ⚠ channel·createdBy는 **payload 뒤에** 넣어야 클라이언트가 보낸 값을 덮는다.
        순서가 뒤바뀌면 익명 제출자가 다시 '내부 산출'을 자칭할 수 있다 (PX). */

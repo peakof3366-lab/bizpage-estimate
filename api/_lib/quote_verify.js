@@ -87,9 +87,20 @@ function verifyQuote(payload, ctx = {}) {
   const step = (id, label, ok, detail = '') => { steps.push({ id, label, ok, detail }); return ok; };
   const p = payload || {};
 
-  /* ── 1단계: 입력이 실재하는 값인가 ───────────────────────────── */
-  const dest = authoritativeRate(p.destination, ctx.overrides, ctx.customRow);
-  step('dest', '목적지 확인', !!dest, dest ? p.destination : `알 수 없는 목적지: ${p.destination}`);
+  /* ── 1단계: 입력이 실재하는 값인가 ─────────────────────────────
+   🔴 **이름이 둘이다** (XJ). 브라우저가 보내는 견적 스냅샷(`estRecord`)은 목적지를
+     `destKey`로 담고, 공유 payload에서 만든 얕은 대조판(`shareToVerifyPayload`)은
+     `destination`으로 담는다. 여기서는 `destination`만 봤다 —
+     **그래서 스냅샷이 딸려 온 견적은 언제나 「알 수 없는 목적지: undefined」**였다.
+     즉 촘촘하라고 보낸 스냅샷이 오히려 검증을 통째로 무력화했고(1단계에서 걸리면
+     요율표 대조·기준월 검사가 아예 안 돈다), 고객 자동 발급은 늘 「담당자 확인」으로
+     떨어졌다. `test_pO`가 못 잡은 이유는 픽스처를 **코드를 보고** 만들어서다
+     (`destination`으로 지어 놓았다) — 「픽스처는 서버가 실제로 받는 모양이어야 한다」.
+   ⚠ 둘 다 받는다. 한쪽 이름으로 통일하려면 이미 나간 브라우저의 캐시된 `script.js`가
+     전부 바뀌기를 기다려야 하는데, 그동안 들어오는 견적은 검증을 못 받는다. */
+  const destKey = p.destination || p.destKey;
+  const dest = authoritativeRate(destKey, ctx.overrides, ctx.customRow);
+  step('dest', '목적지 확인', !!dest, dest ? destKey : `알 수 없는 목적지: ${destKey}`);
 
   const pax = num(p.participants);
   const days = num(p.days);
@@ -120,18 +131,33 @@ function verifyQuote(payload, ctx = {}) {
     step('coef', '계수 노브 일치', drift.length === 0, drift.join(', ') || '현재 설정과 일치');
   }
 
-  /* ── 4단계: 항목 산술이 맞는가 ───────────────────────────────── */
-  const items = Array.isArray(p.items) ? p.items : [];
-  step('items', '항목 존재', items.length > 0, `${items.length}개 항목`);
-
-  const badAmounts = items.filter((it) => num(it.amount) === null || it.amount < 0)
-    .map((it) => it.name);
-  step('amounts', '항목 금액 형식', badAmounts.length === 0, badAmounts.join(', ') || '전부 정상');
-
-  const sum = items.reduce((a, it) => a + (num(it.amount) || 0), 0);
+  /* ── 4단계: 항목 산술이 맞는가 ─────────────────────────────────
+   🔴 **항목이 아예 안 온 경우와 비어서 온 경우는 다르다** (XJ).
+     `shareToVerifyPayload`는 항목을 **일부러 안 넘긴다** — 공유 payload의 rows에는
+     비공개 항목이 빠져 있어 합계가 총액과 안 맞는 게 정상이라, 그대로 대조하면
+     **거짓 실패**가 난다. 그 파일 주석은 「그래서 해당 단계를 건너뛴다」고 적혀 있었는데
+     **여기가 안 건너뛰고 있었다** — 그 경로로 온 견적은 늘 `items`·`sum`에서 걸렸다.
+     (스냅샷이 온 경로는 `destKey`를 못 읽어 걸렸으니, **두 경로가 각자 다른 이유로**
+      전부 걸리고 있었다. 검증은 통과하는 견적이 없으면 아무것도 지키지 못한다.)
+   ⚠ 그렇다고 조용히 건너뛰지 않는다 — **건너뛴 사실을 단계로 남긴다.** 안 남기면
+     관리자 화면에 「통과」로만 보여서, 얕게 본 것과 촘촘히 본 것이 구별되지 않는다.
+   ⚠ **빈 배열은 그대로 실패다**(`items: []`). 엔진이 만든 견적에 항목이 0개일 수는 없다. */
   const total = num(p.total);
-  step('sum', '항목 합계 = 총액', total !== null && Math.abs(sum - total) <= 2,
-    total === null ? '총액 없음' : `합계 ${sum.toLocaleString()} vs 총액 ${total.toLocaleString()}`);
+  const hasItems = Array.isArray(p.items);
+  const items = hasItems ? p.items : [];
+  if (!hasItems) {
+    step('items', '항목 대조 생략', true, '항목이 없는 payload — 총액·1인당·상식 범위로만 본다');
+  } else {
+    step('items', '항목 존재', items.length > 0, `${items.length}개 항목`);
+
+    const badAmounts = items.filter((it) => num(it.amount) === null || it.amount < 0)
+      .map((it) => it.name);
+    step('amounts', '항목 금액 형식', badAmounts.length === 0, badAmounts.join(', ') || '전부 정상');
+
+    const sum = items.reduce((a, it) => a + (num(it.amount) || 0), 0);
+    step('sum', '항목 합계 = 총액', total !== null && Math.abs(sum - total) <= 2,
+      total === null ? '총액 없음' : `합계 ${sum.toLocaleString()} vs 총액 ${total.toLocaleString()}`);
+  }
 
   const visible = num(p.visibleTotal), hidden = num(p.hiddenTotal);
   if (visible !== null && hidden !== null && total !== null) {
