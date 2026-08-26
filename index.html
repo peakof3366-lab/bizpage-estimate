@@ -695,7 +695,12 @@
                       <span class="total-amt" id="perPersonValue">₩ 0</span>
                     </div>
                     <div class="total-box total-grand">
-                      <span class="total-lbl">예상 총액</span>
+                      <!-- 🔴 「(VAT 별도)」를 붙였다 (WS). 같은 금액인데 이 화면에서만
+                           VAT 이야기가 없었다 — 인쇄용 견적 창(script.js)과 고객 견적서
+                           (estimate-view.html)는 둘 다 「VAT 별도」라고 말한다.
+                           고객이 여기서 본 숫자를 최종가로 이해했다가 견적서에서 다른
+                           기준을 읽으면, 20명 견적에서 그 차이가 수백만 원이 된다. -->
+                      <span class="total-lbl">예상 총액 (VAT 별도)</span>
                       <span class="total-amt" id="resultValue">₩ 0</span>
                     </div>
                   </div>
