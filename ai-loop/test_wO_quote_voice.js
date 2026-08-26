@@ -296,5 +296,48 @@ function render(payload) {
       (flat2.match(/.*유효기간.*/) || [''])[0]);
   }
 
+  console.log('\n[10] XC — 🔴 패키지 견적서에 **일정이 실린다**');
+  {
+    /* 서버는 일정을 `ia`로 싣는데(issuePackageShare) 이 화면은 `itiA/itiB`만 읽고 있었다.
+       그래서 하나투어에서 일정을 읽어 와 저장하고 발급까지 해도(WI·WJ·WL·WU)
+       **고객이 받는 문서에는 일정이 한 줄도 없었다.** 패키지의 핵심 가치가 「정해진
+       일정」인데 금액만 나간 셈이다. */
+    const withIti = JSON.parse(JSON.stringify(PKG));
+    withIti.ia = { t: '방콕 자유여행 5일', h: [], d: [
+      { day: 1, title: '11/01(일)', am: '인천 · 방콕 / 식사: 기내식 / 숙박: ibis Styles Bangkok Silom' },
+      { day: 2, title: '11/02(월)', am: '방콕 / 자유일정 / 식사: 호텔식' },
+    ] };
+    const w = await render(withIti);
+    const d = w.document;
+    const vis = visibleText(w);
+    ok('⑪ 🔴 일정이 날짜 수만큼 그려진다', d.querySelectorAll('.pkg-iti-day').length === 2,
+      String(d.querySelectorAll('.pkg-iti-day').length));
+    ok('⑪ 호텔 이름까지 실린다', /ibis Styles Bangkok Silom/.test(vis));
+    ok('⑪ 일차와 날짜를 함께 말한다', /DAY 1 · 11\/01\(일\)/.test(vis.replace(/\s+/g, ' ')));
+    /* ⚠ 하나투어는 하루를 **한 줄**로 준다 — 오전/오후/저녁 3칸 표에 넣으면
+       「오후 —」가 매일 찍혀 빠뜨린 것처럼 보인다(WP에서 세운 규칙과 같은 자리). */
+    ok('⑪ 🔴 「오후 —」 「저녁 —」를 안 찍는다', !/오후 —/.test(vis) && !/저녁 —/.test(vis),
+      (vis.match(/.{0,20}오후.{0,10}/) || [''])[0]);
+    /* 확정 일정이지 추천이 아니다 */
+    ok('⑪ 「추천 코스」라고 하지 않는다', !/추천 코스|탐색하신 일정/.test(vis));
+    ok('⑪ 바뀔 수 있다는 것도 말한다', /순서가 바뀔 수 있습니다/.test(vis));
+
+    /* 일정이 없는 패키지(엑셀 투입분 등)에서는 그 자리를 아예 안 그린다 */
+    const noIti = JSON.parse(JSON.stringify(PKG));
+    noIti.ia = null;
+    const w2 = await render(noIti);
+    ok('⑪ 일정이 없으면 빈 카드를 안 그린다',
+      w2.document.querySelectorAll('.pkg-iti-day').length === 0);
+
+    /* 맞춤 견적서는 그대로 — 추천 코스 자리를 뺏지 않는다 */
+    const tr = JSON.parse(JSON.stringify(TRAINING));
+    tr.itiA = { t: '도쿄 산업시찰', s: '', h: ['혁신센터'], d: [{ day: 1, title: '1일차', am: '오전 일정', pm: '오후 일정', eve: '' }] };
+    const w3 = await render(tr);
+    const vis3 = visibleText(w3);
+    ok('⑪ 맞춤 견적서는 추천 코스를 그대로 그린다', /추천 코스/.test(vis3), vis3.slice(0, 60));
+    ok('⑪ 맞춤 견적서에는 패키지 일정 카드가 없다',
+      w3.document.querySelectorAll('.pkg-iti-day').length === 0);
+  }
+
   done();
 })().catch((e) => { console.error('실행 오류:', e); process.exit(1); });

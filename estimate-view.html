@@ -191,6 +191,17 @@ a { color: inherit; text-decoration: none; }
 .iti-card-selected { box-shadow: 0 0 0 2px #CC001A, 0 4px 24px rgba(204,0,26,.15); }
 .iti-title { font-size: 17px; font-weight: 800; color: #fff; margin-bottom: 6px; }
 .iti-sub { font-size: 13px; color: rgba(255,255,255,.6); }
+/* 패키지 일정 (XC) — 하루가 한 줄이라 탭이 아니라 목록으로 편다.
+   ⚠ 인쇄에서도 남아야 한다. 고객이 결재에 붙이는 문서에서 일정이 사라지면 안 된다. */
+.pkg-iti-list { padding: 8px 0; }
+.pkg-iti-day { display: grid; grid-template-columns: 150px 1fr; gap: 14px;
+  padding: 14px 32px; border-bottom: 1px solid #F0F0F0; page-break-inside: avoid; }
+.pkg-iti-day:last-child { border-bottom: none; }
+.pkg-iti-no { font-size: 12px; font-weight: 800; color: #CC001A; letter-spacing: -.01em; }
+.pkg-iti-body { font-size: 13.5px; color: #333; line-height: 1.9; word-break: keep-all; }
+@media (max-width: 640px) {
+  .pkg-iti-day { grid-template-columns: 1fr; gap: 4px; padding: 12px 18px; }
+}
 .iti-highlights { padding: 24px 32px; display: flex; flex-wrap: wrap; gap: 8px; }
 .iti-hl {
   background: #F4F4F2; border: 1px solid #E5E2DC;
@@ -567,6 +578,41 @@ function renderPage(d) {
     </div>`;
   }
 
+  /* 🔴 **패키지 일정** (XC) — 서버는 `ia`로 싣는데 이 화면은 `itiA/itiB`만 읽고 있었다.
+     그래서 하나투어에서 일정을 읽어 와 저장하고 발급까지 해도(WI·WJ·WL·WU)
+     **고객이 받는 견적서에는 일정이 한 줄도 안 실렸다.** 패키지 상품의 핵심 가치가
+     「정해진 일정」인데(고객 화면 머리글이 그렇게 말한다) 문서에는 금액만 있었다.
+     키가 어긋난 자리다 — 목록이 흩어져 하나를 빠뜨리는 결함 생성기 ①의 변형이다.
+
+   ⚠ 추천 코스와 **같은 틀로 그리지 않는다.** 두 가지가 다르다:
+     · 패키지 일정은 **확정 일정**이다 — 「추천 코스」·「탐색하신 일정」이 아니다.
+     · 하나투어는 하루를 **한 줄**로 준다(오전/오후/저녁으로 안 나뉜다). 3칸 표에
+       넣으면 「오후 —」 「저녁 —」가 매일 찍혀 **빠뜨린 것처럼** 보인다(WP에서
+       없는 칸에 줄표를 안 찍기로 한 것과 같은 이유). 있는 칸만 그린다. */
+  function renderPackageItinerary(ia) {
+    if (!ia || !Array.isArray(ia.d) || !ia.d.length) return '';
+    const rows = ia.d.map((day, i) => {
+      /* 일차는 원래 숫자다 — 공개 POST에서 온 값이라 숫자로 못 박는다(renderCourse와 같은 이유) */
+      const no = Number(day && day.day) || (i + 1);
+      const parts = [day && day.am, day && day.pm, day && day.eve]
+        .map((v) => esc(v)).filter(Boolean);
+      return `
+        <div class="pkg-iti-day">
+          <div class="pkg-iti-no">DAY ${no}${day && day.title ? ' · ' + esc(day.title) : ''}</div>
+          <div class="pkg-iti-body">${parts.length ? parts.join('<br>') : '—'}</div>
+        </div>`;
+    }).join('');
+    return `
+    <div class="iti-card">
+      <div class="iti-header">
+        <div class="iti-label">TRAVEL ITINERARY</div>
+        <div class="iti-title">${esc(ia.t) || '여행 일정'}</div>
+        <div class="iti-sub">상품에 포함된 일정입니다 · 현지 사정에 따라 순서가 바뀔 수 있습니다</div>
+      </div>
+      <div class="pkg-iti-list">${rows}</div>
+    </div>`;
+  }
+
   /* ── 사진 스트립 ── */
   const strip = d.strip || [];
   const photoStripHtml = strip.length >= 2 ? `
@@ -744,6 +790,9 @@ function renderPage(d) {
     </div><!-- /quote-card -->
 
     ${photoStripHtml}
+
+    ${/* 패키지 견적서의 일정 (XC) — 맞춤 견적의 「추천 코스」와 다른 자리다 */''}
+    ${d.pkg ? renderPackageItinerary(d.ia) : ''}
 
     <!-- 추천 일정 -->
     ${d.itiA || d.itiB ? `
