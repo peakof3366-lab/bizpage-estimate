@@ -131,11 +131,34 @@ function bootPage(file, opts = {}) {
       win.URL.createObjectURL = (blob) => { log.downloads.push({ size: blob && blob.size, type: blob && blob.type }); return 'blob:fake'; };
       win.URL.revokeObjectURL = () => {};
       /* 새 창(견적서 미리보기)은 **진짜 창**을 준다 — 열리는 척만 하면 그 안에서
-         터지는 것도, 그 안의 링크도 못 본다. */
+         터지는 것도, 그 안의 링크도 못 본다.
+       🔴 **스크립트도 돌려야 한다**(XL). `runScripts`를 안 주면 `document.write`로
+         들어간 팝업 안의 `<script>`가 실행되지 않아, 그 안의 버튼이 전부 「정의되지
+         않은 함수」가 된다 — 화면 결함이 아니라 **하네스 결함**인데 구별이 안 된다
+         (실제로 「링크 복사가 아무 일도 안 한다」로 오진할 뻔했다). */
       win.open = () => {
-        const sub = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
+        const sub = new JSDOM('<!doctype html><html><body></body></html>', {
+          url: 'http://localhost/', runScripts: 'dangerously',
+        });
         const w = sub.window;
         w.close = () => { Object.defineProperty(w, 'closed', { value: true, configurable: true }); };
+        w.print = () => { log.printed++; };
+        w.alert = (m) => { log.says.push({ kind: 'alert', text: String(m), where: '새 창' }); };
+        w.scrollTo = () => {};
+        w.HTMLElement.prototype.scrollIntoView = function () {};
+        w.addEventListener('error', (e) => log.errors.push({ where: '새 창', msg: String(e.message || e.error) }));
+        /* 🔴 그래도 **jsdom은 `document.write`로 들어온 `<script>`를 실행하지 않는다**
+           (직접 확인했다 — 태그는 생기는데 안 돈다). 실제 브라우저는 실행한다.
+           그 차이를 그대로 두면 팝업 안의 버튼이 전부 「죽은 버튼」으로 보인다.
+           → 문서가 닫히는 시점에 우리가 대신 돌린다. 실행 순서는 문서에 적힌 순서 그대로다. */
+        const closeDoc = w.document.close.bind(w.document);
+        w.document.close = () => {
+          closeDoc();
+          Array.from(w.document.querySelectorAll('script:not([src])')).forEach((s) => {
+            try { w.eval(s.textContent); }
+            catch (e) { log.errors.push({ where: '새 창 스크립트', msg: String(e.message || e) }); }
+          });
+        };
         log.opened.push(w);
         return w;
       };

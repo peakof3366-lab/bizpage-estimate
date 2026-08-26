@@ -3960,7 +3960,19 @@ a{color:inherit;text-decoration:none}
     </div>
     <div id="share-ready" style="display:none;gap:8px;margin-bottom:16px">
       <input id="share-url-inp" value="" readonly style="flex:1;padding:10px 14px;border:1.5px solid #E5E2DC;font-size:12px;outline:none;background:#FAFAFA;color:#0D0D0D">
-      <button id="copy-btn" onclick="(function(){navigator.clipboard.writeText(document.getElementById('share-url-inp').value).then(()=>{var b=document.getElementById('copy-btn');b.textContent='복사됨!';b.style.background='#22c55e';setTimeout(()=>{b.textContent='링크 복사';b.style.background='#CC001A';},2000);})})()" style="background:#CC001A;color:#fff;border:none;padding:10px 20px;font-weight:700;cursor:pointer;white-space:nowrap;font-size:13px">링크 복사</button>
+      <button id="copy-btn" onclick="shareCopyLink()" style="background:#CC001A;color:#fff;border:none;padding:10px 20px;font-weight:700;cursor:pointer;white-space:nowrap;font-size:13px">링크 복사</button>
+    </div>
+    <!-- 🔴 **복사가 안 되는 브라우저가 있다** (XL). 예전 코드는 clipboard API 하나만
+         불렀다. 그런데 navigator.clipboard는 **https가 아니거나 카카오톡 인앱
+         브라우저 같은 곳에서는 아예 없다.** 우리 고객은 견적서 링크를 **카톡으로 받아
+         카톡에서 연다** — 하필 가장 흔한 자리에서 이 버튼이 **아무 반응 없이 죽었다.**
+         게다가 catch도 없어서 실패하면 조용했다(결함 생성기 ②).
+         → 세 겹: ① 표준 API ② 옛 execCommand ③ **주소를 선택해 주고 「길게 눌러
+           복사해 주세요」라고 말한다.** 안 되면 안 된다고 말하는 것이 마지막 겹이다.
+         ⚠ 이 문서는 통째로 템플릿 문자열이다 — 여기에 backtick을 쓰면 그 자리에서
+           문자열이 끊겨 **script.js 전체가 죽는다**(실제로 한 번 죽였다). -->
+    <div id="copy-help" style="display:none;font-size:12px;color:#8F0B20;margin:-8px 0 16px">
+      자동 복사가 막혀 있습니다 — 위 주소를 <strong>길게 눌러</strong> 복사해 주세요.
     </div>
     <div id="share-review" style="display:none;margin-bottom:16px;padding:16px 18px;background:#FFF8E6;border:1.5px solid #F0D89A">
       <div style="font-size:13px;font-weight:700;color:#7A5A10;margin-bottom:4px">담당자 확인이 필요한 견적입니다</div>
@@ -4098,6 +4110,40 @@ function showCourse(id, btn) {
   document.querySelectorAll('.rec-content').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('course-' + id).classList.add('active');
+}
+/* 링크 복사 — **세 겹**이다 (XL). navigator.clipboard는 https가 아니거나
+   카카오톡 인앱 브라우저에서는 아예 없다. 우리 고객은 링크를 카톡으로 주고받으므로
+   하필 거기서 이 버튼이 죽는다. 안 되면 **안 된다고 말하고 선택까지 해 준다.** */
+function shareCopyLink() {
+  var inp = document.getElementById('share-url-inp');
+  var btn = document.getElementById('copy-btn');
+  var help = document.getElementById('copy-help');
+  if (!inp) return;
+  var said = function (text, color) {
+    if (!btn) return;
+    btn.textContent = text; btn.style.background = color;
+    setTimeout(function () { btn.textContent = '링크 복사'; btn.style.background = '#CC001A'; }, 2000);
+  };
+  var manual = function () {
+    /* 선택까지 해 두면 「길게 눌러 복사」가 한 번에 된다 */
+    try { inp.focus(); inp.select(); inp.setSelectionRange(0, inp.value.length); } catch (e) {}
+    if (help) help.style.display = 'block';
+    said('직접 복사', '#8F0B20');
+  };
+  var legacy = function () {
+    try {
+      inp.focus(); inp.select(); inp.setSelectionRange(0, inp.value.length);
+      if (document.execCommand && document.execCommand('copy')) { said('복사됨!', '#22c55e'); return true; }
+    } catch (e) {}
+    return false;
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(inp.value)
+      .then(function () { said('복사됨!', '#22c55e'); })
+      .catch(function () { if (!legacy()) manual(); });
+    return;
+  }
+  if (!legacy()) manual();
 }
 (function initAnchorNav() {
   const sections = ['quote','rec','gallery'];
