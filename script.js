@@ -332,9 +332,22 @@ const INSURANCE_BASE = 18000; /* 기준: 동남아 권역 · 4~5일 · 기업단
    ⚠ **온라인 취합값이다** — 대표가 손으로 고칠 자리다(결정대기열 7-d-1).
    ⚠ 구간 이름을 여기 목록에 안 넣으면 그 목적지가 어느 권역에도 안 들어가고
      보험 계수가 **조용히 1.00으로 폴백**한다(결함 생성기 ②). */
-const INSURANCE_ZONES = destGroupsBy('ins', ['domestic', 'asiaShort', 'asiaMid', 'evac', 'oceania', 'highCost']);
+/* 🔴 권역 **이름 목록은 `data.js`가 갖는다**(XQ) — 서버 검증(api/rates.js)도 같은 것을
+   읽는다. 예전엔 여기와 서버에 각각 손으로 적혀 있었고, 한쪽만 늘리면 저장은 되는데
+   엔진이 못 찾아 보험 계수가 **조용히 1.00으로** 떨어졌다(권역별 0.15~1.80). */
+const INSURANCE_ZONES = destGroupsBy('ins', INSURANCE_ZONE_IDS);
 const INSURANCE_ZONE_FACTORS = { domestic: 0.15, asiaShort: 0.85, asiaMid: 1.00, evac: 1.20, oceania: 1.50, highCost: 1.80 };
 const INSURANCE_ZONE_LABELS  = { domestic: '국내', asiaShort: '아시아 단거리', asiaMid: '동남아', evac: '의료후송 위험권', oceania: '오세아니아', highCost: '미주·유럽' };
+/* ⚠ **계수·라벨이 목록을 다 덮는지 여기서 확인한다.** 권역을 새로 만들고 계수를 안 넣으면
+   보험료가 `NaN`이 된다 — 폴백보다 나쁘다(금액 자리에 NaN이 그대로 나간다).
+   조용히 넘어가지 않고 분류 문제 목록에 남긴다(audit_consistency가 오류로 잡는다). */
+INSURANCE_ZONE_IDS.forEach((z) => {
+  if (typeof INSURANCE_ZONE_FACTORS[z] !== 'number' || !INSURANCE_ZONE_LABELS[z]) {
+    if (typeof noteClassifyIssue === 'function') {
+      noteClassifyIssue(`보험 권역 '${z}': 계수 또는 라벨이 없다 — 보험료가 NaN이 된다`);
+    }
+  }
+});
 
 /* 일수 구간 — 일수 정비례가 아니라 완만한 체감형(초기 며칠이 고정비 성격이고 이후
    일당 증분이 작다). 기준 구간은 4~5일 = 1.00. MICE 연수는 3~5일이 압도적이라

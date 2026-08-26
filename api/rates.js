@@ -90,9 +90,11 @@ const COEF_SPEC = {
    isValidChange와 달리 전체 행 검증이 필요해 별도 함수로 분리). */
 const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key));
 const CUSTOM_ZONES = new Set(['short', 'mid', 'long']);
-/* script.js INSURANCE_ZONES의 키와 동일해야 한다 — 한쪽만 늘리면 저장은 되는데
-   엔진이 못 찾아 중립값으로 폴백한다(ai-loop/test_pP가 두 목록을 대조한다). */
-const INSURANCE_ZONE_KEYS = new Set(['domestic', 'asiaShort', 'asiaMid', 'evac', 'oceania', 'highCost']);
+/* 🔴 **목록을 여기 적지 않는다**(XQ). 예전엔 이 줄에 권역 이름을 손으로 적어 두고
+   「script.js와 동일해야 한다 — 어긋나면 test_pP가 잡는다」는 주석으로 버텼다.
+   어긋남을 감시하는 것보다 **어긋날 수 없게 만드는 것**이 낫다 — 시즌 프로파일 id가
+   바로 아래에서 이미 그렇게 하고 있었다. 이제 둘 다 `data.js`에서 온다. */
+const INSURANCE_ZONE_KEYS = new Set(destinationRates.INSURANCE_ZONE_IDS || []);
 /* 시즌 프로파일 허용 id (PQ) — 보험 권역처럼 여기 손으로 적지 않고 data.js가 내보낸
    DEST_SEASON_PROFILES에서 뽑는다. 목록을 두 번 적으면 프로파일을 새로 추가했을 때
    서버만 모르는 상태가 되어 저장이 400으로 막히거나(또는 그 반대로) 조용히 폴백한다. */

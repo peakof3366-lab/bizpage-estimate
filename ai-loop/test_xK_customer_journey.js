@@ -99,7 +99,7 @@ console.log('\n[2] CSV로 떨어질 때의 내용 — 엑셀이 열 수 있어�
   const dep = new Date(); dep.setDate(dep.getDate() + 90);
   const set = (id, v) => { const el = doc.getElementById(id); if (el) { el.value = v; el.dispatchEvent(new win.Event('change', { bubbles: true })); } };
   set('destination', '다낭'); set('participants', '30'); set('days', '4');
-  set('startDate', dep.toISOString().slice(0, 10));
+  set('startDate', dep.toLocaleDateString('sv-SE'));
   doc.querySelectorAll('#estimateForm [required]').forEach((el) => {
     if (String(el.value || '').trim()) return;
     if (el.tagName === 'SELECT') el.value = el.options[el.options.length - 1].value;
@@ -214,7 +214,7 @@ console.log('\n[2] CSV로 떨어질 때의 내용 — 엑셀이 열 수 있어�
     if (share) {
       /* 서버가 얹는 칸을 그대로 흉내 낸다(발행일·견적번호·검증 결과) */
       const shareDoc = Object.assign({}, share, {
-        iso: new Date().toISOString().slice(0, 10),
+        iso: new Date().toLocaleDateString('sv-SE'),
         qno: 'Q260826-99',
         _verify: { verdict: 'verified', at: new Date().toISOString() },
       });

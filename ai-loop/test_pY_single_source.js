@@ -133,9 +133,16 @@ const callArgs = (re, src) => {
   return m ? m[1].split(',').map((x) => x.trim().replace(/['"]/g, '')).filter(Boolean) : null;
 };
 const bizGroups = callArgs(/destGroupsBy\('zone',\s*\[([^\]]*)\]\)/, scriptSrc);
-const insGroups = callArgs(/destGroupsBy\('ins',\s*\[([^\]]*)\]\)/, scriptSrc);
+/* XQ: 보험 권역 **이름 목록**은 이제 script.js가 아니라 data.js가 갖는다(서버도 같은
+   것을 읽는다). 그래서 소스에서 긁지 않고 내보낸 값을 그대로 쓴다.
+   ⚠ 대신 **엔진이 정말 그 목록을 쓰는지**는 확인한다 — 안 그러면 이 검사는 data.js만
+     혼자 보고 통과한다(대조하는 척하는 검사). */
+const insGroups = DATA.INSURANCE_ZONE_IDS || null;
 ok('script.js가 BIZ_ZONES를 destGroupsBy로 만든다', !!bizGroups, String(bizGroups));
-ok('script.js가 INSURANCE_ZONES를 destGroupsBy로 만든다', !!insGroups, String(insGroups));
+ok('보험 권역 이름 목록이 data.js에서 온다', Array.isArray(insGroups) && insGroups.length >= 6,
+  String(insGroups));
+ok('script.js가 그 목록으로 INSURANCE_ZONES를 만든다',
+  /destGroupsBy\('ins',\s*INSURANCE_ZONE_IDS\)/.test(scriptSrc));
 ok('admin.html이 REGION_MAP을 destFieldMap으로 만든다',
   /const REGION_MAP = destFieldMap\('region'\);/.test(adminSrc));
 ok('dest_currency.js가 destFieldMap으로 만든다', /destFieldMap\('currency'\)/.test(curSrc));

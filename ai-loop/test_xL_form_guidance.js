@@ -149,7 +149,7 @@ console.log('\n[1] 상한은 한 곳에서 온다 — 화면과 서버가 같은
   console.log('\n[7] 정상 입력은 조용하다 — 그리고 견적까지 간다');
   {
     const dep = new Date(); dep.setDate(dep.getDate() + 90);
-    set('days', '4'); set('startDate', dep.toISOString().slice(0, 10));
+    set('days', '4'); set('startDate', dep.toLocaleDateString('sv-SE'));
     doc.querySelectorAll('#estimateForm [required]').forEach((el) => {
       if (String(el.value || '').trim()) return;
       if (el.tagName === 'SELECT') el.value = el.options[el.options.length - 1].value;

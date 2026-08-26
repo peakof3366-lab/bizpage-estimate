@@ -62,7 +62,7 @@ console.log('\n[1] 소스에 남아 있으면 안 되는 것');
   const dep = new Date(); dep.setDate(dep.getDate() + 90);
   const set = (id, v) => { const el = doc.getElementById(id); if (el) { el.value = v; el.dispatchEvent(new win.Event('change', { bubbles: true })); } };
   set('destination', '다낭'); set('participants', '30'); set('days', '4');
-  set('startDate', dep.toISOString().slice(0, 10));
+  set('startDate', dep.toLocaleDateString('sv-SE'));
   doc.querySelectorAll('#estimateForm [required]').forEach((el) => {
     if (String(el.value || '').trim()) return;
     if (el.tagName === 'SELECT') el.value = el.options[el.options.length - 1].value;
@@ -161,7 +161,7 @@ console.log('\n[1] 소스에 남아 있으면 안 되는 것');
     await N.ready; await N.tick(250);
     const setN = (id, v) => { const el = N.doc.getElementById(id); if (el) { el.value = v; el.dispatchEvent(new N.win.Event('change', { bubbles: true })); } };
     setN('destination', '다낭'); setN('participants', '30'); setN('days', '4');
-    setN('startDate', dep.toISOString().slice(0, 10));
+    setN('startDate', dep.toLocaleDateString('sv-SE'));
     N.doc.querySelectorAll('#estimateForm [required]').forEach((el) => {
       if (String(el.value || '').trim()) return;
       if (el.tagName === 'SELECT') el.value = el.options[el.options.length - 1].value;
@@ -186,7 +186,7 @@ console.log('\n[1] 소스에 남아 있으면 안 되는 것');
     C.win.open = () => null;             /* 팝업 차단 */
     const set2 = (id, v) => { const el = C.doc.getElementById(id); if (el) { el.value = v; el.dispatchEvent(new C.win.Event('change', { bubbles: true })); } };
     set2('destination', '다낭'); set2('participants', '30'); set2('days', '4');
-    set2('startDate', dep.toISOString().slice(0, 10));
+    set2('startDate', dep.toLocaleDateString('sv-SE'));
     C.doc.querySelectorAll('#estimateForm [required]').forEach((el) => {
       if (String(el.value || '').trim()) return;
       if (el.tagName === 'SELECT') el.value = el.options[el.options.length - 1].value;

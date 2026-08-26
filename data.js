@@ -349,6 +349,23 @@ function destGroupsBy(field, groupIds) {
   return out;
 }
 
+/* 🔴 **보험 권역 이름 목록 — 여기가 한 곳이다** (XQ).
+   예전에는 이 목록이 **두 곳에** 손으로 적혀 있었다:
+     · `script.js`  `destGroupsBy('ins', ['domestic', …])`   ← 엔진이 목적지를 편입할 때
+     · `api/rates.js` `INSURANCE_ZONE_KEYS = new Set([…])`   ← 새 목적지 저장을 검증할 때
+   한쪽만 늘리면 **저장은 되는데 엔진이 못 찾아 보험 계수가 조용히 1.00으로 떨어진다**
+   (권역별 0.15~1.80이라 최대 여섯 배 어긋난다). PP에서 실제로 당한 자리이고,
+   그때 만든 방어는 「두 소스의 **글자**를 정규식으로 대조하는 검사」였다 —
+   **목록을 하나로 만드는 대신 어긋남을 감시**한 것이다. 이제 하나로 둔다.
+ ⚠ 시즌 프로파일 id(`DEST_SEASON_PROFILES`)가 이미 같은 방식으로 서버와 공유된다.
+ ⚠ **파생하지 않고 손으로 적는다.** `DEST_CLASSIFY`의 값에서 뽑으면, 그 권역에 속한
+   목적지가 하나도 없는 순간 권역 자체가 목록에서 사라지고 **서버가 그 권역으로는
+   저장을 거절**하게 된다(빈 권역도 존재할 수 있어야 한다).
+ ⚠ 계수·라벨(`INSURANCE_ZONE_FACTORS`·`_LABELS`)은 엔진 값이라 `script.js`에 남는다.
+   대신 script.js가 **이 목록을 다 덮는지 스스로 확인**한다 — 계수 없는 권역이 생기면
+   보험료가 NaN이 되므로 조용히 넘어가면 안 된다. */
+const INSURANCE_ZONE_IDS = ['domestic', 'asiaShort', 'asiaMid', 'evac', 'oceania', 'highCost'];
+
 /* 분류표 → { 목적지: 값 } 형태의 맵 (지역·통화처럼 구간이 열려 있는 축) */
 function destFieldMap(field) {
   const out = {};
@@ -688,6 +705,9 @@ if (typeof module !== 'undefined' && module.exports) {
      감사 도구·테스트가 파생 결과를 대조하는 데 쓴다. */
   module.exports.DEST_CLASSIFY = DEST_CLASSIFY;
   module.exports.DEST_CLASSIFY_ISSUES = DEST_CLASSIFY_ISSUES;
+  /* XQ: 보험 권역 이름 목록 — 서버 검증(api/rates.js)이 여기서 읽는다.
+     예전엔 서버가 같은 목록을 손으로 적어 두고 「어긋나면 검사가 잡는다」로 버텼다. */
+  module.exports.INSURANCE_ZONE_IDS = INSURANCE_ZONE_IDS;
   module.exports.destGroupsBy = destGroupsBy;
   module.exports.destFieldMap = destFieldMap;
   module.exports.destKeysWhere = destKeysWhere;

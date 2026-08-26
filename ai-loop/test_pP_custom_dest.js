@@ -38,23 +38,40 @@ ok('엔진이 INSURANCE_ZONES에 편입한다', /INSURANCE_ZONES\[insZone\]\.pus
 ok('관리자 폼에 입력칸이 있다', /id="new-dest-insurance"/.test(adminSrc));
 ok('폼이 값을 실어 보낸다', /insuranceZone: document\.getElementById\('new-dest-insurance'\)\.value/.test(adminSrc));
 
-console.log('\n[2] 서버 허용 키와 엔진 권역 키가 일치하는가');
-const serverKeys = (ratesSrc.match(/const INSURANCE_ZONE_KEYS = new Set\(\[([^\]]+)\]\)/) || [])[1] || '';
-const serverSet = serverKeys.split(',').map((x) => x.trim().replace(/['"]/g, '')).filter(Boolean).sort();
-/* PY: 엔진의 권역 목록은 더 이상 리터럴이 아니라 destGroupsBy에 넘기는 구간명 배열이다
-   (목적지 소속은 data.js DEST_CLASSIFY에서 파생). 구간명 자체는 여전히 서버 허용 키·
-   관리자 폼 선택지와 맞아야 하므로 이 세 곳 대조는 그대로 의미가 있다. */
-const engineCall = (scriptSrc.match(/destGroupsBy\('ins',\s*\[([^\]]*)\]\)/) || [])[1] || '';
-const engineSet = engineCall.split(',').map((x) => x.trim().replace(/['"]/g, '')).filter(Boolean).sort();
-ok('서버 키 목록을 읽었다', serverSet.length > 0, serverSet.join(','));
-ok('엔진 권역 목록을 읽었다', engineSet.length > 0, engineSet.join(','));
-ok('두 목록이 정확히 일치', JSON.stringify(serverSet) === JSON.stringify(engineSet),
-  `서버 [${serverSet}] vs 엔진 [${engineSet}]`);
-/* 관리자 폼의 선택지도 같아야 한다 — 폼에만 있는 값을 고르면 서버가 400을 준다. */
+console.log('\n[2] 권역 이름 목록이 **한 곳**에서 오는가 (XQ)');
+/* 🔴 예전에는 이 블록이 서버 소스와 엔진 소스에서 **글자로 목록을 긁어** 대조했다.
+   그건 「어긋나면 잡는다」이지 「어긋날 수 없다」가 아니다. 그리고 목록을 한 곳으로
+   모으는 순간, 긁을 글자가 없어져 **양쪽 다 빈 배열이 되고 「정확히 일치」가 통과**해
+   버린다 — 아무것도 안 지키면서 초록인 검사가 된다(결함 생성기 ③).
+   그래서 지금은 **값 자체**를 본다: data.js가 내보내는 목록 하나. */
+const DATA = require(path.join(ROOT, 'data.js'));
+const zoneIds = (DATA.INSURANCE_ZONE_IDS || []).slice().sort();
+ok('data.js가 권역 이름 목록을 내보낸다', zoneIds.length >= 6, zoneIds.join(','));
+ok('서버는 그 목록을 읽는다(자기가 적지 않는다)',
+  /INSURANCE_ZONE_KEYS = new Set\(destinationRates\.INSURANCE_ZONE_IDS/.test(ratesSrc)
+  && !/INSURANCE_ZONE_KEYS = new Set\(\[/.test(ratesSrc));
+ok('엔진도 그 목록을 읽는다',
+  /destGroupsBy\('ins',\s*INSURANCE_ZONE_IDS\)/.test(scriptSrc)
+  && !/destGroupsBy\('ins',\s*\[/.test(scriptSrc));
+ok('생성 API가 값을 검증한다(위 목록으로)', /INSURANCE_ZONE_KEYS\.has\(body\.insuranceZone\)/.test(ratesSrc));
+
+/* 계수·라벨은 엔진 값이라 script.js에 남는다 — 다만 **목록을 다 덮어야** 한다.
+   빠지면 보험료가 NaN이 된다(폴백보다 나쁘다). */
+const facs = (scriptSrc.match(/const INSURANCE_ZONE_FACTORS = \{([^}]+)\}/) || [])[1] || '';
+const labs = (scriptSrc.match(/const INSURANCE_ZONE_LABELS\s*= \{([^}]+)\}/) || [])[1] || '';
+const missingFac = zoneIds.filter((z) => !new RegExp('\\b' + z + '\\s*:').test(facs));
+const missingLab = zoneIds.filter((z) => !new RegExp('\\b' + z + '\\s*:').test(labs));
+ok('모든 권역에 계수가 있다', missingFac.length === 0, missingFac.join(','));
+ok('모든 권역에 라벨이 있다', missingLab.length === 0, missingLab.join(','));
+ok('계수 없는 권역은 화면이 스스로 기록한다',
+  /보험 권역[\s\S]{0,80}계수 또는 라벨이 없다/.test(scriptSrc));
+
+/* 관리자 폼의 선택지도 같아야 한다 — 폼에만 있는 값을 고르면 서버가 400을 준다.
+   ⚠ 폼은 사람이 읽는 라벨이 붙은 HTML이라 목록을 파생시키지 않았다. 대신 여기서 대조한다. */
 const formOpts = [...adminSrc.matchAll(/<select id="new-dest-insurance"[\s\S]*?<\/select>/g)]
   .flatMap((m) => [...m[0].matchAll(/<option value="(\w+)"/g)].map((x) => x[1])).sort();
-ok('관리자 폼 선택지도 같다', JSON.stringify(formOpts) === JSON.stringify(engineSet),
-  `폼 [${formOpts}]`);
+ok('관리자 폼 선택지도 같다', JSON.stringify(formOpts) === JSON.stringify(zoneIds),
+  `폼 [${formOpts}] vs data.js [${zoneIds}]`);
 
 console.log('\n[3] 실제 주입 시뮬레이션 — 커스텀 목적지가 보험 계수를 제대로 받는가');
 (async () => {

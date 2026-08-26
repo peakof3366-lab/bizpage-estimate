@@ -74,8 +74,15 @@ const D = (function () {
 
   /* ── [3] 보험 구간이 세 곳에 다 있는가 ──────────────────────────────── */
   console.log('\n[3] 보험 구간 이름이 세 곳에 다 있는가');
-  ok('① 엔진(script.js)', /destGroupsBy\('ins', \['domestic',/.test(read('script.js')));
-  ok('② 서버(api/rates.js)', /INSURANCE_ZONE_KEYS = new Set\(\['domestic',/.test(read('api/rates.js')));
+  /* 🔴 XQ에서 **목록을 한 곳으로 모았다**(data.js). 그래서 「세 곳에 이름이 다 있는가」가
+     아니라 「한 곳에 있고 나머지가 그것을 읽는가」를 본다 — 이름이 세 곳에 있으면
+     그 자체가 결함이다(한쪽만 늘어나면 보험 계수가 조용히 1.00으로 떨어진다). */
+  const DATA_TE = require(path.join(ROOT, 'data.js'));
+  ok('① 목록에 국내(domestic)가 있다', (DATA_TE.INSURANCE_ZONE_IDS || []).includes('domestic'),
+    String(DATA_TE.INSURANCE_ZONE_IDS));
+  ok('① 엔진이 그 목록을 읽는다', /destGroupsBy\('ins',\s*INSURANCE_ZONE_IDS\)/.test(read('script.js')));
+  ok('② 서버도 그 목록을 읽는다',
+    /INSURANCE_ZONE_KEYS = new Set\(destinationRates\.INSURANCE_ZONE_IDS/.test(read('api/rates.js')));
   ok('③ 관리자 새 목적지 폼(admin.html)', /<option value="domestic">국내/.test(read('admin.html')));
   ok('국내 계수가 해외 최저 구간보다 낮다',
     /domestic: 0\.15, asiaShort: 0\.85/.test(read('script.js')));

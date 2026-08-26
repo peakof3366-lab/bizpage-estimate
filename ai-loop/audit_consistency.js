@@ -57,7 +57,12 @@ const CUSTOM = LIVE_RATES.filter(d => d.__custom);
 const deriveGroups = (re, name) =>
   new Function('destGroupsBy', 'return ' + grab(scriptSrc, re, name))(DATA.destGroupsBy);
 const BIZ_ZONES = deriveGroups(/destGroupsBy\('zone',\s*\[[^\]]*\]\)/, 'BIZ_ZONES 파생 호출');
-const INS_ZONES = deriveGroups(/destGroupsBy\('ins',\s*\[[^\]]*\]\)/, 'INSURANCE_ZONES 파생 호출');
+/* 🔴 **보험 권역 이름 목록은 이제 data.js가 갖는다**(XQ) — 서버(api/rates.js)와 엔진이
+   같은 것을 읽는다. 그래서 여기서도 소스에서 리터럴을 떼어내지 않고 그 값을 그대로 쓴다.
+   ⚠ 다만 **엔진이 정말 그 목록을 쓰는지**는 확인한다. 안 그러면 이 감사기는 data.js만
+     혼자 보고 「일치」라고 말하게 된다 — 대조하는 척하는 검사가 된다(결함 생성기 ③). */
+grab(scriptSrc, /destGroupsBy\('ins',\s*INSURANCE_ZONE_IDS\)/, 'INSURANCE_ZONES 파생 호출');
+const INS_ZONES = DATA.destGroupsBy('ins', DATA.INSURANCE_ZONE_IDS || []);
 /* admin.html·dest_currency.js도 같은 분류표에서 파생한다. 통화는 실제 모듈을 그대로
    불러 파생 경로(브라우저/Node 분기 포함)가 살아 있는지까지 확인한다. */
 grab(adminSrc, /const REGION_MAP = destFieldMap\('region'\);/, 'REGION_MAP 파생 호출');

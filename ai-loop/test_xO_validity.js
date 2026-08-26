@@ -40,7 +40,9 @@ const done = () => {
   process.exit(fail ? 1 : 0);
 };
 
-const dayStr = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+/* ⚠ **로컬 시각으로 만든다.** `toISOString()`은 UTC라 한국 시각 0~9시에는 하루 전
+   날짜를 내놓는다 — 화면은 로컬로 재므로 그 시간대에만 이 검사가 무너진다(겪었다). */
+const dayStr = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('sv-SE'); };
 const DOC = (over) => Object.assign({
   dk: '다낭', dt: '다낭 (Da Nang)', n: 30, d: 4, t: 48000000, pp: 1600000,
   ptx: '산업시찰', ot: '기업', org: '테스트기관', cn: '김보균',

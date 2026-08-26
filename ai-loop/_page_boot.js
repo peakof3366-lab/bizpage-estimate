@@ -22,7 +22,16 @@ const { JSDOM, VirtualConsole, requestInterceptor } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
-const soon = (days) => { const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); };
+/* 🔴 **날짜는 로컬 시각으로 만든다** (XQ). `toISOString()`은 UTC라, 한국 시각 0~9시
+   사이에는 **하루 전 날짜**를 내놓는다. 화면은 로컬 시각으로 유효기간을 재므로
+   그 시간대에만 검사가 무너진다 — 실제로 2026-08-27 07시에 검사 8건이 빨갛게 떴고,
+   화면이 아니라 **검사가 틀린 것**이었다(가장 찾기 어려운 종류다: 낮에는 안 나온다).
+ ⚠ `sv-SE` 로캘이 `YYYY-MM-DD`를 그대로 준다(로컬 기준). */
+const soon = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toLocaleDateString('sv-SE');
+};
 
 /* 서버 응답 기본값 — 시나리오마다 `fixtures`로 덮어쓴다 */
 const DEFAULT_FIXTURES = {

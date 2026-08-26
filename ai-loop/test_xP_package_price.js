@@ -36,7 +36,8 @@ const done = () => {
   process.exit(fail ? 1 : 0);
 };
 
-const soon = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+/* ⚠ 로컬 시각으로 만든다 — UTC(`toISOString`)는 한국 0~9시에 하루 전을 준다 */
+const soon = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('sv-SE'); };
 const PKGS = (over) => ({
   packages: [Object.assign({
     id: 'p1', title: '오키나와 3박4일', destLabel: '오키나와',
