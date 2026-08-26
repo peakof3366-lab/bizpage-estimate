@@ -85,6 +85,17 @@ function render(payload) {
         w.scrollTo = () => {}; w.Element.prototype.scrollTo = () => {};
         w.HTMLElement.prototype.scrollIntoView = () => {};
         w.print = () => {};
+        /* 엑셀 경로를 부를 수 있게 XLSX를 흉내 낸다 — **만들어진 시트 내용을 잡아 둔다**.
+           ⚠ 진짜 xlsx는 CDN에서 온다. 검사가 그것을 받으러 나가면 남의 서버가 느린 날
+             빨간 줄이 뜬다(WJ에서 세운 규칙). 여기서는 받지 않는다. */
+        w.__aoa = null;
+        w.XLSX = {
+          utils: {
+            aoa_to_sheet: (aoa) => { w.__aoa = aoa; return {}; },
+            book_new: () => ({}), book_append_sheet: () => {},
+          },
+          writeFile: () => {},
+        };
         /* 🔴 이 검사의 핵심 — 서버 대신 우리가 payload를 준다.
            페이지가 그것을 **실제로 그리는 것**을 본다(소스 정규식으로는 못 잰다). */
         w.fetch = (url) => Promise.resolve({
@@ -228,6 +239,61 @@ function render(payload) {
       (t.match(/.{0,30}mfa3k2x.{0,20}/) || [''])[0]);
     ok('⑧ 발급일이 날짜로 나온다', /2026년 8월 26일 발급/.test(t),
       (t.match(/견적 유효기간.{0,40}/) || [''])[0]);
+  }
+
+  console.log('\n[8] WQ — 🔴 인쇄한 견적서에 유효기간이 남는다');
+  {
+    /* 인쇄 CSS가 `.validity-banner`를 숨기고 있었다. 상단 바도 `no-print`라,
+       **종이에는 유효기간이 한 줄도 없었다** — 결재 서류로 올라가는 그 문서에서.
+       견적번호를 인쇄물에 남기려고 히어로로 옮긴 것(WB)과 같은 자리다. */
+    const src = read('estimate-view.html');
+    /* ⚠ **주석을 먼저 걷어낸다.** 이 검사를 처음 짤 때 「왜 안 숨기는지」를 적어 둔
+       내 주석에 `.validity-banner`가 들어 있어서 그것 때문에 걸렸다 — 규칙이 아니라
+       설명을 읽고 결함이라 부른 것이다(WP에서 스크립트 소스를 읽어 5건을 만든 것과
+       같은 유형). **숨기는 규칙의 선택자만** 본다. */
+    /* ⚠ `@media print {` 자체를 건너뛴다 — 안 그러면 첫 규칙의 선택자가 「@media print」로
+       잡힌다(중괄호를 세지 않고 첫 `{`를 만나면 그것이 규칙인 줄 안다). */
+    const printBlock = src.slice(src.indexOf('@media print') + '@media print {'.length,
+      src.indexOf('@media print') + 900).replace(/\/\*[\s\S]*?\*\//g, '');
+    const hideRule = (printBlock.match(/([^{}]*)\{[^}]*display:\s*none[^}]*\}/) || [])[1] || '';
+    ok('⑨ 🔴 인쇄에서 유효기간 배너를 숨기지 않는다',
+      hideRule.length > 0 && !/validity-banner/.test(hideRule), JSON.stringify(hideRule.trim()));
+    ok('⑨ 그래도 상단 바·CTA는 여전히 숨긴다 (화면 장치다)',
+      /top-bar/.test(hideRule) && /cta-section/.test(hideRule), JSON.stringify(hideRule.trim()));
+    /* ⚠ 「N일 남음」은 종이에 남기지 않는다 — 나중에 읽히면 틀린 말이 된다 */
+    const w = await render(TRAINING);
+    const daysEl = [...w.document.querySelectorAll('.validity-banner .no-print')];
+    ok('⑨ 「N일 남음」은 인쇄에서 빠진다', daysEl.length === 1 && /남음/.test(daysEl[0].textContent),
+      JSON.stringify(daysEl.map((e) => e.textContent)));
+    ok('⑨ 그래도 화면에는 보인다', /남음/.test(visibleText(w)));
+  }
+
+  console.log('\n[9] WQ — 엑셀에도 조건이 실린다 (결재에 붙는 문서다)');
+  {
+    const withUntil = JSON.parse(JSON.stringify(PKG));
+    withUntil.pkg.validUntil = '2026-09-30';
+    const w = await render(withUntil);
+    w.downloadEstimateExcelShared();
+    const aoa = w.__aoa;
+    ok('⑩ 시트를 만들었다', Array.isArray(aoa) && aoa.length > 5, JSON.stringify(aoa && aoa.length));
+    const flat = (aoa || []).map((r) => r.join('|')).join('\n');
+    ok('⑩ 🔴 유효기간이 들어간다', /상품 유효기간\|2026-09-30/.test(flat),
+      (flat.match(/.*유효기간.*/) || [''])[0]);
+    ok('⑩ 🔴 상품명이 들어간다', /상품명\|방콕 자유여행 5일/.test(flat));
+    ok('⑩ 포함 사항이 들어간다', /포함 사항/.test(flat) && /왕복항공권/.test(flat));
+    ok('⑩ 불포함 사항도 들어간다', /불포함 사항/.test(flat));
+    /* ⚠ 없는 칸은 줄 자체를 안 만든다 — 「기관 유형 · —」이 남으면 빠뜨린 줄 안다 */
+    ok('⑩ 패키지에 「기관 유형」 줄이 없다', !/기관 유형/.test(flat));
+    ok('⑩ 발행일이 날짜다 (기록 id가 아니다)', /발행일\|2026-08-26/.test(flat),
+      (flat.match(/발행일.*/) || [''])[0]);
+
+    /* 연수 견적서는 원래 칸을 유지한다 */
+    const w2 = await render(TRAINING);
+    w2.downloadEstimateExcelShared();
+    const flat2 = (w2.__aoa || []).map((r) => r.join('|')).join('\n');
+    ok('⑩ 연수 견적서에는 「기관 유형」이 그대로', /기관 유형\|기업/.test(flat2));
+    ok('⑩ 연수 견적서 유효기간은 발급 + 30일', /견적 유효기간\|2026-09-25/.test(flat2),
+      (flat2.match(/.*유효기간.*/) || [''])[0]);
   }
 
   done();

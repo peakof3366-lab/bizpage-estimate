@@ -275,7 +275,12 @@ a { color: inherit; text-decoration: none; }
 
 /* ── PRINT CSS ── */
 @media print {
-  .no-print, .top-bar, .validity-banner, .cta-section, .view-footer { display: none !important; }
+  /* 🔴 예전엔 `.validity-banner`도 여기서 숨겼다 (WQ). 그래서 **인쇄한 견적서에
+     유효기간이 한 줄도 없었다** — 결재 서류로 올라가는 그 문서에서. 견적번호를
+     인쇄물에 남기려고 히어로로 옮긴 것(WB)과 같은 이유로, 이건 UI 장식이 아니라 **조건**이다.
+   ⚠ 다만 「N일 남음」은 인쇄하지 않는다 — 종이는 나중에 읽히고, 그때 그 숫자는 틀린 말이 된다. */
+  .no-print, .top-bar, .cta-section, .view-footer { display: none !important; }
+  .validity-banner { box-shadow: none; margin-bottom: 18px; }
   body { background: #fff; font-size: 12px; }
   .content-wrap { padding: 0; max-width: 100%; }
   .quote-card, .iti-card { box-shadow: none; page-break-inside: avoid; }
@@ -595,7 +600,7 @@ function renderPage(d) {
           ${validity.fromPackage
             ? `상품 유효기간: <strong>${expiresStr}까지</strong>`
             : `견적 유효기간: ${d.iso ? `<strong>${esc(fmtDate(d.iso))}</strong> 발급 &nbsp;→&nbsp; ` : ''}<strong>${expiresStr}까지</strong>`}
-          &nbsp;(<strong>${validity.daysLeft}일</strong> 남음)
+          <span class="no-print">&nbsp;(<strong>${validity.daysLeft}일</strong> 남음)</span>
         </div>
       </div>`;
 
@@ -828,17 +833,32 @@ function downloadEstimateExcelShared() {
   const CI = window.COMPANY_INFO || {};
   const legalName = CI.legalName || '(주)하나이엔비티';
 
+  /* 🔴 이 파일은 **고객이 결재에 붙이는 문서**다. 화면에는 있는데 여기 없으면,
+     받는 쪽은 그 조건을 못 보고 결재한다. WQ에서 세 가지를 더했다:
+       · 유효기간 — 견적서의 핵심 조건인데 통째로 빠져 있었다
+       · 상품명   — 패키지인데 「방콕」만 있고 **어떤 상품인지가 없었다**
+       · 포함/불포함 — 금액이 무엇을 담고 있는지를 정하는 목록이다
+     ⚠ 없는 칸은 **줄 자체를 안 만든다**(화면과 같은 규칙 — WP).
+       엑셀에 「기관 유형 · —」이 남으면 받는 쪽은 우리가 빠뜨린 줄 안다. */
+  const validUntilStr = (d.pkg && d.pkg.validUntil)
+    ? d.pkg.validUntil
+    : (d.iso ? new Date(new Date(d.iso).getTime() + 30 * 86400000).toISOString().slice(0, 10) : '');
+
   const aoa = [
     [legalName + ' 견적서'],
     /* 🔴 여기가 `d.id`였다(WB). 「발행일」이라고 적어 놓고 `mrx9l0xqhudmf1` 같은
        **랜덤 식별자**를 찍고 있었다 — 고객이 받는 엑셀에 그대로 나갔다.
-       발행일 데이터는 처음부터 `d.iso`에 있었는데 엉뚱한 칸을 읽었을 뿐이다. */
+       발행일 데이터는 처음부터 `d.iso`에 있었는데 엉뚱한 칸을 읽었을 뿐이다.
+       ⚠ WP에서 **화면 두 곳에도 같은 결함이 남아 있던 것**을 찾았다 — 한 곳을 고칠 때
+         같은 값을 읽는 다른 곳을 함께 세지 않으면 이렇게 남는다. */
     ['견적번호', d.qno || '—'],
     ['발행일', d.iso || '—'],
+    ...(validUntilStr ? [[(d.pkg ? '상품 유효기간' : '견적 유효기간'), validUntilStr + '까지']] : []),
+    ...(d.pkg && d.pkg.title ? [['상품명', d.pkg.title]] : []),
     ['목적지', d.dt || '—'],
-    ['프로그램', d.ptx || '—'],
-    ['기관 유형', d.ot || '—'],
-    ['참가 인원', (d.n || 0) + '명'],
+    [(d.pkg ? '상품 구분' : '프로그램'), d.ptx || '—'],
+    ...(d.pkg ? [] : [['기관 유형', d.ot || '—']]),
+    [(d.pkg ? '인원' : '참가 인원'), (d.n || 0) + '명'],
     [(d.pkg ? '여행 기간' : '연수 기간'), (d.d || 0) + '일'],
     ['신청 기관', d.org || '—'],
     ['담당자', d.cn || '—'],
@@ -848,6 +868,8 @@ function downloadEstimateExcelShared() {
     [],
     ['합계', d.t || 0],
     ['1인당 금액', d.pp || 0],
+    ...((d.pkg && (d.pkg.included || []).length) ? [[], ['포함 사항'], ...d.pkg.included.map((x) => [x])] : []),
+    ...((d.pkg && (d.pkg.excluded || []).length) ? [[], ['불포함 사항'], ...d.pkg.excluded.map((x) => [x])] : []),
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
