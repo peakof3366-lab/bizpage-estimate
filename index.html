@@ -131,14 +131,21 @@
               </span>
               <span class="track-go">예상 견적 계산하기 →</span>
             </a>
-            <a class="track-card is-pkg" href="packages.html">
-              <span class="track-tag">패키지 여행</span>
+            <!-- 🔴 **빈 방으로 안내하지 않는다** (XN). 2026-08-26 프로덕션 실측:
+                 `/api/content?action=packages`가 `{"packages":[]}`다. 즉 이 카드를 누른
+                 손님은 **아무것도 없는 목록**을 본다. 상품을 여는 것은 대표 결정이라
+                 (대기열 P-1) 코드가 정할 수 없지만, **없는 것을 있는 것처럼 권하는 것**은
+                 우리가 고칠 수 있다.
+               ⚠ 상품이 생기면 이 카드는 **저절로** 원래 문구로 돌아온다(개수도 말한다).
+                 사람이 문구를 되돌리는 일을 남기면 그 일은 잊힌다. -->
+            <a class="track-card is-pkg" href="packages.html" id="trackPkg">
+              <span class="track-tag" id="trackPkgTag">패키지 여행</span>
               <strong class="track-h">일정이 <em>이미 정해진</em> 여행이라면</strong>
-              <span class="track-d">
+              <span class="track-d" id="trackPkgDesc">
                 소규모 단체·친목 모임. 고르시면 <b>일정표와 견적서</b>를
                 그 자리에서 만들어 드립니다.
               </span>
-              <span class="track-go">패키지 상품 보기 →</span>
+              <span class="track-go" id="trackPkgGo">패키지 상품 보기 →</span>
             </a>
           </div>
         </div>

@@ -2263,6 +2263,42 @@ window.addEventListener('online', () => { flushLeadQueue(); });
 /* 로드 직후가 아니라 살짝 미뤄서 첫 화면 렌더와 경쟁하지 않게 한다. */
 setTimeout(() => { flushLeadQueue(); }, 3000);
 
+/* ══ 「패키지 여행」 카드는 **실제로 파는 것이 있을 때만** 그렇게 말한다 (XN) ══════
+   2026-08-26 프로덕션 실측: 고객이 보는 패키지 목록이 **0건**이다(대기열 P-1).
+   그 상태에서 첫 화면은 「고르시면 일정표와 견적서를 그 자리에서 만들어 드립니다」라고
+   권하고 있었다 — 누르면 빈 목록이다. **없는 것을 있는 것처럼 권하지 않는다.**
+ ⚠ 상품이 생기면 저절로 원래 문구로 돌아온다(그리고 개수를 말한다). 사람이 되돌리는
+   일을 남기면 그 일은 잊힌다.
+ ⚠ 못 받았을 때는 **아무것도 바꾸지 않는다.** 네트워크가 잠깐 안 될 때 「준비 중」이라고
+   말하면 그게 더 나쁜 거짓말이다(조용한 폴백을 만들지 않는다 — 결함 생성기 ②).
+ ⚠ 첫 화면을 막지 않는다. 늦게 도착하면 그때 글자만 바뀐다. */
+(function reflectPackageStock() {
+  const card = document.getElementById('trackPkg');
+  if (!card || typeof fetch !== 'function') return;
+  fetch('/api/content?action=packages')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (!d || !Array.isArray(d.packages)) return;      /* 모르면 그대로 둔다 */
+      const n = d.packages.length;
+      const tag = document.getElementById('trackPkgTag');
+      const desc = document.getElementById('trackPkgDesc');
+      const go = document.getElementById('trackPkgGo');
+      if (n > 0) {
+        if (tag) tag.textContent = '패키지 여행 · ' + n + '개 상품';
+        return;
+      }
+      /* 0건 — 솔직하게 말하고, **할 수 있는 다음 걸음**으로 보낸다 */
+      card.setAttribute('href', '#estimate');
+      if (tag) tag.textContent = '패키지 여행 · 준비 중';
+      if (desc) {
+        desc.innerHTML = '지금은 열려 있는 패키지 상품이 없습니다. '
+          + '<b>원하시는 지역·일정</b>을 알려 주시면 같은 팀이 그대로 맞춰 드립니다.';
+      }
+      if (go) go.textContent = '원하는 일정으로 견적 받기 →';
+    })
+    .catch(() => { /* 모르면 그대로 둔다 */ });
+})();
+
 /* ── 문의 폼 저장 핸들러 ── */
 const inqForm = document.getElementById('inqForm');
 const inqSuccess = document.getElementById('inqSuccess');
