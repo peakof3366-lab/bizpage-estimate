@@ -267,6 +267,21 @@ const manualPath = path.join(ROOT, 'manual.html');
   noLimits.window.close();
   mdom.window.close();
 
+  console.log('\n[10] 화면의 메뉴가 매뉴얼에 다 있는가 (WT)');
+  /* WE에서 세운 규칙: **화면과 문서가 다른 이름을 쓰면 팀원이 없는 메뉴를 찾는다.**
+     그때 메뉴 하나가 둘로 갈렸고 매뉴얼도 함께 갈랐는데, 그 대조를 사람이 했다.
+     메뉴는 앞으로도 늘고 갈린다 — 그때마다 사람이 세지 않게 여기서 센다.
+   ⚠ 반대 방향(매뉴얼에만 있는 이름)은 세지 않는다. 매뉴얼은 「예전에는 「A」였는데
+     이제 「B」입니다」처럼 **옛 이름을 일부러 설명한다** — 그것까지 결함이라 부르면
+     없는 결함을 만든다(실제로 「패키지 · 소규모 견적」이 그렇게 걸렸다). */
+  const adminDoc = new JSDOM(read('admin.html')).window.document;
+  const menus = [...adminDoc.querySelectorAll('.sidebar-item .si-label')]
+    .map((e) => e.textContent.trim()).filter(Boolean);
+  ok('관리자 메뉴를 읽었다 (10개 이상)', menus.length >= 10, menus.length + '개');
+  const manualText = read('manual.html').replace(/<!--[\s\S]*?-->/g, '');
+  const missingMenus = menus.filter((m) => !manualText.includes(m));
+  ok('🔴 모든 메뉴가 매뉴얼에 나온다', missingMenus.length === 0, JSON.stringify(missingMenus));
+
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   dom.window.close();
   if (fail) process.exit(1);
