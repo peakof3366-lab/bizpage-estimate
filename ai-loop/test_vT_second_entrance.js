@@ -61,9 +61,20 @@ console.log('\n[1] 갈림길이 실제로 렌더되는가');
 
 console.log('\n[2] 🔴 여기서 상품을 나열하지 않는다 — VP가 세운 경계');
 {
-  /* 나열하려면 패키지 API를 불러야 한다. 그 호출이 index.html에 생기면 섞인 것이다. */
-  ok('② index.html이 패키지 API를 부르지 않는다',
-    !/action=packages/.test(INDEX), '상품을 끌어오기 시작했다');
+  /* 🔴 **2026-08-26(XN) 규칙을 다듬었다.** 예전에는 「`action=packages` 호출이 있으면
+     섞인 것」으로 쟀다. 그런데 프로덕션에서 상품이 **0건**인 것이 드러나면서(대기열 P-1)
+     첫 화면이 **빈 방으로 안내하는** 문제가 생겼고, 그걸 고치려면 **재고가 있는지**는
+     알아야 한다.
+   ⚠ VP가 세운 경계는 「API를 부르지 마라」가 아니라 **「여기서 상품과 금액을 다루지
+     마라」**다(패키지가는 요율·계수·마진이 안 붙는 값이라 엔진 화면과 섞이면 사고다).
+     그래서 재는 것을 **호출 여부가 아니라 무엇을 읽는가**로 바꿨다 — 개수만 읽는다. */
+  const SCRIPT = read('script.js');
+  const PKG_FIELDS = ['pricePerPerson', 'priceAsOf', 'validUntil', 'itinerary', 'inclItems', 'destKey'];
+  const leaked = PKG_FIELDS.filter((f) => new RegExp('d\\.packages[\\s\\S]{0,200}' + f).test(SCRIPT));
+  ok('② 첫 화면은 상품 **개수만** 읽는다(내용·금액은 안 읽는다)',
+    leaked.length === 0, leaked.join(', '));
+  ok('② 개수를 읽는 자리에 그 이유가 적혀 있다',
+    /빈 방으로 안내하지 않는다|없는 것을 있는 것처럼/.test(SCRIPT));
   ok('② 갈림길 안에 금액이 없다',
     !tracks || !/[0-9]{3},[0-9]{3}/.test(tracks.textContent || ''),
     '금액이 들어오면 그게 곧 요율 없는 값과 섞인 것이다');
