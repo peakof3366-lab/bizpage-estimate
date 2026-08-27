@@ -4106,6 +4106,21 @@ a{color:inherit;text-decoration:none}
   </div>
 </nav>
 
+<!-- 🔴 **발급 결과를 화면에 한 줄로 알린다** (XX)
+     예전에는 발급 결과가 **감춰진 공유 모달 안에만** 쓰였다. 그 모달은 고객이
+     「고객 링크 공유」를 눌러야 열린다. 그래서 고장을 주입해 재 보니, 발급이 실패해도
+     고객이 보는 화면이 **성공했을 때와 사실상 같았다**(보이는 글자 3,638자 vs 3,620자,
+     「문제」·「다시」 같은 말은 어느 쪽에도 없었다). 링크를 기다린 고객은 영영 모른다.
+   ⚠ **막지 않는다.** 모달을 자동으로 띄우면 문서만 인쇄하려던 고객을 가로막는다.
+     머리줄 아래 한 줄로 말하고, 무엇을 하면 되는지 같이 적는다.
+   ⚠ 문구는 REVIEW_TEXT **한 곳에서** 가져온다 — 여기 다시 적으면 모달과 이 줄이
+     서로 다른 말을 하게 된다(결함 생성기 ①).
+   ⚠ no-print — 이건 문서의 내용이 아니라 **지금 상태**다. 인쇄물에 남을 말이 아니다
+     (XU의 취소 안내는 반대로 인쇄에도 남아야 한다. 성격이 다르다).
+   🔴 이 주석에 **백틱을 쓰지 말 것** — 이 HTML은 통째로 템플릿 문자열이라 백틱 하나가
+     문자열을 끊는다. 실제로 그렇게 script.js를 깨뜨렸다(엔진이 통째로 안 실렸다). -->
+<div id="share-note" class="no-print" style="display:none;padding:10px 22px;font-size:13px;line-height:1.6;border-bottom:1px solid #E5E2DC"></div>
+
 <!-- 공유 모달 (no-print) -->
 <div id="share-modal" class="no-print" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.7);align-items:center;justify-content:center">
   <div style="background:#fff;width:min(560px,92vw);padding:36px 32px;position:relative">
@@ -4404,6 +4419,24 @@ function shareCopyLink() {
       body: '조금 뒤 <strong>견적서 받기</strong>를 다시 눌러 주세요. 계속 안 되면 아래 연락처로 문의해 주세요.<br>입력하신 조건은 화면에 그대로 있습니다.',
     },
   };
+  /* 🔴 **모달을 안 열어도 보이는 한 줄** (XX). 위 `REVIEW_TEXT`를 그대로 쓴다 —
+     문구를 여기 새로 적으면 모달과 이 줄이 서로 다른 말을 하게 된다.
+     「무엇을 하면 되는지」는 종류마다 다르므로 그것만 여기서 붙인다. */
+  const NOTE_DO = {
+    review: '「고객 링크 공유」를 눌러 안내를 확인해 주세요.',
+    reviewUnsaved: '「고객 링크 공유」를 눌러 확인하시거나, 아래 연락처로 알려 주세요.',
+    retry: '「고객 링크 공유」를 다시 눌러 주세요. 이 견적서는 그대로 인쇄·저장하실 수 있습니다.',
+  };
+  const setNote = (kind, 말) => {
+    if (w.closed) return;
+    const n = w.document.getElementById('share-note');
+    if (!n) return;
+    const 나쁨 = kind !== 'ok';
+    n.style.background = 나쁨 ? '#FFF8E6' : '#F1F8F3';
+    n.style.color = 나쁨 ? '#7A5A10' : '#1A5E39';
+    n.textContent = 말 || ((REVIEW_TEXT[kind] || REVIEW_TEXT.retry).head + ' — ' + (NOTE_DO[kind] || NOTE_DO.retry));
+    n.style.display = 'block';
+  };
   const showReview = (kind) => {
     if (w.closed) return;
     const v = w.document.getElementById('share-verifying');
@@ -4415,6 +4448,8 @@ function shareCopyLink() {
     if (b) b.innerHTML = t.body;
     if (v) v.style.display = 'none';
     if (r) r.style.display = 'block';
+    /* 모달 밖에서도 같은 사실을 말한다 */
+    setNote(kind);
   };
   /* 「접수되었습니다」는 **실제로 접수됐을 때만** 말한다. 견적 기록 저장은 이 요청과
      다른 호출이고(`/api/quotes`), 그 결과를 화면이 이미 약속으로 들고 있다.
@@ -4459,6 +4494,9 @@ function shareCopyLink() {
       if (inp) inp.value = base + 'estimate-view.html?id=' + data.id;
       if (verifying) verifying.style.display = 'none';
       if (ready) ready.style.display = 'flex';
+      /* 잘 됐다는 것도 화면에서 보여야 한다 — 안 그러면 고객은 링크가 생겼는지도 모른다 */
+      setNote('ok', '고객에게 보낼 링크가 준비되었습니다 — 「고객 링크 공유」에서 복사하실 수 있습니다.'
+        + (data.quoteNo ? ' (견적번호 ' + data.quoteNo + ')' : ''));
       /* 🔴 **인쇄되는 문서에도 견적번호를 찍는다** (XP 후속). 이 창에서 바로 인쇄·PDF로
          저장하는 고객이 있는데, 그 종이에 번호가 없으면 전화가 왔을 때 우리도 고객도
          무엇에 대한 이야기인지 못 찾는다. 번호는 방금 서버가 준 값이다.

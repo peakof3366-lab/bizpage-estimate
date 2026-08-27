@@ -192,6 +192,7 @@ jsdom은 레이아웃을 계산하지 않아 위 스위트로는 **보이는 모
 ```bash
 node ai-loop/audit_customer_journey.js            # 고객 화면 4개의 버튼을 전부 눌러 본다
 node ai-loop/audit_customer_journey.js --verbose  #   터짐 · 죽은 링크 · 아무 일도 안 남 · 이름 없는 칸
+node ai-loop/fault_journey.js --verbose           # 🔴 **서버가 죽었을 때 고객이 무엇을 보는가**
 node ai-loop/smoke_prod_journey.js                # 프로덕션 주력 경로 — **기본은 dry-run**
 node ai-loop/smoke_prod_journey.js --live --cleanup  # 🔴 운영 DB에 실제로 쓰고, 만든 행을 지운다
 
@@ -204,6 +205,14 @@ node ai-loop/audit_admin_journey.js --mode=quote  #   admin-quote.html(견적 �
 고객에게 나갈 금액을 실제로 만드는 자리다 — XV 전까지 어느 훑기에도 안 들어 있었다.
 그 화면은 목적지·조건을 `<label>` 줄로 고르므로 기본 선택자로는 **9개**만 잡힌다
 (실제 131개). `also`·`hiddenClasses`로 **부르는 쪽이** 더 준다.
+
+🔴 **고장은 반드시 난다 — 그때 고객이 보는 화면을 재는 것이 `fault_journey.js`다** (XX).
+요율 500 · 저장 500 · 발급 503 · 네트워크 끊김 · DB 전체 다운 등 **12가지**를 하나씩
+주입하고, **감춰진 모달을 뺀 「보이는 글자」**로 무엇을 말했는지 본다. 판정은 셋:
+① 아무 말도 안 하는가 ② **거짓 성공**(접수 안 됐는데 「접수되었습니다」) ③ 다시 누르면
+되는 것을 문의로 보내는가. 지금 값 **12가지 · 문제 0**.
+⚠ 감춰진 모달 안의 글자로 「말했다」고 세면 아무것도 안 지킨다 — 이 도구가 처음 잡은 것이
+바로 그 자리였다(발급 실패 안내가 모달 안에만 있어, 성공/실패 화면이 사실상 같았다).
 
 ⚠ 담당자 화면은 **로그인부터 통과해야** 아무것도 안 보인다 — `_admin_fixtures.js`가
 그 답을 준다(빈 계정 / 며칠 쓴 계정 두 상태). 없으면 로그인 폼만 훑고 「깨끗하다」고
