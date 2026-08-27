@@ -470,6 +470,10 @@ async function runOne(p, rates, ctx) {
     _verify: { verdict: v.verdict, failedSteps: v.failedSteps || [], at: new Date().toISOString(), issuedBy: 'auto' },
   });
   out.qno = qno;
+  /* 🔴 **고객에게 가는 것은 파일이 아니라 주소 한 줄이다.** 대표가 폴더를 보시고
+     「카톡으로 HTML이 가느냐」고 물으셨다 — 내 파일 이름이 그렇게 읽히게 지어져 있었다.
+     실제로 가는 모양을 여기 남겨 파일에도 적는다. */
+  out.shareUrl = BASE + '/estimate-view.html?id=' + (fx.shares && fx.shares.id ? fx.shares.id : 'xxxxxxxx');
   win.close();
 
   const V = bootPage('estimate-view.html', { query: '?id=virtual', fixtures: { shareDoc: payload } });
@@ -600,9 +604,11 @@ async function runOne(p, rates, ctx) {
       fs.writeFileSync(path.join(dir, '1. 고객이 넣은 내용.md'), 요청카드(p, res), 'utf8');
 
       if (res.docHtml) {
-        fs.writeFileSync(path.join(dir, '2. 견적서 (카톡으로 보내는 것).html'),
+        fs.writeFileSync(path.join(dir, '2. 고객이 링크를 열면 보는 화면.html'),
           볼수있게(res.docHtml,
-            '이 파일은 <b>고객에게 카카오톡으로 보내는 견적서</b>를 그대로 저장한 것입니다 · '
+            '🔴 카톡으로 가는 것은 <b>파일이 아니라 주소 한 줄</b>입니다 — '
+            + '<code>' + (res.shareUrl || '') + '</code><br>'
+            + '이 파일은 <b>고객이 그 주소를 눌렀을 때 보는 화면</b>을 그대로 저장한 것입니다 · '
             + '가상 고객 ' + p.no + '번 · 실제 발급이 아닙니다'), 'utf8');
         res.hasDoc = true;
       }
@@ -687,6 +693,10 @@ function 요청카드(p, res) {
     L.push('- 검증 결과: **' + (res.verdict || '—') + '**'
       + (res.verdict === 'verified' ? ' (고객이 견적서 링크를 바로 받는다)' : ' (담당자 확인이 필요하다 — 링크가 안 나간다)'));
     if (res.qno) L.push('- 견적번호: ' + res.qno);
+    /* 🔴 고객에게 실제로 가는 것 — 파일이 아니라 이 주소 한 줄이다 */
+    if (res.shareUrl) {
+      L.push('- **고객에게 카톡으로 가는 것**: `' + res.shareUrl + '` (주소 한 줄입니다. 파일이 아닙니다)');
+    }
     L.push('');
     L.push('| 항목 | 금액 |');
     L.push('|---|---:|');
@@ -725,7 +735,7 @@ function 모아보기쓰기(results, dir, ms) {
     const p = r.persona || {};
     const f = r.dirName;
     const 문서 = !f ? '<span class="none">파일 없음</span>' : [
-      r.hasDoc ? '<a href="' + link(f, '2. 견적서 (카톡으로 보내는 것).html') + '">카톡용</a>' : '',
+      r.hasDoc ? '<a href="' + link(f, '2. 고객이 링크를 열면 보는 화면.html') + '">링크로 열리는 화면</a>' : '',
       r.hasPopup ? '<a href="' + link(f, '3. 견적서 (인쇄·PDF용).html') + '">인쇄용</a>' : '',
       r.hasCsv ? '<a href="' + link(f, '4. 견적서 (엑셀에서 여는 표).csv') + '">엑셀</a>' : '',
       '<a class="sub" href="' + link(f, '1. 고객이 넣은 내용.md') + '">넣은 내용</a>',
@@ -799,7 +809,14 @@ ${rows}
   </table>
 
   <div class="foot">
-    <b>「카톡용」</b> — 고객에게 링크로 전달되는 정식 견적서입니다.<br>
+    🔴 <b>카톡으로 가는 것은 파일이 아니라 주소 한 줄입니다</b> —
+    <code>https://bizpage-estimate.vercel.app/estimate-view.html?id=…</code><br>
+    <b>「링크로 열리는 화면」</b> — 고객이 그 주소를 눌렀을 때 브라우저에 뜨는 정식 견적서입니다.
+    아래에 저장된 것이 그 화면 그대로입니다.<br>
+    ⚠ 카톡 <b>대화창에 뜨는 미리보기 카드</b>는 지금 <b>글자만 있고 그림이 없습니다</b>
+    (<code>og:image</code>가 없습니다 — 결정대기열 P-6, 로고 이미지 한 장이면 붙습니다).
+    미리보기에 목적지·금액·회사명은 <b>일부러 넣지 않았습니다</b> — 링크는 아는 사람 누구나
+    열 수 있어서, 카드가 뜨는 순간 그 대화방 전원이 「어디 몇 명 얼마」를 보게 됩니다.<br>
     <b>「인쇄용」</b> — 고객이 계산 직후 인쇄하거나 PDF로 저장하는 문서입니다. 열고 <b>Ctrl+P</b>를 누르면 실제 인쇄 모양이 보입니다.<br>
     <b>「엑셀」</b> — 결재에 붙이는 표 파일입니다. 엑셀에서 바로 열립니다.<br>
     ⚠ 저장본이라 <b>탭 전환·버튼은 동작하지 않습니다</b>(고른 코스 한 벌이 보입니다). 금액·문구는 고객이 보는 것과 같습니다.<br>
