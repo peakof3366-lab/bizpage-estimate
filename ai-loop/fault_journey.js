@@ -241,6 +241,52 @@ function 판정(r) {
   return 나쁨;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   **고객이 카톡으로 받은 링크를 열었을 때**의 고장 (XX 이어서)
+   ───────────────────────────────────────────────────────────────────────────
+   위 고장들은 「견적을 내는 길」이고, 이건 **이미 받은 견적서를 여는 길**이다.
+   여기서 화면이 하는 말은 하나뿐이었다 — 「링크가 올바르지 않거나 만료되었습니다」.
+   서버가 500이어도, 네트워크가 끊겨도 같은 말을 했다. **링크는 멀쩡한데** 고객에게
+   틀렸다고 말하면서 담당자에게 보내는 셈이다(XH·XS에서 이미 두 번 고친 자리다).
+   ═══════════════════════════════════════════════════════════════════════════ */
+const VIEW_FAULTS = [
+  { key: 'view404', 말: '없는 링크(404)', how: (json) => json({ error: 'not_found' }, false, 404), 우리쪽: false },
+  { key: 'view500', 말: '🔴 서버가 500', how: (json) => json({ error: 'boom' }, false, 500), 우리쪽: true },
+  { key: 'view503', 말: '🔴 서버가 503', how: (json) => json({ error: 'busy' }, false, 503), 우리쪽: true },
+  { key: 'viewDown', 말: '🔴 네트워크가 끊긴다', how: () => Promise.reject(new Error('down')), 우리쪽: true },
+  { key: 'viewEmpty', 말: '200인데 알맹이가 없다', how: (json) => json({ error: 'x' }), 우리쪽: true },
+];
+
+async function 견적서열기(f) {
+  const B = bootPage('estimate-view.html', {
+    query: '?id=testshare1',
+    fixtures: {
+      route(u, opt, json) {
+        if (/\/api\/quote-shares\/[^?]+$/.test(u)) return f.how(json);
+        return null;
+      },
+    },
+  });
+  await B.ready; await B.tick(500);
+  const 글 = shownText(B.doc.body);
+  const out = { key: f.key, 말: f.말, 글 };
+  const 나쁨 = [];
+  if (!글.trim()) 나쁨.push('🔴 빈 화면이다');
+  /* 못 열었는데 위 띠가 「확인 중…」이면 무언가 도는 것처럼 보인다 */
+  if (/유효기간 확인 중/.test(글)) 나쁨.push('못 열었는데 「유효기간 확인 중…」이 남아 있다');
+  if (f.우리쪽) {
+    /* 우리 쪽이 잠깐 안 되는 것인데 「링크가 틀렸다」고 하면 거짓말이다 */
+    if (/링크가 올바르지 않|만료되었습니다/.test(글)) 나쁨.push('🔴 우리 쪽 문제인데 「링크가 올바르지 않다」고 했다');
+    if (!/다시|잠시 후|새로고침/.test(글)) 나쁨.push('다시 열어 보라는 말이 없다');
+    if (!/유효/.test(글)) 나쁨.push('링크가 그대로 유효하다는 말이 없다');
+  } else {
+    if (!/링크|만료|담당자/.test(글)) 나쁨.push('없는 링크인데 이유를 안 말한다');
+  }
+  out.나쁨 = 나쁨;
+  B.win.close();
+  return out;
+}
+
 (async () => {
   console.log('\n서버가 죽었을 때 고객이 무엇을 보는가 — 고장 ' + FAULTS.length + '가지');
   console.log('손님: ' + 손님.destKey + ' ' + 손님.participants + '명 ' + 손님.days + '일 · '
@@ -275,6 +321,19 @@ function 판정(r) {
       if ((r.문의말 || []).length || r.문의화면말) console.log('      문의: ' + [(r.문의말 || []).join(' | '), r.문의화면말].filter(Boolean).join(' / ').slice(0, 120));
       if ((r.오류 || []).length) console.log('      오류: ' + r.오류.join(' | ').slice(0, 120));
     }
+  }
+
+  /* ── 고객이 **받은 링크를 여는 길** ── */
+  console.log('\n■ 고객이 카톡으로 받은 링크를 열었을 때');
+  for (const f of VIEW_FAULTS) {
+    if (ONLY && f.key !== ONLY) continue;
+    let r;
+    try { r = await 견적서열기(f); }
+    catch (e) { r = { key: f.key, 말: f.말, 나쁨: ['🔴 열다 터졌다: ' + String(e.message || e)] }; }
+    결과.push(r);
+    console.log('  ' + r.key.padEnd(16) + (r.말 || '').padEnd(34)
+      + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : '✓'));
+    if (VERBOSE && r.글) console.log('      화면: ' + r.글.replace(/\s+/g, ' ').slice(0, 130));
   }
 
   const 나쁜것 = 결과.filter((r) => r.나쁨.length);

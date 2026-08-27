@@ -434,16 +434,28 @@ function legacyLinkUsed() {
   return new URLSearchParams(window.location.search).has('d');
 }
 
+/* 🔴 **왜 못 열었는지를 구별한다** (XX). 예전에는 무엇이 실패하든 `null` 하나로
+   돌아왔고, 화면은 전부 「링크가 올바르지 않거나 만료되었습니다 — 담당자에게 새 링크를
+   요청해 주세요」라고 말했다. 그런데 서버가 500이거나 네트워크가 끊긴 것은
+   **링크가 멀쩡한데 지금 잠깐 안 되는 것**이다. 고객에게 「당신 링크가 틀렸다」고
+   말하면서 담당자에게 보내는 셈이라, 고객은 기다리고 우리는 응대를 한 건 더 받는다.
+ ⚠ XH(패키지 발급 거절)·XS(견적 제출 실패)에서 **이미 두 번 고친 자리**다. 세 번째다.
+   다시 누르면 되는 것과 고쳐야 하는 것을 가르는 규칙이 화면마다 따로 생기고 있다.
+ ⚠ 서버가 준 판정만 믿는다 — 404는 「없는 링크」가 맞고, 5xx·네트워크는 우리 쪽이다. */
 async function loadShareData() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
-  if (!id) return null;
+  if (!id) return { ok: false, why: 'noid' };
   try {
     const res = await fetch('/api/quote-shares/' + encodeURIComponent(id));
-    if (!res.ok) return null;
-    return await res.json();
+    if (res.status === 404 || res.status === 410) return { ok: false, why: 'notfound' };
+    if (!res.ok) return { ok: false, why: 'server' };
+    const body = await res.json().catch(() => null);
+    /* 200인데 알맹이가 없는 경우 — 이것도 우리 쪽 문제다(고객 링크는 멀쩡하다) */
+    if (!body || typeof body !== 'object' || body.error) return { ok: false, why: 'server' };
+    return { ok: true, data: body };
   } catch (e) {
-    return null;
+    return { ok: false, why: 'network' };
   }
 }
 
@@ -934,20 +946,37 @@ function renderPage(d) {
 
 /* ── 진입점 ── */
 (async function init() {
-  const d = await loadShareData();
-  if (!d) {
+  const r = await loadShareData();
+  if (!r.ok) {
+    /* 🔴 **다시 누르면 되는 것과 고쳐야 하는 것을 가른다** (XX).
+       우리 쪽이 잠깐 안 되는 것(`server`·`network`)에 「링크가 올바르지 않다」고
+       말하면 그건 거짓말이고, 고객을 담당자에게 보내 우리 응대를 늘린다. */
+    const 우리쪽 = r.why === 'server' || r.why === 'network';
+    const 머리 = 우리쪽 ? '견적서를 지금 열 수 없습니다' : '견적서를 불러올 수 없습니다';
+    const 본문 = 우리쪽
+      ? '일시적인 오류입니다 — <strong>링크는 그대로 유효합니다.</strong><br>잠시 후 새로고침해 주세요. 계속 안 되면 담당자에게 알려 주세요.'
+      : (legacyLinkUsed()
+        ? '이전 방식으로 만들어진 링크입니다.<br>보안 강화를 위해 지원이 종료되었습니다 — 담당자에게 새 링크를 요청해 주세요.'
+        : '링크가 올바르지 않거나 만료되었습니다.<br>담당자에게 새 링크를 요청해 주세요.');
+    /* 우리 쪽 문제일 때는 **그 자리에서 다시 해 볼 수 있게** 한다 — 「홈으로 가세요」는
+       고객이 원하던 것(이 견적서)을 포기하라는 말이다. */
+    const 버튼 = 우리쪽
+      ? '<button type="button" onclick="location.reload()" style="margin-top:28px;background:#CC001A;color:#fff;border:none;padding:12px 28px;font-weight:700;cursor:pointer">다시 시도</button>'
+      : '<a href="index.html" style="margin-top:28px;display:inline-block;background:#CC001A;color:#fff;padding:12px 28px;font-weight:700">홈페이지로 이동</a>';
     document.getElementById('error-wrap').innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6E6E6E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <h2>견적서를 불러올 수 없습니다</h2>
-      <p style="margin-top:10px">${legacyLinkUsed()
-        ? '이전 방식으로 만들어진 링크입니다.<br>보안 강화를 위해 지원이 종료되었습니다 — 담당자에게 새 링크를 요청해 주세요.'
-        : '링크가 올바르지 않거나 만료되었습니다.<br>담당자에게 새 링크를 요청해 주세요.'}</p>
-      <a href="index.html" style="margin-top:28px;display:inline-block;background:#CC001A;color:#fff;padding:12px 28px;font-weight:700">홈페이지로 이동</a>
+      <h2>${머리}</h2>
+      <p style="margin-top:10px">${본문}</p>
+      ${버튼}
     `;
+    /* ⚠ 위쪽 띠가 「유효기간 확인 중…」인 채로 남아 있었다 — 문서를 못 열었는데
+       무언가 진행 중인 것처럼 보인다. 모르면 **모른다고 말한다.** */
+    const vb = document.getElementById('validity-bar');
+    if (vb) vb.textContent = 우리쪽 ? '' : '유효기간을 확인할 수 없습니다';
     return;
   }
-  _quoteData = d;
-  renderPage(d);
+  _quoteData = r.data;
+  renderPage(r.data);
 })();
 
 /* 엑셀 견적서 다운로드 (신규 — 되돌리려면 이 함수와 위 _quoteData 변수,

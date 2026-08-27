@@ -117,6 +117,42 @@ async function 발급까지(고장) {
   ok('XU의 취소 안내는 여전히 인쇄에서 안 숨는다',
     !/no-print[^>]*>[^<]*취소되었습니다/.test(fs.readFileSync(path.join(ROOT, 'estimate-view.html'), 'utf8')));
 
+  console.log('\n[5] 🔴 링크를 열 때 — **우리 쪽 고장**과 **없는 링크**를 가른다');
+  {
+    /* 예전에는 무엇이 실패하든 「링크가 올바르지 않거나 만료되었습니다」 하나였다.
+       서버가 500이어도 그렇게 말했다 — **링크는 멀쩡한데** 고객에게 틀렸다고 하고
+       담당자에게 보낸 것이다(XH·XS에서 두 번 고친 자리, 세 번째). */
+    const 열기 = async (how) => {
+      const B = bootPage('estimate-view.html', {
+        query: '?id=testshare1',
+        fixtures: { route: (u, o, json) => (/\/api\/quote-shares\/[^?]+$/.test(u) ? how(json) : null) },
+      });
+      await B.ready; await B.tick(400);
+      const c = B.doc.body.cloneNode(true);
+      c.querySelectorAll('script,style').forEach((n) => n.remove());
+      const t = (c.textContent || '').replace(/\s+/g, ' ').trim();
+      B.win.close();
+      return t;
+    };
+    const 없는링크 = await 열기((json) => json({ error: 'not_found' }, false, 404));
+    ok('404는 「링크가 올바르지 않거나 만료」라고 말한다', /링크가 올바르지 않|만료/.test(없는링크));
+
+    const 서버고장 = await 열기((json) => json({ error: 'boom' }, false, 500));
+    ok('500은 「지금 열 수 없습니다」로 말한다', /지금 열 수 없습니다/.test(서버고장), 서버고장.slice(0, 90));
+    ok('500에 「링크는 그대로 유효합니다」가 있다', /링크는 그대로 유효/.test(서버고장));
+    ok('500에 「링크가 올바르지 않다」는 말이 없다', !/링크가 올바르지 않/.test(서버고장));
+    ok('500에 다시 시도할 자리가 있다', /다시 시도|새로고침/.test(서버고장));
+
+    const 끊김 = await 열기(() => Promise.reject(new Error('down')));
+    ok('네트워크 끊김도 같은 갈래로 간다', /지금 열 수 없습니다/.test(끊김));
+
+    const 빈답 = await 열기((json) => json({ error: 'x' }));
+    ok('200인데 알맹이가 없어도 우리 쪽 문제로 본다', /지금 열 수 없습니다/.test(빈답));
+
+    ok('못 열었을 때 「유효기간 확인 중…」이 안 남는다',
+      !/유효기간 확인 중/.test(서버고장) && !/유효기간 확인 중/.test(없는링크));
+  }
+
   console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
   process.exit(fail ? 1 : 0);
 })();
