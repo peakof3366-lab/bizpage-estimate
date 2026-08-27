@@ -22,10 +22,16 @@
    ■ 두 상태로 돈다 — **빈 계정과 며칠 쓴 계정은 다른 화면이다**
      목록이 비었을 때만 나는 결함이 있고(XN이 그랬다), 줄이 있을 때만 나는 것도 있다.
 
+   ■ 담당자가 쓰는 화면은 **둘**이다 (XV에서 더했다)
+     · `admin.html` — 목록·요율·일정. 탭 17개를 한 칸씩 연다
+     · `admin-quote.html` — **고객에게 나갈 견적을 실제로 만드는 자리.** STEP 1 → 2 → 결과
+     한쪽만 훑고 「담당자 화면은 깨끗하다」고 말하면 그게 곧 거짓 초록이다.
+
    실행:
      node ai-loop/audit_admin_journey.js
      node ai-loop/audit_admin_journey.js --verbose
      node ai-loop/audit_admin_journey.js --mode=filled
+     node ai-loop/audit_admin_journey.js --mode=quote    (견적 산출 화면만)
    ═══════════════════════════════════════════════════════════════════════════ */
 const { auditPage, visibleText } = require('./_journey_probe');
 const { adminFixtures, enterDashboard } = require('./_admin_fixtures');
@@ -64,6 +70,14 @@ async function 담당자화면(mode) {
         enter: async (BB) => {
           const btn = BB.doc.querySelector('[data-tab="' + tab + '"]');
           if (btn) btn.dispatchEvent(new BB.win.MouseEvent('click', { bubbles: true, cancelable: true, view: BB.win }));
+          await BB.tick(220);
+          /* 🔴 **접힌 것을 펼치고 나서 센다** (XV). 닫힌 `<details>` 속은 화면에 없어서
+             `clickables`가 뺀다 — 옳은 규칙이다(담당자도 못 누른다). 그런데 요율 관리처럼
+             목적지마다 아코디언인 탭이 있어, 규칙만 넣고 끝내면 **눌러 보는 것이 334 → 226**으로
+             조용히 줄어든다. 커버리지가 준 것을 「깨끗해졌다」로 읽으면 그게 가장 나쁘다.
+             → 담당자가 실제로 하는 일(펼쳐서 누른다)을 그대로 한다. */
+          const 칸 = BB.doc.getElementById('tab-' + tab);
+          Array.from((칸 || BB.doc).querySelectorAll('details')).forEach((d) => { d.open = true; });
         },
         /* 🔴 **그 탭 안만 본다.** 안 그러면 같은 버튼을 17번씩 누른다 */
         scope: (d) => d.getElementById('tab-' + tab) || d.body,
@@ -72,14 +86,124 @@ async function 담당자화면(mode) {
   return r;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   **담당자 견적 산출 화면** (`admin-quote.html`) — XV
+   ───────────────────────────────────────────────────────────────────────────
+   🔴 이 화면은 지금까지 **어느 훑기에도 안 들어 있었다.** `audit_customer_journey`는
+   고객 화면 넷을, `audit_admin_journey`는 `admin.html` 하나를 본다. 그런데 담당자가
+   **고객에게 나갈 견적을 실제로 만드는 자리**는 여기다(전화 받으면서 여는 화면이다).
+
+   ■ 세 걸음으로 나눠 훑는다 — **한 번에 다 세면 없는 결함이 생긴다**
+     STEP 1(여행 정보) → STEP 2(고객 정보) → 결과(견적서·엑셀·일정).
+     결과 카드는 `#estimateConfirm` 하나인데 **STEP 2 안에** 들어 있다. 감춰져 있는
+     동안은 `clickables`가 알아서 뺀다 — 그래서 STEP 2를 훑을 때 섞이지 않는다.
+
+   ■ ⚠ 이 화면은 **누를 수 있는 것의 모양이 다르다**
+     목적지 55곳·프로그램·기관·포함 항목이 전부 `<label class="aq-list-row">` 줄이고,
+     목적지는 나라별 `<details>`로 접혀 있다. 기본 선택자로는 **9개**만 잡힌다 —
+     실제로 담당자가 누르는 것은 **127개**다. `also`로 더해 준다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const 예시 = {
+  destination: '다낭', programType: 'industry', organizationType: 'company',
+  visitMode: 'official', departureCity: 'ICN', participants: '30',
+  organization: '[점검] 한빛전자', contactName: '[점검] 김담당', contactTel: '010-0000-0000',
+  /* ⚠ 이 칸도 **필수**다(고객 화면과 같다). 비우면 화면이 「요청 사항 / 메모만
+     입력하시면 됩니다」라고 정확히 말하고 제출을 막는다 — 픽스처가 모자란 것이지
+     결함이 아니다. 처음에 이걸 빼고 돌려서 「결과 카드가 안 열린다」로 잡혔다. */
+  requestDetails: '[점검] 도구가 눌러 본 기록입니다.',
+};
+
+function 폼채우기(B) {
+  const { win, doc } = B;
+  const ev = (el, k) => el.dispatchEvent(new win.Event(k, { bubbles: true }));
+  const set = (id, v) => { const el = doc.getElementById(id); if (el) { el.value = String(v); ev(el, 'input'); ev(el, 'change'); } };
+  const 날 = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('sv-SE'); };
+  Object.keys(예시).forEach((k) => set(k, 예시[k]));
+  set('startDate', 날(45));
+  set('endDate', 날(49));
+}
+
+async function 견적산출화면() {
+  const 단계 = (d, n) => d.querySelector('.estimate-step[data-step="' + n + '"]');
+  const 열려있나 = (d, n) => { const s = 단계(d, n); return !!s && s.classList.contains('step-active'); };
+
+  return auditPage('admin-quote.html', {
+    fixtures: adminFixtures('filled'),
+    settle: 320,
+    skipDetached: true,
+    /* 이 화면에서만 누를 수 있는 것 — 고르는 줄과 나라별 접기 */
+    also: 'label.aq-list-row, summary',
+    /* 검색으로 걸러진 목적지 줄은 화면에 없다(`.aq-row-hidden { display:none }`) */
+    hiddenClasses: ['aq-row-hidden'],
+    /* 이 화면이 말을 거는 자리 — 누르기 전에 비우고 잰다(안 그러면 「조용하다」로 세어진다) */
+    messageSelector: '.step-missing, #aqSaveWarn, #aqItiState',
+    after: async (B) => {
+      /* 🔴 **로그인 게이트를 정말 지났는지 확인한다.** 못 지나면 `#quoteApp`이 통째로
+         감춰져 있어 「누를 것이 5개뿐인데 전부 깨끗하다」는 거짓 초록이 된다. */
+      const app = B.doc.getElementById('quoteApp');
+      if (!app || app.classList.contains('hidden')) {
+        throw new Error('견적 산출 화면이 안 열렸다 — 로그인 픽스처를 확인할 것');
+      }
+    },
+    sections: async () => [
+      {
+        name: 'STEP1 여행정보',
+        /* 나라별 접기를 전부 펼친다 — 접힌 채로 누르면 「담당자가 못 누르는 것」을
+           눌러 놓고 눌러 봤다고 세게 된다. 펼치는 줄(`<summary>`) 자체도 훑는다. */
+        enter: async (B) => { Array.from(B.doc.querySelectorAll('details')).forEach((d) => { d.open = true; }); },
+        scope: (d) => 단계(d, 1),
+      },
+      {
+        name: 'STEP2 고객정보',
+        enter: async (B) => {
+          폼채우기(B);
+          await B.tick(120);
+          const next = B.doc.getElementById('nextStepButton');
+          if (next) next.dispatchEvent(new B.win.MouseEvent('click', { bubbles: true, cancelable: true, view: B.win }));
+          await B.tick(200);
+          if (!열려있나(B.doc, 2)) throw new Error('「다음 단계로 이동」을 눌렀는데 STEP 2가 안 열렸다');
+        },
+        scope: (d) => 단계(d, 2),
+      },
+      {
+        name: '견적 결과',
+        enter: async (B) => {
+          const conf = B.doc.getElementById('estimateConfirm');
+          if (!conf || conf.classList.contains('hidden')) {
+            폼채우기(B);
+            await B.tick(120);
+            B.doc.getElementById('estimateForm')
+              .dispatchEvent(new B.win.Event('submit', { bubbles: true, cancelable: true }));
+            await B.tick(400);
+          }
+          const c2 = B.doc.getElementById('estimateConfirm');
+          if (!c2 || c2.classList.contains('hidden')) {
+            throw new Error('「견적 산출하기」를 눌렀는데 결과 카드가 안 열렸다');
+          }
+        },
+        scope: (d) => d.getElementById('estimateConfirm'),
+      },
+    ],
+  });
+}
+
 (async () => {
-  const modes = ONE ? [ONE] : ['empty', 'filled'];
+  /* `--mode=quote`는 견적 산출 화면만 본다(관리자 화면은 오래 걸린다) */
+  const modes = ONE === 'quote' ? [] : (ONE ? [ONE] : ['empty', 'filled']);
+  /* 담당자가 쓰는 화면은 **둘**이다 — 관리자 화면과 견적 산출 화면.
+     한쪽만 훑고 「담당자 화면은 깨끗하다」고 말하면 그게 곧 거짓 초록이다. */
+  const 훑기 = modes.map((mode) => ({
+    이름: 'admin.html — ' + (mode === 'empty' ? '빈 계정 (막 만든 팀원)' : '며칠 쓴 계정'),
+    run: () => 담당자화면(mode),
+  }));
+  if (!ONE || ONE === 'quote') 훑기.push({ 이름: 'admin-quote.html — 견적 산출 (STEP 1 → 2 → 결과)', run: 견적산출화면 });
+
   let 터짐 = 0, 죽은링크 = 0, 조용함 = 0, 눌러본것 = 0, 건너뜀 = 0, 사라짐 = 0;
 
-  for (const mode of modes) {
-    const 이름 = mode === 'empty' ? '빈 계정 (막 만든 팀원)' : '며칠 쓴 계정';
+  for (const 한판 of 훑기) {
+    const 이름 = 한판.이름;
     let r;
-    try { r = await 담당자화면(mode); }
+    try { r = await 한판.run(); }
     catch (e) {
       console.log('\n🔴 ' + 이름 + ' — ' + String(e.message || e));
       터짐++;
@@ -87,7 +211,7 @@ async function 담당자화면(mode) {
     }
 
     console.log('\n' + '═'.repeat(72));
-    console.log('■ admin.html — ' + 이름);
+    console.log('■ ' + 이름);
     console.log('═'.repeat(72));
 
     if (r.loadErrors.length) {
@@ -116,7 +240,8 @@ async function 담당자화면(mode) {
       console.log('\n✓ 누르면 터지는 것 없음 (' + pressed.length + '개 눌러 봤다)');
     }
 
-    const silent = pressed.filter((x) => !x.threw && !x.errors.length && !x.changed
+    /* `picked` — 골라진 것이 바뀌면 일이 난 것이다(XV). 자세한 이유는 `_journey_probe`에 */
+    const silent = pressed.filter((x) => !x.threw && !x.errors.length && !x.changed && !x.picked
       && !x.fetched && !x.says.length && !x.navs.length && !x.acted && !x.messaged);
     조용함 += silent.length;
     console.log('\n⚠ 눌러도 아무 일도 안 나는 것 ' + silent.length + '개 (확인 대상 — 결함이 아닐 수 있다)');

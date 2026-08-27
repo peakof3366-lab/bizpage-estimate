@@ -1170,6 +1170,30 @@
       var bd = (typeof getBreakdownData === 'function') ? getBreakdownData() : null;
       if (!bd) return;
       summaryEl.textContent = '';
+
+      /* 🔴 **요율을 못 받고 계산된 금액이면 여기서도 말한다** (XV).
+         경고는 이미 있다 — 화면 맨 위 컨트롤바 아래에 붙는다(aqWarn). 그런데 담당자가
+         실제로 **문서를 고객에게 넘기는 자리는 여기**다: 바로 아래에 「견적서 받기」와
+         「엑셀로 다운로드」가 있고, 그때 맨 위 배너는 이미 화면 밖으로 밀려 있다.
+         금액은 그 사이 조용히 달라져 있다 — 실측(XI, 30명 4일): 오버라이드가 있는
+         **23개 목적지 전부**가 움직이고 중앙값 5.9% · 최대 27.3%다.
+       ⚠ **막지는 않는다.** 급한 건을 세우지 않는 것이 이 화면의 방침이다(UM와 같다).
+         말하되 담당자가 판단한다.
+       ⚠ `applied`가 아닌 상태를 **전부** 잡는다 — `failed`뿐 아니라 아직 못 받은
+         `pending`으로 계산해도 금액은 똑같이 기본 요율 값이다. 맨 위 배너는 `failed`만
+         본다(그쪽은 로드 시점 안내라 그래도 된다). */
+      var rs = window.__RATE_SOURCE__ || {};
+      if (rs.state && rs.state !== 'applied' && rs.state !== 'skipped') {
+        var rw = document.createElement('div');
+        rw.className = 'aq-save-warn';
+        rw.id = 'aqRateWarn';
+        rw.style.maxWidth = 'none';
+        rw.textContent = '⚠ 이 금액은 운영 요율·환율이 반영되지 않은 값입니다'
+          + (rs.state === 'failed' ? ' (요율을 불러오지 못했습니다)' : ' (요율을 아직 못 받았습니다)')
+          + '. 고객에게 견적서를 보내기 전에 새로고침 후 다시 산출해 주세요.';
+        summaryEl.appendChild(rw);
+      }
+
       summaryEl.appendChild(amountBlock(bd, '산출 완료 · 기록됨'));
       summaryEl.appendChild(rowsTable(bd));
 

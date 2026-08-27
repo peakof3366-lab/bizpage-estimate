@@ -88,7 +88,10 @@ const { auditPage, visibleText, ROOT } = require('./_journey_probe');
        (공용 모듈로 옮기면서 실제로 2건이 그렇게 세어졌고, diff가 잡았다.) */
     const pressed = r.results.filter((x) => !x.gone && !x.skipped);
     const gone = r.results.filter((x) => x.gone);
-    const silent = pressed.filter((x) => !x.threw && !x.errors.length && !x.changed
+    /* `picked` = 화면 글자는 그대로인데 **골라진 것이 바뀐 것**(라디오·체크박스).
+       `checked`는 innerHTML에 안 나타나고 표시는 CSS가 한다 — 그것까지 「조용함」으로
+       세면 고르는 줄이 전부 죽은 버튼으로 보인다(XV에서 27개가 그랬다). */
+    const silent = pressed.filter((x) => !x.threw && !x.errors.length && !x.changed && !x.picked
       && !x.fetched && !x.says.length && !x.navs.length && !x.acted);
     if (gone.length) {
       console.log('\nℹ 앞 버튼이 화면을 다시 그려 사라진 것 ' + gone.length + '개 (결함이 아니다)');

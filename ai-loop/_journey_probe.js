@@ -58,21 +58,51 @@ const hash = (s) => {
   return h >>> 0;
 };
 
-/* 고객이 실제로 누를 수 있는 것 — 감춘 것은 뺀다(감춘 것을 누를 수는 없다) */
-function clickables(root) {
+/* 고객이 실제로 누를 수 있는 것 — 감춘 것은 뺀다(감춘 것을 누를 수는 없다)
+
+ ⚠ **화면마다 「누를 수 있는 것」의 모양이 다르다** (XV). 담당자 견적 산출 화면은
+   목적지·프로그램·포함 항목을 **`<label>` 줄과 `<summary>`**로 고르게 되어 있어,
+   위 선택자로는 **9개밖에 안 잡힌다**(실제로 누르는 것은 127개다). 그렇다고 선택자에
+   `label`·`summary`를 그냥 더하면 **다른 화면의 숫자가 조용히 바뀐다** — 훑기 결과를
+   전/후로 대조할 수 없게 된다. → **부르는 쪽이 더 준다**(`also`). 기본값은 안 바뀐다.
+ ⚠ 감추는 클래스도 화면마다 다르다(`.hidden` 말고 `.aq-row-hidden` 등). 이것도
+   부르는 쪽이 알려 준다 — 모르면 **감춘 줄을 눌러 놓고 「눌러 봤다」고 세게 된다.** */
+function clickables(root, also, hiddenClasses) {
   const doc = root.ownerDocument || root;
-  const sel = 'button, a[href], [onclick], input[type="submit"], [role="button"], .pk-chip, .faq-q, .gal-filter-chip';
+  const sel = 'button, a[href], [onclick], input[type="submit"], [role="button"], .pk-chip, .faq-q, .gal-filter-chip'
+    + (also ? ', ' + also : '');
+  const 감춤 = ['hidden'].concat(hiddenClasses || []);
   return Array.from(root.querySelectorAll(sel)).filter((el) => {
     if (el.disabled) return false;
     let n = el;
     while (n && n !== doc.body) {
-      if (n.classList && n.classList.contains('hidden')) return false;
+      if (n.classList && 감춤.some((c) => n.classList.contains(c))) return false;
       const st = n.style || {};
       if (st.display === 'none' || st.visibility === 'hidden') return false;
+      /* 닫힌 `<details>` 속은 화면에 없다 — 담당자도 못 누른다.
+         다만 그 `<summary>`(펼치는 줄)는 보인다. */
+      if (n.tagName === 'DETAILS' && !n.open) {
+        const summary = n.querySelector(':scope > summary');
+        if (!summary || !(el === summary || summary.contains(el))) return false;
+      }
       n = n.parentElement;
     }
     return true;
   });
+}
+
+/* 🔴 **「골라졌다」도 무슨 일이 난 것이다** (XV).
+   눌러서 라디오·체크박스가 켜지는 것을 이 자는 못 봤다 — `checked`는 **속성이 아니라
+   성질**이라 `innerHTML`에 안 나타나고, 골라진 줄을 표시하는 것은 CSS(`:has(input:checked)`)
+   인데 jsdom은 스타일시트를 계산하지 않는다. 그래서 담당자 견적 산출 화면에서
+   **고르는 줄 27개가 전부 「눌러도 아무 일도 안 난다」**로 세어졌다.
+   실제로는 눌리면 골라진다(비즈니스·5성급·식사로 확인했다).
+ ⚠ 없는 결함 27개는 소음이 아니라 **진짜 죽은 줄이 생겼을 때 묻히게 만드는 것**이다.
+   → 누르기 전/후로 **폼의 상태**를 함께 잰다. */
+function formState(root) {
+  const els = Array.from(root.querySelectorAll('input, select, textarea'));
+  return els.map((el) => (el.id || el.name || el.type) + '='
+    + (el.type === 'checkbox' || el.type === 'radio' ? (el.checked ? '1' : '0') : String(el.value || ''))).join('');
 }
 
 const label = (el) => {
@@ -140,7 +170,9 @@ function namelessControls(doc) {
    opts.after    — 열린 뒤 한 번 할 일(로그인 화면을 지나 대시보드로 들어가기 등)
    opts.sections — 화면이 여러 칸이면(관리자 탭 17개) 칸 목록. 없으면 화면 하나로 본다
    opts.skip     — 누르면 안 되는 것(로그아웃처럼 나머지를 못 보게 만드는 것)
-   opts.settle   — 화면이 자리잡기를 기다리는 시간 */
+   opts.settle   — 화면이 자리잡기를 기다리는 시간
+   opts.also     — 이 화면에서만 누를 수 있는 것(`<label>` 줄·`<summary>` 등)
+   opts.hiddenClasses — 이 화면에서 「감췄다」는 뜻으로 쓰는 클래스 이름들 */
 async function auditPage(file, opts = {}) {
   const B = bootPage(file, { fixtures: opts.fixtures, query: opts.query });
   const { win, doc, log, tick } = B;
@@ -170,7 +202,7 @@ async function auditPage(file, opts = {}) {
        「[dashboard] CSV 내보내기」와 「[inquiries] CSV 내보내기」가 같은 버튼이었다.
        감춘 탭의 버튼은 아무도 못 누른다. `scope`를 주면 그 안만 본다. */
     const 범위 = sec.scope ? (sec.scope(doc) || doc.body) : doc.body;
-    const list = clickables(범위);
+    const list = clickables(범위, opts.also, opts.hiddenClasses);
     for (const el of list) {
       /* 앞의 버튼이 화면을 다시 그려 이 버튼이 사라졌을 수 있다. 그건 결함이 아니다.
        ⚠ **기본은 끈다.** 켜면 고객 화면의 기존 숫자가 바뀐다 — 사라진 버튼의 처리기가
@@ -188,14 +220,14 @@ async function auditPage(file, opts = {}) {
       const msgEls = opts.messageSelector
         ? Array.from(범위.querySelectorAll(opts.messageSelector)) : [];
       msgEls.forEach((m) => { m.dataset.probeSaved = m.textContent; m.textContent = ''; });
-      const before = { html: hash(doc.body.innerHTML), text: hash(visibleText(doc.body)), req: log.requests.length, print: log.printed, down: log.downloads.length };
+      const before = { html: hash(doc.body.innerHTML), text: hash(visibleText(doc.body)), state: hash(formState(doc.body)), req: log.requests.length, print: log.printed, down: log.downloads.length };
       const errBefore = log.errors.length, sayBefore = log.says.length, navBefore = log.navs.length;
       let threw = '';
       try {
         el.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true, view: win }));
       } catch (e) { threw = String(e.message || e); }
       await tick(30);
-      const after = { html: hash(doc.body.innerHTML), text: hash(visibleText(doc.body)), req: log.requests.length, print: log.printed, down: log.downloads.length };
+      const after = { html: hash(doc.body.innerHTML), text: hash(visibleText(doc.body)), state: hash(formState(doc.body)), req: log.requests.length, print: log.printed, down: log.downloads.length };
       const 말했다 = msgEls.some((m) => String(m.textContent || '').trim().length > 0);
       results.push({
         messaged: 말했다,
@@ -206,6 +238,8 @@ async function auditPage(file, opts = {}) {
         says: log.says.slice(sayBefore),
         navs: log.navs.slice(navBefore),
         changed: before.html !== after.html || before.text !== after.text,
+        /* 화면 글자는 그대로인데 **골라진 것이 바뀐 것** — 이것도 일이 난 것이다 */
+        picked: before.state !== after.state,
         fetched: after.req > before.req,
         acted: after.print > before.print || after.down > before.down,
       });

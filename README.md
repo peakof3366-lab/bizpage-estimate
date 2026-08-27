@@ -195,9 +195,15 @@ node ai-loop/audit_customer_journey.js --verbose  #   터짐 · 죽은 링크 ·
 node ai-loop/smoke_prod_journey.js                # 프로덕션 주력 경로 — **기본은 dry-run**
 node ai-loop/smoke_prod_journey.js --live --cleanup  # 🔴 운영 DB에 실제로 쓰고, 만든 행을 지운다
 
-node ai-loop/audit_admin_journey.js               # 🔴 **담당자 화면**의 버튼을 전부 눌러 본다 (XT)
-node ai-loop/audit_admin_journey.js --mode=filled #   며칠 쓴 계정 상태로만
+node ai-loop/audit_admin_journey.js               # 🔴 **담당자 화면 둘**의 버튼을 전부 눌러 본다 (XT·XV)
+node ai-loop/audit_admin_journey.js --mode=filled #   admin.html만, 며칠 쓴 계정 상태로
+node ai-loop/audit_admin_journey.js --mode=quote  #   admin-quote.html(견적 산출)만
 ```
+
+⚠ 담당자 화면은 `admin.html` **하나가 아니다.** `admin-quote.html`(내부 견적 산출)이
+고객에게 나갈 금액을 실제로 만드는 자리다 — XV 전까지 어느 훑기에도 안 들어 있었다.
+그 화면은 목적지·조건을 `<label>` 줄로 고르므로 기본 선택자로는 **9개**만 잡힌다
+(실제 131개). `also`·`hiddenClasses`로 **부르는 쪽이** 더 준다.
 
 ⚠ 담당자 화면은 **로그인부터 통과해야** 아무것도 안 보인다 — `_admin_fixtures.js`가
 그 답을 준다(빈 계정 / 며칠 쓴 계정 두 상태). 없으면 로그인 폼만 훑고 「깨끗하다」고
