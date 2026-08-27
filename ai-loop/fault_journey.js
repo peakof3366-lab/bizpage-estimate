@@ -161,20 +161,30 @@ async function 한판(fault, rates) {
   out.말풍선 = log.says.map((s) => s.text);
   out.오류 = log.errors.map((e) => e.msg).slice(0, 3);
 
-  /* 문의 폼도 눌러 본다 — 고장이 문의 저장일 때 여기서 드러난다 */
+  /* 문의 폼도 눌러 본다 — 고장이 문의 저장일 때 여기서 드러난다.
+   ⚠ 처음엔 칸 이름을 짐작해서(`[name="name"]`) 넣었고, 결과 칸도 엉뚱한 것을 읽었다
+     (`#inqSuccess`가 진짜 자리다). 그래서 **문의가 아예 제출되지 않은 채로 「✓」**가
+     나왔다 — 자가 만든 거짓 초록이다. 화면에 있는 id를 그대로 쓴다. */
   const inq = doc.getElementById('inqForm');
   if (inq) {
-    const iset = (sel, v) => { const el = inq.querySelector(sel); if (el) { el.value = v; ev(el, 'input'); } };
-    iset('[name="name"], #inqName', '[점검] 문의자');
-    iset('[name="org"], #inqOrg', '[점검] 회사');
-    iset('[name="tel"], #inqTel', '010-0000-0000');
-    iset('[name="message"], #inqMsg, textarea', '고장 점검 문의입니다.');
+    const iset = (id, v) => { const el = doc.getElementById(id); if (el) { el.value = v; ev(el, 'input'); } };
+    iset('inqName', '[점검] 문의자');
+    iset('inqOrg', '[점검] 회사');
+    iset('inqTel', '010-0000-0000');
+    iset('inqMsg', '고장 점검 문의입니다.');
     const before = log.says.length;
     inq.dispatchEvent(new win.Event('submit', { bubbles: true, cancelable: true }));
-    await tick(400);
+    /* 🔴 **기다릴 줄 알아야 한다.** `submitLead`는 실패하면 2번 더 시도한다(0.6초 → 1.2초).
+       0.5초만 기다렸더니 아직 말하기 전이라 **「아무 말도 안 한다」는 없는 결함**이 나왔다.
+       나올 때까지(최대 4초) 지켜본다 — 시간을 고정하면 이 자를 못 믿는다. */
+    const okEl = doc.getElementById('inqSuccess');
+    for (let i = 0; i < 20; i++) {
+      await tick(200);
+      if (okEl && !okEl.classList.contains('hidden')) break;
+    }
     out.문의말 = log.says.slice(before).map((s) => s.text);
-    const msgEl = inq.querySelector('.inq-msg, #inqMsgBox, [id$="-msg"]');
-    out.문의화면말 = msgEl ? (msgEl.textContent || '').trim() : '';
+    out.문의화면말 = (okEl && !okEl.classList.contains('hidden')) ? (okEl.textContent || '').replace(/\s+/g, ' ').trim() : '';
+    out.문의보냄 = log.requests.some((x) => x.url.includes('/api/inquiries') && String(x.method).toUpperCase() === 'POST');
   }
 
   log.opened.forEach((w) => { try { w.close(); } catch (e) { /* 이미 닫힘 */ } });
@@ -185,8 +195,12 @@ async function 한판(fault, rates) {
 /* ── 판정 — **말했는가 / 참말인가 / 무엇을 하라 했는가** ── */
 function 판정(r) {
   const 나쁨 = [];
-  /* 🔴 **고객이 실제로 볼 수 있는 글자만** 센다. 감춰진 모달 안의 글은 안 본 것과 같다. */
-  const 보임 = (r.보이는글 || '') + ' ' + (r.말풍선 || []).join(' ') + ' ' + (r.문의화면말 || '');
+  /* 🔴 **고객이 실제로 볼 수 있는 글자만** 센다. 감춰진 모달 안의 글은 안 본 것과 같다.
+   ⚠ **문의 폼의 안내를 여기 섞지 않는다.** 견적서 발급과 일반 문의는 **다른 길**이고,
+     문의 성공 문구도 「접수되었습니다」다. 섞었더니 견적 저장 실패 2건이
+     「접수 안 됐는데 접수됐다고 했다」로 잡혔다 — 없는 결함이다.
+     (WD·XS에서 이미 배운 것: 길이 둘이면 기대도 둘이어야 한다.) */
+  const 보임 = (r.보이는글 || '') + ' ' + (r.말풍선 || []).join(' ');
   const 모달안 = [r.머리, r.본문].filter(Boolean).join(' ');
 
   if (r.key === 'none') {
@@ -229,7 +243,16 @@ function 판정(r) {
     if (st === 'applied' || !st) 나쁨.push('요율을 못 받았는데 기록의 출처 표식이 「' + st + '」다');
   }
 
-  /* ⑤ 🔴 **리드가 사라지는가.** 저장만 실패하면 발급 요청에 견적 스냅샷이 함께 실려
+  /* ⑤ 문의 폼 — **접수되지 않았는데 「접수되었습니다」**면 그 리드는 사라진다 */
+  if (r.문의보냄 === false) 나쁨.push('문의를 눌렀는데 서버로 아무것도 안 갔다');
+  if (/inquiry/.test(r.key)) {
+    if (!r.문의화면말) 나쁨.push('🔴 문의 저장이 실패했는데 화면이 아무 말도 안 한다');
+    else if (/접수되었습니다/.test(r.문의화면말)) 나쁨.push('🔴 문의가 실패했는데 「접수되었습니다」라고 했다');
+  } else if (r.문의화면말 && !/접수되었습니다/.test(r.문의화면말)) {
+    나쁨.push('문의가 정상인데 성공 안내가 아니다: ' + r.문의화면말.slice(0, 40));
+  }
+
+  /* ⑥ 🔴 **리드가 사라지는가.** 저장만 실패하면 발급 요청에 견적 스냅샷이 함께 실려
      대장에 남는다 — 담당자가 찾을 수 있다. 저장도 발급도 안 되면 그때는 아무 데도 없다.
      그 경우 화면이 **최소한 연락처를 안내**해야 한다. */
   if (저장실패 && !발급실패 && !r.스냅샷실림) {
