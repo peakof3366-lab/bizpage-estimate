@@ -1262,6 +1262,12 @@ function getBreakdownData() {
        ⚠ `costSubtotalUnit`(판정에 쓴 소계)까지 함께 남긴다. 배수만 남기면
          **왜 그 구간이 됐는지**를 화면이 말할 수 없다(조용한 폴백이 된다). */
     marginBandMul, marginBandLabel: marginBand.label, costSubtotalUnit,
+    /* 🔴 **대형버스 몇 대로 계산했는가** (XY). 정원 하나가 차량비와 가이드 인원을
+       **동시에** 움직이는데(`guideCount = vehicleCount`), 지금까지 그 대수가 밖으로
+       안 나왔다. 그래서 「39명에서 1인 금액이 15% 뛴다」를 볼 때마다 원인이 정원
+       경계인지 다른 것인지 **매번 다시 파야 했다**(퍼저가 그 자리에서 멈췄다).
+     ⚠ 표시용이 아니라 **설명용**이다 — 화면에 그리지 않는다. */
+    vehicleCount, guideCount,
   };
 }
 

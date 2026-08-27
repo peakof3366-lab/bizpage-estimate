@@ -67,7 +67,7 @@ const note = (kind, ctx, detail) => problems.push({ kind, ctx, detail });
     for (const date of dates) {
       /* ⑤ 단조성 검사를 위해 같은 조건에서 일수만 늘려가며 총액을 모은다 */
       for (const pax of paxList) {
-        let prevTotal = -Infinity, prevDays = null;
+        let prevTotal = -Infinity, prevDays = null, prevBand = null;
         for (const days of dayList) {
           let bd;
           try { bd = setForm({ dest, pax, days, date }); }
@@ -98,9 +98,16 @@ const note = (kind, ctx, detail) => problems.push({ kind, ctx, detail });
           }
 
           if (prevDays !== null && Number.isFinite(bd.total) && Number.isFinite(prevTotal) && bd.total < prevTotal - 2) {
-            note('일수단조성', `${dest} ${pax}명 ${date}`, `${prevDays}일 ${prevTotal} → ${days}일 ${bd.total} (감소)`);
+            /* 🔴 **왜 줄었는지까지 말한다** (XY). 실측해 보니 81건이 전부 한 가지 원인이었다:
+               원가소계가 **마진 구간 경계(120만)**를 넘으면 배수가 1.45 → 1.00으로 **계단처럼**
+               떨어져, 늘어난 원가보다 줄어든 마진이 더 커진다.
+               「감소」라고만 적으면 원인을 매번 다시 찾게 된다 — 자가 아는 것을 적어 둔다. */
+            const 구간넘음 = prevBand && bd.marginBandLabel && prevBand !== bd.marginBandLabel;
+            note('일수단조성', `${dest} ${pax}명 ${date}`,
+              `${prevDays}일 ${prevTotal} → ${days}일 ${bd.total} (감소)`
+              + (구간넘음 ? ` · 마진 구간을 넘었다: ${prevBand} → ${bd.marginBandLabel}` : ''));
           }
-          prevTotal = bd.total; prevDays = days;
+          prevTotal = bd.total; prevDays = days; prevBand = bd.marginBandLabel || null;
         }
       }
 
@@ -113,11 +120,19 @@ const note = (kind, ctx, detail) => problems.push({ kind, ctx, detail });
           if (prev && prev.perPerson > 0) {
             const jump = bd.perPerson / prev.perPerson - 1;
             if (jump > 0.15) {
-              note('인원절벽', `${dest} ${days}일 ${date}`,
-                `${prev.pax}명 ${prev.perPerson.toLocaleString()} → ${pax}명 ${bd.perPerson.toLocaleString()} (+${(jump * 100).toFixed(1)}%)`);
+              /* ⚠ **차량 정원 경계는 결함이 아니다** (XY에서 확인). 39명에서 대형버스가
+                 2대가 되고 가이드도 2명이 된다 — 실제로 그래야 한다. 정원 38은
+                 견적서 7건에서 역산해 정한 값이다(`audit_bus_capacity.js`).
+                 🔴 그래도 **숫자를 지우지 않는다** — 이름을 붙여 갈라 놓을 뿐이다.
+                 이름 없이 5건이 매번 찍히면 사람은 곧 그 줄을 안 읽는다. */
+              const 차량늘었나 = prev.vehicles != null && bd.vehicleCount != null && bd.vehicleCount > prev.vehicles;
+              note(차량늘었나 ? '인원절벽(차량 정원 경계 — 정상)' : '인원절벽',
+                `${dest} ${days}일 ${date}`,
+                `${prev.pax}명 ${prev.perPerson.toLocaleString()} → ${pax}명 ${bd.perPerson.toLocaleString()} (+${(jump * 100).toFixed(1)}%)`
+                + (차량늘었나 ? ` · 대형버스 ${prev.vehicles}대 → ${bd.vehicleCount}대(가이드도 함께)` : ''));
             }
           }
-          prev = { pax, perPerson: bd.perPerson };
+          prev = { pax, perPerson: bd.perPerson, vehicles: bd.vehicleCount };
         }
       }
     }
@@ -129,9 +144,16 @@ const note = (kind, ctx, detail) => problems.push({ kind, ctx, detail });
   const byKind = {};
   for (const p of problems) (byKind[p.kind] = byKind[p.kind] || []).push(p);
   for (const [kind, list] of Object.entries(byKind)) {
-    console.log(`■ ${kind} — ${list.length}건`);
-    /* 같은 원인이 수천 건 찍히면 읽을 수 없으므로 종류별로 앞부분만 */
-    for (const p of list.slice(0, 8)) console.log(`   · ${p.ctx}  ${p.detail}`);
+    /* 🔴 **원인이 밝혀진 것과 안 밝혀진 것을 갈라 센다** (XY).
+       81건이 전부 같은 원인이면 그건 「81개의 문제」가 아니라 **한 개의 문제**다.
+       그걸 안 가르면 사람은 목록의 길이를 보고 손을 못 댄다. 그리고 진짜 새로운
+       한 건이 섞여 들어와도 안 보인다. */
+    const 원인있음 = list.filter((p) => / · (마진 구간을 넘었다|대형버스)/.test(p.detail));
+    const 원인모름 = list.filter((p) => !/ · (마진 구간을 넘었다|대형버스)/.test(p.detail));
+    console.log(`■ ${kind} — ${list.length}건`
+      + (원인있음.length ? `  (원인 밝혀짐 ${원인있음.length} · 🔴 남은 것 ${원인모름.length})` : ''));
+    /* 원인을 모르는 것부터 보여준다 — 그게 사람이 볼 것이다 */
+    for (const p of 원인모름.concat(원인있음).slice(0, 8)) console.log(`   · ${p.ctx}  ${p.detail}`);
     if (list.length > 8) console.log(`   · ... 외 ${list.length - 8}건`);
     console.log('');
   }
