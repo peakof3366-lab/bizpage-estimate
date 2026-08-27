@@ -54,7 +54,16 @@ const KEEP_ALL = process.argv.includes('--keep');
    손님 한 명당 1MB 남짓이라 수백 명을 돌릴 때는 `--no-docs`로 끈다. */
 const DOCS = !process.argv.includes('--no-docs');
 const QUIET = process.argv.includes('--quiet');
-const OUT = arg('out', path.join(process.env.USERPROFILE || 'C:/Users/최현욱', 'Desktop', '가상견적서'));
+/* 🔴 **가장자리 손님은 다른 폴더에 쌓는다** (대표 지적 2026-08-27):
+   「가상견적서 폴더를 보니 질문이 이상한 게 너무 많더라」.
+   맞는 말이었다 — `--edge --sweep`으로 돌린 결과가 같은 폴더에 섞여, 폴더를 열면
+   「인원 1명」·「일수 1일」·「3년 뒤 출발」·「골프 없는 곳에 골프 요청」이 먼저 보였다.
+   그건 **일부러 넣은 시험 값**이지 고객이 하는 질문이 아니다.
+   → 실제 고객처럼 물어보는 손님은 `가상견적서`, 시험용 가장자리는 `가상견적서_가장자리`.
+ ⚠ 두 폴더를 다 쓰는 것이지 하나를 버리는 게 아니다 — 결함은 여전히 가장자리에서 나온다. */
+const 가장자리모드 = process.argv.includes('--edge') || process.argv.includes('--sweep');
+const OUT = arg('out', path.join(process.env.USERPROFILE || 'C:/Users/최현욱', 'Desktop',
+  가장자리모드 ? '가상견적서_가장자리' : '가상견적서'));
 const BASE = arg('base', 'https://bizpage-estimate.vercel.app');
 
 const won = (n) => Number(Math.round(n || 0)).toLocaleString('ko-KR');
@@ -226,6 +235,35 @@ async function runOne(p, rates, ctx) {
     문제(t, 'ITEM_SUM', '항목 합 × 계수가 총액과 다르다',
       won(itemSum) + ' × ' + cf + ' = ' + won(itemSum * cf) + ' vs ' + won(rec.total));
   }
+  /* 🔴 **손님이 물어본 것과 우리가 답한 것이 같은가** (XW · 대표 지시 2026-08-27:
+     「사실 관계로 질문과 답변」). 금액이 맞는지와는 다른 질문이다 — 「관광은 빼 주세요」라고
+     쓴 손님의 견적서에 관광이 들어 있으면, 금액이 정확해도 그 답은 틀린 답이다.
+   ⚠ 가장자리 손님은 **일부러 어긋난 것을 넣는다**(골프 없는 곳에 골프 요청 등)
+     — 그건 여기서 세지 않는다. 안 그러면 진짜가 묻힌다. */
+  if (!p.edge) {
+    const 이름들 = (rec.items || []).map((x) => String(x.name || ''));
+    const 있나 = (re) => 이름들.some((n) => re.test(n));
+    const 요청항목 = [
+      { on: p.incHotel, re: /^호텔/, say: '호텔' },
+      { on: p.incMeal, re: /^식사/, say: '식사' },
+      { on: p.incVehicle, re: /차량|버스/, say: '차량' },
+      { on: p.incGuide, re: /^가이드/, say: '가이드' },
+      { on: p.incSightseeing, re: /^관광/, say: '관광' },
+      { on: p.incGolf, re: /^골프/, say: '골프' },
+    ];
+    const 빠진것 = 요청항목.filter((x) => x.on && !있나(x.re)).map((x) => x.say);
+    const 안뺀것 = 요청항목.filter((x) => !x.on && 있나(x.re)).map((x) => x.say);
+    if (빠진것.length) 문제(t, 'ASK_ITEM_MISSING', '🔴 넣어 달라고 한 항목이 견적에 없다', 빠진것.join('·'));
+    if (안뺀것.length) 문제(t, 'ASK_ITEM_EXTRA', '🔴 빼 달라고 한 항목이 견적에 들어 있다', 안뺀것.join('·'));
+    /* 인원·일수는 **손님이 글로도 적은 값**이다. 기록이 그것과 다르면 폼이 삼킨 것이다. */
+    if (rec.participants !== p.participants) {
+      문제(t, 'ASK_PAX_DIFF', '🔴 요청한 인원과 견적의 인원이 다르다', p.participants + ' → ' + rec.participants);
+    }
+    if (rec.days !== p.days) {
+      문제(t, 'ASK_DAYS_DIFF', '🔴 요청한 일수와 견적의 일수가 다르다', p.days + ' → ' + rec.days);
+    }
+  }
+
   /* 말이 안 되는 1인 금액 — 너무 싸거나 너무 비싸면 사람이 봐야 한다 */
   if (rec.perPerson > 0 && rec.perPerson < 150000) 문제(t, 'PP_TOO_LOW', '1인 금액이 비상식적으로 낮다', won(rec.perPerson));
   if (rec.perPerson > 20000000) 문제(t, 'PP_TOO_HIGH', '1인 금액이 비상식적으로 높다', won(rec.perPerson));
@@ -469,6 +507,21 @@ async function runOne(p, rates, ctx) {
     문제(t, 'DOC_NO_DEST', '견적서에 목적지가 없다', p.destKey + ' / ' + share.dt);
   }
   if (!docText.includes(String(p.participants))) 문제(t, 'DOC_NO_PAX', '견적서에 인원이 없다', String(p.participants));
+  /* 🔴 **일수도 손님이 물어본 값이다** (XW). 인원은 보고 일수는 안 보고 있었다 —
+     「5일로 문의했는데 문서에는 며칠짜리인지 없다」가 그대로 통과했다. */
+  if (!p.edge && !docText.includes(p.days + '일')) {
+    문제(t, 'DOC_NO_DAYS', '견적서에 일수가 없다', p.days + '일');
+  }
+  /* 🔴 **일정도 그 일수만큼 나와야 한다** (XW). 7일로 물어봤는데 일정이 4일치면,
+     금액이 맞아도 고객이 받는 문서는 틀린 문서다. 실측해 보니 지금은 맞는다 —
+     맞는 것을 **맞다고 잠가 두는** 것이 이 줄의 목적이다(나중에 조립 규칙을 고칠 때 걸린다). */
+  if (!p.edge) {
+    const 날들 = [...new Set((docText.match(/DAY\s*(\d+)/g) || []).map((m) => Number(m.replace(/\D/g, ''))))];
+    if (날들.length && Math.max(...날들) !== p.days) {
+      문제(t, 'DOC_ITINERARY_DAYS', '🔴 견적서 일정의 날 수가 요청한 일수와 다르다',
+        '요청 ' + p.days + '일 · 일정 ' + Math.max(...날들) + '일치');
+    }
+  }
   /* XD — 받으시는 분의 이름이 문서에 있어야 한다(공문이다) */
   /* ⚠ 문서에 그려진 **글자**를 보는 것이라 이스케이프 함정은 없다(위 JSON 건과 다르다).
      다만 화면이 HTML로 이스케이프해 그리므로 `&`·`<`가 든 이름은 글자로는 그대로 보인다. */
@@ -527,7 +580,9 @@ async function runOne(p, rates, ctx) {
 
 /* ─────────────────────────────────────────────────────────────────────── */
 (async () => {
-  console.log('\n가상 고객 ' + N + '명을 우리 서비스에 태운다 (씨앗 ' + SEED + ')');
+  /* ⚠ 여기서 `N`을 찍지 않는다 — `--edge --sweep`이면 실제로 태우는 수가 `N`이 아니다
+     (100명을 태우면서 「200명을 태운다」고 찍고 있었다). 손님을 다 지은 뒤에 센다. */
+  console.log('\n가상 고객을 우리 서비스에 태운다 (씨앗 ' + SEED + ')');
   console.log('결과 폴더: ' + OUT);
 
   let rates;
@@ -551,12 +606,34 @@ async function runOne(p, rates, ctx) {
 
   fs.mkdirSync(OUT, { recursive: true });
 
+  /* 🔴 **지난 회차를 지우고 시작한다.** 안 그러면 폴더에 옛 손님과 새 손님이 섞여
+     「지금 우리 서비스가 이렇게 답한다」를 볼 수 없다 — 실제로 대표가 폴더를 열었을 때
+     지난 회차의 가장자리 손님이 먼저 보였다.
+   ⚠ **이 도구가 만든 것만 지운다** — 이름이 `0001_`처럼 네 자리 번호로 시작하는 폴더와
+     맨 위 보고서 셋. 사람이 그 폴더에 따로 넣어 둔 파일은 건드리지 않는다.
+   ⚠ `--no-clean`으로 끌 수 있다(회차를 이어 붙여 보고 싶을 때). */
+  if (!process.argv.includes('--no-clean')) {
+    let 지움 = 0;
+    for (const 이름 of fs.readdirSync(OUT)) {
+      const 내것 = /^\d{4}_/.test(이름) || ['_요약.md', '_문제모음.md', '_모아보기.html'].includes(이름);
+      if (!내것) continue;
+      fs.rmSync(path.join(OUT, 이름), { recursive: true, force: true });
+      지움++;
+    }
+    if (지움 && !QUIET) console.log('지난 회차 ' + 지움 + '개를 지웠다 (이 도구가 만든 것만)');
+  }
+
   /* 무작위 손님만으로는 가장자리를 못 만난다 — 300명이 전부 통과한 뒤에 안 사실이다.
      `--edge`는 일부러 까다로운 손님, `--sweep`은 **목적지 60곳 전수**다. */
   const people = [];
   if (process.argv.includes('--edge')) people.push(...makeEdges(people.length + 1));
   if (process.argv.includes('--sweep')) people.push(...makeSweep(people.length + 1));
   if (!people.length || process.argv.includes('--mix')) people.push(...makeAll(N, SEED).map((x, i) => Object.assign(x, { no: people.length + i + 1 })));
+  if (!QUIET) {
+    const 가장자리수 = people.filter((x) => x.edge).length;
+    console.log('태울 손님 ' + people.length + '명'
+      + (가장자리수 ? ' (그중 가장자리 시험 ' + 가장자리수 + '명)' : ' — 실제로 올 법한 손님') + '\n');
+  }
   const results = [];
   const t0 = Date.now();
   for (const p of people) {
@@ -613,8 +690,14 @@ async function runOne(p, rates, ctx) {
 
     /* 🔴 **큰 글자는 여기서 놓아준다.** 전부 들고 있다가 힙이 세 번 터졌다. */
     res.docHtml = null; res.popupHtml = null; res.csvText = null; res.popupText = null;
+    /* ⚠ 놓아주는 것은 **메가바이트짜리 문서**다. 짧은 글자는 남긴다 —
+       예전엔 여기서 `requestDetails`·`edge`까지 버려서, 모아보기에 **손님이 뭐라고
+       물어봤는지가 한 줄도 안 나왔다**(그래서 질문이 이상한 것을 아무도 못 봤다).
+       60명 × 400자면 24KB다. 힙이 터진 원인은 이런 것이 아니었다. */
     res.persona = { no: p.no, destKey: p.destKey, participants: p.participants, days: p.days,
-      programType: p.programType, organizationType: p.organizationType };
+      programType: p.programType, organizationType: p.organizationType,
+      edge: p.edge, orgTypeText: p.orgTypeText, programText: p.programText,
+      departureText: p.departureText, requestDetails: p.requestDetails };
     if (res.record) res.record.items = res.record.items.length;
 
     if (!QUIET) {
@@ -670,7 +753,13 @@ function 요청카드(p, res) {
     if (res.qno) L.push('- 견적번호: ' + res.qno);
     /* 🔴 고객에게 실제로 가는 것 — 파일이 아니라 이 주소 한 줄이다 */
     if (res.shareUrl) {
-      L.push('- **고객에게 카톡으로 가는 것**: `' + res.shareUrl + '` (주소 한 줄입니다. 파일이 아닙니다)');
+      /* ⚠ **이 주소는 실제로 열리지 않는다.** 이 도구는 운영 DB에 쓰지 않으므로 발급 번호가
+         진짜가 아니다 — 「주소 한 줄이 간다」는 형태를 보여주는 예시다. 그 사실을 적는다.
+         적지 않으면 눌러 보고 「우리 링크가 죽었다」고 읽게 된다(사실 관계, 대표 지시). */
+      L.push('- **고객에게 카톡으로 가는 것**: 파일이 아니라 `'
+        + BASE + '/estimate-view.html?id=…` 주소 한 줄입니다.');
+      L.push('  ⚠ 이 점검은 운영 DB에 쓰지 않아 **여기 예시 주소(`' + res.shareUrl + '`)는 실제로 열리지 않습니다.**'
+        + ' 실제 발급까지 확인하려면 `smoke_prod_journey.js --live --cleanup`을 씁니다.');
     }
     L.push('');
     L.push('| 항목 | 금액 |');
@@ -719,15 +808,23 @@ function 모아보기쓰기(results, dir, ms) {
       ? '<span class="bad">' + esc(r.trouble.map((x) => x.code).join(', ')) + '</span>'
       : (r.verdict === 'verified' ? '<span class="good">링크 받음</span>'
         : '<span class="warn">' + esc(r.verdict || '견적 없음') + '</span>');
+    /* 🔴 **손님이 뭐라고 물어봤는지를 여기서 바로 읽을 수 있어야 한다** (대표 지시 2026-08-27:
+       「진짜 그럴듯한 질문을 던지고 견적을 받게끔」). 폴더를 하나씩 열어야만 질문이 보이면,
+       질문이 이상해도 아무도 모른다 — 실제로 그래서 못 보고 지나갔다. */
+    const 조건 = [p.orgTypeText, p.programText].filter(Boolean).join(' · ');
+    const 질문 = p.requestDetails
+      ? '<tr class="ask"><td></td><td colspan="6">' + esc(p.requestDetails) + '</td></tr>'
+      : '';
     return '<tr>'
       + '<td class="no">' + esc(String(r.no).padStart(4, '0')) + '</td>'
-      + '<td>' + esc(p.edge || p.destKey || '—') + '</td>'
+      + '<td><b>' + esc(p.edge || p.destKey || '—') + '</b>'
+      + (조건 ? '<span class="cond">' + esc(조건) + '</span>' : '') + '</td>'
       + '<td class="num">' + esc(p.participants) + '명 · ' + esc(p.days) + '일</td>'
       + '<td class="won">' + (r.record ? won(r.record.perPerson) : '—') + '</td>'
       + '<td class="won">' + (r.record ? won(r.record.total) : '—') + '</td>'
       + '<td>' + 상태 + '</td>'
       + '<td class="docs">' + 문서 + '</td>'
-      + '</tr>';
+      + '</tr>' + 질문;
   }).join('\n');
 
   const html = `<!doctype html>
@@ -757,6 +854,12 @@ function 모아보기쓰기(results, dir, ms) {
   td.docs a { color:#CC001A; text-decoration:none; border-bottom:1px solid #F0C9CF; }
   td.docs a:hover { border-bottom-color:#CC001A; }
   td.docs a.sub { color:#8A8A8A; border-bottom-color:#E5E2DC; }
+  .cond { display:block; color:#8A8A8A; font-size:12px; margin-top:2px; }
+  /* 손님이 실제로 적어 보낸 문의 글 — 표 아래에 한 줄로 붙인다 */
+  tr.ask td { padding-top:0; padding-bottom:12px; color:#5A5A5A; font-size:12.5px;
+              line-height:1.75; border-bottom:1px solid #EFEDE8; }
+  tr.ask td::before { content:'“'; color:#C9C4BA; font-size:16px; }
+  tr.ask td::after { content:'”'; color:#C9C4BA; font-size:16px; }
   .good { color:#1A7F4B; } .warn { color:#B07A00; } .bad { color:#CC001A; font-weight:700; }
   .none { color:#B0B0B0; }
   .foot { margin-top:26px; color:#6B6B6B; font-size:13px; line-height:1.9; }

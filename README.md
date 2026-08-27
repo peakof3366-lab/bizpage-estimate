@@ -214,12 +214,30 @@ node ai-loop/audit_admin_journey.js --mode=quote  #   admin-quote.html(견적 �
 ## 가상 고객을 태워 본다 (XS) — **손님을 지어 실제 화면에 앉힌다**
 
 ```bash
-node ai-loop/virtual_journey.js --n=300          # 무작위 손님 300명
-node ai-loop/virtual_journey.js --edge           # 🔴 까다로운 손님 40 — 여기서 다 나왔다
-node ai-loop/virtual_journey.js --sweep          # 목적지 60곳 전수
-node ai-loop/virtual_journey.js --edge --sweep --mix --n=300   # 전부
+node ai-loop/virtual_journey.js --n=60           # 실제로 올 법한 손님 60명 → 바탕화면 `가상견적서`
+node ai-loop/virtual_journey.js --edge           # 🔴 까다로운 손님 40 → `가상견적서_가장자리`
+node ai-loop/virtual_journey.js --sweep          # 목적지 60곳 전수 → `가상견적서_가장자리`
+node ai-loop/virtual_journey.js --edge --sweep --mix --n=300   # 전부(가장자리 폴더로)
 node ai-loop/virtual_journey.js --n=300 --no-docs # 견적서 파일은 안 남긴다(큰 배치용)
+node ai-loop/virtual_journey.js --n=60 --no-clean # 지난 회차를 안 지우고 이어 붙인다
 ```
+
+🔴 **폴더가 둘이다** (대표 지적 2026-08-27 — 「가상견적서 폴더를 보니 질문이 이상한 게
+너무 많더라구」). 맞는 말이었다: `--edge --sweep` 결과가 같은 폴더에 섞여, 열면
+「인원 1명」·「일수 1일」·「3년 뒤 출발」이 먼저 보였다. 그건 **일부러 넣은 시험 값**이지
+고객이 하는 질문이 아니다.
+
+| 폴더 | 무엇이 들어가나 |
+|---|---|
+| `바탕화면\가상견적서` | 실제로 올 법한 손님 — **대표가 보시는 곳** |
+| `바탕화면\가상견적서_가장자리` | 일부러 까다롭게 만든 시험 손님 (`--edge`·`--sweep`) |
+
+⚠ 매 회차는 **지난 회차를 지우고 시작한다**(이 도구가 만든 `0001_…` 폴더와 보고서 셋만).
+섞이면 「지금 우리 서비스가 이렇게 답한다」를 볼 수 없다. `--no-clean`으로 끌 수 있다.
+
+🔴 **질문이 말이 되는지는 `test_xW_persona_realism.js`가 지킨다** — 해외 3일 미만·
+유럽 7일 미만·부산 출발 미주·휴양지 기관 방문·학교의 「임원」·조사(가이드**은**) 같은 것을
+씨앗 세 개 450명으로 매번 검사한다. 손님을 짓는 규칙을 고치면 여기서 걸린다.
 
 🔴 **견적서 파일이 실제로 폴더에 떨어진다** (대표 지시 2026-08-27 — 「내 눈으로 직접
 만들어지는 견적서를 볼 수 있게」). 손님마다 **고객이 손에 쥐는 세 형태 그대로**:

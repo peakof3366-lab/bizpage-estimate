@@ -14,6 +14,22 @@
    있으므로, **누가 봐도 가상인 표시**를 이름에 박는다(`MARK`). 연락처는 실제로
    존재할 수 있는 번호를 절대 만들지 않는다 — `010-0000-****`만 쓴다.
 
+   ■ 🔴 **말이 되는 질문만 만든다** (대표 지적, 2026-08-27)
+   「사람들이 하루 보내려고 해외여행을 나가는 경우는 없잖어. 가상견적서 폴더를 보니
+    질문이 이상한 게 너무 많더라구. 진짜 그럴듯한 질문을 던지고 견적을 받게끔.」
+
+   맞는 지적이었다. 값을 **서로 독립으로** 뽑고 있어서 이런 것들이 나왔다:
+     세부 3일 · 뉴욕 5일 · **부산 출발 로스앤젤레스** · 제주 출발 후아힌 ·
+     평생교육원 **인재개발팀** · 고등학교 인솔자를 「**임원**」 · 마카오 **어학연수** ·
+     사이판에서 「현지 기업 방문」 · 김포 출발인데 「지방에서 공항까지 버스」
+
+   말이 안 되는 질문에서 나온 답은 **맞아도 쓸모가 없다** — 아무도 그렇게 안 물어보니까.
+   그래서 순서를 바꿨다: **기관 → 그 기관이 하는 연수 → 그 연수가 가는 곳 → 그 노선의
+   출발지 → 그 비행시간이 허용하는 일수.** 뒤로 갈수록 앞의 값에 매인다.
+ ⚠ 문의 글도 **같은 값에서 만든다**(`문의글`). 글을 따로 지어내면 「30명이라 적고 폼에는
+   25명」이 되고, 그러면 답이 맞는지 틀린지 판단할 근거가 사라진다.
+ 🔴 이 규칙들은 `test_xW_persona_realism.js`가 씨앗 세 개 · 450명으로 매번 검사한다.
+
    ■ 씨앗(seed)이 같으면 같은 손님이 나온다
    `Math.random()`을 쓰면 어제의 실패를 오늘 다시 못 만든다. 결함을 고친 뒤
    **같은 손님으로 다시 확인**하는 것이 이 작업의 절반이다.
@@ -44,13 +60,27 @@ function rng(seed) {
 const DEST_KEYS = destinationRates.map((d) => d.destination_key);
 
 /* 실제로 자주 가는 곳에 무게를 준다 — 고르게 뽑으면 1년에 한 번 가는 곳이
-   절반을 차지해, 정작 매일 나가는 견적의 결함을 못 만난다. */
+   절반을 차지해, 정작 매일 나가는 견적의 결함을 못 만난다.
+ ⚠ **요율표에 없는 이름을 적으면 조용히 죽는다** — 예전에 `타이베이: 5`가 있었는데
+   요율표의 이름은 `대만`이라 그 무게가 **한 번도 안 쓰였다**(결함 생성기 ②).
+   아래 `assertKeys`가 이제 그 자리에서 큰 소리로 알린다. */
 const DEST_WEIGHT = {
   다낭: 9, 나트랑: 7, 방콕: 7, 세부: 7, 보홀: 5, 푸켓: 6, 하노이: 5, 호치민: 5,
   오사카: 9, 도쿄: 8, 후쿠오카: 9, 오키나와: 8, 삿포로: 6, 나고야: 4, 가고시마: 3,
   싱가포르: 5, 홍콩: 4, 마카오: 4, 상해: 4, 코타키나발루: 4, 발리: 4, 제주도: 6,
-  타이베이: 5, 괌: 3, 사이판: 3,
+  대만: 5, 괌: 3, 사이판: 3,
 };
+
+/* 표에 적은 목적지 이름이 실제 요율표에 있는가 — 없으면 그 줄은 아무 일도 안 한다 */
+function assertKeys(표, 이름) {
+  const 없는것 = Object.keys(표).filter((k) => !DEST_KEYS.includes(k));
+  if (없는것.length) {
+    throw new Error(이름 + '에 요율표에 없는 목적지가 있다: ' + 없는것.join(', ')
+      + ' — 이름이 바뀌었거나 오타다. 그대로 두면 그 줄은 조용히 안 쓰인다.');
+  }
+}
+assertKeys(DEST_WEIGHT, 'DEST_WEIGHT');
+
 function weightedDests() {
   const bag = [];
   DEST_KEYS.forEach((k) => {
@@ -61,24 +91,107 @@ function weightedDests() {
 }
 const DEST_BAG = weightedDests();
 
-const PROGRAMS = [
-  { v: 'industry', w: 8, say: '산업시찰' },
-  { v: 'leadership', w: 6, say: '리더십 워크숍' },
-  { v: 'leisure', w: 5, say: '포상휴가' },
-  { v: 'academic', w: 3, say: '학술연수' },
-  { v: 'language', w: 2, say: '어학연수' },
-];
+/* ═══════════════════════════════════════════════════════════════════════════
+   🔴 **하루 보내려고 해외에 나가는 사람은 없다** (대표 지적, 2026-08-27)
+   ───────────────────────────────────────────────────────────────────────────
+   무작위로 지어낸 손님이 「세부 3일」·「뉴욕 5일」·「부산 출발 로스앤젤레스」를
+   물어보고 있었다. 금액은 나온다 — 엔진은 시키는 대로 계산하니까. 그런데 그건
+   **아무도 안 하는 질문**이라, 거기서 나온 답을 보고는 우리 서비스가 실제 고객에게
+   어떻게 답하는지 알 수 없다.
+
+   여행 기간을 정하는 것은 **비행시간**이다. 왕복 이동에 이틀이 잡히는 곳을 3일로
+   물어보면 현지 체류가 하루도 안 남는다.
+ ⚠ 권역은 `data.js`의 `DEST_CLASSIFY`에서 가져온다 — 목적지 목록을 여기 다시 적으면
+   목적지가 늘 때마다 어긋난다(결함 생성기 ①). 권역이 같아도 성격이 다른 몇 곳만
+   **예외로 이름을 적고**, 표에 없는 권역이 나오면 **큰 소리로 실패한다**(조용한 폴백 금지).
+   ═══════════════════════════════════════════════════════════════════════════ */
+const CLASSIFY = destinationRates.DEST_CLASSIFY;
+if (!CLASSIFY) throw new Error('data.js에 DEST_CLASSIFY가 없다 — 권역을 알 방법이 없다');
+
+/* 권역별 [현실적인 최소 일수, 자주 나오는 일수들] */
+const 권역기간 = {
+  국내: { min: 2, bag: [2, 2, 3, 3, 3, 4] },
+  일본: { min: 3, bag: [3, 3, 4, 4, 4, 5, 5] },
+  '홍콩·마카오': { min: 3, bag: [3, 4, 4, 4, 5] },
+  중국: { min: 4, bag: [4, 4, 5, 5, 5, 6] },
+  '몽골·대만': { min: 4, bag: [4, 4, 5, 5, 6] },
+  동남아: { min: 4, bag: [4, 5, 5, 5, 6, 6, 7] },
+  중앙아시아: { min: 5, bag: [5, 6, 6, 7, 7] },
+  '오세아니아·태평양': { min: 4, bag: [4, 5, 5, 6] },   /* 괌·사이판 기준. 호주·뉴질랜드는 아래 예외 */
+  북미: { min: 6, bag: [6, 7, 7, 8, 8, 9] },
+  유럽: { min: 7, bag: [7, 8, 8, 9, 9, 10] },
+};
+
+/* 같은 권역인데 비행시간이 아주 다른 곳 — **이름을 적는 쪽이 정직하다** */
+const 목적지기간예외 = {
+  시드니: { min: 6, bag: [6, 7, 7, 8] },
+  멜버른: { min: 6, bag: [6, 7, 7, 8] },
+  오클랜드: { min: 7, bag: [7, 8, 8, 9] },
+  호주: { min: 7, bag: [7, 8, 8, 9, 10] },
+  하와이: { min: 5, bag: [5, 6, 6, 7] },       /* 미주지만 휴양이라 북미 본토보다 짧다 */
+  미야코지마: { min: 4, bag: [4, 4, 5] },       /* 일본이지만 직항이 드물어 하루 더 걸린다 */
+};
+assertKeys(목적지기간예외, '목적지기간예외');
+
+function 기간규칙(destKey) {
+  if (목적지기간예외[destKey]) return 목적지기간예외[destKey];
+  const region = CLASSIFY[destKey] && CLASSIFY[destKey].region;
+  const rule = 권역기간[region];
+  if (!rule) {
+    /* 🔴 조용히 기본값으로 떨어지면 「하루짜리 유럽 연수」가 다시 나온다 */
+    throw new Error('목적지 「' + destKey + '」의 권역(' + region + ')에 기간 규칙이 없다 — '
+      + '`권역기간`에 한 줄 더하거나 `목적지기간예외`에 적을 것.');
+  }
+  return rule;
+}
+
+/* 국내인가 — 제주도는 항공 노선·출발지 규칙이 통째로 다르다 */
+const 국내인가 = (destKey) => (CLASSIFY[destKey] && CLASSIFY[destKey].region) === '국내';
+/* 장거리인가 — 좌석·출발지·리드타임이 여기서 갈린다 */
+const 장거리인가 = (destKey) => 기간규칙(destKey).min >= 6;
+
+/* 🔴 **어디서 무엇을 하는지가 정해져 있다** — 사이판에 「현지 기업 방문」을 물어보거나
+   마카오로 어학연수를 가는 문의는 실제로 오지 않는다.
+ ⚠ 이건 판단이 들어간 목록이라 **이름을 적고 근거를 남긴다**(파생할 데이터가 없다).
+   목적지가 늘면 `assertKeys`가 오타를 잡아 주지만, 새 목적지의 성격은 사람이 정해야 한다. */
+const 휴양지 = ['오키나와', '미야코지마', '괌', '사이판', '하와이', '보홀', '발리', '푸켓',
+  '후아힌', '나트랑', '푸꾸옥', '코타키나발루', '치앙마이', '장가계'];
+assertKeys(Object.fromEntries(휴양지.map((k) => [k, 1])), '휴양지');
+
+/* 어학연수를 실제로 보내는 곳 — 영어권과, 현지어 연수가 성립하는 곳 */
+const 어학연수가능 = ['세부', '마닐라', '싱가포르', '도쿄', '오사카', '후쿠오카', '상해', '대만',
+  '영국', '로스앤젤레스', '샌프란시스코', '뉴욕', '워싱턴', '밴쿠버', '토론토', '호주', '시드니',
+  '멜버른', '오클랜드'];
+assertKeys(Object.fromEntries(어학연수가능.map((k) => [k, 1])), '어학연수가능');
+
+/* 연수 목적이 갈 수 있는 곳만 담은 가방 */
+function 목적지가방(programV) {
+  if (programV === 'language') return DEST_BAG.filter((k) => 어학연수가능.includes(k));
+  /* 산업시찰·학술연수는 **볼 것이 있어야** 간다 — 휴양지에는 방문할 기관이 없다 */
+  if (programV === 'industry' || programV === 'academic') return DEST_BAG.filter((k) => !휴양지.includes(k));
+  /* 포상휴가는 휴양지 쪽으로 기운다 */
+  if (programV === 'leisure') return DEST_BAG.concat(DEST_BAG.filter((k) => 휴양지.includes(k)));
+  return DEST_BAG;
+}
+
+/* 골프를 **팔지 않는 곳에 골프를 물어보지 않는다.**
+ ⚠ `data.js`는 폴백 기본값이라 운영 오버라이드로 골프가 더 열려 있을 수 있다.
+   여기서는 적게 잡는 쪽을 고른다 — 손님이 안 파는 것을 물어보는 것보다 낫다. */
+const 골프목적지 = destinationRates
+  .filter((d) => Number(d.golf_fee || 0) > 0)
+  .map((d) => d.destination_key);
+
+/* ⚠ 예전에는 여기 `PROGRAMS`(연수 목적을 기관과 **따로** 뽑는 표)가 있었다. 지웠다 —
+   그러면 「동호회 산업시찰」이 나온다. 지금은 `PROGRAM_BY_ORG`가 기관에서 파생한다.
+   같은 목록을 두 곳에 두면 반드시 어긋난다(결함 생성기 ①). */
 const ORG_TYPES = [
   { v: 'company', w: 10, say: '기업' },
   { v: 'public', w: 3, say: '공공기관' },
   { v: 'education', w: 3, say: '학교' },
   { v: 'individual', w: 1, say: '개인/동호회' },
 ];
-const DEPARTURE = [
-  { v: 'ICN', w: 10, say: '인천' }, { v: 'GMP', w: 2, say: '김포' },
-  { v: 'PUS', w: 3, say: '부산' }, { v: 'TAE', w: 1, say: '대구' },
-  { v: 'KWJ', w: 2, say: '광주' }, { v: 'CJU', w: 1, say: '제주' },
-];
+/* ⚠ 출발지 표도 `출발지가방(destKey)` 하나로 옮겼다 — 목적지와 무관하게 뽑으면
+   **부산 출발 로스앤젤레스**가 나온다(실제로 나왔다). */
 
 /* 가상 회사 이름 — 실재 상호와 겹치지 않게 **앞에 [가상]을 박는다** */
 const NAME_HEAD = ['한빛', '새롬', '두레', '한결', '온새미', '너울', '아람', '가온', '미르', '해솔',
@@ -87,10 +200,32 @@ const NAME_CO = ['전자', '화학', '물산', '건설', '제약', '금융', '�
   '바이오', '모빌리티', '네트웍스', '캐피탈', '생명', '증권', '유통', '소재', '정밀', '시스템'];
 const NAME_PUB = ['진흥원', '공사', '재단', '협회', '연구원', '조합'];
 const NAME_EDU = ['대학교', '고등학교', '대학원', '평생교육원'];
+/* 🔴 **부서 이름은 기관 종류를 따라간다** — 「평생교육원 인재개발팀」이 실제로 나왔다.
+   기업의 부서명을 학교·공공기관에 붙이면 그 문의는 사람이 쓴 것으로 안 읽힌다. */
+const TEAM_BY_ORG = {
+  company: ['인재개발팀', '경영지원팀', '총무팀', '전략기획팀', '영업본부', '연구소', '교육팀', 'HR팀'],
+  public: ['총무부', '경영지원실', '기획조정실', '인재개발원', '운영지원팀'],
+  individual: [''],   /* 동호회에는 부서가 없다 */
+};
+/* 담당자에게 직함을 준다 — 실제 문의 메일은 「김민준 대리」처럼 온다 */
+const TITLE_BY_ORG = {
+  company: ['사원', '주임', '대리', '과장', '차장', '팀장'],
+  public: ['주무관', '대리', '과장', '팀장'],
+  individual: ['총무', '회장', '운영진'],
+};
+/* 🔴 **학교는 종류마다 부서도 직함도 다르다** — 「평생교육원 산학협력단 주무관」이
+   실제로 나왔다. 산학협력단은 대학에만 있고, 주무관은 공무원 직급이다. */
+const EDU_ROLE = {
+  대학교: { teams: ['학생처', '교무처', '산학협력단', '국제교류원'], titles: ['조교', '주임', '팀장', '실장'] },
+  대학원: { teams: ['교학팀', '학생지원팀', '산학협력단'], titles: ['조교', '주임', '팀장'] },
+  /* ⚠ 「행정실 … 행정실장입니다」처럼 부서와 직함이 겹쳐 읽히지 않게 한다 */
+  고등학교: { teams: ['행정실', '교무실', '진로진학부'], titles: ['교사', '부장교사', '실장'] },
+  평생교육원: { teams: ['운영팀', '행정실', '교육기획팀'], titles: ['주임', '팀장', '실장'] },
+};
 const SURNAME = ['김', '이', '박', '최', '정', '강', '조', '윤', '장', '임', '한', '오', '서', '신', '권', '황', '안', '송', '류', '전'];
 const GIVEN = ['민준', '서연', '도윤', '지우', '예준', '하윤', '주원', '지호', '수아', '건우',
   '유진', '태현', '나윤', '성민', '가은', '준서', '다인', '현우', '소율', '재현'];
-const TEAM = ['인재개발팀', '경영지원팀', '총무팀', '전략기획팀', '영업본부', '연구소', '교육팀', 'HR팀'];
+/* ⚠ 부서 목록은 `TEAM_BY_ORG` 하나다(위) — 기관 종류와 안 맞는 부서명을 막는다 */
 
 function pickW(r, arr) {
   const bag = [];
@@ -105,78 +240,264 @@ const chance = (r, p) => r() < p;
 const ymd = (d) => d.toLocaleDateString('sv-SE');
 const plusDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
 
-/* 인원은 고르게 퍼지지 않는다 — 실제 견적은 20·30·40처럼 **동그란 수**에 몰린다 */
-const PAX_BAG = [12, 15, 15, 18, 20, 20, 20, 25, 25, 30, 30, 30, 35, 40, 40, 45, 50, 50,
-  60, 60, 70, 80, 90, 100, 120, 150, 8, 10, 200];
-const DAYS_BAG = [3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 2, 7, 8];
+/* 인원은 고르게 퍼지지 않는다 — 실제 견적은 20·30·40처럼 **동그란 수**에 몰린다.
+   그리고 **연수 목적마다 규모가 다르다**: 어학연수를 150명이 가지 않고, 포상휴가를
+   12명이 가지도 않는다. 목적별로 가방을 나눈다. */
+const PROGRAM_RULE = {
+  industry: {
+    paxBag: [15, 20, 20, 25, 25, 30, 30, 30, 35, 40, 40, 45, 50, 60],
+    minDays: 3, visits: [1, 3], sightP: 0.65, golfP: 0.02, mealP: 0.97,
+  },
+  leadership: {
+    paxBag: [20, 20, 25, 30, 30, 35, 40, 40, 50, 60, 80],
+    minDays: 3, visits: [0, 1], sightP: 0.85, golfP: 0.12, mealP: 0.95,
+  },
+  leisure: {
+    paxBag: [20, 25, 30, 30, 40, 40, 50, 60, 80, 100, 120, 150],
+    minDays: 3, visits: [0, 0], sightP: 0.95, golfP: 0.30, mealP: 0.85,
+  },
+  academic: {
+    paxBag: [15, 15, 20, 20, 25, 30, 30, 35, 40],
+    minDays: 4, visits: [1, 2], sightP: 0.6, golfP: 0, mealP: 0.95,
+  },
+  language: {
+    /* 어학연수는 **주 단위**다 — 4일짜리 어학연수를 물어보는 고객은 없다.
+       ⚠ 기관 방문은 0이다. 어학연수는 어학원에서 수업을 듣는 일정이라
+         「현지 기업·기관 방문」이 붙으면 그 문의는 앞뒤가 안 맞는다. */
+    paxBag: [10, 12, 15, 15, 20, 20, 25, 30],
+    minDays: 7, visits: [0, 0], sightP: 0.7, golfP: 0, mealP: 0.9,
+  },
+};
+
+/* 🔴 **기관 종류가 연수 목적을 정한다.** 고르게 뽑으면 「동호회 산업시찰」·
+   「고등학교 포상휴가」가 나온다 — 아무도 안 하는 문의다. */
+const PROGRAM_BY_ORG = {
+  /* ⚠ 기업에 `academic`(학술연수)을 안 넣는다 — 「건설회사 영업본부 학술연수」가 나왔다.
+     기업×학술 같은 드문 계수 조합은 **가장자리 손님**(`makeEdges`)이 따로 태운다. */
+  company: [{ v: 'industry', w: 8 }, { v: 'leadership', w: 7 }, { v: 'leisure', w: 6 },
+    { v: 'language', w: 1 }],
+  public: [{ v: 'industry', w: 8 }, { v: 'leadership', w: 4 }, { v: 'academic', w: 4 },
+    { v: 'language', w: 1 }],
+  education: [{ v: 'academic', w: 8 }, { v: 'language', w: 6 }, { v: 'industry', w: 3 },
+    { v: 'leadership', w: 2 }],
+  individual: [{ v: 'leisure', w: 9 }, { v: 'leadership', w: 1 }],
+};
+const PROGRAM_SAY = {
+  industry: '산업시찰', leadership: '리더십 워크숍', leisure: '포상휴가',
+  academic: '학술연수', language: '어학연수',
+};
+
+/* 멀수록 큰 단체가 줄어든다 — 유럽에 150명을 한 번에 보내는 회사는 드물다 */
+const 권역인원상한 = (destKey) => (장거리인가(destKey) ? 80 : (국내인가(destKey) ? 200 : 150));
+
+/* 🔴 **출발지는 노선이 정한다.** 부산 출발 로스앤젤레스가 실제로 나왔는데,
+   김해에서 미주로 가는 직항은 없다 — 그런 문의는 사람이 쓴 것으로 안 읽힌다.
+   국내선 연계로 갈 수는 있지만, 그건 고객이 「부산 출발」이라 적는 방식이 아니다. */
+const 공항이름 = { ICN: '인천', GMP: '김포', PUS: '부산', TAE: '대구', KWJ: '광주', CJU: '제주' };
+
+/* 어느 공항에서 어디로 뜨는가 — **국제선이 있는 곳만** 적는다.
+   김포 국제선은 하네다·간사이·베이징·상해·타이베이 정도이고, 제주 국제선은 더 적다.
+   「제주 출발 후아힌 100명」·「김포 출발 다낭」이 실제로 나왔는데, 그런 문의는 오지 않는다. */
+const 권역출발지 = {
+  국내: { ICN: 5, GMP: 9, PUS: 4, TAE: 2, KWJ: 2 },
+  일본: { ICN: 12, PUS: 5, GMP: 3, TAE: 2, KWJ: 1, CJU: 1 },
+  중국: { ICN: 12, PUS: 3, GMP: 2, TAE: 1, CJU: 1 },
+  '홍콩·마카오': { ICN: 14, PUS: 3, TAE: 1 },
+  '몽골·대만': { ICN: 13, PUS: 3, TAE: 1 },
+  동남아: { ICN: 14, PUS: 4, TAE: 1 },
+  중앙아시아: { ICN: 1 },
+  '오세아니아·태평양': { ICN: 15, PUS: 1 },
+  북미: { ICN: 19, PUS: 1 },
+  유럽: { ICN: 1 },
+};
+
+function 출발지가방(destKey) {
+  const region = CLASSIFY[destKey] && CLASSIFY[destKey].region;
+  const 표 = 권역출발지[region];
+  if (!표) throw new Error('권역 「' + region + '」의 출발지 표가 없다 — `권역출발지`에 한 줄 더할 것');
+  return Object.keys(표).map((code) => ({ v: code, w: 표[code], say: 공항이름[code] }));
+}
+
+/* 리드타임 — **품의·예산 절차가 있는 곳일수록 길다** */
+const 리드타임 = { company: [35, 120], public: [60, 180], education: [45, 150], individual: [30, 90] };
+
+/* 🔴 **손님이 적는 문의 글은 손님이 고른 값에서 만든다** (대표 지시 2026-08-27:
+   「사실 관계로 질문과 답변」). 문구를 따로 지어내면 「30명이라 적고 폼에는 25명」
+   같은 어긋남이 생기고, 그러면 답(견적서)이 맞는지 틀린지 판단할 근거가 없어진다.
+   → 아래 문장들은 **전부 같은 변수에서** 나온다. `test_xW`가 그 일치를 잠근다. */
+/* 🔴 **조사(은/는·을/를)가 틀리면 사람이 쓴 글로 안 읽힌다** — 「가이드은 빼고」가
+   실제로 나왔다. 받침 유무로 고른다(한글 음절 코드에서 종성만 본다). */
+function 받침있나(말) {
+  const 끝 = String(말).trim().slice(-1);
+  const c = 끝.charCodeAt(0);
+  if (c < 0xac00 || c > 0xd7a3) return false;   /* 한글 음절이 아니면 없는 것으로 본다 */
+  return (c - 0xac00) % 28 !== 0;
+}
+const 은는 = (말) => 말 + (받침있나(말) ? '은' : '는');
+
+/* 「임원」은 회사 말이다 — 학교·동호회에는 그런 사람이 없다 */
+const VIP_SAY = { company: '임원', public: '기관장·간부', education: '인솔 교원', individual: '운영진' };
+
+function 문의글(p, r, 부서, 직함) {
+  const 달 = Number(p.startDate.slice(5, 7));
+  const 박 = p.days - 1;
+  const 포함 = [p.incHotel && '호텔', p.incMeal && '식사', p.incVehicle && '차량',
+    p.incGuide && '가이드', p.incSightseeing && '관광'].filter(Boolean);
+  const 뺀것 = [!p.incHotel && '호텔', !p.incMeal && '식사', !p.incVehicle && '차량',
+    !p.incGuide && '가이드', !p.incSightseeing && '관광'].filter(Boolean);
+  const 등급말 = { standard: '3성급', superior: '4성급', deluxe: '5성급' }[p.hotelGrade];
+  const vip = VIP_SAY[p.organizationType];
+  const 객실말 = { double: '2인 1실', single: '1인 1실', mixed: '2인 1실(' + vip + '만 1인 1실)' }[p.roomConfig];
+  const 좌석말 = { economy: '이코노미', business: '비즈니스', mixed: '이코노미(' + vip + '만 비즈니스)' }[p.cabinClass];
+
+  const 줄 = [];
+  /* 동호회에는 부서가 없다 — 「라온동호회 총무 류태현 회장입니다」가 나왔다 */
+  줄.push('안녕하세요. ' + p.orgNameRaw + (부서 ? ' ' + 부서 : '') + ' ' + p.personRaw + ' ' + 직함 + '입니다.');
+  줄.push(달 + '월 ' + p.destText + ' ' + p.programText + ' 일정으로 견적을 요청드립니다.');
+  줄.push('인원은 ' + p.participants + '명이고 ' + p.days + '일(' + 박 + '박) 일정으로, '
+    + p.departureText + ' 출발을 생각하고 있습니다.');
+  줄.push('항공은 ' + 좌석말 + ', 호텔은 ' + 등급말 + ' ' + 객실말 + ' 기준으로 부탁드립니다.');
+  if (포함.length) {
+    줄.push(은는(포함.join('·')) + ' 포함으로 잡아 주시고'
+      + (뺀것.length ? ', ' + 은는(뺀것.join('·')) + ' 빼고 산출해 주세요.' : ' 산출 부탁드립니다.'));
+  }
+  if (p.agencyVisits) {
+    /* 제주도는 국내다 — 「현지 기관」이라 부르지 않는다 */
+    const 어디 = 국내인가(p.destKey) ? '도내' : '현지';
+    줄.push(어디 + ' ' + (p.programType === 'academic' ? '대학·연구기관' : '기업·기관') + ' 방문 '
+      + p.agencyVisits + '회를 일정에 넣어 주시면 좋겠습니다.');
+  }
+  if (p.incGolf) 줄.push('일정 중 골프 ' + p.golfRounds + '라운드를 ' + p.golfCount + '명 기준으로 넣어 주세요.');
+  if (p.vipCount) 줄.push(vip + ' ' + p.vipCount + '분은 1인 1실로 배정 부탁드립니다.');
+  /* 「지방에서 인천공항까지」는 **인천 출발일 때만** 말이 된다 — 김포 출발에 이 문장이
+     붙어 있었다. 지방 공항에서 뜨면 그 버스가 필요 없다. */
+  if (p.incDomestic) 줄.push('지방 사업장에서 인천공항까지 이동할 전세버스도 함께 잡아 주세요.');
+  /* 마무리 한 줄 — 실제 문의 메일이 늘 붙이는 말들 */
+  줄.push(pick(r, [
+    '내부 품의용이라 항목별 내역이 함께 있으면 좋겠습니다.',
+    '출발일은 앞뒤로 2~3일 조정 가능합니다.',
+    '가능한 회신 부탁드립니다. 확정되면 바로 계약 진행 예정입니다.',
+    '비슷한 조건으로 다녀온 사례가 있으면 함께 알려 주세요.',
+    '예산 조정이 필요하면 어느 항목을 줄일 수 있는지도 알려 주시면 감사하겠습니다.',
+  ]));
+  return 줄.join(' ');
+}
 
 function makePersona(i, seed) {
   const r = rng(seed * 7919 + i * 104729 + 1);
-  const destKey = pick(r, DEST_BAG);
-  const program = pickW(r, PROGRAMS);
+
+  /* ① 어떤 조직인가 → ② 그 조직이 하는 연수 → ③ 그 연수에 맞는 목적지·규모·기간
+     순서가 중요하다. 목적지를 먼저 뽑고 나머지를 독립으로 뽑으면
+     「고등학교 유럽 포상휴가 150명 3일」 같은 것이 나온다. */
   const orgType = pickW(r, ORG_TYPES);
-  const dep = pickW(r, DEPARTURE);
-  const pax = pick(r, PAX_BAG);
-  const days = pick(r, DAYS_BAG);
-  const lead = int(r, 21, 300);
+  const programV = pickW(r, PROGRAM_BY_ORG[orgType.v]).v;
+  const rule = PROGRAM_RULE[programV];
+  const programText = PROGRAM_SAY[programV];
+
+  /* 목적지는 **연수 목적이 갈 수 있는 곳**에서만 뽑는다 */
+  const destKey = pick(r, 목적지가방(programV));
+  const 기간 = 기간규칙(destKey);
+  const dep = pickW(r, 출발지가방(destKey));
+
+  /* 인원 — 목적별 가방에서 뽑고 **권역 상한**으로 자른다.
+     ⚠ 동호회는 회사가 아니다 — 80명 동호회 포상휴가가 나왔다. 따로 낮게 자른다. */
+  const 상한 = Math.min(권역인원상한(destKey), orgType.v === 'individual' ? 40 : Infinity);
+  const paxBag = rule.paxBag.filter((n) => n <= 상한);
+  const pax = pick(r, paxBag.length ? paxBag : [Math.min(상한, 25)]);
+
+  /* 🔴 일수 — **비행시간이 정한 최소**와 **연수 성격이 정한 최소** 중 큰 쪽을 지킨다.
+     하루 보내려고 해외에 나가지 않고, 4일짜리 어학연수도 없다.
+   ⚠ 어학연수는 근거리라도 주 단위라, 권역 가방에 맞는 날이 없으면 **주 단위로 올린다**
+     (예전엔 여기서 한 값으로 떨어져 「마카오 7일 어학연수」 같은 것이 나왔다). */
+  const 후보 = 기간.bag.filter((d) => d >= rule.minDays);
+  const days = 후보.length ? pick(r, 후보)
+    : (programV === 'language' ? pick(r, [7, 7, 10, 14]) : Math.max(기간.min, rule.minDays));
+
+  const [리드lo, 리드hi] = 리드타임[orgType.v];
+  const lead = int(r, 리드lo, 리드hi);
   const start = plusDays(lead);
   const end = plusDays(lead + days - 1);
 
-  const orgName = orgType.v === 'company' ? pick(r, NAME_HEAD) + pick(r, NAME_CO)
-    : orgType.v === 'public' ? pick(r, NAME_HEAD) + pick(r, NAME_PUB)
-      : orgType.v === 'education' ? pick(r, NAME_HEAD) + pick(r, NAME_EDU)
+  /* 이름과 부서·직함은 **함께** 정해진다 — 학교는 종류까지 보고 고른다 */
+  let orgNameRaw, 부서, 직함;
+  if (orgType.v === 'education') {
+    const 학교종류 = pick(r, NAME_EDU);
+    orgNameRaw = pick(r, NAME_HEAD) + 학교종류;
+    부서 = pick(r, EDU_ROLE[학교종류].teams);
+    직함 = pick(r, EDU_ROLE[학교종류].titles);
+  } else {
+    orgNameRaw = orgType.v === 'company' ? pick(r, NAME_HEAD) + pick(r, NAME_CO)
+      : orgType.v === 'public' ? pick(r, NAME_HEAD) + pick(r, NAME_PUB)
         : pick(r, NAME_HEAD) + '동호회';
-  const person = pick(r, SURNAME) + pick(r, GIVEN);
+    부서 = pick(r, TEAM_BY_ORG[orgType.v]);
+    직함 = pick(r, TITLE_BY_ORG[orgType.v]);
+  }
+  const personRaw = pick(r, SURNAME) + pick(r, GIVEN);
 
-  /* 포함 항목 — 기본은 전부 켬. 실제로는 **일부를 빼고 물어보는 손님**이 있고,
-     그 조합에서만 나는 결함이 있다(항공 빼면 지상비만 남는다). */
-  const incHotel = chance(r, 0.97);
-  const incMeal = chance(r, 0.93);
-  const incVehicle = chance(r, 0.95);
-  const incGuide = chance(r, 0.88);
-  const incSightseeing = chance(r, 0.80);
-  const incGolf = chance(r, 0.14);
-  const incDomestic = chance(r, 0.12);
+  /* 포함 항목 — 실제로는 **일부를 빼고 물어보는 손님**이 있고, 그 조합에서만 나는
+     결함이 있다(항공 빼면 지상비만 남는다). 다만 빼는 비율은 연수 성격을 따른다:
+     포상휴가에서 관광을 빼는 사람은 거의 없다. */
+  const incHotel = chance(r, 0.98);
+  const incMeal = chance(r, rule.mealP);
+  const incVehicle = chance(r, 0.96);
+  const incGuide = chance(r, 0.9);
+  const incSightseeing = chance(r, rule.sightP);
+  /* 골프는 **파는 곳에서만** 물어본다 — 도쿄에 골프를 물어보면 답이 없다 */
+  const incGolf = 골프목적지.includes(destKey) && chance(r, rule.golfP);
+  /* 지방 전세버스는 **인천에서 뜰 때** 의미가 있다 — 지방 회사가 인천공항까지 올라온다.
+     김포·부산에서 뜨면서 「지방에서 공항까지 버스」를 달라는 문의는 말이 안 된다. */
+  const incDomestic = dep.v === 'ICN' && chance(r, 0.2);
 
-  const cabinClass = chance(r, 0.86) ? 'economy' : (chance(r, 0.5) ? 'business' : 'mixed');
-  const hotelGrade = chance(r, 0.6) ? 'superior' : (chance(r, 0.5) ? 'standard' : 'deluxe');
-  const roomConfig = chance(r, 0.72) ? 'double' : (chance(r, 0.5) ? 'single' : 'mixed');
+  /* 좌석·객실 — 장거리에서만 비즈니스가 실제로 붙는다.
+     ⚠ **비즈니스석을 태울 임원이 있는 조직만** 그렇다. 동호회·학교에서
+       「운영진만 비즈니스」를 요청하는 문의는 오지 않는다. */
+  const 임원있나 = orgType.v === 'company' || orgType.v === 'public';
+  const cabinClass = !임원있나 ? 'economy'
+    : (장거리인가(destKey)
+      ? (chance(r, 0.78) ? 'economy' : (chance(r, 0.6) ? 'mixed' : 'business'))
+      : (chance(r, 0.96) ? 'economy' : 'mixed'));
+  const hotelGrade = programV === 'leisure'
+    ? (chance(r, 0.5) ? 'deluxe' : 'superior')
+    : (chance(r, 0.68) ? 'superior' : (chance(r, 0.7) ? 'standard' : 'deluxe'));
+  /* 전원 1인 1실은 **소규모 임원 연수**에서나 있는 일이다.
+     혼합(일부만 1인 1실)은 임원·인솔 교원이 있는 조직에서만 나온다. */
+  const 혼합가능 = 임원있나 || orgType.v === 'education';
+  const roomConfig = (pax <= 20 && 임원있나 && chance(r, 0.18)) ? 'single'
+    : ((혼합가능 && !chance(r, 0.78)) ? 'mixed' : 'double');
 
-  const golfCount = incGolf ? Math.min(pax, int(r, 4, Math.max(4, Math.round(pax * 0.6)))) : 0;
-  const golfRounds = incGolf ? int(r, 1, 3) : 0;
-  const agencyVisits = program.v === 'industry' ? int(r, 1, 3) : (chance(r, 0.2) ? 1 : 0);
+  const golfCount = incGolf ? Math.min(pax, int(r, 4, Math.max(4, Math.round(pax * 0.5)))) : 0;
+  const golfRounds = incGolf ? int(r, 1, Math.min(3, Math.max(1, days - 2))) : 0;
+  /* 🔴 **휴양지에는 방문할 기관이 없다.** 목적지 가방은 산업시찰·학술연수만 걸러서,
+     「사이판 리더십 워크숍 + 현지 기업 방문 1회」가 그대로 나왔다. 목적이 아니라
+     **목적지**가 정하는 것이므로 여기서 한 번 더 막는다. */
+  const agencyVisits = (rule.visits[1] === 0 || 휴양지.includes(destKey)) ? 0
+    : Math.min(int(r, rule.visits[0], rule.visits[1]), Math.max(1, days - 2));
+  /* 임원 1인 1실은 **혼합일 때만** 화면에 나온다 — 총원의 1할 안쪽이 보통이다 */
   const vipCount = (roomConfig === 'mixed' || cabinClass === 'mixed')
-    ? int(r, 1, Math.max(1, Math.round(pax * 0.15))) : 0;
+    ? Math.max(1, Math.min(Math.round(pax * 0.12), int(r, 1, 6))) : 0;
 
-  const ask = [
-    orgName + ' ' + pick(r, TEAM) + ' ' + program.say + ' 건으로 문의드립니다.',
-    '총 ' + pax + '명 / ' + days + '일 일정이며 ' + dep.say + ' 출발 희망합니다.',
-    incGolf ? '골프 ' + golfRounds + '라운드(' + golfCount + '명) 포함 부탁드립니다.' : '',
-    agencyVisits ? '현지 기관 방문 ' + agencyVisits + '회가 필요합니다.' : '',
-    vipCount ? '임원 ' + vipCount + '분은 1인 1실로 부탁드립니다.' : '',
-    !incGuide ? '가이드는 제외하고 견적 부탁드립니다.' : '',
-    !incSightseeing ? '관광 일정 없이 진행 예정입니다.' : '',
-    chance(r, 0.35) ? '예산 범위와 함께 항목별 내역을 보고 싶습니다.' : '',
-  ].filter(Boolean).join(' ');
-
-  return {
+  const p = {
     no: i,
     destKey,
-    programType: program.v, programText: program.say,
+    destText: destKey,
+    programType: programV, programText,
     organizationType: orgType.v, orgTypeText: orgType.say,
-    visitMode: chance(r, 0.5) ? 'official' : 'workshop',
+    /* 기관 방문이 있으면 공식 방문, 없으면 워크숍 — **말과 값이 어긋나면 안 된다** */
+    visitMode: agencyVisits > 0 ? 'official' : 'workshop',
     departureCity: dep.v, departureText: dep.say,
     participants: pax, days,
     startDate: ymd(start), endDate: ymd(end), leadDays: lead,
     cabinClass, hotelGrade, roomConfig,
     incHotel, incMeal, incVehicle, incGuide, incSightseeing, incGolf, incDomestic,
     golfCount, golfRounds, agencyVisits, vipCount,
+    orgNameRaw, personRaw, team: 부서, title: 직함,
     /* 🔴 가상임이 드러나는 이름 · 존재할 수 없는 번호 */
-    organization: MARK + ' ' + orgName,
-    contactName: MARK + ' ' + person,
+    organization: MARK + ' ' + orgNameRaw,
+    contactName: MARK + ' ' + personRaw,
     contactTel: '010-0000-' + String(1000 + (i % 9000)),
-    requestDetails: ask,
   };
+  p.requestDetails = 문의글(p, r, 부서, 직함);
+  return p;
 }
 
 function makeAll(n, seed) {
