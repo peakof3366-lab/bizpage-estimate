@@ -96,6 +96,11 @@ console.log('\n[1] 상한은 한 곳에서 온다 — 화면과 서버가 같은
   console.log('\n[3] 채우면 안내가 **다시 세어진다**');
   {
     set('destination', '다낭');
+    /* XS: 고객 화면에서 **출발일도 1단계 필수**가 됐다 — 비우면 금액은 나오는데
+       견적서 링크가 서버 검증에서 조용히 막혔기 때문이다. 여기서 안 채우면
+       「1단계가 다 찼다」가 성립하지 않는다. */
+    const _dep = new Date(); _dep.setDate(_dep.getDate() + 60);
+    set('startDate', _dep.toLocaleDateString('sv-SE'));
     ok('③ 채운 칸의 표시가 사라진다', !doc.getElementById('destination').classList.contains('fld-missing'));
     ok('③ 1단계가 다 찼으면 안내도 사라진다', msg(1) === '', msg(1));
     await click(doc.getElementById('nextStepButton'));

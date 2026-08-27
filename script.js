@@ -2008,9 +2008,34 @@ downloadButton.addEventListener('click', openEstimateWindow);
   const resultEl = document.getElementById('dateResultBar');
   if (!startEl || !endEl || !daysEl) return;
 
-  const today = new Date().toISOString().split('T')[0];
-  startEl.min = today;
-  endEl.min   = today;
+  /* 🔴 **출발일은 필수다** (XS). 예전엔 `required`가 없어서, 고객이 날짜를 비운 채
+     「견적 확인하기」를 누르면 **금액이 멀쩡히 나왔다.** 그런데 「견적서 받기」를 누르면
+     서버 검증이 `date` 단계에서 걸러 **'review'**로 떨어져 링크가 안 나간다.
+     즉 고객은 값을 보고 문서를 기다리는데 문서가 영영 안 온다 — 그 사이에 화면은
+     아무 말도 안 했다(결함 생성기 ②).
+     ⚠ 금액 자체도 못 미덥다: 날짜가 없으면 시즌·리드타임 계수가 **조용히 1.0**이 된다
+       (`getSeasonInfo`·`getLeadTimeFactor`가 그렇게 설계돼 있다). 그러니 「비워도
+       계산은 된다」가 아니라 **다른 상품의 값**을 보여 주고 있던 것이다.
+     ⚠ `required`를 화면 파일(index.html·admin-quote.html) 두 곳에 적지 않는다 —
+       한쪽만 고치는 일이 이 저장소에서 반복됐다(결함 생성기 ①). */
+  /* ⚠ **고객 화면에서만** 건다. 담당자 도구(admin-quote)는 날짜 없이 개략 견적을 내는
+     것이 정상 경로다 — 실제로 그 흐름을 지키는 검사가 39건 있었고, 전역으로 걸었더니
+     전부 깨졌다. 담당자 발급은 검증을 통과 못해도 나가므로 조용히 실패하지도 않는다.
+     즉 이 결함은 **고객에게만** 나는 것이었다. */
+  if (!window.__INTERNAL_TOOL__) startEl.required = true;
+
+  /* 🔴 **하한은 로컬 날짜다** (XQ와 같은 결함). `toISOString()`은 UTC라 한국 시각
+     0~9시에는 **어제**를 하한으로 걸었다 — 그 시간대에만 지난 날짜가 통과했다.
+   🔴 그리고 **담당자에게는 하한을 걸지 않는다.** 내부 견적 산출 도구(admin-quote)는
+     이 파일을 그대로 쓰는데, 하한이 오늘이라 **지난 행사를 재견적할 수 없었다.**
+     서버 검증기는 그 업무를 명시적으로 허용한다 — 「출발일은 과거여도 견적 자체는
+     성립한다(지난 일정 재견적). 리드타임 계수가 의미를 잃으므로 기록만 남긴다」.
+     화면이 서버보다 좁으면 담당자는 되는 일을 못 하게 된다. */
+  const today = new Date().toLocaleDateString('sv-SE');
+  if (!window.__INTERNAL_TOOL__) {
+    startEl.min = today;
+    endEl.min   = today;
+  }
 
   function fmtDate(str) {
     const d = new Date(str);

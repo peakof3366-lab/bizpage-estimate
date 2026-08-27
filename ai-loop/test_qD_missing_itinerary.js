@@ -87,6 +87,11 @@ const fillForm = (w, destKey) => {
      ⚠ 이 값은 견적서·링크에 안 실린다(payload 밖으로 간다). */
   doc.getElementById('contactTel').value = '010-1234-5678';
   doc.getElementById('requestDetails').value = '메모';
+  /* XS: 고객 화면에서 **출발일이 필수가 됐다.** 비우면 금액은 나오는데 견적서
+     링크가 서버 검증에서 조용히 막혔기 때문이다. 여기서 안 채우면 이 검사가
+     보려는 것(일정 탐색 버튼)에 닿기도 전에 제출이 막힌다. */
+  const _d = new Date(); _d.setDate(_d.getDate() + 60);
+  doc.getElementById('startDate').value = _d.toLocaleDateString('sv-SE');
 };
 
 (async () => {

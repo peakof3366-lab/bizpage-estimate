@@ -164,6 +164,54 @@ const done = () => {
       /getAttribute\('aria-label'\)\s*\|\|\s*el\.getAttribute\('placeholder'\)/.test(src));
   }
 
+  console.log('\n[6] 🔴 출발일 — 비우면 금액은 나오는데 견적서가 안 온다');
+  {
+    /* 가상 고객 40명 중 「출발일 비움」 손님이 이걸로 걸렸다: 화면은 1,813,256원/인을
+       보여줬는데 서버 검증이 `date` 단계에서 걸러 **'review'**로 떨어졌다.
+       고객 자동 발급은 통과해야만 링크가 나가므로 문서가 영영 안 온다.
+       ⚠ 금액 자체도 다른 상품의 값이다 — 날짜가 없으면 시즌·리드타임 계수가 조용히 1.0이다. */
+    const sd = doc.getElementById('startDate');
+    ok('⑥ 고객 화면에서 출발일은 필수다', sd.required === true);
+    ok('⑥ 하한이 로컬 오늘이다(UTC가 아니다)',
+      sd.min === new Date().toLocaleDateString('sv-SE'), sd.min);
+
+    set('destination', golfDests[0]);
+    set('startDate', '');
+    await tick(140);
+    ok('⑥ 비우면 제출이 막힌다', blockers().some((e) => e.id === 'startDate'),
+      blockers().map((e) => e.id).join(','));
+    form.dispatchEvent(new win.Event('submit', { bubbles: true, cancelable: true }));
+    await tick(140);
+    const say = visibleText(doc.querySelector('.step-missing'));
+    ok('⑥ 왜 막혔는지 「출발일」이라는 말로 알려준다', /출발일/.test(say), say);
+
+    const d = new Date(); d.setDate(d.getDate() + 60);
+    set('startDate', d.toLocaleDateString('sv-SE'));
+    await tick(140);
+    ok('⑥ 채우면 다시 견적이 나온다', !!submit());
+  }
+
+  console.log('\n[7] 🔴 담당자는 지난 행사를 재견적할 수 있어야 한다');
+  {
+    /* 서버 검증기가 그 업무를 명시적으로 허용한다 — 「출발일은 과거여도 견적 자체는
+       성립한다(지난 일정 재견적)」. 그런데 화면이 하한을 오늘로 걸어 **담당자 도구에서도**
+       막고 있었다(같은 `script.js`를 쓴다). 화면이 서버보다 좁으면 되는 일을 못 하게 된다.
+       ⚠ 그리고 필수도 담당자에게는 안 건다 — 날짜 없이 개략 견적을 내는 것이 정상
+         경로였고, 전역으로 걸었더니 그 흐름을 지키는 검사 39건이 한꺼번에 깨졌다. */
+    const src = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
+    ok('⑦ 필수를 내부 도구에서는 안 건다',
+      /if \(!window\.__INTERNAL_TOOL__\) startEl\.required = true;/.test(src));
+    ok('⑦ 하한도 내부 도구에서는 안 건다',
+      /if \(!window\.__INTERNAL_TOOL__\) \{[\s\S]{0,160}startEl\.min = today;/.test(src));
+    ok('⑦ 하한을 UTC로 만들지 않는다',
+      !/const today = new Date\(\)\.toISOString\(\)/.test(src)
+      && /const today = new Date\(\)\.toLocaleDateString\('sv-SE'\)/.test(src));
+    const admin = fs.readFileSync(path.join(ROOT, 'admin-quote.html'), 'utf8');
+    ok('⑦ 담당자 도구가 script.js보다 먼저 자신을 내부 도구라 밝힌다',
+      admin.indexOf('__INTERNAL_TOOL__') > -1
+      && admin.indexOf('__INTERNAL_TOOL__') < admin.indexOf('<script src="script.js">'));
+  }
+
   ok('전 과정에서 화면 오류가 없다', log.errors.length === 0,
     log.errors.map((e) => e.msg).join(' | '));
   done();

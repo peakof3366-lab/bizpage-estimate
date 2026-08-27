@@ -36,7 +36,7 @@
 const fs = require('fs');
 const path = require('path');
 const { bootPage, visibleText, ROOT } = require('./_page_boot');
-const { makeAll, MARK } = require('./_virtual_personas');
+const { makeAll, makeEdges, makeSweep, MARK } = require('./_virtual_personas');
 const { verifyQuote } = require(path.join(ROOT, 'api', '_lib', 'quote_verify.js'));
 const COMBINED_FACTOR = require(path.join(ROOT, 'data.js')).estimateCombinedFactor;
 
@@ -128,10 +128,15 @@ async function runOne(p, rates, ctx) {
     if (el.hasAttribute('required') && !String(el.value || '').trim()) return true;
     return !!(el.validity && !el.validity.valid);
   });
-  if (blockers.length) {
-    문제(t, 'FORM_BLOCKED', '제출을 막는 칸이 있다',
-      blockers.map((e) => (e.id || e.name) + '=[' + e.value + ']'
-        + (e.closest('.hidden') ? ' (감춰져 있다)' : '')).join(', '));
+  const blockNote = blockers.map((e) => (e.id || e.name) + '=[' + e.value + ']'
+    + (e.closest('.hidden') ? ' (감춰져 있다)' : '')).join(', ');
+  out.blocked = blockers.length > 0;
+  /* ⚠ **막히는 것이 정답인 손님이 있다**(상한 초과 등). 그걸 결함으로 세면 진짜가 묻힌다.
+     그래서 「막혔다」가 아니라 **「기대와 다르다」**를 결함으로 부른다(WD의 교훈). */
+  if (p.expectBlocked) {
+    if (!blockers.length) 문제(t, 'SHOULD_BLOCK', '🔴 막아야 하는 값인데 안 막았다', p.edge || '');
+  } else if (blockers.length) {
+    문제(t, 'FORM_BLOCKED', '제출을 막는 칸이 있다', blockNote);
   }
 
   /* ── ③ 「견적 확인하기」 ────────────────────────────────────────── */
@@ -146,10 +151,19 @@ async function runOne(p, rates, ctx) {
   } : null;
 
   if (!rec) {
-    문제(t, 'NO_QUOTE', '🔴 견적이 아예 안 나왔다',
-      visibleText(doc.querySelector('.step-missing')) || (log.errors[0] && log.errors[0].msg) || '');
+    const say = visibleText(doc.querySelector('.step-missing'));
+    if (p.expectBlocked) {
+      /* 정답이다. 다만 **왜 막혔는지 화면이 말했는지**는 본다 — 조용히 막히면
+         고객에게는 죽은 버튼이다(XL이 고친 자리다). */
+      out.blockedSay = say;
+      if (!say) 문제(t, 'SILENT_BLOCK', '🔴 막긴 했는데 화면이 아무 말도 안 했다', p.edge || '');
+    } else {
+      문제(t, 'NO_QUOTE', '🔴 견적이 아예 안 나왔다', say || (log.errors[0] && log.errors[0].msg) || '');
+    }
     win.close(); return out;
   }
+  if (p.expectBlocked) 문제(t, 'SHOULD_BLOCK', '🔴 막아야 하는 값인데 견적이 나왔다',
+    (p.edge || '') + ' → ' + won(rec.total));
   if (!(rec.total > 0)) 문제(t, 'ZERO_TOTAL', '🔴 총액이 0이거나 음수다', String(rec.total));
   if (!(rec.perPerson > 0)) 문제(t, 'ZERO_PP', '1인 금액이 0이다', String(rec.perPerson));
 
@@ -236,8 +250,12 @@ async function runOne(p, rates, ctx) {
   const V = bootPage('estimate-view.html', { query: '?id=virtual', fixtures: { shareDoc: payload } });
   await V.ready; await V.tick(320);
   const docText = visibleText(V.doc.body);
-  out.docHtml = V.doc.documentElement.outerHTML;
   out.docLen = docText.length;
+  /* 🔴 **견적서 HTML을 결과 배열에 들고 있지 않는다** — 한 장이 800KB 안팎이라
+     300명을 태우니 힙이 4GB를 넘겨 그 자리에서 죽었다(실측). 쓸 곳이 정해지는
+     시점에 바로 파일로 흘리고, 메모리에는 길이만 남긴다.
+     ⚠ 「나중에 한꺼번에 쓰자」가 이 도구를 못 쓰게 만들었다. */
+  out.writeDoc = (dest) => { fs.writeFileSync(dest, V.doc.documentElement.outerHTML, 'utf8'); };
 
   if (V.log.errors.length) 문제(t, 'DOC_ERROR', '견적서 화면이 오류를 냈다', V.log.errors.map((e) => e.msg).join(' | '));
   if (docText.length < 200) 문제(t, 'DOC_EMPTY', '🔴 견적서가 사실상 비어 있다', String(docText.length) + '자');
@@ -287,7 +305,12 @@ async function runOne(p, rates, ctx) {
 
   fs.mkdirSync(OUT, { recursive: true });
 
-  const people = makeAll(N, SEED);
+  /* 무작위 손님만으로는 가장자리를 못 만난다 — 300명이 전부 통과한 뒤에 안 사실이다.
+     `--edge`는 일부러 까다로운 손님, `--sweep`은 **목적지 60곳 전수**다. */
+  const people = [];
+  if (process.argv.includes('--edge')) people.push(...makeEdges(people.length + 1));
+  if (process.argv.includes('--sweep')) people.push(...makeSweep(people.length + 1));
+  if (!people.length || process.argv.includes('--mix')) people.push(...makeAll(N, SEED).map((x, i) => Object.assign(x, { no: people.length + i + 1 })));
   const results = [];
   const t0 = Date.now();
   for (const p of people) {
@@ -301,19 +324,26 @@ async function runOne(p, rates, ctx) {
     /* 손님마다 한 폴더 — 문제가 있으면 무조건 남기고, 없으면 --keep일 때만 */
     const bad = res.trouble.length > 0;
     if (bad || KEEP_ALL) {
-      const dir = path.join(OUT, safe(String(p.no).padStart(4, '0') + '_' + p.destKey + '_' + p.participants + '명_' + p.days + '일' + (bad ? '_문제' : '')));
+      const label = p.edge ? p.edge : (p.destKey + '_' + p.participants + '명_' + p.days + '일');
+      const dir = path.join(OUT, safe(String(p.no).padStart(4, '0') + '_' + label + (bad ? '_문제' : '')));
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, '요청.md'), 요청카드(p, res), 'utf8');
       fs.writeFileSync(path.join(dir, '결과.json'), JSON.stringify({
         record: res.record, verdict: res.verdict, failedSteps: res.failedSteps,
         qno: res.qno, trouble: res.trouble, rateSource: res.rateSource,
       }, null, 2), 'utf8');
-      if (res.docHtml) fs.writeFileSync(path.join(dir, '견적서.html'), res.docHtml, 'utf8');
+      if (res.writeDoc) res.writeDoc(path.join(dir, '견적서.html'));
     }
+
+    /* 요약이 쓰는 것만 남기고 나머지는 놓아준다 (jsdom 창은 이미 닫았다) */
+    res.writeDoc = null;
+    res.persona = { no: p.no, destKey: p.destKey, participants: p.participants, days: p.days,
+      programType: p.programType, organizationType: p.organizationType };
+    if (res.record) res.record.items = res.record.items.length;
 
     if (!QUIET) {
       const mark = res.trouble.length ? '🔴 ' + res.trouble.map((x) => x.code).join(',') : '✓';
-      console.log('  ' + String(p.no).padStart(4) + ' ' + p.destKey.padEnd(8)
+      console.log('  ' + String(p.no).padStart(4) + ' ' + (p.edge || p.destKey).slice(0, 22).padEnd(23)
         + String(p.participants).padStart(4) + '명 ' + p.days + '일  '
         + (res.record ? won(res.record.perPerson).padStart(11) + '원/인' : '     —      ')
         + '  ' + (res.verdict || '-').padEnd(9) + mark);
