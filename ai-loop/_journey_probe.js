@@ -1,0 +1,173 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   화면을 **눌러 보는 자** — 단일 출처 (XT)
+   ───────────────────────────────────────────────────────────────────────────
+   `audit_customer_journey.js`(고객 화면)와 `audit_admin_journey.js`(담당자 화면)가
+   **같은 자**를 쓴다. 훑는 규칙이 도구마다 한 벌씩 생기면 그 도구만 조용히 다른 것을
+   재게 된다(결함 생성기 ①) — 「터졌다」·「죽은 링크」·「아무 일도 안 났다」의 뜻이
+   두 화면에서 달라지면 두 결과를 나란히 놓고 볼 수 없다.
+
+   ⚠ 이 파일의 함수들은 `audit_customer_journey.js`에서 **글자 그대로** 옮겨 온 것이다.
+     옮긴 뒤 출력이 한 글자도 안 바뀌는 것을 diff로 확인했다.
+
+   🔴 이 도구가 스스로 만들었던 가짜 결함 넷 — 규칙이 여기 들어 있다:
+     ① 바깥 자원을 진짜로 받아 오면 죽는다 → `_page_boot`이 우리 파일만 준다
+     ② 링크를 누르면 jsdom이 「navigation not implemented」 → 이동을 막고 주소만 적는다
+     ③ 바뀜을 **글자 수**로 재면 탭·아코디언이 같은 길이라 「죽은 버튼」이 된다 → 해시로 본다
+     ④ `document.write`로 들어온 `<script>`는 jsdom이 실행하지 않는다 → `_page_boot`이 대신 돌린다
+
+   ■ 화면이 여러 칸으로 나뉘어 있으면(관리자 탭 17개) `sections`로 준다.
+     한 칸씩 열고, 그 칸에서 **그때 눌러 볼 수 있는 것**을 다시 센다 —
+     감춰진 탭의 버튼은 고객도 담당자도 누를 수 없기 때문이다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const fs = require('fs');
+const path = require('path');
+const { bootPage, visibleText, ROOT } = require('./_page_boot');
+
+const hash = (s) => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+};
+
+/* 고객이 실제로 누를 수 있는 것 — 감춘 것은 뺀다(감춘 것을 누를 수는 없다) */
+function clickables(doc) {
+  const sel = 'button, a[href], [onclick], input[type="submit"], [role="button"], .pk-chip, .faq-q, .gal-filter-chip';
+  return Array.from(doc.querySelectorAll(sel)).filter((el) => {
+    if (el.disabled) return false;
+    let n = el;
+    while (n && n !== doc.body) {
+      if (n.classList && n.classList.contains('hidden')) return false;
+      const st = n.style || {};
+      if (st.display === 'none' || st.visibility === 'hidden') return false;
+      n = n.parentElement;
+    }
+    return true;
+  });
+}
+
+const label = (el) => {
+  const t = visibleText(el).slice(0, 34);
+  const id = el.id ? '#' + el.id : '';
+  const cls = el.className && typeof el.className === 'string' ? '.' + el.className.split(/\s+/)[0] : '';
+  return (t || el.getAttribute('aria-label') || el.getAttribute('href') || '(글자 없음)') + ' ' + (id || cls);
+};
+
+function deadLinks(doc) {
+  const out = [];
+  Array.from(doc.querySelectorAll('a[href]')).forEach((a) => {
+    const href = a.getAttribute('href') || '';
+    if (/^(https?:|mailto:|tel:|javascript:)/i.test(href) || href === '#' || href === '') return;
+    if (href.startsWith('#')) {
+      if (!doc.querySelector('[id="' + href.slice(1) + '"], [name="' + href.slice(1) + '"]')) {
+        out.push({ href, label: label(a), why: '앵커가 없다' });
+      }
+      return;
+    }
+    const file = href.split('#')[0].split('?')[0];
+    if (!file) return;
+    if (!fs.existsSync(path.join(ROOT, file))) out.push({ href, label: label(a), why: '파일이 없다' });
+  });
+  return out;
+}
+
+/* 눈으로 보지 않는 고객도 있다 — **이름 없는 조작 장치**를 센다 (XP 후속).
+   화면 낭독기는 글자를 읽는다. 아이콘만 든 버튼, 라벨 없는 입력칸, alt 없는 사진은
+   그 사람에게 「버튼」·「편집」·「이미지」로만 들린다 — 그게 곧 못 쓰는 화면이다.
+ ⚠ 여기서도 판정하지 않고 **센다.** 장식용 사진의 `alt=""`는 정상이고(일부러 비운다),
+   `aria-hidden` 아이콘도 정상이다. 그런 것은 빼고 센다. */
+function namelessControls(doc) {
+  const out = { inputs: [], buttons: [], images: [], links: [] };
+  const txt = (el) => (visibleText(el) || '').trim();
+  const labelled = (el) => {
+    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.getAttribute('title')) return true;
+    if (el.id && doc.querySelector('label[for="' + el.id + '"]')) return true;
+    if (el.closest('label')) return true;
+    return false;
+  };
+  Array.from(doc.querySelectorAll('input, select, textarea')).forEach((el) => {
+    if (el.type === 'hidden' || el.disabled) return;
+    /* ⚠ 화면에서 감춘 칸(엔진이 값만 읽는 라디오 등)은 낭독기도 안 읽는다 — 세지 않는다.
+       세면 **고칠 것이 없는 항목**이 목록에 남고, 그러면 목록 전체를 안 보게 된다. */
+    if (el.getAttribute('aria-hidden') === 'true') return;
+    if ((el.getAttribute('style') || '').replace(/\s/g, '').includes('display:none')) return;
+    if (!labelled(el)) out.inputs.push(el.id || el.name || el.type);
+  });
+  Array.from(doc.querySelectorAll('button, [role="button"]')).forEach((el) => {
+    if (el.getAttribute('aria-hidden') === 'true') return;
+    if (!txt(el) && !labelled(el)) out.buttons.push(el.id || el.className || '(이름 없음)');
+  });
+  Array.from(doc.querySelectorAll('img')).forEach((el) => {
+    if (el.getAttribute('alt') === null) out.images.push(el.getAttribute('src') || '(src 없음)');
+  });
+  Array.from(doc.querySelectorAll('a[href]')).forEach((el) => {
+    if (!txt(el) && !labelled(el)) out.links.push(el.getAttribute('href'));
+  });
+  return out;
+}
+
+/* 한 화면을 열어 **누를 수 있는 것을 전부 눌러 본다.**
+   opts.fixtures — 서버가 줄 답(관리자 화면은 로그인부터 통과해야 한다)
+   opts.after    — 열린 뒤 한 번 할 일(로그인 화면을 지나 대시보드로 들어가기 등)
+   opts.sections — 화면이 여러 칸이면(관리자 탭 17개) 칸 목록. 없으면 화면 하나로 본다
+   opts.skip     — 누르면 안 되는 것(로그아웃처럼 나머지를 못 보게 만드는 것)
+   opts.settle   — 화면이 자리잡기를 기다리는 시간 */
+async function auditPage(file, opts = {}) {
+  const B = bootPage(file, { fixtures: opts.fixtures, query: opts.query });
+  const { win, doc, log, tick } = B;
+  await B.ready;
+  const settle = opts.settle || 250;
+  await tick(settle);
+  if (opts.after) await opts.after(B);
+
+  const loadErrors = log.errors.slice();
+  const dead = deadLinks(doc);
+
+  doc.addEventListener('click', (e) => {
+    const a = e.target && e.target.closest && e.target.closest('a[href]');
+    if (a) { log.navs.push(a.getAttribute('href')); e.preventDefault(); }
+  }, true);
+
+  const sections = opts.sections ? await opts.sections(B) : [{ name: '' }];
+  const results = [];
+  for (const sec of sections) {
+    if (sec.enter) {
+      try { await sec.enter(B); } catch (e) { results.push({ section: sec.name, label: '(칸 열기)', threw: String(e.message || e), errors: [], says: [], navs: [] }); continue; }
+      await tick(settle);
+    }
+    /* 🔴 **그 칸이 열린 뒤에 다시 센다.** 감춰진 탭의 버튼은 아무도 못 누른다 —
+       한 번에 다 세면 안 보이는 것까지 눌러 「터졌다」를 만든다. */
+    const list = clickables(doc);
+    for (const el of list) {
+      /* 앞의 버튼이 화면을 다시 그려 이 버튼이 사라졌을 수 있다. 그건 결함이 아니다.
+       ⚠ **기본은 끈다.** 켜면 고객 화면의 기존 숫자가 바뀐다 — 사라진 버튼의 처리기가
+         그래도 돌면서 화면을 바꾸던 것이 있고(`.pk-cta`가 모달을 열었다), 건너뛰면
+         그 뒤 버튼(`.pk-modal-close`)이 닫을 것이 없어져 「조용함」으로 넘어간다.
+         옮기기는 **동작이 안 바뀌어야** 하므로, 이건 부르는 쪽이 켠다. */
+      if (opts.skipDetached && !doc.contains(el)) { results.push({ section: sec.name, label: label(el), gone: true, errors: [], says: [], navs: [] }); continue; }
+      if (opts.skip && opts.skip(el)) { results.push({ section: sec.name, label: label(el), skipped: true, errors: [], says: [], navs: [] }); continue; }
+      const before = { html: hash(doc.body.innerHTML), text: hash(visibleText(doc.body)), req: log.requests.length, print: log.printed, down: log.downloads.length };
+      const errBefore = log.errors.length, sayBefore = log.says.length, navBefore = log.navs.length;
+      let threw = '';
+      try {
+        el.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true, view: win }));
+      } catch (e) { threw = String(e.message || e); }
+      await tick(30);
+      const after = { html: hash(doc.body.innerHTML), text: hash(visibleText(doc.body)), req: log.requests.length, print: log.printed, down: log.downloads.length };
+      results.push({
+        section: sec.name,
+        label: label(el),
+        threw,
+        errors: log.errors.slice(errBefore).map((e) => e.msg),
+        says: log.says.slice(sayBefore),
+        navs: log.navs.slice(navBefore),
+        changed: before.html !== after.html || before.text !== after.text,
+        fetched: after.req > before.req,
+        acted: after.print > before.print || after.down > before.down,
+      });
+    }
+    if (sec.leave) { try { await sec.leave(B); } catch (e) { /* 돌아가지 못해도 다음 칸을 연다 */ } }
+  }
+  return { file, loadErrors, dead, results, log, nameless: namelessControls(doc), B };
+}
+
+module.exports = { hash, clickables, label, deadLinks, namelessControls, auditPage, visibleText, ROOT };

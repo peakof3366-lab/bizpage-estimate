@@ -28,132 +28,16 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
-const { bootPage, visibleText, ROOT } = require('./_page_boot');
 
 const args = process.argv.slice(2);
 const VERBOSE = args.includes('--verbose');
 const ONLY = (() => { const i = args.indexOf('--page'); return i >= 0 ? args[i + 1] : null; })();
 
-const hash = (s) => {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return h >>> 0;
-};
-
-/* 고객이 실제로 누를 수 있는 것 — 감춘 것은 뺀다(감춘 것을 누를 수는 없다) */
-function clickables(doc) {
-  const sel = 'button, a[href], [onclick], input[type="submit"], [role="button"], .pk-chip, .faq-q, .gal-filter-chip';
-  return Array.from(doc.querySelectorAll(sel)).filter((el) => {
-    if (el.disabled) return false;
-    let n = el;
-    while (n && n !== doc.body) {
-      if (n.classList && n.classList.contains('hidden')) return false;
-      const st = n.style || {};
-      if (st.display === 'none' || st.visibility === 'hidden') return false;
-      n = n.parentElement;
-    }
-    return true;
-  });
-}
-
-const label = (el) => {
-  const t = visibleText(el).slice(0, 34);
-  const id = el.id ? '#' + el.id : '';
-  const cls = el.className && typeof el.className === 'string' ? '.' + el.className.split(/\s+/)[0] : '';
-  return (t || el.getAttribute('aria-label') || el.getAttribute('href') || '(글자 없음)') + ' ' + (id || cls);
-};
-
-function deadLinks(doc) {
-  const out = [];
-  Array.from(doc.querySelectorAll('a[href]')).forEach((a) => {
-    const href = a.getAttribute('href') || '';
-    if (/^(https?:|mailto:|tel:|javascript:)/i.test(href) || href === '#' || href === '') return;
-    if (href.startsWith('#')) {
-      if (!doc.querySelector('[id="' + href.slice(1) + '"], [name="' + href.slice(1) + '"]')) {
-        out.push({ href, label: label(a), why: '앵커가 없다' });
-      }
-      return;
-    }
-    const file = href.split('#')[0].split('?')[0];
-    if (!file) return;
-    if (!fs.existsSync(path.join(ROOT, file))) out.push({ href, label: label(a), why: '파일이 없다' });
-  });
-  return out;
-}
-
-/* 눈으로 보지 않는 고객도 있다 — **이름 없는 조작 장치**를 센다 (XP 후속).
-   화면 낭독기는 글자를 읽는다. 아이콘만 든 버튼, 라벨 없는 입력칸, alt 없는 사진은
-   그 사람에게 「버튼」·「편집」·「이미지」로만 들린다 — 그게 곧 못 쓰는 화면이다.
- ⚠ 여기서도 판정하지 않고 **센다.** 장식용 사진의 `alt=""`는 정상이고(일부러 비운다),
-   `aria-hidden` 아이콘도 정상이다. 그런 것은 빼고 센다. */
-function namelessControls(doc) {
-  const out = { inputs: [], buttons: [], images: [], links: [] };
-  const txt = (el) => (visibleText(el) || '').trim();
-  const labelled = (el) => {
-    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.getAttribute('title')) return true;
-    if (el.id && doc.querySelector('label[for="' + el.id + '"]')) return true;
-    if (el.closest('label')) return true;
-    return false;
-  };
-  Array.from(doc.querySelectorAll('input, select, textarea')).forEach((el) => {
-    if (el.type === 'hidden' || el.disabled) return;
-    /* ⚠ 화면에서 감춘 칸(엔진이 값만 읽는 라디오 등)은 낭독기도 안 읽는다 — 세지 않는다.
-       세면 **고칠 것이 없는 항목**이 목록에 남고, 그러면 목록 전체를 안 보게 된다. */
-    if (el.getAttribute('aria-hidden') === 'true') return;
-    if ((el.getAttribute('style') || '').replace(/\s/g, '').includes('display:none')) return;
-    if (!labelled(el)) out.inputs.push(el.id || el.name || el.type);
-  });
-  Array.from(doc.querySelectorAll('button, [role="button"]')).forEach((el) => {
-    if (el.getAttribute('aria-hidden') === 'true') return;
-    if (!txt(el) && !labelled(el)) out.buttons.push(el.id || el.className || '(이름 없음)');
-  });
-  Array.from(doc.querySelectorAll('img')).forEach((el) => {
-    if (el.getAttribute('alt') === null) out.images.push(el.getAttribute('src') || '(src 없음)');
-  });
-  Array.from(doc.querySelectorAll('a[href]')).forEach((el) => {
-    if (!txt(el) && !labelled(el)) out.links.push(el.getAttribute('href'));
-  });
-  return out;
-}
-
-async function auditPage(file) {
-  const B = bootPage(file);
-  const { win, doc, log, tick } = B;
-  await B.ready;
-  await tick(250);
-
-  const loadErrors = log.errors.slice();
-  const dead = deadLinks(doc);
-  const list = clickables(doc);
-
-  doc.addEventListener('click', (e) => {
-    const a = e.target && e.target.closest && e.target.closest('a[href]');
-    if (a) { log.navs.push(a.getAttribute('href')); e.preventDefault(); }
-  }, true);
-
-  const results = [];
-  for (const el of list) {
-    const before = { html: hash(doc.body.innerHTML), text: hash(visibleText(doc.body)), req: log.requests.length, print: log.printed, down: log.downloads.length };
-    const errBefore = log.errors.length, sayBefore = log.says.length, navBefore = log.navs.length;
-    let threw = '';
-    try {
-      el.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true, view: win }));
-    } catch (e) { threw = String(e.message || e); }
-    await tick(30);
-    const after = { html: hash(doc.body.innerHTML), text: hash(visibleText(doc.body)), req: log.requests.length, print: log.printed, down: log.downloads.length };
-    results.push({
-      label: label(el),
-      threw,
-      errors: log.errors.slice(errBefore).map((e) => e.msg),
-      says: log.says.slice(sayBefore),
-      navs: log.navs.slice(navBefore),
-      changed: before.html !== after.html || before.text !== after.text,
-      fetched: after.req > before.req,
-      acted: after.print > before.print || after.down > before.down,
-    });
-  }
-  return { file, loadErrors, dead, results, log, nameless: namelessControls(doc) };
-}
+/* 🔴 **훑는 규칙은 `_journey_probe.js` 하나가 진실이다** (XT).
+   담당자 화면(`audit_admin_journey.js`)도 같은 자를 쓴다 — 규칙이 두 벌이 되면
+   「터졌다」·「죽은 링크」·「아무 일도 안 났다」의 뜻이 두 화면에서 달라지고,
+   그러면 두 결과를 나란히 놓고 볼 수 없다(결함 생성기 ①). */
+const { auditPage, visibleText, ROOT } = require('./_journey_probe');
 
 (async () => {
   const PAGES = ONLY ? [ONLY] : ['index.html', 'packages.html', 'estimate-view.html', '404.html'];
@@ -198,8 +82,17 @@ async function auditPage(file) {
       broken += miss.length;
     }
 
-    const silent = r.results.filter((x) => !x.threw && !x.errors.length && !x.changed
+    /* ⚠ **사라진 것·건너뛴 것을 「조용함」으로 세지 않는다** (XT). 앞 버튼이 화면을
+       다시 그려 없어진 버튼은 고객이 누를 수도 없다 — 그걸 「눌러도 아무 일 없다」로
+       세면 고칠 것이 없는 항목이 목록에 남고, 그러면 목록 전체를 안 보게 된다.
+       (공용 모듈로 옮기면서 실제로 2건이 그렇게 세어졌고, diff가 잡았다.) */
+    const pressed = r.results.filter((x) => !x.gone && !x.skipped);
+    const gone = r.results.filter((x) => x.gone);
+    const silent = pressed.filter((x) => !x.threw && !x.errors.length && !x.changed
       && !x.fetched && !x.says.length && !x.navs.length && !x.acted);
+    if (gone.length) {
+      console.log('\nℹ 앞 버튼이 화면을 다시 그려 사라진 것 ' + gone.length + '개 (결함이 아니다)');
+    }
     quiet += silent.length;
     console.log('\n⚠ 눌러도 아무 일도 안 나는 것 ' + silent.length + '개 (확인 대상 — 결함이 아닐 수 있다)');
     if (VERBOSE || silent.length <= 6) silent.forEach((x) => console.log('   · ' + x.label));
