@@ -734,7 +734,12 @@ function 요청카드(p, res) {
   L.push('| 인원 / 일수 | ' + p.participants + '명 / ' + p.days + '일 |');
   L.push('| 출발 | ' + p.startDate + ' (' + p.leadDays + '일 뒤) · ' + p.departureText + ' 출발 |');
   L.push('| 목적 | ' + p.programText + ' · ' + p.orgTypeText + ' |');
-  L.push('| 좌석 / 호텔 / 객실 | ' + p.cabinClass + ' / ' + p.hotelGrade + ' / ' + p.roomConfig + ' |');
+  /* ⚠ 영문 코드를 그대로 찍고 있었다(`economy / superior / double`). 이 문서는 대표가
+     읽는 것이고, CLAUDE.md의 화면 규칙도 「영문·기술 용어를 내보내지 않는다」다. */
+  const 좌석말 = { economy: '이코노미', business: '비즈니스', mixed: '이코노미+비즈니스 혼합' }[p.cabinClass] || p.cabinClass;
+  const 등급말 = { standard: '3성급', superior: '4성급', deluxe: '5성급' }[p.hotelGrade] || p.hotelGrade;
+  const 객실말 = { double: '2인 1실', single: '1인 1실', mixed: '2인 1실 + 일부 1인 1실' }[p.roomConfig] || p.roomConfig;
+  L.push('| 좌석 / 호텔 / 객실 | ' + 좌석말 + ' / ' + 등급말 + ' / ' + 객실말 + ' |');
   L.push('| 포함 | ' + [p.incHotel && '호텔', p.incMeal && '식사', p.incVehicle && '차량',
     p.incGuide && '가이드', p.incSightseeing && '관광', p.incGolf && '골프', p.incDomestic && '국내수송']
     .filter(Boolean).join(' · ') + ' |');
