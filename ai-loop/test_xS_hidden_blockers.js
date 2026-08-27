@@ -342,6 +342,90 @@ const done = () => {
     C.win.close();
   }
 
+  console.log('\n[10] 🔴 서버가 고장 났을 때 — 다섯 가지 실패가 같은 말을 하고 있었다');
+  {
+    /* 실측(XS): `openEstimateWindow`의 실패 처리는 `showReview()` 하나뿐이라
+       ① 진짜 「담당자 확인」 ② 견적번호 못 땀(503) ③ 저장 실패(500)
+       ④ 권위 데이터 조회 실패(503) ⑤ 네트워크 끊김 이 **전부 같은 화면**으로 떨어졌다.
+       그리고 그 화면이 하는 말이 **「입력하신 조건은 접수되었습니다」**였다.
+       ②④⑤는 다시 누르면 되는 것인데 고객을 기다리게 했고, ③⑤는 **접수되지 않았는데
+       접수됐다고 말한 것**이다 — 이 저장소가 리드에서 가장 경계하는 거짓 성공이다.
+     ⚠ XH가 패키지 화면에서 고친 것과 **같은 결함, 다른 화면**이다. 그때 여기는 안 셌다.
+     ⚠ 서버 코드 여덟 개를 여기서 다시 나열하지 않는다(네 번째 사본이 된다).
+       이 경로가 받는 답은 두 갈래뿐이라 그걸로 가른다. */
+    const readPanel = async (fixtures, killQuotes) => {
+      const F = Object.assign({}, fixtures);
+      const inner = F.route;
+      F.route = (u, opt, json) => {
+        if (killQuotes && /\/api\/quotes(\?|$)/.test(u)) return json({ error: 'down' }, false, 500);
+        return inner ? inner(u, opt, json) : null;
+      };
+      const W = bootPage('index.html', { fixtures: F });
+      await W.ready; await W.tick(250);
+      const wset = (id, v) => {
+        const el = W.doc.getElementById(id);
+        if (el) { el.value = String(v); el.dispatchEvent(new W.win.Event('input', { bubbles: true })); el.dispatchEvent(new W.win.Event('change', { bubbles: true })); }
+      };
+      wset('destination', '다낭'); wset('programType', 'industry'); wset('organizationType', 'company');
+      wset('participants', 30); wset('days', 4);
+      const dd = new Date(); dd.setDate(dd.getDate() + 60);
+      wset('startDate', dd.toLocaleDateString('sv-SE'));
+      wset('organization', '고장점검'); wset('contactName', '고장');
+      wset('contactTel', '010-0000-0000'); wset('requestDetails', '고장 점검');
+      await W.tick(120);
+      W.doc.getElementById('estimateForm').dispatchEvent(new W.win.Event('submit', { bubbles: true, cancelable: true }));
+      await W.tick(250);
+      W.doc.getElementById('downloadEstimate').dispatchEvent(
+        new W.win.MouseEvent('click', { bubbles: true, cancelable: true, view: W.win }));
+      /* 저장 실패는 재전송 2회(600·1200ms) 뒤에야 판가름 난다 — 그때까지 기다린다 */
+      await W.tick(3600);
+      const pop = (W.log.opened || [])[0];
+      const g = (id) => (pop && pop.document.getElementById(id)) || null;
+      const out = {
+        head: g('share-review-head') ? g('share-review-head').textContent : '',
+        body: g('share-review-body') ? g('share-review-body').textContent : '',
+        reviewShown: g('share-review') ? g('share-review').style.display : '?',
+        readyShown: g('share-ready') ? g('share-ready').style.display : '?',
+      };
+      W.win.close();
+      return out;
+    };
+    const reply = (body, okFlag, status) => ({
+      route: (u, opt, json) => (u.includes('/api/quote-shares') ? json(body, okFlag, status) : null),
+    });
+
+    const good = await readPanel({});
+    ok('⑩ 정상일 때는 링크 자리가 열린다', good.readyShown !== 'none' && good.reviewShown === 'none',
+      good.readyShown + '/' + good.reviewShown);
+
+    const rev = await readPanel(reply({ ok: false, verdict: 'review', failedSteps: ['band'] }, true, 200));
+    ok('⑩ 진짜 「담당자 확인」은 접수됐다고 말한다', /접수되었습니다/.test(rev.body), rev.body.slice(0, 60));
+
+    const noQno = await readPanel(reply({ error: 'quote_no_failed' }, false, 503));
+    ok('🔴 ⑩ 견적번호를 못 딴 것은 **다시 누르면 된다**고 말한다',
+      /다시 눌러/.test(noQno.body) && !/접수되었습니다/.test(noQno.body), noQno.head + ' / ' + noQno.body.slice(0, 50));
+
+    const insFail = await readPanel(reply({ error: 'insert_failed' }, false, 500));
+    ok('🔴 ⑩ 저장 실패에 「접수되었습니다」라고 하지 않는다',
+      !/접수되었습니다/.test(insFail.body), insFail.body.slice(0, 60));
+
+    const unavail = await readPanel(reply({ ok: false, verdict: 'unavailable', error: 'verification_unavailable' }, false, 503));
+    ok('⑩ 검증을 못 한 것도 다시 누르면 된다고 말한다',
+      /다시 눌러/.test(unavail.body) && !/접수되었습니다/.test(unavail.body), unavail.body.slice(0, 50));
+
+    const netDown = await readPanel({ route: (u) => (u.includes('/api/quote-shares') ? Promise.reject(new Error('down')) : null) });
+    ok('🔴 ⑩ 네트워크가 끊겨도 「접수되었습니다」라고 하지 않는다',
+      !/접수되었습니다/.test(netDown.body), netDown.body.slice(0, 60));
+    ok('⑩ 그리고 회전판에 머물지 않는다(안내를 실제로 띄운다)',
+      netDown.reviewShown === 'block', netDown.reviewShown);
+
+    const revUnsaved = await readPanel(reply({ ok: false, verdict: 'review' }, true, 200), true);
+    ok('🔴 ⑩ 담당자 확인인데 **저장까지 실패**했으면 접수됐다고 하지 않는다',
+      /확인되지 않았습니다/.test(revUnsaved.body), revUnsaved.body.slice(0, 60));
+    ok('⑩ 그 경우에도 안내는 반드시 뜬다(회전판에 갇히지 않는다)',
+      revUnsaved.reviewShown === 'block', revUnsaved.reviewShown);
+  }
+
   ok('전 과정에서 화면 오류가 없다', log.errors.length === 0,
     log.errors.map((e) => e.msg).join(' | '));
   done();

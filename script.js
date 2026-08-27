@@ -4122,8 +4122,8 @@ a{color:inherit;text-decoration:none}
       자동 복사가 막혀 있습니다 — 위 주소를 <strong>길게 눌러</strong> 복사해 주세요.
     </div>
     <div id="share-review" style="display:none;margin-bottom:16px;padding:16px 18px;background:#FFF8E6;border:1.5px solid #F0D89A">
-      <div style="font-size:13px;font-weight:700;color:#7A5A10;margin-bottom:4px">담당자 확인이 필요한 견적입니다</div>
-      <div style="font-size:12px;color:#7A5A10;line-height:1.7">입력하신 조건은 접수되었습니다. 담당자가 확인 후 정식 견적서를 보내드립니다.<br>급하시면 아래 연락처로 문의해 주세요.</div>
+      <div id="share-review-head" style="font-size:13px;font-weight:700;color:#7A5A10;margin-bottom:4px">담당자 확인이 필요한 견적입니다</div>
+      <div id="share-review-body" style="font-size:12px;color:#7A5A10;line-height:1.7">입력하신 조건은 접수되었습니다. 담당자가 확인 후 정식 견적서를 보내드립니다.<br>급하시면 아래 연락처로 문의해 주세요.</div>
     </div>
     <div style="background:#FEF0F2;padding:14px 16px;font-size:12px;color:#8F0B20;line-height:1.7">
       <strong>유효기간 안내</strong> · 이 견적서는 발급일로부터 <strong>30일</strong>간 유효합니다.<br>
@@ -4356,12 +4356,58 @@ function shareCopyLink() {
   ];
   const clearSteps = () => stepTimers.forEach(clearTimeout);
 
-  const showReview = () => {
+  /* 🔴 **실패를 한 문장으로 뭉뚱그리고 있었다** (XS).
+     예전에는 `showReview()` 하나뿐이라, 아래 다섯 가지가 **전부 같은 화면**으로 떨어졌다
+     (실측으로 확인했다):
+       ① 검증에서 걸린 진짜 「담당자 확인」  ② 견적번호를 못 딴 것(503)
+       ③ 저장 실패(500)  ④ 권위 데이터 조회 실패(503)  ⑤ 네트워크 끊김
+     그리고 그 화면이 하는 말이 **「입력하신 조건은 접수되었습니다」**였다.
+     ②④⑤는 **다시 누르면 되는 것**인데 고객을 기다리게 했고 — 고객은 기다리고 우리는
+     응대를 한 건 더 받는다(둘 다 손해) — ③⑤는 **아예 접수되지 않았는데 접수됐다고
+     말한 것**이다. 이 저장소가 리드 처리에서 가장 경계하는 **거짓 성공**이다.
+   ⚠ XH가 패키지 화면에서 고친 것과 **같은 결함, 다른 화면**이다. 그때 여기는 안 셌다.
+   ⚠ 여기서 서버 코드 여덟 개를 다시 나열하지 않는다(그러면 네 번째 사본이 된다 —
+     결함 생성기 ①). 이 경로가 실제로 받는 답은 **두 갈래뿐**이라 그걸로 가른다:
+       · 서버가 **답을 준** 경우(`verdict`가 있다) → 사람이 봐야 하는 건이다
+       · 그 밖(HTTP 오류·네트워크) → **우리 쪽이 잠깐 안 된 것**이다 */
+  const REVIEW_TEXT = {
+    review: {
+      head: '담당자 확인이 필요한 견적입니다',
+      body: '입력하신 조건은 접수되었습니다. 담당자가 확인 후 정식 견적서를 보내드립니다.<br>급하시면 아래 연락처로 문의해 주세요.',
+    },
+    /* 접수 여부를 **모르는** 상태다. 「접수되었습니다」를 말하지 않는다. */
+    reviewUnsaved: {
+      head: '담당자 확인이 필요한 견적입니다',
+      body: '접수가 확인되지 않았습니다. 아래 연락처로 알려 주시면 담당자가 바로 도와드립니다.<br>조건은 화면에 그대로 있으니 다시 눌러 보셔도 됩니다.',
+    },
+    retry: {
+      head: '잠시 문제가 있었습니다',
+      body: '조금 뒤 <strong>견적서 받기</strong>를 다시 눌러 주세요. 계속 안 되면 아래 연락처로 문의해 주세요.<br>입력하신 조건은 화면에 그대로 있습니다.',
+    },
+  };
+  const showReview = (kind) => {
     if (w.closed) return;
     const v = w.document.getElementById('share-verifying');
     const r = w.document.getElementById('share-review');
+    const h = w.document.getElementById('share-review-head');
+    const b = w.document.getElementById('share-review-body');
+    const t = REVIEW_TEXT[kind] || REVIEW_TEXT.retry;
+    if (h) h.textContent = t.head;
+    if (b) b.innerHTML = t.body;
     if (v) v.style.display = 'none';
     if (r) r.style.display = 'block';
+  };
+  /* 「접수되었습니다」는 **실제로 접수됐을 때만** 말한다. 견적 기록 저장은 이 요청과
+     다른 호출이고(`/api/quotes`), 그 결과를 화면이 이미 약속으로 들고 있다.
+   ⚠ **그 약속을 기다렸다가 띄우면 안 된다.** 저장이 실패하면 재전송 대기열로 넘어가
+     약속이 한참 뒤에야 끝나는데, 그동안 고객은 「검증 중…」 회전판만 본다
+     (처음에 그렇게 짰다가 실제로 그 상태를 만들었다). **먼저 띄우고, 알게 되면 고친다.** */
+  const sayReview = () => {
+    showReview('review');
+    const saved = window._lastQuoteSaved;
+    if (!saved || typeof saved.then !== 'function') return;
+    saved.then((okSaved) => { if (!okSaved) showReview('reviewUnsaved'); })
+      .catch(() => showReview('reviewUnsaved'));
   };
 
   fetch('/api/quote-shares', {
@@ -4379,7 +4425,15 @@ function shareCopyLink() {
     .then((data) => {
       clearSteps();
       if (w.closed) return;
-      if (!data || !data.ok || !data.id) { showReview(); return; }
+      if (!data || !data.ok || !data.id) {
+        /* 서버가 **판정을 준** 경우에만 「담당자 확인」이다. `verdict`가 없다는 것은
+           우리 쪽이 답을 못 낸 것(HTTP 오류·본문 없음)이라 다시 누르면 된다. */
+        /* ⚠ `verdict`가 있다고 다 「사람이 봐야 함」이 아니다. `unavailable`은
+           **서버가 권위 데이터를 못 읽어 검증 자체를 못 한 것**이라 저장도 안 됐다 —
+           그건 다시 누르면 되는 쪽이다. 접수된 것은 `review` 하나뿐이다. */
+        if (data && data.verdict === 'review') sayReview(); else showReview('retry');
+        return;
+      }
       const verifying = w.document.getElementById('share-verifying');
       const ready = w.document.getElementById('share-ready');
       const inp = w.document.getElementById('share-url-inp');
@@ -4396,7 +4450,9 @@ function shareCopyLink() {
         qnoEl.style.display = '';
       }
     })
-    .catch(() => { clearSteps(); showReview(); });
+    /* 🔴 네트워크가 끊긴 것이다 — **접수되지 않았다.** 예전엔 여기서도
+       「접수되었습니다」라고 말했다. */
+    .catch(() => { clearSteps(); showReview('retry'); });
 }
 
 /* ── Hero Stats 카운트업 ──────────────────────────────────────────── */
