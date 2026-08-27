@@ -88,17 +88,30 @@ console.log('\n' + '═'.repeat(70));
 console.log('■ ② 서버리스 함수 수 — Vercel Hobby 한도는 12개');
 console.log('═'.repeat(70));
 {
-  /* Vercel은 `api/` 아래 파일 하나를 함수 하나로 만든다. `_`로 시작하는 것은 제외된다. */
-  const fns = ALL.filter((f) => /^api\/[^/]+\.js$/.test(f) && !path.basename(f).startsWith('_'));
+  /* Vercel은 `api/` **아래 모든 깊이의** 파일 하나를 함수 하나로 만든다.
+     `api/admin/login.js` → `/api/admin/login` · `api/quotes/[id].js` → `/api/quotes/:id`.
+     빠지는 것은 **경로 어느 칸이든 `_`로 시작할 때**(`api/_lib/…`)뿐이다.
+     🔴 2026-08-27: 여기가 `^api/[^/]+.js$`라 **맨 윗칸만 세고 있었다** — 실제 12개를
+        6개로 세고, 그 숫자로 「CLAUDE.md가 낡았다」는 **정반대 결론**을 매번 냈다.
+        빠진 것은 하위 폴더 6개(admin 셋 · `[id]` 셋). 프로덕션 응답으로 12개 전부 확인했다.
+        세는 자를 믿고 문서를 고쳤으면 **한도가 풀렸다고 적어 둘 뻔했다.** */
+  const fns = ALL.filter((f) => /^api\/.+\.js$/.test(f) && !f.split('/').some((s) => s.startsWith('_')));
   const libs = ALL.filter((f) => /^api\/_lib\//.test(f));
   console.log('\n  함수: ' + fns.length + ' / 12   (여유 ' + (12 - fns.length) + '개)');
   fns.forEach((f) => console.log('   · ' + f));
   console.log('  공용 모듈(함수 아님): ' + libs.length + '개');
-  /* 🔴 문서가 사실과 다르면 다음 사람이 잘못된 전제로 설계한다 */
+  /* 🔴 한도에 닿았으면 그것부터 말한다 — 새 파일 하나가 배포를 통째로 막는다 */
+  if (fns.length >= 12) {
+    console.log('\n🔴 한도다 — **새 API를 파일로 추가하면 배포가 실패한다.**'
+      + ' 기존 파일에 `?action=` 분기로 넣을 것(CLAUDE.md와 같은 말이다).');
+    issues++;
+  }
+  /* 문서와 사실이 어긋나면 **어느 쪽이 틀렸는지 먼저 가른다** — 위 🔴이 그 교훈이다 */
   const claude = TEXT.get('CLAUDE.md') || '';
   if (/12개 제한에 이미 도달/.test(claude) && fns.length < 12) {
-    console.log('\n🔴 CLAUDE.md는 「12개 제한에 이미 도달」이라고 적어 두었는데 실제는 '
-      + fns.length + '개다 — 문서가 낡았다(다음 사람이 잘못된 전제로 설계한다).');
+    console.log('\n⚠ CLAUDE.md는 「12개 제한에 이미 도달」이라 적었는데 여기서는 '
+      + fns.length + '개로 세었다 — 문서가 낡았거나 **이 세는 자가 틀렸다.**'
+      + ' 문서를 고치기 전에 프로덕션 응답으로 실제 라우트 수를 먼저 셀 것.');
     issues++;
   }
 }
