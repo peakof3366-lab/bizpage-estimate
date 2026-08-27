@@ -277,6 +277,71 @@ const done = () => {
     D.win.close();
   }
 
+  console.log('\n[9] 🔴 상담 신청 — 담당자가 「누구 회사인지」를 알 수 있어야 한다');
+  {
+    /* 길이 둘이고 성격이 다르다:
+       · `#inqForm` — 첫 화면 아래의 **일반 문의**. 견적과 무관하다.
+       · `submitConsult()` — **방금 낸 견적을 들고** 「바로 연락 요청」하는 길.
+       ⚠ 둘의 기대를 섞으면 없는 결함이 생긴다 — 일반 문의에 「견적 연결」을 요구했다가
+         손님 6명을 전부 결함으로 잡았고, 되돌렸다.
+       🔴 견적 기반 상담은 **소속이 빈 채로** 나가고 있었다(`org: ''`). 고객은 바로 위
+         견적 폼에 기관명을 적었는데도. 일반 문의는 처음부터 싣고 있었다 — 같은 값을
+         두 길이 각자 챙기는 구조(결함 생성기 ①)의 전형이다. */
+    const C = bootPage('index.html');
+    await C.ready; await C.tick(250);
+    const cset = (id, v) => {
+      const el = C.doc.getElementById(id);
+      if (el) { el.value = String(v); el.dispatchEvent(new C.win.Event('input', { bubbles: true })); el.dispatchEvent(new C.win.Event('change', { bubbles: true })); }
+    };
+    const ORG = '점검주식회사';
+    cset('destination', '다낭'); cset('programType', 'industry'); cset('organizationType', 'company');
+    cset('participants', 25); cset('days', 4);
+    const dd = new Date(); dd.setDate(dd.getDate() + 70);
+    cset('startDate', dd.toLocaleDateString('sv-SE'));
+    cset('organization', ORG); cset('contactName', '점검담당');
+    cset('contactTel', '010-0000-0000'); cset('requestDetails', '상담 신청 점검');
+    await C.tick(120);
+    C.doc.getElementById('estimateForm').dispatchEvent(new C.win.Event('submit', { bubbles: true, cancelable: true }));
+    await C.tick(300);
+    ok('⑨ 견적이 먼저 나왔다', !!C.win._lastQuoteRecord);
+
+    const n0 = C.log.requests.length;
+    if (typeof C.win.openConsultForm === 'function') C.win.openConsultForm();
+    await C.tick(60);
+    cset('consultName', '점검담당'); cset('consultTel', '010-0000-0000');
+    await C.tick(60);
+    C.win.submitConsult();
+    await C.tick(320);
+    const req = C.log.requests.slice(n0).find((r) => /\/api\/inquiries/.test(r.url));
+    ok('⑨ 상담 신청이 서버로 간다', !!req,
+      C.log.says.slice(-2).map((s) => s.text).join(' | '));
+    if (req) {
+      const b = req.body || {};
+      ok('🔴 ⑨ 소속이 실린다(고객이 견적 폼에 적은 값)', String(b.org || '').trim() === ORG,
+        '보낸 값: [' + (b.org || '') + ']');
+      ok('⑨ 방금 낸 견적과 이어진다', !!b.linkedQuoteId, Object.keys(b).join(','));
+      ok('⑨ 견적 내용이 함께 간다', !!b.estimate && b.estimate.total > 0);
+      ok('⑨ 일반 문의와 구별되는 표시가 있다', b.type === 'estimate_inquiry', String(b.type));
+      ok('🔴 ⑨ 감춘 수익 항목이 리드로 새지 않는다',
+        !/ENBT 수익|현지 수익금/.test(JSON.stringify(b)));
+    }
+
+    /* 일반 문의는 **연결을 기대하지 않는다** — 그게 그 폼의 성격이다 */
+    const n1 = C.log.requests.length;
+    cset('inqName', '점검'); cset('inqOrg', ORG);
+    cset('inqTel', '010-0000-0000'); cset('inqMsg', '일반 문의 점검');
+    await C.tick(60);
+    C.doc.getElementById('inqForm').dispatchEvent(new C.win.Event('submit', { bubbles: true, cancelable: true }));
+    await C.tick(320);
+    const req2 = C.log.requests.slice(n1).find((r) => /\/api\/inquiries/.test(r.url));
+    ok('⑨ 일반 문의도 서버로 간다', !!req2);
+    if (req2) {
+      ok('⑨ 일반 문의에도 소속이 실린다', String((req2.body || {}).org || '') === ORG);
+      ok('⑨ 일반 문의는 견적과 이어지지 않는다(그게 맞다)', !(req2.body || {}).linkedQuoteId);
+    }
+    C.win.close();
+  }
+
   ok('전 과정에서 화면 오류가 없다', log.errors.length === 0,
     log.errors.map((e) => e.msg).join(' | '));
   done();

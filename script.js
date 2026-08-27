@@ -2472,7 +2472,14 @@ function submitConsult() {
   const record = {
     id:        Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
     name,
-    org:       '',
+    /* 🔴 **소속이 빈 채로 나가고 있었다** (XS). 고객은 바로 위 견적 폼에
+       기관명을 이미 적었는데, 이 길로 들어온 상담 신청만 그걸 안 실었다.
+       담당자는 **누구 회사인지 모르는 연락처**를 받고 기업 고객에게 다시 물어야 했다.
+       XD에서 「받는 사람 이름이 문서에 없었다」와 같은 자리다 — 화면은 갖고 있는데
+       보내는 쪽이 안 실은 것. 일반 문의(`#inqForm`)는 처음부터 싣고 있었다
+       (결함 생성기 ① — 같은 값을 두 길이 각자 챙긴다).
+     ⚠ 기관명은 필수가 아니다. 안 적었으면 빈 값이 맞다 — 지어내지 않는다. */
+    org:       document.getElementById('organization')?.value.trim() || '',
     tel,
     message:   '[견적 기반 상담 신청]\n목적지: ' + destLabel +
                '\n인원: ' + (bd?.participants || '?') + '명 / ' + (bd?.days || '?') + '일' +

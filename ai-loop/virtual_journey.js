@@ -297,7 +297,88 @@ async function runOne(p, rates, ctx) {
       + (v.steps || []).filter((s) => !s.ok).map((s) => s.label + ': ' + s.detail).join(' / '));
   }
 
-  /* ── ⑦ 서버가 저장하는 모양 그대로 만들어 견적서를 그린다 ─────── */
+  /* ── ⑧ 상담 신청(리드) — **견적보다 이쪽이 돈에 더 가깝다** ─────────
+     견적은 고객이 스스로 뽑는 값이지만, 상담 신청은 **사람이 답을 기다리는 건**이다.
+     여기서 조용히 실패하면 리드가 사라지고, 우리는 사라진 줄도 모른다.
+   🔴 **길이 둘이다. 성격이 다르므로 기대도 달라야 한다.**
+     · `#inqForm` — 첫 화면 아래의 **일반 문의**. 견적과 무관하다. 연결을 기대하면
+       그건 없는 결함이다(실제로 6명 전부를 그렇게 잡았다가 되돌렸다).
+     · `submitConsult()` — **방금 낸 견적을 들고** 「바로 연락 요청」하는 길.
+       여기서는 견적과 이어지는 것이 핵심이다 — 안 이어지면 담당자가 같은 건인 줄 모른다. */
+  const inq = doc.getElementById('inqForm');
+  if (!inq) {
+    문제(t, 'NO_INQ_FORM', '일반 문의 폼이 화면에 없다', '');
+  } else {
+    const before = log.requests.length;
+    set('inqName', String(p.contactName));
+    set('inqOrg', String(p.organization));
+    set('inqTel', p.contactTel);
+    set('inqMsg', String(p.requestDetails).slice(0, 200));
+    await tick(80);
+    const inqBad = Array.from(inq.querySelectorAll('input, textarea, select')).filter((el) => {
+      if (el.type === 'hidden' || el.disabled) return false;
+      if (el.hasAttribute('required') && !String(el.value || '').trim()) return true;
+      return !!(el.validity && !el.validity.valid);
+    });
+    if (inqBad.length) 문제(t, 'INQ_BLOCKED', '일반 문의가 막힌다',
+      inqBad.map((e) => (e.id || e.name) + '=[' + e.value + ']').join(', '));
+    inq.dispatchEvent(new win.Event('submit', { bubbles: true, cancelable: true }));
+    await tick(320);
+    const sent = log.requests.slice(before).find((r) => /\/api\/inquiries/.test(r.url));
+    out.inquirySent = !!sent;
+    if (!sent) {
+      문제(t, 'INQ_NOT_SENT', '🔴 일반 문의를 눌렀는데 서버로 아무것도 안 갔다',
+        log.says.map((s) => s.text).join(' | '));
+    } else {
+      const flat = JSON.stringify(sent.body || {});
+      [['contactName', '이름'], ['organization', '소속'], ['contactTel', '연락처']].forEach(([k, ko]) => {
+        if (!flat.includes(String(p[k]))) 문제(t, 'INQ_NO_' + k.toUpperCase(),
+          '일반 문의에 ' + ko + '이(가) 안 실렸다', String(p[k]));
+      });
+    }
+  }
+
+  /* ── ⑨ 견적 기반 상담 신청 — 방금 낸 견적을 들고 연락을 요청한다 ── */
+  if (typeof win.submitConsult === 'function') {
+    const before2 = log.requests.length;
+    const cName = doc.getElementById('consultName');
+    const cTel = doc.getElementById('consultTel');
+    if (!cName || !cTel) {
+      문제(t, 'NO_CONSULT_FORM', '견적 기반 상담 신청 칸이 없다', '');
+    } else {
+      if (typeof win.openConsultForm === 'function') win.openConsultForm();
+      await tick(80);
+      set('consultName', String(p.contactName));
+      set('consultTel', p.contactTel);
+      await tick(60);
+      win.submitConsult();
+      await tick(320);
+      const csent = log.requests.slice(before2).find((r) => /\/api\/inquiries/.test(r.url));
+      out.consultSent = !!csent;
+      if (!csent) {
+        문제(t, 'CONSULT_NOT_SENT', '🔴 견적 기반 상담 신청이 서버로 안 갔다',
+          log.says.slice(-2).map((s) => s.text).join(' | '));
+      } else {
+        const b = csent.body || {};
+        /* 🔴 담당자가 같은 건인 줄 알아야 한다 */
+        if (!b.linkedQuoteId) 문제(t, 'CONSULT_NOT_LINKED',
+          '🔴 상담 신청이 방금 낸 견적과 안 이어졌다', Object.keys(b).join(','));
+        if (!b.estimate || !(b.estimate.total > 0)) 문제(t, 'CONSULT_NO_SNAPSHOT',
+          '상담 신청에 견적 내용이 안 실렸다', JSON.stringify(b.estimate || null).slice(0, 120));
+        /* 🔴 고객은 견적 폼에 **소속을 이미 적었다.** 그걸 안 실으면 담당자는
+           「누구 회사인지 모르는 연락처」를 받는다 — 기업 고객에게 다시 물어야 한다. */
+        if (!String(b.org || '').trim()) 문제(t, 'CONSULT_NO_ORG',
+          '🔴 상담 신청에 소속이 빈 채로 나간다(고객은 견적 폼에 적었다)',
+          '적은 값: ' + p.organization);
+        /* 감춘 수익이 리드 본문으로 새면 안 된다 — 여기도 같은 값을 각자 거른다 */
+        const cflat = JSON.stringify(b);
+        if (/ENBT 수익|현지 수익금/.test(cflat)) 문제(t, 'CONSULT_MUTED_LEAK',
+          '🔴 상담 신청 본문에 수익 항목이 실렸다', '');
+      }
+    }
+  }
+
+  /* ── ⑩ 서버가 저장하는 모양 그대로 만들어 견적서를 그린다 ─────── */
   const qno = 'V' + ymd(new Date()).slice(2).replace(/-/g, '') + '-' + String(p.no).padStart(4, '0');
   const payload = Object.assign({}, share, {
     iso: share.iso || ymd(new Date()),
