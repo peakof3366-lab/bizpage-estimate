@@ -212,6 +212,71 @@ const done = () => {
       && admin.indexOf('__INTERNAL_TOOL__') < admin.indexOf('<script src="script.js">'));
   }
 
+  console.log('\n[8] 🔴 견적서는 **두 벌**이다 — 인쇄용 문서도 조건을 말해야 한다');
+  {
+    /* WQ가 「인쇄한 견적서에 유효기간이 한 줄도 없다」를 고쳤는데, 그때 고친 것은
+       **링크 견적서(estimate-view.html) 한 벌뿐**이었다. 계산 직후 이 창에서 바로
+       인쇄·PDF로 만드는 고객은 여전히 **언제까지 유효한지 모르는 종이**를 결재에 올렸다.
+       XP에서 견적번호가 링크 쪽에만 있던 것과 같은 자리, 같은 이유다.
+     ⚠ 이 검사는 **감춰진 패널의 글자를 세지 않는다.** 인쇄용 문서는 `.hidden`이 아니라
+       인라인 `style="display:none"`으로 감춘다(문서가 통째로 템플릿 문자열이라 그렇다).
+       그걸 안 걷어내면 `#share-modal` 안의 안내를 보고 **통과해 버린다** — 실제로
+       그렇게 통과하고 있었고, 그래서 이 결함이 안 보였다. */
+    const shown = (el) => {
+      const c = el.cloneNode(true);
+      c.querySelectorAll('script,style,template,[hidden],[aria-hidden="true"],.hidden').forEach((n) => n.remove());
+      c.querySelectorAll('[style]').forEach((n) => {
+        const st = String(n.getAttribute('style') || '').replace(/\s+/g, '').toLowerCase();
+        if (/display:none|visibility:hidden/.test(st)) n.remove();
+      });
+      return (c.textContent || '').replace(/\s+/g, ' ').trim();
+    };
+
+    const D = bootPage('index.html');
+    await D.ready; await D.tick(250);
+    const dset = (id, v) => {
+      const el = D.doc.getElementById(id);
+      if (el) { el.value = String(v); el.dispatchEvent(new D.win.Event('input', { bubbles: true })); el.dispatchEvent(new D.win.Event('change', { bubbles: true })); }
+    };
+    dset('destination', '다낭'); dset('programType', 'industry'); dset('organizationType', 'company');
+    dset('participants', 30); dset('days', 4);
+    const dep = new Date(); dep.setDate(dep.getDate() + 60);
+    dset('startDate', dep.toLocaleDateString('sv-SE'));
+    dset('organization', '점검기관'); dset('contactName', '점검담당');
+    dset('contactTel', '010-0000-0000'); dset('requestDetails', '두 벌 대조');
+    await D.tick(120);
+    D.doc.getElementById('estimateForm').dispatchEvent(new D.win.Event('submit', { bubbles: true, cancelable: true }));
+    await D.tick(300);
+    const rec2 = D.win._lastQuoteRecord;
+    ok('⑧ 견적이 계산됐다', !!rec2 && rec2.total > 0);
+    D.doc.getElementById('downloadEstimate').dispatchEvent(
+      new D.win.MouseEvent('click', { bubbles: true, cancelable: true, view: D.win }));
+    await D.tick(400);
+
+    const pop = (D.log.opened || [])[0];
+    ok('⑧ 인쇄용 견적서가 열린다', !!pop);
+    if (pop) {
+      const txt = shown(pop.document.body);
+      const won = (n) => Number(Math.round(n)).toLocaleString('ko-KR');
+      ok('⑧ 감춘 패널을 세지 않는다(안 그러면 이 검사가 거짓으로 통과한다)',
+        txt.length < visibleText(pop.document.body).length,
+        txt.length + ' vs ' + visibleText(pop.document.body).length);
+      ok('🔴 ⑧ 인쇄용 견적서에 유효기간이 있다', /유효기간/.test(txt));
+      ok('⑧ 언제까지인지 날짜로 말한다', /까지/.test(txt) && /\d{4}년/.test(txt));
+      ok('⑧ 「N일 남음」은 안 적는다(종이는 나중에 읽힌다)', !/일 남음/.test(txt), txt.slice(0, 80));
+      ok('⑧ 총액이 있다', txt.includes(won(rec2.total)));
+      ok('⑧ 1인 금액이 있다', txt.includes(won(rec2.perPerson)));
+      ok('⑧ 목적지가 있다', /다낭/.test(txt));
+      ok('⑧ 요율 기준이 있다', /요율 기준/.test(txt));
+      ok('🔴 ⑧ 감춘 수익 항목이 새지 않는다', !/ENBT 수익|현지 수익금/.test(txt));
+      ok('🔴 ⑧ 연락처가 찍히지 않는다', !txt.includes('010-0000-0000'));
+      /* 끝나는 날을 안 받았을 때 물결표가 매달려 있었다 — 「2026년 10월 26일 ~ —」 */
+      ok('⑧ 끝나는 날이 없으면 물결표를 매달지 않는다', !/~\s*—/.test(txt),
+        (txt.match(/연수 기간[^가-힣]*[^ ]*/) || [''])[0]);
+    }
+    D.win.close();
+  }
+
   ok('전 과정에서 화면 오류가 없다', log.errors.length === 0,
     log.errors.map((e) => e.msg).join(' | '));
   done();

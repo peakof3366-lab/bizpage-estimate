@@ -3726,6 +3726,21 @@ function openEstimateWindow() {
   const endDateLabel = document.getElementById('endDate')?.value
     ? new Date(document.getElementById('endDate').value).toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' }) : '—';
 
+  /* 🔴 **이 문서에는 유효기간이 한 줄도 없었다** (XS). WQ가 「인쇄한 견적서에
+     유효기간이 없다」를 고쳤는데, 그때 고친 것은 **링크 견적서(estimate-view.html)
+     한 벌뿐**이었다. 견적서는 두 벌이고(팝업 · 링크), 계산 직후 이 창에서 바로
+     인쇄·PDF로 만드는 고객은 **언제까지 유효한 값인지 모르는 종이**를 결재에 올렸다.
+     XP에서 견적번호가 링크 쪽에만 있던 것과 **같은 자리, 같은 이유**다.
+   ⚠ 「N일 남음」은 안 적는다 — 종이는 나중에 읽히고 그때 그 숫자는 틀린 말이 된다(WQ).
+   ⚠ 이 창은 언제나 맞춤 견적이다(패키지는 이 경로를 안 탄다). 그래서 규칙은
+     **발급일 + 30일** 하나다 — 패키지의 「공급사가 정한 기한」을 여기 섞지 말 것. */
+  const validUntilLabel = (function () {
+    const d = new Date(); d.setDate(d.getDate() + 30);
+    return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  })();
+  /* 끝나는 날을 안 받았으면 **물결표를 매달지 않는다** — 「2026년 10월 26일 ~ —」가
+     결재 서류에 그대로 찍히고 있었다. 없는 날짜를 지어내지도 않는다(일수는 옆에 있다). */
+  const periodLabel = endDateLabel === '—' ? startDateLabel : (startDateLabel + ' ~ ' + endDateLabel);
   const rateDate = (function(){ const d = getDestinationByKey(destKey); return d&&d.rateDate ? formatRateDate(d.rateDate) : '—'; })();
   const rateVer  = typeof RATE_META !== 'undefined' ? RATE_META.version : '—';
 
@@ -4155,7 +4170,7 @@ a{color:inherit;text-decoration:none}
       <tr><td>프로그램</td><td>${programText}</td></tr>
       <tr><td>연수 방식</td><td>${visitModeText}</td></tr>
       <tr><td>참가 인원</td><td>${participants}명</td></tr>
-      <tr><td>연수 기간</td><td>${data.nights}박 ${days}일 · ${startDateLabel} ~ ${endDateLabel}</td></tr>
+      <tr><td>연수 기간</td><td>${data.nights}박 ${days}일 · ${periodLabel}</td></tr>
       <tr><td>시즌</td><td>${data.seasonInfo.label}</td></tr>
       <tr><td>호텔 등급</td><td>${data.hotelGrade.label}</td></tr>
       ${requestDetails ? `<tr><td>요청 사항</td><td style="white-space:pre-wrap">${_escHtml(requestDetails)}</td></tr>` : ''}
@@ -4176,6 +4191,9 @@ a{color:inherit;text-decoration:none}
     </div>
 
     <div class="q-disc">
+      <div style="margin-bottom:8px;padding:8px 10px;background:#FEF0F2;border-left:3px solid #CC001A;color:#5A5A5A">
+        <strong>견적 유효기간</strong> · ${issueDate} 발급 → <strong>${validUntilLabel}</strong>까지 (발급일로부터 30일)
+      </div>
       본 견적은 <strong>참고용 예상 금액</strong>입니다. 실제 비용은 현지 사정·환율·시즌·방문 기관 조건에 따라 달라질 수 있으며, 정확한 견적은 전문 컨설턴트와의 1:1 상담을 통해 확정됩니다.<br>
       <span class="q-stamp">비즈페이지 견적</span>&nbsp; 요율 기준: ${rateDate} · Ver.${rateVer}
     </div>

@@ -52,6 +52,35 @@ const OUT = arg('out', path.join(process.env.USERPROFILE || 'C:/Users/최현욱'
 const BASE = arg('base', 'https://bizpage-estimate.vercel.app');
 
 const won = (n) => Number(Math.round(n || 0)).toLocaleString('ko-KR');
+
+/* 🔴 **감춰진 패널의 글자까지 읽으면 안 된다** (XS).
+   `_page_boot`의 `visibleText`는 `script`·`style`만 걷어낸다 — 그건 「소스가 글자로
+   섞이는 것」을 막으려고 만든 것이고, 화면에서 **감춰진 요소**는 그대로 남는다.
+   실제로 인쇄용 문서에서 「링크 공유」와 「담당자 확인이 필요한 견적입니다」가 **동시에**
+   읽혔다. 둘은 서로 배타적인 상태라 하나는 반드시 감춰져 있다.
+   → 그 상태로 「유효기간 문구가 있다」를 재면 **감춰진 안내를 보고 통과**할 수 있다.
+     안 보이는 글자로 통과하는 검사는 아무것도 안 지킨다(결함 생성기 ③).
+
+ 🔴 **감추는 방식이 화면마다 다르다.** 고객 화면(index.html)은 `.hidden` 클래스를 쓰고,
+   인쇄용 팝업은 **인라인 `style="display:none"`**을 쓴다(그 문서는 통째로 템플릿
+   문자열이라 클래스를 쓸 자리가 없다). 한쪽만 걷어내면 팝업에서는 **한 글자도 안 줄어든다** —
+   실제로 3,059자 → 3,059자였다. 두 방식을 다 본다.
+ ⚠ 공용 `visibleText`를 고치지 않는다 — 다른 도구 여럿이 지금 동작에 기대고 있다.
+   여기서만 더 좁게 본다.
+ ⚠ `.no-print`는 **감춘 것이 아니다**(인쇄할 때만 빠진다). 걷어내면 화면에 멀쩡히
+   보이는 버튼이 「없는 것」이 된다. */
+function shownText(el) {
+  if (!el) return '';
+  const c = el.cloneNode(true);
+  if (!c.querySelectorAll) return (c.textContent || '').replace(/\s+/g, ' ').trim();
+  c.querySelectorAll('script,style,template,[hidden],[aria-hidden="true"],.hidden').forEach((n) => n.remove());
+  /* 인라인으로 감춘 것 — 팝업 문서가 쓰는 방식이다 */
+  c.querySelectorAll('[style]').forEach((n) => {
+    const st = String(n.getAttribute('style') || '').replace(/\s+/g, '').toLowerCase();
+    if (/display:none|visibility:hidden/.test(st)) n.remove();
+  });
+  return (c.textContent || '').replace(/\s+/g, ' ').trim();
+}
 const ymd = (d) => d.toLocaleDateString('sv-SE');
 const safe = (s) => String(s).replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim();
 
@@ -67,7 +96,7 @@ async function runOne(p, rates, ctx) {
   const out = { no: p.no, persona: p, trouble: t };
 
   const B = bootPage('index.html', { fixtures: { rates } });
-  const { win, doc, log, tick } = B;
+  const { win, doc, log, tick, fixtures: fx } = B;
   await B.ready; await tick(280);
 
   if (typeof win.getBreakdownData !== 'function') {
@@ -188,7 +217,7 @@ async function runOne(p, rates, ctx) {
   if (rec.perPerson > 20000000) 문제(t, 'PP_TOO_HIGH', '1인 금액이 비상식적으로 높다', won(rec.perPerson));
 
   /* 화면이 금액을 **실제로 보여주나** — 계산됐는데 안 그리는 일이 있었다(XP) */
-  const shown = visibleText(doc.body);
+  const shown = shownText(doc.body);
   out.totalShown = shown.includes(won(rec.total));
   if (!out.totalShown) 문제(t, 'TOTAL_NOT_SHOWN', '계산은 됐는데 총액이 화면 글자에 없다', won(rec.total));
 
@@ -226,7 +255,38 @@ async function runOne(p, rates, ctx) {
   const leaked = (share.rows || []).filter((r) => /수익|보험/.test(String(r[0])));
   if (leaked.length) 문제(t, 'MUTED_LEAK', '🔴 감춰야 할 항목이 고객 문서에 실렸다', leaked.map((r) => r[0]).join(','));
 
-  /* ── ⑤ 서버의 진짜 검증기 ──────────────────────────────────────── */
+  /* ── ⑤ 🔴 **견적서는 두 벌이다** — 팝업 문서도 읽는다 ──────────────
+     `openEstimateWindow`(계산 직후 그 자리에서 인쇄·PDF)와 `estimate-view.html`
+     (카톡으로 전달되는 정식 문서)은 **같은 견적인데 그리는 코드가 다르다.**
+     그래서 한쪽만 고쳐지는 일이 반복됐다 — XP에서 견적번호가 링크 쪽에만 있어서
+     팝업에서 인쇄한 고객은 부를 이름이 없었다.
+   ⚠ **팝업에는 항목별 금액이 없다 — 일부러 그렇다.** 없다고 결함이라 부르지 말 것. */
+  const pop = (log.opened || [])[0];
+  if (!pop) {
+    문제(t, 'NO_POPUP', '「견적서 받기」를 눌렀는데 인쇄용 문서가 안 열렸다', '');
+  } else {
+    const ptxt = shownText(pop.document.body);
+    out.popupLen = ptxt.length;
+    if (ptxt.length < 200) {
+      문제(t, 'POPUP_EMPTY', '🔴 인쇄용 견적서가 사실상 비어 있다', String(ptxt.length) + '자');
+    } else {
+      if (!ptxt.includes(won(rec.total))) 문제(t, 'POPUP_NO_TOTAL', '🔴 인쇄용 견적서에 총액이 없다', won(rec.total));
+      if (!ptxt.includes(won(rec.perPerson))) 문제(t, 'POPUP_NO_PP', '인쇄용 견적서에 1인 금액이 없다', won(rec.perPerson));
+      if (!ptxt.includes(p.destKey)) 문제(t, 'POPUP_NO_DEST', '인쇄용 견적서에 목적지가 없다', p.destKey);
+      if (!ptxt.includes(String(p.participants))) 문제(t, 'POPUP_NO_PAX', '인쇄용 견적서에 인원이 없다', String(p.participants));
+      /* 🔴 XP가 고친 자리 — 인쇄한 고객도 부를 이름이 있어야 한다 */
+      const fixNo = (fx.shares && fx.shares.quoteNo) || '';
+      if (fixNo && !ptxt.includes(fixNo)) 문제(t, 'POPUP_NO_QNO', '🔴 인쇄용 견적서에 견적번호가 없다', fixNo);
+      /* 🔴 WQ가 고친 자리 — 인쇄본에 유효기간이 한 줄도 없었다 */
+      if (!/유효|만료/.test(ptxt)) 문제(t, 'POPUP_NO_VALIDITY', '인쇄용 견적서에 유효기간이 없다', '');
+      /* 🔴 감춘 수익이 새면 안 된다. 같은 값을 두 곳에서 각자 거르므로 새는 자리가 둘이다 */
+      if (/ENBT 수익|현지 수익금/.test(ptxt)) 문제(t, 'POPUP_MUTED_LEAK', '🔴 인쇄용 견적서에 수익 항목이 그려졌다', '');
+      if (ptxt.includes(p.contactTel)) 문제(t, 'POPUP_HAS_TEL', '🔴 인쇄용 견적서에 연락처가 찍혔다', p.contactTel);
+      if (pop.__err && pop.__err.length) 문제(t, 'POPUP_ERROR', '인쇄용 견적서가 오류를 냈다', pop.__err.join(' | '));
+    }
+  }
+
+  /* ── ⑥ 서버의 진짜 검증기 ──────────────────────────────────────── */
   const verifyPayload = req.body.quote || share;
   const v = verifyQuote(verifyPayload, ctx);
   out.verdict = v.verdict;
@@ -237,7 +297,7 @@ async function runOne(p, rates, ctx) {
       + (v.steps || []).filter((s) => !s.ok).map((s) => s.label + ': ' + s.detail).join(' / '));
   }
 
-  /* ── ⑥ 서버가 저장하는 모양 그대로 만들어 견적서를 그린다 ─────── */
+  /* ── ⑦ 서버가 저장하는 모양 그대로 만들어 견적서를 그린다 ─────── */
   const qno = 'V' + ymd(new Date()).slice(2).replace(/-/g, '') + '-' + String(p.no).padStart(4, '0');
   const payload = Object.assign({}, share, {
     iso: share.iso || ymd(new Date()),
@@ -249,7 +309,7 @@ async function runOne(p, rates, ctx) {
 
   const V = bootPage('estimate-view.html', { query: '?id=virtual', fixtures: { shareDoc: payload } });
   await V.ready; await V.tick(320);
-  const docText = visibleText(V.doc.body);
+  const docText = shownText(V.doc.body);
   out.docLen = docText.length;
   /* 🔴 **견적서 HTML을 결과 배열에 들고 있지 않는다** — 한 장이 800KB 안팎이라
      300명을 태우니 힙이 4GB를 넘겨 그 자리에서 죽었다(실측). 쓸 곳이 정해지는
@@ -331,6 +391,10 @@ async function runOne(p, rates, ctx) {
       fs.writeFileSync(path.join(dir, '결과.json'), JSON.stringify({
         record: res.record, verdict: res.verdict, failedSteps: res.failedSteps,
         qno: res.qno, trouble: res.trouble, rateSource: res.rateSource,
+        /* 검사가 **실제로 돌았는지**를 남긴다 — 안 돌고 초록인 것과 구별이 안 되면
+           그 초록은 거짓말이다(결함 생성기 ③). */
+        읽은글자: { 인쇄용: res.popupLen || 0, 링크: res.docLen || 0 },
+        견적서표합: res.docRowSum, 견적서총액: res.docTotal,
       }, null, 2), 'utf8');
       if (res.writeDoc) res.writeDoc(path.join(dir, '견적서.html'));
     }
