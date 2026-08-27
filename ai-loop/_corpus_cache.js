@@ -13,6 +13,8 @@ const fs = require('fs');
 const path = require('path');
 const { corpusFiles } = require('./_corpus_files.js');
 const { destFromName } = require('./_dest_from_name');
+/* 사람이 채운 값(환율·판매가)의 단일 출처 — 없으면 지금과 똑같이 동작한다 (XZ) */
+const { fxFor: manualFxFor, answerFor: manualAnswerFor, datesFor: manualDatesFor, 이름확인: manualNameCheck, manualSig } = require('./_corpus_manual');
 
 const ROOT = path.join(__dirname, '..');
 const CACHE = path.join(__dirname, '.backtest_cache.json');
@@ -32,8 +34,11 @@ const CACHE = path.join(__dirname, '.backtest_cache.json');
     10 — VM: `specHints.airExcluded`(문서가 **항공 불포함이라 말하는가**). 「항공 단가를
          못 읽음」을 「항공 없음」이라 부르던 오진을 가른다 — 처방이 정반대다.
     11 — VN: `specHints.fee/vat` · `shape`(미분류 비중·골프 줄 수). **정답지의 성격**을
-         가르는 데 쓴다 — 가설 셋이 기각된 뒤 남은 의심이 표본 자체라서다. */
-const CACHE_VERSION = 11;
+         가르는 데 쓴다 — 가설 셋이 기각된 뒤 남은 의심이 표본 자체라서다.
+    12 — XZ: `fromHuman`(이 행의 어느 칸이 **사람에게서 왔는가**). 문서에서 읽은 값과
+         사람이 채운 값을 섞어 놓고 표시가 없으면, 나중에 「이 실측이 문서에서 나온
+         것인가」를 물을 때 아무도 답할 수 없다. */
+const CACHE_VERSION = 12;
 
 const DEFAULT_CORPUS = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');
 
@@ -110,7 +115,12 @@ async function loadCorpus(opts) {
 
   if (o.useCache && fs.existsSync(CACHE)) {
     const cached = JSON.parse(fs.readFileSync(CACHE, 'utf8'));
-    if (cached && cached.version === CACHE_VERSION) {
+    /* 🔴 **사람이 값을 채우면 캐시는 그 자리에서 낡는다** (XZ). 안 그러면 환율을
+       넣어도 `--cache`로 돌리는 도구들이 **옛 결과를 계속 보여준다** — 채운 사람은
+       「왜 안 늘지」를 한참 찾게 된다(VA에서 캐시가 목록을 안 거쳐 겪은 것과 같은 종류). */
+    if (cached && cached.version === CACHE_VERSION && cached.manualSig !== manualSig()) {
+      say('사람이 채운 값이 바뀌었습니다 — 캐시를 버리고 다시 추출합니다.');
+    } else if (cached && cached.version === CACHE_VERSION) {
       say('캐시 사용: ' + CACHE + '  (--cache 빼면 다시 추출)');
       /* ⚠ VA: 캐시는 **파일 목록을 거치지 않는다.** 여기서 다시 거르지 않으면 중복 제거가
          `--cache`일 때만 조용히 안 먹는다(결함 생성기 ③). 옛 캐시에 남아 있는 중복 행도
@@ -124,16 +134,39 @@ async function loadCorpus(opts) {
   const pdfParse = require('pdf-parse');
   const X = require(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'));
   const files = corpusFiles(CORPUS).files;
+  manualNameCheck(files, say);   /* 손으로 채운 이름이 실제로 있는가 (XZ) */
   say('견적서 ' + files.length + '건 추출 중… (1~3분)');
   const out = [];
   for (const f of files) {
     try {
       const buf = new Uint8Array(fs.readFileSync(path.join(CORPUS, f)));
-      const r = await X.extractQuote(buf, pdfParse, {});
+      /* 🔴 **사람이 채운 환율을 여기서 준다** (XZ). 예전엔 `{}`를 넘겼다 —
+         추출기는 `opts.fxRate`를 받을 준비가 되어 있었는데(SF) **부르는 쪽이 안 줬다.**
+         그래서 관리자 화면에서 환율을 넣어도 역검증 표본은 그대로였다(결함 생성기 ③).
+       ⚠ 값이 없으면 `null`이라 지금과 똑같이 동작한다 — 그 견적서는 표본에서 빠진다. */
+      const 손으로준환율 = manualFxFor(f);
+      const r = await X.extractQuote(buf, pdfParse, 손으로준환율 ? { fxRate: 손으로준환율 } : {});
+
+      /* 🔴 **문서가 말하지 않은 것만 사람 값으로 채운다** (XZ).
+         정답지(1인당·총계)와 출발일은 문서에서 읽혔으면 **문서가 이긴다** —
+         사람 값으로 덮으면 추출기가 틀렸을 때 그 사실이 영영 안 보인다.
+         비어 있을 때만 채우고, **사람에게서 왔다는 표시를 남긴다**(`fromHuman`).
+       ⚠ 표시가 없으면 나중에 「이 실측이 문서에서 나온 것인가」를 물을 때 답할 수 없다. */
+      const 손정답 = manualAnswerFor(f) || {};
+      const 손일정 = manualDatesFor(f) || {};
+      const fromHuman = [];
+      const perPerson = r.perPerson || (손정답.perPerson && (fromHuman.push('perPerson'), 손정답.perPerson)) || null;
+      const grand = r.grandTotal || (손정답.grand && (fromHuman.push('grand'), 손정답.grand)) || null;
+      const dates = Object.assign({}, r.dates);
+      if (!dates.depart && 손일정.depart) { dates.depart = 손일정.depart; fromHuman.push('depart'); }
+      if (!dates.return && 손일정.return) { dates.return = 손일정.return; }
+      if (!dates.days && 손일정.days) { dates.days = 손일정.days; fromHuman.push('days'); }
+      if (손으로준환율) fromHuman.push('fx');
+
       out.push({
-        file: f, pax: r.pax, perPerson: r.perPerson, grand: r.grandTotal,
+        file: f, pax: r.pax, perPerson, grand, dates, fromHuman: fromHuman.length ? fromHuman : null,
         deposit: r.depositPerPerson || null, depositAll: r.depositCandidates || [],
-        dates: r.dates, kind: r.kind && r.kind.kind, values: r.values,
+        kind: r.kind && r.kind.kind, values: r.values,
         /* VC: 목적지 판정을 **여기서 한 번만** 한다. 본문이 필요한데 본문은 캐시에
            싣지 않기 때문이다(46건 전문이면 캐시가 몇 MB로 부푼다). 판정 결과만 싣는다. */
         dest: destFromName(f, r.text),
@@ -168,7 +201,7 @@ async function loadCorpus(opts) {
       out.push({ file: f, error: String(e.message).slice(0, 120) });
     }
   }
-  fs.writeFileSync(CACHE, JSON.stringify({ version: CACHE_VERSION, rows: out }, null, 1), 'utf8');
+  fs.writeFileSync(CACHE, JSON.stringify({ version: CACHE_VERSION, manualSig: manualSig(), rows: out }, null, 1), 'utf8');
   return out;
 }
 
