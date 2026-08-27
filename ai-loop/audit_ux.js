@@ -85,16 +85,27 @@ function measure(doc, scope) {
   const btnName = (el) => (shownText(el) || el.getAttribute('aria-label') || '').trim();
   const 강조 = btns.filter((el) => 강조패턴.test(String(el.className || '')));
   const 무색버튼 = btns.filter((el) => {
+    /* ⚠ **거르개(칩)는 행동 버튼이 아니다.** 문의 탭의 「전체·미확인·확인·처리중·완료」를
+       「무슨 일이 날지 안 말하는 버튼」으로 셌는데, 그건 **상태 이름 그 자체**라
+       맥락에서 분명하다. 없는 것을 세면 진짜가 묻힌다. */
+    if (el.closest('[data-filter], .filter-btn, .chip, .tab-btn, [role="tab"]')) return false;
+    if (el.hasAttribute('data-filter')) return false;
     const n = btnName(el).replace(/\s+/g, '');
     return n && 무색.some((w) => n === w || n === w + '하기');
   });
 
-  const 제목 = Array.from(root.querySelectorAll('h1, h2, .sec-title, .tab-title, .card-title'))
+  /* 🔴 **카드 제목은 화면 제목이 아니다** (XT). 처음엔 `.card-title`까지 제목으로 세어
+     「제목이 있다」고 읽었는데, 정작 17개 탭 어디에도 **화면이 무엇인지 말하는 줄**이
+     없었다. 자가 느슨하면 고칠 것을 못 찾는다. */
+  const 제목 = Array.from(root.querySelectorAll('h1, h2.page-title, .page-title'))
+    .filter((el) => visible(el, doc) && shownText(el).trim())[0];
+  const 설명 = Array.from(root.querySelectorAll('.page-sub'))
     .filter((el) => visible(el, doc) && shownText(el).trim())[0];
 
   return {
     글자수: txt.length,
     제목: 제목 ? shownText(제목).slice(0, 40) : '',
+    설명: 설명 ? shownText(설명).slice(0, 60) : '',
     버튼: btns.length, 링크: links.length, 입력칸: fields.length,
     필수칸: fields.filter((el) => el.hasAttribute('required')).length,
     강조버튼: 강조.map(btnName).filter(Boolean),
@@ -109,7 +120,10 @@ function measure(doc, scope) {
    「비활성화된 계정은 로그인할 수 없습니다」 같은 **안내문 3건**을 막다른 길로 세었다.
    그건 규칙을 설명하는 문장이지 빈 목록이 아니다 — 없는 것을 세면 진짜가 묻힌다
    (`audit_rates`의 「확인 대상은 오류가 아니다」와 같은 교훈). */
-const 행동어 = /(주세요|하세요|하시면|누르|눌러|등록|추가|만들|보내|문의|시작|불러|올려|골라|선택|넣어)/;
+/* ⚠ **명사를 행동어로 넣지 말 것.** 처음엔 「문의」·「선택」을 넣었더니
+   「**문의** 내역이 없습니다」가 「행동을 말한다」로 통과했다 — 대시보드 첫 화면의
+   막다른 안내를 자가 스스로 가려 준 셈이다. 동사꼴만 센다. */
+const 행동어 = /(주세요|하세요|하시면|누르|눌러|등록하|추가하|만들|보내시|문의하|문의해|시작하|불러|올리|올려|고르|골라|선택하|선택해|넣어|입력하)/;
 const 규칙문장 = /(수 없습니다|수 없어요|수 없음|필요 없습니다)/;
 function 빈상태(doc, scope) {
   const root = scope || doc.body;
@@ -126,6 +140,11 @@ function 빈상태(doc, scope) {
     if (!/없습니다\.?$/.test(t)) return;
     if (규칙문장.test(t)) return;   /* 「~할 수 없습니다」는 규칙 설명이지 빈 목록이 아니다 */
     if (el.closest('option, label, th, td, legend, .hint, .fld-hint')) return;
+    /* ⚠ **문장 속 강조 조각**은 빈 상태가 아니다 — 매뉴얼의 「…있지만 <strong>일정과
+       출발일이 없습니다.</strong> 홈페이지에서…」가 그렇게 걸렸다. 부모 문장이 훨씬
+       길면 그건 설명문의 한 조각이다. */
+    const parentText = ((el.parentElement && el.parentElement.textContent) || '').replace(/\s+/g, ' ').trim();
+    if (parentText.length > t.length * 2 + 20) return;
     out.push({ text: t, 행동있음: 행동어.test(t) || 행동어.test(shownText(el.parentElement || el)) });
   });
   return out;
@@ -202,6 +221,7 @@ if (require.main === module) (async () => {
       const head = p.name ? ('  · ' + p.name.padEnd(13)) : '  ·' + ' '.repeat(14);
       const 문제 = [];
       if (!m.제목) 문제.push('제목없음');
+      else if (!m.설명) 문제.push('설명없음');
       if (m.강조버튼.length > 1) 문제.push('강조 ' + m.강조버튼.length);
       if (m.무색버튼.length) 문제.push('무색 ' + m.무색버튼.length);
       if (m.기술용어.length) 문제.push('🔴영문 ' + m.기술용어.length);

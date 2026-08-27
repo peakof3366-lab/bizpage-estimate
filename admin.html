@@ -963,6 +963,15 @@
     .itic-facts { display: block; font-size: .72rem; font-weight: 700; color: var(--primary); margin-top: .3rem; }
 
     @media (max-width: 768px) { .iti-day-grid { grid-template-columns: 1fr; } }
+  
+    /* 🔴 **화면 머리말** (XT) — 탭을 눌렀을 때 「여기가 어디고 무엇을 하는 곳인지」를
+       말하는 자리. 예전에는 17개 탭 어디에도 화면 제목이 없어서, 누른 사람은 곧바로
+       도구 막대와 숫자 카드부터 마주쳤다. 팀원이 처음 여는 화면이 특히 그렇다.
+     ⚠ 카드 제목(`.card-title`)은 화면 제목이 아니다 — 그걸 제목으로 세다가
+       「제목이 있다」고 잘못 읽었다(`audit_ux.js`가 이제 `.page-title`만 본다). */
+    .page-head { margin: 0 0 1.1rem; padding-bottom: .85rem; border-bottom: 1px solid var(--line, #E5E2DC); }
+    .page-title { font-size: 1.15rem; font-weight: 800; letter-spacing: -.01em; margin: 0 0 .3rem; }
+    .page-sub { font-size: .84rem; color: var(--muted, #7A7A7A); line-height: 1.65; margin: 0; max-width: 62rem; }
   </style>
 </head>
 <body>
@@ -998,19 +1007,19 @@
     <form id="signupForm" class="hidden" style="margin-top:1rem">
       <div class="field">
         <label>가입코드</label>
-        <input type="text" id="signupCode" placeholder="관리자에게 받은 코드" autocomplete="off" required />
+        <input type="text" id="signupCode" placeholder="관리자에게 받은 코드" autocomplete="off" required aria-label="가입코드" />
       </div>
       <div class="field">
         <label>아이디</label>
-        <input type="text" id="signupUsername" placeholder="영문·숫자 2~30자" autocomplete="username" required />
+        <input type="text" id="signupUsername" placeholder="영문·숫자 2~30자" autocomplete="username" required aria-label="아이디" />
       </div>
       <div class="field">
         <label>이름 (실명)</label>
-        <input type="text" id="signupName" placeholder="요율 변경 이력에 남습니다" autocomplete="name" required />
+        <input type="text" id="signupName" placeholder="요율 변경 이력에 남습니다" autocomplete="name" required aria-label="표시 이름" />
       </div>
       <div class="field">
         <label>비밀번호</label>
-        <input type="password" id="signupPw" data-fact-ph="PASSWORD_MIN_LENGTH:{}자 이상" placeholder="8자 이상" autocomplete="new-password" required />
+        <input type="password" id="signupPw" data-fact-ph="PASSWORD_MIN_LENGTH:{}자 이상" placeholder="8자 이상" autocomplete="new-password" required aria-label="비밀번호" />
       </div>
       <p id="signupMsg" class="err-msg hidden"></p>
       <button type="submit" class="btn-login">가입 신청</button>
@@ -1159,6 +1168,10 @@
 
     <!-- ── 대시보드 ── -->
     <div class="tab-panel active" id="tab-dashboard">
+      <div class="page-head">
+        <h2 class="page-title">대시보드</h2>
+        <p class="page-sub">오늘 무엇이 들어왔는지 한눈에 봅니다. 숫자를 누르면 그 목록으로 갑니다.</p>
+      </div>
       <!-- 알림 켜기 안내 (QT) — 브라우저 알림 권한은 **사용자가 직접 누를 때만** 요청할 수
            있다(자동 요청은 브라우저가 막는다). 그래서 버튼으로 둔다.
            권한이 이미 정해졌으면 JS가 이 줄을 숨긴다. -->
@@ -1177,7 +1190,7 @@
       <div class="grid-2">
         <div class="card">
           <div class="card-header"><span class="card-title">최근 문의 5건</span><button class="btn-act btn-outline-p" onclick="switchTab('inquiries')">전체 보기</button></div>
-          <div class="card-body"><div id="recent-list" class="recent-list"><p style="color:var(--muted);font-size:.82rem">문의 내역이 없습니다.</p></div></div>
+          <div class="card-body"><div id="recent-list" class="recent-list"><p style="color:var(--muted);font-size:.82rem;line-height:1.7">아직 들어온 문의가 없습니다.<br>고객이 홈페이지에서 문의를 보내면 최근 5건이 여기 나옵니다.</p></div></div>
         </div>
         <div class="card">
           <div class="card-header"><span class="card-title">최근 7일 방문</span></div>
@@ -1207,9 +1220,13 @@
 
     <!-- ── 문의 관리 ── -->
     <div class="tab-panel" id="tab-inquiries">
+      <div class="page-head">
+        <h2 class="page-title">문의 관리</h2>
+        <p class="page-sub">고객이 홈페이지에서 보낸 문의가 여기 쌓입니다. 읽고 답한 뒤 상태를 바꿔 두면 다른 담당자도 어디까지 됐는지 압니다.</p>
+      </div>
       <div class="toolbar">
         <div class="toolbar-left">
-          <input type="search" id="inqSearch" class="search-box" placeholder="이름 · 소속 · 내용 검색..." autocomplete="off" />
+          <input type="search" id="inqSearch" class="search-box" placeholder="이름 · 소속 · 내용 검색..." autocomplete="off" aria-label="문의 검색" />
           <button class="filter-btn active" data-filter="all">전체</button>
           <button class="filter-btn" data-filter="unread">미확인</button>
           <button class="filter-btn" data-filter="read">확인</button>
@@ -1223,7 +1240,10 @@
         </div>
       </div>
       <div class="card">
-        <div id="inqEmpty" class="empty-state"><div class="empty-icon">📭</div><p>접수된 문의가 없습니다.</p></div>
+        <div id="inqEmpty" class="empty-state"><div class="empty-icon">📭</div>
+          <p>아직 들어온 문의가 없습니다.<br>
+          고객이 홈페이지 아래 <strong>「문의 보내기」</strong>나 견적 화면의
+          <strong>「바로 연락 요청」</strong>을 누르면 여기에 쌓입니다.</p></div>
         <table id="inqTable" class="inq-table hidden">
           <thead>
             <tr>
@@ -1245,6 +1265,10 @@
 
     <!-- ══ 견적 관리 (신규) ══ -->
     <div class="tab-panel" id="tab-estmgr">
+      <div class="page-head">
+        <h2 class="page-title">견적 관리</h2>
+        <p class="page-sub">고객이 직접 낸 견적과 담당자가 만든 견적이 전부 여기 모입니다. 상담 중·계약완료로 상태를 옮기며 관리합니다.</p>
+      </div>
 
       <!-- 통계 카드 -->
       <div class="stat-grid" style="margin-bottom:1.25rem">
@@ -1257,7 +1281,7 @@
       <!-- 필터 + 액션 -->
       <div class="toolbar" style="margin-bottom:1rem">
         <div class="toolbar-left">
-          <input type="search" id="emSearch" class="search-box" placeholder="목적지·기관명·담당자 검색..." style="min-width:220px" autocomplete="off" />
+          <input type="search" id="emSearch" class="search-box" placeholder="목적지·기관명·담당자 검색..." style="min-width:220px" autocomplete="off" aria-label="견적 검색" />
           <button class="filter-btn active" data-emfilter="all">전체</button>
           <button class="filter-btn" data-emfilter="new">신규</button>
           <button class="filter-btn" data-emfilter="consulting">상담중</button>
@@ -1276,11 +1300,14 @@
 
       <!-- 테이블 -->
       <div class="card" style="overflow:hidden">
-        <div id="emEmpty" class="empty-state"><div class="empty-icon">📋</div><p>생성된 견적이 없습니다.</p></div>
+        <div id="emEmpty" class="empty-state"><div class="empty-icon">📋</div>
+          <p>아직 산출된 견적이 없습니다.<br>
+          고객이 홈페이지에서 견적을 내면 자동으로 여기에 쌓이고,<br>
+          담당자가 직접 만들려면 왼쪽 <strong>「견적 산출」</strong>에서 하시면 됩니다.</p></div>
         <table id="emTable" class="inq-table hidden">
           <thead>
             <tr>
-              <th style="width:32px"><input type="checkbox" id="emSelectAll" onchange="toggleEmSelectAll(this.checked)" /></th>
+              <th style="width:32px"><input type="checkbox" id="emSelectAll" onchange="toggleEmSelectAll(this.checked)" aria-label="전체 선택" /></th>
               <th style="width:36px">#</th>
               <th>접수일시</th>
               <th>목적지</th>
@@ -1307,6 +1334,10 @@
          담당자가 휴가면 그 사람이 낸 견적서를 아무도 못 찾았다(운영 DB에 10건이
          있는데 관리자에서 볼 방법이 0개였다). -->
     <div class="tab-panel" id="tab-ledger">
+      <div class="page-head">
+        <h2 class="page-title">견적서 대장</h2>
+        <p class="page-sub">우리가 발급한 견적서가 전부 여기 있습니다. 담당자가 자리에 없어도 번호·고객명·목적지로 찾아 바로 응대하실 수 있습니다.</p>
+      </div>
       <div class="rate-update-info">
         <strong>우리가 발급한 견적서가 전부 여기 있습니다.</strong>
         담당자가 연차·휴가여도 <strong>번호·고객명·목적지·담당자</strong>로 찾아 바로 응대하실 수 있습니다.
@@ -1320,7 +1351,7 @@
 
       <div class="iti-bar">
         <input type="search" id="ledSearch" placeholder="견적번호 · 고객/회사명 · 연락처 · 목적지 · 담당자로 검색"
-               style="flex:1;min-width:240px;font-size:13px">
+               style="flex:1;min-width:240px;font-size:13px" aria-label="견적서 검색">
         <button type="button" class="btn-act btn-primary" id="ledFind">찾기</button>
         <button type="button" class="btn-act btn-outline-p" id="ledReload">전체</button>
         <span id="ledCount" style="font-size:13px;color:#666"></span>
@@ -1332,6 +1363,10 @@
     </div>
 
     <div class="tab-panel" id="tab-stats">
+      <div class="page-head">
+        <h2 class="page-title">방문 통계</h2>
+        <p class="page-sub">홈페이지에 몇 명이 왔고 어디를 봤는지 봅니다. 광고를 켰을 때 효과를 보는 자리입니다.</p>
+      </div>
       <div class="stat-grid">
         <div class="stat-card"><div id="s-all" class="stat-num">0</div><div class="stat-lbl">전체 방문</div></div>
         <div class="stat-card success"><div id="s-today" class="stat-num">0</div><div class="stat-lbl">오늘 방문</div></div>
@@ -1358,6 +1393,10 @@
 
     <!-- ── 이벤트 분석 ── -->
     <div class="tab-panel" id="tab-events">
+      <div class="page-head">
+        <h2 class="page-title">이벤트 분석</h2>
+        <p class="page-sub">고객이 어느 버튼에서 멈추는지 봅니다. 견적을 시작했다가 끝내지 못한 자리를 찾는 데 씁니다.</p>
+      </div>
       <div class="grid-2">
         <div class="card">
           <div class="card-header"><span class="card-title">버튼 클릭 통계</span></div>
@@ -1384,6 +1423,10 @@
 
     <!-- ── 견적 분석 ── -->
     <div class="tab-panel" id="tab-estimates">
+      <div class="page-head">
+        <h2 class="page-title">견적 분석</h2>
+        <p class="page-sub">어떤 목적지·연수 유형·기관이 많은지 봅니다. 상품과 광고 문구를 정할 때 씁니다.</p>
+      </div>
       <div class="stat-grid">
         <div class="stat-card"><div id="e-total" class="stat-num">0</div><div class="stat-lbl">총 견적 건수</div></div>
         <div class="stat-card success"><div id="e-avg-p" class="stat-num">0</div><div class="stat-lbl">평균 참가 인원</div></div>
@@ -1408,19 +1451,26 @@
 
     <!-- ── 마케팅 인사이트 (신규) ── -->
     <div class="tab-panel" id="tab-marketing">
+      <div class="page-head">
+        <h2 class="page-title">마케팅 인사이트</h2>
+        <p class="page-sub">문의와 견적요청에 고객이 적은 말을 모아 자주 나오는 키워드를 뽑습니다. <b>누를 때만</b> 분석 비용이 듭니다.</p>
+      </div>
       <div class="toolbar">
         <div class="toolbar-left">
           <span id="mi-meta" style="font-size:.8rem;color:var(--muted)">아직 분석한 적이 없습니다.</span>
         </div>
+        <!-- 🔴 한 번도 안 했는데 「**다시** 분석하기」였다 (XT). 처음 여는 사람에게는
+             「무엇을 다시 하라는 거지?」가 된다. 분석한 적이 있을 때만 「다시」라고 한다
+             (`renderMarketingInsightsResult`가 글자를 바꾼다). -->
         <button type="button" id="mi-reanalyze-btn" class="btn-act btn-primary" onclick="reanalyzeMarketingInsights()">
-          다시 분석하기
+          지금 분석하기
         </button>
       </div>
 
       <div id="mi-empty" class="empty-state">
         <div class="empty-icon">💡</div>
         <p>문의·견적요청에 남겨진 내용을 GPT로 분석해 마케팅에 활용할 키워드와 인사이트를 뽑아드립니다.<br>
-        위 "다시 분석하기" 버튼을 눌러 시작하세요.</p>
+        위 <strong>「지금 분석하기」</strong> 버튼을 눌러 시작하세요.</p>
       </div>
 
       <div id="mi-content" class="hidden">
@@ -1456,6 +1506,10 @@
          ⚠ PDF 업로드는 AI가 항목을 미리 채워줄 뿐 — 자동 제출되지 않는다. 사람이 값을
          확인·수정하고 "제출"을 눌러야 반영된다. -->
     <div class="tab-panel" id="tab-pricereport">
+      <div class="page-head">
+        <h2 class="page-title">견적서 업데이트</h2>
+        <p class="page-sub">실제 견적서에서 읽은 <b>진짜 단가</b>를 넣는 자리입니다. 여기 쌓인 값이 요율 관리의 갱신 제안이 됩니다.</p>
+      </div>
       <div class="pr-intro">
         <strong>여기서 넣은 숫자가 아래 세 화면의 재료가 됩니다.</strong>
         견적서에서 읽은 <b>실제 단가</b>를 남기면 목적지별로 모여
@@ -1479,21 +1533,21 @@
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem 1rem;margin-bottom:1rem;max-width:760px">
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">목적지</div>
-              <select id="pr-dest" class="status-select" style="width:100%"></select>
+              <select id="pr-dest" class="status-select" style="width:100%" aria-label="목적지"></select>
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">출발일 📅</div>
-              <input type="date" id="pr-depart" class="pw-input" style="width:100%" />
+              <input type="date" id="pr-depart" class="pw-input" style="width:100%" aria-label="출발일" />
               <div id="pr-depart-note" style="font-size:.7rem;color:var(--muted);margin-top:.25rem"></div>
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">견적 작성일</div>
-              <input type="date" id="pr-quote-date" class="pw-input" style="width:100%" />
+              <input type="date" id="pr-quote-date" class="pw-input" style="width:100%" aria-label="견적서 작성일" />
               <div id="pr-lead-note" style="font-size:.7rem;color:var(--muted);margin-top:.25rem"></div>
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">박 수</div>
-              <input type="number" id="pr-nights" class="pw-input" min="0" max="60" style="width:100%" placeholder="예: 3" />
+              <input type="number" id="pr-nights" class="pw-input" min="0" max="60" style="width:100%" placeholder="예: 3" aria-label="숙박 수(박)" />
             </div>
           </div>
 
@@ -1519,7 +1573,7 @@
               숫자를 직접 칠 필요는 없습니다.
             </p>
             <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
-              <input type="file" id="pr-pdf" accept="application/pdf" style="font-size:.76rem" />
+              <input type="file" id="pr-pdf" accept="application/pdf" style="font-size:.76rem" aria-label="견적서 PDF 파일" />
               <button type="button" class="btn-act btn-outline-p" onclick="extractPdfDetails()">PDF에서 추출</button>
             </div>
           </div>
@@ -1545,15 +1599,15 @@
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.75rem 1rem;align-items:start">
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 항공료(1인당)</div>
-              <input type="number" id="pr-airfare" class="pw-input" min="0" placeholder="예: 420000" />
+              <input type="number" id="pr-airfare" class="pw-input" min="0" placeholder="예: 420000" aria-label="항공 단가(원)" />
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 호텔단가(1박)</div>
-              <input type="number" id="pr-hotel" class="pw-input" min="0" placeholder="예: 130000" />
+              <input type="number" id="pr-hotel" class="pw-input" min="0" placeholder="예: 130000" aria-label="호텔 단가(원)" />
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 이용 호텔명</div>
-              <input type="text" id="pr-hotel-name" class="pw-input" maxlength="80" placeholder="예: OO 호텔" />
+              <input type="text" id="pr-hotel-name" class="pw-input" maxlength="80" placeholder="예: OO 호텔" aria-label="호텔 이름" />
               <!-- 어느 나라로 정리되는지 입력 순간에 보여준다 (RY) — 호텔 체인은 이름만으로는
                    나라를 알 수 없어서, 목적지를 잘못 고른 채 넣으면 나중에 목록에서 찾을 수
                    없다. 저장 뒤에 확인하는 게 아니라 넣기 전에 보이게 한다. -->
@@ -1561,36 +1615,36 @@
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 식비(1인 1일)</div>
-              <input type="number" id="pr-meal" class="pw-input" min="0" placeholder="예: 50000" />
+              <input type="number" id="pr-meal" class="pw-input" min="0" placeholder="예: 50000" aria-label="식비 단가(원)" />
             </div>
             <!-- RQ: 요율표의 나머지 항목 — 견적서에서 이미 뽑히던 값들이다.
                  2026-08-04 회의에서 정의한 추출 필드(차량·가이드비·판매가)를 담는다. -->
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 유류할증료(1인당)</div>
-              <input type="number" id="pr-fuel" class="pw-input" min="0" placeholder="예: 90000" />
+              <input type="number" id="pr-fuel" class="pw-input" min="0" placeholder="예: 90000" aria-label="유류할증료(원)" />
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 차량비(대당 1일)</div>
-              <input type="number" id="pr-vehicle" class="pw-input" min="0" placeholder="예: 940000" />
+              <input type="number" id="pr-vehicle" class="pw-input" min="0" placeholder="예: 940000" aria-label="차량비(원)" />
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 가이드비(1일)</div>
-              <input type="number" id="pr-guide" class="pw-input" min="0" placeholder="예: 209000" />
+              <input type="number" id="pr-guide" class="pw-input" min="0" placeholder="예: 209000" aria-label="가이드비(원)" />
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 관광·입장료(1인당)</div>
-              <input type="number" id="pr-sight" class="pw-input" min="0" placeholder="예: 40000" />
+              <input type="number" id="pr-sight" class="pw-input" min="0" placeholder="예: 40000" aria-label="관광비(원)" />
             </div>
             <div>
               <!-- TJ: 골프는 관광과 다른 칸이다 — 자릿수가 달라 섞으면 그 목적지 관광비
                    기준이 왜곡되고, 골프를 안 치는 고객의 견적까지 간다.
                    골프가 없는 견적서에서는 그냥 빈칸으로 남는다(대부분이 그렇다). -->
               <div class="detail-label" style="margin-bottom:.3rem">실제 골프(1인 1회 라운딩)</div>
-              <input type="number" id="pr-golf" class="pw-input" min="0" placeholder="예: 170000" />
+              <input type="number" id="pr-golf" class="pw-input" min="0" placeholder="예: 170000" aria-label="골프비(원)" />
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">최종 판매가(1인) 📏<span style="font-weight:400;text-transform:none;letter-spacing:0"> 정확도 기준</span></div>
-              <input type="number" id="pr-sell" class="pw-input" min="0" placeholder="예: 1190000" />
+              <input type="number" id="pr-sell" class="pw-input" min="0" placeholder="예: 1190000" aria-label="1인 판매가(원)" />
             </div>
           </div>
 
@@ -1619,7 +1673,7 @@
         <div class="card-body">
           <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">지금까지 넣은 <strong style="color:var(--heading)">실제 이용 호텔명</strong>을 <strong style="color:var(--heading)">지역 → 나라 → 도시</strong>로 묶어 보여줍니다. 같은 호텔은 한 줄로 합치고 사용 횟수·최근 사용일을 답니다. 요율(가격)에는 반영되지 않으며, 고객에게는 나가지 않습니다.</p>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem">
-            <input type="text" id="hotel-ref-search" class="pw-input" style="max-width:300px" placeholder="호텔명·나라·지역·도시로 찾기" oninput="renderHotelReference()" />
+            <input type="text" id="hotel-ref-search" class="pw-input" style="max-width:300px" placeholder="호텔명·나라·지역·도시로 찾기" oninput="renderHotelReference()" aria-label="호텔 검색" />
             <button type="button" class="btn-act btn-outline-p" onclick="exportHotelReferenceCsv()">⤓ CSV 내보내기</button>
             <span id="hotel-ref-count" style="font-size:.76rem;color:var(--muted)"></span>
           </div>
@@ -1640,6 +1694,10 @@
 
     <!-- ── 요율 관리 ── -->
     <div class="tab-panel" id="tab-rates">
+      <div class="page-head">
+        <h2 class="page-title">요율 관리</h2>
+        <p class="page-sub">🔴 <b>고객에게 나가는 금액이 여기서 정해집니다.</b> 목적지마다 항공·호텔·식비 같은 기준 단가를 고칩니다. 저장하면 그 뒤 견적부터 바뀝니다.</p>
+      </div>
 
       <!-- 실행취소 배너: 방금 한 편집/일괄조정을 즉시 되돌릴 수 있게(신중히 확인하라는
            안내와 별개로, 실수했을 때 바로 원복 가능하도록) -->
@@ -1732,7 +1790,7 @@
 
       <!-- 필터 + 검색 + 정렬 + 내보내기 -->
       <div class="rate-filter-bar">
-        <input type="search" id="rateSearch" class="search-box" placeholder="목적지 · 지역 검색..." style="min-width:180px" autocomplete="off" />
+        <input type="search" id="rateSearch" class="search-box" placeholder="목적지 · 지역 검색..." style="min-width:180px" autocomplete="off" aria-label="목적지 검색" />
         <button class="filter-btn active" data-rfilter="all">전체</button>
         <button class="filter-btn" data-rfilter="ok">✅ 최신</button>
         <button class="filter-btn" data-rfilter="check">⚠️ 확인 권장</button>
@@ -1741,7 +1799,7 @@
              '갱신 필요'(기준월 경과)와는 다른 축이다 — 이건 "실측 근거가 있느냐"다. -->
         <button class="filter-btn" data-rfilter="estimated" title="세 단가(항공·호텔·식비)가 모두 온라인 추정치인 목적지">❓ 온라인 추정만</button>
         <button class="filter-btn" data-rfilter="measured" title="실제 견적서로 확인된 단가가 하나라도 있는 목적지">✅ 실측 있음</button>
-        <select class="status-select" id="rateSortMode" style="margin-left:auto" onchange="renderRates()">
+        <select class="status-select" id="rateSortMode" style="margin-left:auto" onchange="renderRates()" aria-label="정렬 방식">
           <option value="region">지역순</option>
           <option value="priority">확인 필요한 순</option>
         </select>
@@ -1820,6 +1878,10 @@
          계산 엔진(DOM 결합도가 높아 손대기 위험한 getBreakdownData 등)은 전혀 건드리지 않아
          공개 견적 계산기에 회귀 버그가 생길 위험이 없다. -->
     <div class="tab-panel" id="tab-quotetool">
+      <div class="page-head">
+        <h2 class="page-title">내부 견적 산출</h2>
+        <p class="page-sub">담당자가 고객 대신 견적을 내는 화면입니다. 고객 화면과 같은 엔진을 쓰되, 수익 항목까지 함께 보입니다.</p>
+      </div>
       <div class="card" style="padding:0;overflow:hidden">
         <iframe id="quoteToolFrame" title="내부 견적 산출"
           style="width:100%;height:calc(100vh - 150px);border:none;display:block;background:#fff"></iframe>
@@ -1829,6 +1891,10 @@
     <!-- ── 매뉴얼 (QN) ── manual.html을 그대로 띄운다. 새 탭으로도 열 수 있게 링크를 둔다:
          인쇄하거나 두 화면을 나란히 보며 따라 하는 경우가 실제로 많다. -->
     <div class="tab-panel" id="tab-manual">
+      <div class="page-head">
+        <h2 class="page-title">매뉴얼</h2>
+        <p class="page-sub">이 화면을 처음 쓰는 분을 위한 사용 설명서입니다. 새 탭으로 열어 두고 따라 하셔도 됩니다.</p>
+      </div>
       <div style="display:flex;justify-content:flex-end;margin-bottom:.6rem">
         <a href="manual.html" target="_blank" rel="noopener" class="btn-act btn-outline-p"
            style="text-decoration:none;display:inline-flex;align-items:center">새 탭으로 열기 ↗</a>
@@ -1857,6 +1923,10 @@
          부분 저장(api/content.js coalesce) 덕분에 한 구역을 저장해도 다른 구역은
          동료가 방금 고친 값 그대로 남는다. 그건 갈라서 얻은 진짜 소득이라 버리지 않는다. -->
     <div class="tab-panel" id="tab-itineraries">
+      <div class="page-head">
+        <h2 class="page-title">일정 · 방식 A·B</h2>
+        <p class="page-sub">목적지마다 추천 코스와 진행 방식을 정합니다. 여기서 저장한 일정이 고객 견적서에 실려 나갑니다.</p>
+      </div>
       <!-- 떠 있는 저장 바 (QZ) — 이 화면은 도쿄 기준 7,500px(약 8화면)이고 입력칸이 94개다.
            마지막 코스를 고치고 나면 저장하려고 6,000px를 되돌아 올라가야 했다.
            ⚠ 이 패널 **안**에 둔다. 밖에 두면 다른 탭에서도 떠 있게 된다
@@ -1936,6 +2006,10 @@
            실측 기준 +21.5%·+41.7% 비싸게 나온다 — 그래서 안 태운다.
          ══════════════════════════════════════════════════════════════════ -->
     <div class="tab-panel" id="tab-packages">
+      <div class="page-head">
+        <h2 class="page-title">패키지 상품</h2>
+        <p class="page-sub">하나투어 상품을 그대로 받아 파는 자리입니다. <b>「판매중」으로 열어야</b> 고객 화면 목록에 나옵니다.</p>
+      </div>
       <div class="rate-update-info">
         <strong>여기서 입력한 1인 금액이 고객에게 그대로 나갑니다</strong> —
         요율표·계수·마진이 붙지 않습니다. 우리가 대리점으로 받은 판매가를 그대로 적어 주세요.
@@ -2000,6 +2074,10 @@
            kind로만 갈린다 — 서버·API는 그대로다(화면 배치만 갈랐다).
          ══════════════════════════════════════════════════════════════════ -->
     <div class="tab-panel" id="tab-adhoc">
+      <div class="page-head">
+        <h2 class="page-title">소규모 견적</h2>
+        <p class="page-sub">엔진을 안 거치고 <b>금액을 직접 적어</b> 견적서를 내는 자리입니다. 소규모·특수 건에 씁니다.</p>
+      </div>
       <div class="rate-update-info">
         <strong>이 손님 한 분을 위한 1회용 견적입니다</strong> — 가족·친목 모임·소수 기업 팀.
         <b>고객 목록(패키지 여행)에는 절대 나가지 않고</b> 견적서 링크로만 나갑니다.
@@ -2153,7 +2231,7 @@
           </p>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <input type="url" id="pkgHtUrl" placeholder="https://www.hanatour.com/trp/pkg/...?pkgCd=..."
-                   style="flex:1;min-width:280px;padding:8px 10px;border:1px solid #D8D8D2;font-size:12px">
+                   style="flex:1;min-width:280px;padding:8px 10px;border:1px solid #D8D8D2;font-size:12px" aria-label="하나투어 상품 주소">
             <button type="button" class="btn-act btn-outline-p" id="pkgHtRead">읽어서 채우기</button>
           </div>
           <p id="pkgHtMsg" style="margin:8px 0 0;font-size:12px;line-height:1.7"></p>
@@ -2173,7 +2251,7 @@
             이미 적어 두신 칸은 건드리지 않습니다.
           </p>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <input type="file" id="pkgPdf" accept="application/pdf" style="font-size:12px">
+            <input type="file" id="pkgPdf" accept="application/pdf" style="font-size:12px" aria-label="상품 PDF 파일">
             <button type="button" class="btn-act btn-outline-p" id="pkgPdfRead">읽어서 채우기</button>
             <span id="pkgPdfMsg" style="font-size:12px"></span>
           </div>
@@ -2212,7 +2290,7 @@
             대장에만 남아 담당자가 자리를 비웠을 때 다른 분이 이어받는 데 씁니다.
           </p>
           <div id="pkgIssueOut" class="hidden" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <input type="text" id="pkgIssueUrl" readonly style="flex:1;min-width:260px;font-size:12px">
+            <input type="text" id="pkgIssueUrl" readonly style="flex:1;min-width:260px;font-size:12px" aria-label="발급된 견적서 주소">
             <button class="btn-act btn-outline-p" id="pkgIssueCopy">링크 복사</button>
             <a class="btn-act btn-outline-p" id="pkgIssueOpen" target="_blank" rel="noopener" style="text-decoration:none">열어 보기 ↗</a>
           </div>
@@ -2223,6 +2301,10 @@
          섹션별 카드로 동적 생성한다(요율 관리가 55개 목적지 행을 RATE_META에서 동적으로
          그리는 것과 동일한 방식) — 유사 블록을 손으로 반복 작성하지 않기 위함. -->
     <div class="tab-panel" id="tab-content">
+      <div class="page-head">
+        <h2 class="page-title">콘텐츠 관리</h2>
+        <p class="page-sub">홈페이지에 나가는 글과 사진을 고칩니다. 저장하면 고객 화면에 바로 반영됩니다.</p>
+      </div>
       <div class="rate-update-info">
         <strong>이미지는 URL만 입력하는 방식입니다</strong> (파일 업로드 아님) — 새 이미지를 쓰려면 먼저
         어딘가에 업로드해서 바로 접근 가능한 이미지 링크(.jpg/.png/.webp로 끝나는 주소)를 확보한 뒤
@@ -2237,6 +2319,10 @@
 
     <!-- ── 설정 ── -->
     <div class="tab-panel" id="tab-settings">
+      <div class="page-head">
+        <h2 class="page-title">설정</h2>
+        <p class="page-sub">내 계정과 팀원 계정을 관리합니다. 팀원 가입코드도 여기서 만듭니다.</p>
+      </div>
       <div style="max-width:680px">
         <div class="setting-section">
           <div class="setting-title">계정 정보</div>
@@ -2247,13 +2333,13 @@
             <div class="setting-info"><p>비밀번호 변경</p><span>현재 비밀번호 입력 후 새 비밀번호를 설정합니다.</span></div>
           </div>
           <div class="pw-form" id="pwForm">
-            <input type="password" class="pw-input" id="pwCurrent" placeholder="현재 비밀번호" />
+            <input type="password" class="pw-input" id="pwCurrent" placeholder="현재 비밀번호" aria-label="현재 비밀번호" />
             <!-- 화면은 "6자 이상"이라고 안내했는데 클라이언트·서버 모두 8자를 요구했다.
                  안내를 그대로 따른 사람만 거절당한다 — 팀원이 첫 로그인 뒤 비밀번호를
                  바꿀 때 정확히 이 자리를 지난다. 코드가 아니라 안내가 틀렸으므로
                  안내를 실제 규칙에 맞춘다(가입 화면·계정 생성 칸은 이미 8자로 맞다). -->
-            <input type="password" class="pw-input" id="pwNew" data-fact-ph="PASSWORD_MIN_LENGTH:새 비밀번호 ({}자 이상)" placeholder="새 비밀번호 (8자 이상)" />
-            <input type="password" class="pw-input" id="pwConfirm" placeholder="새 비밀번호 확인" />
+            <input type="password" class="pw-input" id="pwNew" data-fact-ph="PASSWORD_MIN_LENGTH:새 비밀번호 ({}자 이상)" placeholder="새 비밀번호 (8자 이상)" aria-label="새 비밀번호" />
+            <input type="password" class="pw-input" id="pwConfirm" placeholder="새 비밀번호 확인" aria-label="새 비밀번호 확인" />
             <p id="pwMsg" style="font-size:.78rem;color:var(--danger)"></p>
             <button class="btn-act btn-primary" style="width:fit-content" onclick="changePw()">비밀번호 변경</button>
           </div>
@@ -2299,7 +2385,7 @@
               <p>직원 가입코드</p>
               <span>이 코드를 아는 사람만 로그인 화면에서 가입 신청을 할 수 있습니다. 신청은 항상 <strong>승인 대기</strong> 상태로 들어오고, 아래 목록에서 승인해야 로그인됩니다. 비워두면 가입 신청을 받지 않습니다.</span>
             </div>
-            <input type="text" id="signup-code-input" class="pw-input" data-fact-ph="SIGNUP_CODE_MIN,SIGNUP_CODE_MAX:영문·숫자 {}~{}자" placeholder="영문·숫자 6~40자" style="width:220px" autocomplete="off" />
+            <input type="text" id="signup-code-input" class="pw-input" data-fact-ph="SIGNUP_CODE_MIN,SIGNUP_CODE_MAX:영문·숫자 {}~{}자" placeholder="영문·숫자 6~40자" style="width:220px" autocomplete="off" aria-label="팀원 가입코드" />
             <button class="btn-act btn-primary" onclick="saveSignupCode()">코드 저장</button>
             <button class="btn-act btn-outline-p" onclick="clearSignupCode()">가입 받지 않기</button>
             <span id="signup-code-msg" style="font-size:.8rem;color:var(--muted)"></span>
@@ -2318,10 +2404,10 @@
             </table>
           </div>
           <div class="setting-row" style="margin-top:1rem;align-items:flex-start;flex-wrap:wrap;gap:.6rem">
-            <input type="text" id="new-staff-username" class="pw-input" placeholder="아이디 (영문/숫자)" style="width:160px" />
-            <input type="text" id="new-staff-name" class="pw-input" placeholder="표시 이름" style="width:140px" />
-            <input type="password" id="new-staff-password" class="pw-input" data-fact-ph="PASSWORD_MIN_LENGTH:초기 비밀번호 ({}자 이상)" placeholder="초기 비밀번호 (8자 이상)" style="width:180px" />
-            <select id="new-staff-role" class="status-select">
+            <input type="text" id="new-staff-username" class="pw-input" placeholder="아이디 (영문/숫자)" style="width:160px" aria-label="새 팀원 아이디" />
+            <input type="text" id="new-staff-name" class="pw-input" placeholder="표시 이름" style="width:140px" aria-label="새 팀원 표시 이름" />
+            <input type="password" id="new-staff-password" class="pw-input" data-fact-ph="PASSWORD_MIN_LENGTH:초기 비밀번호 ({}자 이상)" placeholder="초기 비밀번호 (8자 이상)" style="width:180px" aria-label="새 팀원 초기 비밀번호" />
+            <select id="new-staff-role" class="status-select" aria-label="새 팀원 권한">
               <option value="staff">직원</option>
               <option value="manager">매니저</option>
               <option value="owner">관리자</option>
@@ -2437,7 +2523,7 @@
           <span>답변 내용</span>
           <span id="d-reply-meta" style="font-size:.72rem;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">아직 답변하지 않았습니다.</span>
         </div>
-        <textarea class="note-area" id="d-reply-text" placeholder="고객에게 전달한(또는 전달할) 답변 내용을 입력하세요..." style="margin-top:.5rem"></textarea>
+        <textarea class="note-area" id="d-reply-text" placeholder="고객에게 전달한(또는 전달할) 답변 내용을 입력하세요..." style="margin-top:.5rem" aria-label="고객에게 보낸 답변 내용"></textarea>
         <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center">
           <span class="rate-author-tag" id="d-reply-author-tag"></span>
           <button type="button" class="btn-act btn-primary" onclick="confirmReply('inquiry', currentModalId, 'd-reply-text', 'd-reply-meta')" style="flex:0 0 auto">답변 확정</button>
@@ -2446,16 +2532,16 @@
 
       <div class="detail-field">
         <div class="detail-label">관리자 메모</div>
-        <textarea class="note-area" id="d-note" placeholder="메모를 입력하세요..."></textarea>
+        <textarea class="note-area" id="d-note" placeholder="메모를 입력하세요..." aria-label="내부 메모"></textarea>
       </div>
       <div class="modal-actions">
-        <select class="status-select" id="d-status">
+        <select class="status-select" id="d-status" aria-label="문의 처리 상태">
           <option value="unread">신규</option>
           <option value="read">확인</option>
           <option value="pending">처리중</option>
           <option value="done">완료</option>
         </select>
-        <select class="status-select" id="d-assignee" onchange="confirmAssigneeSelect(this)">
+        <select class="status-select" id="d-assignee" onchange="confirmAssigneeSelect(this)" aria-label="담당자">
           <option value="">담당자 미배정</option>
         </select>
         <button class="btn-act btn-primary" onclick="saveDetail()">저장</button>
@@ -2469,7 +2555,7 @@
         <div id="d-log-list" style="margin:.5rem 0"></div>
         <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center;flex-wrap:wrap">
           <span class="rate-author-tag" id="d-log-author-tag"></span>
-          <input type="text" id="d-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" />
+          <input type="text" id="d-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" aria-label="진행 상황 기록" />
           <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('inquiry', currentModalId, 'd-log-text', 'd-log-list')">추가</button>
         </div>
       </div>
@@ -2561,7 +2647,7 @@
         <div style="display:grid;grid-template-columns:auto auto 1fr;gap:1rem;align-items:start">
           <div>
             <div class="detail-label" style="margin-bottom:.4rem">상태 변경</div>
-            <select id="em-status-sel" class="status-select">
+            <select id="em-status-sel" class="status-select" aria-label="견적 상태">
               <option value="new">신규</option>
               <option value="consulting">상담중</option>
               <option value="contracted">계약완료</option>
@@ -2570,13 +2656,13 @@
           </div>
           <div>
             <div class="detail-label" style="margin-bottom:.4rem">담당자</div>
-            <select id="em-assignee-sel" class="status-select" onchange="confirmAssigneeSelect(this)">
+            <select id="em-assignee-sel" class="status-select" onchange="confirmAssigneeSelect(this)" aria-label="담당자">
               <option value="">미배정</option>
             </select>
           </div>
           <div style="flex:1">
             <div class="detail-label" style="margin-bottom:.4rem">상담 메모</div>
-            <textarea id="em-note-area" class="note-area" placeholder="상담 내용, 고객 요구사항, 특이사항 등을 기록하세요..." style="min-height:80px"></textarea>
+            <textarea id="em-note-area" class="note-area" placeholder="상담 내용, 고객 요구사항, 특이사항 등을 기록하세요..." style="min-height:80px" aria-label="상담 메모"></textarea>
           </div>
         </div>
 
@@ -2587,7 +2673,7 @@
           <div class="detail-label" style="margin-bottom:.4rem">실제 계약 항공료 (1인당)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <span id="em-est-airfare" style="font-size:.8rem;color:var(--muted)"></span>
-            <input type="number" id="em-actual-airfare" class="pw-input" style="width:160px" min="0" placeholder="예: 410000" />
+            <input type="number" id="em-actual-airfare" class="pw-input" style="width:160px" min="0" placeholder="예: 410000" aria-label="실제 항공 단가(원)" />
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualAirfare()">저장</button>
             <span id="em-actual-airfare-msg" style="font-size:.76rem;font-weight:700"></span>
           </div>
@@ -2599,7 +2685,7 @@
           <div class="detail-label" style="margin-bottom:.4rem">실제 계약 호텔단가 (1박)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <span id="em-est-hotel" style="font-size:.8rem;color:var(--muted)"></span>
-            <input type="number" id="em-actual-hotel" class="pw-input" style="width:160px" min="0" placeholder="예: 180000" />
+            <input type="number" id="em-actual-hotel" class="pw-input" style="width:160px" min="0" placeholder="예: 180000" aria-label="실제 호텔 단가(원)" />
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualHotel()">저장</button>
             <span id="em-actual-hotel-msg" style="font-size:.76rem;font-weight:700"></span>
           </div>
@@ -2611,7 +2697,7 @@
           <div class="detail-label" style="margin-bottom:.4rem">실제 계약 식비 (1인 1일)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <span id="em-est-meal" style="font-size:.8rem;color:var(--muted)"></span>
-            <input type="number" id="em-actual-meal" class="pw-input" style="width:160px" min="0" placeholder="예: 22000" />
+            <input type="number" id="em-actual-meal" class="pw-input" style="width:160px" min="0" placeholder="예: 22000" aria-label="실제 식비 단가(원)" />
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualMeal()">저장</button>
             <span id="em-actual-meal-msg" style="font-size:.76rem;font-weight:700"></span>
           </div>
@@ -2623,7 +2709,7 @@
           <div class="detail-label" style="margin-bottom:.4rem">실제 총 계약가 (전체 최종 금액)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <span id="em-est-total" style="font-size:.8rem;color:var(--muted)"></span>
-            <input type="number" id="em-actual-total" class="pw-input" style="width:180px" min="0" placeholder="예: 42000000" />
+            <input type="number" id="em-actual-total" class="pw-input" style="width:180px" min="0" placeholder="예: 42000000" aria-label="실제 총 계약가(원)" />
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualTotal()">저장</button>
             <span id="em-actual-total-msg" style="font-size:.76rem;font-weight:700"></span>
           </div>
@@ -2662,7 +2748,7 @@
           <div id="em-log-list" style="margin:.5rem 0"></div>
           <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center;flex-wrap:wrap">
             <span class="rate-author-tag" id="em-log-author-tag"></span>
-            <input type="text" id="em-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" />
+            <input type="text" id="em-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" aria-label="진행 상황 기록" />
             <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('quote', emCurrentId, 'em-log-text', 'em-log-list')">추가</button>
           </div>
         </div>
@@ -2682,13 +2768,13 @@
     <div class="modal-body">
       <div class="detail-field" style="background:#eff6ff;border:1px solid #bfdbfe;padding:.7rem .9rem">
         <div class="detail-label" style="color:#1d4ed8">🌤️ 현지 여행 시즌 (참고용 — 웹 조사 기반)</div>
-        <textarea class="note-area" id="rate-edit-season" placeholder="예: 성수기 3~4월(벚꽃) · 비수기 1~2월..." style="min-height:50px;margin-top:.4rem"></textarea>
+        <textarea class="note-area" id="rate-edit-season" placeholder="예: 성수기 3~4월(벚꽃) · 비수기 1~2월..." style="min-height:50px;margin-top:.4rem" aria-label="시즌 안내 문구"></textarea>
         <p style="font-size:.72rem;color:#1d4ed8;margin-top:.3rem">단가 조정 시 참고용 정보이며, 위 SEASON_CONFIG(한국 출발 수요 기준 성수기 계수)와는 별개입니다.</p>
       </div>
       <div id="rate-edit-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:1rem"></div>
       <div class="detail-field" style="margin-top:1rem">
         <div class="detail-label">비고 / 참고사항</div>
-        <textarea class="note-area" id="rate-edit-notes" placeholder="변동성·확인 주의사항 등을 입력하세요..." style="min-height:60px"></textarea>
+        <textarea class="note-area" id="rate-edit-notes" placeholder="변동성·확인 주의사항 등을 입력하세요..." style="min-height:60px" aria-label="주의사항 메모"></textarea>
       </div>
       <div class="modal-actions">
         <span id="rate-edit-author" class="rate-author-tag"></span>
@@ -2722,7 +2808,7 @@
     <div class="modal-body">
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.7rem">
         <div class="detail-label" style="margin:0">목적지</div>
-        <select id="nc-filter" class="status-select" style="min-width:170px" onchange="renderNeedCheck()"></select>
+        <select id="nc-filter" class="status-select" style="min-width:170px" onchange="renderNeedCheck()" aria-label="목록 거르기"></select>
         <label style="font-size:.76rem;display:flex;align-items:center;gap:.3rem">
           <input type="checkbox" id="nc-only-risky" checked onchange="renderNeedCheck()"> 확인이 필요한 것만
         </label>
@@ -2759,7 +2845,7 @@
     <div class="modal-body">
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem">
         <div class="detail-label" style="margin:0">목적지 필터</div>
-        <select id="pr-list-filter" class="status-select" style="min-width:180px" onchange="renderPriceReportsList()"></select>
+        <select id="pr-list-filter" class="status-select" style="min-width:180px" onchange="renderPriceReportsList()" aria-label="목록 거르기"></select>
         <span style="font-size:.76rem;color:var(--muted)">잘못 입력된 제보는 🗑 삭제하면 갱신제안·검증에서 즉시 빠집니다.<br>
           값을 <strong>남겨 두되 평균에만 안 넣고</strong> 싶으면 그 숫자를 눌러 <strong>제외</strong>하세요 —
           두 도시를 도는 일정에서 다른 도시 값이 섞일 때 씁니다.</span>
@@ -2793,15 +2879,15 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem">
         <div>
           <div class="detail-label" style="margin-bottom:.3rem">목적지 키(내부용, 견적서에 그대로 표시됨)</div>
-          <input type="text" id="new-dest-key" class="pw-input" maxlength="40" placeholder="예: 교토" />
+          <input type="text" id="new-dest-key" class="pw-input" maxlength="40" placeholder="예: 교토" aria-label="새 목적지 키" />
         </div>
         <div>
           <div class="detail-label" style="margin-bottom:.3rem">표시명</div>
-          <input type="text" id="new-dest-label" class="pw-input" maxlength="80" placeholder="예: 교토 (Kyoto)" />
+          <input type="text" id="new-dest-label" class="pw-input" maxlength="80" placeholder="예: 교토 (Kyoto)" aria-label="새 목적지 표시 이름" />
         </div>
         <div>
           <div class="detail-label" style="margin-bottom:.3rem">비즈니스석 구간</div>
-          <select id="new-dest-zone" class="status-select">
+          <select id="new-dest-zone" class="status-select" aria-label="좌석 권역">
             <option value="short">단거리 (×2.5)</option>
             <option value="mid">중거리 (×3.2)</option>
             <option value="long">장거리 (×4.0)</option>
@@ -2811,7 +2897,7 @@
           <!-- 보험 권역 (신규) — 이 값이 없으면 견적 엔진이 보험 권역 계수를
                1.00(중립)으로 조용히 폴백한다. 권역별로 0.85~1.80이라 최대 80% 어긋난다. -->
           <div class="detail-label" style="margin-bottom:.3rem">보험 권역</div>
-          <select id="new-dest-insurance" class="status-select">
+          <select id="new-dest-insurance" class="status-select" aria-label="보험 권역">
             <!-- TE: 국내(제주도) 구간. 국내여행자보험은 해외와 성격이 다르다 -->
             <option value="domestic">국내 (×0.15)</option>
             <option value="asiaShort">아시아 단거리 (×0.85)</option>
@@ -2833,13 +2919,13 @@
                성수기가 정반대인 곳이 있어(동남아는 7~8월이 우기 비수기) 항공·유류·호텔이
                최대 36% 어긋난다. 선택지는 data.js DEST_SEASON_PROFILES에서 만든다. -->
           <div class="detail-label" style="margin-bottom:.3rem">시즌 프로파일(성수기 달력)</div>
-          <select id="new-dest-season-profile" class="status-select">
+          <select id="new-dest-season-profile" class="status-select" aria-label="시즌 달력">
             <option value="">공용 시즌표 (권역 프로파일 없음)</option>
           </select>
         </div>
         <div>
           <div class="detail-label" style="margin-bottom:.3rem">현지 통화(환율 보정용)</div>
-          <select id="new-dest-currency" class="status-select">
+          <select id="new-dest-currency" class="status-select" aria-label="정산 통화">
             <option value="">없음 (환율 보정 안 함)</option>
             <option value="JPY">JPY 일본 엔</option>
             <option value="USD">USD 미국 달러</option>
@@ -2867,7 +2953,7 @@
         </div>
         <div>
           <div class="detail-label" style="margin-bottom:.3rem">지역(일괄조정 분류)</div>
-          <select id="new-dest-region" class="status-select">
+          <select id="new-dest-region" class="status-select" aria-label="관리자 지역">
             <option value="">기타</option>
             <option value="일본">일본</option>
             <option value="홍콩·마카오">홍콩·마카오</option>
@@ -2885,17 +2971,17 @@
              '나라 미지정'으로 모여 화면에서 빨갛게 드러난다(조용히 묻히지 않게). -->
         <div>
           <div class="detail-label" style="margin-bottom:.3rem">나라 (호텔 정리용)</div>
-          <input type="text" id="new-dest-country" class="pw-input" maxlength="40" placeholder="예: 베트남" />
+          <input type="text" id="new-dest-country" class="pw-input" maxlength="40" placeholder="예: 베트남" aria-label="국가" />
         </div>
       </div>
       <div id="new-dest-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:1rem"></div>
       <div class="detail-field" style="margin-top:1rem">
         <div class="detail-label">현지 여행 시즌 (참고용)</div>
-        <textarea class="note-area" id="new-dest-season" placeholder="예: 성수기 3~4월(벚꽃) · 비수기 1~2월..." style="min-height:50px"></textarea>
+        <textarea class="note-area" id="new-dest-season" placeholder="예: 성수기 3~4월(벚꽃) · 비수기 1~2월..." style="min-height:50px" aria-label="시즌 안내 문구"></textarea>
       </div>
       <div class="detail-field" style="margin-top:1rem">
         <div class="detail-label">비고 / 참고사항</div>
-        <textarea class="note-area" id="new-dest-notes" placeholder="변동성·확인 주의사항 등을 입력하세요..." style="min-height:60px"></textarea>
+        <textarea class="note-area" id="new-dest-notes" placeholder="변동성·확인 주의사항 등을 입력하세요..." style="min-height:60px" aria-label="주의사항 메모"></textarea>
       </div>
       <div class="modal-actions">
         <span id="new-dest-author" class="rate-author-tag"></span>
@@ -2918,11 +3004,11 @@
     <div class="modal-body">
       <div class="detail-field">
         <div class="detail-label">대상 지역</div>
-        <select class="status-select" id="rate-bulk-region" style="width:100%" onchange="updateRateBulkPreview()"></select>
+        <select class="status-select" id="rate-bulk-region" style="width:100%" onchange="updateRateBulkPreview()" aria-label="일괄 변경할 지역"></select>
       </div>
       <div class="detail-field">
         <div class="detail-label">조정할 항목</div>
-        <select class="status-select" id="rate-bulk-field" style="width:100%">
+        <select class="status-select" id="rate-bulk-field" style="width:100%" aria-label="일괄 변경할 항목">
           <option value="airfare">항공료</option>
           <option value="fuel_surcharge">유류할증료</option>
           <option value="hotel_per_room">호텔(1박)</option>
@@ -2936,7 +3022,7 @@
       </div>
       <div class="detail-field">
         <div class="detail-label">조정 비율 (%, 인상은 양수·인하는 음수)</div>
-        <input type="number" id="rate-bulk-pct" class="search-box" style="width:100%" placeholder="예: 5 또는 -5" />
+        <input type="number" id="rate-bulk-pct" class="search-box" style="width:100%" placeholder="예: 5 또는 -5" aria-label="변경 비율(%)" />
       </div>
       <div id="rate-bulk-preview" style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem"></div>
       <div class="modal-actions">
@@ -3005,7 +3091,7 @@
              후보에 안 나타난다. -->
       <div id="eq-import-row" class="hidden" style="display:flex;gap:.4rem;margin-top:.6rem;align-items:center;flex-wrap:wrap">
         <span style="font-size:.74rem;color:var(--muted)">출발점 가져오기</span>
-        <select id="eq-import" class="search-box" style="flex:1;min-width:220px;max-width:520px"></select>
+        <select id="eq-import" class="search-box" style="flex:1;min-width:220px;max-width:520px" aria-label="불러올 견적"></select>
         <button type="button" class="btn-act btn-outline-p" onclick="eqImport()">이 일정으로 바꾸기</button>
       </div>
 
@@ -3032,7 +3118,7 @@
       <!-- ⚠ 범위(이 목적지·같은 지역·전체) 칩은 없앴다 (RB). 후보는 늘 이 목적지 것뿐이다 —
            도쿄 일정에 파리 문구를 넣을 일이 없기 때문이다(한 연수로 두 지역을 가지 않는다). -->
       <div class="itip-bar" id="itiPickFits"></div>
-      <input type="text" class="itip-search" id="itiPickSearch" placeholder="검색 — 단어를 넣으면 좁혀집니다" />
+      <input type="text" class="itip-search" id="itiPickSearch" placeholder="검색 — 단어를 넣으면 좁혀집니다" aria-label="일정 검색" />
       <p class="itip-count" id="itiPickCount"></p>
       <div class="itip-list" id="itiPickList"></div>
     </div>
@@ -3050,7 +3136,7 @@
     </div>
     <div class="modal-body">
       <div class="itip-bar" id="itiCopyScopes"></div>
-      <input type="text" class="itip-search" id="itiCopySearch" placeholder="검색 — 코스 제목·설명·목적지로 찾습니다" />
+      <input type="text" class="itip-search" id="itiCopySearch" placeholder="검색 — 코스 제목·설명·목적지로 찾습니다" aria-label="코스 검색" />
       <p class="itip-count" id="itiCopyCount"></p>
       <div class="itip-list" id="itiCopyList"></div>
     </div>
@@ -4410,14 +4496,16 @@
         <span class="recent-org">${esc(c.org||'—')}</span>
         <span class="recent-msg">${esc(c.message)}</span>
         <span class="recent-time">${fmtDateS(c.timestamp)}</span>
-      </div>`).join('') : '<p style="color:var(--muted);font-size:.82rem">문의 내역이 없습니다.</p>';
+      </div>`).join('') : '<p style="color:var(--muted);font-size:.82rem;line-height:1.7">아직 들어온 문의가 없습니다.<br>고객이 홈페이지에서 문의를 보내면 최근 5건이 여기 나옵니다.</p>';
 
     /* Visit chart (7 days) */
     renderBarChart('visit-chart', buildDailyData(visits, 7), 100);
 
     /* Dest TOP 5 */
     const destTop5 = Object.entries(dests).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    renderHBar('d-dest-chart', destTop5);
+    renderHBar('d-dest-chart', destTop5,
+      '아직 산출된 견적이 없어 목적지 순위를 만들 수 없습니다.\n'
+      + '고객이 홈페이지에서 견적을 내거나, 「견적 산출」 탭에서 직접 만들면 여기에 쌓입니다.');
 
     /* Events */
     const evNames = { kakao:'카카오톡 상담', estimate_step2:'견적 2단계', estimate_complete:'견적 완료', header_cta:'상단 CTA 클릭' };
@@ -4761,7 +4849,9 @@
 
     /* Dest TOP 10 */
     const destList = Object.entries(dests).sort((a,b)=>b[1]-a[1]).slice(0,10);
-    renderHBar('ev-dest', destList);
+    renderHBar('ev-dest', destList,
+      '아직 방문 기록이 없습니다. 고객이 홈페이지에 들어오면 여기에 쌓입니다.\n'
+      + '(우리가 할 일은 없습니다 — 기능이 고장 난 것이 아닙니다.)');
 
     /* Funnel — "문의 접수"는 실제 서버에 저장된 문의(inquiries) 건수로,
        카카오톡 클릭과 달리 실제 리드 전환을 나타냄 */
@@ -4811,7 +4901,9 @@
           <div class="h-bar-track"><div class="h-bar-fill" style="width:${Math.max(pct,2)}%"></div></div>
           <span class="h-bar-count">${pct}% (${completed}/${selected})</span>
         </div>`).join('')
-      : '<p style="color:var(--muted);font-size:.8rem">데이터가 없습니다.</p>';
+      : '<p style="color:var(--muted);font-size:.8rem;line-height:1.7">'
+        + '아직 견적을 끝까지 낸 고객이 없습니다.<br>'
+        + '고객이 목적지를 고르고 견적을 완료하면, 목적지마다 몇 %가 끝까지 갔는지 여기 나옵니다.</p>';
   }
 
   /* ════ ESTIMATES ════ */
@@ -4833,19 +4925,22 @@
     /* Dest */
     const destMap = {};
     ests.forEach(e=>{ const lbl = e.destLabel || e.destKey; destMap[lbl]=(destMap[lbl]||0)+1; });
-    renderHBar('e-dest', Object.entries(destMap).sort((a,b)=>b[1]-a[1]).slice(0,8));
+    renderHBar('e-dest', Object.entries(destMap).sort((a,b)=>b[1]-a[1]).slice(0,8),
+      '아직 산출된 견적이 없습니다. 견적이 쌓이면 어느 목적지를 많이 찾는지 여기 나옵니다.');
 
     /* Program */
     const pgLabels = { language:'언어 집중', leadership:'리더십', industry:'산업체 실무', academic:'교육기관 연구' };
     const pgMap={};
     ests.forEach(e=>{ pgMap[e.program]=(pgMap[e.program]||0)+1; });
-    renderHBar('e-program', Object.entries(pgMap).map(([k,v])=>[pgLabels[k]||k,v]).sort((a,b)=>b[1]-a[1]));
+    renderHBar('e-program', Object.entries(pgMap).map(([k,v])=>[pgLabels[k]||k,v]).sort((a,b)=>b[1]-a[1]),
+      '아직 산출된 견적이 없습니다. 견적이 쌓이면 어떤 연수 유형이 많은지 여기 나옵니다.');
 
     /* OrgType */
     const ogLabels = { company:'기업', public:'공공기관', education:'교육기관' };
     const ogMap={};
     ests.forEach(e=>{ ogMap[e.orgType]=(ogMap[e.orgType]||0)+1; });
-    renderHBar('e-orgtype', Object.entries(ogMap).map(([k,v])=>[ogLabels[k]||k,v]).sort((a,b)=>b[1]-a[1]));
+    renderHBar('e-orgtype', Object.entries(ogMap).map(([k,v])=>[ogLabels[k]||k,v]).sort((a,b)=>b[1]-a[1]),
+      '아직 산출된 견적이 없습니다. 견적이 쌓이면 기업·공공·학교 중 어디가 많은지 여기 나옵니다.');
   }
 
   /* ════ MARKETING INSIGHTS (신규) ════
@@ -4856,11 +4951,16 @@
     const emptyEl = document.getElementById('mi-empty');
     const contentEl = document.getElementById('mi-content');
 
+    const btnEl = document.getElementById('mi-reanalyze-btn');
     if (!data || !data.result) {
       emptyEl.classList.remove('hidden');
       contentEl.classList.add('hidden');
+      /* 아직 한 적이 없다 — 「다시」가 아니라 「지금」이고, 무엇을 누르면 되는지 말한다 */
+      if (btnEl) btnEl.textContent = '지금 분석하기';
+      if (metaEl) metaEl.textContent = '아직 분석한 적이 없습니다 — 오른쪽 「지금 분석하기」를 누르면 시작합니다.';
       return;
     }
+    if (btnEl) btnEl.textContent = '다시 분석하기';
     emptyEl.classList.add('hidden');
     contentEl.classList.remove('hidden');
 
@@ -4962,10 +5062,20 @@
     }).join('');
   }
 
-  function renderHBar(elId, data) {
+  /* 🔴 **비어 있을 때 「데이터가 없습니다」로 끝내지 않는다** (XT).
+     이 렌더러 하나를 다섯 곳이 함께 쓰는데, 그래서 관리자 화면 곳곳에 **똑같은 다섯
+     글자**만 남았다. 무슨 데이터인지도, 무엇을 하면 되는지도 안 말한다 —
+     팀원이 처음 화면을 열면 탭 대부분이 그 문장으로 끝난다.
+   ⚠ **여기서 문구를 지어내지 않는다.** 무엇이 없는지는 부르는 쪽만 안다.
+     안 주면 예전 문장을 그대로 쓴다(조용히 빈 화면이 되지 않게). */
+  function renderHBar(elId, data, emptyMsg) {
     const el = document.getElementById(elId);
     if (!el) return;
-    if (!data.length) { el.innerHTML='<p style="color:var(--muted);font-size:.8rem">데이터가 없습니다.</p>'; return; }
+    if (!data.length) {
+      el.innerHTML = '<p style="color:var(--muted);font-size:.8rem;line-height:1.7">'
+        + esc(emptyMsg || '데이터가 없습니다.') + '</p>';
+      return;
+    }
     const max = Math.max(...data.map(d=>d[1]), 1);
     el.innerHTML = data.map(([lbl,cnt])=>`
       <div class="h-bar-row">
@@ -13498,7 +13608,18 @@
   function ledDraw() {
     const box = document.getElementById('ledList');
     if (!ledRows.length) {
-      box.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">해당하는 견적서가 없습니다.</div>';
+      /* 🔴 **「검색 결과가 없다」와 「아직 한 건도 없다」는 다른 말이다** (XT).
+         예전엔 둘 다 「해당하는 견적서가 없습니다」였다. 검색 중이면 담당자는
+         검색어를 지우면 되고, 처음이면 발급부터 해야 한다 — 할 일이 정반대다. */
+      const q = (document.getElementById('ledSearch') || {}).value || '';
+      box.innerHTML = q.trim()
+        ? '<div style="padding:16px;color:#888;font-size:.85rem;line-height:1.8">'
+          + '「' + esc(q.trim()) + '」와 맞는 견적서가 없습니다.<br>'
+          + '검색어를 지우고 <strong>새로고침</strong>을 누르면 전체 목록이 나옵니다.</div>'
+        : '<div style="padding:16px;color:#888;font-size:.85rem;line-height:1.8">'
+          + '아직 발급된 견적서가 없습니다.<br>'
+          + '견적서는 고객이 홈페이지에서 직접 받거나, <strong>「견적 관리」</strong>에서 '
+          + '담당자가 발급하면 여기에 기록됩니다.</div>';
       return;
     }
     const won = (n) => Number(n || 0).toLocaleString();
