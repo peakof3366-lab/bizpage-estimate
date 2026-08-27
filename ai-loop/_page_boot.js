@@ -109,11 +109,20 @@ function stubFetch(win, log, fx) {
 function bootPage(file, opts = {}) {
   const fx = Object.assign({}, DEFAULT_FIXTURES, opts.fixtures || {});
   const log = {
-    errors: [], requests: [], says: [], navs: [], external: [], missingLocal: [],
+    errors: [], notImplemented: [], requests: [], says: [], navs: [], external: [], missingLocal: [],
     opened: [], printed: 0, downloads: [],
   };
   const vc = new VirtualConsole();
-  vc.on('jsdomError', (e) => log.errors.push({ where: '로드', msg: String((e && e.message) || e) }));
+  /* 🔴 **jsdom이 못 하는 일과 화면 결함을 갈라 놓는다** (XT).
+     「Not implemented: navigation to another Document」는 CSV 내보내기처럼 파일을
+     받으러 주소를 바꿀 때 난다 — 실제 브라우저에서는 **정상 동작**이다.
+     섞어 두면 담당자 화면에서 「터지는 버튼 51개」라는 **없는 결함**이 나온다
+     (실제로 그렇게 나왔다). 세되, 다른 칸에 센다. */
+  vc.on('jsdomError', (e) => {
+    const msg = String((e && e.message) || e);
+    if (/Not implemented/i.test(msg)) { log.notImplemented.push(msg); return; }
+    log.errors.push({ where: '로드', msg });
+  });
 
   const dom = new JSDOM(read(file), {
     runScripts: 'dangerously',

@@ -59,9 +59,10 @@ const hash = (s) => {
 };
 
 /* 고객이 실제로 누를 수 있는 것 — 감춘 것은 뺀다(감춘 것을 누를 수는 없다) */
-function clickables(doc) {
+function clickables(root) {
+  const doc = root.ownerDocument || root;
   const sel = 'button, a[href], [onclick], input[type="submit"], [role="button"], .pk-chip, .faq-q, .gal-filter-chip';
-  return Array.from(doc.querySelectorAll(sel)).filter((el) => {
+  return Array.from(root.querySelectorAll(sel)).filter((el) => {
     if (el.disabled) return false;
     let n = el;
     while (n && n !== doc.body) {
@@ -163,9 +164,13 @@ async function auditPage(file, opts = {}) {
       try { await sec.enter(B); } catch (e) { results.push({ section: sec.name, label: '(칸 열기)', threw: String(e.message || e), errors: [], says: [], navs: [] }); continue; }
       await tick(settle);
     }
-    /* 🔴 **그 칸이 열린 뒤에 다시 센다.** 감춰진 탭의 버튼은 아무도 못 누른다 —
-       한 번에 다 세면 안 보이는 것까지 눌러 「터졌다」를 만든다. */
-    const list = clickables(doc);
+    /* 🔴 **그 칸이 열린 뒤에, 그 칸 안에서만 다시 센다.**
+       처음엔 문서 전체에서 셌더니 **같은 버튼을 탭 17번씩** 눌렀다 —
+       눌러 본 것 1,361개·사라짐 1,760개라는 말이 안 되는 숫자가 나왔고,
+       「[dashboard] CSV 내보내기」와 「[inquiries] CSV 내보내기」가 같은 버튼이었다.
+       감춘 탭의 버튼은 아무도 못 누른다. `scope`를 주면 그 안만 본다. */
+    const 범위 = sec.scope ? (sec.scope(doc) || doc.body) : doc.body;
+    const list = clickables(범위);
     for (const el of list) {
       /* 앞의 버튼이 화면을 다시 그려 이 버튼이 사라졌을 수 있다. 그건 결함이 아니다.
        ⚠ **기본은 끈다.** 켜면 고객 화면의 기존 숫자가 바뀐다 — 사라진 버튼의 처리기가
@@ -174,6 +179,15 @@ async function auditPage(file, opts = {}) {
          옮기기는 **동작이 안 바뀌어야** 하므로, 이건 부르는 쪽이 켠다. */
       if (opts.skipDetached && !doc.contains(el)) { results.push({ section: sec.name, label: label(el), gone: true, errors: [], says: [], navs: [] }); continue; }
       if (opts.skip && opts.skip(el)) { results.push({ section: sec.name, label: label(el), skipped: true, errors: [], says: [], navs: [] }); continue; }
+      /* 🔴 **앞 버튼이 남긴 안내를 지우고 잰다** (XT).
+         「일정 저장」과 「방식 A·B 저장」을 잇달아 누르면 둘 다 「목적지를 먼저
+         고르세요」를 띄우는데, 글자가 **똑같아서** 두 번째는 「아무것도 안 바뀌었다」로
+         세어졌다. 실제로는 말을 하고 있었다 — 그대로 두면 **없는 결함 11개**가 된다.
+       ⚠ 부르는 쪽이 안내 자리를 알려 줄 때만 지운다(`messageSelector`). 모르면 안 지운다 —
+         아무 요소나 지우면 화면을 망가뜨리고 그게 또 없는 결함이 된다. */
+      const msgEls = opts.messageSelector
+        ? Array.from(범위.querySelectorAll(opts.messageSelector)) : [];
+      msgEls.forEach((m) => { m.dataset.probeSaved = m.textContent; m.textContent = ''; });
       const before = { html: hash(doc.body.innerHTML), text: hash(visibleText(doc.body)), req: log.requests.length, print: log.printed, down: log.downloads.length };
       const errBefore = log.errors.length, sayBefore = log.says.length, navBefore = log.navs.length;
       let threw = '';
@@ -182,7 +196,9 @@ async function auditPage(file, opts = {}) {
       } catch (e) { threw = String(e.message || e); }
       await tick(30);
       const after = { html: hash(doc.body.innerHTML), text: hash(visibleText(doc.body)), req: log.requests.length, print: log.printed, down: log.downloads.length };
+      const 말했다 = msgEls.some((m) => String(m.textContent || '').trim().length > 0);
       results.push({
+        messaged: 말했다,
         section: sec.name,
         label: label(el),
         threw,

@@ -194,7 +194,16 @@ node ai-loop/audit_customer_journey.js            # 고객 화면 4개의 버튼
 node ai-loop/audit_customer_journey.js --verbose  #   터짐 · 죽은 링크 · 아무 일도 안 남 · 이름 없는 칸
 node ai-loop/smoke_prod_journey.js                # 프로덕션 주력 경로 — **기본은 dry-run**
 node ai-loop/smoke_prod_journey.js --live --cleanup  # 🔴 운영 DB에 실제로 쓰고, 만든 행을 지운다
+
+node ai-loop/audit_admin_journey.js               # 🔴 **담당자 화면**의 버튼을 전부 눌러 본다 (XT)
+node ai-loop/audit_admin_journey.js --mode=filled #   며칠 쓴 계정 상태로만
 ```
+
+⚠ 담당자 화면은 **로그인부터 통과해야** 아무것도 안 보인다 — `_admin_fixtures.js`가
+그 답을 준다(빈 계정 / 며칠 쓴 계정 두 상태). 없으면 로그인 폼만 훑고 「깨끗하다」고
+말하게 된다(결함 생성기 ③).
+⚠ 훑는 규칙은 고객 화면과 **같은 자**(`_journey_probe.js`)를 쓴다. 두 벌이 되면
+「터졌다」·「죽은 링크」·「아무 일도 안 났다」의 뜻이 갈려 두 결과를 나란히 못 본다.
 
 ## 가상 고객을 태워 본다 (XS) — **손님을 지어 실제 화면에 앉힌다**
 
