@@ -267,6 +267,7 @@ async function runOne(p, rates, ctx) {
   } else {
     const ptxt = shownText(pop.document.body);
     out.popupLen = ptxt.length;
+    out.popupText = ptxt;   /* ⑪에서 링크 견적서와 대조한다 */
     if (ptxt.length < 200) {
       문제(t, 'POPUP_EMPTY', '🔴 인쇄용 견적서가 사실상 비어 있다', String(ptxt.length) + '자');
     } else {
@@ -330,11 +331,18 @@ async function runOne(p, rates, ctx) {
       문제(t, 'INQ_NOT_SENT', '🔴 일반 문의를 눌렀는데 서버로 아무것도 안 갔다',
         log.says.map((s) => s.text).join(' | '));
     } else {
-      const flat = JSON.stringify(sent.body || {});
-      [['contactName', '이름'], ['organization', '소속'], ['contactTel', '연락처']].forEach(([k, ko]) => {
-        if (!flat.includes(String(p[k]))) 문제(t, 'INQ_NO_' + k.toUpperCase(),
-          '일반 문의에 ' + ko + '이(가) 안 실렸다', String(p[k]));
-      });
+      /* 🔴 **JSON 문자열로 대조하지 않는다** (XS). 이름에 따옴표가 들어간 손님
+         (`김"따옴`)에서 「이름이 안 실렸다」가 나왔는데, 실렸다 — `JSON.stringify`가
+         `\"`로 이스케이프해서 `includes`가 못 찾은 것뿐이다. **검사가 틀린 것**이고,
+         하마터면 멀쩡한 코드를 고칠 뻔했다.
+       ⚠ 값이 든 칸을 **직접** 본다. 어떤 칸에 담기는지는 화면이 정한다 — 여기서
+         다시 정하지 않는다(`name`/`org`/`tel`은 `#inqForm` 핸들러가 만드는 이름이다). */
+      const b0 = sent.body || {};
+      [['contactName', '이름', 'name'], ['organization', '소속', 'org'], ['contactTel', '연락처', 'tel']]
+        .forEach(([k, ko, key]) => {
+          if (String(b0[key] || '') !== String(p[k])) 문제(t, 'INQ_NO_' + k.toUpperCase(),
+            '일반 문의에 ' + ko + '이(가) 안 실렸다', '보낸 값 [' + (b0[key] || '') + '] vs 적은 값 [' + p[k] + ']');
+        });
     }
   }
 
@@ -379,6 +387,12 @@ async function runOne(p, rates, ctx) {
   }
 
   /* ── ⑩ 서버가 저장하는 모양 그대로 만들어 견적서를 그린다 ─────── */
+  /* 🔴 **팝업 창을 닫는다** (XS). `_page_boot`의 `win.open()`은 진짜 JSDOM 창을 만들고
+     `log.opened`에 담아 둔다. 안 닫으면 그 창의 타이머(`stepTimers`·저장 결과 약속)가
+     살아 있어 **창 하나가 통째로 안 지워진다** — 350명에서 힙 6GB를 넘겨 죽었다.
+     두 번째로 같은 자리에서 죽었다(처음엔 견적서 HTML을 들고 있어서). */
+  (log.opened || []).forEach((wOpened) => { try { wOpened.close(); } catch (e) { /* 이미 닫혔다 */ } });
+
   const qno = 'V' + ymd(new Date()).slice(2).replace(/-/g, '') + '-' + String(p.no).padStart(4, '0');
   const payload = Object.assign({}, share, {
     iso: share.iso || ymd(new Date()),
@@ -407,6 +421,8 @@ async function runOne(p, rates, ctx) {
   }
   if (!docText.includes(String(p.participants))) 문제(t, 'DOC_NO_PAX', '견적서에 인원이 없다', String(p.participants));
   /* XD — 받으시는 분의 이름이 문서에 있어야 한다(공문이다) */
+  /* ⚠ 문서에 그려진 **글자**를 보는 것이라 이스케이프 함정은 없다(위 JSON 건과 다르다).
+     다만 화면이 HTML로 이스케이프해 그리므로 `&`·`<`가 든 이름은 글자로는 그대로 보인다. */
   const 이름조각 = String(p.contactName).replace(MARK, '').trim();
   if (이름조각 && !docText.includes(이름조각)) 문제(t, 'DOC_NO_NAME', '견적서에 받는 사람 이름이 없다', 이름조각);
   /* 🔴 연락처는 반대로 **있으면 안 된다** */
@@ -416,7 +432,47 @@ async function runOne(p, rates, ctx) {
   /* 감춘 수익 줄이 그려지면 안 된다 */
   if (/ENBT 수익|현지 수익금/.test(docText)) 문제(t, 'DOC_MUTED_LEAK', '🔴 견적서에 수익 항목이 그려졌다', '');
 
+  /* ── ⑪ 🔴 **두 벌을 서로 대조한다** ────────────────────────────────
+     이 저장소는 같은 결함을 네 번 겪었다 — 견적번호(XP) · 유효기간 인쇄(WQ) ·
+     일정(XC) · 유효기간 팝업(XS). 전부 **한 벌만 고쳐진** 것이다.
+     그래서 「무엇이 빠졌나」를 사람이 매번 세지 말고, **두 문서가 같은 사실을 말하는지**를
+     기계가 대조한다. 한쪽에만 있으면 그게 다음 XP다.
+   ⚠ 팝업에 **항목별 금액이 없는 것은 일부러다.** 그건 대조 목록에 넣지 않는다. */
+  const FACTS = [
+    ['총액', won(rec.total)],
+    ['1인 금액', won(rec.perPerson)],
+    ['목적지', p.destKey],
+    ['인원', String(p.participants)],
+    ['기관명', String(p.organization).replace(MARK, '').trim()],
+    ['담당자', String(p.contactName).replace(MARK, '').trim()],
+  ];
+  const onlyIn = { 인쇄용: [], 링크: [] };
+  FACTS.forEach(([name, v]) => {
+    if (!v) return;
+    const inPop = out.popupText ? out.popupText.includes(v) : null;
+    const inDoc = docText.includes(v);
+    if (inPop === null) return;
+    if (inPop && !inDoc) onlyIn.인쇄용.push(name);
+    if (!inPop && inDoc) onlyIn.링크.push(name);
+  });
+  /* 조건은 **둘 다** 말해야 한다 */
+  [['유효기간', /유효기간|만료/], ['요율 기준', /요율 기준/]].forEach(([name, re]) => {
+    const inPop = out.popupText ? re.test(out.popupText) : null;
+    const inDoc = re.test(docText);
+    if (inPop === null) return;
+    if (inPop && !inDoc) onlyIn.인쇄용.push(name);
+    if (!inPop && inDoc) onlyIn.링크.push(name);
+  });
+  out.onlyIn = onlyIn;
+  if (onlyIn.인쇄용.length || onlyIn.링크.length) {
+    문제(t, 'TWO_DOCS_DIFFER', '🔴 견적서 두 벌이 서로 다른 것을 말한다',
+      '인쇄용에만: ' + (onlyIn.인쇄용.join(', ') || '없음')
+      + ' · 링크에만: ' + (onlyIn.링크.join(', ') || '없음'));
+  }
+
   V.win.close();
+  /* 메모리로 죽지 않게 큰 글자는 놓아준다 */
+  out.popupText = null;
   return out;
 }
 
@@ -493,7 +549,7 @@ async function runOne(p, rates, ctx) {
         + (res.record ? won(res.record.perPerson).padStart(11) + '원/인' : '     —      ')
         + '  ' + (res.verdict || '-').padEnd(9) + mark);
     } else if (p.no % 25 === 0) {
-      console.log('  ... ' + p.no + '/' + N + ' (' + Math.round((Date.now() - t0) / 1000) + '초)');
+      console.log('  ... ' + p.no + '/' + people.length + ' (' + Math.round((Date.now() - t0) / 1000) + '초)');
     }
   }
 

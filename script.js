@@ -1768,6 +1768,9 @@ form.addEventListener('submit', (event) => {
        (관리자 화면이 견적을 바꿀 때 편집 상태를 지우는 것과 같은 이유다). */
     quoteItiClear();
     window._lastQuoteSaved = null;
+    /* 🔴 앞 견적의 번호가 남아 있으면 **다른 견적의 번호가 찍힌 엑셀**이 나간다.
+       UM에서 앞 고객의 일정이 그대로 실려 나간 것과 같은 자리다. */
+    window._lastQuoteNo = null;
     /* 공유 링크 발급 시 서버가 이 스냅샷으로 검증한다(항목별 단가·적용 계수까지).
        shareData만 보내면 표시용 축약값뿐이라 검증 깊이가 얕아진다. */
     window._lastQuoteRecord = estRecord;
@@ -3648,7 +3651,17 @@ function _buildDisplayDays(course, destKey, plan, totalDays) {
    SheetJS <script> 태그, 파일 상단의 FEATURE_EXCEL_EXPORT 선언만 지우면
    도입 이전 상태로 완전히 복구됨(openEstimateWindow 등 기존 로직은 무관).
    ════════════════════════════════════════════════════════════════════ */
-function downloadEstimateExcel() {
+
+/* 맞춤 견적의 유효기간 — **한 곳에서** 만든다 (XS).
+   인쇄용 문서와 엑셀이 **같은 날짜**를 말해야 한다. 각자 계산하면 언젠가 하나만
+   고쳐지고, 그때 한 고객이 서로 다른 두 유효기간을 손에 쥔다(WP에서 실제로 났다).
+ ⚠ 이건 **맞춤 견적 규칙**이다(발급 + 30일). 패키지는 공급사가 정한 기한이 진실이라
+   여기를 쓰면 안 된다 — `estimate-view.html`의 `calcValidity`가 그 갈래를 안다. */
+function customQuoteValidUntil(from) {
+  const d = from ? new Date(from) : new Date();
+  d.setDate(d.getDate() + 30);
+  return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+}function downloadEstimateExcel() {
   if (!FEATURE_EXCEL_EXPORT) return;
   /* ⚠ 예전엔 여기서 `XLSX`가 없으면 「잠시 후 다시 시도해 주세요」로 끝났다. 그 파일은
      남의 CDN에서 오고, 기관·대기업 망에서는 막혀 있는 경우가 흔하다 — 그런 고객에게
@@ -3676,7 +3689,16 @@ function downloadEstimateExcel() {
 
   const aoa = [
     [legalName + ' 견적서'],
+    /* 🔴 **결재에 붙는 파일인데 견적번호와 유효기간이 없었다** (XS).
+       WQ가 「엑셀에 조건이 안 실렸다 — **유효기간**은 견적서의 핵심 조건이다」를
+       고쳤는데, 그때 고친 것은 **견적서 화면(estimate-view.html)의 엑셀 한 벌뿐**이다.
+       계산기에서 바로 내려받는 이 파일은 그대로였다 —
+       **유효기간(WQ) · 견적번호(XP) · 인쇄 유효기간(XS) 세 번째로 같은 자리에서 갈렸다.**
+     ⚠ 견적번호는 **서버가 발급한 뒤에야** 안다. 아직 없으면 **줄을 안 만든다** —
+       「견적번호 —」를 찍으면 그게 더 나쁘다(WP 규칙: 없는 칸은 줄을 안 만든다). */
+    ...(window._lastQuoteNo ? [['견적번호', window._lastQuoteNo]] : []),
     ['발행일', issueDate],
+    ['견적 유효기간', customQuoteValidUntil() + '까지'],
     ['목적지', destText],
     ['프로그램', programText],
     ['기관 유형', orgTypeText],
@@ -3741,10 +3763,7 @@ function openEstimateWindow() {
    ⚠ 「N일 남음」은 안 적는다 — 종이는 나중에 읽히고 그때 그 숫자는 틀린 말이 된다(WQ).
    ⚠ 이 창은 언제나 맞춤 견적이다(패키지는 이 경로를 안 탄다). 그래서 규칙은
      **발급일 + 30일** 하나다 — 패키지의 「공급사가 정한 기한」을 여기 섞지 말 것. */
-  const validUntilLabel = (function () {
-    const d = new Date(); d.setDate(d.getDate() + 30);
-    return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-  })();
+  const validUntilLabel = customQuoteValidUntil();
   /* 끝나는 날을 안 받았으면 **물결표를 매달지 않는다** — 「2026년 10월 26일 ~ —」가
      결재 서류에 그대로 찍히고 있었다. 없는 날짜를 지어내지도 않는다(일수는 옆에 있다). */
   const periodLabel = endDateLabel === '—' ? startDateLabel : (startDateLabel + ' ~ ' + endDateLabel);
@@ -4449,6 +4468,8 @@ function shareCopyLink() {
         qnoEl.textContent = '견적번호 ' + data.quoteNo;
         qnoEl.style.display = '';
       }
+      /* 엑셀도 같은 번호를 실어야 한다 — 고객이 두 파일을 함께 결재에 올린다 */
+      if (data.quoteNo) window._lastQuoteNo = data.quoteNo;
     })
     /* 🔴 네트워크가 끊긴 것이다 — **접수되지 않았다.** 예전엔 여기서도
        「접수되었습니다」라고 말했다. */

@@ -273,6 +273,23 @@ const done = () => {
       /* 끝나는 날을 안 받았을 때 물결표가 매달려 있었다 — 「2026년 10월 26일 ~ —」 */
       ok('⑧ 끝나는 날이 없으면 물결표를 매달지 않는다', !/~\s*—/.test(txt),
         (txt.match(/연수 기간[^가-힣]*[^ ]*/) || [''])[0]);
+      /* 🔴 **인쇄 CSS가 그 줄을 숨기면 고친 것이 아니다** — WQ가 당한 함정이 정확히
+         그것이다(유효기간이 화면에는 있는데 `@media print`가 숨겨 종이에만 없었다).
+       ⚠ WQ는 이 검사를 짜다가 **자기가 적어 둔 주석** 안의 `.validity-banner`를 읽고
+         없는 결함을 만들었다. 그래서 **주석을 걷어내고 선택자만** 본다. */
+      const src2 = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
+      const printBlk = (src2.match(/@media print\{[\s\S]*?\n\}/) || [''])[0]
+        .replace(/\/\*[\s\S]*?\*\//g, '');
+      ok('⑧ 인쇄 규칙을 찾았다', printBlk.length > 50, String(printBlk.length));
+      const hides = printBlk.split('\n')
+        .filter((l) => /display\s*:\s*none/.test(l))
+        .map((l) => l.split('{')[0].trim())
+        .join(' ');
+      ok('🔴 ⑧ 인쇄에서 유효기간 줄(.q-disc)을 숨기지 않는다',
+        !/\.q-disc\b/.test(hides), hides);
+      ok('⑧ 인쇄에서 견적 표(.quote-doc)를 숨기지 않는다', !/\.quote-doc\b/.test(hides), hides);
+      ok('⑧ 인쇄 버튼은 그대로 숨긴다(그건 화면 장치다)', /\.q-print-btn\b/.test(hides), hides);
+
     }
     D.win.close();
   }
@@ -424,6 +441,80 @@ const done = () => {
       /확인되지 않았습니다/.test(revUnsaved.body), revUnsaved.body.slice(0, 60));
     ok('⑩ 그 경우에도 안내는 반드시 뜬다(회전판에 갇히지 않는다)',
       revUnsaved.reviewShown === 'block', revUnsaved.reviewShown);
+  }
+
+  console.log('\n[11] 🔴 결재에 붙는 엑셀 — 견적번호와 유효기간이 없었다');
+  {
+    /* WQ가 「엑셀에 조건이 안 실렸다 — **유효기간**은 견적서의 핵심 조건이다」를 고쳤는데,
+       그때 고친 것은 **견적서 화면(estimate-view.html)의 엑셀 한 벌뿐**이다.
+       계산기에서 바로 내려받는 파일은 그대로였다.
+       유효기간(WQ) · 견적번호(XP) · 인쇄 유효기간(XS)에 이어 **네 번째로 같은 자리**다.
+     ⚠ 실제 xlsx 라이브러리를 남의 CDN에서 받아 오지 않는다. `downloadSheet`를 가로채
+       **넘어가는 표 자체**를 본다 — 파일 포맷이 아니라 내용이 문제이기 때문이다. */
+    const X = bootPage('index.html');
+    await X.ready; await X.tick(250);
+    const xset = (id, v) => {
+      const el = X.doc.getElementById(id);
+      if (el) { el.value = String(v); el.dispatchEvent(new X.win.Event('input', { bubbles: true })); el.dispatchEvent(new X.win.Event('change', { bubbles: true })); }
+    };
+    xset('destination', '다낭'); xset('programType', 'industry'); xset('organizationType', 'company');
+    xset('participants', 30); xset('days', 4);
+    const xd = new Date(); xd.setDate(xd.getDate() + 60);
+    xset('startDate', xd.toLocaleDateString('sv-SE'));
+    xset('organization', '엑셀점검'); xset('contactName', '엑셀담당');
+    xset('contactTel', '010-0000-0000'); xset('requestDetails', '엑셀 점검');
+    await X.tick(120);
+    X.doc.getElementById('estimateForm').dispatchEvent(new X.win.Event('submit', { bubbles: true, cancelable: true }));
+    await X.tick(300);
+
+    /* 표를 가로챈다 — 실제 저장은 jsdom에 없다 */
+    let sheet = null;
+    /* ⚠ **서버(여기서는 `sheet_download.js`)가 실제로 돌려주는 모양 그대로** 돌려준다.
+       `downloadSheet`는 문자열('xlsx'|'csv'|'blocked')을 준다 — 객체로 흉내 내면
+       `sayAfterDownload`가 다른 갈래를 타고, 그 차이를 검사가 못 본다(WR의 교훈). */
+    X.win.downloadSheet = (aoa) => { sheet = aoa; return 'csv'; };
+    ok('⑪ 엑셀 내려받기 함수가 있다', typeof X.win.downloadEstimateExcel === 'function');
+    X.win.downloadEstimateExcel();
+    await X.tick(120);
+    ok('⑪ 표가 만들어진다', Array.isArray(sheet) && sheet.length > 5, sheet ? sheet.length + '줄' : '없음');
+
+    if (Array.isArray(sheet)) {
+      const label = (k) => {
+        const row = sheet.find((r) => Array.isArray(r) && String(r[0] || '').trim() === k);
+        return row ? String(row[1] == null ? '' : row[1]) : null;
+      };
+      const flat = sheet.map((r) => (Array.isArray(r) ? r.join(' ') : String(r))).join(' | ');
+      ok('🔴 ⑪ 견적 유효기간이 실린다', !!label('견적 유효기간'), flat.slice(0, 100));
+      ok('⑪ 유효기간이 날짜로 적힌다', /\d{4}년/.test(String(label('견적 유효기간') || '')),
+        String(label('견적 유효기간')));
+      ok('⑪ 발행일이 실린다', !!label('발행일'));
+      ok('⑪ 목적지·인원·기간이 실린다',
+        !!label('목적지') && !!label('참가 인원') && !!label('연수 기간'));
+      ok('⑪ 신청 기관·담당자가 실린다', label('신청 기관') === '엑셀점검' && label('담당자') === '엑셀담당',
+        label('신청 기관') + ' / ' + label('담당자'));
+      ok('⑪ 합계와 1인당이 실린다', !!label('합계') && !!label('1인당 금액'));
+      /* 🔴 감춘 수익이 엑셀로 새면 안 된다 — 고객이 그대로 결재에 붙인다 */
+      ok('🔴 ⑪ 감춘 수익 항목이 엑셀에 없다', !/ENBT 수익|현지 수익금/.test(flat));
+      ok('🔴 ⑪ 연락처가 엑셀에 없다', !/010-0000-0000/.test(flat));
+      /* 아직 발급 전이므로 견적번호 줄은 **없어야** 한다 — 「견적번호 —」가 더 나쁘다 */
+      ok('⑪ 발급 전에는 견적번호 줄을 만들지 않는다', label('견적번호') === null,
+        String(label('견적번호')));
+
+      /* 발급된 뒤에는 같은 번호가 실려야 한다 — 고객이 두 파일을 함께 올린다 */
+      X.doc.getElementById('downloadEstimate').dispatchEvent(
+        new X.win.MouseEvent('click', { bubbles: true, cancelable: true, view: X.win }));
+      await X.tick(500);
+      sheet = null;
+      X.win.downloadEstimateExcel();
+      await X.tick(120);
+      const label2 = (k) => {
+        const row = (sheet || []).find((r) => Array.isArray(r) && String(r[0] || '').trim() === k);
+        return row ? String(row[1] == null ? '' : row[1]) : null;
+      };
+      ok('🔴 ⑪ 발급 뒤에는 엑셀에도 같은 견적번호가 실린다',
+        label2('견적번호') === 'Q-260826-001', String(label2('견적번호')));
+    }
+    X.win.close();
   }
 
   ok('전 과정에서 화면 오류가 없다', log.errors.length === 0,
