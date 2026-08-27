@@ -168,6 +168,16 @@
               </div>
 
               <div class="estimate-step step-active" data-step="1">
+                <!-- 🔴 **여기에 아무 안내가 없었다** (XT). 폼을 만나면 곧바로 「여행 목적지」
+                     부터였고, 몇 단계인지·지금 어디인지·무엇을 채우면 되는지 알 방법이
+                     없었다. 실측으로 1단계 높이가 화면의 두 배쯤이라(1,240~1,678px 대
+                     740~900px) 고객은 **끝이 어딘지 모른 채** 스크롤한다.
+                   ⚠ 칸을 늘리거나 줄이지 않았다. **말만 더했다.** -->
+                <div class="step-head">
+                  <span class="step-badge">1 / 2 단계</span>
+                  <p class="step-guide">어디로, 몇 명이, 언제 가시는지만 알려 주세요.
+                    <b>필수는 여섯 칸</b>이고 나머지는 안 고르셔도 견적이 나옵니다.</p>
+                </div>
                 <label class="fld">
                   <span class="fld-lbl"><i data-lucide="map-pin" class="ic-sm"></i>여행 목적지</span>
                   <!-- ⚠ 이중 관리 주의: 아래 option value 목록은 data.js의 destinationRates[].destination_key,
@@ -577,6 +587,11 @@
               </div>
 
               <div class="estimate-step" data-step="2">
+                <div class="step-head">
+                  <span class="step-badge">2 / 2 단계</span>
+                  <p class="step-guide">거의 끝났습니다 — 견적서를 받으실 분만 알려 주세요.
+                    <b>세 칸</b>이면 됩니다.</p>
+                </div>
                 <!-- ⚠ **필수를 풀었다**(VX). 가족·친목 모임 손님은 여기 적을 것이 없는데
                      필수라 **여기서 막혀 나간다.** 라벨도 「모임 이름」을 함께 제시해
                      적을 것이 있다는 걸 알린다. 회사 손님은 그대로 회사명을 적으면 된다. -->

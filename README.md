@@ -161,6 +161,7 @@ python ai-loop/check_manual_layout.py --shots   # 스크린샷도 저장 (--shot
 python ai-loop/check_contrast.py                # 안 읽히는 글자 — 29개 화면을 전부 훑는다
 python ai-loop/check_contrast.py --all          # 확인 대상(흐린 글자)까지 전부
 python ai-loop/check_quotetool_width.py         # 내부 견적 산출 화면 폭 (RW)
+python ai-loop/check_quote_form_layout.py       # 🔴 고객 견적 폼 — 폼에 도착했을 때 무엇이 보이나 (XT)
 ```
 
 ⚠ **`check_contrast.py`는 '보이는데 안 읽히는 글자'를 찾는다.** 같은 결과를 내는 사고가
