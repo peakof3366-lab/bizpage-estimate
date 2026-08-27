@@ -287,6 +287,69 @@ async function 견적서열기(f) {
   return out;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   **담당자 화면**의 고장 (XX 이어서)
+   ───────────────────────────────────────────────────────────────────────────
+   담당자 화면이 고장 났을 때 가장 나쁜 것은 **조회 실패를 「없음」으로 보여주는 것**이다.
+   「아직 한 건도 없다」와 「지금 못 불러왔다」는 할 일이 정반대인데, 화면이 같은 말을 하면
+   담당자는 없는 줄 알고 넘어간다(CLAUDE.md 화면 규칙 2번과 같은 이유).
+   요율 저장이 조용히 실패하는 것도 같은 무게다 — **고객 금액이 안 바뀐 채로 남는다.**
+   ═══════════════════════════════════════════════════════════════════════════ */
+const { adminFixtures, enterDashboard } = require('./_admin_fixtures');
+
+const ADMIN_FAULTS = [
+  { key: 'listQuotes500', 말: '견적 목록 조회가 500', hit: (u) => u.includes('/api/quotes') },
+  { key: 'listInq500', 말: '문의 목록 조회가 500', hit: (u) => u.includes('/api/inquiries') },
+  { key: 'listShares500', 말: '견적서 대장 조회가 500', hit: (u) => u.includes('/api/quote-shares') },
+  { key: 'ratesRead500', 말: '🔴 요율 조회가 500', hit: (u) => u.includes('/api/rates') && !u.includes('action=') },
+];
+
+async function 담당자화면고장(f) {
+  const fx = adminFixtures('filled');
+  const orig = fx.route;
+  fx.route = function (u, opt, json) {
+    if (f && f.hit(u, opt)) return json({ error: 'boom' }, false, 500);
+    return orig.call(this, u, opt, json);
+  };
+  const B = bootPage('admin.html', { fixtures: fx });
+  await B.ready; await B.tick(400);
+  const got = await enterDashboard(B);
+  const out = { key: f.key, 말: f.말, 나쁨: [] };
+  if (!got.entered) {
+    /* ⚠ **못 들어가는 것 자체를 결함이라 부르지 않는다.** 낡은 목록으로 응대하는 것보다
+       막는 쪽이 낫다는 판단이 이미 있다(PW). 여기서 볼 것은 **왜 못 들어가는지 말하는가**다 —
+       아무 말 없이 로그인 폼만 남으면 담당자는 「비밀번호가 틀렸나?」로 오해한다. */
+    const 로그인글 = shownText(B.doc.getElementById('loginPage') || B.doc.body).replace(/\s+/g, ' ').trim();
+    out.글 = 로그인글;
+    if (!/로그인은 되었지만|받아오지 못|다시 시도/.test(로그인글)) {
+      out.나쁨.push('🔴 대시보드에 못 들어가는데 이유를 안 말한다');
+    } else if (/오류 (200|201)[\/)]|\/200\)/.test(로그인글)) {
+      /* 성공한 응답 코드를 「오류」라고 부르면 담당자가 무엇이 문제인지 못 읽는다 */
+      out.나쁨.push('성공한 코드(200)를 오류로 함께 적는다');
+    } else {
+      out.막힘 = true;   /* 막혔지만 이유를 말했다 — 결함이 아니라 기록할 사실 */
+    }
+    B.win.close();
+    return out;
+  }
+  /* 탭을 열어 화면이 무엇을 말하는지 본다 */
+  const 탭 = { listQuotes500: 'estmgr', listInq500: 'inquiries', listShares500: 'ledger', ratesRead500: 'rates' }[f.key];
+  const btn = 탭 && B.doc.querySelector('[data-tab="' + 탭 + '"]');
+  if (btn) { btn.dispatchEvent(new B.win.MouseEvent('click', { bubbles: true, cancelable: true, view: B.win })); await B.tick(400); }
+  const 칸 = (탭 && B.doc.getElementById('tab-' + 탭)) || B.doc.body;
+  const 글 = shownText(칸).replace(/\s+/g, ' ').trim();
+  out.글 = 글;
+
+  /* 🔴 조회 실패를 「없음」으로 보여주면 담당자는 없는 줄 알고 넘어간다 */
+  const 없다고함 = /없습니다|아직 한 건도|0건/.test(글);
+  const 못불렀다고함 = /불러오지 못|불러올 수 없|오류|실패|다시 시도|새로고침/.test(글);
+  if (없다고함 && !못불렀다고함) out.나쁨.push('🔴 못 불러온 것을 「없습니다」로 보여준다');
+  if (!글.trim()) out.나쁨.push('🔴 빈 화면이다');
+  if (!못불렀다고함 && !없다고함) out.나쁨.push('못 불러왔다는 말이 아무 데도 없다');
+  B.win.close();
+  return out;
+}
+
 (async () => {
   console.log('\n서버가 죽었을 때 고객이 무엇을 보는가 — 고장 ' + FAULTS.length + '가지');
   console.log('손님: ' + 손님.destKey + ' ' + 손님.participants + '명 ' + 손님.days + '일 · '
@@ -334,6 +397,19 @@ async function 견적서열기(f) {
     console.log('  ' + r.key.padEnd(16) + (r.말 || '').padEnd(34)
       + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : '✓'));
     if (VERBOSE && r.글) console.log('      화면: ' + r.글.replace(/\s+/g, ' ').slice(0, 130));
+  }
+
+  /* ── 담당자 화면 ── */
+  console.log('\n■ 담당자 화면 — 조회가 죽었을 때');
+  for (const f of ADMIN_FAULTS) {
+    if (ONLY && f.key !== ONLY) continue;
+    let r;
+    try { r = await 담당자화면고장(f); }
+    catch (e) { r = { key: f.key, 말: f.말, 나쁨: ['🔴 열다 터졌다: ' + String(e.message || e)] }; }
+    결과.push(r);
+    console.log('  ' + r.key.padEnd(16) + (r.말 || '').padEnd(34)
+      + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : (r.막힘 ? '✓ (막히되 이유를 말한다)' : '✓')));
+    if (VERBOSE && r.글) console.log('      화면: ' + r.글.slice(0, 130));
   }
 
   const 나쁜것 = 결과.filter((r) => r.나쁨.length);
