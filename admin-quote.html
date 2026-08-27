@@ -44,7 +44,7 @@
     height: 56px; max-width: 1680px; margin: 0 auto; padding: 0 1.5rem;
   }
   .aq-brand { display: flex; align-items: center; gap: .6rem; }
-  .aq-brand-title { font-size: .84rem; font-weight: 900; color: #fff; letter-spacing: .04em; }
+  .aq-brand-title { font-size: .84rem; font-weight: 900; color: #fff; letter-spacing: .04em; margin: 0; }
   .aq-brand-tag {
     font-size: .64rem; font-weight: 700; color: var(--primary); background: rgba(200,16,46,.14);
     border: 1px solid rgba(200,16,46,.35); padding: .15rem .5rem; letter-spacing: .06em; text-transform: uppercase;
@@ -323,7 +323,10 @@
   <div class="aq-topbar">
     <div class="aq-topbar-inner">
       <div class="aq-brand">
-        <span class="aq-brand-title">비즈페이지 내부 견적 산출</span>
+        <!-- 🔴 `<span>`이었다 (XT). 이 화면에 **`<h1>`이 하나도 없어서** 낭독기가
+             제목으로 읽지 못하고, 제목 단축키로 건너뛸 수도 없었다.
+             보이는 모양은 그대로다(`margin:0`으로 태그 기본 여백만 없앤다). -->
+        <h1 class="aq-brand-title">비즈페이지 내부 견적 산출</h1>
         <span class="aq-brand-tag">Staff Only</span>
       </div>
       <a href="admin.html" class="aq-back">← 관리자로</a>

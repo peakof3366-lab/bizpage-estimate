@@ -88,6 +88,7 @@ a { color: inherit; text-decoration: none; }
   color: rgba(255,255,255,.6); margin-bottom: 10px;
 }
 .hero-strip-title {
+  margin: 0;   /* h1 기본 여백을 없앤다 — 태그만 바꾸고 모양은 그대로 */
   font-size: clamp(20px, 4vw, 36px);
   font-weight: 800; color: #fff; letter-spacing: -.03em;
   text-shadow: 0 2px 16px rgba(0,0,0,.4);
@@ -351,7 +352,11 @@ a { color: inherit; text-decoration: none; }
   <img id="hero-img" src="" alt="" onerror="this.style.display='none'">
   <div class="hero-strip-overlay">
     <div class="hero-strip-label" id="hero-label">OVERSEAS TRAINING PROGRAM</div>
-    <div class="hero-strip-title" id="hero-title">해외연수 견적서</div>
+    <!-- 🔴 `<div>`이었다 (XT). **고객이 받는 견적서에 `<h1>`이 하나도 없었다** —
+         낭독기는 제목으로 문서를 훑는데 그 길이 막혀 있었다. 우리가 만드는 문서 중
+         가장 중요한 것이고, 결재에 올라가는 것도 이것이다.
+         보이는 모양은 그대로다(`margin:0`으로 태그 기본 여백만 없앤다). -->
+    <h1 class="hero-strip-title" id="hero-title">해외연수 견적서</h1>
     <div class="hero-strip-sub" id="hero-sub"></div>
     <!-- 견적번호 (WB) — ⚠ **인쇄물에 나와야 한다.** 상단 바는 `no-print`라 인쇄하면
          사라진다. 고객이 전화로 부를 수 있는 유일한 값이고, 결재 서류에 남는 것도 이것이다. -->

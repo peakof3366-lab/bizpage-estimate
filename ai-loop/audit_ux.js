@@ -39,7 +39,17 @@ const args = process.argv.slice(2);
 const VERBOSE = args.includes('--verbose');
 const ONLY = (() => { const i = args.indexOf('--page'); return i >= 0 ? args[i + 1] : null; })();
 
-/* 보이는가 — 화면마다 감추는 방식이 다르다 */
+/* 보이는가 — 화면마다 감추는 방식이 다르다.
+ 🔴 **jsdom은 스타일시트를 계산하지 않는다.** 그래서 `.tab-panel { display:none }`처럼
+   **CSS 규칙으로** 감춘 것은 여기서 보이는 것처럼 읽힌다 — 실제로 관리자 화면의
+   `<h1>`이 「17개 보인다」로 나왔다(한 번에 하나만 보이는데도).
+   그 규칙들을 여기 적어 둔다. 새 화면에 같은 방식이 생기면 여기 한 줄 늘린다.
+ ⚠ 이건 **완전하지 않다.** 진짜 보이는지는 브라우저로만 알 수 있다
+   (`check_quote_form_layout.py`가 그 일을 한다). */
+const CSS로감춘것 = [
+  { sel: '.tab-panel', 보일때: 'active' },          /* 관리자 탭 */
+  { sel: '.estimate-step', 보일때: 'step-active' },  /* 고객 견적 단계 */
+];
 function visible(el, doc) {
   let n = el;
   while (n && n !== doc.body) {
@@ -47,6 +57,9 @@ function visible(el, doc) {
     const st = (n.getAttribute && n.getAttribute('style')) || '';
     if (/display\s*:\s*none|visibility\s*:\s*hidden/.test(st)) return false;
     if (n.hasAttribute && n.hasAttribute('hidden')) return false;
+    for (const r of CSS로감춘것) {
+      if (n.matches && n.matches(r.sel) && !n.classList.contains(r.보일때)) return false;
+    }
     n = n.parentElement;
   }
   return true;
@@ -120,7 +133,7 @@ function measure(doc, scope) {
   /* 🔴 **카드 제목은 화면 제목이 아니다** (XT). 처음엔 `.card-title`까지 제목으로 세어
      「제목이 있다」고 읽었는데, 정작 17개 탭 어디에도 **화면이 무엇인지 말하는 줄**이
      없었다. 자가 느슨하면 고칠 것을 못 찾는다. */
-  const 제목 = Array.from(root.querySelectorAll('h1, h2.page-title, .page-title'))
+  const 제목 = Array.from(root.querySelectorAll('h1, .page-title'))
     .filter((el) => visible(el, doc) && shownText(el).trim())[0];
   const 설명 = Array.from(root.querySelectorAll('.page-sub'))
     .filter((el) => visible(el, doc) && shownText(el).trim())[0];
@@ -128,6 +141,9 @@ function measure(doc, scope) {
   return {
     글자수: txt.length,
     제목: 제목 ? shownText(제목).slice(0, 40) : '',
+    /* 🔴 **낭독기는 제목으로 화면을 건너뛴다.** `<h1>`이 하나도 없으면 그 길이 막힌다
+       — `admin-quote.html`이 그랬다(제목이 `<span>`이었다). 보이는 것만 센다. */
+    h1수: Array.from(doc.querySelectorAll('h1')).filter((el) => visible(el, doc)).length,
     설명: 설명 ? shownText(설명).slice(0, 60) : '',
     버튼: btns.length, 링크: links.length, 입력칸: fields.length,
     필수칸: fields.filter((el) => el.hasAttribute('required')).length,
@@ -262,6 +278,8 @@ if (require.main === module) (async () => {
       const head = p.name ? ('  · ' + p.name.padEnd(13)) : '  ·' + ' '.repeat(14);
       const 문제 = [];
       if (!m.제목) 문제.push('제목없음');
+      if (m.h1수 === 0) 문제.push('🔴h1없음');
+      else if (m.h1수 > 1) 문제.push('h1 ' + m.h1수 + '개');
       else if (!m.설명) 문제.push('설명없음');
       if (m.강조버튼.length > 1) 문제.push('강조 ' + m.강조버튼.length);
       if (m.무색버튼.length) 문제.push('무색 ' + m.무색버튼.length);
