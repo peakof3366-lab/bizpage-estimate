@@ -357,6 +357,62 @@ async function 패키지화면(f) {
   return out;
 }
 
+/* 담당자 견적 산출 화면 — **고객에게 나갈 금액을 만드는 자리**다(XV에서 처음 훑었다).
+   여기서 저장이 조용히 실패하면 담당자는 만든 줄 알고 넘어가고, 견적 기록이 없다. */
+async function 견적산출화면고장(f) {
+  const { adminFixtures: AF } = require('./_admin_fixtures');
+  const fx = AF('filled');
+  const orig = fx.route;
+  fx.route = function (u, opt, json) {
+    if (f.hit(u, opt)) return f.how ? f.how(json) : json({ error: 'boom' }, false, 500);
+    return orig.call(this, u, opt, json);
+  };
+  const B = bootPage('admin-quote.html', { fixtures: fx });
+  const { win, doc, tick } = B;
+  await B.ready; await tick(450);
+  const out = { key: f.key, 말: f.말, 나쁨: [] };
+  const app = doc.getElementById('quoteApp');
+  if (!app || app.classList.contains('hidden')) {
+    out.나쁨.push('🔴 화면이 안 열렸다 — 픽스처를 확인할 것');
+    win.close(); return out;
+  }
+  const ev = (el, k) => el.dispatchEvent(new win.Event(k, { bubbles: true }));
+  const set = (id, v) => { const el = doc.getElementById(id); if (el) { el.value = String(v); ev(el, 'input'); ev(el, 'change'); } };
+  const 날 = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('sv-SE'); };
+  set('destination', '오키나와'); set('programType', 'industry'); set('organizationType', 'company');
+  set('visitMode', 'official'); set('departureCity', 'ICN'); set('participants', '30');
+  set('startDate', 날(45)); set('endDate', 날(49));
+  set('organization', '[점검] 한빛전자'); set('contactName', '[점검] 김담당');
+  set('contactTel', '010-0000-0000'); set('requestDetails', '[점검] 고장 주입');
+  await tick(150);
+  doc.getElementById('estimateForm').dispatchEvent(new win.Event('submit', { bubbles: true, cancelable: true }));
+  /* 저장 결과가 화면에 붙기를 기다린다 — 고정 시간으로 재면 없는 결함이 생긴다(문의에서 겪었다) */
+  for (let i = 0; i < 20; i++) {
+    await tick(200);
+    const w = doc.getElementById('aqSaveWarn');
+    if (w && !w.classList.contains('hidden') && (w.textContent || '').trim()) break;
+  }
+  const card = doc.getElementById('estimateConfirm');
+  const 글 = shownText(card || doc.body).replace(/\s+/g, ' ').trim();
+  out.글 = 글;
+  const 저장경고 = doc.getElementById('aqSaveWarn');
+  const 경고글 = (저장경고 && !저장경고.classList.contains('hidden')) ? (저장경고.textContent || '').trim() : '';
+  if (f.key === 'aqSave500' || f.key === 'aqSaveDown') {
+    if (!경고글 && !/저장|실패|기록되지|다시/.test(글)) {
+      out.나쁨.push('🔴 견적 기록 저장이 실패했는데 담당자에게 아무 말도 안 한다');
+    }
+    if (/기록됨/.test(글) && !경고글) out.나쁨.push('🔴 저장이 안 됐는데 「기록됨」이라고 했다');
+  }
+  out.경고 = 경고글;
+  win.close();
+  return out;
+}
+
+const AQ_FAULTS = [
+  { key: 'aqSave500', 말: '🔴 담당자 견적 저장이 500', hit: (u, o) => u.includes('/api/quotes') && POST(o) },
+  { key: 'aqSaveDown', 말: '🔴 담당자 견적 저장 중 끊김', hit: (u, o) => u.includes('/api/quotes') && POST(o), how: () => Promise.reject(new Error('down')) },
+];
+
 const ADMIN_FAULTS = [
   { key: 'listQuotes500', 말: '견적 목록 조회가 500', hit: (u) => u.includes('/api/quotes') },
   { key: 'listInq500', 말: '문의 목록 조회가 500', hit: (u) => u.includes('/api/inquiries') },
@@ -483,6 +539,19 @@ async function 담당자화면고장(f) {
     console.log('  ' + r.key.padEnd(16) + (r.말 || '').padEnd(34)
       + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : (r.막힘 ? '✓ (막히되 이유를 말한다)' : '✓')));
     if (VERBOSE && r.글) console.log('      화면: ' + r.글.slice(0, 130));
+  }
+
+  /* ── 담당자 견적 산출 화면 ── */
+  console.log('\n■ 담당자 견적 산출 화면 — 저장이 죽었을 때');
+  for (const f of AQ_FAULTS) {
+    if (ONLY && f.key !== ONLY) continue;
+    let r;
+    try { r = await 견적산출화면고장(f); }
+    catch (e) { r = { key: f.key, 말: f.말, 나쁨: ['🔴 열다 터졌다: ' + String(e.message || e)] }; }
+    결과.push(r);
+    console.log('  ' + r.key.padEnd(16) + (r.말 || '').padEnd(34)
+      + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : '✓'));
+    if (VERBOSE && (r.경고 || r.글)) console.log('      화면: ' + (r.경고 || r.글).slice(0, 130));
   }
 
   const 나쁜것 = 결과.filter((r) => r.나쁨.length);
