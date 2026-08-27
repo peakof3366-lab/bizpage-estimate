@@ -153,6 +153,38 @@ async function 발급까지(고장) {
       !/유효기간 확인 중/.test(서버고장) && !/유효기간 확인 중/.test(없는링크));
   }
 
+  console.log('\n[6] 🔴 패키지 목록 — **못 불러온 것**과 **없는 것**을 가른다');
+  {
+    /* 예전에는 500이든 끊김이든 `{packages: []}`로 바꿔서, 화면이
+       「지금 준비된 패키지 상품이 없습니다」라고 말했다.
+       고객은 **우리가 파는 게 없다고 믿고 나간다.** */
+    const 열기 = async (how) => {
+      const B = bootPage('packages.html', {
+        fixtures: { route: (u, o, json) => (u.includes('action=packages') ? how(json) : null) },
+      });
+      await B.ready; await B.tick(600);
+      const el = B.doc.getElementById('pkEmpty');
+      const t = el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : '';
+      B.win.close();
+      return t;
+    };
+    const 진짜0건 = await 열기((json) => json({ packages: [] }));
+    ok('0건이면 「준비된 상품이 없습니다」', /준비된 패키지 상품이 없/.test(진짜0건), 진짜0건.slice(0, 60));
+
+    const 조회실패 = await 열기((json) => json({ error: 'x' }, false, 500));
+    ok('500이면 「불러오지 못했습니다」', /불러오지 못했습니다/.test(조회실패), 조회실패.slice(0, 60));
+    ok('500에 「없습니다」라고 하지 않는다', !/준비된 패키지 상품이 없/.test(조회실패));
+    ok('500에 다시 시도할 자리가 있다', /다시/.test(조회실패));
+
+    const 끊김 = await 열기(() => Promise.reject(new Error('down')));
+    ok('네트워크 끊김도 같은 갈래로 간다', /불러오지 못했습니다/.test(끊김));
+
+    const 모양이상 = await 열기((json) => json({ packages: 'nope' }));
+    ok('200인데 목록이 아니면 우리 쪽 문제로 본다', /불러오지 못했습니다/.test(모양이상));
+
+    ok('세 화면이 서로 다른 말을 한다', 진짜0건 !== 조회실패);
+  }
+
   console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
   process.exit(fail ? 1 : 0);
 })();

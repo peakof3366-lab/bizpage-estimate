@@ -320,6 +320,43 @@ async function 견적서열기(f) {
    ═══════════════════════════════════════════════════════════════════════════ */
 const { adminFixtures, enterDashboard } = require('./_admin_fixtures');
 
+/* 패키지 화면 — XN이 「상품이 0건이면 준비 중이라 말한다」를 넣었다. 그런데
+   **못 불러온 것도 0건으로 보인다.** 없는 것과 못 받은 것은 할 일이 정반대다. */
+const PKG_FAULTS = [
+  { key: 'pkgList500', 말: '패키지 목록 조회가 500', how: (json) => json({ error: 'boom' }, false, 500) },
+  { key: 'pkgListDown', 말: '패키지 목록 조회 중 끊김', how: () => Promise.reject(new Error('down')) },
+  { key: 'pkgListEmpty', 말: '패키지가 실제로 0건 (대조군)', how: (json) => json({ packages: [] }) },
+];
+
+async function 패키지화면(f) {
+  const B = bootPage('packages.html', {
+    fixtures: {
+      route(u, opt, json) {
+        if (u.includes('action=packages')) return f.how(json);
+        return null;
+      },
+    },
+  });
+  await B.ready; await B.tick(600);
+  const 글 = shownText(B.doc.body).replace(/\s+/g, ' ').trim();
+  const out = { key: f.key, 말: f.말, 글, 나쁨: [] };
+  /* ⚠ 처음엔 「준비 중」만 찾아서 **대조군(진짜 0건)까지 결함으로 셌다.**
+     화면이 실제로 쓰는 말은 「지금 준비된 패키지 상품이 없습니다」다. 글자를 맞춘다. */
+  const 준비중이라함 = /준비된 패키지 상품이 없|준비 중|준비중|아직 없/.test(글);
+  const 못받았다고함 = /불러오지 못|불러올 수 없|오류|다시|새로고침/.test(글);
+  if (!글) out.나쁨.push('🔴 빈 화면이다');
+  if (f.key === 'pkgListEmpty') {
+    if (!준비중이라함) out.나쁨.push('상품이 0건인데 그 사실을 안 말한다');
+    if (못받았다고함) out.나쁨.push('0건인데 오류라고 말한다');
+  } else {
+    /* 🔴 못 받은 것을 「준비 중」이라 말하면 고객은 우리가 파는 게 없다고 믿고 나간다 */
+    if (준비중이라함 && !못받았다고함) out.나쁨.push('🔴 못 불러온 것을 「준비 중」으로 말한다');
+    if (!못받았다고함) out.나쁨.push('못 불러왔다는 말이 없다');
+  }
+  B.win.close();
+  return out;
+}
+
 const ADMIN_FAULTS = [
   { key: 'listQuotes500', 말: '견적 목록 조회가 500', hit: (u) => u.includes('/api/quotes') },
   { key: 'listInq500', 말: '문의 목록 조회가 500', hit: (u) => u.includes('/api/inquiries') },
@@ -420,6 +457,19 @@ async function 담당자화면고장(f) {
     console.log('  ' + r.key.padEnd(16) + (r.말 || '').padEnd(34)
       + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : '✓'));
     if (VERBOSE && r.글) console.log('      화면: ' + r.글.replace(/\s+/g, ' ').slice(0, 130));
+  }
+
+  /* ── 패키지 화면 ── */
+  console.log('\n■ 패키지 화면 — 목록을 못 받았을 때');
+  for (const f of PKG_FAULTS) {
+    if (ONLY && f.key !== ONLY) continue;
+    let r;
+    try { r = await 패키지화면(f); }
+    catch (e) { r = { key: f.key, 말: f.말, 나쁨: ['🔴 열다 터졌다: ' + String(e.message || e)] }; }
+    결과.push(r);
+    console.log('  ' + r.key.padEnd(16) + (r.말 || '').padEnd(34)
+      + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : '✓'));
+    if (VERBOSE && r.글) console.log('      화면: ' + r.글.slice(0, 130));
   }
 
   /* ── 담당자 화면 ── */
