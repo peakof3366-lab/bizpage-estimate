@@ -176,9 +176,51 @@ function bootPage(file, opts = {}) {
     },
   });
 
+  /* 🔴 **iframe 안에는 스텁이 안 걸린다** (XT). 관리자 화면의 「내부 견적 산출」 탭은
+     `admin-quote.html`을 iframe으로 띄우는데, 그 창은 우리가 만든 창이 아니라 jsdom이
+     새로 만든 창이라 `fetch`가 없다 — 그 안의 코드가 부르는 순간 터진다.
+     실제 브라우저에서는 멀쩡히 도는 코드라, 그대로 두면 **없는 결함**이 생긴다
+     (이 하네스가 스스로 만든 가짜 결함 다섯 번째다).
+   ⚠ 완전히는 못 막는다. iframe의 스크립트는 우리가 창을 잡기 **전에** 이미 돌 수 있다.
+     그래서 이건 소음을 줄이는 것이지 「iframe 안을 봤다」는 뜻이 아니다 —
+     **iframe 속 화면은 그 파일을 따로 열어서 봐야 한다**(`admin-quote.html`을 따로 잰다). */
+  const stubFrames = (root) => {
+    Array.from(root.querySelectorAll ? root.querySelectorAll('iframe') : []).forEach((f) => {
+      const give = () => {
+        try {
+          const w = f.contentWindow;
+          if (!w || w.__stubbed) return;
+          w.__stubbed = true;
+          stubFetch(w, log, fx);
+          w.scrollTo = () => {};
+          if (w.HTMLElement) w.HTMLElement.prototype.scrollIntoView = function () {};
+          w.requestAnimationFrame = (cb) => w.setTimeout(() => cb(Date.now()), 0);
+          w.alert = (m) => { log.says.push({ kind: 'alert', text: String(m), where: 'iframe' }); };
+          w.print = () => { log.printed++; };
+          w.confirm = () => true;
+          w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
+          w.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
+          if (w.HTMLCanvasElement) {
+            const ctx = new Proxy({}, { get: () => (() => ctx) });
+            w.HTMLCanvasElement.prototype.getContext = () => ctx;
+          }
+        } catch (e) { /* 다른 오리진이면 못 건드린다 — 우리 파일만 띄우므로 여기 안 온다 */ }
+      };
+      give();
+      f.addEventListener('load', give);
+    });
+  };
+
   const win = dom.window, doc = win.document;
   const tick = (ms = 30) => new Promise((r) => win.setTimeout(r, ms));
-  const ready = new Promise((r) => { if (doc.readyState === 'complete') r(); else win.addEventListener('load', r); });
+  const ready = new Promise((r) => { if (doc.readyState === 'complete') r(); else win.addEventListener('load', r); })
+    .then(() => {
+      stubFrames(doc);
+      /* 탭을 눌러야 생기는 iframe도 있다 — 생길 때마다 잡는다 */
+      if (typeof win.MutationObserver === 'function') {
+        new win.MutationObserver(() => stubFrames(doc)).observe(doc.body || doc, { subtree: true, childList: true, attributes: true, attributeFilter: ['src'] });
+      }
+    });
   return { dom, win, doc, log, tick, ready, fixtures: fx };
 }
 

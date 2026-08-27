@@ -23,6 +23,35 @@ const fs = require('fs');
 const path = require('path');
 const { bootPage, visibleText, ROOT } = require('./_page_boot');
 
+/* 🔴 **감춰진 패널의 글자까지 읽으면 안 된다** (XS).
+   `_page_boot`의 `visibleText`는 `script`·`style`만 걷어낸다 — 그건 「소스가 글자로
+   섞이는 것」을 막으려고 만든 것이고, 화면에서 **감춰진 요소**는 그대로 남는다.
+   실제로 인쇄용 문서에서 「링크 공유」와 「담당자 확인이 필요한 견적입니다」가 **동시에**
+   읽혔다. 둘은 서로 배타적인 상태라 하나는 반드시 감춰져 있다.
+   → 그 상태로 「유효기간 문구가 있다」를 재면 **감춰진 안내를 보고 통과**할 수 있다.
+     안 보이는 글자로 통과하는 검사는 아무것도 안 지킨다(결함 생성기 ③).
+
+ 🔴 **감추는 방식이 화면마다 다르다.** 고객 화면(index.html)은 `.hidden` 클래스를 쓰고,
+   인쇄용 팝업은 **인라인 `style="display:none"`**을 쓴다(그 문서는 통째로 템플릿
+   문자열이라 클래스를 쓸 자리가 없다). 한쪽만 걷어내면 팝업에서는 **한 글자도 안 줄어든다** —
+   실제로 3,059자 → 3,059자였다. 두 방식을 다 본다.
+ ⚠ 공용 `visibleText`를 고치지 않는다 — 다른 도구 여럿이 지금 동작에 기대고 있다.
+   여기서만 더 좁게 본다.
+ ⚠ `.no-print`는 **감춘 것이 아니다**(인쇄할 때만 빠진다). 걷어내면 화면에 멀쩡히
+   보이는 버튼이 「없는 것」이 된다. */
+function shownText(el) {
+  if (!el) return '';
+  const c = el.cloneNode(true);
+  if (!c.querySelectorAll) return (c.textContent || '').replace(/\s+/g, ' ').trim();
+  c.querySelectorAll('script,style,template,[hidden],[aria-hidden="true"],.hidden').forEach((n) => n.remove());
+  /* 인라인으로 감춘 것 — 팝업 문서가 쓰는 방식이다 */
+  c.querySelectorAll('[style]').forEach((n) => {
+    const st = String(n.getAttribute('style') || '').replace(/\s+/g, '').toLowerCase();
+    if (/display:none|visibility:hidden/.test(st)) n.remove();
+  });
+  return (c.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
 const hash = (s) => {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -170,4 +199,4 @@ async function auditPage(file, opts = {}) {
   return { file, loadErrors, dead, results, log, nameless: namelessControls(doc), B };
 }
 
-module.exports = { hash, clickables, label, deadLinks, namelessControls, auditPage, visibleText, ROOT };
+module.exports = { hash, clickables, label, deadLinks, namelessControls, auditPage, shownText, visibleText, ROOT };
