@@ -413,6 +413,66 @@ const AQ_FAULTS = [
   { key: 'aqSaveDown', 말: '🔴 담당자 견적 저장 중 끊김', hit: (u, o) => u.includes('/api/quotes') && POST(o), how: () => Promise.reject(new Error('down')) },
 ];
 
+/* 🔴 **쓰기가 조용히 실패하는 것이 가장 비싸다.** 담당자는 고쳤다고 믿고 넘어가는데
+   고객에게 나가는 금액은 안 바뀐 채로 남는다. 요율 저장을 실제로 눌러 본다. */
+const WRITE_FAULTS = [
+  { key: 'rateSave500', 말: '🔴 요율 저장이 500', how: (json) => json({ error: 'boom' }, false, 500) },
+  { key: 'rateSaveDown', 말: '🔴 요율 저장 중 끊김', how: () => Promise.reject(new Error('down')) },
+  { key: 'rateSave401', 말: '🔴 저장하려는데 세션이 끊겼다(401)', how: (json) => json({ error: 'unauthorized' }, false, 401) },
+];
+
+async function 요율저장고장(f) {
+  const fx = adminFixtures('filled', {
+    overrides: { 오키나와: { hotel_per_room: 152000, rateDate: '2026-07' } },
+    fxRates: {}, fxBaseline: {}, customDestinations: [], coefficients: {},
+  });
+  const orig = fx.route;
+  fx.route = function (u, opt, json) {
+    /* **저장(PATCH)만** 죽인다 — 조회는 살아 있어야 편집창이 열린다 */
+    if (u.includes('/api/rates') && String(opt && opt.method).toUpperCase() === 'PATCH') return f.how(json);
+    return orig.call(this, u, opt, json);
+  };
+  const B = bootPage('admin.html', { fixtures: fx });
+  const { win, doc, log, tick } = B;
+  await B.ready; await tick(400);
+  const got = await enterDashboard(B);
+  const out = { key: f.key, 말: f.말, 나쁨: [] };
+  if (!got.entered) { out.나쁨.push('🔴 대시보드에 못 들어갔다 — 픽스처를 확인할 것'); win.close(); return out; }
+
+  if (typeof win.openRateEditModal !== 'function' || typeof win.saveRateEdit !== 'function') {
+    out.나쁨.push('🔴 요율 편집 함수를 화면에서 못 찾았다 (이름이 바뀌었나)');
+    win.close(); return out;
+  }
+  await win.openRateEditModal('오키나와');
+  await tick(300);
+  const modal = doc.getElementById('rateEditModal');
+  if (!modal || modal.classList.contains('hidden')) {
+    out.나쁨.push('🔴 편집창이 안 열렸다');
+    win.close(); return out;
+  }
+  /* 값을 하나 바꾼다 — 실제 담당자가 하는 그대로 */
+  const fld = doc.querySelector('#rate-edit-fields input[data-field="hotel_per_room"]');
+  if (fld) { fld.value = '999000'; fld.dispatchEvent(new win.Event('input', { bubbles: true })); }
+
+  const 말전 = log.says.length;
+  try { await win.saveRateEdit(); } catch (e) { out.나쁨.push('🔴 저장을 누르니 터졌다: ' + String(e.message || e)); }
+  await tick(500);
+
+  const 말 = log.says.slice(말전).map((s) => s.text).join(' | ');
+  const 닫혔나 = modal.classList.contains('hidden');
+  out.말한것 = 말;
+  out.닫힘 = 닫혔나;
+
+  /* 🔴 저장이 실패했는데 **창이 닫히면** 담당자는 저장된 줄 안다 */
+  if (닫혔나) out.나쁨.push('🔴 저장이 실패했는데 편집창이 닫혔다 (저장된 것처럼 보인다)');
+  if (!말.trim()) out.나쁨.push('🔴 저장이 실패했는데 아무 말도 안 한다');
+  else if (f.key === 'rateSave401' && !/로그인|세션|다시 접속/.test(말)) {
+    out.나쁨.push('세션이 끊긴 것인데 그 사실을 안 말한다: ' + 말.slice(0, 50));
+  }
+  win.close();
+  return out;
+}
+
 const ADMIN_FAULTS = [
   { key: 'listQuotes500', 말: '견적 목록 조회가 500', hit: (u) => u.includes('/api/quotes') },
   { key: 'listInq500', 말: '문의 목록 조회가 500', hit: (u) => u.includes('/api/inquiries') },
@@ -539,6 +599,19 @@ async function 담당자화면고장(f) {
     console.log('  ' + r.key.padEnd(16) + (r.말 || '').padEnd(34)
       + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : (r.막힘 ? '✓ (막히되 이유를 말한다)' : '✓')));
     if (VERBOSE && r.글) console.log('      화면: ' + r.글.slice(0, 130));
+  }
+
+  /* ── 담당자 쓰기 경로 ── */
+  console.log('\n■ 담당자 화면 — **요율 저장**이 죽었을 때 (고객 금액이 걸린 자리)');
+  for (const f of WRITE_FAULTS) {
+    if (ONLY && f.key !== ONLY) continue;
+    let r;
+    try { r = await 요율저장고장(f); }
+    catch (e) { r = { key: f.key, 말: f.말, 나쁨: ['🔴 열다 터졌다: ' + String(e.message || e)] }; }
+    결과.push(r);
+    console.log('  ' + r.key.padEnd(16) + (r.말 || '').padEnd(34)
+      + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : '✓'));
+    if (VERBOSE && r.말한것) console.log('      말한 것: ' + String(r.말한것).slice(0, 130));
   }
 
   /* ── 담당자 견적 산출 화면 ── */
