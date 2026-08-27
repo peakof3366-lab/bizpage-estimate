@@ -40,7 +40,23 @@ node ai-loop/run_all_tests.js       # 회귀 스위트 — 계산식을 바꿨�
 node ai-loop/fuzz_invariants.js     # 견적 엔진 불변식 (--full = 52,360건)
 node ai-loop/audit_consistency.js   # 목적지 목록 교차 정합성 (오류 0이어야 정상)
 node ai-loop/audit_rates.js         # 요율 '값' 점검 — 결과는 '확인 대상'이지 '오류'가 아니다
+node ai-loop/audit_internals.js     # 안쪽 세기 (XQ) — 아무도 안 부르는 파일 · 함수 수 vs 12개 한도 ·
+                                    #   두 번 적힌 목록 · 큰 파일. **오류가 아니라 사람이 볼 목록**이다
+node ai-loop/probe_admin_size.js    # admin.html 안에 무엇이 들어 있나 (XR) — --all로 전부
 ```
+
+🔴 **`admin.html`(865KB·13,881줄)을 쪼개려 할 때 먼저 읽을 것.** 2026-08-27 실측:
+동작 76% · 뼈대 16% · 모양 9%이고, 인라인 `<script>` 하나가 **10,813줄**이다.
+그런데 그 안은 최상위 조각 **493개**로 이미 잘게 갈려 있다(가장 큰 것이 365줄, 3%) —
+**떼어낼 괴물 함수가 없다.** 경계가 있다면 이름 첫 낱말이다(`render` 17% · `iti` 13% ·
+`rec` 9% · `pkg` 8%).
+
+🔴 **그리고 지금은 쪼개면 안 된다.** `ai-loop`의 검사 **74개**가 `admin.html`을 *글자로
+읽어* 정규식으로 대조한다. 인라인 스크립트를 바깥 파일로 빼면 그 74개는 읽을 글자를
+잃고 **조용히 통과**한다(터지지 않는다 — 그래서 더 위험하다. XQ에서 목록을 단일 출처로
+모았을 때 정확히 이 일이 다섯 건 났다). 순서는 **검사가 파일을 따라오게 만드는 것이
+먼저**다 — 74개가 「admin의 스크립트」를 한 곳에서 받아 가게 바꾼 뒤에 쪼갠다.
+
 
 **견적서 PDF 추출을 손댔으면 코퍼스로 재 본다** (읽기 전용, 코퍼스는 저장소 밖).
 
@@ -57,6 +73,21 @@ node ai-loop/audit_spec_knobs.js    # 엔진이 가진 **사양 손잡이**로 �
 node ai-loop/audit_corpus_fitness.js # **이 견적서가 우리와 같은 상품인가** — 정답지의 성격 (VN)
 node ai-loop/audit_itinerary.js     # 일정표를 얼마나 읽어냈는가 (트랙 B — 금액과 무관)
 ```
+
+**한 장을 파고들 때 · 이미 DB에 들어간 값을 되짚을 때** (전부 읽기 전용).
+
+```bash
+node ai-loop/probe_corpus_doc.js "신한 …(발리).pdf"  # 문서 한 장을 사람 눈으로 보기 전에 훑는다 (XA)
+node ai-loop/probe_corpus_doc.js --all-missing        #   검산이 안 돈 문서만 — **먼저 「문서에 값이 있는가」**
+node ai-loop/recheck_reports.js     # 운영 DB 제보를 원본 견적서로 다시 맞춰 본다 (TX)
+node ai-loop/resolve_far_off.js     # 「확인 필요」가 오독인가 · 요율이 낡은 것인가를 가른다 (TY)
+```
+
+**한 번 쓰고 끝난 것** — 지우지 않은 이유는 *무엇을 왜 그렇게 했는지*가 그 안에 있어서다.
+새로 만들 것을 찾을 때 여기부터 보지 말 것:
+`fix_report_marks.js`(TI 이전 제보에 자동 제외 표시를 소급 — 기본 dry-run, 쓰려면 `--apply`) ·
+`probe_p11_interactions.js`(계수 곱셈 스택을 고치기 **전에** 재 둔 측정).
+
 
 **정확도 도구 셋은 층이 다르다** — 섞어 읽으면 엉뚱한 칸을 고치게 된다:
 
@@ -135,6 +166,21 @@ jsdom은 레이아웃을 계산하지 않아 위 스위트로는 **보이는 모
 필요하다(`run_all_tests.js`는 알아서 잡는다). 턴 종료 시 Stop 훅
 (`ai-loop/hooks/verify_on_stop.js`)이 앞의 두 개를 자동 실행한다.
 
+## 눌러 보는 자 (XK) — 소스를 읽지 말고 **그려서 읽는다**
+
+```bash
+node ai-loop/audit_customer_journey.js            # 고객 화면 4개의 버튼을 전부 눌러 본다
+node ai-loop/audit_customer_journey.js --verbose  #   터짐 · 죽은 링크 · 아무 일도 안 남 · 이름 없는 칸
+node ai-loop/smoke_prod_journey.js                # 프로덕션 주력 경로 — **기본은 dry-run**
+node ai-loop/smoke_prod_journey.js --live --cleanup  # 🔴 운영 DB에 실제로 쓰고, 만든 행을 지운다
+```
+
+화면을 띄우는 자리는 `ai-loop/_page_boot.js` **한 곳**이다(도구마다 다시 짜지 말 것).
+이 방식으로만 나온 결함이 여럿이다 — 고객이 **견적서 링크를 한 번도 못 받고 있었고**(XJ),
+패키지 견적서에 **일정이 한 줄도 안 실렸다**(XC). 조각으로 보면 양쪽 다 멀쩡해 보인다.
+⚠ **화면 글자만 본다.** `body.textContent`에는 페이지 안쪽 `<script>` 소스가 통째로 들어 있어
+그대로 검사하면 **없는 결함**이 생긴다(실제로 5건 만들었다).
+
 ## 배포
 
 `git push origin master` = **프로덕션 자동 배포**. 별도 배포 명령이 없다.
@@ -144,6 +190,8 @@ jsdom은 레이아웃을 계산하지 않아 위 스위트로는 **보이는 모
   순서가 뒤바뀌면 그 기능이 500으로 깨진다. 실행은 사용자 승인 후.
 - Vercel Hobby = **서버리스 함수 12개 제한에 이미 도달**. 새 API는 새 파일이 아니라
   기존 파일에 `?action=` 분기로 추가한다.
+  ⚠ **하위 폴더도 한 칸씩 먹는다** — `api/admin/*.js` 셋과 `api/*/[id].js` 셋을 합쳐
+  2026-08-27 실측 **12/12**(맨 위 6 + 6). `audit_internals.js`가 이 수를 매번 센다.
 
 ## 백업
 
@@ -158,6 +206,10 @@ node ai-loop/db_restore.js --confirm # 계획대로 실행 — 빠진 행만 채
 
 node ai-loop/setup_cloud_backup.js         # 클라우드 사본 설정 — 계획만 출력
 node ai-loop/setup_cloud_backup.js --apply # 실행 (구글 드라이브 폴더를 찾아 설정)
+
+node ai-loop/db_status.js            # 운영 DB 현황 — select만 한다. **연락처는 마스킹**(--full로만 원본)
+node ai-loop/db_migrate.js           # 스키마 변경 — 실행은 사용자 승인 후
+ADMIN_BOOTSTRAP_ID=admin ADMIN_BOOTSTRAP_PW=… node ai-loop/db_seed_admin.js  # 관리자 1회 시드
 ```
 
 **백업은 두 곳에 남는다** — 노트북(`../비즈페이지_백업/`)에 먼저 쓰고, 클라우드 동기화
