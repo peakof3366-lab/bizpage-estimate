@@ -81,10 +81,26 @@ console.log('\n[1] 🔴 목록이 세 곳에 있다 — 셋을 함께 대조한�
 
 console.log('\n[2] 계수 — 값을 지어내지 않았다');
 {
-  ok('② 휴양 계수가 1.0이다(= 조정 없음)', /leisure:\s*1\.0\b/.test(SCRIPT));
-  ok('② 일반 고객 계수가 1.0이다', /individual:\s*1\.0\b/.test(SCRIPT));
-  ok('② 왜 1.0인지가 적혀 있다', /값을 지어내지 않았다는 뜻이다/.test(SCRIPT));
-  ok('② 바꾸는 것이 대표 결정이라고 적혀 있다', /대표 결정이다/.test(SCRIPT));
+  /* 🔴 **값 자체를 본다 — 소스 글자를 긁지 않는다** (XS).
+     예전엔 `script.js`를 정규식으로 훑었는데, XS에서 계수 표를 `data.js` 한 곳으로
+     모으자 **긁을 글자가 없어져** 이 검사 넷이 한꺼번에 깨졌다. XQ에서 똑같은 일이
+     다섯 건 났다 — 단일 출처로 모을 때마다 반복된다.
+     ⚠ 더 나쁜 쪽은 「깨지는 것」이 아니라 **「아무것도 안 지키면서 초록이 되는 것」**이다.
+       값으로 보면 표가 어디로 옮겨 가도 따라간다. */
+  const FACT = require(path.join(ROOT, 'data.js')).ESTIMATE_FACTORS;
+  const combined = require(path.join(ROOT, 'data.js')).estimateCombinedFactor;
+  ok('② 휴양 계수가 1.0이다(= 조정 없음)', FACT.programFactor.leisure === 1.0,
+    String(FACT.programFactor.leisure));
+  ok('② 일반 고객 계수가 1.0이다', FACT.organizationFactor.individual === 1.0,
+    String(FACT.organizationFactor.individual));
+  ok('② 휴양 × 일반 고객은 계수를 아예 안 건다', combined('leisure', 'individual') === 1.0);
+  /* 산문은 값이 있는 파일에 있어야 한다 — 값과 이유가 갈라지면 이유부터 낡는다 */
+  const DATA_SRC = read('data.js');
+  ok('② 왜 1.0인지가 적혀 있다', /값을 지어내지 않았다는 뜻이다/.test(DATA_SRC));
+  ok('② 바꾸는 것이 대표 결정이라고 적혀 있다', /대표 결정이다/.test(DATA_SRC));
+  /* 화면이 그 표를 **다시 적지 않고 읽어 가는지** — 두 벌이 되면 반드시 어긋난다 */
+  ok('② 화면은 표를 다시 적지 않고 data.js에서 읽는다',
+    /programFactor:\s*ESTIMATE_FACTORS\.programFactor/.test(SCRIPT));
 }
 
 console.log('\n[3] 화면 — 왜 꺼졌는지 말하고, 다시 켤 수 있다');

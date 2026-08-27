@@ -23,6 +23,9 @@
    → 그래서 결과는 ok/fail 두 값이 아니라 단계별 기록으로 남긴다. 관리자가 어느
      단계에서 걸렸는지 보고 판단할 수 있어야 한다. */
 const destinationRates = require('../../data');
+/* XS: 프로그램·기관 계수 — **`data.js` 한 곳**에서 온다. 여기 값을 다시 적으면
+   화면과 서버가 다른 금액을 말하게 된다(결함 생성기 ①). */
+const COMBINED_FACTOR = require('../../data').estimateCombinedFactor;
 const LIMITS = require('../../limits');
 
 const BUILTIN = new Map(destinationRates.map((d) => [d.destination_key, d]));
@@ -161,14 +164,41 @@ function verifyQuote(payload, ctx = {}) {
     step('amounts', '항목 금액 형식', badAmounts.length === 0, badAmounts.join(', ') || '전부 정상');
 
     const sum = items.reduce((a, it) => a + (num(it.amount) || 0), 0);
-    step('sum', '항목 합계 = 총액', total !== null && Math.abs(sum - total) <= 2,
-      total === null ? '총액 없음' : `합계 ${sum.toLocaleString()} vs 총액 ${total.toLocaleString()}`);
+    /* 🔴 **엔진은 항목 합에 계수를 곱해 총액을 만든다** (XS).
+         `total = 항목합 × 프로그램계수 × 기관계수` — `estimateCriteria.formula`가
+         그렇게 적혀 있고 `getBreakdownData`가 그대로 계산한다.
+       그런데 여기서는 `항목합 == 총액`을 요구하고 있었다. 그래서 **계수가 1.0이 아닌
+       견적은 전부 여기서 떨어졌고**, 고객 자동 발급은 통과해야만 링크가 나가므로
+       그 손님들은 견적서를 한 번도 못 받았다. 1.0이 되는 조합은 20개 중 4개뿐이다
+       (어학·휴양 × 기업·개인). 가상 고객 6명 중 4명이 이 이유로 막혀 있었다.
+     ⚠ **payload가 보내 준 `combinedFactor`를 쓰지 않는다.** 그걸 믿으면 계수를 조작해
+       아무 총액이나 통과시킬 수 있다 — 이 파일이 막으려던 위조 경로가 그대로 열린다.
+       연수 유형·기관 유형 **이름만 받아** `data.js`의 표에서 다시 계산한다.
+     ⚠ 그리고 **보낸 계수와 우리가 계산한 계수가 다르면 그 자체가 신호다.** 조용히
+       우리 값으로 덮으면 위조 시도가 「통과」로 남는다(결함 생성기 ②). */
+    const cf = COMBINED_FACTOR(p.program || p.programType, p.orgType || p.organizationType);
+    const claimed = num(p.combinedFactor);
+    if (claimed !== null) {
+      step('factor', '계수 일치', Math.abs(claimed - cf) < 1e-6,
+        `보낸 값 ${claimed} vs 유형(${p.program || p.programType} × ${p.orgType || p.organizationType})으로 계산한 ${cf}`);
+    }
+    const expected = Math.round(sum * cf);
+    /* 반올림이 항목마다 한 번씩 일어나므로 항목 수만큼은 어긋날 수 있다 */
+    step('sum', '항목 합계 × 계수 = 총액',
+      total !== null && Math.abs(expected - total) <= Math.max(2, items.length),
+      total === null ? '총액 없음'
+        : `합계 ${sum.toLocaleString()} × ${cf} = ${expected.toLocaleString()} vs 총액 ${total.toLocaleString()}`);
   }
 
   const visible = num(p.visibleTotal), hidden = num(p.hiddenTotal);
   if (visible !== null && hidden !== null && total !== null) {
-    step('split', '공개+비공개 = 총액', Math.abs(visible + hidden - total) <= 2,
-      `${visible.toLocaleString()} + ${hidden.toLocaleString()} vs ${total.toLocaleString()}`);
+    /* ⚠ 엔진의 정의가 `visibleTotal = total − round(hiddenTotal × 계수)`다.
+       즉 **비공개 쪽에도 같은 계수가 붙는다.** 예전엔 계수 없이 더해 비교해서,
+       계수가 1.0이 아니면 여기서도 어김없이 떨어졌다(`sum`과 같은 원인이다). */
+    const cf2 = COMBINED_FACTOR(p.program || p.programType, p.orgType || p.organizationType);
+    const merged = visible + Math.round(hidden * cf2);
+    step('split', '공개 + 비공개×계수 = 총액', Math.abs(merged - total) <= 2,
+      `${visible.toLocaleString()} + ${Math.round(hidden * cf2).toLocaleString()} vs ${total.toLocaleString()}`);
   }
 
   const perPerson = num(p.perPerson);

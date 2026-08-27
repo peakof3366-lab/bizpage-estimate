@@ -693,6 +693,54 @@ destinationRates.forEach((d) => {
   if (typeof d.golf_fee !== 'number') d.golf_fee = GOLF_FEES[d.destination_key] || 0;
 });
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   프로그램·기관 계수 — **화면과 서버가 같은 표를 본다** (XS)
+   ───────────────────────────────────────────────────────────────────────────
+   이 값은 원래 `script.js`의 `estimateCriteria` 한 곳에만 있었다. 그래서 서버는
+   **엔진이 총액에 무엇을 곱했는지 알 방법이 없었다.**
+
+   🔴 그 결과가 이랬다: 엔진은 `total = 항목합 × 프로그램계수 × 기관계수`인데
+     검증기(`api/_lib/quote_verify.js`)는 `항목합 == 총액`을 요구했다.
+     그래서 **계수가 1.0이 아닌 모든 견적이 검증에서 떨어졌고**, 고객 자동 발급은
+     통과해야만 링크가 나가므로 그 손님들은 **견적서 링크를 한 번도 못 받았다.**
+     1.0이 되는 조합은 20개 중 4개뿐이다(어학·휴양 × 기업·개인).
+     가상 고객 훑기에서 6명 중 4명이 이 이유로 막혀 있었다.
+
+   ⚠ 검증기는 **payload가 보내 준 계수를 믿으면 안 된다.** 그러면 계수를 조작해
+     아무 총액이나 통과시킬 수 있다(이 파일이 막으려던 위조 경로가 그대로 열린다).
+     그래서 **연수 유형·기관 유형 이름만 받아 여기 표에서 계수를 다시 계산한다.**
+   ⚠ 값을 바꾸면 고객이 보는 금액이 바뀐다 — **대표 결정 사항**이다(도메인 값).
+   ═══════════════════════════════════════════════════════════════════════════ */
+const ESTIMATE_FACTORS = {
+  programFactor: {
+    language: 1.0,
+    leadership: 1.12,
+    industry: 1.18,
+    academic: 1.05,
+    /* 휴양 (VV) — **1.0 = 계수를 걸지 않는다.** 값을 지어내지 않았다는 뜻이다.
+       연수 유형의 계수는 프로그램 운영 난이도(강사·기관 섭외)를 반영한 것인데
+       휴양에는 그 일이 없다. 그리고 1.0인 상태에서 실측이 소매가와 **+1.6%**였다
+       (오키나와 4명, 차량·가이드 제외). 올릴 근거가 없다.
+       ⚠ 휴양에 다른 마진 정책을 두려면 여기 한 줄이고, 그건 대표 결정이다. */
+    leisure: 1.0,
+  },
+  organizationFactor: {
+    company: 1.0,
+    public: 1.06,
+    education: 0.95,
+    /* 일반 고객 (VV) — 기관이 아니라 개인·가족·모임. 위와 같은 이유로 1.0이다. */
+    individual: 1.0,
+  },
+};
+
+/* 계수를 **이름에서** 만든다 — 화면·서버·감사기가 이 함수 하나만 부른다.
+   모르는 이름은 1.0이다(조용한 폴백이 아니라, 계수를 안 거는 것이 기본값이라는 뜻). */
+function estimateCombinedFactor(programType, orgType) {
+  const pf = ESTIMATE_FACTORS.programFactor[programType] || 1.0;
+  const of = ESTIMATE_FACTORS.organizationFactor[orgType] || 1.0;
+  return pf * of;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = destinationRates;
   /* PQ: 시즌 프로파일 id 목록을 서버 검증(api/rates.js)이 재사용하도록 함께 내보낸다.
@@ -715,6 +763,9 @@ if (typeof module !== 'undefined' && module.exports) {
      대조하는 데 쓴다. 화면은 getGolfFee 하나만 본다. */
   module.exports.GOLF_FEES = GOLF_FEES;
   module.exports.getGolfFee = getGolfFee;
+  /* XS: 프로그램·기관 계수 — 검증기가 **payload를 믿지 않고** 여기서 다시 계산한다 */
+  module.exports.ESTIMATE_FACTORS = ESTIMATE_FACTORS;
+  module.exports.estimateCombinedFactor = estimateCombinedFactor;
   module.exports.MARGIN_BANDS = MARGIN_BANDS;
   module.exports.marginBandFor = marginBandFor;
   /* TP: 부대비용 계수·옵션. 시뮬레이터(sim_ancillary.js)와 테스트가 같은 값을 본다 —

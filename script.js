@@ -239,26 +239,15 @@ const itineraryOverridesReady = (function applyItineraryOverrides() {
     });
 })();
 
+/* 🔴 **계수 표는 `data.js`가 진실이다** (XS). 예전엔 여기 값이 적혀 있었고,
+   그래서 **서버는 엔진이 총액에 무엇을 곱했는지 알 방법이 없었다.**
+   그 결과 검증기가 「항목합 == 총액」을 요구해 **계수가 1.0이 아닌 견적이 전부 떨어졌고**,
+   고객 자동 발급은 통과해야만 링크가 나가므로 그 손님들은 **견적서를 못 받았다**
+   (20개 조합 중 계수가 1.0인 것은 4개뿐이다 — 어학·휴양 × 기업·개인).
+   ⚠ 값을 여기 다시 적지 말 것. 두 벌이 되는 순간 화면과 서버가 다른 금액을 말한다. */
 const estimateCriteria = {
-  programFactor: {
-    language: 1.0,
-    leadership: 1.12,
-    industry: 1.18,
-    academic: 1.05,
-    /* 휴양 (VV) — **1.0 = 계수를 걸지 않는다.** 값을 지어내지 않았다는 뜻이다.
-       연수 유형의 계수는 프로그램 운영 난이도(강사·기관 섭외)를 반영한 것인데
-       휴양에는 그 일이 없다. 그리고 1.0인 상태에서 실측이 소매가와 **+1.6%**였다
-       (오키나와 4명, 차량·가이드 제외). 올릴 근거가 없다.
-       ⚠ 휴양에 다른 마진 정책을 두려면 여기 한 줄이고, 그건 대표 결정이다. */
-    leisure: 1.0,
-  },
-  organizationFactor: {
-    company: 1.0,
-    public: 1.06,
-    education: 0.95,
-    /* 일반 고객 (VV) — 기관이 아니라 개인·가족·모임. 위와 같은 이유로 1.0이다. */
-    individual: 1.0,
-  },
+  programFactor: ESTIMATE_FACTORS.programFactor,
+  organizationFactor: ESTIMATE_FACTORS.organizationFactor,
   formula: '항공+유류+숙박+식비+차량+가이드+관광+마진 × 프로그램 계수 × 기관 계수',
 };
 
@@ -460,7 +449,11 @@ function fieldLabelText(el) {
     const t = clone.textContent.replace(/\s+/g, ' ').replace(/\*/g, '').trim();
     if (t) return t;
   }
-  return el.getAttribute('placeholder') || el.id || '입력';
+  /* 🔴 `aria-label`을 **id보다 먼저** 본다 (XS). `.inc-vip-row` 안의 칸들은
+     `<label>`로 감싸여 있지 않아서 여기까지 내려오는데, 그때 고객이 읽은 문장이
+     「**golfRounds**」은(는) … 였다. 낭독기에게 줄 이름은 이미 적어 뒀으면서
+     눈으로 읽는 사람에게는 안 쓰고 있었다. */
+  return el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.id || '입력';
 }
 
 /* 문구는 **한 곳에서만** 만든다 — 두 자리(처음 막을 때 / 채우는 중)에서 각자 지으면
@@ -473,7 +466,10 @@ function fieldProblem(el) {
   if (v.valueMissing || !String(el.value || '').trim()) return { kind: 'empty', text: `「${name}」을(를) 입력해 주세요` };
   if (v.rangeUnderflow || v.rangeOverflow) {
     const lo = el.getAttribute('min'), hi = el.getAttribute('max');
-    return { kind: 'range', text: `「${name}」은(는) ${lo || '?'}~${hi || '?'} 사이로 넣어 주세요` };
+    /* ⚠ 한쪽만 있는 칸이 대부분이다 — 예전엔 「1~**?** 사이로」라고 물음표를
+       그대로 찍었다(XS). 모르는 것을 아는 척하지 않되, 물음표로 말하지도 않는다. */
+    const range = lo && hi ? `${lo}~${hi} 사이로` : lo ? `${lo} 이상으로` : hi ? `${hi} 이하로` : '다시';
+    return { kind: 'range', text: `「${name}」은(는) ${range} 넣어 주세요` };
   }
   if (v.tooShort || v.tooLong) return { kind: 'len', text: `「${name}」의 길이를 확인해 주세요` };
   if (v.patternMismatch || v.typeMismatch || v.badInput) return { kind: 'form', text: `「${name}」 형식을 확인해 주세요` };
@@ -508,6 +504,59 @@ function clearMissingMark(el) {
    ⚠ HTML에 숫자를 적어 두지 않는다 — `limits.js`를 고치면 화면이 따라와야 한다.
    ⚠ `limits.js`를 못 실은 화면에서는 **아무 것도 하지 않는다**(상한 없이 예전처럼
      동작). 여기서 임의의 기본값을 넣으면 그게 곧 두 번째 진실이 된다. */
+/* 🔴 **감춰진 칸은 제출을 막을 수 없다** (XS) — 가상 고객 훑기에서 나온 것.
+   ───────────────────────────────────────────────────────────────────────────
+   재현된 길: 골프 되는 목적지(제주도·오키나와·후아힌·카자흐스탄)에서 골프를 켜고
+   **라운딩 칸에 0을 넣은 뒤** 목적지를 골프 없는 곳으로 바꾼다. 그러면 화면이
+   골프 체크를 알아서 풀고 입력줄을 감추는데(`syncGolfAvailability`) **값 0은 그대로
+   남는다.** `golfRounds`에는 `min="1"`이 걸려 있으므로 그때부터 브라우저가 제출을
+   영영 막는다 — 고객에게는 「견적 확인하기」가 죽은 버튼이 되고, 원인이 되는 칸은
+   화면에 없다. 우리 안내조차 보이지 않는 칸을 가리켰다.
+
+   ⚠ 이건 골프만의 문제가 아니다. **감춰진 값 칸에 제약이 걸려 있으면 언제나** 같은
+     일이 난다(`bizCount`·`vipCount`·`agencyVisits`도 `min`을 갖고 있다).
+     그래서 골프 한 곳이 아니라 **부류 전체**를 막는다.
+
+   ⚠ 왜 `disabled`인가 — 브라우저는 `disabled` 칸을 **제약 검사에서 아예 뺀다.**
+     값을 지우면 고객이 적어 둔 것이 사라지고(다시 켜면 되돌아와야 한다),
+     `min`을 떼면 그 칸이 다시 보일 때 검사가 없어진다. `disabled`는 값을 그대로 두고
+     **적용 대상에서만** 뺀다. 읽는 쪽(`getElementById('golfRounds').value`)은 그대로 돈다.
+   ⚠ **버튼·체크박스·라디오는 건드리지 않는다.** 제약을 가질 수 없어 제출을 막지
+     못하고, 코드가 `.checked`를 직접 세우는 자리라 괜히 손대면 그게 새 결함이 된다.
+   ⚠ 우리가 끈 것만 되켠다(`data-autoOff`). 다른 이유로 꺼 둔 칸을 살려내면 안 된다. */
+function syncHiddenFieldValidity(scope) {
+  const root = scope || document.getElementById('estimateForm');
+  if (!root || !root.querySelectorAll) return;
+  root.querySelectorAll('input, select, textarea').forEach((el) => {
+    const t = String(el.type || '').toLowerCase();
+    if (t === 'button' || t === 'submit' || t === 'reset' || t === 'checkbox' || t === 'radio') return;
+    /* `.hidden`은 이 저장소가 쓰는 감추기다(`display:none !important`).
+       단계 전환(`.estimate-step`)은 `.hidden`을 안 쓰므로 여기 걸리지 않는다 —
+       걸리면 2단계 칸이 통째로 꺼져 견적이 아예 안 나온다. */
+    const buried = !!(el.closest('.hidden') || el.closest('[hidden]'));
+    if (buried && !el.disabled) { el.disabled = true; el.dataset.autoOff = '1'; }
+    else if (!buried && el.dataset.autoOff) { el.disabled = false; delete el.dataset.autoOff; }
+  });
+}
+
+/* 화면이 무엇을 감추든 그 **직후에** 맞춘다. 감추는 자리가 여럿이라(골프·휴양·임원)
+   한 곳에서만 부르면 나머지에서 같은 결함이 다시 난다(결함 생성기 ①). */
+(function watchHiddenFields() {
+  const form = document.getElementById('estimateForm');
+  if (!form) return;
+  const sync = () => syncHiddenFieldValidity(form);
+  form.addEventListener('change', sync);
+  form.addEventListener('input', sync);
+  /* 클래스가 코드로 바뀌는 경우(목적지 변경 → 골프줄 감춤)는 이벤트가 안 온다.
+     감시자를 붙여 **감춰지는 순간** 맞춘다. */
+  if (typeof MutationObserver === 'function') {
+    new MutationObserver(sync).observe(form, {
+      subtree: true, attributes: true, attributeFilter: ['class', 'hidden'],
+    });
+  }
+  sync();
+})();
+
 (function applyQuoteLimits() {
   if (typeof LIMITS === 'undefined') return;
   const pax = document.getElementById('participants');
