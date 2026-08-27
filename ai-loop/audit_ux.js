@@ -132,6 +132,23 @@ function measure(doc, scope) {
     버튼: btns.length, 링크: links.length, 입력칸: fields.length,
     필수칸: fields.filter((el) => el.hasAttribute('required')).length,
     강조버튼: 강조.map(btnName).filter(Boolean),
+    /* 🔴 **같은 이름의 버튼이 무더기로 있으면 구별이 안 된다** (XT).
+       콘텐츠 관리 탭에 「저장」 버튼이 **110개** 있는데 이름이 전부 같다 — 낭독기에는
+       「저장, 저장, 저장…」으로만 들리고, 어느 것을 저장하는지 알 방법이 없다.
+       표 안의 「편집」×60도 마찬가지다(눈으로는 줄이 말해 주지만 귀로는 아니다).
+     ⚠ 이건 지금까지 **안 재고 있던 것**이다. 「이름이 없는 칸」은 셌는데
+       「이름이 같은 버튼」은 안 셌다 — 사람이 겪는 어려움은 같다. */
+    같은이름버튼: (() => {
+      const c = new Map();
+      btns.forEach((el) => {
+        const n = btnName(el).replace(/\s+/g, ' ').trim();
+        /* 낭독기가 읽는 이름으로 센다 — `aria-label`이 다르면 다른 버튼이다 */
+        const spoken = (el.getAttribute('aria-label') || n).trim();
+        if (!spoken) return;
+        c.set(spoken, (c.get(spoken) || 0) + 1);
+      });
+      return [...c.entries()].filter(([, n]) => n >= 5).sort((a, b) => b[1] - a[1]);
+    })(),
     무색버튼: [...new Set(무색버튼.map(btnName))],
     기술용어: 기술용어(txt),
     조작수: btns.length + links.length + fields.length,
@@ -205,7 +222,7 @@ if (require.main === module) (async () => {
   const 담당자화면 = ['admin.html', 'admin-quote.html', 'manual.html'];
   const 전부 = ONLY ? [ONLY] : [...고객화면, ...담당자화면];
 
-  let 기술용어총 = 0, 무색총 = 0, 막다른길 = 0, 이름없음 = 0, 강조둘이상 = 0;
+  let 기술용어총 = 0, 무색총 = 0, 막다른길 = 0, 이름없음 = 0, 강조둘이상 = 0, 같은이름총 = 0;
 
   for (const file of 전부) {
     const isAdmin = file === 'admin.html';
@@ -240,6 +257,7 @@ if (require.main === module) (async () => {
       무색총 += m.무색버튼.length;
       막다른길 += 막.length;
       if (m.강조버튼.length > 1) 강조둘이상++;
+      같은이름총 += m.같은이름버튼.reduce((t, [, c]) => t + c, 0);
 
       const head = p.name ? ('  · ' + p.name.padEnd(13)) : '  ·' + ' '.repeat(14);
       const 문제 = [];
@@ -248,6 +266,7 @@ if (require.main === module) (async () => {
       if (m.강조버튼.length > 1) 문제.push('강조 ' + m.강조버튼.length);
       if (m.무색버튼.length) 문제.push('무색 ' + m.무색버튼.length);
       if (m.기술용어.length) 문제.push('🔴영문 ' + m.기술용어.length);
+      if (m.같은이름버튼.length) 문제.push('🔴같은이름 ' + m.같은이름버튼.map(([n, c]) => n + '×' + c).join(', '));
       if (막.length) 문제.push('막다른길 ' + 막.length);
       console.log(head + ' 조작 ' + String(m.조작수).padStart(3)
         + ' (버튼 ' + String(m.버튼).padStart(3) + ' · 칸 ' + String(m.입력칸).padStart(2)
@@ -279,6 +298,7 @@ if (require.main === module) (async () => {
     + ' · 무슨 일이 날지 안 말하는 버튼 ' + 무색총
     + ' · 막다른 안내 ' + 막다른길
     + ' · 낭독기 이름 없음 ' + 이름없음
-    + ' · 강조 버튼이 둘 이상인 칸 ' + 강조둘이상);
+    + ' · 강조 버튼이 둘 이상인 칸 ' + 강조둘이상
+    + ' · 🔴이름이 똑같은 버튼 ' + 같은이름총);
   console.log('⚠ 전부 **확인 대상**이다 — 오류가 아니다. 사람이 보고 정한다.');
 })();
