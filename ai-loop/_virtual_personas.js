@@ -624,6 +624,49 @@ function makeEdges(startNo) {
   add('이름이 한 글자', { contactName: MARK + ' 김' });
   add('연락처 형식이 다름', { contactTel: '01000001234' });
 
+  /* ═══ 날짜 경계 (XY) — 시즌 계수는 **출발일의 달**로만 정해진다 ═══════════════
+     실측(오사카 30명): 6/30 출발은 비수기 ×0.90, 7/1 출발은 성수기 ×1.15.
+     5일 일정이면 **하루 차이로 +15.9%**, 12일 일정이면 **+16.2%(1,596만원)**다.
+     6/30 출발 12일은 **11일을 7월에 보내면서** 통째로 비수기 값으로 계산된다.
+   ⚠ 이건 「고치라」는 뜻이 아니다 — 고객 금액 판단은 대표 몫이다(결정대기열 0-x).
+     여기서는 **그 경계를 계속 재게** 해 둔다. 값이 바뀌면 이 손님들에서 먼저 보인다. */
+  const 다음날짜 = (월, 일, 최소일수) => {
+    const 오늘 = new Date();
+    let y = 오늘.getFullYear();
+    const 만들기 = (yy) => new Date(yy, 월 - 1, 일);
+    let d = 만들기(y);
+    while ((d - 오늘) / 86400000 < (최소일수 || 40)) { y += 1; d = 만들기(y); }
+    return d;
+  };
+  const 날짜쌍 = (월, 일, days) => {
+    const s = 다음날짜(월, 일);
+    const e = new Date(s); e.setDate(e.getDate() + days - 1);
+    const f = (x) => x.toLocaleDateString('sv-SE');
+    return { startDate: f(s), endDate: f(e), days, leadDays: Math.round((s - new Date()) / 86400000) };
+  };
+  add('성수기 하루 전 출발 (6/30)', Object.assign({ destKey: '오사카' }, 날짜쌍(6, 30, 5)));
+  add('성수기 첫날 출발 (7/1)', Object.assign({ destKey: '오사카' }, 날짜쌍(7, 1, 5)));
+  add('🔴 6/30 출발인데 11일을 7월에 보낸다', Object.assign({ destKey: '오사카' }, 날짜쌍(6, 30, 12)));
+  add('해를 넘기는 일정 (12/29 출발)', Object.assign({ destKey: '오사카' }, 날짜쌍(12, 29, 6)));
+  add('2월 29일 출발 (윤년)', Object.assign({ destKey: '도쿄' }, (() => {
+    /* 윤년만 고른다 — 없는 날짜를 넣으면 브라우저가 3월 1일로 밀어 버린다 */
+    const 윤 = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+    let y = new Date().getFullYear();
+    while (!윤(y) || new Date(y, 1, 29) - new Date() < 40 * 86400000) y += 1;
+    const s = new Date(y, 1, 29), e = new Date(s); e.setDate(e.getDate() + 3);
+    const f = (x) => x.toLocaleDateString('sv-SE');
+    return { startDate: f(s), endDate: f(e), days: 4, leadDays: Math.round((s - new Date()) / 86400000) };
+  })()));
+
+  /* ═══ 새로 생긴 규모·기간 (XW 뒤로 실제 손님이 여기까지 간다) ═══════════════ */
+  add('장거리 대형 (유럽 80명 10일)', Object.assign({ destKey: '북유럽', participants: 80 }, 날짜쌍(9, 15, 10)));
+  add('전원 1인 1실 장거리 (로마 20명 8일)',
+    Object.assign({ destKey: '로마', participants: 20, roomConfig: 'single' }, 날짜쌍(10, 12, 8)));
+  add('어학연수 14일 (도쿄 12명)', Object.assign({
+    destKey: '도쿄', participants: 12, programType: 'language', programText: '어학연수',
+    organizationType: 'education', orgTypeText: '학교', agencyVisits: 0, visitMode: 'workshop',
+  }, 날짜쌍(11, 3, 14)));
+
   add('휴양 × 개인 (계수 1.0)', { programType: 'leisure', programText: '포상휴가', organizationType: 'individual', orgTypeText: '개인/동호회' });
   add('산업시찰 × 공공 (계수 최대)', { programType: 'industry', organizationType: 'public', orgTypeText: '공공기관' });
   add('어학 × 학교 (계수 최저)', { programType: 'language', programText: '어학연수', organizationType: 'education', orgTypeText: '학교' });
