@@ -328,6 +328,63 @@ const PKG_FAULTS = [
   { key: 'pkgListEmpty', 말: '패키지가 실제로 0건 (대조군)', how: (json) => json({ packages: [] }) },
 ];
 
+/* 패키지 **발급**(고객이 「견적서 받기」를 누르는 자리)의 고장.
+   서버가 주는 거절 코드는 XH가 여덟 개 다 옮겼는데, **네트워크가 끊기거나 본문이
+   JSON이 아닐 때**(`.catch`)는 여전히 「문의해 주세요」로 보내고 있었다 — 다시 누르면 되는 것이다. */
+const PKG_ISSUE_FAULTS = [
+  { key: 'pkgIssueDown', 말: '🔴 발급 중 네트워크가 끊긴다', how: () => Promise.reject(new Error('down')), 다시: true },
+  { key: 'pkgIssueBadBody', 말: '🔴 500인데 본문이 JSON이 아니다', how: () => Promise.resolve({
+    ok: false, status: 500, json: () => Promise.reject(new Error('not json')), text: () => Promise.resolve('<html>500</html>'),
+  }), 다시: true },
+  { key: 'pkgIssueInsertFail', 말: '서버가 insert_failed를 준다 (대조군)', how: (json) => json({ error: 'insert_failed' }, false, 500), 다시: true },
+  { key: 'pkgIssueClosed', 말: '판매하지 않는 상품 (대조군)', how: (json) => json({ error: 'package_not_available' }, false, 409), 다시: false },
+];
+
+async function 패키지발급고장(f) {
+  const 상품 = {
+    id: 'pk1', title: '[가상] 다낭 3박 5일', destKey: '다낭', destLabel: '다낭',
+    nights: 3, days: 5, priceKrw: 890000, priceAsOf: new Date().toLocaleDateString('sv-SE'),
+    status: 'open', included: ['항공', '호텔', '조식'], supplier: '하나투어',
+  };
+  const B = bootPage('packages.html', {
+    fixtures: {
+      route(u, opt, json) {
+        if (u.includes('action=packages')) return json({ packages: [상품] });
+        if (u.includes('quote-shares') && u.includes('action=package')) return f.how(json);
+        return null;
+      },
+    },
+  });
+  const { win, doc, tick } = B;
+  await B.ready; await tick(600);
+  const out = { key: f.key, 말: f.말, 나쁨: [] };
+  /* 상품 카드를 눌러 상세를 연다 */
+  const cta = doc.querySelector('.pk-cta, .pk-card button, .pk-card a');
+  if (!cta) { out.나쁨.push('🔴 상품 카드를 못 찾았다 — 픽스처를 확인할 것'); win.close(); return out; }
+  cta.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true, view: win }));
+  await tick(300);
+  const set = (id, v) => { const el = doc.getElementById(id); if (el) { el.value = v; el.dispatchEvent(new win.Event('input', { bubbles: true })); } };
+  set('pkName', '[점검] 김고객'); set('pkTel', '010-0000-0000'); set('pkPax', '20');
+  const ask = doc.getElementById('pkAsk') || doc.querySelector('[id^="pkAsk"], .pk-modal button.pk-primary');
+  if (!ask) { out.나쁨.push('🔴 「견적서 받기」 버튼을 못 찾았다'); win.close(); return out; }
+  ask.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true, view: win }));
+  for (let i = 0; i < 15; i++) {
+    await tick(200);
+    const m = doc.getElementById('pkAskMsg');
+    if (m && (m.textContent || '').trim() && !/만드는 중/.test(m.textContent)) break;
+  }
+  const msg = doc.getElementById('pkAskMsg');
+  const 글 = msg ? (msg.textContent || '').replace(/\s+/g, ' ').trim() : '';
+  out.글 = 글;
+  if (!글) out.나쁨.push('🔴 발급이 실패했는데 아무 말도 안 한다');
+  else if (f.다시 && !/다시 눌러/.test(글)) out.나쁨.push('🔴 다시 누르면 되는 것인데 그 말이 없다: ' + 글.slice(0, 40));
+  else if (!f.다시 && /다시 눌러/.test(글)) out.나쁨.push('다시 눌러도 안 되는 것인데 다시 누르라고 한다');
+  /* 다시 누를 수 있어야 한다 — 버튼이 잠긴 채로 남으면 말만 하고 길을 막은 것이다 */
+  if (ask.disabled) out.나쁨.push('🔴 버튼이 잠긴 채로 남았다');
+  win.close();
+  return out;
+}
+
 async function 패키지화면(f) {
   const B = bootPage('packages.html', {
     fixtures: {
@@ -599,6 +656,19 @@ async function 담당자화면고장(f) {
     console.log('  ' + r.key.padEnd(16) + (r.말 || '').padEnd(34)
       + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : (r.막힘 ? '✓ (막히되 이유를 말한다)' : '✓')));
     if (VERBOSE && r.글) console.log('      화면: ' + r.글.slice(0, 130));
+  }
+
+  /* ── 패키지 발급 ── */
+  console.log('\n■ 패키지 발급 — 고객이 「견적서 받기」를 눌렀을 때');
+  for (const f of PKG_ISSUE_FAULTS) {
+    if (ONLY && f.key !== ONLY) continue;
+    let r;
+    try { r = await 패키지발급고장(f); }
+    catch (e) { r = { key: f.key, 말: f.말, 나쁨: ['🔴 열다 터졌다: ' + String(e.message || e)] }; }
+    결과.push(r);
+    console.log('  ' + r.key.padEnd(20) + (r.말 || '').padEnd(32)
+      + (r.나쁨.length ? '🔴 ' + r.나쁨.join(' · ') : '✓'));
+    if (VERBOSE && r.글) console.log('      화면: ' + r.글.slice(0, 120));
   }
 
   /* ── 담당자 쓰기 경로 ── */

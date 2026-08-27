@@ -105,7 +105,13 @@ function whyMap(src, anchor) {
   const end = src.indexOf('}[', start);
   if (start < 0 || end < 0) return null;
   const lit = src.slice(start + 'why = '.length, end + 1);
-  const m = /soon = ('[^']*')/.exec(src.slice(Math.max(0, start - 1200), start));
+  /* 🔴 **문구가 어디 적혀 있든 값을 찾아낸다** (XX). 예전엔 `why = {` 바로 위의
+     `soon = '…'` 리터럴만 찾았다. 그런데 「잠시 문제가 있었습니다」를 파일 위쪽
+     한 곳(`SOON_MSG`)으로 모으자 — 발급 `.catch`도 같은 말을 해야 해서 모은 것이다 —
+     이 검사가 **읽을 글자를 잃고** 「고객 화면이 세 코드를 안 옮겼다」로 잘못 잡았다.
+     단일 출처로 모을 때마다 나는 일이다(XQ에서 다섯 건). **글자가 아니라 값을 본다.** */
+  let m = /soon = ('[^']*')/.exec(src.slice(Math.max(0, start - 1200), start));
+  if (!m || /SOON_MSG/.test(m[1] || '')) m = /SOON_MSG = ('[^']*')/.exec(src);
   const soon = m ? new Function('return ' + m[1])() : '';
   try { return { map: new Function('soon', 'return ' + lit)(soon), soon }; }
   catch (e) { return null; }

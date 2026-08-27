@@ -185,6 +185,19 @@ async function 발급까지(고장) {
     ok('세 화면이 서로 다른 말을 한다', 진짜0건 !== 조회실패);
   }
 
+  console.log('\n[7] 🔴 패키지 발급 — 네트워크가 끊긴 것을 「문의하세요」로 보내지 않는다');
+  {
+    const src = fs.readFileSync(path.join(ROOT, 'packages.html'), 'utf8');
+    /* 서버가 준 코드(insert_failed 등)와 **네트워크 끊김이 같은 말**을 해야 한다.
+       예전엔 `.catch`만 「견적서를 만들지 못했습니다. 문의해 주시면…」이었다 —
+       XH가 서버 코드 여덟 개를 고칠 때 이 갈래만 남아 있었다. */
+    ok('「잠시 문제가 있었습니다」 문구가 한 곳에만 적혀 있다',
+      (src.match(/잠시 문제가 있었습니다 — 조금 뒤 다시 눌러 주세요/g) || []).length === 1);
+    ok('발급 catch가 그 문구를 쓴다', /\.catch\(function \(\)[\s\S]{0,300}SOON_MSG/.test(src));
+    ok('catch에 「문의해 주시면」만 남아 있지 않다',
+      !/\.catch\(function \(\)[\s\S]{0,200}견적서를 만들지 못했습니다\. 문의해/.test(src));
+  }
+
   console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
   process.exit(fail ? 1 : 0);
 })();
