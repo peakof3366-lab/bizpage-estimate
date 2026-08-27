@@ -47,6 +47,9 @@ const arg = (k, d) => {
 const N = Number(arg('n', 200));
 const SEED = Number(arg('seed', 1));
 const KEEP_ALL = process.argv.includes('--keep');
+/* 🔴 **견적서 파일은 기본으로 남긴다** — 대표가 눈으로 보셔야 하기 때문이다.
+   손님 한 명당 1MB 남짓이라 수백 명을 돌릴 때는 `--no-docs`로 끈다. */
+const DOCS = !process.argv.includes('--no-docs');
 const QUIET = process.argv.includes('--quiet');
 const OUT = arg('out', path.join(process.env.USERPROFILE || 'C:/Users/최현욱', 'Desktop', '가상견적서'));
 const BASE = arg('base', 'https://bizpage-estimate.vercel.app');
@@ -85,6 +88,34 @@ const ymd = (d) => d.toLocaleDateString('sv-SE');
 const safe = (s) => String(s).replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim();
 
 /* ─────────────────────────────────────────────────────────────────────────
+   🔴 **대표가 눈으로 볼 수 있어야 한다** (2026-08-27 지시)
+   「가상견적서 폴더에 사람이 입력해서 만들어진 견적서까지 **다운로드되는 부분까지**
+    구현해 줘. 나도 내 눈으로 직접 만들어지는 견적서를 볼 수 있게.」
+
+   그래서 손님마다 **실제 파일 세 개**를 떨어뜨린다 — 고객이 손에 쥐는 세 형태 그대로:
+     · 카톡으로 전달되는 링크 견적서 (`estimate-view.html`이 그린 것)
+     · 계산 직후 인쇄·PDF로 만드는 문서 (`openEstimateWindow`가 그린 것)
+     · 결재에 붙이는 표 파일 (`downloadEstimateExcel`이 만든 것 — CSV)
+
+ ⚠ **더블클릭하면 그대로 열려야 한다.** 그러려면 `<script>`를 걷어내야 한다 —
+   페이지 스크립트가 다시 돌면 서버를 찾다 실패해서 **빈 화면이나 오류 안내**로 덮어쓴다.
+   화면은 이미 다 그려진 상태로 저장하므로 스크립트가 할 일이 없다.
+   ⚠ 그래서 일정 코스 A/B 탭 전환은 안 된다(고른 코스 한 벌이 보인다). 그 사실을
+     문서 맨 위에 적어 둔다 — **안 되는 것을 안 된다고 말한다.**
+ ⚠ 스타일은 손댈 필요가 없다. 두 문서 다 `<style>`이 문서 안에 있다(바깥 CSS 파일이 없다).
+   ───────────────────────────────────────────────────────────────────────── */
+const 안내띠 = (말) => '<div style="background:#FFF8E6;border-bottom:2px solid #F0D89A;'
+  + 'padding:10px 16px;font:13px/1.6 -apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;'
+  + 'color:#7A5A10;text-align:center">' + 말 + '</div>';
+
+function 볼수있게(html, 말) {
+  const clean = String(html).replace(/<script[\s\S]*?<\/script>/gi, '');
+  const m = clean.match(/<body[^>]*>/i);
+  if (!m) return 안내띠(말) + clean;
+  return clean.replace(m[0], m[0] + 안내띠(말));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    한 손님이 겪은 일을 담는 그릇. **무엇이 안 됐는지**를 이름으로 부른다 —
    「실패」 한 낱말로 뭉치면 200건을 세어도 고칠 자리를 못 찾는다.
    ───────────────────────────────────────────────────────────────────────── */
@@ -104,7 +135,15 @@ async function runOne(p, rates, ctx) {
     win.close(); return out;
   }
   /* 운영 요율이 실제로 얹혔는가 — 안 얹히면 옛 기본값으로 계산된다(XI) */
-  out.rateSource = win.__RATE_SOURCE__ || null;
+  /* 🔴 **창 안의 객체를 그대로 들고 있으면 창이 통째로 안 지워진다** (XS).
+     `win.__RATE_SOURCE__`는 JSDOM 창의 realm에서 만들어진 객체다. 그걸 결과 배열에
+     400개 담아 두면 **창 400개가 살아 있는 것과 같다** — 창을 닫아도 소용없다.
+     세 번째로 여기서 힙이 터졌다(① 견적서 HTML ② 안 닫은 팝업 ③ 이것).
+     → **우리 realm의 평범한 값으로 베껴 온다.** 문자열·숫자는 realm에 안 묶인다. */
+  out.rateSource = (() => {
+    try { return JSON.parse(JSON.stringify(win.__RATE_SOURCE__ || null)); }
+    catch (e) { return null; }
+  })();
   if (!out.rateSource || out.rateSource.state !== 'applied') {
     문제(t, 'RATE_NOT_APPLIED', '화면이 운영 요율을 못 받았다', JSON.stringify(out.rateSource));
   }
@@ -268,6 +307,10 @@ async function runOne(p, rates, ctx) {
     const ptxt = shownText(pop.document.body);
     out.popupLen = ptxt.length;
     out.popupText = ptxt;   /* ⑪에서 링크 견적서와 대조한다 */
+    /* 🔴 파일로 남길 것 — **창을 닫기 전에** 글자로 떠 둔다(닫으면 못 읽는다).
+       ⚠ 손님 한 명 것만 살아 있게 곧바로 파일로 흘리고 비운다. 전부 들고 있다가
+         힙이 세 번 터졌다. */
+    if (DOCS) out.popupHtml = pop.document.documentElement.outerHTML;
     if (ptxt.length < 200) {
       문제(t, 'POPUP_EMPTY', '🔴 인쇄용 견적서가 사실상 비어 있다', String(ptxt.length) + '자');
     } else {
@@ -284,6 +327,33 @@ async function runOne(p, rates, ctx) {
       if (/ENBT 수익|현지 수익금/.test(ptxt)) 문제(t, 'POPUP_MUTED_LEAK', '🔴 인쇄용 견적서에 수익 항목이 그려졌다', '');
       if (ptxt.includes(p.contactTel)) 문제(t, 'POPUP_HAS_TEL', '🔴 인쇄용 견적서에 연락처가 찍혔다', p.contactTel);
       if (pop.__err && pop.__err.length) 문제(t, 'POPUP_ERROR', '인쇄용 견적서가 오류를 냈다', pop.__err.join(' | '));
+    }
+  }
+
+  /* 🔴 **결재에 붙이는 표 파일까지 실제로 만들어 본다.**
+     고객은 「엑셀」 버튼을 누른다. 우리 하네스에는 xlsx 라이브러리가 없으므로
+     `sheet_download.js`가 **CSV로 떨어뜨린다** — 기관·대기업 망에서 남의 CDN이 막혔을 때
+     고객이 받는 것과 **같은 파일**이다(XK가 만든 폴백).
+   ⚠ 화면이 쓰는 `__toCsv`를 그대로 부른다. 여기서 CSV를 다시 만들면 BOM·따옴표 규칙이
+     갈라져, 정작 고객 파일이 깨져도 이 검사는 멀쩡하다고 말한다(결함 생성기 ①). */
+  if (typeof win.downloadEstimateExcel === 'function') {
+    const realDownload = win.downloadSheet;
+    let aoa = null;
+    try {
+      win.downloadSheet = (rows) => { aoa = rows; return 'csv'; };
+      win.downloadEstimateExcel();
+      out.sheetRows = aoa ? aoa.length : 0;
+      if (!aoa) 문제(t, 'NO_SHEET', '엑셀 버튼이 표를 안 만들었다', '');
+      else if (DOCS && typeof win.__toCsv === 'function') out.csvText = win.__toCsv(aoa);
+    } catch (e) {
+      문제(t, 'SHEET_ERROR', '엑셀을 만들다 터졌다', String(e.message || e));
+    } finally { win.downloadSheet = realDownload; }
+    /* 🔴 표에도 감춘 수익과 연락처가 없어야 한다 — 고객이 그대로 결재에 붙인다 */
+    if (aoa) {
+      const flat = aoa.map((r) => (Array.isArray(r) ? r.join(' ') : String(r))).join(' | ');
+      if (/ENBT 수익|현지 수익금/.test(flat)) 문제(t, 'SHEET_MUTED_LEAK', '🔴 엑셀에 수익 항목이 실렸다', '');
+      if (flat.includes(p.contactTel)) 문제(t, 'SHEET_HAS_TEL', '🔴 엑셀에 연락처가 실렸다', p.contactTel);
+      if (!/견적 유효기간/.test(flat)) 문제(t, 'SHEET_NO_VALIDITY', '엑셀에 유효기간이 없다', '');
     }
   }
 
@@ -410,7 +480,7 @@ async function runOne(p, rates, ctx) {
      300명을 태우니 힙이 4GB를 넘겨 그 자리에서 죽었다(실측). 쓸 곳이 정해지는
      시점에 바로 파일로 흘리고, 메모리에는 길이만 남긴다.
      ⚠ 「나중에 한꺼번에 쓰자」가 이 도구를 못 쓰게 만들었다. */
-  out.writeDoc = (dest) => { fs.writeFileSync(dest, V.doc.documentElement.outerHTML, 'utf8'); };
+  if (DOCS) out.docHtml = V.doc.documentElement.outerHTML;
 
   if (V.log.errors.length) 문제(t, 'DOC_ERROR', '견적서 화면이 오류를 냈다', V.log.errors.map((e) => e.msg).join(' | '));
   if (docText.length < 200) 문제(t, 'DOC_EMPTY', '🔴 견적서가 사실상 비어 있다', String(docText.length) + '자');
@@ -518,26 +588,50 @@ async function runOne(p, rates, ctx) {
     }
     results.push(res);
 
-    /* 손님마다 한 폴더 — 문제가 있으면 무조건 남기고, 없으면 --keep일 때만 */
+    /* 손님마다 한 폴더. 🔴 **견적서 파일은 기본으로 남긴다** — 대표가 눈으로 보셔야 한다.
+       파일 이름에 번호를 붙인 이유는 **고객이 겪는 순서**로 정렬되게 하기 위해서다. */
     const bad = res.trouble.length > 0;
-    if (bad || KEEP_ALL) {
+    if (DOCS || bad || KEEP_ALL) {
       const label = p.edge ? p.edge : (p.destKey + '_' + p.participants + '명_' + p.days + '일');
-      const dir = path.join(OUT, safe(String(p.no).padStart(4, '0') + '_' + label + (bad ? '_문제' : '')));
+      const dirName = safe(String(p.no).padStart(4, '0') + '_' + label + (bad ? '_문제' : ''));
+      const dir = path.join(OUT, dirName);
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, '요청.md'), 요청카드(p, res), 'utf8');
-      fs.writeFileSync(path.join(dir, '결과.json'), JSON.stringify({
+      res.dirName = dirName;
+      fs.writeFileSync(path.join(dir, '1. 고객이 넣은 내용.md'), 요청카드(p, res), 'utf8');
+
+      if (res.docHtml) {
+        fs.writeFileSync(path.join(dir, '2. 견적서 (카톡으로 보내는 것).html'),
+          볼수있게(res.docHtml,
+            '이 파일은 <b>고객에게 카카오톡으로 보내는 견적서</b>를 그대로 저장한 것입니다 · '
+            + '가상 고객 ' + p.no + '번 · 실제 발급이 아닙니다'), 'utf8');
+        res.hasDoc = true;
+      }
+      if (res.popupHtml) {
+        fs.writeFileSync(path.join(dir, '3. 견적서 (인쇄·PDF용).html'),
+          볼수있게(res.popupHtml,
+            '이 파일은 고객이 계산 직후 <b>인쇄하거나 PDF로 저장하는 문서</b>입니다 · '
+            + '브라우저에서 <b>Ctrl+P</b>를 누르면 실제 인쇄 모양을 보실 수 있습니다 · '
+            + '(일정 코스 A/B 탭 전환은 저장본에서 동작하지 않습니다 — 고른 코스가 보입니다)'), 'utf8');
+        res.hasPopup = true;
+      }
+      if (res.csvText) {
+        /* ⚠ 화면이 만든 문자열 그대로 쓴다. 맨 앞의 BOM이 있어야 엑셀이 한글을 안 깨뜨린다. */
+        fs.writeFileSync(path.join(dir, '4. 견적서 (엑셀에서 여는 표).csv'), res.csvText, 'utf8');
+        res.hasCsv = true;
+      }
+      fs.writeFileSync(path.join(dir, '5. 자세한 기록.json'), JSON.stringify({
         record: res.record, verdict: res.verdict, failedSteps: res.failedSteps,
         qno: res.qno, trouble: res.trouble, rateSource: res.rateSource,
         /* 검사가 **실제로 돌았는지**를 남긴다 — 안 돌고 초록인 것과 구별이 안 되면
            그 초록은 거짓말이다(결함 생성기 ③). */
         읽은글자: { 인쇄용: res.popupLen || 0, 링크: res.docLen || 0 },
+        엑셀줄수: res.sheetRows || 0,
         견적서표합: res.docRowSum, 견적서총액: res.docTotal,
       }, null, 2), 'utf8');
-      if (res.writeDoc) res.writeDoc(path.join(dir, '견적서.html'));
     }
 
-    /* 요약이 쓰는 것만 남기고 나머지는 놓아준다 (jsdom 창은 이미 닫았다) */
-    res.writeDoc = null;
+    /* 🔴 **큰 글자는 여기서 놓아준다.** 전부 들고 있다가 힙이 세 번 터졌다. */
+    res.docHtml = null; res.popupHtml = null; res.csvText = null; res.popupText = null;
     res.persona = { no: p.no, destKey: p.destKey, participants: p.participants, days: p.days,
       programType: p.programType, organizationType: p.organizationType };
     if (res.record) res.record.items = res.record.items.length;
@@ -549,7 +643,11 @@ async function runOne(p, rates, ctx) {
         + (res.record ? won(res.record.perPerson).padStart(11) + '원/인' : '     —      ')
         + '  ' + (res.verdict || '-').padEnd(9) + mark);
     } else if (p.no % 25 === 0) {
-      console.log('  ... ' + p.no + '/' + people.length + ' (' + Math.round((Date.now() - t0) / 1000) + '초)');
+      /* ⚠ 힙을 함께 찍는다. 세 번 터진 자리라, 다시 새면 **어디서부터** 새는지
+         숫자로 보여야 한다(끝나고 나서 스택만 보면 원인을 못 찾는다). */
+      const heap = Math.round(process.memoryUsage().heapUsed / 1048576);
+      console.log('  ... ' + p.no + '/' + people.length + ' ('
+        + Math.round((Date.now() - t0) / 1000) + '초 · 힙 ' + heap + 'MB)');
     }
   }
 
@@ -605,6 +703,111 @@ function 요청카드(p, res) {
     L.push('## 문제 없음');
   }
   return L.join('\n') + '\n';
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   🔴 **한 파일만 열면 전부 보이게** (2026-08-27 대표 지시)
+   폴더가 수백 개면 아무도 안 연다. 그래서 맨 위에 **모아보기 한 장**을 둔다 —
+   손님 목록에서 바로 그 손님의 견적서 세 형태로 건너뛴다.
+ ⚠ 링크는 폴더 이름을 그대로 쓴다. 한글·공백이 들어가므로 `encodeURIComponent`로 감싼다
+   (안 하면 이름에 공백이 있는 폴더가 통째로 안 열린다).
+   ───────────────────────────────────────────────────────────────────────── */
+function 모아보기쓰기(results, dir, ms) {
+  const esc = (x) => String(x == null ? '' : x)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const link = (folder, file) => encodeURIComponent(folder) + '/' + encodeURIComponent(file);
+
+  const ok = results.filter((r) => r.record && r.record.total > 0);
+  const verified = results.filter((r) => r.verdict === 'verified');
+  const bad = results.filter((r) => r.trouble.length);
+
+  const rows = results.map((r) => {
+    const p = r.persona || {};
+    const f = r.dirName;
+    const 문서 = !f ? '<span class="none">파일 없음</span>' : [
+      r.hasDoc ? '<a href="' + link(f, '2. 견적서 (카톡으로 보내는 것).html') + '">카톡용</a>' : '',
+      r.hasPopup ? '<a href="' + link(f, '3. 견적서 (인쇄·PDF용).html') + '">인쇄용</a>' : '',
+      r.hasCsv ? '<a href="' + link(f, '4. 견적서 (엑셀에서 여는 표).csv') + '">엑셀</a>' : '',
+      '<a class="sub" href="' + link(f, '1. 고객이 넣은 내용.md') + '">넣은 내용</a>',
+    ].filter(Boolean).join(' · ');
+    const 상태 = r.trouble.length
+      ? '<span class="bad">' + esc(r.trouble.map((x) => x.code).join(', ')) + '</span>'
+      : (r.verdict === 'verified' ? '<span class="good">링크 받음</span>'
+        : '<span class="warn">' + esc(r.verdict || '견적 없음') + '</span>');
+    return '<tr>'
+      + '<td class="no">' + esc(String(r.no).padStart(4, '0')) + '</td>'
+      + '<td>' + esc(p.edge || p.destKey || '—') + '</td>'
+      + '<td class="num">' + esc(p.participants) + '명 · ' + esc(p.days) + '일</td>'
+      + '<td class="won">' + (r.record ? won(r.record.perPerson) : '—') + '</td>'
+      + '<td class="won">' + (r.record ? won(r.record.total) : '—') + '</td>'
+      + '<td>' + 상태 + '</td>'
+      + '<td class="docs">' + 문서 + '</td>'
+      + '</tr>';
+  }).join('\n');
+
+  const html = `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가상 고객 견적서 모아보기</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin:0; font:14px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;
+         color:#1A1A1A; background:#F7F6F3; }
+  .warnbar { background:#FFF8E6; border-bottom:2px solid #F0D89A; color:#7A5A10;
+             padding:12px 20px; text-align:center; font-weight:700; }
+  .wrap { max-width:1100px; margin:0 auto; padding:28px 20px 60px; }
+  h1 { font-size:22px; margin:18px 0 6px; }
+  .sub1 { color:#6B6B6B; margin-bottom:22px; }
+  .cards { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
+  .card { background:#fff; border:1px solid #E5E2DC; padding:14px 18px; min-width:150px; }
+  .card b { display:block; font-size:24px; margin-bottom:2px; }
+  .card span { color:#6B6B6B; font-size:12px; }
+  .card.hl b { color:#CC001A; }
+  table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #E5E2DC; }
+  th, td { padding:9px 10px; border-bottom:1px solid #EFEDE8; text-align:left; vertical-align:top; }
+  th { background:#FAF9F7; font-size:12px; color:#6B6B6B; position:sticky; top:0; }
+  td.no { color:#9A9A9A; font-variant-numeric:tabular-nums; }
+  td.num, td.won { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  td.won { text-align:right; }
+  td.docs a { color:#CC001A; text-decoration:none; border-bottom:1px solid #F0C9CF; }
+  td.docs a:hover { border-bottom-color:#CC001A; }
+  td.docs a.sub { color:#8A8A8A; border-bottom-color:#E5E2DC; }
+  .good { color:#1A7F4B; } .warn { color:#B07A00; } .bad { color:#CC001A; font-weight:700; }
+  .none { color:#B0B0B0; }
+  .foot { margin-top:26px; color:#6B6B6B; font-size:13px; line-height:1.9; }
+  @media (max-width:700px){ .won, th:nth-child(5), td:nth-child(5){ display:none } }
+</style></head>
+<body>
+<div class="warnbar">🔴 전부 <b>가상 고객</b>입니다 — 실재하는 회사·사람·연락처가 아니고, 운영 DB에 아무것도 쓰지 않았습니다</div>
+<div class="wrap">
+  <h1>가상 고객이 받은 견적서</h1>
+  <div class="sub1">손님을 지어 <b>실제 화면에 태우고</b>, 고객이 손에 쥐는 세 형태를 그대로 저장했습니다.<br>
+    요율은 프로덕션 운영값을 받아 계산했습니다 · 만든 때 ${esc(new Date().toLocaleString('ko-KR'))} · ${Math.round(ms / 1000)}초</div>
+
+  <div class="cards">
+    <div class="card"><b>${results.length}</b><span>태운 손님</span></div>
+    <div class="card"><b>${ok.length}</b><span>견적이 나온 손님</span></div>
+    <div class="card hl"><b>${verified.length}</b><span>견적서 링크를 받은 손님</span></div>
+    <div class="card"><b>${bad.length}</b><span>문제가 난 손님</span></div>
+  </div>
+
+  <table>
+    <thead><tr><th>번호</th><th>목적지 / 조건</th><th>규모</th><th>1인</th><th>총액</th><th>결과</th><th>견적서 열기</th></tr></thead>
+    <tbody>
+${rows}
+    </tbody>
+  </table>
+
+  <div class="foot">
+    <b>「카톡용」</b> — 고객에게 링크로 전달되는 정식 견적서입니다.<br>
+    <b>「인쇄용」</b> — 고객이 계산 직후 인쇄하거나 PDF로 저장하는 문서입니다. 열고 <b>Ctrl+P</b>를 누르면 실제 인쇄 모양이 보입니다.<br>
+    <b>「엑셀」</b> — 결재에 붙이는 표 파일입니다. 엑셀에서 바로 열립니다.<br>
+    ⚠ 저장본이라 <b>탭 전환·버튼은 동작하지 않습니다</b>(고른 코스 한 벌이 보입니다). 금액·문구는 고객이 보는 것과 같습니다.<br>
+    ⚠ 이 도구가 통과했다고 「프로덕션에서 사람이 눌러 봤다」는 뜻은 아닙니다 — 그 확인은 <code>smoke_prod_journey.js</code>가 따로 합니다.
+  </div>
+</div>
+</body></html>`;
+  fs.writeFileSync(path.join(dir, '_모아보기.html'), html, 'utf8');
 }
 
 function 요약쓰기(results, dir, ms) {
@@ -711,5 +914,8 @@ function 요약쓰기(results, dir, ms) {
   console.log('손님 ' + results.length + '명 · 견적 나옴 ' + okQuotes.length + ' · 🔴 링크 받음 ' + verified.length
     + ' · 문제 난 손님 ' + bad.length);
   codes.forEach(([code, v]) => console.log('   · ' + code.padEnd(18) + String(v.list.length).padStart(4) + '명  ' + v.say));
+  모아보기쓰기(results, dir, ms);
+  console.log('');
+  console.log('📄 이 파일 하나만 열면 전부 보입니다: ' + path.join(dir, '_모아보기.html'));
   console.log('\n요약: ' + path.join(dir, '_요약.md'));
 }
