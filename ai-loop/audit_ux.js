@@ -74,7 +74,12 @@ const 강조패턴 = /(^|[\s-])(primary|cta|main|btn-red|btn-primary|btn-main|bt
 
 function measure(doc, scope) {
   const root = scope || doc.body;
-  const txt = shownText(root);
+  /* ⚠ `<code>`·`<pre>` 안은 **일부러 보여주는 명령어**다(매뉴얼의
+     「실행은 개발 담당이 합니다 — `node ai-loop/import_packages.js`」).
+     그걸 「고객 눈에 영문이 보인다」로 세면 고칠 것이 없는 항목이 목록에 남는다. */
+  const 글자용 = root.cloneNode(true);
+  if (글자용.querySelectorAll) 글자용.querySelectorAll('code, pre, kbd, samp').forEach((n) => n.remove());
+  const txt = shownText(글자용);
 
   const btns = Array.from(root.querySelectorAll('button, [role="button"], input[type="submit"], a.btn, .btn'))
     .filter((el) => !el.disabled && visible(el, doc));
@@ -83,7 +88,25 @@ function measure(doc, scope) {
     .filter((el) => el.type !== 'hidden' && !el.disabled && visible(el, doc));
 
   const btnName = (el) => (shownText(el) || el.getAttribute('aria-label') || '').trim();
-  const 강조 = btns.filter((el) => 강조패턴.test(String(el.className || '')));
+  /* 🔴 **강조 버튼은 「한 자리에」 둘 이상일 때만 문제다** (XT).
+     처음엔 화면 전체로 세어 고객 첫 화면을 「강조 4개」로 잡았는데, 그 넷은
+     ①견적 1단계 ②견적 2단계 ③포트폴리오 ④문의 — **서로 다른 구역**이라 동시에
+     보이지 않는다(1·2단계는 아예 배타적이다). jsdom에는 레이아웃이 없어 「같이
+     보이는가」를 못 재므로, **구역으로 나눠** 센다. 그게 잴 수 있는 진짜 질문이다. */
+  const 구역 = (el) => el.closest('.setting-section, .estimate-step, .card, section, form, .tab-panel') || root;
+  /* ⚠ **고르는 쌍(세그먼트)의 「골라진 쪽」은 경쟁하는 행동이 아니다.** 「📄 PDF에서
+     읽기 / ✏️ 직접 입력」처럼 하나만 강조되는 짝은 상태 표시지 행동이 아니다 —
+     `aria-pressed`나 `role="group"`으로 그 사실이 표시돼 있으면 세지 않는다. */
+  const 고르는쌍 = (el) => el.hasAttribute('aria-pressed')
+    || !!(el.parentElement && el.parentElement.getAttribute('role') === 'group');
+  const 강조전부 = btns.filter((el) => 강조패턴.test(String(el.className || '')) && !고르는쌍(el));
+  const 구역별 = new Map();
+  강조전부.forEach((el) => {
+    const k = 구역(el);
+    if (!구역별.has(k)) 구역별.set(k, []);
+    구역별.get(k).push(el);
+  });
+  const 강조 = [...구역별.values()].filter((g) => g.length > 1).flat();
   const 무색버튼 = btns.filter((el) => {
     /* ⚠ **거르개(칩)는 행동 버튼이 아니다.** 문의 탭의 「전체·미확인·확인·처리중·완료」를
        「무슨 일이 날지 안 말하는 버튼」으로 셌는데, 그건 **상태 이름 그 자체**라
