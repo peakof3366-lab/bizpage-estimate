@@ -123,5 +123,50 @@ const ago = (d) => {
     console.log('  · 일정이 채워진 것: ' + filled.length + '건 / ' + pkgs.length);
   }
 
+  /* 🔴 **이 화면을 쓰는 사람이 있는가** (YC). 여기 있는 다른 숫자가 전부 0인 이유를
+     설명하는 것이 이 줄이다 — 결정대기열 2번(가입코드 전달)이 2026-08-02부터 걸려
+     있는데, 그 항목이 풀렸는지 아닌지를 **매번 손으로 쿼리해서** 확인해 왔다.
+     ⚠ 비밀번호 해시는 **읽지 않는다.** 세는 데 필요 없다.
+   🔴 **칸 이름을 지어내지 말 것.** 처음에 `is_active`·`status`로 셌는데 실제 칸은
+     `active`·`self_signup`이다. `undefined !== false`가 참이라 **비활성 계정 둘이
+     「실제로 쓰는 계정 2명」으로 찍혔다** — 0명인데 2명이라고 보고할 뻔했다.
+     그래서 이제 **없는 칸이면 그렇다고 말한다**(조용히 기본값으로 떨어지지 않는다). */
+  const staff = await rows('staff_accounts');
+  if (staff) {
+    console.log('\n■ 담당자 계정 (staff_accounts) — ' + staff.length + '건');
+    const hasCol = (k) => staff.some((s) => Object.prototype.hasOwnProperty.call(s, k));
+    const byRole = {};
+    for (const s of staff) byRole[s.role || '(없음)'] = (byRole[s.role || '(없음)'] || 0) + 1;
+    console.log('  · 역할: ' + Object.entries(byRole).map(([k, v]) => k + ' ' + v).join(' · '));
+
+    if (!hasCol('active')) {
+      console.log('  ⚠ `active` 칸이 없다 — 활성 여부를 셀 수 없다(스키마가 바뀌었다).');
+    } else {
+      /* 승인 대기 = `self_signup = true` (api/admin/account.js와 같은 기준).
+         승인하면 그 값을 내려 대기 목록에서 뺀다. */
+      const pending = hasCol('self_signup') ? staff.filter((s) => s.self_signup === true) : null;
+      console.log('  · 승인 대기: ' + (pending ? pending.length + '건' : '(self_signup 칸 없음)'));
+      /* 🔴 사장님(owner)을 뺀 **활성** 계정이 실제로 일하는 사람이다. 이게 0이면
+         견적서를 만드는 직원이 0명이라는 뜻이고, 위 숫자들이 0인 것이 **정상**이다
+         — 코드가 아니라 사람이 없는 것이다(결정대기열 2번). */
+      const workers = staff.filter((s) => s.active === true && (s.role || '') !== 'owner');
+      console.log((workers.length ? '  · ' : '  · 🔴 ')
+        + '사장님 말고 **켜져 있는** 계정: ' + workers.length + '명'
+        + (workers.length ? '' : ' — 견적서를 만드는 직원이 0명이다'));
+      const off = staff.filter((s) => s.active === false);
+      if (off.length) console.log('    ↳ 꺼져 있는 계정 ' + off.length + '건: '
+        + off.map((s) => s.display_name || s.username).join(' · '));
+      /* 자기 가입으로 들어온 사람이 하나도 없으면 **가입코드가 전달되지 않은 것**이다. */
+      if (hasCol('self_signup')) {
+        const selfs = staff.filter((s) => s.self_signup === true || s.self_signup === false);
+        const joined = staff.filter((s) => s.self_signup === true).length;
+        console.log('  · 가입코드로 스스로 들어온 사람: ' + joined + '명'
+          + (joined === 0 && selfs.length ? ' — 🔴 코드가 아직 전달되지 않았다는 뜻이다' : ''));
+      }
+    }
+    const last = staff.map((s) => s.updated_at || s.created_at).filter(Boolean).sort().pop();
+    console.log('  · 마지막 계정 변경: ' + day(last) + ago(last));
+  }
+
   console.log('\n⚠ 이 스크립트는 select만 한다. 숫자가 이상하면 DB가 아니라 여기를 먼저 의심할 것.\n');
 })().catch((err) => { console.error('실패: ' + err.message); process.exit(1); });
