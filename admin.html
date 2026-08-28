@@ -53,6 +53,16 @@
          실측: `#047857` 5.48:1 · `#B45309` 5.02:1 (흰 바탕, WCAG AA 통과). */
       --danger: #DC2626; --success: #047857; --warn: #B45309;
       --sidebar-bg: #1A1A1A;
+      /* 🔴 **줄글의 최대 폭** (YB). 한 줄이 길면 눈이 줄 끝에서 **다음 줄 첫머리로
+         돌아오지 못한다** — 같은 줄을 다시 읽거나 한 줄을 건너뛴다. 화면이 넓을수록
+         심해진다(글상자가 화면을 그대로 다 채우기 때문이다).
+         실측(2026-08-28, 탭 17개): 두 줄 이상 접힌 안내문 17개 중 **9개가 줄당 80~91자**.
+         한글은 45~50자가 편하고 60자를 넘으면 놓치기 시작한다.
+         ⚠ **`em`으로 준다.** 한글은 1자 ≈ 1em이라 글자 크기가 달라도 **글자 수가 같다**.
+           `ch`는 숫자 `0`의 폭이라 한글에는 절반쯤으로 어긋난다 — 쓰지 말 것.
+         ⚠ **표·카드에는 걸지 않는다.** 이건 줄글 폭이지 화면 폭이 아니다.
+         `python ai-loop/check_admin_screens.py`가 이 값을 지키는지 잰다. */
+      --measure: 56em;
     }
     body { font-family: 'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
     .hidden { display: none !important; }
@@ -254,6 +264,11 @@
     .badge-pend { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
     .badge-done { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
     .empty-state { text-align: center; padding: 3.5rem 2rem; color: var(--muted); }
+    /* 🔴 빈 화면 안내는 **읽히라고 있는 글**이다 (YB) — 「무엇이 없고 무엇을 하면
+       되는지」를 말하는 자리인데 79자/줄이었다. 가운데 정렬이라 여백도 함께 준다. */
+    .empty-state p { max-width: var(--measure); margin-left: auto; margin-right: auto; }
+    /* 카드 안의 설명 줄글·목록도 같은 폭으로 (YB). 표·입력칸에는 안 걸린다. */
+    .card-body p, .card-body li { max-width: var(--measure); }
     .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; }
     .pager { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; justify-content: flex-end; }
     .pager-btn { padding: .3rem .65rem; border: 1px solid var(--border); background: var(--white); font-size: .78rem; border-radius: var(--r); transition: all .2s; }
@@ -274,14 +289,20 @@
     .modal-body { padding: 1.5rem; }
 
     /* ── 견적서 업데이트 화면 (RM) ── */
+    /* 🔴 10.2px이었다 — 관리자 화면에서 **가장 작은 글자**였다 (YB).
+       그런데 이건 장식이 아니라 **길잡이**다(사이드바를 두 묶음으로 가르는 유일한 표시).
+       `uppercase`와 `.1em` 자간은 영문용이라 한글에는 흩어뜨리기만 한다 — 함께 덜어냈다.
+       ⚠ 흐림도 한 단계 걷었다(.35 → .5). 검은 사이드바 위 흰 글자에 투명도를
+         겹치면 대비가 두 번 깎인다. */
     .sidebar-sep-lbl {
-      font-size: .64rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
-      color: rgba(255,255,255,.35); padding: .9rem 1.15rem .3rem;
+      font-size: .74rem; font-weight: 800; letter-spacing: .04em;
+      color: rgba(255,255,255,.5); padding: .9rem 1.15rem .3rem;
     }
     .pr-intro {
       background: var(--white); border-left: 3px solid var(--primary);
       padding: .9rem 1.1rem; margin-bottom: 1.25rem;
       font-size: .84rem; color: var(--muted); line-height: 1.75;
+      max-width: var(--measure);   /* 87자/줄이었다 (YB) */
     }
     .pr-intro strong { color: var(--heading); }
     .pr-intro b { color: var(--heading); font-weight: 700; }
@@ -436,6 +457,16 @@
     .rate-status-panel .rate-update-info { margin-top:.6rem; margin-bottom:0; }
     .rate-filter-bar { display:flex; align-items:center; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; }
     .rate-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    /* 🔴 **「지역순」에서는 지역 칸이 60행 전부 비어 있었다** (YB, 실측 60/60).
+       지역은 **그룹 머리줄**(「일본」·「홍콩·마카오」…)이 이미 말하고 있어서다.
+       빈 열 하나가 표 폭을 90px 먹고, 목적지 이름이 왼쪽 끝에서 그만큼 밀려 있었다.
+       ⚠ **열을 지우지는 않았다** — 「확인 필요한 순」에서는 그룹 머리줄이 없어서
+         **그 칸이 실제로 채워진다.** 지웠으면 그 모드가 지역을 잃는다.
+         (지우기 전에 다른 정렬을 눌러 본 것이 이 실수를 막았다.)
+       ⚠ 그룹 머리줄은 `colspan` 한 칸이라 `td:first-child`로 감추면 **머리줄이
+         통째로 사라진다.** 그래서 값 칸에만 `.rate-region`을 붙여 그것만 감춘다. */
+    .rate-table.by-region th:first-child,
+    .rate-table.by-region td.rate-region { display:none; }
     .rate-table thead { background:var(--bg); }
     .rate-table th { padding:.6rem .85rem; text-align:left; font-weight:700; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--border); white-space:nowrap; }
     .rate-table td { padding:.65rem .85rem; border-bottom:1px solid rgba(0,0,0,.05); vertical-align:middle; }
@@ -460,7 +491,8 @@
     .iti-src-quote { font-size: .68rem; font-weight: 800; background: #1B5E20; color: #fff;
       padding: .1rem .4rem; margin-left: .4rem; }
     .fold-hint { font-size: .76rem; color: var(--muted); font-weight: 600; }
-    .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; }
+    /* 이 파란 안내 상자는 탭 다섯 곳에서 쓰인다 — 폭을 안 잡아 91자/줄이었다 (YB) */
+    .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; max-width:var(--measure); }
     .rate-undo-banner { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; font-size:.82rem; font-weight:600; background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:.75rem 1rem; margin-bottom:1.25rem; }
 
     /* ── CONTENT MANAGEMENT ─────────────── */
@@ -537,6 +569,15 @@
     .iti-bar select {
       height: 40px; min-width: 240px; padding: 0 .8rem; font-family: inherit; font-size: .88rem;
       font-weight: 600; border: 1.6px solid var(--border); background: #fff; color: var(--heading);
+    }
+    /* 🔴 **이 줄에 `input` 규칙이 없었다** (YB). 견적서 대장의 검색칸이 클래스도 없는
+       맨 `<input type=search>`라 브라우저 기본값으로 떨어져 **높이 19px**였다 —
+       옆의 `select`(40px)·버튼(34px)과 나란히 서지도 못했다.
+       ⚠ `select`와 **같은 높이**로 준다. 한 줄에 선 것들의 높이가 제각각이면
+         화면이 정돈되지 않은 것으로 읽히고, 무엇이 한 묶음인지도 흐려진다. */
+    .iti-bar input[type="search"], .iti-bar input[type="text"] {
+      height: 40px; padding: 0 .8rem; font-family: inherit; font-size: .88rem;
+      border: 1.6px solid var(--border); background: #fff; color: var(--heading);
     }
     .iti-bar .iti-spacer { margin-left: auto; }
     /* 이 줄의 버튼 셋은 클래스가 섞여 있다(.iti-btn 둘 + .btn-act 하나). .btn-act는
@@ -978,7 +1019,7 @@
        「제목이 있다」고 잘못 읽었다(`audit_ux.js`가 이제 `.page-title`만 본다). */
     .page-head { margin: 0 0 1.1rem; padding-bottom: .85rem; border-bottom: 1px solid var(--line, #E5E2DC); }
     .page-title { font-size: 1.15rem; font-weight: 800; letter-spacing: -.01em; margin: 0 0 .3rem; }
-    .page-sub { font-size: .84rem; color: var(--muted, #7A7A7A); line-height: 1.65; margin: 0; max-width: 62rem; }
+    .page-sub { font-size: .84rem; color: var(--muted, #7A7A7A); line-height: 1.65; margin: 0; max-width: var(--measure); }  /* 62rem(=74자/줄)이었다 — 토큰으로 통일 (YB) */
   </style>
 </head>
 <body>
@@ -1586,7 +1627,12 @@
               숫자를 직접 칠 필요는 없습니다.
             </p>
             <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
-              <input type="file" id="pr-pdf" accept="application/pdf" style="font-size:.76rem" aria-label="견적서 PDF 파일" />
+              <!-- 🔴 높이가 20px이었다 (YB). 파일 고르기는 이 화면에서 **가장 먼저
+                   하는 동작**인데 가장 누르기 어려웠다. 파일칸은 브라우저가 그리는
+                   버튼이라 안쪽을 못 꾸미지만, 칸 자체의 높이·여백은 준다. -->
+              <input type="file" id="pr-pdf" accept="application/pdf"
+                     style="font-size:.76rem;height:34px;padding:.35rem .5rem;border:1px solid var(--border);background:#fff"
+                     aria-label="견적서 PDF 파일" />
               <button type="button" class="btn-act btn-outline-p" onclick="extractPdfDetails()">PDF에서 추출</button>
             </div>
           </div>
@@ -8196,6 +8242,9 @@
 
     const sortMode = document.getElementById('rateSortMode')?.value || 'region';
     const tbody = document.getElementById('rate-tbody');
+    /* 🔴 지역순에서는 그룹 머리줄이 지역을 말하므로 **지역 칸이 늘 비어 있다**
+       (실측 60/60). 그 열을 감춘다. 우선순위순에서는 머리줄이 없어 채워지므로 보인다. */
+    tbody?.closest('table')?.classList.toggle('by-region', sortMode !== 'priority');
     let html = '';
 
     if (sortMode === 'priority') {
@@ -8246,7 +8295,7 @@
         const eff = effectiveRate(d);
         const rs = adminGetCombinedStatus(d.destination_key, eff.rateDate);
         return `<tr>
-          <td style="color:var(--muted);font-size:.76rem">${esc(regionLabel)}</td>
+          <td class="rate-region" style="color:var(--muted);font-size:.76rem">${esc(regionLabel)}</td>
           <td style="white-space:nowrap"><strong>${esc(d.label)}</strong></td>
           <!-- 🔴 표의 버튼은 **눈으로는 줄이 말해 주지만 귀로는 아니다** (XT).
                낭독기에는 「시즌 확인하기」가 60번, 「편집」이 60번 똑같이 들려 어느

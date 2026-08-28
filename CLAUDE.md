@@ -141,8 +141,14 @@ node ai-loop/audit_customer_journey.js      # 고객 화면 버튼을 전부 눌
 node ai-loop/audit_admin_journey.js         # 담당자 화면 버튼을 전부 눌러 본다
 python ai-loop/check_quote_form_layout.py   # 폼에 도착했을 때 무엇이 보이나 (브라우저)
 python ai-loop/check_contrast.py            # 안 읽히는 글자 — 고객 견적서·패키지 포함
-python ai-loop/check_customer_screens.py    # 폰 폭에서 밀림·잘림·누르기 (브라우저)
+python ai-loop/check_customer_screens.py    # 폰 폭에서 밀림·잘림·누르기·줄 길이 (브라우저)
+python ai-loop/check_admin_screens.py       # 담당자 탭 17개 × 폭 3가지 (브라우저)
 ```
+
+⚠ 위 두 브라우저 도구의 **재는 규칙은 `ai-loop/_screen_probe.py` 하나가 진실이다.**
+문턱값도 판정도 거기 있다. 새 잣대를 넣으면 두 화면이 **동시에** 그 잣대로 재진다 —
+규칙이 두 벌이 되면 두 결과를 나란히 놓고 볼 수 없다(결함 생성기 ①).
+화면을 **띄우고 띄웠는지 확인하는** 규칙은 `_browser_fixtures.py`가 진실이다.
 
 ### 🔴 색·크기 — 잴 수 있는 것은 취향이 아니다 (YA)
 
@@ -159,6 +165,19 @@ python ai-loop/check_customer_screens.py    # 폰 폭에서 밀림·잘림·누�
   ⚠ 상자에 `border-bottom`으로 밑줄을 그어 놓으면 `padding`으로 누를 자리를 못 넓힌다 —
   밑줄을 `text-decoration`으로 옮기면 **보이는 모습 그대로** 상자만 키울 수 있다.
 - **글자는 11px 이상.** 한글에 `letter-spacing`을 벌리지 않는다(영문 대문자용이다).
+- 🔴 **줄글에는 최대 폭을 준다** (YB). 한 줄이 길면 눈이 줄 끝에서 **다음 줄 첫머리로
+  돌아오지 못한다.** 한글은 45~50자가 편하고 **60자를 넘으면 놓치기 시작한다.**
+  실측(관리자 17개 탭): 두 줄 이상 접힌 안내문 17개 중 **9개가 80~91자**였다.
+  `admin.html`은 `--measure` 토큰을 쓴다. 값을 그 자리에 적지 말 것.
+  ⚠ **단위는 `em`이다** — 한글은 1자 ≈ 1em이라 글자 크기가 달라도 글자 수가 같다.
+    `ch`는 숫자 `0`의 폭이라 한글에서 절반쯤으로 어긋난다.
+  ⚠ **표·카드에는 걸지 않는다.** 이건 줄글 폭이지 화면 폭이 아니다.
+- ⚠ **빈 열이 있는지 실제 데이터로 볼 것.** 요율표의 「지역」 열은 지역순에서 60행
+  **전부** 비어 있었다(그룹 머리줄이 이미 말한다). 다만 **다른 정렬에서는 채워진다** —
+  지우기 전에 **모드를 바꿔 눌러 볼 것.** 그리고 `colspan` 머리줄이 있는 표에서
+  `td:first-child`로 감추면 **머리줄이 통째로 사라진다**(`.rate-region`처럼 값 칸에만 이름을 준다).
+- ⚠ 새 검사 파일의 요약 줄은 **`결과: N pass / M fail`** 형식이어야 한다 —
+  `run_all_tests.js`가 그 정규식으로 읽고, 못 찾으면 **크래시로 센다**(통과로 위장되지 않게).
 - ⚠ **파이썬 도구는 `sys.stdout.reconfigure(encoding="utf-8")`을 반드시 넣는다.**
   없으면 윈도우 콘솔(cp949)에서 **결과 첫 줄부터 죽어** 한 줄도 안 나온다.
   `check_quote_form_layout.py`가 그래서 끝까지 돌아간 적이 없었다.

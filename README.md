@@ -164,7 +164,22 @@ python ai-loop/check_quotetool_width.py         # 내부 견적 산출 화면 �
 python ai-loop/check_quote_form_layout.py       # 🔴 고객 견적 폼 — 폼에 도착했을 때 무엇이 보이나 (XT)
 python ai-loop/check_customer_screens.py        # 🔴 고객이 손에 쥐는 화면 — 폰 폭부터 (YA)
 python ai-loop/check_customer_screens.py --selftest   # 안전망이 살아 있는지 (고장 주입)
+python ai-loop/check_admin_screens.py           # 🔴 담당자 탭 17개 × 폭 3가지 (YB)
+python ai-loop/check_admin_screens.py --selftest      # 로그인을 안 하면 잡히는지
 ```
+
+⚠ **두 도구의 재는 규칙은 `ai-loop/_screen_probe.py` 하나가 진실이다** (YB) —
+문턱값(글자 11px·터치 24/44px·줄 60/80자)도 판정도 거기 있다. 새 잣대를 넣으면
+고객·담당자 두 화면이 **동시에** 그 잣대로 재진다.
+🔴 `--selftest`는 **일부러 망가뜨려 잡히는지** 본다. 고객 쪽은 픽스처를 안 꽂고,
+담당자 쪽은 로그인을 안 한다 — 둘 다 **아무것도 안 보고 초록이 되는** 실패 모양이다.
+실제로 YA에서 고객 도구가 그렇게 통과했다(오류 화면을 재고 있었다).
+
+⚠ **담당자 화면은 폰 폭을 재지 않는다** — 요율표는 열이 12개라 고칠 수 없는 결함이
+수백 건 쏟아진다. 늘 ✗인 잣대는 아무것도 말하지 않는다(CLAUDE.md).
+⚠ 요율표를 실제 값으로 보려면 `ai-loop/fixtures/rates_live.json`이 필요하다
+(`curl -s https://bizpage-estimate.vercel.app/api/rates -o ai-loop/fixtures/rates_live.json`).
+`/api/rates`는 인증 없이 열리는 공개 주소다 — 고객 브라우저가 견적을 계산할 때 쓴다.
 
 ⚠ **`check_customer_screens.py`가 보는 것은 「카톡으로 받는 견적서」다** —
 `check_contrast.py`의 「견적서 문서」(`openEstimateWindow()`가 여는 **인쇄용 팝업**)와
