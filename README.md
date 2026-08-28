@@ -158,11 +158,24 @@ python ai-loop/check_editor_layout.py           # 일정 편집 화면 (5폭 + �
 python ai-loop/check_quote_doc_layout.py        # 고객 견적서 — 고객이 하는 그대로 뽑아 잰다
 python ai-loop/check_manual_layout.py --shots   # 스크린샷도 저장 (--shots는 셋 다 있다)
 
-python ai-loop/check_contrast.py                # 안 읽히는 글자 — 29개 화면을 전부 훑는다
+python ai-loop/check_contrast.py                # 안 읽히는 글자 — 31개 화면(고객 견적서·패키지 포함)
 python ai-loop/check_contrast.py --all          # 확인 대상(흐린 글자)까지 전부
 python ai-loop/check_quotetool_width.py         # 내부 견적 산출 화면 폭 (RW)
 python ai-loop/check_quote_form_layout.py       # 🔴 고객 견적 폼 — 폼에 도착했을 때 무엇이 보이나 (XT)
+python ai-loop/check_customer_screens.py        # 🔴 고객이 손에 쥐는 화면 — 폰 폭부터 (YA)
+python ai-loop/check_customer_screens.py --selftest   # 안전망이 살아 있는지 (고장 주입)
 ```
+
+⚠ **`check_customer_screens.py`가 보는 것은 「카톡으로 받는 견적서」다** —
+`check_contrast.py`의 「견적서 문서」(`openEstimateWindow()`가 여는 **인쇄용 팝업**)와
+**다른 문서**다. 고객에게 실제로 가는 것은 `estimate-view.html?id=…` 주소 한 줄이고,
+그 화면은 YA 전까지 **브라우저로 한 번도 열려 본 적이 없었다**(jsdom은 색도 크기도
+위치도 계산하지 않는다).
+🔴 그 화면은 문서를 못 받으면 **오류 화면으로 떨어지는데 거기에도 글자와 버튼이 있어
+검사가 멀쩡히 통과한다** — 실제로 그렇게 통과했다. 그래서 두 도구 모두
+`_browser_fixtures.py`의 `assert_loaded()`로 **정말 견적서를 보고 있는지 먼저 확인**한다.
+픽스처(`fixtures/share_doc.json`)는 손으로 짓지 않고 `virtual_journey.js`가 실제로
+만든 payload를 내보낸 것이다(`--share-json=…`).
 
 ⚠ **`check_contrast.py`는 '보이는데 안 읽히는 글자'를 찾는다.** 같은 결과를 내는 사고가
 서로 다른 원인으로 두 번 났다 — 칸 전체에 건 `opacity`가 담당자가 쓴 글까지 흐리게 했고,

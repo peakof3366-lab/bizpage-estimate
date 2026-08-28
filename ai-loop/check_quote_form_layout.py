@@ -32,6 +32,13 @@ except ImportError:
     print("playwright가 없습니다:  pip install playwright && playwright install chromium")
     sys.exit(1)
 
+# 🔴 **이 줄이 없어 이 도구는 끝까지 돌아간 적이 없다** (YA).
+#   윈도우 콘솔은 cp949라, 결과를 찍는 **첫 줄에서** `✓`(U+2713) 때문에
+#   `UnicodeEncodeError`로 죽는다 — 결과가 한 줄도 안 나온다.
+#   CLAUDE.md가 「화면을 고쳤으면 돌려라」고 지정한 도구인데 그랬다
+#   (결함 생성기 ③: 안전망이 실제로 실행된 적이 없다).
+sys.stdout.reconfigure(encoding="utf-8")
+
 ROOT = Path(__file__).resolve().parent.parent
 SHOTS = ROOT / "ai-loop" / "tmp_shots"
 WANT_SHOTS = "--shots" in sys.argv

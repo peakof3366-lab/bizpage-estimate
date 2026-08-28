@@ -5,6 +5,9 @@ import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
+# 🔴 없으면 윈도우 콘솔(cp949)에서 결과 첫 줄부터 `UnicodeEncodeError`로 죽는다 (YA).
+sys.stdout.reconfigure(encoding="utf-8")
+
 ROOT = Path(__file__).resolve().parent.parent
 LOGIN = "() => { document.getElementById('loginPage').style.display='none'; document.getElementById('dashPage').classList.remove('hidden'); }"
 TAB = "(id) => { document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id===id)); try { currentTab = id.replace('tab-',''); } catch(e){} return !!document.getElementById(id); }"

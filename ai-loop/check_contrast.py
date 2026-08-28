@@ -44,6 +44,10 @@ except ImportError:
     print("playwright가 없습니다:  pip install playwright && playwright install chromium")
     sys.exit(1)
 
+# 화면을 띄우고 **띄웠는지 확인하는** 규칙은 `_browser_fixtures.py` 하나가 진실이다 (YA).
+from _browser_fixtures import (load_share, missing_share_help, arm,  # noqa: E402
+                               open_quote, assert_loaded)
+
 ROOT = Path(__file__).resolve().parent.parent
 SHOTS = ROOT / "ai-loop" / "tmp_shots"
 sys.stdout.reconfigure(encoding="utf-8")
@@ -396,8 +400,31 @@ def run():
         except Exception as e:
             print("  ! 견적서 문서를 못 열었다:", str(e)[:80])
 
+        # ── 🔴 고객이 **카톡으로 받아 여는** 견적서 (YA) ──
+        # 위의 「견적서 문서」는 `openEstimateWindow()`가 여는 **인쇄용 팝업**이다.
+        # 고객에게 실제로 가는 것은 `estimate-view.html?id=…` 주소 한 줄이고,
+        # 그건 **다른 문서**인데 이 도구가 한 번도 안 보고 있었다.
+        # 처음 보자마자 나온 것: 상단 브랜드가 **검정 바탕 위 검정 글자(1.02:1)**였다
+        # — 인라인 `color:inherit`가 클래스의 `#fff`를 이기고 있었다.
+        share = load_share()
+        if share is None:
+            print(missing_share_help())
+        else:
+            qp = ctx.new_page()
+            arm(qp, share)          # ⚠ 반드시 goto 전에
+            qp.route("**/api/**", lambda r: r.abort())
+            open_quote(qp, share, "?id=contrast")
+            why = assert_loaded(qp, share)
+            if why:
+                # 🔴 조용히 넘어가면 **오류 화면을 재고 「깨끗하다」고 말하게 된다.**
+                print("  ! 견적서 화면을 못 띄웠다 —", why)
+            else:
+                sweep(qp, "고객 · 카톡으로 받는 견적서", results)
+            qp.close()
+
         # ── 매뉴얼 · 담당자용 견적 도구 ──
-        for fname, label in (("manual.html", "운영 매뉴얼"), ("admin-quote.html", "담당자 · 내부 견적")):
+        for fname, label in (("packages.html", "고객 · 패키지 목록"),
+                             ("manual.html", "운영 매뉴얼"), ("admin-quote.html", "담당자 · 내부 견적")):
             pg = ctx.new_page()
             pg.route("**/api/**", lambda r: r.abort())
             pg.goto((ROOT / fname).as_uri())

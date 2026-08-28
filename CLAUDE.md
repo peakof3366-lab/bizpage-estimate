@@ -140,8 +140,28 @@ node ai-loop/audit_ux.js                    # 화면 7개 · 관리자 탭 17개
 node ai-loop/audit_customer_journey.js      # 고객 화면 버튼을 전부 눌러 본다
 node ai-loop/audit_admin_journey.js         # 담당자 화면 버튼을 전부 눌러 본다
 python ai-loop/check_quote_form_layout.py   # 폼에 도착했을 때 무엇이 보이나 (브라우저)
-python ai-loop/check_contrast.py            # 안 읽히는 글자
+python ai-loop/check_contrast.py            # 안 읽히는 글자 — 고객 견적서·패키지 포함
+python ai-loop/check_customer_screens.py    # 폰 폭에서 밀림·잘림·누르기 (브라우저)
 ```
+
+### 🔴 색·크기 — 잴 수 있는 것은 취향이 아니다 (YA)
+
+`audit_ux.js`가 **일부러 안 다루는 것**(색·여백·글꼴) 중에도 기준이 있는 것이 있다.
+그건 브라우저로 잰다. 위 두 파이썬 도구가 그 자리다.
+
+- **어두운 면 위의 빨강 글자는 `var(--red-on-dk)`를 쓴다.** 브랜드 레드 `--red`는
+  흰 바탕 전용이다 — 검정 위에서 2.3~3.0:1로 떨어진다.
+  🔴 명암비 오류 55건 중 **47건이 이 한 가지 원인**이었다(고객 일정 카드의 「DAY n」,
+  후기 별점, 관리자 일정 미리보기). 값을 그 자리에 적지 말고 토큰을 쓴다.
+- **`opacity`로 흐리게 만들지 않는다.** 투명도는 색을 배경 쪽으로 한 번 더 섞어
+  대비를 깎고, 뒤에 무엇이 오느냐에 따라 결과가 달라진다. 흐림은 **색으로** 정한다.
+- **누를 것은 44×44px 이상**(WCAG 2.5.5 · Apple HIG). 24px 미만은 오류(2.5.8 AA).
+  ⚠ 상자에 `border-bottom`으로 밑줄을 그어 놓으면 `padding`으로 누를 자리를 못 넓힌다 —
+  밑줄을 `text-decoration`으로 옮기면 **보이는 모습 그대로** 상자만 키울 수 있다.
+- **글자는 11px 이상.** 한글에 `letter-spacing`을 벌리지 않는다(영문 대문자용이다).
+- ⚠ **파이썬 도구는 `sys.stdout.reconfigure(encoding="utf-8")`을 반드시 넣는다.**
+  없으면 윈도우 콘솔(cp949)에서 **결과 첫 줄부터 죽어** 한 줄도 안 나온다.
+  `check_quote_form_layout.py`가 그래서 끝까지 돌아간 적이 없었다.
 
 ### 새 화면·새 칸을 만들 때 지킬 것 (전부 `audit_ux.js`가 센다)
 

@@ -65,6 +65,14 @@ const 가장자리모드 = process.argv.includes('--edge') || process.argv.inclu
 const OUT = arg('out', path.join(process.env.USERPROFILE || 'C:/Users/최현욱', 'Desktop',
   가장자리모드 ? '가상견적서_가장자리' : '가상견적서'));
 const BASE = arg('base', 'https://bizpage-estimate.vercel.app');
+/* 🔴 **견적서 payload를 파일로 한 벌 흘린다** (YA). 브라우저로 재는 도구
+   (`check_customer_screens.py`)가 고객 견적서 화면을 띄우려면 **서버가 주는 모양
+   그대로의 payload**가 필요하다. 그 모양을 파이썬 쪽에 손으로 지어 두면 두 벌이 되고,
+   그러면 그 도구만 조용히 다른 것을 재게 된다(결함 생성기 ①).
+   → 여기서 실제로 만들어진 것을 그대로 내보낸다. 손님 **첫 명**의 것 한 장이면 된다.
+ ⚠ 이 파일은 검사용이라 저장소에 커밋한다 — 가상 손님 값이라 실제 고객 정보가 없다. */
+const SHARE_JSON = arg('share-json', null);
+let shareJsonWritten = false;
 
 const won = (n) => Number(Math.round(n || 0)).toLocaleString('ko-KR');
 
@@ -483,6 +491,12 @@ async function runOne(p, rates, ctx) {
     _verify: { verdict: v.verdict, failedSteps: v.failedSteps || [], at: new Date().toISOString(), issuedBy: 'auto' },
   });
   out.qno = qno;
+  if (SHARE_JSON && !shareJsonWritten) {
+    shareJsonWritten = true;
+    fs.mkdirSync(path.dirname(SHARE_JSON), { recursive: true });
+    fs.writeFileSync(SHARE_JSON, JSON.stringify(payload, null, 2), 'utf8');
+    if (!QUIET) console.log('  · 견적서 payload를 내보냈다 → ' + SHARE_JSON);
+  }
   /* 🔴 **고객에게 가는 것은 파일이 아니라 주소 한 줄이다.** 대표가 폴더를 보시고
      「카톡으로 HTML이 가느냐」고 물으셨다 — 내 파일 이름이 그렇게 읽히게 지어져 있었다.
      실제로 가는 모양을 여기 남겨 파일에도 적는다. */
