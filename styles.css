@@ -25,6 +25,14 @@
   /* ─ Accent — RED: CTA 버튼 · 아이브로우 · 핵심 수치 3곳만 */
   --red:    #C8102E;
   --red-dk: #A20D25;
+  /* 🔴 **검정 위에 올리는 빨강** (YA). 브랜드 레드 `#C8102E`는 흰 바탕에서는 잘 읽히지만
+     어두운 면 위에서는 대비가 **2.3~3.0:1**로 떨어져 사실상 안 읽힌다
+     (`check_contrast.py` 오류 55건 중 **47건이 이 한 가지 원인**이었다 —
+      고객 일정 카드의 「DAY 1」, 후기 카드의 별점, 관리자 일정 미리보기).
+     → 어두운 면 위의 빨강 글자는 **반드시 이 토큰**을 쓴다. 값을 그 자리에 적으면
+       다음에 또 흩어진다(결함 생성기 ①).
+     실측: `#1A1A1A` 위 4.95:1 · `#161616` 위 5.15:1 (WCAG AA 4.5 통과). */
+  --red-on-dk: #FF3A50;
 
   /* ─ Rule (hairline) */
   --rule:      rgba(0,0,0,.08);
@@ -511,9 +519,16 @@ p { line-height:1.8; }
   background:var(--bg-off); border:1.5px solid rgba(0,0,0,.1);
   border-radius:var(--r); padding:16px 18px; margin-bottom:16px;
 }
+/* 🔴 **9px였다** (YA). 브라우저로 재 보니 고객 화면에서 가장 작은 글자였고,
+   폭 네 가지 **전부**에서 9px이었다(폰에서만 작아지는 게 아니다).
+   ⚠ `text-transform:uppercase`와 `.13em` 자간은 **영문 라벨을 위한 것**인데
+     실제 내용은 전부 한글이다(「항공」·「숙박」·「추가 선택」·「현지에서 드는 그 밖의
+     비용」). 한글은 자간을 벌리면 오히려 덩어리가 흩어져 더 안 읽힌다.
+   → 11px · 자간 .06em. 대문자 변환은 남긴다(한글에는 아무 일도 안 하고,
+     영문 라벨이 생기면 그때 다시 필요하다). */
 .inc-sec-lbl {
-  font-size:9px; font-weight:700; color:var(--t-sub);
-  letter-spacing:.13em; text-transform:uppercase;
+  font-size:11px; font-weight:700; color:var(--t-sub);
+  letter-spacing:.06em; text-transform:uppercase;
   display:block; padding:10px 0 6px;
   border-top:1.5px solid rgba(0,0,0,.07);
   margin-top:2px;
@@ -976,16 +991,36 @@ p { line-height:1.8; }
 .svc-item-metric { text-align:right; padding-top:4px; position:relative; z-index:1; }
 .svc-metric-val  { font-size:44px; font-weight:900; color:var(--t-head); letter-spacing:-.05em; line-height:1; }
 .svc-metric-unit { font-size:.48em; color:var(--red); font-weight:700; }
-.svc-metric-lbl  { font-size:10.5px; color:var(--t-sub); margin-top:5px; margin-bottom:14px; letter-spacing:.04em; }
-.svc-cta { font-size:12px; font-weight:700; color:var(--t-head); border-bottom:1.5px solid var(--t-head); padding-bottom:1px; transition:color var(--dur), border-color var(--dur); }
-.svc-cta:hover { color:var(--red); border-bottom-color:var(--red); }
+.svc-metric-lbl  { font-size:10.5px; color:var(--t-sub); margin-top:5px; margin-bottom:0; letter-spacing:.04em; }
+/* 🔴 **누를 곳이 79×16px이었다** (YA). 그리고 이 카드에서 **누를 수 있는 것은 이것뿐**이다
+   — 카드는 `<div>`라 카드를 눌러도 아무 일도 안 난다. 즉 폰에서 「견적 계산하기」로 가는
+   길이 16px짜리 줄 하나였다(WCAG 2.5.5 · Apple HIG 권장 44px).
+   ⚠ **밑줄을 `border-bottom`에서 `text-decoration`으로 옮겼다.** 테두리는 **상자**에
+     붙는 것이라, 누를 자리를 넓히려고 `padding`을 주면 밑줄이 글자에서 떨어져 나간다.
+     글자에 붙는 밑줄로 바꾸면 **보이는 모습은 그대로**인 채 상자만 키울 수 있다.
+   ⚠ 위쪽 여백은 `.svc-metric-lbl`의 `margin-bottom:14px`를 여기 `padding-top`으로
+     옮긴 것이다 — 여백을 두 곳에서 주면 카드가 그만큼 벌어진다. */
+.svc-cta {
+  font-size:12px; font-weight:700; color:var(--t-head);
+  display:inline-block; padding:14px 0;
+  text-decoration:underline; text-decoration-thickness:1.5px; text-underline-offset:4px;
+  transition:color var(--dur), text-decoration-color var(--dur);
+}
+.svc-cta:hover { color:var(--red); text-decoration-color:var(--red); }
 /* svc-header 자식 */
 .svc-header-left  { min-width:0; }
 .svc-header-right { min-width:0; display:flex; align-items:flex-end; }
 
-.svc-footer { margin-top:48px; text-align:center; }
-.svc-blog-link { font-size:14px; font-weight:700; color:var(--t-head); border-bottom:2px solid var(--t-head); padding-bottom:2px; transition:color var(--dur), border-color var(--dur); }
-.svc-blog-link:hover { color:var(--red); border-bottom-color:var(--red); }
+.svc-footer { margin-top:34px; text-align:center; }
+/* 🔴 239×20px이었다 (YA) — `.svc-cta`와 같은 이유·같은 방법. 여백은 `.svc-footer`의
+   `margin-top`에서 14px을 덜어 여기 `padding`으로 옮겼다(48 → 34 + 14). */
+.svc-blog-link {
+  font-size:14px; font-weight:700; color:var(--t-head);
+  display:inline-block; padding:14px 0;
+  text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:4px;
+  transition:color var(--dur), text-decoration-color var(--dur);
+}
+.svc-blog-link:hover { color:var(--red); text-decoration-color:var(--red); }
 .svc-blog-arrow { margin-left:4px; }
 
 /* 견적 조건 배지 */
@@ -1067,7 +1102,10 @@ p { line-height:1.8; }
 /* 방향 1 — 큰 따옴표 */
 .testi-quote { font-size:56px; line-height:.75; color:var(--red); font-family:Georgia,serif; margin-bottom:16px; opacity:.6; }
 .testi-text  { font-size:14px; color:rgba(255,255,255,.85); line-height:1.85; margin-bottom:24px; font-weight:400; }
-.testi-star  { color:var(--red); font-size:12px; letter-spacing:.06em; margin-bottom:7px; opacity:.8; }
+/* ⚠ `opacity:.8`을 걷었다 (YA) — 어두운 카드 위에서 별점이 2.33:1이었다.
+   투명도는 색을 배경 쪽으로 **한 번 더** 섞어 대비를 깎는다. 흐리게 보이길 원하면
+   색으로 정한다(투명도는 뒤에 무엇이 오는지에 따라 결과가 달라진다). */
+.testi-star  { color:var(--red-on-dk); font-size:12px; letter-spacing:.06em; margin-bottom:7px; }
 .testi-name  { font-size:14px; font-weight:700; color:var(--white); margin-bottom:3px; }
 .testi-org   { font-size:11.5px; color:rgba(255,255,255,.6); }
 
@@ -1531,7 +1569,8 @@ p { line-height:1.8; }
   display:flex; align-items:center; gap:8px; flex-shrink:0;
 }
 .itin-day-num {
-  font-size:10px; font-weight:800; letter-spacing:.18em; color:var(--red);
+  /* 어두운 헤더 위 — 브랜드 레드로는 2.96:1이라 사실상 안 읽혔다 (YA) */
+  font-size:10px; font-weight:800; letter-spacing:.18em; color:var(--red-on-dk);
 }
 .itin-day-badge {
   font-size:9px; font-weight:700; letter-spacing:.08em;

@@ -44,7 +44,14 @@
       --r: 0px;
       --shadow-sm: 0 2px 10px rgba(0,0,0,.10);
       --shadow-lg: 0 6px 24px rgba(0,0,0,.16);
-      --danger: #DC2626; --success: #10b981; --warn: #f59e0b;
+      /* 🔴 초록·주황을 **한 단계 진하게** (YA). 둘 다 흰 바탕 위 글자색으로만 쓰이는데
+         `#10b981`은 2.3~2.5:1, `#f59e0b`는 **2.15:1**이라 사실상 안 읽혔다
+         (대시보드 통계 숫자가 그 색이다 — 담당자가 매일 보는 숫자다).
+         배경이나 흰 글자로 쓰는 자리가 없어 진하게 해도 잃는 것이 없다(28곳 전수 확인).
+         `#B45309`는 `manual.html`이 이미 쓰던 값이고 admin 안에도 인라인으로 흩어져
+         있었다 — 토큰 쪽을 그 값에 맞췄다(결함 생성기 ①).
+         실측: `#047857` 5.48:1 · `#B45309` 5.02:1 (흰 바탕, WCAG AA 통과). */
+      --danger: #DC2626; --success: #047857; --warn: #B45309;
       --sidebar-bg: #1A1A1A;
     }
     body { font-family: 'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
