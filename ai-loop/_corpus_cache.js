@@ -103,6 +103,10 @@ function shapeOf(r) {
     .reduce((n, c) => n + (c.total || 0), 0);
   return {
     unclassRatio: denom ? unclass / denom : null,
+    /* ⚠ **골프로 분류된 「금액 줄」 수다 — 「골프 일정인가」의 답이 아니다**(YD).
+       금액이 안 적힌 골프 일정이 대부분이라(「캐디팁」·「선택 일정 [관광/자유/골프]」)
+       이 값이 0이어도 골프 여행일 수 있다. 실측: 한화GA 다낭 24명은 전 일정이
+       18홀 라운딩인데 여기서는 1이다. 일정 판정이 필요하면 `_golf_scope.js`를 쓴다. */
     golfLines: cands.filter((c) => c.category === 'golf').length,
     lines: cands.length,
   };

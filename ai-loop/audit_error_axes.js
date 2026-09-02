@@ -33,10 +33,10 @@ const DATA = require(path.join(ROOT, 'data.js'));
 
 const MIN_GROUP = 4;           /* 이보다 작은 무리는 중앙값이 뜻이 없다 */
 const COST_SHEET_RE = /HNT\s*수익|권장\s*수익|입금가|\bFOC\b/i;
-/* 골프 일정인지 — **라벨만으로 센다.** 금액이 따로 안 적히는 문서가 대부분이다
-   (실측: 「캐디팁」·「골프조 게임비」는 라벨만 있고 숫자가 없다 · 하노이·푸꾸옥은
-   「선택 일정 [관광/자유/골프]」라 아예 금액이 없다). */
-const GOLF_RE = /골프|그린피|캐디/g;
+/* 골프 일정인지 — 판정은 `_golf_scope.js` 한 곳에서 온다 (YD).
+   ⚠ 예전엔 여기 `GOLF_RE = /골프|그린피|캐디/g`를 두고 3회 이상이면 골프로 봤는데,
+     「BRG CC 18홀 라운딩」처럼 **「골프」라는 낱말을 안 쓰는 문서**를 놓쳤다. */
+const { golfScope } = require('./_golf_scope');
 const pct = (n) => (n == null ? '  —  ' : (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%');
 const q = (a, p) => {
   if (!a.length) return null;
@@ -156,9 +156,10 @@ const AXES = [
       ovCells: OV_CELLS[dn.key] || 0,
       hotelMeasured: !!OV_HOTEL[dn.key],
       /* VG: 골프가 든 일정인가, 그리고 그 목적지에 골프 요금이 있는가.
-         ⚠ 언급 3회 미만은 「선택 일정에 골프도 있다」 정도라 골프 일정으로 안 본다
-           (실측: 미야코지마 1회·한화GA 다낭 1회는 지나가는 말이다). */
-      golfDoc: ((r.text || '').match(GOLF_RE) || []).length >= 3,
+         ⚠ **한화GA 다낭을 「지나가는 말」로 본 것은 틀렸다**(YD). 그 문서는 전 일정이
+           「다낭 BRG CC 18홀 라운딩」·「몽고메리 CC 18홀 라운딩」인 골프 여행인데
+           「골프」라는 낱말만 세는 자에 걸리지 않았을 뿐이다. 이제 갈래 수로 센다. */
+      golfDoc: golfScope(r.text || '').isGolfTrip,
       golfFee: DATA.getGolfFee ? DATA.getGolfFee(dn.key) > 0 : false,
     });
   }
