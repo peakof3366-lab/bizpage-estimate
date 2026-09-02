@@ -56,11 +56,18 @@ console.log('\n[1] 엔진 부팅이 한 곳에서 온다');
 console.log('\n[2] 기본 손잡이가 화면의 checked와 같다');
 {
   const html = fs.readFileSync(path.join(AI, '..', 'index.html'), 'utf8');
-  /* ⚠ 기본값이 화면과 어긋나면 「고객이 아무것도 안 건드렸을 때의 금액」이 아니게 된다 */
+  /* ⚠ 기본값이 화면과 어긋나면 「고객이 아무것도 안 건드렸을 때의 금액」이 아니게 된다.
+     ⚠ **손잡이가 두 종류다**(YH). 등급·좌석·객실은 라디오(`name=... value=...`)이고,
+       포함 여부(`incHotel`…)는 **체크박스**(`id=... checked`)다. 예전에는 라디오만
+       있어서 한 가지 모양만 봤는데, 휴양(차량·가이드 끔)을 재려고 포함 다섯을
+       손잡이로 열면서 종류가 갈렸다. 모양을 안 가르면 체크박스 다섯이 전부 ✗로 나온다. */
   Object.keys(BOOT.SPEC_DEFAULTS).forEach((name) => {
     const v = BOOT.SPEC_DEFAULTS[name];
-    const re = new RegExp('name="' + name + '" value="' + v + '" checked');
-    ok('② ' + name + ' 기본이 ' + v + ' (화면과 같다)', re.test(html.replace(/\s+/g, ' ')));
+    const flat = html.replace(/\s+/g, ' ');
+    const re = typeof v === 'boolean'
+      ? new RegExp('id="' + name + '"[^>]*' + (v ? 'checked' : ''))
+      : new RegExp('name="' + name + '" value="' + v + '" checked');
+    ok('② ' + name + ' 기본이 ' + v + ' (화면과 같다)', re.test(flat));
   });
 }
 

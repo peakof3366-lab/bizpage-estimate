@@ -30,6 +30,15 @@ const SPEC_DEFAULTS = {
   hotelGrade: 'superior',   /* 4성급 */
   cabinClass: 'economy',
   roomConfig: 'double',
+  /* 🔴 **휴양(가족여행) 경로를 잴 수 있게 열었다** (YH). 예전에는 이 다섯 칸을
+     `run`이 **무조건 켜고** 있어서, 측정 도구가 「휴양 / 자유여행」을 아예 못 쟀다.
+     코퍼스 견적서 36건이 전부 MICE 단체라 그동안 문제가 안 보였을 뿐이다.
+     ⚠ 기본값은 예전과 같은 **전부 켬**이다 — 안 주면 지금까지와 똑같이 돈다. */
+  incHotel: true,
+  incMeal: true,
+  incVehicle: true,
+  incGuide: true,
+  incSightseeing: true,
 };
 
 async function bootEngine(opts) {
@@ -99,7 +108,11 @@ async function bootEngine(opts) {
     doc.getElementById('participants').value = String(t.pax);
     doc.getElementById('days').value = String(t.days);
     doc.getElementById('startDate').value = t.date;
-    ['incHotel', 'incMeal', 'incVehicle', 'incGuide', 'incSightseeing'].forEach((id) => setChk(id, true));
+    /* ⚠ 안 주면 전부 켠다(예전 동작 그대로). 휴양은 차량·가이드를 끄고 잰다 —
+       2026-08-24 실측: 오키나와 3박4일 4명이 그 둘을 빼면 2,398,906 → 1,287,106으로
+       소매가(1,190,000) 대비 **+8.2%**가 된다. 그 둘은 인원과 무관한 정액이라
+       소수 일행에서 1인당이 통째로 부푼다. */
+    ['incHotel', 'incMeal', 'incVehicle', 'incGuide', 'incSightseeing'].forEach((id) => setChk(id, s[id] !== false));
 
     setRadio('hotelGrade', s.hotelGrade);
     setRadio('cabinClass', s.cabinClass);
