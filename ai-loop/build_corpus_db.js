@@ -52,14 +52,10 @@ const DEST_KEYS = destinationRates.map((d) => d.destination_key);
      판매가보다 싸면 마진이 얇은 것이다. 정반대 결론이다. */
 const COST_SHEET_RE = /HNT\s*수익|권장\s*수익|입금가|\bFOC\b/i;
 
-/* 발행사 — 양식을 가르는 가장 굵은 축이다(같은 회사는 열 구성이 같다). */
-const ISSUERS = [
-  { key: '하나투어', re: /하나투어|HANATOUR|Hanatour|\bHNT\b/i },
-  { key: 'EnBT', re: /EnBT|이앤비티/i },
-  { key: '좋은친구', re: /좋은\s*친구/ },
-  { key: '모두투어', re: /모두투어/ },
-  { key: '노랑풍선', re: /노랑풍선/ },
-];
+/* 발행사 판정은 `_issuer.js` 한 곳에서 온다 (YE) — 여기 다시 적지 말 것.
+   근거는 문서의 「발신」 칸 하나뿐이고, 못 정하면 미상으로 둔다. 왜 그렇게 좁혔는지는
+   그 파일에 실측과 함께 적혀 있다(미팅 장소·수신자·원가 열에 세 번 속았다). */
+const { issuerOf } = require('./_issuer');
 
 const pct = (n) => (n == null ? '—' : (n * 100).toFixed(0) + '%');
 const won = (n) => (n == null ? '—' : Number(n).toLocaleString());
@@ -129,11 +125,12 @@ function blockers(r, dest) {
       items[k] = { value: v[k], via: (ev[k] && ev[k].via) || null, calc: (ev[k] && ev[k].calc) || '' };
     });
 
-    const issuer = (ISSUERS.find((i) => i.re.test(text)) || {}).key || '미상';
+    const iss = issuerOf(text);
     const row = {
       file: f,
       /* ── 문서가 어떤 것인가 ── */
-      issuer,
+      issuer: iss.key,
+      issuerWhy: iss.why,
       kind: (r.kind && r.kind.label) || '',
       basis: COST_SHEET_RE.test(text) ? 'cost' : 'sell',   /* 원가 시트인가 고객용인가 */
       pages: r.pageCount || null,
