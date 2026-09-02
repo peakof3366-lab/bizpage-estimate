@@ -81,7 +81,13 @@ const q = (a, p) => {
     const per = (re) => (bd.rows || []).filter((x) => re.test(x.name))
       .reduce((s, x) => s + x.amount, 0) / pax;
     const mar = per(/수익/), ins = per(/보험/);
-    return { mar, ins, base: bd.perPerson - mar - ins };
+    /* 🔴 **부대비용을 따로 뽑는다** (YL). 이건 우리가 지상비의 20%로 **추정해 얹는**
+       원가지, 그 견적서가 실제로 쓴 돈이 아니다. 미분류가 3%인 문서에도 20%가 붙는다.
+       처음(YI)에는 이걸 원가소계 안에 두었더니 「그쪽이 얹은 비율」이 음수로 나왔다
+       (푸꾸옥 100명 -27.4% = 그쪽이 원가 밑으로 팔았다는 뜻 — 있을 수 없다).
+       원가가 부풀어 있었던 것이다. 그래서 갈라서 **둘 다** 보여준다. */
+    const anc = per(/부대비용/);
+    return { mar, ins, anc, base: bd.perPerson - mar - ins, baseNoAnc: bd.perPerson - mar - ins - anc };
   };
 
   const rows = [];
@@ -121,6 +127,10 @@ const q = (a, p) => {
       /* 양쪽 다 **같은 원가소계** 위에서 잰다 */
       addOurs: (bC.perPerson - s.base) / s.base,
       addTheirs: (cmp.actual - s.base) / s.base,
+      /* 부대비용을 원가에서 빼고 다시 — 「추정해 얹은 것」을 원가로 치지 않는다 */
+      anc: s.anc, ancShare: s.base > 0 ? s.anc / s.base : null,
+      addOurs2: s.baseNoAnc > 0 ? (bC.perPerson - s.baseNoAnc) / s.baseNoAnc : null,
+      addTheirs2: s.baseNoAnc > 0 ? (cmp.actual - s.baseNoAnc) / s.baseNoAnc : null,
       unclass: (c.shape && c.shape.unclassRatio) == null ? null : c.shape.unclassRatio,
       /* 원가 시트의 「1인당」은 판매가가 아니다 — 따로 센다 */
       isCost: !!c.deposit,
@@ -188,6 +198,74 @@ const q = (a, p) => {
     }
     console.log('');
   });
+
+  /* ── 🔴 검산 — **부대비용을 원가에서 빼면 그림이 어떻게 되는가** (YL) ──────
+     처음 판(YI)은 원가소계 안에 부대비용(지상비의 20%)을 두었다. 그런데 그건
+     **우리가 추정해 얹는 값**이지 그 견적서가 실제로 쓴 돈이 아니다. 미분류가 3%인
+     문서에도 20%가 붙는다. 그 결과 원가시트 쪽에서 「그쪽이 얹은 비율」이 음수로
+     나왔다 — **그쪽이 자기 원가 밑으로 팔았다**는 뜻이라 있을 수 없다.
+     빼고 다시 재서 **둘을 나란히** 둔다. 어느 쪽이 옳은지는 「부대비용을 원가로 볼
+     것인가」에 달렸고, 그건 숫자가 아니라 정의 문제다. */
+  {
+    const sgn = (d) => {
+      const n = d.filter((x) => x !== 0).length, k = d.filter((x) => x > 0).length;
+      const C = (a, b) => { let r = 1; for (let i = 0; i < b; i++) r = r * (a - i) / (i + 1); return r; };
+      let p = 0;
+      for (let i = 0; i <= n; i++) {
+        const t = C(n, i) / Math.pow(2, n);
+        if (Math.abs(i - n / 2) >= Math.abs(k - n / 2)) p += t;
+      }
+      return { n, k, p };
+    };
+    console.log('════ 🔴 검산 — 부대비용을 원가로 볼 것인가 ════');
+    console.log('부대비용 = 지상비의 ' + Math.round(require(path.join(ROOT, 'data.js')).ANCILLARY.rate * 100)
+      + '% 를 **추정해 얹는** 칸이다(기관 섭외·통역·행사 운영).');
+    const anc = use.map((r) => r.ancShare).filter((x) => x != null);
+    console.log('원가소계에서 차지하는 몫 — 중앙 ' + pct(q(anc, 0.5))
+      + ' · 사분위 ' + pct(q(anc, 0.25)) + ' ~ ' + pct(q(anc, 0.75)) + '\n');
+    [['② 고객용', use.filter((r) => !r.isCost)], ['① 원가 시트', use.filter((r) => r.isCost)]]
+      .forEach(([label, g]) => {
+        if (!g.length) return;
+        const d1 = g.map((r) => r.addTheirs - r.addOurs);
+        const g2 = g.filter((r) => r.addOurs2 != null);
+        const d2 = g2.map((r) => r.addTheirs2 - r.addOurs2);
+        const s1 = sgn(d1), s2 = sgn(d2);
+        console.log('  ' + label + '  ' + g.length + '건');
+        console.log('    부대비용을 원가로 봄(YI)   우리 ' + pct(q(g.map((r) => r.addOurs), 0.5))
+          + '  그쪽 ' + pct(q(g.map((r) => r.addTheirs), 0.5))
+          + '   그쪽 우위 ' + s1.k + '/' + s1.n + ' · p=' + (s1.p * 100).toFixed(1) + '%');
+        console.log('    부대비용을 뺌(YL)          우리 ' + pct(q(g2.map((r) => r.addOurs2), 0.5))
+          + '  그쪽 ' + pct(q(g2.map((r) => r.addTheirs2), 0.5))
+          + '   그쪽 우위 ' + s2.k + '/' + s2.n + ' · p=' + (s2.p * 100).toFixed(1) + '%');
+        const flip = (s1.p <= 0.05) !== (s2.p <= 0.05);
+        console.log('    → ' + (flip
+          ? '🔴 **두 보기의 결론이 다르다.** 부대비용을 원가로 볼지부터 정해야 한다.'
+          : '✅ 두 보기가 같은 결론이다 — 이 판단은 부대비용 정의에 흔들리지 않는다.') + '\n');
+      });
+    const neg = use.filter((r) => r.addTheirs < 0).length;
+    const neg2 = use.filter((r) => r.addTheirs2 != null && r.addTheirs2 < 0).length;
+    console.log('  ⚠ 「그쪽이 자기 원가 밑으로 팔았다」로 보이는 건 — 부대비용 포함 ' + neg
+      + '건 · 뺐을 때 ' + neg2 + '건.');
+    console.log('    있을 수 없는 일이므로, 이 수가 줄어드는 쪽이 **원가를 덜 부풀린 보기**다.');
+    /* 🔴 부대비용을 빼고도 남는 건 = **원가 조립이 확실히 틀린 자리**다.
+       마진 이야기가 아니다 — 우리가 만든 원가가 그 문서의 판매가를 넘었다는 뜻이라
+       어느 칸이 틀렸는지 문서를 열어 봐야 한다. 이름을 부른다. */
+    const impossible = use.filter((r) => r.addTheirs2 != null && r.addTheirs2 < 0)
+      .sort((a, b) => a.addTheirs2 - b.addTheirs2);
+    if (impossible.length) {
+      console.log('\n  🔴 부대비용을 빼고도 **우리 원가 > 그쪽 판매가**인 건 ' + impossible.length + '건');
+      console.log('     — 마진 문제가 아니다. 원가 조립이 확실히 틀린 자리다.');
+      impossible.forEach((r) => console.log('     ' + wpad(r.dest, 9)
+        + String(r.pax).padStart(4) + '명' + String(r.days).padStart(3) + '일'
+        + '  우리원가 ' + won(r.base - r.anc).padStart(10)
+        + '  그쪽 판매 ' + won(r.actual).padStart(10)
+        + '  ' + pct(r.addTheirs2).padStart(8)
+        + '  실측' + String(r.cells).padStart(2) + '칸'
+        + (r.isCost ? ' · 원가시트' : '')
+        + '  ' + r.file.slice(0, 30)));
+    }
+    console.log('');
+  }
 
   /* ── 읽는 법 ── 숫자만 두면 반드시 요율 이야기로 흘러간다 */
   const sell = use.filter((r) => !r.isCost);
