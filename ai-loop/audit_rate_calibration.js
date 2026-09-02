@@ -45,6 +45,8 @@
 const fs = require('fs');
 const path = require('path');
 const { corpusFiles } = require('./_corpus_files.js');
+/* YF: 「골프 일정인가」 — 골프 여행의 칸은 조가 갈려 있어 그대로 요율로 굳히면 안 된다 */
+const { golfScope } = require('./_golf_scope');
 
 const ROOT = path.join(__dirname, '..');
 const CORPUS = process.env.BIZPAGE_CORPUS
@@ -132,7 +134,7 @@ const median = (a) => {
        2건으로 보이면 그 값을 요율로 굳혀도 되는 것처럼 읽힌다.
        ⚠ 정답값은 판매가가 없으면 입금가를 쓴다 — 원가 시트끼리도 갈라내야 한다
          (실측으로 걸린 동유럽 두 벌이 바로 판매가 없는 원가 시트다). */
-    trips.push({ f, r, dest: dn.key });
+    trips.push({ f, r, dest: dn.key, golf: golfScope(r.text || '').isGolfTrip });
     continue;
   }
   {
@@ -146,7 +148,7 @@ const median = (a) => {
     trips.length = 0;
     ded.kept.forEach((t) => trips.push(t));
   }
-  for (const { f, r, dest: destKey } of trips) {
+  for (const { f, r, dest: destKey, golf } of trips) {
     const dn = { key: destKey };
     obs[dn.key] = obs[dn.key] || { files: [], cells: {} };
     obs[dn.key].files.push(f);
@@ -165,7 +167,7 @@ const median = (a) => {
         field = vehicleFieldFor(r.pax);
       }
       obs[dn.key].cells[field] = obs[dn.key].cells[field] || [];
-      obs[dn.key].cells[field].push({ v, f });
+      obs[dn.key].cells[field].push({ v, f, golf });
     });
   }
 
@@ -190,13 +192,23 @@ const median = (a) => {
          칸과 처방이 정반대라(고친 칸이 또 벌어지면 표본을 의심하고, 추정치 칸은 그냥
          실측으로 바꾼다) 표에서 구분되어야 한다. */
       const fromOv = typeof ((OV[destKey] || {})[field]) === 'number';
+      /* ⛳ = 이 칸의 실측이 **골프 여행 견적서**에서 왔다 (YF).
+         골프 일정은 문서가 골프조/관광조로 갈려 있어서, 차량·관광·식비가
+         **조 인원으로 나뉜 값**이다. 그걸 전원 단가로 읽으면 그 칸이 부푼다.
+         실측: 다낭 관광 실측 2건이 **둘 다 골프 여행**이고(한화 뉴퍼스트 321,594 ·
+         한화GA 105,000) 중앙값 213,297이 「요율이 4.27배 낮다 🔴」로 찍힌다.
+         같은 목적지의 비골프 견적서(글로벌 힐링페스티벌 500명)는 그 칸에 값이 없다.
+         ⚠ **거르지 않고 표시만 한다.** 골프 여행도 실제 거래이고, 어느 칸이
+           조로 갈렸는지는 문서마다 다르다 — 사람이 보고 판단할 자리다. */
+      const golfN = (o.cells[field] || []).filter((x) => x.golf).length;
       console.log('   ' + wpad(FIELD_LABEL[field], 9)
         + '요율 ' + won(base).padStart(11) + (fromOv ? ' 📌' : '   ')
         + '  실측중앙 ' + won(med).padStart(11)
         + '  (' + String(list.length) + '건' + (weak ? ' ⚠표본1' : '') + ')'
         + '   ' + (ratio >= 1 ? '×' + ratio.toFixed(2) : '÷' + (1 / ratio).toFixed(2)).padStart(7)
-        + (loud ? '  🔴' : ''));
-      if (loud && !weak) proposals.push({ destKey, cell: field, label: FIELD_LABEL[field], base, med, ratio, n: list.length, fromOv });
+        + (loud ? '  🔴' : '')
+        + (golfN ? '  ⛳' + golfN + '/' + list.length : ''));
+      if (loud && !weak) proposals.push({ destKey, cell: field, label: FIELD_LABEL[field], base, med, ratio, n: list.length, fromOv, golfN });
     });
   });
 
@@ -211,8 +223,16 @@ const median = (a) => {
         + '요율 ' + won(p.base).padStart(11) + (p.fromOv ? ' 📌' : '   ')
         + ' →  실측 ' + won(p.med).padStart(11)
         + '  (' + p.n + '건, ' + (p.ratio >= 1 ? '요율이 ' + p.ratio.toFixed(1) + '배 낮다'
-          : '요율이 ' + (1 / p.ratio).toFixed(1) + '배 높다') + ')');
+          : '요율이 ' + (1 / p.ratio).toFixed(1) + '배 높다') + ')'
+        + (p.golfN ? '  ⛳' + p.golfN + '/' + p.n : ''));
     });
+  if (proposals.some((p) => p.golfN)) {
+    console.log('');
+    console.log('  ⛳ = 그 실측이 **골프 여행 견적서**에서 왔다(N/전체). 골프 일정은 문서가');
+    console.log('     골프조/관광조로 갈려 있어 차량·관광·식비가 **조 인원으로 나뉜 값**이다.');
+    console.log('     전원 단가로 읽으면 그 칸이 부푼다 — 올리기 전에 문서를 열어 볼 것.');
+    console.log('     실측: 다낭 관광 ×4.27은 **실측 2건이 둘 다 골프 여행**이다.');
+  }
   if (proposals.some((p) => p.fromOv)) {
     console.log('\n  📌 = 운영 DB에서 **사람이 이미 실측으로 고친 칸**이다. 그런데도 벌어져 있다면');
     console.log('     처방이 다르다 — 요율을 또 옮기기 전에 **그 사이 들어온 견적서가 다른 조건**');

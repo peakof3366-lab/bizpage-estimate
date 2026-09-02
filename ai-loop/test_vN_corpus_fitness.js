@@ -67,10 +67,15 @@ console.log('\n[3] 씨앗이 고정돼 돌릴 때마다 같은 답이 나온다'
 console.log('\n[4] 축은 중앙값으로도 드러난다');
 {
   const s = src('audit_corpus_fitness.js');
-  /* ⚠ 골프(0-m)는 미통과 2건 중앙값 -38.3%인데 폭 검사는 아무 말도 안 한다.
-     폭만 보고 「무작위와 다르지 않다」로 끝내면 그 축을 통째로 놓친다. */
-  ok('④ 중앙값 쏠림도 본다', /미통과 무리가 통째로 쏠려 있다/.test(s));
-  ok('④ 폭 검사만 보지 말라고 말한다', /폭 검사만 보고 넘기지 말 것/.test(s));
+  /* ⚠ 폭 검사만 보면 중앙값으로 드러나는 축을 통째로 놓친다.
+     🔴 그런데 **쏠림을 말하는 것만으로는 모자랐다**(YF). 예전엔 조건이
+       `|중앙값 차이| >= 10%` 하나뿐이라 걸리기만 하면 「축이다」라고 단정했고,
+       그 줄을 믿고 「골프 요금 4곳을 넣으면 16.6%p가 사라진다」고 보고할 뻔했다.
+       순열 검정을 붙이니 28.7% — 우연 범위였다. 이제 **우연인지 함께 잰다.** */
+  ok('④ 중앙값 쏠림도 본다', /쏠려 있다/.test(s));
+  ok('④ 그 쏠림이 우연인지 순열 검정으로 잰다',
+    /randomMedianGaps/.test(s) && /벌어질 비율/.test(s));
+  ok('④ 우연 범위면 축이라 부르지 말라고 말한다', /축이라 부르지 말 것/.test(s));
   ok('④ 잣대를 목표선에서 파생한다', /TARGETS\.TARGET/.test(s));
 }
 
@@ -89,11 +94,17 @@ console.log('\n[5] 못 읽은 것을 0으로 채우지 않는다');
     FIT.AXES.find((a) => a.key === 'unclass').pass({ unclassRatio: 0.05 }) === true);
   ok('⑤ 미분류가 상한 초과면 미통과',
     FIT.AXES.find((a) => a.key === 'unclass').pass({ unclassRatio: 0.2 }) === false);
-  /* 골프 축 — 줄이 있는데 요율 칸이 없을 때만 걸린다 */
+  /* 골프 축 — **골프 일정**인데 요율 칸이 없을 때만 걸린다.
+     🔴 예전엔 `golfLines`(골프로 분류된 **금액 줄** 수)로 쟀다(YF에서 고침).
+       금액이 안 적힌 골프 일정이 대부분이라 신한 푸꾸옥 300명·신한 발리 80명이
+       「골프 아님」으로 통과했다 — 둘 다 골프 요금이 없는 목적지다.
+       그래서 미통과가 2건으로 보였는데 실제로는 4건이다. */
   const g = FIT.AXES.find((a) => a.key === 'golf');
-  ok('⑤ 골프 줄이 없으면 통과', g.pass({ golfLines: 0, golfRate: false }) === true);
-  ok('⑤ 골프 줄이 있고 요율도 있으면 통과', g.pass({ golfLines: 3, golfRate: true }) === true);
-  ok('⑤ 골프 줄이 있는데 요율이 없으면 미통과', g.pass({ golfLines: 3, golfRate: false }) === false);
+  ok('⑤ 골프 일정이 아니면 통과', g.pass({ isGolfTrip: false, golfRate: false }) === true);
+  ok('⑤ 골프 일정이고 요율도 있으면 통과', g.pass({ isGolfTrip: true, golfRate: true }) === true);
+  ok('⑤ 골프 일정인데 요율이 없으면 미통과', g.pass({ isGolfTrip: true, golfRate: false }) === false);
+  ok('⑤ 금액 줄 수(golfLines)로는 판정하지 않는다',
+    g.pass({ golfLines: 0, isGolfTrip: true, golfRate: false }) === false);
 
   /* 문서 신호 탐지기 — 알선 수수료·부가세 */
   const feeRe = (cc.match(/const FEE_RE = (\/.*\/);/) || [])[1];

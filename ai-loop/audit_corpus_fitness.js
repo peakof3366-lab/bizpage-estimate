@@ -81,6 +81,32 @@ function randomSpreads(allErrs, n, draws) {
   }
   return out.sort((a, b) => a - b);
 }
+/* 🔴 **중앙값 쏠림도 우연일 수 있다** (YF). 폭에는 무작위 대조가 있었는데 중앙값에는
+   없어서, 「미통과 무리가 통째로 쏠려 있다」를 **검정 없이 단정**하고 있었다.
+   실제로 그 줄을 믿고 「골프 요금이 있으면 -1.1%, 없으면 -17.7%」라고 보고할 뻔했다 —
+   순열 검정을 붙여 보니 **28.7%**로 우연 범위였다(골프 8건 안에서 요금 유무만 섞은 것).
+   미통과 4건 중 둘(신한 푸꾸옥 -0.7% · 신한 발리 +6.5%)이 목표 안이었던 것이다.
+
+   재는 법: 오차를 통째로 섞어 같은 크기로 갈랐을 때, 관측만큼 벌어지는 일이
+   얼마나 자주 일어나는가. **씨앗을 고정**해 같은 입력이면 같은 답이 나오게 한다.
+   ⚠ 이 검정이 「우연이 아니다」라고 해도 **원인을 말해 주지는 않는다.** 그건 여전히
+     문서를 열어 봐야 안다(다낭 두 건은 요율을 다 맞춰도 -17.6%가 남는다). */
+function randomMedianGaps(allErrs, nBad, draws) {
+  const rnd = seededRandom(20260902);
+  const med = (a) => { const t = a.slice().sort((x, y) => x - y); const i = (t.length - 1) / 2;
+    return t.length % 2 ? t[i] : (t[Math.floor(i)] + t[Math.ceil(i)]) / 2; };
+  const out = [];
+  for (let d = 0; d < draws; d++) {
+    const pool = allErrs.slice();
+    for (let j = pool.length - 1; j > 0; j--) {
+      const k = Math.floor(rnd() * (j + 1)); const t = pool[j]; pool[j] = pool[k]; pool[k] = t;
+    }
+    const bad = pool.slice(0, nBad), good = pool.slice(nBad);
+    if (bad.length && good.length) out.push(med(bad) - med(good));
+  }
+  return out;
+}
+
 const wpad = (s, w) => {
   const width = String(s).split('').reduce((n, ch) => n + (ch.charCodeAt(0) > 0x2000 ? 2 : 1), 0);
   return String(s) + ' '.repeat(Math.max(0, w - width));
@@ -108,8 +134,13 @@ const AXES = [
   },
   {
     key: 'golf', label: 'ⓓ 골프를 만들 수 있음',
-    why: '골프 줄이 있는데 그 목적지 요율에 칸이 없으면 엔진은 그 줄을 아예 못 만든다',
-    pass: (r) => !(r.golfLines > 0 && !r.golfRate),
+    why: '골프 일정인데 그 목적지 요율에 칸이 없으면 엔진은 그 줄을 아예 못 만든다',
+    /* 🔴 예전엔 `golfLines > 0`(골프로 분류된 **금액 줄** 수)으로 쟀다(YF에서 고침).
+       금액이 안 적힌 골프 일정이 대부분이라 **신한 푸꾸옥 300명·신한 발리 80명**이
+       「골프 아님」으로 통과하고 있었다 — 둘 다 골프 요금이 없는 목적지다.
+       그래서 이 축의 미통과가 2건으로 보였는데 실제로는 4건이다.
+       판정은 `_golf_scope.js` 한 곳에서 온다(캐시 판 13의 `golf`). */
+    pass: (r) => !(r.isGolfTrip && !r.golfRate),
     fail: '골프가 있는데 요율에 칸 없음(0-m)',
   },
   {
@@ -141,6 +172,8 @@ async function main() {
       fee: !!h.fee,
       vat: !!h.vat,
       golfLines: sh.golfLines || 0,
+      /* YF: 골프 **일정** 판정(금액 줄 수와 다른 질문이다) */
+      isGolfTrip: !!(c.golf && c.golf.isGolfTrip),
       unclassRatio: sh.unclassRatio == null ? null : sh.unclassRatio,
     }, cmp));
   }
@@ -201,9 +234,17 @@ async function main() {
        쏠려 있으면(골프처럼) 폭 검사는 아무 말도 안 하는데 원인은 또렷하다.
        폭만 보고 「무작위와 다르지 않다」로 끝내면 그 축을 놓친다. */
     if (sg && sb && Math.abs(sb.median - sg.median) >= TARGETS.TARGET) {
-      console.log('     🔴 **미통과 무리가 통째로 쏠려 있다** — 중앙값 ' + pct(sg.median)
-        + ' vs ' + pct(sb.median) + ' (' + pct(sb.median - sg.median) + ' 차이).');
-      console.log('        폭이 아니라 **중앙값**으로 드러나는 축이다. 폭 검사만 보고 넘기지 말 것.');
+      const gap = sb.median - sg.median;
+      const gaps = randomMedianGaps(allErrs, bad.length, 2000);
+      /* 관측만큼(부호까지 같게) 벌어지는 일이 얼마나 잦은가 */
+      const as = gaps.filter((x) => (gap < 0 ? x <= gap : x >= gap)).length / gaps.length;
+      const mark = as <= 0.05 ? '✅ 우연으로 보기 어렵다'
+        : as <= 0.15 ? '🟡 우연 범위와 겹친다 — 표본이 더 쌓여야 한다'
+          : '🔴 무작위와 다르지 않다 — **축이라 부르지 말 것**';
+      console.log('     미통과 무리가 한쪽으로 쏠려 있다 — 중앙값 ' + pct(sg.median)
+        + ' vs ' + pct(sb.median) + ' (' + pct(gap) + ' 차이)');
+      console.log('        같은 크기로 무작위로 갈랐을 때 그만큼 벌어질 비율 '
+        + (as * 100).toFixed(1) + '%  ' + mark);
     }
     console.log('');
   });

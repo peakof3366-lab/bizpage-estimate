@@ -14,6 +14,8 @@ const path = require('path');
 const { corpusFiles } = require('./_corpus_files.js');
 const { destFromName } = require('./_dest_from_name');
 /* 사람이 채운 값(환율·판매가)의 단일 출처 — 없으면 지금과 똑같이 동작한다 (XZ) */
+/* YD: 「골프 일정인가」 판정의 단일 출처 */
+const { golfScope } = require('./_golf_scope');
 const { fxFor: manualFxFor, answerFor: manualAnswerFor, datesFor: manualDatesFor, 이름확인: manualNameCheck, manualSig } = require('./_corpus_manual');
 
 const ROOT = path.join(__dirname, '..');
@@ -37,8 +39,12 @@ const CACHE = path.join(__dirname, '.backtest_cache.json');
          가르는 데 쓴다 — 가설 셋이 기각된 뒤 남은 의심이 표본 자체라서다.
     12 — XZ: `fromHuman`(이 행의 어느 칸이 **사람에게서 왔는가**). 문서에서 읽은 값과
          사람이 채운 값을 섞어 놓고 표시가 없으면, 나중에 「이 실측이 문서에서 나온
-         것인가」를 물을 때 아무도 답할 수 없다. */
-const CACHE_VERSION = 12;
+         것인가」를 물을 때 아무도 답할 수 없다.
+    13 — YF: `golf`(**골프 일정인가**, `_golf_scope`의 판정). 캐시에 본문이 없어서
+         도구마다 다른 신호로 때우고 있었다 — `audit_corpus_fitness`는 골프 **금액 줄**
+         수(`shape.golfLines`)로 골프 축을 쟀고, 금액이 안 적힌 골프 일정(신한 푸꾸옥
+         300명·신한 발리 80명)을 「골프 아님」으로 통과시켰다. 잣대를 한 곳으로 모은다. */
+const CACHE_VERSION = 13;
 
 const DEFAULT_CORPUS = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');
 
@@ -200,6 +206,12 @@ async function loadCorpus(opts) {
         /* VN: 문서 돈의 성격 — 미분류 비중·골프 줄 수. 못 읽으면 null이다(0%로 채우면
            「깨끗한 문서」로 읽혀, 비교 가능성 판정이 통째로 거짓이 된다). */
         shape: shapeOf(r),
+        /* YF: **골프 일정인가** — 판정만 싣는다(본문은 안 싣는다, VC와 같은 이유).
+           ⚠ 이게 없어서 `audit_corpus_fitness`가 `shape.golfLines`(골프 **금액 줄** 수)로
+             골프 축을 재고 있었다. 금액이 안 적힌 골프 일정이 대부분이라, 신한 푸꾸옥
+             300명·신한 발리 80명 같은 골프 여행이 「골프 아님」으로 통과하고 있었다.
+             캐시에 본문이 없으니 도구가 저마다 다른 신호로 때울 수밖에 없었던 것이다. */
+        golf: golfScope(r.text || ''),
       });
     } catch (e) {
       out.push({ file: f, error: String(e.message).slice(0, 120) });
