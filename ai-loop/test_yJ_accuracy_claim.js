@@ -31,7 +31,10 @@ const ok = (name, cond, extra = '') => {
 
 /* 고객이 보는 화면 셋. 주석은 빼고 **렌더되는 글자만** 본다 —
    주석에 옛 문구를 근거로 남겨 두었기 때문에, 안 빼면 그것까지 걸린다. */
-const CUSTOMER = ['index.html', 'packages.html', 'estimate-view.html'];
+/* 🔴 `admin.html`도 넣는다. 거기 같은 글이 **CMS 기본값**으로 또 있었다 —
+   담당자가 「기본값으로 되돌리기」를 누르면 그 글이 고객에게 간다.
+   index.html만 고치고 끝냈으면 거짓이 되돌아왔을 것이다(결함 생성기 ①). */
+const CUSTOMER = ['index.html', 'packages.html', 'estimate-view.html', 'admin.html'];
 const visible = (f) => {
   const p = path.join(ROOT, f);
   if (!fs.existsSync(p)) return '';
@@ -88,6 +91,13 @@ console.log('\n[5] CMS로 덮어쓸 수 있는 글이다');
      이 테스트는 파일을 지킬 뿐, **운영 DB에 거짓이 다시 들어오는 것은 못 막는다.** */
   const idx = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   ok('그 문단에 cms 키가 있다', /data-cms-key="faq\.3\.a"/.test(idx));
+  /* 🔴 CMS **기본값**이 admin.html에 또 있다 — 두 곳이 같은 뜻이어야 한다.
+     ⚠ 주석을 빼고 본다 — 그 파일 주석에 **옛 문구를 근거로 인용**해 두었기 때문이다.
+       안 빼면 「거짓을 왜 걷어냈는지 적어 둔 글」이 거짓으로 걸린다. */
+  const adm = visible('admin.html');
+  ok('admin.html의 기본값에도 거짓이 없다',
+    !/±\s*\d+\s*%\s*이내로\s*정확/.test(adm) && !/실제\s*계약\s*금액과[^']{0,40}정확/.test(adm));
+  ok('admin.html 기본값도 가견적 단서를 담는다', /가견적이라 확정 금액과는 차이/.test(adm));
   const src = fs.readFileSync(__filename, 'utf8');
   ok('이 테스트가 막지 못하는 것을 밝혀 둔다', /운영 DB에 거짓이 다시 들어오는 것은 못 막는다/.test(src));
 }
