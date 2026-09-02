@@ -56,6 +56,10 @@ const COST_SHEET_RE = /HNT\s*수익|권장\s*수익|입금가|\bFOC\b/i;
    근거는 문서의 「발신」 칸 하나뿐이고, 못 정하면 미상으로 둔다. 왜 그렇게 좁혔는지는
    그 파일에 실측과 함께 적혀 있다(미팅 장소·수신자·원가 열에 세 번 속았다). */
 const { issuerOf } = require('./_issuer');
+/* YK: 상품코드가 말하는 출발일과 문서가 밝힌 출발일을 **대조만** 한다(채우지 않는다).
+   실측: 하노이 견적서에 푸꾸옥 여행의 상품코드가 붙어 있었다 — 그 날짜로 채웠으면
+   다른 여행의 날짜가 정답지가 됐다. */
+const { checkProductCode } = require('./_product_code');
 
 const pct = (n) => (n == null ? '—' : (n * 100).toFixed(0) + '%');
 const won = (n) => (n == null ? '—' : Number(n).toLocaleString());
@@ -126,6 +130,7 @@ function blockers(r, dest) {
     });
 
     const iss = issuerOf(text);
+    const pcode = checkProductCode(text, (r.dates && r.dates.departDate) || null);
     const row = {
       file: f,
       /* ── 문서가 어떤 것인가 ── */
@@ -166,6 +171,9 @@ function blockers(r, dest) {
       fxFromDocument: r.fxFromDocument || null,
       needsFxRate: (r.needsFxRate && r.needsFxRate.currency) || null,
       groupColumn: r.groupColumn ? r.groupColumn.used : null,
+      /* ── 하나투어 상품코드 ── 값을 바꾸지 않고 **대조 결과만** 싣는다 (YK) */
+      productCodes: pcode.codes.map((c) => c.code),
+      productCodeNote: pcode.note,
       /* ── 가견적 검증에 못 쓰는 이유 ── */
       blockers: blockers(r, dest),
     };
@@ -205,6 +213,28 @@ function blockers(r, dest) {
       .sort((a, b) => b[1] - a[1]).map(([k, c]) => k + ' ' + c).join(' · '));
     console.log('  원가 시트 ' + count((d) => d.basis === 'cost') + '건 · 고객용 ' + count((d) => d.basis === 'sell') + '건');
     console.log('  9칸 중 평균 ' + (db.reduce((s, d) => s + d.filledCells, 0) / n).toFixed(2) + '칸을 채웠다');
+
+    /* ── 🔴 상품코드 대조 (YK) — **문서 사이**를 봐야만 알 수 있는 것 ──────────
+       한 문서만 보면 「코드에 출발일이 박혀 있으니 그걸로 채우면 되겠다」가 된다.
+       전수로 세어 보니 **같은 코드가 두 문서에 붙어 있었다**:
+         AVQ259260405ZED — 「글로벌 베스트 푸꾸옥」과 「키움에셋플래너 해외연수(하노이)」
+       하노이 견적서에 푸꾸옥 여행의 코드가 달려 있는 것이다(양식을 복사해 쓴 흔적).
+       하필 그 하노이 건이 **출발일을 모르는 유일한 문서**라, 코드로 채웠으면 다른
+       여행의 날짜가 정답지가 됐다. 그래서 채우지 않고 **여기서 이름을 부른다.** */
+    const byCode = {};
+    db.forEach((d) => (d.productCodes || []).forEach((c) => { (byCode[c] = byCode[c] || []).push(d.file); }));
+    const shared = Object.entries(byCode).filter(([, files]) => new Set(files).size > 1);
+    const noted = db.filter((d) => d.productCodeNote);
+    if (shared.length || noted.length) {
+      console.log('\n  ── 하나투어 상품코드 대조 (값은 안 바꿨다 · 사람이 볼 자리) ──');
+      shared.forEach(([code, files]) => {
+        console.log('   🔴 같은 코드가 두 문서에: ' + code);
+        [...new Set(files)].forEach((f) => console.log('        · ' + f.slice(0, 56)));
+        console.log('      ↳ 한쪽이 남의 코드를 달고 있다. **이 코드로 출발일을 채우지 말 것.**');
+      });
+      noted.filter((d) => !(d.productCodes || []).some((c) => byCode[c] && new Set(byCode[c]).size > 1))
+        .forEach((d) => console.log('   ⚠ ' + d.file.slice(0, 46) + '\n      ' + d.productCodeNote));
+    }
 
     /* **막는 것**을 사유별로 센다 — 이게 곧 다음에 고칠 순서다. */
     const bl = {};
