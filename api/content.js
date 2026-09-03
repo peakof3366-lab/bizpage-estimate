@@ -26,6 +26,7 @@
      패키지도 그래서 이 파일에 들어왔다. */
 const { sql } = require('./_lib/db');
 const { requireRole } = require('./_lib/auth');
+const { deleteAndLog } = require('./_lib/deletion_log');
 /* ⚠ `packages` 테이블을 읽는 조건과 금액 계산은 **`_lib/packages.js` 하나가 진실**이다
    (VS). 여기서 쿼리를 다시 쓰면 고객 목록과 발급 조건이 갈린다 — 그때 생기는 것이
    「고객 화면에 안 보이는 상품의 견적서가 링크로는 발급되는」 상태다. */
@@ -273,7 +274,10 @@ async function handleItineraries(req, res) {
 
     try {
       if (part === 'all') {
-        const rows = await sql`delete from itinerary_overrides where dest_key = ${destKey} returning dest_key`;
+        /* 담당자가 며칠 다듬은 코스가 여기서 통째로 사라진다 — 남긴다 (YP) */
+        const { rows } = await deleteAndLog(sql, 'itinerary_overrides',
+          { column: 'dest_key', value: destKey },
+          { req, reason: '일정 관리에서 기본값으로 되돌리기(전체)' });
         /* 지울 게 없었으면 그렇다고 말한다. ok:true만 돌려주면 화면은 "기본값으로
            되돌렸습니다"라고 하는데 실제로는 아무 일도 없었던 경우와 구분되지 않는다. */
         return res.status(200).json({ ok: true, removed: rows.length > 0 });
@@ -293,7 +297,11 @@ async function handleItineraries(req, res) {
       /* 둘 다 비었으면 행을 남길 이유가 없다. 남겨두면 목록에는 수정 시각만 찍혀 있고
          정작 수정된 내용은 없는, 아무도 설명할 수 없는 흔적이 된다. */
       if (!updated[0].courses && !updated[0].rec) {
-        await sql`delete from itinerary_overrides where dest_key = ${destKey}`;
+        /* 빈 껍데기를 걷어내는 것이라 잃는 내용은 없지만, **삭제 자리를 예외 없이
+           한 곳으로 모은다** — 여기만 직접 `delete`를 쓰면 다음 사람이 그걸 본보기로
+           삼는다(결함 생성기 ①이 자라는 방식이다). */
+        await deleteAndLog(sql, 'itinerary_overrides', { column: 'dest_key', value: destKey },
+          { req, reason: '두 부분이 모두 비어 빈 행을 정리' });
       }
       return res.status(200).json({ ok: true, removed: true });
     } catch (err) {
@@ -529,8 +537,12 @@ async function handlePackages(req, res) {
     const id = (req.query && req.query.id) || '';
     if (!id || !/^[A-Za-z0-9_-]+$/.test(String(id))) return res.status(400).json({ error: 'invalid_id' });
     try {
-      await sql`delete from packages where id = ${String(id)}`;
-      return res.status(200).json({ ok: true });
+      /* 🔴 **여기가 2026-08-24에 상품 30건이 사라진 자리다** (YP). 그때는 지워도
+         아무 데도 안 남아서, 대기열 P-1이 「직접 지우셨습니까?」로 몇 주 열려 있었다.
+         이제 지우기 전에 행 전체가 `deletion_log`에 남는다 — 되돌릴 근거가 된다. */
+      const { deleted } = await deleteAndLog(sql, 'packages', { column: 'id', value: String(id) },
+        { req, reason: '상품 목록에서 삭제' });
+      return res.status(200).json({ ok: true, removed: deleted > 0 });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'delete_failed' });

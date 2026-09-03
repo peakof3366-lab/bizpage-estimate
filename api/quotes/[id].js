@@ -1,5 +1,6 @@
 const { sql } = require('../_lib/db');
 const { requireAdmin, requireRole } = require('../_lib/auth');
+const { deleteAndLog } = require('../_lib/deletion_log');
 /* UI: 견적서 전용 일정도 일정 관리 화면과 **같은 검증**을 지난다 — 모양이 같으므로
    규칙을 다시 적을 이유가 없다(결함 생성기 ①). */
 const { normalizeCourses } = require('../content');
@@ -123,8 +124,12 @@ module.exports = async (req, res) => {
        있었다 — 목적지 삭제·계수 저장은 이미 매니저 이상으로 잠겨 있다. */
     if (!(await requireRole(req, res, ['owner', 'manager']))) return;
     try {
-      await sql`delete from quotes where id = ${id}`;
-      res.status(200).json({ ok: true });
+      /* ✅ 위 주석의 「되돌릴 방법도, 누가 지웠는지 남는 기록도 없다」가 여기서 풀린다 (YP).
+         지우기 전에 행 전체를 `deletion_log`에 남긴다 — 기록이 실패하면 삭제도 안 간다.
+         🔴 실제로 2026-08-24에 이 표의 13행이 통째로 사라졌고, 백업을 뒤져서야 알았다. */
+      const { deleted } = await deleteAndLog(sql, 'quotes', { column: 'id', value: id },
+        { req, reason: '견적 상세 화면에서 삭제' });
+      res.status(200).json({ ok: true, removed: deleted > 0 });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'delete_failed' });

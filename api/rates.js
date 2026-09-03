@@ -17,6 +17,7 @@
      재설정한다(rate_fx_baseline). */
 const { sql } = require('./_lib/db');
 const { requireAdmin, requireRole } = require('./_lib/auth');
+const { deleteAndLog } = require('./_lib/deletion_log');
 const DEST_CURRENCY = require('../dest_currency');
 const destinationRates = require('../data');
 
@@ -390,10 +391,16 @@ module.exports = async (req, res) => {
     if (!key) return res.status(400).json({ error: 'invalid_key' });
     if (BUILTIN_DEST_KEYS.has(key)) return res.status(403).json({ error: 'cannot_delete_builtin' });
     try {
-      const deleted = await sql`delete from custom_destinations where destination_key = ${key} returning destination_key`;
-      if (!deleted.length) return res.status(404).json({ error: 'not_found' });
-      await sql`delete from rate_overrides where destination_key = ${key}`;
-      await sql`delete from rate_fx_baseline where destination_key = ${key}`;
+      /* 🔴 목적지 하나를 지우면 **표 셋**이 함께 지워진다 — 셋 다 남긴다 (YP).
+         하나라도 빠지면 되돌릴 때 그 칸만 비는데, 요율값이라 비면 조용히 기본값으로
+         떨어진다(결함 생성기 ②). 되돌리기의 근거는 세 벌이 다 있어야 성립한다. */
+      const dest = await deleteAndLog(sql, 'custom_destinations',
+        { column: 'destination_key', value: key }, { req, reason: '요율 관리에서 목적지 삭제' });
+      if (!dest.deleted) return res.status(404).json({ error: 'not_found' });
+      await deleteAndLog(sql, 'rate_overrides', { column: 'destination_key', value: key },
+        { req, reason: '목적지 삭제에 딸려 정리' });
+      await deleteAndLog(sql, 'rate_fx_baseline', { column: 'destination_key', value: key },
+        { req, reason: '목적지 삭제에 딸려 정리' });
       return res.status(200).json({ ok: true });
     } catch (err2) {
       console.error(err2);

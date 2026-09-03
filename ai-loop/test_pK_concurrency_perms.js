@@ -60,8 +60,22 @@ for (const [label, src] of [['문의', inqIdSrc], ['견적', qIdSrc]]) {
   ok(`${label} DELETE 블록을 찾았다`, delBlock.length > 0);
   ok(`${label} 삭제가 매니저 이상으로 잠김`,
     /requireRole\(req, res, \['owner', 'manager'\]\)/.test(delBlock));
+  /* ⚠ **「실제 삭제」의 모양이 YP에서 바뀌었다.** 이제 `delete from`을 직접 쓰지 않고
+     `deleteAndLog`(api/_lib/deletion_log.js) 한 곳을 지난다 — 지운 것을 남기기
+     위해서다. 뜻(권한 검사가 삭제보다 먼저)은 그대로라 **자만 고친다.**
+     🔴 그리고 원래 이 줄에는 함정이 있었다: `indexOf`가 못 찾으면 `-1`을 주므로
+       `requireRole 위치 < -1`이 되어 **조용히 통과**한다. YP에서 실제로 그 상태로
+       빠질 뻔했다(삭제 자리가 사라졌는데 검사는 계속 초록일 뻔했다).
+       → **못 찾으면 실패**로 못 박는다. 이 저장소의 「늘 통과하는 잣대는 아무것도
+         안 말한다」가 정확히 이 자리다. */
+  const 삭제위치 = ['delete from', 'deleteAndLog(']
+    .map((s) => delBlock.indexOf(s)).filter((i) => i >= 0).sort((a, b) => a - b)[0];
+  const 권한위치 = delBlock.indexOf('requireRole');
+  ok(`${label} 삭제하는 자리를 실제로 찾았다`, 삭제위치 !== undefined,
+    '`delete from`도 `deleteAndLog(`도 없다 — 자를 고쳐야 한다');
   ok(`${label} 권한 검사가 실제 삭제보다 먼저`,
-    delBlock.indexOf('requireRole') < delBlock.indexOf('delete from'));
+    권한위치 >= 0 && 삭제위치 !== undefined && 권한위치 < 삭제위치,
+    `권한=${권한위치} 삭제=${삭제위치}`);
 }
 
 console.log('\n[4] 화면도 같은 기준으로 가려지는가');

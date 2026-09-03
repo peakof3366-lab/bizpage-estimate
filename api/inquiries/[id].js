@@ -1,5 +1,6 @@
 const { sql } = require('../_lib/db');
 const { requireAdmin, requireRole } = require('../_lib/auth');
+const { deleteAndLog } = require('../_lib/deletion_log');
 
 module.exports = async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
@@ -73,8 +74,12 @@ module.exports = async (req, res) => {
        있었다 — 목적지 삭제·계수 저장은 이미 매니저 이상으로 잠겨 있다. */
     if (!(await requireRole(req, res, ['owner', 'manager']))) return;
     try {
-      await sql`delete from inquiries where id = ${id}`;
-      res.status(200).json({ ok: true });
+      /* ✅ 위 주석의 「되돌릴 방법도, 누가 지웠는지 남는 기록도 없다」가 여기서 풀린다 (YP).
+         고객 리드라 특히 중요하다 — 스냅샷에 연락처가 들어가므로 `deletion_log`는
+         관리자 인증 뒤에서만 읽는다. */
+      const { deleted } = await deleteAndLog(sql, 'inquiries', { column: 'id', value: id },
+        { req, reason: '문의 상세 화면에서 삭제' });
+      res.status(200).json({ ok: true, removed: deleted > 0 });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'delete_failed' });

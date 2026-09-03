@@ -572,6 +572,39 @@ async function main() {
   /* 고객 목록이 「판매중 + catalog + 출발일 순」으로 훑는다(_lib/packages.js) */
   await sql`create index if not exists packages_public_idx on packages (kind, status, depart_date)`;
 
+  /* ── 지운 것을 남긴다 (YP) ────────────────────────────────────────────────
+     🔴 **왜 만들었나 — 실제로 두 번 당했다.**
+       · 2026-08-24 `packages` 31행 → 1행. 상품 30건이 사라졌는데 **어디에도 안 남았다.**
+         원인을 못 찾아 대기열 P-1이 「직접 지우셨습니까?」로 몇 주 열려 있었다.
+       · 같은 날 `quotes` 13행 → 0행. 고객 견적 요청이 통째로 사라졌다.
+       둘 다 **백업 파일을 뒤져서야** 알았다(2026-09-03). 백업은 하루 한 번이라
+       그 사이에 지워지고 다시 채워지면 **영영 모른다.**
+
+     담는 것: 지운 표·행 id·**지우기 직전의 행 전체**·누가·언제·왜.
+     행 전체를 담는 이유는 **되돌릴 수 있어야** 하기 때문이다 — id만 남기면
+     「무언가 사라졌다」는 것만 알고 무엇이었는지는 모른다.
+
+     ⚠ **이 표는 절대 공개로 열지 않는다.** `quotes`·`inquiries` 스냅샷에는 고객
+       연락처가 들어 있다. 읽는 자리는 관리자 인증 뒤에만 둔다.
+     ⚠ 스스로도 안 지운다 — 지운 기록을 지울 수 있으면 기록이 아니다.
+        (오래되면 사람이 판단해서 걷어낸다. 자동 정리를 넣지 않았다.) */
+  await sql`
+    create table if not exists deletion_log (
+      id bigserial primary key,
+      created_at timestamptz not null default now(),
+      table_name text not null,
+      row_id text not null,
+      /* 지우기 직전의 행 전체 — 되돌리기의 근거다 */
+      snapshot jsonb,
+      /* 누가 지웠나. 로그인 계정 id를 넣는다(문자열이다 — bigserial도 JS에서는 문자열). */
+      actor text not null default '',
+      /* 어디서 눌렀나 / 왜 지웠나 — 화면이 아는 만큼만 */
+      reason text not null default ''
+    )
+  `;
+  await sql`create index if not exists deletion_log_created_at_idx on deletion_log (created_at)`;
+  await sql`create index if not exists deletion_log_table_idx on deletion_log (table_name, created_at)`;
+
   console.log('Migration complete: quotes, inquiries, quote_shares, admin_auth, staff_accounts, site_events, marketing_insights, rate_overrides, rate_change_log, content_overrides, fx_rates, rate_fx_baseline, actual_price_reports, custom_destinations, app_settings, itinerary_overrides, packages tables ready. (quotes.actual_airfare_unit/actual_hotel_unit columns ensured; actual_price_reports now covers airfare/hotel/meal + hotel_name; admin_auth owner account seeded into staff_accounts)');
 }
 

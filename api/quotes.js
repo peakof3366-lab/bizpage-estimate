@@ -1,5 +1,6 @@
 const { sql } = require('./_lib/db');
 const { requireAdmin } = require('./_lib/auth');
+const { deleteAndLog } = require('./_lib/deletion_log');
 const OpenAI = require('openai');
 /* 내장 목적지 키 집합 — 제보(priceReport)의 destinationKey가 실제 목적지인지 검증해
    존재하지 않는/오타 키로 실측 통계가 오염되는 것을 막는다(커스텀 목적지는 DB 조회로 보강). */
@@ -884,8 +885,11 @@ async function handleDeletePriceReport(req, res) {
   const id = Number((req.query && req.query.id) || (req.body && req.body.id));
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'invalid_id' });
   try {
-    const deleted = await sql`delete from actual_price_reports where id = ${id} returning id`;
-    if (!deleted.length) return res.status(404).json({ error: 'not_found' });
+    /* 실측 제보는 **요율 갱신 제안의 근거**다 — 지우면 그 목적지의 기준가 판단이
+       바뀐다. 무엇을 지웠는지 남겨야 나중에 「왜 값이 달라졌나」를 되짚을 수 있다 (YP). */
+    const { deleted } = await deleteAndLog(sql, 'actual_price_reports',
+      { column: 'id', value: id }, { req, reason: '견적서 업데이트 화면에서 제보 삭제' });
+    if (!deleted) return res.status(404).json({ error: 'not_found' });
     return res.status(200).json({ ok: true, id });
   } catch (err) {
     console.error('[quotes deletePriceReport] 삭제 실패:', err);
