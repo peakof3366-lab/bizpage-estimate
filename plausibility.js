@@ -173,8 +173,67 @@
       ' — 값을 확인해 주세요.';
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     이 문서를 **얼마나 읽었는가** (YS) — 새 양식이 조용히 통과하는 것을 막는다
+     ───────────────────────────────────────────────────────────────────────
+     🔴 왜 필요한가. 화면은 「검산된 단가 줄 N개」와 「문서 자체 검산 통과」만 말했다.
+     그런데 그 둘은 **얼마나 읽었는지를 말하지 않는다.** 실측(코퍼스 45건, 2026-09-03):
+
+         키움_에셋 플래너(나트랑).pdf   검산줄 2개 · 읽은 합 220,000 · 총계 69,772,500
+                                     → **총계의 0.3%**를 읽고도 화면에는 성공처럼 보인다
+
+     발행처마다 양식이 다르고 앞으로 **계속 새 양식이 들어온다.** 못 읽는 양식이
+     오면 「값이 몇 개 나왔다」가 아니라 **「이 문서를 못 읽었다」**고 말해야 한다.
+     안 그러면 빈 채로 저장되고, 그 목적지는 실측이 있는 줄 알게 된다(결함 생성기 ②).
+
+   ⚠ **환산 못 한 외화 줄은 합에 넣지 않는다.** ¥2,000을 2,000원으로 더하면
+     자릿수가 뒤섞여 커버리지가 엉뚱해진다. 따로 세어 함께 돌려준다.
+   ⚠ 총계를 못 읽었으면 **비율을 만들지 않는다** — 0%로 두면 「못 읽었다」로 보이는데
+     실제로는 「잴 수 없다」다. 둘은 사람이 할 일이 다르다.
+   ⚠ 100%를 넘을 수 있다. 총계를 풀어 쓴 줄(「3,020,000 × 10명 = 30,200,000」)을
+     항목으로도 세는 양식이 있다(좋은친구 4건이 전부 200%였다). 그것도 **말해 준다** —
+     넘치는 것도 제대로 못 읽은 것이다. */
+  var LOW_COVERAGE = 0.5;   /* 이 아래면 「덜 읽었다」 — audit_coverage.js와 같은 값이어야 한다 */
+  var HIGH_COVERAGE = 1.3;  /* 이 위면 「같은 돈을 두 번 셌다」 */
+
+  function coverage(candidates, grandTotal) {
+    var cands = candidates || [];
+    var usable = [], stuck = 0;
+    for (var i = 0; i < cands.length; i++) {
+      if (cands[i] && cands[i].unconvertible) stuck++; else usable.push(cands[i]);
+    }
+    var sum = 0;
+    for (var j = 0; j < usable.length; j++) sum += Number((usable[j] && usable[j].total) || 0);
+
+    var total = Number(grandTotal || 0);
+    if (!total) {
+      return { known: false, rows: cands.length, stuck: stuck, sum: sum, ratio: null, verdict: 'no-total' };
+    }
+    var ratio = sum / total;
+    var verdict = ratio < LOW_COVERAGE ? 'low' : (ratio > HIGH_COVERAGE ? 'high' : 'ok');
+    return { known: true, rows: cands.length, stuck: stuck, sum: sum, total: total, ratio: ratio, verdict: verdict };
+  }
+
+  /* 사람이 읽을 한 줄 — 화면과 도구가 **같은 말**을 하도록 여기서 만든다 */
+  function describeCoverage(c) {
+    if (!c || !c.known) return '문서 총계를 못 읽어 얼마나 읽었는지 잴 수 없습니다.';
+    var pct = Math.round(c.ratio * 100) + '%';
+    if (c.verdict === 'low') {
+      return '이 문서에서 금액의 ' + pct + '만 읽었습니다 — 처음 보는 양식일 수 있습니다. '
+        + '값을 그대로 믿지 마시고 문서와 대조해 주세요.';
+    }
+    if (c.verdict === 'high') {
+      return '읽은 금액이 총계의 ' + pct + '입니다 — 같은 돈을 두 번 셌을 수 있습니다. '
+        + '총계를 풀어 쓴 줄이 항목으로도 세어지는 양식이 있습니다.';
+    }
+    return '이 문서에서 금액의 ' + pct + '를 읽었습니다.';
+  }
+
   var API = {
     PEER_SPREAD: PEER_SPREAD, RATE_SPREAD: RATE_SPREAD, MIN_PEERS: MIN_PEERS,
+    /* YS: 이 문서를 얼마나 읽었는가 — 화면·감사기가 같은 잣대를 쓴다 */
+    LOW_COVERAGE: LOW_COVERAGE, HIGH_COVERAGE: HIGH_COVERAGE,
+    coverage: coverage, describeCoverage: describeCoverage,
     TRUSTED_VIA: TRUSTED_VIA, isTrusted: isTrusted, median: median,
     /* 실측으로 반영해도 되는가 — 서버(저장 시 자동 제외)와 화면이 같은 잣대를 쓴다 */
     HUMAN_VIA: HUMAN_VIA, isHuman: isHuman, countsAsMeasured: countsAsMeasured,

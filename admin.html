@@ -6543,6 +6543,28 @@
                  : ' — 아래 경고를 확인해 주세요.'));
     }
 
+    /* 🔴 **얼마나 읽었는지 말한다** (YS). 위 두 줄은 「몇 개 읽었나」와 「읽은 것끼리
+       앞뒤가 맞나」이지, **얼마나 읽었나**가 아니다. 그래서 총계의 0.3%만 읽고도
+       화면이 성공처럼 보이는 자리가 있었다(키움 나트랑 — 검산줄 2개·22만원 vs 총계 6,977만원).
+       발행처마다 양식이 다르고 앞으로 계속 새 양식이 들어오므로, 못 읽는 양식이 오면
+       **그 사실 자체가 첫 줄로 보여야** 한다.
+     ⚠ 판정과 문구는 `plausibility.js` 한 곳에서 온다 — 화면에 다시 적으면 감사기와
+       어긋난다(결함 생성기 ①, 이 파일이 만들어진 이유 그대로). */
+    const cov = (window.PLAUSIBILITY && window.PLAUSIBILITY.coverage)
+      ? window.PLAUSIBILITY.coverage(data.candidates, data.grandTotal) : null;
+    if (cov) {
+      const mark = !cov.known ? 'ℹ️' : (cov.verdict === 'ok' ? '✅' : '🔴');
+      const el = line(`${mark} ${esc(window.PLAUSIBILITY.describeCoverage(cov))}`);
+      if (cov.known && cov.verdict !== 'ok') {
+        el.style.color = 'var(--danger)';
+        el.style.fontWeight = '700';
+      }
+      /* 환산 못 한 외화 줄은 합에서 빠져 있다 — 비율이 낮은 이유일 수 있으므로 말해 준다 */
+      if (cov.stuck) {
+        line(`<span style="color:var(--muted)">↳ 환율을 몰라 못 더한 외화 줄 <strong>${Number(cov.stuck)}개</strong>가 있습니다 — 그만큼 비율이 낮게 나옵니다.</span>`);
+      }
+    }
+
     /* 견적이 여러 장이면 **실제로 골라 바꿀 수 있게** 한다 (RZ 후속).
        ⚠ 예전엔 목록만 보여주고 바꿀 방법이 없었다 — "2개 들어 있습니다"라고 말해 놓고
        다른 쪽을 볼 수가 없으니 안내가 아니라 약만 올리는 셈이었다.

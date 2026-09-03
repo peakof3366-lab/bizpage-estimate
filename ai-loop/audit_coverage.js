@@ -38,9 +38,13 @@ const JSON_OUT = jsonAt >= 0 ? argv[jsonAt + 1] : null;
 const CORPUS = argv.filter((a, i) => !a.startsWith('--') && i !== jsonAt + 1)[0]
   || process.env.BIZPAGE_CORPUS || DEFAULT_CORPUS;
 
-/* 이 아래로 떨어지면 "덜 읽었다"고 본다 — 마진을 넉넉히 감안해도 총계의 절반을
-   설명하지 못하면 그 견적서는 우리가 제대로 못 읽고 있는 것이다. */
-const LOW_COVERAGE = 0.5;
+/* 🔴 **문턱과 계산은 `plausibility.js` 한 곳에서 온다** (YS).
+   예전엔 이 파일이 자기 값(0.5)과 자기 계산을 들고 있었는데, 같은 판정을 담당자
+   화면에도 붙이면서 **두 벌이 될 뻔했다** — 이 저장소가 여섯 번 당한 유형이다.
+   그래서 값을 아는 곳을 하나로 두고 여기서는 가져다 쓴다.
+   (뜻은 그대로다: 마진을 넉넉히 감안해도 총계의 절반을 설명 못 하면 못 읽은 것이다.) */
+const PLAUS = require(path.join(ROOT, 'plausibility.js'));
+const LOW_COVERAGE = PLAUS.LOW_COVERAGE;
 
 (async () => {
   if (!fs.existsSync(CORPUS)) {
@@ -67,11 +71,13 @@ const LOW_COVERAGE = 0.5;
     const cands = r.candidates || [];
     /* ⚠ 환산하지 못한 외화 줄은 **원화가 아니다.** 합에 넣으면 자릿수가 뒤섞여
        커버리지가 엉뚱하게 낮아진다(¥2,000을 2,000원으로 더하는 꼴). 따로 센다. */
+    /* 규칙은 `plausibility.coverage`가 안다(YS) — 환산 못 한 외화 줄을 빼는 것도 거기다 */
+    const cov = PLAUS.coverage(cands, grand);
     const usable = cands.filter((c) => !c.unconvertible);
-    const stuck = cands.length - usable.length;
+    const stuck = cov.stuck;
     if (!grand) { noTotal.push({ file: f, rows: cands.length }); continue; }
 
-    const rowSum = usable.reduce((n, c) => n + (c.total || 0), 0);
+    const rowSum = cov.sum;
     const classSum = usable.filter((c) => c.category).reduce((n, c) => n + (c.total || 0), 0);
     rows.push({
       file: f, grand, pax: r.pax || null,
