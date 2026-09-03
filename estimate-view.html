@@ -70,6 +70,10 @@ a { color: inherit; text-decoration: none; }
 }
 .top-bar-validity strong { color: #fff; }
 .top-bar-btns { display: flex; gap: 10px; }
+/* 🔴 문서를 못 열었으면 **문서에 대한 버튼을 보여주지 않는다** (YN).
+   `display:flex`가 `[hidden]`을 이기므로 규칙을 함께 적는다 — 속성만 걸면
+   조용히 안 숨는다(결함 생성기 ② 그 자리다). */
+.top-bar-btns[hidden] { display: none; }
 .btn-print {
   background: #CC001A; color: #fff; border: none;
   padding: 9px 22px; font-weight: 700; cursor: pointer;
@@ -362,7 +366,12 @@ a { color: inherit; text-decoration: none; }
      ⚠ 색과 밑줄은 클래스가 정한다. 인라인으로 다시 적지 않는다. -->
   <a href="index.html" class="top-bar-brand" style="cursor:pointer">비즈페이지 · 해외연수 전문</a>
   <div class="top-bar-validity" id="validity-bar">유효기간 확인 중…</div>
-  <div class="top-bar-btns">
+  <!-- 🔴 **문서가 열린 뒤에만 보인다** (YN). 예전에는 링크가 만료돼 「불러올 수
+       없습니다」가 뜬 화면에서도 이 두 버튼이 그대로 있었다. 「엑셀」을 누르면
+       `_quoteData`가 없어 **아무 일도 안 나고**(조용한 폴백), 「인쇄」를 누르면
+       오류 화면이 인쇄됐다. 문서가 없으면 문서 버튼도 없어야 한다.
+       ⚠ 되살리는 자리는 `init()` 성공 경로 한 곳뿐이다 — 늘리지 말 것. -->
+  <div class="top-bar-btns" id="doc-actions" hidden>
     <button class="btn-print" onclick="window.print()">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       인쇄 / PDF
@@ -1005,13 +1014,25 @@ function renderPage(d) {
   }
   _quoteData = r.data;
   renderPage(r.data);
+  /* 문서를 실제로 그린 뒤에야 문서 버튼을 켠다 (YN). 실패 경로는 위에서 `return`하므로
+     여기 닿지 않는다 — 켜는 자리가 하나라 「한쪽만 고쳐진」 상태가 생기지 않는다.
+     ⚠ 취소된 견적서(status='void')도 문서는 열린다 — 금액·견적번호를 근거로 남기는
+       것이 XU의 결정이므로, 그때도 인쇄·엑셀은 그대로 쓸 수 있어야 한다. */
+  const acts = document.getElementById('doc-actions');
+  if (acts) acts.hidden = false;
 })();
 
 /* 엑셀 견적서 다운로드 (신규 — 되돌리려면 이 함수와 위 _quoteData 변수,
    #downloadExcelBtn 버튼, SheetJS <script> 태그만 삭제하면 완전히 원상복귀됨) */
 function downloadEstimateExcelShared() {
   const d = _quoteData;
-  if (!d) return;
+  /* 🔴 예전엔 그냥 `return`이었다 (YN) — 눌렀는데 **아무 일도 안 났다.**
+     지금은 버튼이 문서를 연 뒤에만 보이므로 여기 닿기 어렵지만, 닿으면
+     말은 한다. 조용히 실패하는 자리를 남겨 두지 않는다(결함 생성기 ②). */
+  if (!d) {
+    alert('견적서를 아직 불러오지 못했습니다. 새로고침한 뒤 다시 시도해 주세요.');
+    return;
+  }
 
   const CI = window.COMPANY_INFO || {};
   const legalName = CI.legalName || '(주)하나이엔비티';
