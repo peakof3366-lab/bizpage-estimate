@@ -80,7 +80,14 @@ try {
     const src = fs.readFileSync(path.join(__dirname, '_corpus_cache.js'), 'utf8');
     ok('1인당은 문서 값이 먼저다', /const perPerson = r\.perPerson \|\|/.test(src));
     ok('총계도 문서 값이 먼저다', /const grand = r\.grandTotal \|\|/.test(src));
-    ok('출발일은 비어 있을 때만 채운다', /if \(!dates\.depart && 손일정\.depart\)/.test(src));
+    /* 🔴 **이 줄이 버그를 고정하고 있었다** (YT에서 드러났다).
+       예전엔 `!dates.depart`를 찾았는데, 추출기가 만들고 **소비자 여섯이 읽는** 이름은
+       `dates.departDate`다. 그래서 손으로 채운 출발일이 아무도 안 읽는 칸에 들어갔고,
+       이 검사는 그 상태를 「통과」로 지키고 있었다.
+       뜻(**비어 있을 때만 채운다** — 문서 값을 덮지 않는다)은 그대로다. 이름만 바로잡는다.
+     ⚠ 이름이 또 갈리지 않게 `test_yT_intake_report.js`가 **읽는 곳과 쓰는 곳을 대조**한다. */
+    ok('출발일은 비어 있을 때만 채운다', /if \(!dates\.departDate && 손일정\.depart\)/.test(src));
+    ok('🔴 출발일이 **소비자가 읽는 이름**으로 들어간다', /dates\.departDate = 손일정\.depart/.test(src));
     ok('사람에게서 온 칸을 표시한다(fromHuman)', /fromHuman/.test(src));
     ok('캐시 판이 올라갔다(옛 캐시가 이 칸 없이 통과하지 않게)', /CACHE_VERSION = 1[2-9]/.test(src));
   }

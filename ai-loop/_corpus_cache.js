@@ -19,6 +19,9 @@ const { golfScope } = require('./_golf_scope');
 const { fxFor: manualFxFor, answerFor: manualAnswerFor, datesFor: manualDatesFor, 이름확인: manualNameCheck, manualSig } = require('./_corpus_manual');
 
 const ROOT = path.join(__dirname, '..');
+/* YT: 커버리지 판정 단일 출처 — 화면·감사기·리포트가 같은 잣대를 쓴다.
+   ⚠ `ROOT`를 쓰므로 **그 선언 뒤**여야 한다(위에 두었다가 한 번 죽었다). */
+const PLAUS = require(path.join(ROOT, 'plausibility.js'));
 const CACHE = path.join(__dirname, '.backtest_cache.json');
 
 /* ⚠ 캐시에 칸이 늘면 **판을 올린다.** 안 올리면 옛 캐시에 그 칸이 없어
@@ -43,8 +46,13 @@ const CACHE = path.join(__dirname, '.backtest_cache.json');
     13 — YF: `golf`(**골프 일정인가**, `_golf_scope`의 판정). 캐시에 본문이 없어서
          도구마다 다른 신호로 때우고 있었다 — `audit_corpus_fitness`는 골프 **금액 줄**
          수(`shape.golfLines`)로 골프 축을 쟀고, 금액이 안 적힌 골프 일정(신한 푸꾸옥
-         300명·신한 발리 80명)을 「골프 아님」으로 통과시켰다. 잣대를 한 곳으로 모은다. */
-const CACHE_VERSION = 13;
+         300명·신한 발리 80명)을 「골프 아님」으로 통과시켰다. 잣대를 한 곳으로 모은다.
+    14 — YS·YT: `cov`(**이 문서를 얼마나 읽었는가**, `plausibility.coverage`)와
+         `stays`/`multiCity`(**몇 곳에서 묵는가**, `pdf_extract`의 TF 판정).
+         일괄 투입 리포트(`report_intake.js`)가 「이번에 봐야 할 것」을 고르는 데
+         이 둘이 필요한데, 캐시에 없어서 매번 PDF를 다시 읽어야 했다.
+         ⚠ 둘 다 **판정만** 싣는다(본문·후보 줄은 안 싣는다 — VC와 같은 이유). */
+const CACHE_VERSION = 14;
 
 const DEFAULT_CORPUS = path.join(process.env.USERPROFILE || process.env.HOME || '', 'Desktop', '견적서 모음');
 
@@ -168,8 +176,24 @@ async function loadCorpus(opts) {
       const perPerson = r.perPerson || (손정답.perPerson && (fromHuman.push('perPerson'), 손정답.perPerson)) || null;
       const grand = r.grandTotal || (손정답.grand && (fromHuman.push('grand'), 손정답.grand)) || null;
       const dates = Object.assign({}, r.dates);
-      if (!dates.depart && 손일정.depart) { dates.depart = 손일정.depart; fromHuman.push('depart'); }
-      if (!dates.return && 손일정.return) { dates.return = 손일정.return; }
+      /* 🔴 **칸 이름이 어긋나 있었다 — 손으로 채운 출발일이 아무 데도 안 닿았다** (YT).
+         추출기는 `departDate`/`returnDate`를 만들고 **소비자 전부가 그 이름을 읽는다**
+         (`build_corpus_db`·`audit_cost_floor`·`audit_error_axes`·`audit_gap_source`·
+          `audit_rate_calibration`·`_comparable`). 그런데 여기서는 `depart`/`return`에
+         넣고 있었다. 그래서:
+
+             대표가 `corpus_manual.json`에 출발일을 채운다
+               → `fromHuman: ["depart"]`로 **받았다고 찍힌다**
+               → `dates.departDate`는 **여전히 null**
+               → 그 견적서는 계속 「출발일 불명」으로 표본에서 빠진다
+
+         재현해서 확인했다(굿리치 후아힌에 2026-11-19를 넣어 봄). 대기열 0-f에서
+         대표께 요청한 **출발 연도 2건이 정확히 이 상태**였다 — 채우셔도 표본이 안 늘었다.
+       ⚠ XZ에서 「대표가 환율을 넣어도 채점표에 안 닿는다」를 고쳤는데, **같은 종류가
+         날짜 쪽에 남아 있었다.** 사람이 채운 값은 반드시 **소비자가 읽는 이름**으로 넣는다.
+       ⚠ `days`는 원래 맞았다(`dates.days`를 다들 읽는다) — 그래서 일수만 들어갔었다. */
+      if (!dates.departDate && 손일정.depart) { dates.departDate = 손일정.depart; dates.departVia = 'manual'; fromHuman.push('depart'); }
+      if (!dates.returnDate && 손일정.return) { dates.returnDate = 손일정.return; }
       if (!dates.days && 손일정.days) { dates.days = 손일정.days; fromHuman.push('days'); }
       if (손으로준환율) fromHuman.push('fx');
 
@@ -212,6 +236,22 @@ async function loadCorpus(opts) {
              300명·신한 발리 80명 같은 골프 여행이 「골프 아님」으로 통과하고 있었다.
              캐시에 본문이 없으니 도구가 저마다 다른 신호로 때울 수밖에 없었던 것이다. */
         golf: golfScope(r.text || ''),
+        /* YT: **얼마나 읽었는가** — 판정은 `plausibility.coverage` 한 곳이 한다.
+           화면(담당자)·`audit_coverage`·리포트가 전부 같은 값을 쓴다.
+         🔴 **분모가 위 `grand`와 다르다. 일부러 다르다.**
+           · `grand`(정답지) = `grandTotal`**만**. 문서의 「합계」(`itemsTotal`)는 마진이
+             빠진 **원가 합계**라, 그걸 판매가로 쓰면 오차의 부호를 해석할 수 없다(SH).
+           · 커버리지 분모 = `grandTotal || itemsTotal`. 여기서는 「문서가 밝힌 합계의
+             몇 %를 읽었나」를 묻는 것이라 원가 합계여도 분모로 쓸 수 있다.
+           처음에 `grand`를 그대로 썼다가 **45건 중 25건이 「총계 없음」**이 됐고,
+           `audit_coverage`가 잡던 3건을 하나도 못 잡았다. 두 값을 같은 것으로
+           보면 안 된다 — 이름이 비슷해서 더 위험한 자리다. */
+        cov: PLAUS.coverage(r.candidates, r.grandTotal || r.itemsTotal || 0),
+        /* YT: **몇 곳에서 묵는가**(TF). 3곳 이상이면 한 도시 요율의 근거로 삼기 전에
+           사람이 봐야 한다 — 실측 사고(KT CES 7곳)가 그 자리다.
+           ⚠ 판정은 `pdf_extract`가 한다. 여기서 다시 세면 문턱이 두 벌이 된다. */
+        stays: (r.itinerary && r.itinerary.stays) || [],
+        multiCity: !!(r.itinerary && r.itinerary.multiCity),
       });
     } catch (e) {
       out.push({ file: f, error: String(e.message).slice(0, 120) });
