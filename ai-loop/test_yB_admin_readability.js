@@ -136,6 +136,44 @@ const rates = fs.existsSync(RATES_FIXTURE)
     /\.iti-bar input\[type="search"\][^{]*\{[^}]*height:\s*40px/.test(admin));
   ok('PDF 파일칸에 높이가 있다', /id="pr-pdf"[^>]*height:\s*34px/.test(admin));
 
+  console.log('\n[4] 🔴 읽어야 하는 글의 양 (YQ — 대표 지시 2026-09-03 「글자가 너무 많다」)');
+  {
+    /* 🔴 **규칙을 여기 다시 쓰지 않는다.** 「긴 안내문」의 정의(문턱 120자 · 접힌 것은
+       세지 않음)는 `audit_ux.js`가 가진다 — 두 곳에 두면 어긋난다(결함 생성기 ①).
+       탭을 훑는 방법도 거기서 가져온다. */
+    const { measure, adminSections, 긴안내문문턱 } = require('./audit_ux.js');
+    const B2 = bootPage('admin.html', { fixtures: adminFixtures('empty') });
+    await B2.ready; await B2.tick(200);
+    await enterDashboard(B2);
+
+    let 총자 = 0;
+    const 걸린것 = [];
+    const 탭들 = adminSections(B2);
+    ok('④ 탭을 실제로 훑었다 (0개면 아래 통과는 의미가 없다)', 탭들.length >= 15, String(탭들.length));
+    for (const sec of 탭들) {
+      try { await sec.enter(B2); } catch (e) { /* 못 열면 다음 탭 */ }
+      await B2.tick(150);
+      const m = measure(B2.doc, sec.scope(B2.doc));
+      총자 += m.안내문총자;
+      m.긴안내문.forEach((t) => 걸린것.push(sec.name + ' ' + t.length + '자: ' + t.slice(0, 40)));
+    }
+
+    /* 🔴 **이게 진짜 규칙이다** — 한 문단이 120자를 넘으면 훑는 게 아니라 멈춰서
+       읽어야 한다. 2026-09-03에 4개(205·173·154·135자)를 걷어내 0으로 만들었다.
+     ⚠ 다시 생기면 **글을 지우지 말고 `<details>`로 접을 것.** 접은 글은 안 세므로
+       근거를 잃지 않고 통과한다. 그게 이 자를 그렇게 만든 이유다. */
+    ok('🔴 ④ ' + 긴안내문문턱 + '자 넘는 안내문이 없다', 걸린것.length === 0, 걸린것.join(' | '));
+
+    /* 총량은 **래칫**이다 — 지금보다 크게 늘면 걸린다.
+       2026-09-03 실측 2,750자(손질 전 3,374자).
+     ⚠ 이 숫자를 올려야 한다면 **왜 늘었는지 커밋 메시지에 적을 것.** 화면이 늘면
+       자연히 늘 수 있으므로 금지가 아니라 「눈에 띄게」 하는 장치다. */
+    const 천장 = 3000;
+    ok('④ 읽어야 하는 글이 ' + 천장 + '자를 넘지 않는다', 총자 <= 천장, 총자 + '자');
+    console.log('       (지금 ' + 총자 + '자 · 손질 전 3,374자)');
+    B2.win.close();
+  }
+
   console.log('\n' + '─'.repeat(64));
   /* ⚠ **이 줄의 형식은 `run_all_tests.js`가 정규식으로 읽는다**(「결과: N pass / M fail」).
      처음에 「합계:」로 적었더니 러너가 요약을 못 찾아 **크래시로 셌다** — 그 판정은

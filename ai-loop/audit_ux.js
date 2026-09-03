@@ -49,6 +49,12 @@ const ONLY = (() => { const i = args.indexOf('--page'); return i >= 0 ? args[i +
 const CSS로감춘것 = [
   { sel: '.tab-panel', 보일때: 'active' },          /* 관리자 탭 */
   { sel: '.estimate-step', 보일때: 'step-active' },  /* 고객 견적 단계 */
+  /* 🔴 FAQ 답변 (YQ에서 찾았다). `styles.css`에 `.faq-a { display:none }` /
+     `.faq-a.open { display:block }`이라 **누르기 전에는 안 보인다.** 이걸 안 적어
+     두었더니 ⑨(읽어야 하는 글)가 고객 첫 화면을 「긴 안내문 4개·2,527자」로 셌다 —
+     실제로는 **고객이 질문을 눌러서 편** 답이다. 자가 틀리면 고칠 것을 못 찾는다.
+   ⚠ 이 목록은 **완전하지 않다.** 새 화면에 같은 방식이 생기면 여기 한 줄 늘린다. */
+  { sel: '.faq-a', 보일때: 'open' },                /* 고객 FAQ 답변 */
 ];
 function visible(el, doc) {
   let n = el;
@@ -138,6 +144,39 @@ function measure(doc, scope) {
   const 설명 = Array.from(root.querySelectorAll('.page-sub'))
     .filter((el) => visible(el, doc) && shownText(el).trim())[0];
 
+  /* ⑨ 🔴 **읽어야 하는 글이 얼마나 되는가** (YQ — 대표 지시 2026-09-03:
+     「관리자 페이지 가독성이 전체적으로 떨어진다. 글자도 너무 많다.」)
+
+     지금까지 이 도구는 **조작 수**만 셌다 — 버튼·칸이 몇 개인가. 그런데 대표가
+     겪은 것은 그게 아니라 **읽어야 할 글의 양**이었다. 실측(2026-09-03): 요율 관리
+     탭의 한 안내문이 **207자**, 견적서 업데이트가 **205자**다. 한 문단이 「무엇인지 ·
+     조건 · 예외 · 다음에 어디로」를 동시에 말한다.
+
+     ⚠ **접어 둔 글은 세지 않는다.** 이게 이 자의 핵심이다 — 안 그러면 「긴 설명을
+       `<details>`로 접는다」는 올바른 고침이 점수에 안 잡히고, 사람은 **글을 지우는**
+       쪽으로 간다. 지우면 근거가 사라진다(이 저장소가 근거를 남기는 이유와 정반대다).
+       접힌 글은 자리를 안 차지하니 세지 않는 것이 맞다.
+     ⚠ 그렇다고 전부 접으면 되는 것도 아니다 — ①②(제목·설명)가 바닥을 잡는다.
+       제목과 한 줄 설명이 없으면 그건 그것대로 걸린다.
+
+     문턱 120자: CLAUDE.md의 「한글은 45~50자가 편하고 60자를 넘으면 놓치기 시작한다」는
+     **한 줄** 기준이다. 120자면 그 폭에서 **세 줄 가까이** 되어 「문단」이 된다 —
+     훑어보는 게 아니라 멈춰서 읽어야 한다. 그 자리를 센다. */
+  const 접힘안 = (el) => {
+    let n = el;
+    while (n && n !== root && n !== doc.body) {
+      if (n.tagName === 'DETAILS' && !n.hasAttribute('open')) return true;
+      n = n.parentElement;
+    }
+    return false;
+  };
+  const 안내문들 = Array.from(root.querySelectorAll('.page-sub, .hint, .help, .note, .desc, p, small'))
+    .filter((el) => visible(el, doc) && !접힘안(el))
+    /* 안내문 안에 안내문이 겹쳐 들어가면 같은 글을 두 번 센다 — 가장 안쪽만 센다 */
+    .filter((el) => !el.querySelector('.page-sub, .hint, .help, .note, .desc, p, small'))
+    .map((el) => shownText(el).replace(/\s+/g, ' ').trim())
+    .filter((t) => t.length > 0);
+
   return {
     글자수: txt.length,
     제목: 제목 ? shownText(제목).slice(0, 40) : '',
@@ -168,8 +207,16 @@ function measure(doc, scope) {
     무색버튼: [...new Set(무색버튼.map(btnName))],
     기술용어: 기술용어(txt),
     조작수: btns.length + links.length + fields.length,
+    /* ⑨ 읽어야 하는 글 (YQ) — 접힌 것은 빠져 있다 */
+    안내문수: 안내문들.length,
+    안내문총자: 안내문들.reduce((s, t) => s + t.length, 0),
+    최장안내문: 안내문들.reduce((m, t) => Math.max(m, t.length), 0),
+    긴안내문: 안내문들.filter((t) => t.length >= 긴안내문문턱).sort((a, b) => b.length - a.length),
   };
 }
+
+/* 문턱을 여기 한 곳에 둔다 — 화면마다 다른 값을 쓰면 두 화면을 나란히 못 놓는다 */
+const 긴안내문문턱 = 120;
 
 /* ⑥ 비어 있을 때 다음 행동을 말하는가 — 「없습니다」로 끝나면 막다른 길이다.
  ⚠ **「없다」가 다 빈 상태는 아니다.** 처음엔 「‘금액 확인일’은 비워 둘 수 없습니다」·
@@ -230,7 +277,24 @@ async function auditScreen(file, opts = {}) {
   return { file, parts, nameless, loadErrors, walkErrors };
 }
 
-module.exports = { auditScreen, measure, 빈상태, 기술용어 };
+/* 🔴 **관리자 탭을 훑는 방법은 여기 한 곳이다** (YQ).
+   `test_yB`가 같은 일을 해야 하는데, 거기 복사하면 탭이 하나 늘 때 한쪽만 늘어난다
+   (결함 생성기 ① — 이 저장소가 여섯 번 당한 유형). 그래서 내보낸다. */
+function adminSections(B) {
+  return Array.from(B.doc.querySelectorAll('[data-tab]'))
+    .map((el) => el.getAttribute('data-tab'))
+    .filter((v, i, a) => v && a.indexOf(v) === i)
+    .map((tab) => ({
+      name: tab,
+      enter: async (BB) => {
+        const btn = BB.doc.querySelector('[data-tab="' + tab + '"]');
+        if (btn) btn.dispatchEvent(new BB.win.MouseEvent('click', { bubbles: true, cancelable: true, view: BB.win }));
+      },
+      scope: (d) => d.getElementById('tab-' + tab) || d.body,
+    }));
+}
+
+module.exports = { auditScreen, measure, 빈상태, 기술용어, adminSections, 긴안내문문턱 };
 
 /* ─────────────────────────────────────────────────────────────────────── */
 if (require.main === module) (async () => {
@@ -239,6 +303,7 @@ if (require.main === module) (async () => {
   const 전부 = ONLY ? [ONLY] : [...고객화면, ...담당자화면];
 
   let 기술용어총 = 0, 무색총 = 0, 막다른길 = 0, 이름없음 = 0, 강조둘이상 = 0, 같은이름총 = 0;
+  let 긴안내문총 = 0, 읽을글총 = 0;
 
   for (const file of 전부) {
     const isAdmin = file === 'admin.html';
@@ -246,17 +311,7 @@ if (require.main === module) (async () => {
     if (isAdmin) {
       opts.fixtures = adminFixtures('empty');
       opts.after = async (B) => { await enterDashboard(B); };
-      opts.sections = async (B) => Array.from(B.doc.querySelectorAll('[data-tab]'))
-        .map((el) => el.getAttribute('data-tab'))
-        .filter((v, i, a) => v && a.indexOf(v) === i)
-        .map((tab) => ({
-          name: tab,
-          enter: async (BB) => {
-            const btn = BB.doc.querySelector('[data-tab="' + tab + '"]');
-            if (btn) btn.dispatchEvent(new BB.win.MouseEvent('click', { bubbles: true, cancelable: true, view: BB.win }));
-          },
-          scope: (d) => d.getElementById('tab-' + tab) || d.body,
-        }));
+      opts.sections = async (B) => adminSections(B);
     }
     const r = await auditScreen(file, opts);
 
@@ -286,14 +341,34 @@ if (require.main === module) (async () => {
       if (m.기술용어.length) 문제.push('🔴영문 ' + m.기술용어.length);
       if (m.같은이름버튼.length) 문제.push('🔴같은이름 ' + m.같은이름버튼.map(([n, c]) => n + '×' + c).join(', '));
       if (막.length) 문제.push('막다른길 ' + 막.length);
+      /* 🔴 **`manual.html`에는 이 잣대를 적용하지 않는다** (YQ).
+         이건 화면이 아니라 **읽으라고 만든 설명서**다. 실측 20,925자·긴 글 67개인데,
+         그건 결함이 아니라 그 문서가 하는 일 그 자체다. 여기까지 세면 합계가 매일
+         ✗이 되고, **늘 ✗인 잣대는 아무것도 안 말한다**(이 저장소가 이미 겪은 함정).
+       ⚠ **조용히 빼지는 않는다** — 아래에서 수치를 그대로 찍고 「뺐다」고 말한다.
+         소리 없이 0으로 만들면 다음 사람은 매뉴얼이 재어진 줄 안다. */
+      const 설명서 = file === 'manual.html';
+      if (!설명서) {
+        긴안내문총 += m.긴안내문.length;
+        읽을글총 += m.안내문총자;
+      }
+      if (m.긴안내문.length) {
+        문제.push((설명서 ? 'ℹ긴글 ' : '🔴긴안내문 ') + m.긴안내문.length
+          + '(최장 ' + m.최장안내문 + '자)' + (설명서 ? ' — 설명서라 합계에서 뺌' : ''));
+      }
       console.log(head + ' 조작 ' + String(m.조작수).padStart(3)
         + ' (버튼 ' + String(m.버튼).padStart(3) + ' · 칸 ' + String(m.입력칸).padStart(2)
         + (m.필수칸 ? '/필수' + m.필수칸 : '') + ')'
+        /* 🔴 대표가 느끼는 것은 조작 수가 아니라 **읽어야 하는 글의 양**이다 (YQ).
+           같은 줄에 찍어야 「이 탭이 무겁다」가 한눈에 보인다. */
+        + ' · 글 ' + String(m.안내문총자).padStart(4) + '자'
         + '  ' + (문제.length ? '⚠ ' + 문제.join(' · ') : '✓'));
       if (VERBOSE || m.기술용어.length) {
         if (m.기술용어.length) console.log('       🔴 화면에 보이는 영문·기술 용어: ' + m.기술용어.slice(0, 8).join(', '));
       }
       if (VERBOSE && m.무색버튼.length) console.log('       무슨 일이 날지 안 말하는 버튼: ' + m.무색버튼.join(', '));
+      /* 🔴 긴 안내문은 **글자를 보여줘야** 고칠 수 있다. 개수만 찍으면 어디를 줄일지 모른다. */
+      if (m.긴안내문.length) m.긴안내문.slice(0, VERBOSE ? 99 : 2).forEach((t) => console.log('       🔴 ' + t.length + '자: ' + t.slice(0, VERBOSE ? 400 : 70) + (t.length > (VERBOSE ? 400 : 70) ? '…' : '')));
       if (VERBOSE && 막.length) 막.slice(0, 3).forEach((e) => console.log('       막다른 안내: ' + e.text));
     });
 
@@ -317,6 +392,9 @@ if (require.main === module) (async () => {
     + ' · 막다른 안내 ' + 막다른길
     + ' · 낭독기 이름 없음 ' + 이름없음
     + ' · 강조 버튼이 둘 이상인 칸 ' + 강조둘이상
-    + ' · 🔴이름이 똑같은 버튼 ' + 같은이름총);
+    + ' · 🔴이름이 똑같은 버튼 ' + 같은이름총
+    + ' · 🔴' + 긴안내문문턱 + '자 넘는 안내문 ' + 긴안내문총);
+  console.log('  읽어야 하는 글 합계 ' + 읽을글총.toLocaleString() + '자'
+    + '  (접어 둔 <details> 안은 안 셈 — 접는 것이 진짜 개선이다)');
   console.log('⚠ 전부 **확인 대상**이다 — 오류가 아니다. 사람이 보고 정한다.');
 })();

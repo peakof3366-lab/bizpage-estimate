@@ -1569,8 +1569,16 @@
         <div class="card-header"><span class="card-title">📝 실제 계약가 업데이트</span></div>
         <div class="card-body">
           <div style="font-size:.8rem;color:var(--muted);margin-bottom:.9rem;line-height:1.7">
-            <p style="margin-bottom:.5rem">계약이 성사된 실제 항공료·호텔단가·식비를 남겨주세요(전부 채울 필요 없이 아는 항목만 채우면 됩니다) — 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다. <strong style="color:var(--heading)">아래 두 방식 중 하나만</strong> 골라서 사용합니다.</p>
-            <p style="margin-bottom:0"><strong>실제 이용 호텔명</strong>은 다른 항목과 똑같이 담당자 누구나 넣고 볼 수 있습니다(가격에는 반영되지 않는 참고 정보입니다). 아래 <strong style="color:var(--heading)">🏨 실제 이용 호텔</strong>에 <strong style="color:var(--heading)">지역 → 나라 → 도시</strong> 순으로 정리되어 쌓입니다 — 같은 이름의 체인 호텔이라도 어느 나라 것인지 구분됩니다. 고객이 보는 견적서·공개 페이지에는 나가지 않습니다.</p>
+            <!-- 🔴 **173자짜리 호텔 설명이 여기 통째로 있었다** (YQ). 그런데 그 내용은
+                 아래 「🏨 실제 이용 호텔」 카드가 **이미 같은 말로** 하고 있었다
+                 (요율 미반영 · 고객 비공개 · 지역→나라→도시로 묶임). 같은 말을 두 곳에
+                 두면 반드시 어긋난다(결함 생성기 ①) — 값을 **보는 자리**인 그 카드가
+                 제자리라, 여기서는 「넣으면 어디로 가는지」 한 줄만 남긴다. -->
+            <p style="margin-bottom:.5rem;max-width:var(--measure)">계약이 성사된 실제 항공료·호텔단가·식비를 남겨주세요 — 아는 항목만 채우면 됩니다. 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다.</p>
+            <!-- ⚠ 「고객이 보는 견적서·공개 페이지에는 나가지 않습니다」는 **줄이면 안 되는 말**이다.
+                 담당자가 호텔명을 **넣는 순간** 걱정하는 것이 그것이고, 그 자리에 없으면
+                 안 넣게 된다. (test_rY가 이 문장을 지킨다 — YQ에서 한 번 지웠다가 걸렸다.) -->
+            <p style="margin-bottom:0;max-width:var(--measure)">호텔명을 함께 넣으면 아래 <strong style="color:var(--heading)">🏨 실제 이용 호텔</strong>에 쌓입니다(가격에는 반영되지 않습니다). 고객이 보는 견적서·공개 페이지에는 나가지 않습니다.</p>
           </div>
 
           <!-- 공통: 목적지 + 날짜 -->
@@ -1618,14 +1626,26 @@
 
           <!-- 방식 ① PDF 전용 컨트롤 (PDF 모드에서만 노출 — 기본으로 열려 있다) -->
           <div id="pr-pdf-block" style="margin-bottom:1rem;padding:.9rem 1rem;border:1.5px dashed var(--border);border-radius:10px;background:var(--bg)">
+            <!-- 🔴 **205자였다** (YQ · 대표 지시 2026-09-03 「글자가 너무 많다」).
+                 한 문단이 넷을 동시에 말하고 있었다: 무엇을 하는지 · 파일 제약 ·
+                 값이 틀렸을 때 · 근거 대조. 그래서 **지금 할 일**이 안 보였다.
+                 → ① 지금 할 일 한 줄은 남기고 ② 제약은 접는다.
+               ⚠ **원래 있던 「⚠ 근거를 꼭 대조하세요」는 지운 것이 아니라 없앤 중복이다.**
+                 바로 아래 `#pr-fields-label`이 칸 위에서 같은 말을 한다 — 값을 보는
+                 그 자리가 제자리다. 같은 말을 두 곳에 두면 반드시 어긋난다(결함 생성기 ①).
+               ⚠ 접은 글은 `audit_ux.js`가 세지 않는다. 그게 이 고침이 「글을 지운 것」이
+                 아니라 「자리를 옮긴 것」인 이유다. -->
             <p style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;line-height:1.6">
               PDF를 올리고 <strong style="color:var(--heading)">"PDF에서 추출"</strong>을 누르면
-              견적서에서 <strong style="color:var(--heading)">산술이 검산된 단가 줄</strong>만 골라 아래에 채웁니다
-              (파일 자체는 저장되지 않음 · 텍스트가 있는 PDF만 가능, 스캔 이미지는 지원 안 함 · 3.2MB 이하).<br>
-              ⚠ <strong style="color:var(--heading)">각 칸 아래 “견적서: …” 근거를 꼭 대조하세요.</strong>
-              틀렸으면 그 아래 <strong style="color:var(--heading)">후보 목록에서 1클릭으로</strong> 바꿀 수 있습니다 —
-              숫자를 직접 칠 필요는 없습니다.
+              <strong style="color:var(--heading)">산술이 검산된 단가</strong>만 아래에 채웁니다.
             </p>
+            <details style="margin-bottom:.6rem">
+              <summary style="font-size:.78rem;color:var(--muted);cursor:pointer">어떤 파일이 되나요</summary>
+              <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0 0;line-height:1.6;max-width:var(--measure)">
+                텍스트가 있는 PDF만 됩니다(스캔 이미지는 안 됩니다) · 3.2MB 이하 ·
+                올린 파일은 저장하지 않습니다.
+              </p>
+            </details>
             <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
               <!-- 🔴 높이가 20px이었다 (YB). 파일 고르기는 이 화면에서 **가장 먼저
                    하는 동작**인데 가장 누르기 어려웠다. 파일칸은 브라우저가 그리는
@@ -1825,11 +1845,20 @@
       <div class="card hidden" id="coef-tuning-card" style="margin-bottom:1.25rem">
         <div class="card-header"><span class="card-title">⚙️ 견적 계수 조정</span></div>
         <div class="card-body">
-          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.85rem">
-            시즌·리드타임·피크의 <strong style="color:var(--heading)">반영 강도</strong>와 호텔이 받는 피크 비중을 배포 없이 조정합니다.
-            강도 <strong>1.0</strong>이면 기존 계산과 동일하고, 낮추면 완만·높이면 과격해집니다.
-            <strong style="color:var(--danger)">전 목적지·전 견적</strong>에 즉시 영향을 주니 신중히 바꾸세요. 실측(견적 정확도)이 쌓이면 그에 맞춰 조정하는 걸 권장합니다.
+          <!-- 🔴 154자였다 (YQ). 여기서 잘라내면 안 되는 것은 **위험 경고 한 줄**이고,
+               나머지(1.0의 뜻·조정 방향·언제 하는가)는 실제로 손댈 때 펴 보면 된다. -->
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem;max-width:var(--measure)">
+            시즌·리드타임·피크의 <strong style="color:var(--heading)">반영 강도</strong>를 배포 없이 조정합니다.
+            <strong style="color:var(--danger)">전 목적지 견적에 즉시 반영됩니다.</strong>
           </p>
+          <details style="margin-bottom:.85rem">
+            <summary style="font-size:.78rem;color:var(--muted);cursor:pointer">값을 어떻게 정하나</summary>
+            <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0 0;line-height:1.7;max-width:var(--measure)">
+              강도 <strong>1.0</strong>이면 지금 계산과 같습니다 — 낮추면 완만해지고 높이면 과격해집니다.
+              호텔이 받는 피크 비중도 여기서 정합니다.<br>
+              실측(견적 정확도)이 쌓인 뒤 그에 맞춰 조정하시는 것을 권합니다.
+            </p>
+          </details>
           <div id="coef-fields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:.9rem"></div>
           <div style="display:flex;align-items:center;gap:.6rem;margin-top:1rem;flex-wrap:wrap">
             <button class="btn-primary" onclick="saveCoefficients()">계수 저장</button>
@@ -1895,18 +1924,34 @@
       <div class="card" style="margin-top:1.25rem">
         <div class="card-header"><span class="card-title">요율 갱신 방법</span></div>
         <div class="card-body">
-          <p style="font-size:.84rem;color:var(--text);margin-bottom:.6rem">
-            <strong>기본(권장)</strong>: 위 표에서 목적지의 "편집" 버튼을 눌러 단가를 직접 수정하세요.
-            저장하는 즉시 실제 견적 계산에 반영되고, 변경 이력에도 자동으로 남습니다.
+          <!-- 🔴 **이 카드가 통째로 380자짜리 설명서였다** (YQ · 대표 지시 2026-09-03).
+               요율 화면에 늘 떠 있는데, 그중 실제로 「지금 할 일」은 첫 줄 하나뿐이고
+               나머지는 배경지식(갱신 주기·환율 자동 확인)과 아주 드문 경로(data.js 직접
+               수정)였다. → 할 일은 남기고 나머지는 접는다. 지운 글은 없다. -->
+          <p style="font-size:.84rem;color:var(--text);margin-bottom:.6rem;max-width:var(--measure)">
+            위 표에서 목적지의 <strong>"편집"</strong>을 누르면 단가를 고칠 수 있습니다.
+            저장하는 즉시 견적에 반영되고 변경 이력에 남습니다.
           </p>
-          <ol style="font-size:.8rem;line-height:1.9;color:var(--muted);padding-left:1.2rem">
-            <li>관리자 페이지가 아닌 원본 파일을 직접 고쳐야 하는 특수한 경우에만:
-              <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:0">data.js</code> 파일을 텍스트 편집기로 열어 수정</li>
-            <li>이 경우 위 편집 버튼으로 저장한 값(오버라이드)이 우선 적용되므로,
-              반드시 요율 관리 표에서 해당 목적지의 오버라이드가 없는지 먼저 확인</li>
-          </ol>
-          <p style="font-size:.78rem;color:var(--muted);margin-top:.75rem">권장 갱신 주기: <strong>분기별 1회</strong> (3개월마다) · 환율 변동 큰 지역은 월별 확인</p>
-          <p style="font-size:.78rem;color:var(--muted);margin-top:.4rem">💱 환율은 매일 새벽 자동으로 확인해, 마지막 저장 시점 대비 5% 이상 움직인 목적지는 자동으로 "확인 권장" 상태가 됩니다(항공료는 인원별 협상 견적이라 자동 반영 대상이 아닙니다 — 배지에 표시되는 % 변동은 참고용 시장 환율 기준).</p>
+          <details style="margin-bottom:.4rem">
+            <summary style="font-size:.8rem;color:var(--muted);cursor:pointer">언제 갱신하나 · 환율은 자동인가</summary>
+            <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0 0;line-height:1.7;max-width:var(--measure)">
+              권장 주기는 <strong>분기별 1회</strong>이고, 환율 변동이 큰 지역은 월별로 봅니다.<br>
+              💱 환율은 매일 새벽 자동으로 확인합니다 — 마지막 저장 시점 대비 5% 이상
+              움직인 목적지는 <strong>"확인 권장"</strong>이 붙습니다.<br>
+              ⚠ 항공료는 인원별 협상 견적이라 자동 반영 대상이 아닙니다(배지의 % 변동은
+              참고용 시장 환율 기준입니다).
+            </p>
+          </details>
+          <details>
+            <summary style="font-size:.8rem;color:var(--muted);cursor:pointer">원본 파일을 직접 고쳐야 할 때</summary>
+            <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0 0;line-height:1.7;max-width:var(--measure)">
+              관리자 화면이 아닌 원본을 고쳐야 하는 특수한 경우에만
+              <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:0">data.js</code>를
+              텍스트 편집기로 엽니다.<br>
+              ⚠ <strong>편집 버튼으로 저장한 값이 우선</strong>이라, 그 목적지에 저장된 값이
+              없는지 요율 표에서 먼저 확인해야 합니다.
+            </p>
+          </details>
         </div>
       </div>
 
