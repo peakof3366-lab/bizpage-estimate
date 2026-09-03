@@ -61,6 +61,52 @@ const FIELD_MAX = {
 const MIN_SAMPLES = Number(argOf('--min-samples', 2));
 const SINGLE_MAX_RATIO = 2;
 const MAX_RATIO = 3;     /* 이보다 벌어지면 요율이 아니라 **오독인지부터** 봐야 한다 */
+
+/* 🔴 **표본이 늘수록 문턱이 함께 조여져야 한다** (YR, 2026-09-03).
+   ───────────────────────────────────────────────────────────────────────────
+   대표 방침: 견적서는 계속 쌓인다. 그런데 지금 문턱은 **1건 2배 → 2건 3배**로
+   표본이 늘자마자 **느슨해지기만** 한다. 즉 **문서가 쌓이는 것 자체가 위험을 키운다** —
+   가장 흔들리는 2건짜리 중앙값에 가장 넓은 문을 내주고 있었다.
+
+   → 배율 상한을 표본 수에 매단다. 근거가 두꺼워질수록 큰 변경을 허용한다:
+
+       1건  2.0배   (한 행사의 조건이 그대로 박힌 값이다)
+       2건  2.5배   ← 새로 조인 자리. 예전엔 여기서 바로 3.0배였다
+       3건+ 3.0배   (여러 문서가 같은 방향을 가리킨다)
+
+   ⚠ **오늘 올라오는 제안 14개 중 이 변경으로 막히는 것은 없다**(실측으로 확인했다 —
+     2건짜리 제안의 최대 배율이 1.62배다). 지금을 바꾸는 규칙이 아니라 **앞으로
+     쌓일 때** 작동하는 규칙이다. 그래서 안전하게 넣을 수 있다.
+   ⚠ 느슨하게 되돌리려면 근거를 숫자로 남길 것 — 이 문턱은 고객 금액을 지킨다. */
+const RATIO_BY_SAMPLES = [
+  { n: 3, cap: 3.0 },
+  { n: 2, cap: 2.5 },
+  { n: 1, cap: SINGLE_MAX_RATIO },
+];
+function capFor(n) {
+  for (const r of RATIO_BY_SAMPLES) if (n >= r.n) return r.cap;
+  return SINGLE_MAX_RATIO;
+}
+
+/* 🔴 골프 판정 — **한 곳에서 한다**(YR). 부르는 쪽에 흩어 두면 규칙이 두 벌이 된다.
+   @param cell      요율 칸 이름
+   @param files     이 칸의 근거 문서들(중복 있어도 된다)
+   @param golfByFile Map<파일명, 골프인가> — `null`이면 「판정 못 함」이다
+   @returns {{hold:boolean, 전체:number, 골프:number, 이유:string|null}}
+     ⚠ 판정을 못 하면 `hold:false`지만 **`이유`가 아니라 `알수없음`으로 표시**한다 —
+       부르는 쪽이 「골프 아님」과 「모름」을 구별할 수 있어야 한다. */
+function golfHold(cell, files, golfByFile) {
+  if (!golfByFile) return { hold: false, 알수없음: true, 전체: 0, 골프: 0, 이유: null };
+  /* golf_fee는 골프 문서에서 나오는 것이 당연하다 — 여기 걸면 진짜가 묻힌다 */
+  if (cell === 'golf_fee') return { hold: false, 면제: true, 전체: 0, 골프: 0, 이유: null };
+  const 문서들 = [...new Set(files || [])];
+  const 골프 = 문서들.filter((f) => golfByFile.get(f) === true).length;
+  const hold = 문서들.length > 0 && 골프 === 문서들.length;
+  return {
+    hold, 전체: 문서들.length, 골프,
+    이유: hold ? ('⛳ 근거 ' + 문서들.length + '건이 전부 골프 문서') : null,
+  };
+}
 const AUTHOR = '실측 자동 반영(검토 10회 통과)';
 
 const won = (n) => Number(Math.round(n)).toLocaleString();
@@ -69,6 +115,12 @@ const median = (a) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 
+module.exports = { capFor, golfHold, RATIO_BY_SAMPLES, SINGLE_MAX_RATIO, MAX_RATIO };
+
+/* ⚠ **`require`로 불릴 때는 본체를 돌리지 않는다.** 테스트가 위 함수만 가져다 쓰는데
+   본체가 함께 돌면 코퍼스를 읽느라 몇 분이 걸리고, 스위트에서 그 파일만 느려진다. */
+if (require.main !== module) return;
+
 (async () => {
   if (!fs.existsSync(IN)) {
     console.log('먼저 검토를 돌려 주세요: node ai-loop/validate_corpus.js');
@@ -76,6 +128,38 @@ const median = (a) => {
   }
   const rows = JSON.parse(fs.readFileSync(IN, 'utf8')).filter((r) => r.ok && r.dest && r.rateCell);
   console.log('검토를 통과한 칸 ' + rows.length + '개로 요율 제안을 만든다\n');
+
+  /* 🔴 **골프 견적서에서만 나온 값으로 요율을 바꾸지 않는다** (YR).
+     ───────────────────────────────────────────────────────────────────────
+     골프 일정 문서는 **골프조/관광조로 갈려** 있어서, 차량·관광 같은 줄이
+     「전원」이 아니라 **조 인원 기준**으로 적힌다. 그걸 전원 단가로 읽으면 부푼다.
+     그리고 그 값이 요율이 되면 **골프 아닌 그 목적지 손님 전부**가 그 값을 문다.
+
+     실제로 걸려 있는 자리다:
+       · 제주도 호텔 제안의 근거 2건이 **둘 다 고은회 골프 여행**이다(0-p).
+       · 다낭 관광 「요율이 4.3배 낮다」의 실측 2건도 **둘 다 골프**다(0-m·YF).
+         같은 다낭의 비골프 견적서는 그 칸이 아예 비어 있다.
+     대기열 0-m에 「그 목적지 견적서가 **한 장만 더 들어오면 통과합니다**」라고
+     적어 둔 그 자리를 여기서 막는다.
+
+   ⚠ **막는 게 아니라 보류다.** 골프에서만 나온 값이 틀렸다는 뜻이 아니라,
+     사람이 문서를 보고 「이 줄이 조 인원 기준인가」를 확인해야 한다는 뜻이다.
+     그래서 이유를 적어 보류 목록에 넣는다(오류라고 부르지 않는다).
+   ⚠ **판정을 못 하면 조용히 통과시키지 않는다** — 아래에서 `--apply`를 막는다.
+     알 수 없는 것을 「골프 아님」으로 두면 이 가드는 있으나 마나다(결함 생성기 ②). */
+  let golfByFile = null;
+  try {
+    const { loadCorpus } = require('./_corpus_cache.js');
+    const corpus = await loadCorpus({ useCache: true, quiet: true });
+    golfByFile = new Map();
+    corpus.forEach((c) => { if (c && c.file) golfByFile.set(c.file, !!(c.golf && c.golf.isGolfTrip)); });
+    const 골프수 = [...golfByFile.values()].filter(Boolean).length;
+    console.log('골프 판정: 문서 ' + golfByFile.size + '건 중 골프 일정 ' + 골프수 + '건\n');
+  } catch (e) {
+    golfByFile = null;
+    console.log('⚠ 골프 판정을 못 했습니다 — ' + String(e.message).slice(0, 90));
+    console.log('   (코퍼스 폴더나 캐시가 없을 때입니다. 아래 제안은 **골프 가드를 안 지난 것**입니다.)\n');
+  }
 
   /* 목적지 x 요율칸으로 모은다 */
   const groups = {};
@@ -97,16 +181,27 @@ const median = (a) => {
     if (!base) why.push('지금 요율이 0이다(안 파는 곳일 수 있다)');
     else {
       const ratio = med > base ? med / base : base / med;
-      /* 표본이 1건이면 **더 좁은 문턱**을 쓴다(위 주석) */
-      const cap = g.vals.length >= 2 ? MAX_RATIO : SINGLE_MAX_RATIO;
+      /* 표본 수에 매단 문턱 — 근거가 두꺼울수록 큰 변경을 허용한다 (YR) */
+      const cap = capFor(g.vals.length);
       if (ratio > cap) {
         why.push('지금 값의 ' + ratio.toFixed(1) + '배'
-          + (g.vals.length < 2 ? ' — 실측이 1건뿐이라 ' + SINGLE_MAX_RATIO + '배까지만 받는다' : ' — 오독인지부터 봐야 한다'));
+          + ' — 실측 ' + g.vals.length + '건이라 ' + cap + '배까지만 받는다');
       }
       if (ratio < 1.15) why.push('차이가 15% 미만이라 굳이 바꿀 값이 아니다');
     }
     if (FIELD_MAX[g.cell] != null && med > FIELD_MAX[g.cell]) why.push('오타 상한 초과');
-    const item = { ...g, base, med, n: g.vals.length };
+
+    /* 🔴 골프 가드 (YR) — 이 칸의 근거가 **전부 골프 일정 문서**인가
+     ⚠ **`golf_fee`는 빼야 한다.** 골프 요금이 골프 견적서에서 나오는 것은 당연하고,
+       오히려 그것 말고는 나올 데가 없다. 여기 걸어 두면 「⛳」 목록이 늘 20건쯤 되고,
+       그러면 **진짜 봐야 할 건(제주도 호텔·다낭 관광)이 묻힌다.**
+       「없는 것을 세면 진짜가 묻힌다」 — 이 저장소가 이미 여러 번 겪은 자리다. */
+    /* 이유는 짧게 — 왜 문제인지는 목록 머리에서 **한 번만** 말한다.
+       줄마다 같은 문장을 붙이면 그 줄이 길어져 정작 값이 안 보인다(YQ에서 배운 것). */
+    const golf = golfHold(g.cell, g.files, golfByFile);
+    if (golf.hold) why.push(golf.이유);
+
+    const item = { ...g, base, med, n: g.vals.length, golf };
     if (why.length) { item.why = why; held.push(item); } else proposals.push(item);
   });
 
@@ -117,13 +212,28 @@ const median = (a) => {
       + '   (' + p.n + '건 중앙값)');
   });
 
+  const 한줄 = (h) => '   ' + h.dest.padEnd(10) + h.label.padEnd(5)
+    + won(h.base).padStart(12) + ' vs 실측 ' + won(h.med).padStart(12)
+    + '   ' + h.why.join(' · ');
+
+  /* 🔴 **골프로 걸린 것은 잘리면 안 된다** (YR).
+     보류 목록은 30개에서 자르는데, 그러면 ⛳ 건이 그 아래로 밀려 **안 보인 채로**
+     남는다. 실제로 제주도 호텔이 그렇게 사라졌다 — 가드는 일했는데 화면에는
+     「제안이 하나 줄었다」만 보였다. **가드가 일한 것을 사람이 못 보면 안 한 것과 같다.**
+     ⛳는 사람이 문서를 열어 판단해야 하는 것이므로 **전부, 먼저** 보여준다. */
+  const 골프보류 = held.filter((h) => h.why.some((w) => w.startsWith('⛳')));
+  const 나머지보류 = held.filter((h) => !h.why.some((w) => w.startsWith('⛳')));
+
   console.log('\n▪ 보류 ' + held.length + '개 — **왜 안 올리는지 반드시 남긴다**');
-  held.sort((a, b) => a.dest.localeCompare(b.dest)).slice(0, 30).forEach((h) => {
-    console.log('   ' + h.dest.padEnd(10) + h.label.padEnd(5)
-      + won(h.base).padStart(12) + ' vs 실측 ' + won(h.med).padStart(12)
-      + '   ' + h.why.join(' · '));
-  });
-  if (held.length > 30) console.log('   … ' + (held.length - 30) + '개 더');
+  if (골프보류.length) {
+    console.log('\n  ⛳ 골프 견적서에서만 나온 값 ' + 골프보류.length + '개 — **사람이 문서를 보고 정할 것**');
+    골프보류.sort((a, b) => a.dest.localeCompare(b.dest)).forEach((h) => console.log(한줄(h)));
+    console.log('     ↳ 골프 문서는 골프조/관광조로 갈려 1인당이 부풀 수 있습니다.');
+    console.log('       그 값이 요율이 되면 **골프 아닌 그 목적지 손님 전부**가 그 값을 뭅니다.');
+    console.log('\n  ── 나머지 보류 ──');
+  }
+  나머지보류.sort((a, b) => a.dest.localeCompare(b.dest)).slice(0, 30).forEach((h) => console.log(한줄(h)));
+  if (나머지보류.length > 30) console.log('   … ' + (나머지보류.length - 30) + '개 더');
 
   /* ── 시뮬레이션 ── 운영 DB는 안 건드리고 **오버라이드 캐시에만** 얹는다.
      그 뒤 `audit_cost_floor` / `audit_gap_source`를 돌리면 이 변경을 했을 때 원가 하한과
@@ -148,6 +258,19 @@ const median = (a) => {
   if (!APPLY) {
     console.log('\n── dry-run이라 아무것도 쓰지 않았다. 실제로 올리려면 --apply ──');
     return;
+  }
+
+  /* 🔴 **골프 판정을 못 했으면 쓰지 않는다** (YR).
+     못 한 것을 「골프 아님」으로 넘기면 이 가드는 있으나 마나다 — 그리고 그때
+     써지는 값이 바로 가드가 막으려던 값이다(결함 생성기 ② 조용한 폴백).
+     정말 없이 진행해야 하면 **그렇게 적으라고** 별도 스위치를 요구한다.
+   ⚠ dry-run은 그대로 보여준다 — 무엇이 올라올지는 봐야 하고, 그건 아무것도 안 바꾼다. */
+  if (!golfByFile && argv.indexOf('--skip-golf-guard') < 0) {
+    console.log('\n🔴 골프 판정을 못 해서 **쓰지 않았습니다.**');
+    console.log('   골프 견적서에서만 나온 값이 요율이 되면 골프 아닌 손님 전부가 그 값을 뭅니다.');
+    console.log('   · 코퍼스를 읽을 수 있게 한 뒤 다시 돌리시거나(권장),');
+    console.log('   · 정말 가드 없이 진행하려면 `--skip-golf-guard`를 함께 주십시오.');
+    process.exit(1);
   }
 
   /* ── 실제 반영 ── 운영 DB의 rate_overrides에 얹고 이력을 남긴다. */
