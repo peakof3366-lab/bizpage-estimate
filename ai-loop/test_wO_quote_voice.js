@@ -374,7 +374,7 @@ function render(payload) {
     const api = read('api/quote-shares.js');
     ok('⑫ 서버가 payload에 이름을 싣는다', /cn: pkgCustomerLabel\(b\.customerName\)/.test(api));
     ok('⑫ 🔴 그런데 연락처는 payload에 안 싣는다',
-      !/customerTel[\s\S]{0,60}share/.test(api) && /custTel\}\)/.test(api));
+      !/customerTel[\s\S]{0,60}share\b/.test(api) && /custTel\}[,)]/.test(api));
   }
 
   console.log('\n[12] XE — 🔴 금액 표가 무슨 기준인지 말한다');

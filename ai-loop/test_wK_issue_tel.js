@@ -94,7 +94,7 @@ console.log('\n[3] 서버 — 담당자 발급만 막는다. 공개 경로는 �
   /* 기준은 normalizeTel 하나다 — 서버가 자릿수를 다시 세면 화면과 갈린다 */
   ok('③ 기준은 `normalizeTel` 하나다', /const custTel = QNO\.normalizeTel\(body\.customerTel\)/.test(SHARES));
   ok('③ 걸러 낸 값을 그대로 저장한다 (두 번 정규화하지 않는다)',
-    /custTel\}\)\n/.test(SHARES) && !/QNO\.normalizeTel\(\(req\.body \|\| \{\}\)\.customerTel\)/.test(SHARES));
+    /custTel\}[,)]/.test(SHARES) && !/QNO\.normalizeTel\(\(req\.body \|\| \{\}\)\.customerTel\)/.test(SHARES));
 }
 
 console.log('\n[4] 🔴 실제로 눌러 본다 — 발급 요청에 연락처가 실리는가');

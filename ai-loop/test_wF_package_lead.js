@@ -143,7 +143,10 @@ console.log('\n[4-b] 🔴 서버가 막는다 — 화면 검사는 안내지 방
   ok('④b 자릿수를 다시 세지 않고 normalizeTel 하나를 쓴다',
     !/customerTel[\s\S]{0,140}length\s*[<>]=?\s*9/.test(SHARES));
   /* 걸러 낸 값을 그대로 저장한다 — 두 번 정규화하면 기준이 갈릴 자리가 또 생긴다 */
-  ok('④b 저장도 그 값을 쓴다', /custTel\}\)\s*\n\s*on conflict/.test(SHARES));
+  /* ⚠ 위치가 아니라 **뜻**으로 재다 (ZB에서 한 번 깨졌다). 예전 자는 `custTel})`로
+     「insert의 마지막 값」임을 가정했는데, 뒤에 `quote_id`가 붙자 셋이 동시에 깨졌다.
+     확인하려는 것은 자리가 아니라 **이미 걸러 둔 변수를 그대로 저장하는가**다. */
+  ok('④b 저장도 그 값을 쓴다', /custTel\}[,)]/.test(SHARES) && /on conflict/.test(SHARES));
 
   /* 두 화면이 그 거절을 **사람 말로** 옮긴다 — 뭉뚱그리면 고객은 다시 누르기만 한다 */
   ok('④b 고객 화면이 tel_required를 사람 말로 옮긴다',

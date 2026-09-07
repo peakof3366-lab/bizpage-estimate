@@ -208,7 +208,7 @@ async function issuePackageShare(req, res) {
 
   try {
     await sql`
-      insert into quote_shares (id, payload, quote_no, issued_by, customer_label, customer_tel)
+      insert into quote_shares (id, payload, quote_no, issued_by, customer_label, customer_tel, quote_id)
       values (${id}, ${JSON.stringify({
         ...share,
         /* 🔴 발행일. 예전에 패키지 경로만 이 칸을 안 넣어서 `calcValidity(undefined)`가
@@ -243,7 +243,10 @@ async function issuePackageShare(req, res) {
           pkgCustomerLabel(b.customerName) || p.customer_label || p.title || null},
         ${/* 🔴 **컬럼에만 들어간다. 위 payload에는 없다**(WC).
              위에서 이미 걸러 낸 값을 쓴다 — 두 번 정규화하면 기준이 갈릴 자리가 생긴다. */
-          custTel})
+          custTel},
+        ${/* 패키지 경로에는 문의가 없다 — 고객이 상품 목록에서 바로 뽑는 길이다(WF).
+             ⚠ null을 **일부러** 넣는다. 칸을 빼면 「빠뜨린 것」과 구분되지 않는다. */
+          null})
       on conflict (id) do nothing`;
     return res.status(200).json({ ok: true, id, quoteNo, verdict: 'package' });
   } catch (err) {
@@ -275,7 +278,7 @@ async function handleList(req, res) {
     const like = q ? '%' + q + '%' : null;
     const rows = q
       ? await sql`
-          select id, quote_no, created_at, issued_by, customer_label, customer_tel, status, status_by, status_at,
+          select id, quote_no, quote_id, created_at, issued_by, customer_label, customer_tel, status, status_by, status_at,
                  payload->>'dt' dest, payload->>'org' org, payload->>'cn' cn,
                  payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
                  payload->'_verify'->>'verdict' verdict
@@ -286,7 +289,7 @@ async function handleList(req, res) {
               or customer_tel ilike ${like}
            order by created_at desc limit ${LIST_MAX}`
       : await sql`
-          select id, quote_no, created_at, issued_by, customer_label, customer_tel, status, status_by, status_at,
+          select id, quote_no, quote_id, created_at, issued_by, customer_label, customer_tel, status, status_by, status_at,
                  payload->>'dt' dest, payload->>'org' org, payload->>'cn' cn,
                  payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
                  payload->'_verify'->>'verdict' verdict
@@ -295,6 +298,29 @@ async function handleList(req, res) {
     return res.status(200).json({ shares: rows, capped: rows.length >= LIST_MAX, max: LIST_MAX });
   } catch (err) {
     console.error('[quote-shares] 대장 조회 실패:', err);
+    return res.status(500).json({ error: 'query_failed' });
+  }
+}
+
+/* 「이 문의에 견적서가 나갔나」 — 견적 관리 화면이 쓰는 **역방향** 조회 (ZB).
+   ⚠ 대장 목록(`action=list`)을 대신 쓰지 않는다. 그쪽은 payload까지 실어 무겁고
+     상한(LIST_MAX)이 걸려 있어, 오래된 문의가 **조용히 「견적 안 나감」으로 보인다.**
+     여기서는 이은 것만, 칸 넷만 준다. */
+async function handleLinks(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  try {
+    const rows = await sql`
+      select quote_id, quote_no, id, status, created_at
+        from quote_shares
+       where quote_id is not null
+       order by created_at desc`;
+    const links = {};
+    for (const r of rows) (links[r.quote_id] = links[r.quote_id] || []).push({
+      no: r.quote_no, id: r.id, status: r.status || 'issued', at: r.created_at,
+    });
+    return res.status(200).json({ links });
+  } catch (err) {
+    console.error('[quote-shares] 연결 조회 실패:', err);
     return res.status(500).json({ error: 'query_failed' });
   }
 }
@@ -326,6 +352,7 @@ async function handleStatus(req, res) {
 module.exports = async (req, res) => {
   const action = req.query && req.query.action;
   if (action === 'list' && req.method === 'GET') return handleList(req, res);
+  if (action === 'links' && req.method === 'GET') return handleLinks(req, res);
   if (action === 'status' && req.method === 'POST') return handleStatus(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
@@ -387,7 +414,7 @@ module.exports = async (req, res) => {
 
   try {
     await sql`
-      insert into quote_shares (id, payload, quote_no, issued_by, customer_label, customer_tel)
+      insert into quote_shares (id, payload, quote_no, issued_by, customer_label, customer_tel, quote_id)
       values (${id}, ${JSON.stringify({
         ...share,
         /* ⚠ 화면이 넣어 준 iso가 있으면 그대로 둔다(그 화면의 발급 시각이다).
@@ -406,7 +433,13 @@ module.exports = async (req, res) => {
         ${(share && (share.org || share.cn)) || null},
         ${/* 🔴 **컬럼에만 들어간다. 위 payload에는 없다**(WC) — 링크를 아는 사람은
              누구나 payload를 보기 때문이다. 위에서 한 번 걸러 둔 값을 그대로 쓴다(WK). */
-          custTel})
+          custTel},
+        ${/* 🔴 **어느 문의에 대한 견적서인가** (ZB). 관리자 발급은 문의 레코드를 통째로
+             보내고 있었는데(`body.quote`) **저장만 안 했다** — 정보가 있는데 버리고 있었다.
+             ⚠ 고객이 직접 뽑은 건은 문의가 없다. 그때는 null이 정상이다(폴백을 지어내지
+               않는다 — 없는 문의를 가리키는 id가 더 나쁘다).
+             ⚠ payload가 아니라 **컬럼**이다. 문의 id는 견적서 문서에 찍힐 것이 아니다. */
+          (quote && typeof quote === 'object' && typeof quote.id === 'string') ? quote.id : null})
       on conflict (id) do nothing
     `;
     return res.status(200).json({ ok: true, id, quoteNo, verdict: result.verdict });

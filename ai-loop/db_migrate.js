@@ -65,6 +65,17 @@ async function main() {
   await sql`alter table quote_shares add column if not exists status text not null default 'issued'`;
   await sql`alter table quote_shares add column if not exists status_by text`;
   await sql`alter table quote_shares add column if not exists status_at timestamptz`;
+  /* 🔴 **어느 문의에 대한 견적서인가** (ZB, 2026-09-07 대표 요청).
+     대장(우리가 낸 문서)과 견적 관리(고객이 남긴 요청)가 서로를 모르고 있었다.
+     담당자 발급은 이미 문의 레코드(`body.quote`)를 통째로 보내고 있었는데 **저장만
+     안 했다** — 즉 정보가 있는데 버리고 있었다.
+     ⚠ 외래키를 걸지 않는다. 고객이 홈페이지에서 직접 뽑은 견적서는 문의가 아예 없고,
+       문의가 지워져도 「우리가 그 금액을 낸 적 있다」는 근거는 남아야 한다.
+     ⚠ 한 문의에 견적서가 여럿일 수 있다(차수·수정본). **유일 인덱스가 아니다.** */
+  await sql`alter table quote_shares add column if not exists quote_id text`;
+  await sql`create index if not exists quote_shares_quote_idx
+              on quote_shares (quote_id) where quote_id is not null`;
+
   /* 🔴 같은 번호가 두 건에 붙으면 대장이 무너진다. **DB가 막는다**(화면이 아니라). */
   await sql`create unique index if not exists quote_shares_no_idx
               on quote_shares (quote_no) where quote_no is not null`;

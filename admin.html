@@ -11755,7 +11755,43 @@
   });
 
   /* ── 메인 렌더 ── */
+  /* ── 「이 문의, 견적서 나갔나」 (ZB) ────────────────────────────────────────
+     견적 관리(고객이 남긴 요청)와 견적서 대장(우리가 낸 문서)이 서로를 모르고 있었다.
+     담당자가 기억으로 이어야 했고, 휴가면 못 이었다 — 넘버링을 만든 목적이 그것인데도.
+     ⚠ 대장 목록을 대신 쓰지 않는다. 그쪽은 상한(LIST_MAX)이 걸려 있어 **오래된 문의가
+       조용히 「견적 안 나감」으로 보인다.** 전용 조회(`action=links`)는 이은 것만 준다.
+     ⚠ 못 불러왔을 때 **빈 값으로 그리지 않는다.** 「견적서가 없다」와 「모른다」는 다른
+       말이고, 여기서 헷갈리면 담당자가 같은 견적서를 두 번 낸다. */
+  let emShareLinks = null;          /* null = 아직 모른다 · {} = 이은 것이 없다 */
+  let emShareLinksTried = false;
+  async function loadShareLinks(redraw) {
+    if (emShareLinksTried) return;
+    emShareLinksTried = true;
+    try {
+      const r = await fetch('/api/quote-shares?action=links');
+      if (!r.ok) throw new Error('http_' + r.status);
+      const d = await r.json();
+      emShareLinks = (d && d.links) || {};
+    } catch (err) {
+      emShareLinks = null;
+      console.warn('[견적 관리] 발급 견적서 연결을 못 읽었습니다:', err);
+    }
+    if (redraw) renderEstMgr();
+  }
+  const EM_SHARE_ST = { issued: '발급', won: '계약', lost: '무산', void: '취소' };
+  function emShareBadge(quoteId) {
+    if (emShareLinks === null) return '';         /* 모르면 아무 말도 하지 않는다 */
+    const list = emShareLinks[quoteId];
+    if (!list || !list.length) return '';
+    const first = list[0];
+    const more = list.length > 1 ? ' 외 ' + (list.length - 1) : '';
+    return ' <span title="견적서 대장에 있는 문서 — ' + esc(list.map((x) => x.no + ' (' + (EM_SHARE_ST[x.status] || x.status) + ')').join(', '))
+      + '" style="font-size:.72rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:.05rem .35rem">📄 '
+      + esc(first.no || '견적서') + esc(more) + '</span>';
+  }
+
   function renderEstMgr() {
+    loadShareLinks(true);
     const all = getEstsFull();
     const today = new Date().toDateString();
 
@@ -11823,7 +11859,7 @@
         <td><input type="checkbox" class="em-row-check" data-id="${safeId(e.id)}" ${emSelectedIds.has(e.id) ? 'checked' : ''} onchange="toggleEmRowSelect('${safeId(e.id)}', this.checked)" /></td>
         <td>${(emPage-1)*EM_PAGE+i+1}</td>
         <td class="date-col">${fmtDate(e.ts)}</td>
-        <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong>${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}</td>
+        <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong>${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}${emShareBadge(e.id)}</td>
         <td>${esc(e.orgName||'-')}</td>
         <td>${e.participants}명 / ${e.days}일</td>
         <td style="text-align:right;color:var(--primary);font-weight:700">₩${Math.round(chargeTot/10000).toLocaleString()}만</td>
@@ -13839,7 +13875,12 @@
               : '')
           + '</select></td>'
           + '<td style="white-space:nowrap"><button class="btn-act btn-outline-p led-open" data-i="' + i + '">열기</button>'
-          +   ' <button class="btn-act btn-outline-p led-copy" data-i="' + i + '">링크</button></td>'
+          +   ' <button class="btn-act btn-outline-p led-copy" data-i="' + i + '">링크</button>'
+          /* 🔴 **어느 문의에 대한 견적서인가** (ZB). 없으면 버튼을 안 낸다 —
+             고객이 홈페이지에서 직접 뽑은 건은 문의가 아예 없고, 그때 눌리는 버튼을
+             내주면 「못 열었다」로 끝난다(YN에서 겪은 그 자리다). */
+          +   (r.quote_id ? ' <button class="btn-act btn-outline-p led-req" data-i="' + i + '" title="이 견적서를 만든 고객 문의를 엽니다">문의</button>' : '')
+          + '</td>'
           + '</tr>';
       }).join('') + '</tbody></table>';
 
@@ -13847,6 +13888,19 @@
     const urlOf = (r) => location.origin + '/estimate-view.html?id=' + encodeURIComponent(r.id);
     box.querySelectorAll('.led-open').forEach(b => b.addEventListener('click',
       () => window.open(urlOf(ledRows[Number(b.dataset.i)]), '_blank', 'noopener')));
+    /* 문의로 건너뛴다. ⚠ 그 문의가 목록에 없을 수 있다(지워졌거나 아직 안 불러왔거나) —
+       **조용히 아무 일도 안 일어나게 두지 않는다.** 담당자는 버튼이 고장 났다고 생각한다. */
+    box.querySelectorAll('.led-req').forEach(b => b.addEventListener('click', () => {
+      const row = ledRows[Number(b.dataset.i)];
+      if (!row || !row.quote_id) return;
+      const has = (typeof getEstsFull === 'function') && getEstsFull().some(x => x.id === row.quote_id);
+      if (!has) {
+        alert('이 견적서를 만든 문의를 견적 관리 목록에서 찾지 못했습니다.\n(문의가 삭제됐거나 목록을 아직 불러오지 못했습니다)\n문의 번호: ' + row.quote_id);
+        return;
+      }
+      switchTab('estmgr');
+      openEstDetail(row.quote_id);
+    }));
     box.querySelectorAll('.led-copy').forEach(b => b.addEventListener('click', () => {
       navigator.clipboard?.writeText(urlOf(ledRows[Number(b.dataset.i)])).catch(() => {});
       b.textContent = '복사됨';

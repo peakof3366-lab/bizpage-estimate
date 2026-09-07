@@ -156,7 +156,7 @@ delete REVIEWED.pending;
       + ' render: itiRenderBody }; }catch(e){ window.__exposeError = String(e); }\n';
     let injected = false;
     const patched = htmlWithDeps('admin.html').replace(
-      /(<script(?![^>]*src=)[^>]*>)([\s\S]*?)(<\/script>)/gi,
+      /(<script(?![^>]*\bsrc=)[^>]*>)([\s\S]*?)(<\/script>)/gi,
       (m, open, code, close) => {
         if (!injected && /const\s+itiView/.test(code)) { injected = true; return open + code + EXPOSE + close; }
         return m;
