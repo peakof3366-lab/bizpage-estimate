@@ -274,11 +274,15 @@ async function handleList(req, res) {
   const q = String((req.query && req.query.q) || '').trim().slice(0, 80);
   try {
     /* 검색축 — 고객이 전화로 말할 수 있는 것부터: 번호 · 회사/고객명 · 목적지 · 담당자.
-       ⚠ 날짜는 목록이 최신순이라 눈으로 찾는다(번호에 날짜가 들어 있다). */
+       ⚠ 날짜는 목록이 최신순이라 눈으로 찾는다(번호에 날짜가 들어 있다).
+       🔴 **공급사 견적번호도 검색축이다** (ZC). 원가 시트(블랙다운)를 손에 들고
+         「이 하나투어 번호로 우리가 얼마에 냈지」를 묻는 것이 이 칸을 만든 이유다 —
+         칸만 만들고 못 찾으면 대조를 여전히 사람이 기억으로 한다. */
     const like = q ? '%' + q + '%' : null;
     const rows = q
       ? await sql`
           select id, quote_no, quote_id, created_at, issued_by, customer_label, customer_tel, status, status_by, status_at,
+                 vendor_quote_no, vendor_no_by, vendor_no_at,
                  payload->>'dt' dest, payload->>'org' org, payload->>'cn' cn,
                  payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
                  payload->'_verify'->>'verdict' verdict
@@ -286,10 +290,11 @@ async function handleList(req, res) {
            where quote_no ilike ${like} or customer_label ilike ${like}
               or payload->>'dt' ilike ${like} or payload->>'org' ilike ${like}
               or payload->>'cn' ilike ${like} or issued_by ilike ${like}
-              or customer_tel ilike ${like}
+              or customer_tel ilike ${like} or vendor_quote_no ilike ${like}
            order by created_at desc limit ${LIST_MAX}`
       : await sql`
           select id, quote_no, quote_id, created_at, issued_by, customer_label, customer_tel, status, status_by, status_at,
+                 vendor_quote_no, vendor_no_by, vendor_no_at,
                  payload->>'dt' dest, payload->>'org' org, payload->>'cn' cn,
                  payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
                  payload->'_verify'->>'verdict' verdict
@@ -349,11 +354,44 @@ async function handleStatus(req, res) {
   }
 }
 
+/* ?action=vendor (ZC) — **공급사 견적번호를 적는다.**
+   ⚠ 발급할 때 받지 않는다. 원가 견적서는 우리 견적서보다 **뒤에 오는 일이 흔하고**,
+     발급 폼에 필수 칸을 하나 더 세우면 그 자리에서 아무 값이나 넣게 된다.
+   ⚠ **지우는 것도 같은 문(門)이다.** 빈 값을 보내면 null로 지우고 **누가 언제 지웠는지
+     남긴다** — 지운 것이 아무 데도 안 남는 자리를 또 만들지 않는다(YP).
+   ⚠ 공개 POST가 아니다. 원가 쪽 번호는 고객이 볼 것이 아니다. */
+async function handleVendorNo(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  const b = req.body || {};
+  const id = typeof b.id === 'string' ? b.id : '';
+  if (!id || !SAFE_ID_RE.test(id)) return res.status(400).json({ error: 'invalid_id' });
+  /* ⚠ 기준은 `quote_no.js` 하나다. 여기서 다시 자르지 않는다(결함 생성기 ①). */
+  const vno = QNO.normalizeVendorNo(b.vendorNo);
+  try {
+    const r = await sql`
+      update quote_shares
+         set vendor_quote_no = ${vno},
+             vendor_no_by = ${(req.user && (req.user.displayName || req.user.username)) || 'staff'},
+             vendor_no_at = now()
+       where id = ${id}
+       returning id, vendor_quote_no, vendor_no_by, vendor_no_at`;
+    if (!r.length) return res.status(404).json({ error: 'not_found' });
+    /* 🔴 **저장된 값을 그대로 돌려준다.** 화면이 자기가 보낸 값을 그리면, 서버가
+       다듬은 것(공백 정리·길이 자름)과 화면에 보이는 것이 갈린다. */
+    return res.status(200).json({ ok: true, vendorNo: r[0].vendor_quote_no,
+      by: r[0].vendor_no_by, at: r[0].vendor_no_at });
+  } catch (err) {
+    console.error('[quote-shares] 공급사 번호 저장 실패:', err);
+    return res.status(500).json({ error: 'update_failed' });
+  }
+}
+
 module.exports = async (req, res) => {
   const action = req.query && req.query.action;
   if (action === 'list' && req.method === 'GET') return handleList(req, res);
   if (action === 'links' && req.method === 'GET') return handleLinks(req, res);
   if (action === 'status' && req.method === 'POST') return handleStatus(req, res);
+  if (action === 'vendor' && req.method === 'POST') return handleVendorNo(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
   /* 패키지는 검증 대상이 아니라 위 분기보다 **먼저** 갈라낸다 — 아래로 흘려보내면

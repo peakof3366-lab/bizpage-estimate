@@ -76,6 +76,23 @@ async function main() {
   await sql`create index if not exists quote_shares_quote_idx
               on quote_shares (quote_id) where quote_id is not null`;
 
+  /* 🔴 **공급사(하나투어·랜드사) 견적번호** (ZC, 2026-09-07 대표와 합의한 ② 항목).
+     우리 견적번호(`quote_no`)는 **판매가** 쪽 이름이고, 공급사가 준 견적번호는
+     **원가** 쪽 이름이다. 지금 이 둘을 잇는 것이 아무 데도 없어서, 블랙다운(원가
+     엑셀 74건)과 우리가 낸 견적서를 **사람이 기억으로** 맞춰야 한다 —
+     즉 건별 실마진을 잴 수 없다. 그 열쇠가 이 칸이다.
+     ⚠ 유일 인덱스가 아니다. 한 공급사 견적에 우리 견적서가 여럿 붙는다(차수·인원 변경).
+     ⚠ 형식을 DB에서 조이지 않는다. 공급사마다 다르고, 조이면 진짜 번호가 막힌다 —
+       기준은 `api/_lib/quote_no.js`의 `normalizeVendorNo` 하나뿐이다.
+     ⚠ **누가 언제 적었는지 함께 남긴다.** 값만 남기면 「이 번호 누가 넣었죠」를
+       못 물어보는데, 그 물어볼 사람이 휴가라서 대장을 만든 것이다(WV와 같은 이유).
+       지우는 것도 기록된다 — 지운 것이 아무 데도 안 남는 자리를 또 만들지 않는다(YP). */
+  await sql`alter table quote_shares add column if not exists vendor_quote_no text`;
+  await sql`alter table quote_shares add column if not exists vendor_no_by text`;
+  await sql`alter table quote_shares add column if not exists vendor_no_at timestamptz`;
+  await sql`create index if not exists quote_shares_vendor_idx
+              on quote_shares (vendor_quote_no) where vendor_quote_no is not null`;
+
   /* 🔴 같은 번호가 두 건에 붙으면 대장이 무너진다. **DB가 막는다**(화면이 아니라). */
   await sql`create unique index if not exists quote_shares_no_idx
               on quote_shares (quote_no) where quote_no is not null`;

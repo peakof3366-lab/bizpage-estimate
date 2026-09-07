@@ -80,4 +80,25 @@ function normalizeTel(raw) {
   return digits.length >= 9 && digits.length <= 20 ? t : null;
 }
 
-module.exports = { QUOTE_NO_RE, formatQuoteNo, kstToday, nextQuoteNo, normalizeTel };
+/* ── 공급사 견적번호 (ZC) ───────────────────────────────────────────────────
+   하나투어·랜드사가 **원가 견적서**에 찍어 보내는 번호. 우리 번호(`Q260907-01`)와
+   짝을 이뤄 **원가와 판매가를 잇는 유일한 열쇠**다 — 지금은 블랙다운 엑셀과 우리
+   견적서를 사람이 기억으로 맞추고 있어서 건별 실마진을 잴 수 없다.
+
+   🔴 **형식을 짐작해서 조이지 않는다.** 공급사마다 다르고(`A2609-0123`·`HNT-26-0907`·
+     숫자만·한글 섞임), 실물을 다 본 적이 없다. 조이면 진짜 번호가 막히고, 막히면
+     담당자는 아예 안 적는다 — 그러면 이 칸을 만든 이유가 통째로 사라진다.
+     연락처(`normalizeTel`)·고객 이름(`pkgCustomerLabel`)에서 이미 배운 것과 같다.
+   ⚠ 그래도 **모양은 다듬는다.** 이 값의 일은 대조라서, 눈에 안 보이는 차이로
+     안 맞는 것이 제일 나쁘다: 앞뒤 공백·연속 공백을 없애고 길이만 자른다.
+   ⚠ 빈 값은 `null`이다 — 빈 문자열로 두면 「안 적었다」와 「지웠다」가 구별되지 않고,
+     `where vendor_quote_no is not null` 인덱스도 빈 문자열을 값으로 센다. */
+const VENDOR_NO_MAX = 60;
+
+function normalizeVendorNo(raw) {
+  if (typeof raw !== 'string') return null;
+  const t = raw.trim().replace(/\s+/g, ' ').slice(0, VENDOR_NO_MAX);
+  return t || null;
+}
+
+module.exports = { QUOTE_NO_RE, formatQuoteNo, kstToday, nextQuoteNo, normalizeTel, normalizeVendorNo, VENDOR_NO_MAX };

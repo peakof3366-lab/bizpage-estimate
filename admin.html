@@ -1410,10 +1410,14 @@
         <br>
         ⚠ 견적서는 <strong>지우지 않습니다.</strong> 「우리가 그 금액을 낸 적 있다」는 근거가
         사라지기 때문입니다 — 무산된 건은 상태를 <strong>「취소」</strong>로 바꿔 주세요.
+        <br>
+        견적번호 아래 <strong>「공급사」</strong> 칸에는 하나투어·랜드사가 준 <strong>원가 견적번호</strong>를
+        적어 주세요. 그 번호로도 검색되고, <strong>원가와 우리 판매가를 잇는 유일한 열쇠</strong>입니다.
+        (고객 견적서에는 나가지 않습니다.)
       </div>
 
       <div class="iti-bar">
-        <input type="search" id="ledSearch" placeholder="견적번호 · 고객/회사명 · 연락처 · 목적지 · 담당자로 검색"
+        <input type="search" id="ledSearch" placeholder="견적번호 · 공급사 번호 · 고객/회사명 · 연락처 · 목적지 · 담당자로 검색"
                style="flex:1;min-width:240px;font-size:13px" aria-label="견적서 검색">
         <button type="button" class="btn-act btn-primary" id="ledFind">찾기</button>
         <button type="button" class="btn-act btn-outline-p" id="ledReload">전체</button>
@@ -13850,7 +13854,27 @@
         /* 엔진 검증을 거친 것과 아닌 것을 구분해 보여준다 — 나중에 금액을 다툴 때 근거다 */
         const vd = { package: '패키지', assembled: '담당자 산출' }[r.verdict];
         return '<tr data-i="' + i + '">'
-          + '<td style="font-weight:700;white-space:nowrap">' + esc(r.quote_no || '—') + '</td>'
+          /* 🔴 **공급사 견적번호를 우리 번호 바로 아래 둔다** (ZC).
+             열을 새로 만들지 않은 이유가 있다 — 이 표는 이미 11열이고 `.dash-main`이
+             `overflow-x:hidden`이라, 넘치면 **스크롤이 아니라 잘린다**(오른쪽 끝의
+             상태·버튼이 조용히 사라진다). 그리고 둘은 같은 것의 양면이다:
+             위가 **우리가 판 값**의 이름, 아래가 **우리가 산 값**의 이름이다. */
+          + '<td style="white-space:nowrap">'
+          +   '<div style="font-weight:700">' + esc(r.quote_no || '—') + '</div>'
+          +   '<div style="font-size:11px;color:#666;margin-top:3px">공급사 '
+          +     '<input class="led-vno" data-i="' + i + '" value="' + esc(r.vendor_quote_no || '') + '"'
+          +       ' placeholder="번호" maxlength="60"'
+          /* ⚠ 낭독기에는 **어느 줄의 칸인지**를 준다 — 「번호」짜리 칸이 화면에 수십 개다 */
+          +       ' aria-label="' + esc((r.quote_no || '이 견적서') + ' — 하나투어·랜드사 견적번호') + '"'
+          +       ' title="원가 견적서(하나투어·랜드사)에 적힌 번호입니다. 고객 문서에는 나가지 않습니다."'
+          +       ' style="width:98px;height:26px;font-size:11.5px;padding:0 5px;border:1px solid var(--border);border-radius:4px">'
+          +   '</div>'
+          /* 누가 언제 적었나 — 적힌 건에만 보인다(늘 켜져 있으면 아무도 안 본다) */
+          +   (r.vendor_no_by
+                ? '<div style="font-size:11px;color:#888;margin-top:1px">'
+                  + esc(r.vendor_no_by) + (r.vendor_no_at ? ' · ' + esc(day(r.vendor_no_at)) : '') + '</div>'
+                : '')
+          + '</td>'
           + '<td style="white-space:nowrap">' + esc(day(r.iso) || day(r.created_at)) + '</td>'
           + '<td>' + esc(cust) + '</td>'
           /* 연락처 (WC) — 대장에만 있다. 견적서·링크에는 없다. 눌러서 바로 걸 수 있게 한다. */
@@ -13906,6 +13930,49 @@
       b.textContent = '복사됨';
       setTimeout(() => { b.textContent = '링크'; }, 1500);
     }));
+    /* 🔴 공급사(하나투어·랜드사) 견적번호 (ZC) — **원가와 판매가를 잇는 열쇠**다.
+       ⚠ 상태 드롭다운과 **같은 규칙**을 쓴다: 실패하면 되돌리고 말한다. 화면만 바뀐
+         채로 두면 담당자는 적었다고 믿는데, 이 칸은 나중에 대조할 때에야 없는 것을
+         알게 되는 자리라 그 믿음이 특히 비싸다.
+       ⚠ 성공은 **「누가 언제」 줄이 생기는 것으로** 보인다. 조용히 넘어가면 저장이
+         됐는지 안 됐는지 모른다. */
+    box.querySelectorAll('.led-vno').forEach(inp => {
+      let prev = inp.value;
+      inp.addEventListener('change', async () => {
+        const row = ledRows[Number(inp.dataset.i)];
+        if (!row) return;
+        /* 안 바뀌었으면 서버를 부르지 않는다 — 부르면 「누가 언제」가 헛되이 갱신된다 */
+        if (inp.value.trim() === String(prev || '').trim()) { inp.value = prev; return; }
+        inp.disabled = true;
+        try {
+          const r = await fetch('/api/quote-shares?action=vendor', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: row.id, vendorNo: inp.value }),
+          });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok || !d.ok) throw new Error('http_' + r.status);
+          /* 🔴 **서버가 저장한 값을 그린다** — 화면이 자기가 친 값을 그대로 두면
+             다듬어진 것(공백 정리·길이 자름)과 보이는 것이 갈린다. */
+          inp.value = d.vendorNo || '';
+          prev = inp.value;
+          row.vendor_quote_no = d.vendorNo || null;
+          row.vendor_no_by = d.by || null;
+          row.vendor_no_at = d.at || null;
+          let line = inp.parentNode.nextElementSibling;
+          if (!line) {
+            line = document.createElement('div');
+            line.style.cssText = 'font-size:11px;color:#888;margin-top:1px';
+            inp.parentNode.parentNode.appendChild(line);
+          }
+          line.textContent = (d.by || '') + (d.at ? ' · ' + day(d.at) : '');
+        } catch (err) {
+          inp.value = prev;
+          alert('공급사 견적번호를 저장하지 못했습니다 — ' + String(err.message || err));
+        } finally {
+          inp.disabled = false;
+        }
+      });
+    });
     box.querySelectorAll('.led-st').forEach(sel => sel.addEventListener('change', async () => {
       const row = ledRows[Number(sel.dataset.i)];
       const prev = row.status || 'issued';
