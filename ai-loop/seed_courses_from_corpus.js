@@ -131,7 +131,15 @@ async function main() {
     }
     if (itin.days.length > MAX_DAYS) { failed.push(r.file + ' (' + itin.days.length + '일 — 상한 ' + MAX_DAYS + ' 초과)'); continue; }
 
-    const course = recItinToCourse(itin, r.destination);
+    /* 🔴 **어느 문서에서 온 코스인지 남긴다** (ZF). 예전엔 note를 안 넘겨 기본 문구
+       (「견적서 PDF에서 읽은 일정 (N일)」)로 들어갔고, 그래서 한 목적지에 심긴 코스가
+       **제목도 출처메모도 글자까지 똑같았다** — 실측: 푸꾸옥 6개가 전부 같은 이름에
+       5개는 일수까지 같아, 담당자가 창고에서 **어느 것인지 고를 수 없었다.**
+       (내용은 서로 다르다. 나트랑 둘은 김해 BX781 · 인천 RS0527로 출발지부터 다르다.)
+     ⚠ 엑셀 쪽 도구(`seed_courses_from_bd.js`)는 처음부터 파일명을 넣고 있었다 —
+       같은 일을 하는 두 도구가 달랐던 것이다(결함 생성기 ①). 모양을 맞춘다. */
+    const course = recItinToCourse(itin, r.destination,
+      '견적서 PDF에서 읽은 일정 (' + itin.days.length + '일) · ' + r.file);
     /* UQ (2026-08-19): 일괄로 심는 코스는 **검토 전**으로 들어간다.
        이 표시가 있는 동안 그 코스는 창고에만 있고 고객에게 자동으로 안 나간다.
        ⚠ 이게 없으면 심는 순간 19곳의 고객 화면이 다듬기 전 상태로 바뀐다 —
