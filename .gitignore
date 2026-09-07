@@ -41,3 +41,7 @@ ai-loop/.selfchecks.json
 
 # 일괄 투입 리포트가 「지난번에 본 목록」을 남기는 자리 (YT) — 이 PC에만 해당하는 값이다
 ai-loop/.intake_seen.json
+
+# 블랙다운 표본 캐시 (ZA) — 거래처 단가와 인원이 그대로 들어 있다.
+# 코퍼스 캐시와 같은 이유로 저장소에 넣지 않는다.
+ai-loop/.bd_db.json

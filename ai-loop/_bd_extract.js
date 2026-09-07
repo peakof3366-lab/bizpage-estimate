@@ -83,7 +83,10 @@ const CUR_RE = /\b(USD|EUR|JPY|CNY|PHP|VND|THB|TWD|SGD|MYR|IDR|AUD|HKD|KRW)\b/;
 /* 「적용 환율」 — 문서가 **스스로 밝힌** 환율만 받는다.
    ⚠ 우리가 환율표에서 끌어와 채우지 않는다. 그러면 「우리가 고른 환율로 검산이
      닫혔다」가 되어, 검산이 아무것도 증명하지 못한다(결함 생성기 ③). */
-const FX_LABEL = /(적용\s*환율|기준\s*환율|^환\s*율$|EXCHANGE\s*RATE)/i;
+/* ⚠ 라벨이 파일마다 다르다 — 「적용 환율」「싱가폴 환율」「1$」「1 USD」.
+   그래서 **「환율」이 들어간 짧은 칸**과 「1<통화기호>」 꼴을 모두 받는다.
+   ⚠ 값이 1이면 환율이 아니다(같은 통화라는 뜻이라 검산에 아무 힘이 없다). */
+const FX_LABEL = /(환\s*율|EXCHANGE\s*RATE|^1\s*[$￦₩]$|^1\s*(USD|EUR|JPY|CNY|PHP|VND|THB|TWD|SGD|MYR|IDR)$)/i;
 function readFx(grid) {
   for (let R = 0; R < grid.length; R++) {
     for (let C = 0; C < grid[R].length; C++) {
@@ -94,14 +97,14 @@ function readFx(grid) {
       for (let k = C + 1; k < Math.min(C + 8, grid[R].length); k++) cand.push(num(grid[R][k]));
       for (let d = 1; d <= 2 && R + d < grid.length; d++)
         for (let k = C; k < Math.min(C + 8, grid[R + d].length); k++) cand.push(num(grid[R + d][k]));
-      for (const n of cand) if (n !== null && n > 0.5 && n < 30000) return n;
+      for (const n of cand) if (n !== null && n > 1.5 && n < 30000) return n;
     }
   }
   return null;
 }
 
 function readHeader(grid) {
-  const h = { pax: null, paxFoc: null, days: null, nights: null, currency: null, title: null };
+  const h = { pax: null, paxFoc: null, days: null, nights: null, groups: null, currency: null, title: null };
   const scan = Math.min(grid.length, 40);
   for (let R = 0; R < scan; R++) {
     for (let C = 0; C < grid[R].length; C++) {
@@ -133,6 +136,17 @@ function readHeader(grid) {
           }
         }
       }
+      /* 🔴 「그룹 수」 = 버스(조) 대수. 유럽 양식은 기사·가이드 관련 줄이 **조마다** 붙어
+         단가 × 수량 **× 조 수**가 된다. 이 수는 줄 밖 머리글에만 있다.
+         실측으로 확인: 바르셀로나 100명은 4, 체코 150명은 5 — 기사호텔·기사식사·
+         로컬가이드·가이드식사가 **전부** 그 배수로 맞는다(우연이 아니다). */
+      if (h.groups === null && /(^|\s)(그룹\s*수|그룹수|버스\s*대수|차량\s*대수)\s*$/.test(t)) {
+        for (let d = 0; d <= 1 && R + d < grid.length; d++)
+          for (let k = (d ? C : C + 1); k < Math.min(C + 8, grid[R + d].length); k++) {
+            const n = num(grid[R + d][k]);
+            if (n !== null && n >= 1 && n <= 30 && Number.isInteger(n)) { h.groups = n; break; }
+          }
+      }
       const nm = t.match(NIGHTS_RE);
       if (nm && h.nights === null) { h.nights = +nm[1]; h.days = +nm[2]; }
       if (!h.currency) { const cm = t.match(CUR_RE); if (cm) h.currency = cm[1].toUpperCase(); }
@@ -154,9 +168,17 @@ function rowArith(cells, extras) {
     if (Math.abs(tot) < 100) continue;          /* 100 미만을 총액이라 부르지 않는다 */
     const parts = ns.slice(0, t);
     for (let a = 0; a < parts.length; a++) {
-      for (let b = a + 1; b < parts.length; b++)
+      for (let b = a + 1; b < parts.length; b++) {
         if (close(parts[a].n * parts[b].n, tot))
           best.push({ unit: parts[a].n, qty: parts[b].n, total: tot, at: ns[t].i, via: '가로' });
+        /* 🔴 인수가 **셋**인 줄 — 「이더호텔 | 60 | 3박 | 6실 | 1,080」.
+           둘까지만 곱해 보면 셋 다 1이 아닌 줄을 통째로 놓친다. 실측: 오사카·대만
+           양식에서 놓친 돈의 대부분이 이 한 가지였다(호텔·석식처럼 큰 줄이 걸린다).
+           ⚠ 「7000 | 12명 | 3박」처럼 **단가가 맨 앞**이라 unit은 a로 고정한다. */
+        for (let c = b + 1; c < parts.length; c++)
+          if (close(parts[a].n * parts[b].n * parts[c].n, tot))
+            best.push({ unit: parts[a].n, qty: parts[b].n * parts[c].n, total: tot, at: ns[t].i, via: '가로3' });
+      }
       for (const e of extras)
         if (close(parts[a].n * e.v, tot))
           best.push({ unit: parts[a].n, qty: e.v, total: tot, at: ns[t].i, via: '가로+' + e.name });
@@ -208,7 +230,11 @@ function colArith(grid, extras) {
       else { for (const e of extras) if (close(u * e.v, tot)) { qty = e.v; break; } }
       if (qty === null) continue;
       const label = text(labelRow[C]) || text(grid[R - 1] ? grid[R - 1][0] : '') || '';
-      found.push({ r: totR, c: C, label, unit: u, qty, total: tot, via: '세로' });
+      /* 🔴 줄 이름과 **분류**는 다른 것이다. 세로 격자에서 줄 이름은 「헤난」「알로나」
+         같은 **호텔·식당 이름**이고, 「숙박」「중식」은 블록 왼쪽 칸(A열)에 한 번만 있다.
+         분류를 안 실으면 요율 칸에 못 넣는다 — 실측: 미분류가 853줄 중 510줄이었다. */
+      const group = text(grid[R][0]) || text(grid[R - 1] ? grid[R - 1][0] : '') || '';
+      found.push({ r: totR, c: C, label, group, unit: u, qty, total: tot, via: '세로' });
     }
   }
   return found;
@@ -228,30 +254,54 @@ function labelFor(cells, at) {
   return '';
 }
 
+/* 줄의 **구분** — 맨 앞 두 칸의 글자. 병합돼 비어 있으면 위로 6줄까지 거슬러 잇는다
+   (엑셀에서 「① 호텔」이 여러 줄에 걸쳐 병합되면 첫 줄에만 값이 있다). */
+/* 🔴 **분류가 아닌 것**은 건너뛴다. 이 자리에 날짜(「2일차」)와 단위(「명」「JPY」)가
+   들어오는 양식이 많은데, 그걸 분류로 받으면 그 줄은 영영 미분류가 된다
+   (실측: 미분류 305줄 중 45줄이 「2일차 ▸ JPY」 하나였다). */
+const NOT_GROUP = /^(\d{1,2}\s*일\s*차|제\s*\d{1,2}\s*일|DAY\s*\d{1,2}|명|인|대|박|회|일|식|EA|PAX|TTL|JPY|USD|EUR|VND|KRW|SGD|THB|TWD|PHP|CNY|MYR|IDR|₩|\$)$/i;
+function groupFor(grid, R) {
+  for (let d = 0; d <= 12 && R - d >= 0; d++) {
+    for (let C = 0; C < 3; C++) {
+      const t = text(grid[R - d][C]);
+      if (!t || num(grid[R - d][C]) !== null || t.length > 24) continue;
+      if (NOT_GROUP.test(t)) continue;
+      return t;
+    }
+  }
+  return '';
+}
+
 /* ── 문서가 말한 총계·1인당 ─────────────────────────────────────────────── */
 /* ⚠ 「합계」만으로는 안 된다 — 구간 소계도 「합계」라 적힌다(싱가폴 원가표는 절마다
    「합 계」가 있고 맨 아래에 `TOTAL`이 따로 있다). **총계는 가장 큰 것**을 고른다. */
 const T_TOTAL = /(총\s*견적\s*금액|총\s*합\s*계|합\s*계\s*금액|총\s*금액|총\s*계|총\s*지상비|지상비\s*합\s*계|총\s*비용|GRAND\s*TOTAL|^\s*TOTAL\s*(\(\w+\))?\s*$|TOTAL\s*COST)/i;
 const T_PP = /(인\s*당|1\s*인\s*당|인당\s*견적|인당\s*경비|금액\s*\(?\s*인당\s*\)?|PER\s*PERSON|^\s*p\s*\/\s*p)/i;
+/* 🔴 총계를 **하나로 찍지 않는다.** 라벨이 붙은 칸을 모두 후보로 모으고, 나중에
+   「우리 합과 닫히는 것」을 고른다. 하나로 찍으면 반드시 틀린 칸을 고른다 —
+   실측: 싱가폴 원가표의 `p/p (SGD)` 줄에는 USD·**KRW**·SGD가 나란히 있어서
+   가장 큰 것을 집으면 **원화 1인당**을 1인당 SGD라고 부르게 된다(비율 0.001).
+   ⚠ 그래서 라벨 오른쪽의 **첫 숫자**만 후보로 넣는다. 「가장 큰 것」은 통화가 섞인
+     줄에서 언제나 원화를 고른다. */
 function readTotals(grid) {
-  let docTotal = null, perPerson = null;
+  const totals = [], perPersons = [];
   for (let R = 0; R < grid.length; R++) {
     for (let C = 0; C < grid[R].length; C++) {
       const t = text(grid[R][C]);
       if (!t || t.length > 30) continue;
-      const pick = (re, cur) => {
-        if (!re.test(t)) return cur;
-        for (let k = C + 1; k < Math.min(C + 10, grid[R].length); k++) {
-          const n = num(grid[R][k]);
-          if (n !== null && n > 0) return cur === null ? n : Math.max(cur, n);
-        }
-        return cur;
-      };
-      docTotal = pick(T_TOTAL, docTotal);
-      perPerson = pick(T_PP, perPerson);
+      const isT = T_TOTAL.test(t), isP = T_PP.test(t);
+      if (!isT && !isP) continue;
+      /* 라벨 오른쪽에서 처음 나오는 0이 아닌 숫자들 — 통화가 갈려 여럿일 수 있어
+         앞의 두 개까지 받는다(첫 칸이 0인 양식이 있다). */
+      const got = [];
+      for (let k = C + 1; k < Math.min(C + 10, grid[R].length) && got.length < 2; k++) {
+        const n = num(grid[R][k]);
+        if (n !== null && n > 0) got.push(n);
+      }
+      for (const n of got) (isT ? totals : perPersons).push({ label: t, v: n });
     }
   }
-  return { docTotal, perPerson };
+  return { totals, perPersons };
 }
 
 /* ── 일정표인가 ─────────────────────────────────────────────────────────── */
@@ -279,12 +329,61 @@ function extractBd(abs) {
       if (header.paxFoc) extras.push({ name: '인원+무상', v: header.pax + header.paxFoc });
     }
     if (header.nights) extras.push({ name: '박수', v: header.nights });
+    if (header.groups && header.groups > 1) extras.push({ name: '그룹수', v: header.groups });
 
     const rows = [];
     for (let R = 0; R < grid.length; R++) {
       const hit = rowArith(grid[R], extras);
-      if (hit) rows.push({ r: R, c: hit.at, label: labelFor(grid[R], hit.at), unit: hit.unit, qty: hit.qty, total: hit.total, via: hit.via });
+      if (hit) rows.push({
+        r: R, c: hit.at, label: labelFor(grid[R], hit.at),
+        /* 가로 양식은 줄 맨 앞 칸이 구분이다(「① 호텔」「식 사」). 병합돼 비면 위 줄에서 잇는다. */
+        group: groupFor(grid, R),
+        unit: hit.unit, qty: hit.qty, total: hit.total, via: hit.via,
+      });
     }
+    /* ── 🔴 남는 인수를 **문서가 스스로 증명하게 한다** ─────────────────────────
+       유럽 양식은 기사·가이드 줄이 조(버스)마다 붙어 `단가 × 수량 × 조수`가 되는데,
+       그 조 수가 줄 밖에만 있다. 머리글 라벨을 쫓아가 봤지만 파일마다 이름이 달라
+       실패했다(「그룹 수」가 있는 파일과 없는 파일이 섞여 있다).
+
+       그래서 **라벨을 찾지 않는다.** 못 닫힌 줄마다 「a × b 에 얼마를 더 곱해야 총액이
+       되는가」를 구하고, **같은 정수 하나가 3줄 이상을 설명할 때만** 그 수를 받는다.
+       근거가 「우리가 머리글에서 읽었다」가 아니라 **「서로 다른 줄 셋이 같은 수를
+       가리킨다」**가 된다 — 우연히 맞는 수는 여러 줄을 동시에 설명하지 못한다.
+       ⚠ 3줄 미만이면 받지 않는다. 한 줄만 맞는 수는 언제나 있다(총액 ÷ a×b).
+       ⚠ 받은 줄에는 `via`에 「(추정 k)」를 남긴다 — 나중에 이 줄들만 따로 볼 수 있어야 한다. */
+    const resid = new Map();
+    for (let R = 0; R < grid.length; R++) {
+      if (rows.some((x) => x.r === R)) continue;
+      const ns = [];
+      grid[R].forEach((v, i) => { const n = num(v); if (n !== null && n !== 0) ns.push({ n, i }); });
+      if (ns.length < 3) continue;
+      const tot = ns[ns.length - 1];
+      if (Math.abs(tot.n) < 100) continue;
+      for (let a = 0; a < ns.length - 1; a++) for (let b = a + 1; b < ns.length - 1; b++) {
+        const base = ns[a].n * ns[b].n;
+        if (!base) continue;
+        const k = tot.n / base;
+        if (k < 2 || k > 20 || Math.abs(k - Math.round(k)) > 0.001) continue;
+        const kk = Math.round(k);
+        if (!resid.has(kk)) resid.set(kk, []);
+        resid.get(kk).push({ r: R, at: tot.i, unit: ns[a].n, qty: ns[b].n * kk, total: tot.n });
+      }
+    }
+    let bestK = null;
+    for (const [k, list] of resid) {
+      const uniq = [...new Map(list.map((x) => [x.r, x])).values()];
+      if (uniq.length >= 3 && (!bestK || uniq.length > bestK.list.length)) bestK = { k, list: uniq };
+    }
+    if (bestK) {
+      const seen = new Set(rows.map((x) => x.r));
+      for (const x of bestK.list) {
+        if (seen.has(x.r)) continue;
+        seen.add(x.r);
+        rows.push({ r: x.r, c: x.at, label: labelFor(grid[x.r], x.at), group: groupFor(grid, x.r), unit: x.unit, qty: x.qty, total: x.total, via: '가로+조수(추정 ' + bestK.k + ')' });
+      }
+    }
+
     /* 세로에서 찾은 것은 가로가 이미 잡은 자리를 덮지 않는다(같은 돈을 두 번 세지 않는다) */
     const taken = new Set(rows.map((x) => x.r + ':' + x.c));
     for (const v of colArith(grid, extras)) if (!taken.has(v.r + ':' + v.c)) { rows.push(v); taken.add(v.r + ':' + v.c); }
@@ -297,7 +396,7 @@ function extractBd(abs) {
     const totals = readTotals(grid);
     sheets.push({
       name, header, rows: items, dropped: rows.length - items.length,
-      ...totals, fx: readFx(grid), grid,
+      totals: totals.totals, perPersons: totals.perPersons, fx: readFx(grid), grid,
       dayRows: dayMarkers(grid), gridRows: grid.length,
     });
   }
@@ -310,38 +409,59 @@ function extractBd(abs) {
   let kind = 'unknown', why = null;
   if (priced.rows.length >= 3) kind = 'bd';
   else if (itin.dayRows >= 2) { kind = 'itin'; why = '일정표만 있다 (요금 줄 ' + priced.rows.length + '개)'; }
-  else if (priced.perPerson || priced.docTotal) { kind = 'summary'; why = '1인당·총액만 있고 단가표가 없다'; }
+  else if (priced.perPersons.length || priced.totals.length) { kind = 'summary'; why = '1인당·총액만 있고 단가표가 없다'; }
   else why = '요금 줄도 일정도 못 찾음';
 
+  /* 🔴 문서의 총계가 항목 줄로 섞여 들어오는 일이 있다 — 보홀 격자의 맨 아래 「합계」
+     줄이 그것이다. 그러면 같은 돈을 두 번 세어 합이 정확히 총계만큼 부푼다
+     (실측: 환율이 59여야 하는데 60.0이 나왔다 — 딱 한 배가 얹힌 값이다).
+     ⚠ 라벨로는 못 막는다. 그 줄의 이름은 위 칸에서 따오므로 「합계」가 아니다.
+       **값으로** 막는다: 총계 후보와 같은 금액인 줄은 항목이 아니다. */
+  const totalVals = priced.totals.map((x) => x.v);
+  const isTotalRow = (x) => totalVals.some((v) => close(x.total, v));
+  if (priced.rows.length >= 4) priced.rows = priced.rows.filter((x) => !isTotalRow(x));
+
   const rowSum = priced.rows.reduce((a, x) => a + x.total, 0);
-  const docTotal = priced.docTotal
-    || (priced.perPerson && priced.header.pax ? priced.perPerson * priced.header.pax : null);
+  const pax = priced.header.pax;
+  /* 총계 후보 = 라벨 붙은 총계 + (1인당 × 인원). 어느 것이 맞는지는 검산이 정한다. */
+  const cands = priced.totals.slice();
+  if (pax) for (const p of priced.perPersons) cands.push({ label: p.label + ' × 인원', v: p.v * pax });
 
   /* ── 🔴 검산: 우리가 읽은 합이 문서와 맞는가 ──────────────────────────────
      닫히는 길이 셋이고, **어느 길로 닫혔는지 이름을 남긴다.** 「닫혔다」만 남기면
      나중에 왜 닫혔는지 되짚을 수 없고, 우연히 닫힌 것과 구분되지 않는다.
      ⚠ 안 닫힌 것을 「오차」라 부르지 않는다 — 원인이 통화·다구간·조 분리로 제각각이라
        한 이름으로 묶으면 진짜 결함이 그 안에 묻힌다(WD의 「어긋남 ≠ 결함」). */
-  let closedBy = null, ratio = null;
-  if (docTotal) {
-    ratio = rowSum / docTotal;
-    if (close(rowSum, docTotal)) closedBy = '같은 통화';
-    else if (priced.fx && close(rowSum, docTotal * priced.fx)) closedBy = '문서가 밝힌 환율 ' + priced.fx;
+  let closedBy = null, docTotal = null, ratio = null;
+  const fx = priced.fx;
+  for (const c of cands) {
+    if (close(rowSum, c.v)) { closedBy = '같은 통화'; docTotal = c.v; break; }
+    /* 통화가 갈린 양식이 둘 다 있다 — 항목이 현지화·총계가 기준통화(보홀: PHP/USD),
+       그 반대(싱가폴: 항목 SGD·총계 KRW). 문서가 밝힌 환율로 양쪽을 다 본다. */
+    if (fx && close(rowSum, c.v * fx)) { closedBy = '환율 ' + fx + ' (총계가 기준통화)'; docTotal = c.v * fx; break; }
+    if (fx && close(rowSum * fx, c.v)) { closedBy = '환율 ' + fx + ' (항목이 기준통화)'; docTotal = c.v / fx; break; }
   }
   if (!closedBy) {
-    /* 문서 어딘가에 우리 합과 같은 칸이 있으면 문서가 우리 합을 인정한 것이다 */
-    outer: for (const row of priced.grid) for (const v of row) {
+    /* 문서 어딘가에 우리 합과 같은 칸이 있으면 문서가 우리 합을 인정한 것이다.
+       ⚠ 라벨을 안 보므로 **줄이 3개 이상일 때만** 받는다(작은 표에서 우연히 맞는다). */
+    if (priced.rows.length >= 3) outer: for (const row of priced.grid) for (const v of row) {
       const n = num(v);
-      if (n !== null && n > 0 && close(n, rowSum)) { closedBy = '문서에 우리 합과 같은 칸이 있다'; break outer; }
+      if (n !== null && n > 0 && close(n, rowSum)) { closedBy = '문서에 우리 합과 같은 칸이 있다'; docTotal = rowSum; break outer; }
     }
+  }
+  /* 안 닫혔으면 **가장 큰 후보**를 총계로 적고 비율을 남긴다 — 비율이 원인을 말한다.
+     ⚠ 이 값을 「문서의 총계」라고 부르지 않는다. 어느 것도 검산을 통과하지 못했다. */
+  if (!closedBy && cands.length) {
+    docTotal = cands.reduce((a, c) => Math.max(a, c.v), 0);
+    ratio = rowSum / docTotal;
   }
 
   return {
     ok: kind !== 'unknown', kind, why,
     sheetNames: wb.SheetNames,
-    sheet: priced.name, header: priced.header, fx: priced.fx,
+    sheet: priced.name, header: priced.header, fx,
     rows: priced.rows, rowSum, sumRowsDropped: priced.dropped,
-    docTotal, perPerson: priced.perPerson, statedTotal: priced.docTotal,
+    docTotal, totalCands: priced.totals, ppCands: priced.perPersons,
     dayRows: itin.dayRows, itinSheet: itin.name,
     closedBy, ratio,
     /* 🔴 커버리지 = 「우리가 읽은 돈 ÷ 문서가 말한 돈」.
