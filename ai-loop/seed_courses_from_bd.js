@@ -25,7 +25,7 @@ const { recItinToCourse } = require(path.join(ROOT, 'rec_fallbacks.js'));
 const { MAX_COURSES, MAX_DAYS } = require(path.join(ROOT, 'limits.js'));
 const { ITINERARY_DB } = require(path.join(ROOT, 'data.js'));
 const { destFromName } = require('./_dest_from_name.js');
-const { pickFresh } = require('./seed_courses_from_corpus.js');
+const { pickFresh, courseBody } = require('./seed_courses_from_corpus.js');
 const { bdFiles } = require('./_bd_files.js');
 const { itinFromFile } = require('./_bd_itin.js');
 
@@ -86,7 +86,7 @@ async function main() {
   const byDest = {};
   for (const x of read) {
     if (ONLY && x.dest.indexOf(ONLY) < 0) continue;
-    const course = recItinToCourse(x.r.itin, x.dest);
+    const course = recItinToCourse(x.r.itin, x.dest, '일정표 엑셀에서 읽은 일정 (' + x.r.dayCount + '일) · ' + x.file);
     course.pending = true;                       /* 검토 전 — 창고에만 들어간다 */
     /* 문서가 시간대를 안 나눠 준 날이 몇 개인가. 사람이 나눠야 하므로 반드시 말한다. */
     const unsplit = x.r.dayCount - x.r.splitDays;
@@ -139,6 +139,25 @@ async function main() {
     if (dropped) console.log('    ⚠ 코스 상한(' + MAX_COURSES + ')이라 ' + dropped + '건은 넣지 않았습니다: '
       + fresh.slice(room).map((x) => x.file).join(', '));
     if (already.length) console.log('    · 이미 창고에 같은 내용이 있어 건너뜀 ' + already.length + '건');
+    /* 내용이 같아 안 넣은 코스라도 **출처 메모가 틀려 있으면 고친다.** 안 고치면
+       화면이 「견적서 PDF에서 읽은 일정」이라고 계속 말한다(엑셀에서 읽었는데도).
+       ⚠ 새로 넣을 것이 **있을 때도** 고쳐야 한다 — 「없을 때만」으로 걸어 두었더니
+         오사카 4개가 옛 메모 그대로 남았다(같은 턴에 새것도 들어가고 있었기 때문). */
+    if (already.length && cur) {
+      const want = new Map(already.map((x) => [courseBody(x.course), x.course.sourceNote]));
+      const target = plan.find((x) => x.dest === d);
+      const base = target ? target.courses : cur.slice();
+      let fixed = 0;
+      const patched = base.map((c) => {
+        const w = want.get(courseBody(c));
+        if (!w || c.sourceNote === w) return c;
+        fixed++; return Object.assign({}, c, { sourceNote: w });
+      });
+      if (fixed) {
+        if (target) { target.courses = patched; target.noteOnly = fixed; }
+        else { plan.push({ dest: d, courses: patched, noteOnly: fixed }); willChange++; willSkip--; }
+      }
+    }
   }
 
   console.log('─'.repeat(84));
@@ -165,7 +184,8 @@ async function main() {
       on conflict (dest_key) do update
         set courses = excluded.courses, updated_at = now(), updated_by = excluded.updated_by
     `;
-    console.log('  ✓ ' + p.dest + ' — 코스 ' + p.courses.length + '개');
+    console.log('  ✓ ' + p.dest + ' — 코스 ' + p.courses.length + '개'
+      + (p.noteOnly ? ' (출처 메모만 ' + p.noteOnly + '개 고침)' : ''));
   }
   console.log('완료: ' + plan.length + '곳. 관리자 → 일정 관리에서 확인하세요.');
 }

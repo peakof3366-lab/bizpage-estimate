@@ -441,7 +441,11 @@ function recQuoteItinerary(src, opts) {
    ⚠ `source:'quote'` 한 칸이 **고객에게 무엇이 나가는지**를 바꾼다. 이 목적지에
      견적서 일정이 하나라도 있으면 고객은 그것만 본다(recPreferQuoteCourses).
    ═══════════════════════════════════════════════════════════════════════════ */
-function recItinToCourse(itin, destKey) {
+/* @param {string} [note] 출처 메모를 부르는 쪽이 정한다. 안 주면 지금까지와 같다.
+   ⚠ 기본 문구가 「견적서 PDF에서 읽은 일정」이라, 엑셀 일정표를 심고도 화면이
+     **PDF에서 읽었다고 말하고 있었다.** 도구가 자기 동작을 잘못 말하면 담당자가
+     원본을 엉뚱한 곳에서 찾는다. */
+function recItinToCourse(itin, destKey, note) {
   const src = (itin && itin.days) || [];
   const days = src.map(function (d, i) {
     const split = d.split === 'time' || d.split === 'meal';
@@ -469,7 +473,7 @@ function recItinToCourse(itin, destKey) {
     highlights: [],
     days: days.length ? days : [{ day: 1, title: '', am: '', pm: '', eve: '', tip: '' }],
     source: 'quote',
-    sourceNote: '견적서 PDF에서 읽은 일정 (' + src.length + '일)',
+    sourceNote: note || ('견적서 PDF에서 읽은 일정 (' + src.length + '일)'),
   };
 }
 
