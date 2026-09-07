@@ -93,6 +93,20 @@ async function main() {
   await sql`create index if not exists quote_shares_vendor_idx
               on quote_shares (vendor_quote_no) where vendor_quote_no is not null`;
 
+  /* 🔴 **차수·개정 관계** (ZE, 2026-09-07 대표와 합의한 ③ 항목).
+     같은 건으로 견적서를 다시 내는 것은 정상 업무인데(인원·조건이 바뀐다), 지금은
+     그렇게 나간 견적서가 대장에 **나란히 여러 줄**로 있을 뿐이라 이어받은 사람이
+     **어느 것이 최신인지 모른다.** 옛 금액으로 응대하면 그대로 손해다.
+     ⚠ **번호 형식은 안 건드린다.** 차수는 번호가 아니라 **관계**로 센다.
+     ⚠ **차수를 숫자로 저장하지 않는다.** 관계와 숫자 두 곳에 적으면 어긋난다 —
+       셀 때마다 `quote_no.js`의 `buildRevisionMap`이 센다(결함 생성기 ①).
+     ⚠ 외래키를 걸지 않는다. `quote_id`와 같은 이유이고, 여기서는 하나 더 있다 —
+       앞선 견적서가 지워질 리는 없지만(대장은 삭제가 없다) 관계가 끊긴 상태를
+       **「모른다」로 표시할 수 있어야** 한다. FK는 그걸 아예 못 만들게 막을 뿐이다. */
+  await sql`alter table quote_shares add column if not exists revision_of text`;
+  await sql`create index if not exists quote_shares_revision_idx
+              on quote_shares (revision_of) where revision_of is not null`;
+
   /* 🔴 같은 번호가 두 건에 붙으면 대장이 무너진다. **DB가 막는다**(화면이 아니라). */
   await sql`create unique index if not exists quote_shares_no_idx
               on quote_shares (quote_no) where quote_no is not null`;

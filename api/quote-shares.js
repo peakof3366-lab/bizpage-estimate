@@ -299,8 +299,32 @@ async function handleList(req, res) {
                  payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
                  payload->'_verify'->>'verdict' verdict
             from quote_shares order by created_at desc limit ${LIST_MAX}`;
+    /* 차수·개정 관계 (ZE) — **뼈대만 따로 읽어 센다.**
+       ⚠ 위 목록만으로는 못 센다. 상한(LIST_MAX)·검색어에 걸려 **앞선 견적서가 목록에
+         없을 수 있고**, 그러면 3차가 조용히 1차로 보인다(ZB에서 겪은 것과 같은 함정).
+       ⚠ 그렇다고 표를 통째로 읽지 않는다. 필요한 것은 **이 줄들의 위아래와 같은 문의**뿐이다.
+       ⚠ 그래도 못 찾는 앞선 건이 있으면 `buildRevisionMap`이 `revBroken`으로 표시한다 —
+         짐작한 차수를 내주지 않는다. */
+    const ids = rows.map((r) => r.id);
+    const qids = [...new Set(rows.map((r) => r.quote_id).filter(Boolean))];
+    let revs = {};
+    try {
+      const skel = await sql`
+        select id, quote_no, quote_id, revision_of, created_at
+          from quote_shares
+         where id = any(${ids}) or revision_of = any(${ids})
+            or (quote_id is not null and quote_id = any(${qids}))`;
+      revs = QNO.buildRevisionMap(skel);
+    } catch (err) {
+      /* 🔴 차수를 못 셌다고 **목록 자체를 못 주면 안 된다** — 대장의 일은 찾는 것이다.
+         대신 조용히 비우지 않는다: 화면이 「차수를 못 셌다」고 말할 수 있게 표시를 남긴다. */
+      console.error('[quote-shares] 차수 계산 실패:', err);
+      revs = null;
+    }
+    if (revs) for (const r of rows) Object.assign(r, revs[r.id] || {});
     /* ⚠ 상한에 걸렸으면 **말한다.** 조용히 자르면 「전부 봤다」로 읽힌다. */
-    return res.status(200).json({ shares: rows, capped: rows.length >= LIST_MAX, max: LIST_MAX });
+    return res.status(200).json({ shares: rows, capped: rows.length >= LIST_MAX, max: LIST_MAX,
+      revisions: revs ? true : false });
   } catch (err) {
     console.error('[quote-shares] 대장 조회 실패:', err);
     return res.status(500).json({ error: 'query_failed' });
@@ -386,12 +410,57 @@ async function handleVendorNo(req, res) {
   }
 }
 
+/* ?action=revision (ZE) — **개정 관계를 사람이 고친다.**
+   발급할 때 서버가 자동으로 잇는데(같은 문의의 두 번째 견적서), 그 판단이 틀리는
+   경우가 있다 — 한 문의에 A안·B안을 **동시에** 내는 일이 실제로 있다.
+   🔴 **자동으로 판단했으면 고칠 문을 반드시 함께 낸다.** 못 고치는 자동 판단은
+     안전장치가 아니라 방치다(결함 생성기 ②).
+   ⚠ 끊기(`revisionOf` 없음)와 잇기가 **같은 문**이다. 끊는 문만 내면 잘못 끊었을 때
+     화면에서 되돌릴 길이 없다.
+   ⚠ 고리를 막는다(A→B→A). 사람이 손으로 이으니 언젠가 생기고, 생기면 차수를 세는
+     쪽이 도는 것이 아니라 **화면이 조용히 이상해진다.** */
+async function handleRevision(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  const b = req.body || {};
+  const id = typeof b.id === 'string' ? b.id : '';
+  if (!id || !SAFE_ID_RE.test(id)) return res.status(400).json({ error: 'invalid_id' });
+  const target = typeof b.revisionOf === 'string' && b.revisionOf ? b.revisionOf : null;
+  if (target && !SAFE_ID_RE.test(target)) return res.status(400).json({ error: 'invalid_target' });
+  if (target && target === id) return res.status(400).json({ error: 'self_reference' });
+
+  try {
+    if (target) {
+      /* 있는 견적서인지 본다 — 없는 것을 가리키면 대장이 영영 「모른다」로 남는다 */
+      const t = await sql`select id from quote_shares where id = ${target} limit 1`;
+      if (!t.length) return res.status(404).json({ error: 'target_not_found' });
+      /* 고리 검사 — 대상에서 위로 걸어 올라가다 나를 만나면 안 된다 */
+      let cur = target, hops = 0;
+      while (cur && hops < 50) {
+        const up = await sql`select revision_of from quote_shares where id = ${cur} limit 1`;
+        const next = up.length ? up[0].revision_of : null;
+        if (!next) break;
+        if (next === id) return res.status(409).json({ error: 'cycle' });
+        cur = next; hops += 1;
+      }
+      if (hops >= 50) return res.status(409).json({ error: 'chain_too_long' });
+    }
+    const r = await sql`
+      update quote_shares set revision_of = ${target} where id = ${id} returning id`;
+    if (!r.length) return res.status(404).json({ error: 'not_found' });
+    return res.status(200).json({ ok: true, revisionOf: target });
+  } catch (err) {
+    console.error('[quote-shares] 개정 관계 저장 실패:', err);
+    return res.status(500).json({ error: 'update_failed' });
+  }
+}
+
 module.exports = async (req, res) => {
   const action = req.query && req.query.action;
   if (action === 'list' && req.method === 'GET') return handleList(req, res);
   if (action === 'links' && req.method === 'GET') return handleLinks(req, res);
   if (action === 'status' && req.method === 'POST') return handleStatus(req, res);
   if (action === 'vendor' && req.method === 'POST') return handleVendorNo(req, res);
+  if (action === 'revision' && req.method === 'POST') return handleRevision(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
   /* 패키지는 검증 대상이 아니라 위 분기보다 **먼저** 갈라낸다 — 아래로 흘려보내면
@@ -444,6 +513,27 @@ module.exports = async (req, res) => {
   }
 
   const id = newId();
+  /* 🔴 **같은 문의로 두 번째 견적서가 나가면 그것은 개정본이다** (ZE).
+     담당자에게 「이건 몇 차입니다」를 묻지 않는다 — 물으면 바쁠 때 안 적고, 안 적으면
+     대장에서 최신본을 못 가린다. 서버가 이미 아는 것으로 잇는다(ZB가 `quote_id`를
+     저장하기 시작한 덕분에 알 수 있게 된 것이다).
+   ⚠ 자동 판단이라 틀릴 수 있다(한 문의에 A안·B안을 동시에 내는 일이 있다).
+     그래서 대장에서 **사람이 끊고 이을 수 있게** `?action=revision`을 함께 만들었다.
+     조용한 자동 판단은 고칠 길이 있어야 방치가 아니다.
+   ⚠ 못 읽어도 **발급은 막지 않는다.** 차수는 편의고 발급은 업무다 — 여기서 503을
+     내면 관계를 못 읽었다는 이유로 견적서가 안 나간다. 대신 로그를 남긴다. */
+  const parentQid = (quote && typeof quote === 'object' && typeof quote.id === 'string') ? quote.id : null;
+  let revisionOf = null;
+  if (parentQid) {
+    try {
+      const prev = await sql`
+        select id from quote_shares
+         where quote_id = ${parentQid} order by created_at desc limit 1`;
+      revisionOf = prev.length ? prev[0].id : null;
+    } catch (err) {
+      console.error('[quote-shares] 직전 견적서 조회 실패(차수 없이 발급):', err);
+    }
+  }
   /* 견적번호 (WB) — **고객이 직접 뽑은 것도 번호를 받는다.** 그 건도 나중에 전화가 오고,
      그때 담당자가 휴가일 수 있다. 번호를 못 따면 발급하지 않는다. */
   let quoteNo;
@@ -452,7 +542,7 @@ module.exports = async (req, res) => {
 
   try {
     await sql`
-      insert into quote_shares (id, payload, quote_no, issued_by, customer_label, customer_tel, quote_id)
+      insert into quote_shares (id, payload, quote_no, issued_by, customer_label, customer_tel, quote_id, revision_of)
       values (${id}, ${JSON.stringify({
         ...share,
         /* ⚠ 화면이 넣어 준 iso가 있으면 그대로 둔다(그 화면의 발급 시각이다).
@@ -477,7 +567,10 @@ module.exports = async (req, res) => {
              ⚠ 고객이 직접 뽑은 건은 문의가 없다. 그때는 null이 정상이다(폴백을 지어내지
                않는다 — 없는 문의를 가리키는 id가 더 나쁘다).
              ⚠ payload가 아니라 **컬럼**이다. 문의 id는 견적서 문서에 찍힐 것이 아니다. */
-          (quote && typeof quote === 'object' && typeof quote.id === 'string') ? quote.id : null})
+          parentQid},
+        ${/* 🔴 **어느 견적서의 개정본인가** (ZE). 위에서 구한 값을 그대로 쓴다.
+             ⚠ 첫 견적서면 null이 정상이다 — 그때는 이 줄이 1차다. */
+          revisionOf})
       on conflict (id) do nothing
     `;
     return res.status(200).json({ ok: true, id, quoteNo, verdict: result.verdict });

@@ -101,4 +101,84 @@ function normalizeVendorNo(raw) {
   return t || null;
 }
 
-module.exports = { QUOTE_NO_RE, formatQuoteNo, kstToday, nextQuoteNo, normalizeTel, normalizeVendorNo, VENDOR_NO_MAX };
+/* ── 차수·개정 관계 (ZE) ────────────────────────────────────────────────────
+   같은 건으로 견적서를 다시 내는 것은 **정상 업무**다(인원이 바뀌고, 조건이 바뀐다).
+   그런데 지금은 그렇게 나간 견적서 셋이 대장에 **나란히 세 줄**로 있을 뿐이라,
+   이어받은 사람이 **어느 것이 최신인지 모른다.** 옛 금액으로 응대하면 그대로 손해다.
+
+   🔴 **번호 형식은 건드리지 않는다**(2026-09-07 대표와 합의). `Q260907-02`는 그날의
+     두 번째 발급이지 「2차」가 아니다 — 번호에 차수를 섞으면 이미 나간 것과 앞으로가
+     갈린다. 차수는 **번호가 아니라 관계**(`revision_of`)로 센다.
+
+   ⚠ **차수를 숫자 컬럼으로 저장하지 않는다.** 관계와 숫자 두 곳에 적으면 반드시
+     어긋난다(결함 생성기 ①). 관계 하나만 저장하고 **셀 때마다 여기서 센다.**
+   ⚠ 🔴 **모르면 모른다고 말한다.** 앞선 견적서가 목록에 없으면(오래돼서 안 실렸거나
+     끊겼거나) 차수를 **짐작하지 않고** `revBroken`으로 표시한다 — 틀린 차수는
+     「최신본이 아닌데 최신처럼 보이는」 자리를 만든다(결함 생성기 ②).
+   ⚠ 고리(A→B→A)가 생겨도 멈춘다. 사람이 손으로 이을 수 있으니 언젠가 생긴다. */
+function buildRevisionMap(rows) {
+  const list = Array.isArray(rows) ? rows.filter((r) => r && r.id) : [];
+  const byId = new Map(list.map((r) => [String(r.id), r]));
+  const at = (r) => {
+    const t = r && r.created_at ? new Date(r.created_at).getTime() : NaN;
+    return Number.isFinite(t) ? t : 0;
+  };
+  const kids = new Map();
+  for (const r of list) {
+    if (!r.revision_of) continue;
+    const p = String(r.revision_of);
+    if (!kids.has(p)) kids.set(p, []);
+    kids.get(p).push(r);
+  }
+
+  const out = {};
+  for (const r of list) {
+    const id = String(r.id);
+    /* ① 위로 걸어 차수를 센다 */
+    let revNo = 1, broken = false, seen = new Set([id]), cur = r;
+    while (cur && cur.revision_of) {
+      const pid = String(cur.revision_of);
+      if (seen.has(pid) || !byId.has(pid)) { broken = true; break; }
+      seen.add(pid);
+      cur = byId.get(pid);
+      revNo += 1;
+    }
+    /* ② 아래로 걸어 이 갈래의 최신을 찾는다 (자기 자신 포함) */
+    let latest = r, stack = [r], walked = new Set([id]);
+    while (stack.length) {
+      const cu = stack.pop();
+      for (const k of kids.get(String(cu.id)) || []) {
+        const kid = String(k.id);
+        if (walked.has(kid)) continue;
+        walked.add(kid);
+        stack.push(k);
+        if (at(k) >= at(latest)) latest = k;
+      }
+    }
+    /* ③ 아직 안 이어졌다면 **이을 후보**를 찾아 둔다 — 같은 문의의 직전 견적서다.
+       ⚠ 후보를 제시만 한다. 여기서 자동으로 잇지 않는다(그 판단은 발급 시점에 한다). */
+    let prev = null;
+    if (!r.revision_of && r.quote_id) {
+      for (const o of list) {
+        if (String(o.id) === id || String(o.quote_id || '') !== String(r.quote_id)) continue;
+        if (at(o) >= at(r)) continue;
+        if (!prev || at(o) > at(prev)) prev = o;
+      }
+    }
+    const parent = r.revision_of && byId.get(String(r.revision_of));
+    out[id] = {
+      revNo: broken ? null : revNo,
+      revBroken: broken,
+      revOf: r.revision_of ? String(r.revision_of) : null,
+      revOfNo: parent ? parent.quote_no || null : null,
+      latestId: String(latest.id),
+      latestNo: latest.quote_no || null,
+      isLatest: String(latest.id) === id,
+      prevId: prev ? String(prev.id) : null,
+      prevNo: prev ? prev.quote_no || null : null,
+    };
+  }
+  return out;
+}
+
+module.exports = { QUOTE_NO_RE, formatQuoteNo, kstToday, nextQuoteNo, normalizeTel, normalizeVendorNo, VENDOR_NO_MAX, buildRevisionMap };

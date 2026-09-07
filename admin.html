@@ -1414,6 +1414,10 @@
         견적번호 아래 <strong>「공급사」</strong> 칸에는 하나투어·랜드사가 준 <strong>원가 견적번호</strong>를
         적어 주세요. 그 번호로도 검색되고, <strong>원가와 우리 판매가를 잇는 유일한 열쇠</strong>입니다.
         (고객 견적서에는 나가지 않습니다.)
+        <br>
+        같은 문의로 견적서를 다시 내면 <strong>「2차」</strong>처럼 차수가 붙습니다.
+        옛 견적서에는 <strong>🔴 최신본 번호</strong>가 뜨니, 그 줄로 응대하지 마세요.
+        차수가 잘못 붙었으면 오른쪽 <strong>「개정 아님으로」</strong>로 끊을 수 있습니다.
       </div>
 
       <div class="iti-bar">
@@ -13811,7 +13815,11 @@
       ledRows = (d && d.shares) || [];
       const cnt = document.getElementById('ledCount');
       /* ⚠ 상한에 걸린 것을 **말한다.** 조용히 자르면 「이게 전부」로 읽힌다. */
-      if (cnt) cnt.textContent = ledRows.length + '건' + (d.capped ? ' (최근 ' + d.max + '건만 표시 — 검색해 주세요)' : '');
+      /* 🔴 차수를 못 셌으면 **말한다** (ZE). 조용히 넘어가면 모든 줄이 「1차·최신」으로
+         보이는데, 그건 이 기능이 막으려던 바로 그 오해다(옛 견적서를 최신으로 안다). */
+      if (cnt) cnt.textContent = ledRows.length + '건'
+        + (d.capped ? ' (최근 ' + d.max + '건만 표시 — 검색해 주세요)' : '')
+        + (d.revisions === false ? ' · ⚠ 차수를 세지 못했습니다 (개정 표시가 빠져 있습니다)' : '');
     } catch (err) {
       /* 못 불러온 것을 「0건」으로 보여주지 않는다 — 견적서가 사라진 줄 알게 된다 */
       box.innerHTML = '<div style="padding:16px;color:#B91C1C;font-size:.85rem">'
@@ -13860,7 +13868,20 @@
              상태·버튼이 조용히 사라진다). 그리고 둘은 같은 것의 양면이다:
              위가 **우리가 판 값**의 이름, 아래가 **우리가 산 값**의 이름이다. */
           + '<td style="white-space:nowrap">'
-          +   '<div style="font-weight:700">' + esc(r.quote_no || '—') + '</div>'
+          +   '<div style="font-weight:700">' + esc(r.quote_no || '—')
+          /* 차수 (ZE) — 1차에는 안 붙인다. 늘 켜져 있는 표시는 아무도 안 본다.
+             ⚠ 못 셌으면 **못 셌다고** 말한다. 짐작한 차수는 「최신이 아닌데 최신처럼
+               보이는」 자리를 만든다(앞선 견적서가 목록 밖일 때 실제로 그렇게 된다). */
+          +   (r.revBroken ? ' <span class="pkg-st draft" title="앞선 견적서를 못 찾아 차수를 세지 못했습니다">차수 모름</span>'
+              : (r.revNo > 1 ? ' <span class="pkg-st draft">' + esc(String(r.revNo)) + '차</span>' : ''))
+          +   '</div>'
+          /* 무엇의 개정인가 — 이어져 있을 때만 */
+          +   (r.revOfNo ? '<div style="font-size:11px;color:#666">↳ ' + esc(r.revOfNo) + ' 개정</div>' : '')
+          /* 🔴 **이 줄이 이 기능의 전부다.** 이어받은 사람이 옛 견적서를 보고 옛 금액으로
+             응대하는 것을 막는다. 최신본일 때는 아무 말도 안 한다. */
+          +   (r.isLatest === false && r.latestNo
+                ? '<div style="font-size:11px;color:#B91C1C;font-weight:700">🔴 최신본 ' + esc(r.latestNo) + '</div>'
+                : '')
           +   '<div style="font-size:11px;color:#666;margin-top:3px">공급사 '
           +     '<input class="led-vno" data-i="' + i + '" value="' + esc(r.vendor_quote_no || '') + '"'
           +       ' placeholder="번호" maxlength="60"'
@@ -13904,6 +13925,19 @@
              고객이 홈페이지에서 직접 뽑은 건은 문의가 아예 없고, 그때 눌리는 버튼을
              내주면 「못 열었다」로 끝난다(YN에서 겪은 그 자리다). */
           +   (r.quote_id ? ' <button class="btn-act btn-outline-p led-req" data-i="' + i + '" title="이 견적서를 만든 고객 문의를 엽니다">문의</button>' : '')
+          /* 개정 관계를 사람이 고치는 자리 (ZE). **끊기와 잇기가 같은 버튼**이다 —
+             끊는 문만 내면 잘못 끊었을 때 화면에서 되돌릴 길이 없다.
+             ⚠ 이을 후보(같은 문의의 직전 견적서)가 있을 때만 잇기 버튼을 낸다.
+               고를 것이 없는데 버튼을 내주면 「눌렀는데 아무 일도 안 난다」가 된다. */
+          +   (r.revOf
+                ? ' <button class="btn-act btn-outline-p led-rev" data-i="' + i + '" data-to=""'
+                  + ' aria-label="' + esc((r.quote_no || '이 견적서') + '를 개정 아님으로 표시') + '"'
+                  + ' title="이 견적서는 앞 건의 개정본이 아니라고 표시합니다">개정 아님으로</button>'
+                : (r.prevId
+                  ? ' <button class="btn-act btn-outline-p led-rev" data-i="' + i + '" data-to="' + esc(r.prevId) + '"'
+                    + ' aria-label="' + esc((r.quote_no || '이 견적서') + '를 ' + (r.prevNo || '앞 건') + '의 개정으로 표시') + '"'
+                    + ' title="같은 문의의 직전 견적서와 이어 차수를 매깁니다">' + esc(r.prevNo || '앞 건') + ' 개정으로</button>'
+                  : ''))
           + '</td>'
           + '</tr>';
       }).join('') + '</tbody></table>';
@@ -13930,6 +13964,35 @@
       b.textContent = '복사됨';
       setTimeout(() => { b.textContent = '링크'; }, 1500);
     }));
+    /* 개정 관계 고치기 (ZE). ⚠ 고치고 나면 **목록을 다시 그린다** — 차수와 「최신본」
+       표시는 이 줄 하나가 아니라 **같은 갈래의 다른 줄까지** 바뀐다. 누른 줄만 고치면
+       화면 안에서 서로 다른 말을 하게 된다. */
+    box.querySelectorAll('.led-rev').forEach(b => b.addEventListener('click', async () => {
+      const row = ledRows[Number(b.dataset.i)];
+      if (!row) return;
+      const to = b.dataset.to || '';
+      b.disabled = true;
+      try {
+        const r = await fetch('/api/quote-shares?action=revision', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: row.id, revisionOf: to }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.ok) {
+          /* 왜 안 됐는지 그대로 말한다 — 「실패」로 뭉뚱그리면 다시 누르기만 한다 */
+          throw new Error({
+            cycle: '서로가 서로의 개정본이 되어 버립니다.',
+            target_not_found: '이을 견적서를 찾지 못했습니다.',
+            chain_too_long: '개정 사슬이 너무 깁니다.',
+          }[d && d.error] || ('오류 ' + r.status));
+        }
+        await renderLedger(((document.getElementById('ledSearch') || {}).value || '').trim());
+      } catch (err) {
+        b.disabled = false;
+        alert('개정 관계를 바꾸지 못했습니다 — ' + String(err.message || err));
+      }
+    }));
+
     /* 🔴 공급사(하나투어·랜드사) 견적번호 (ZC) — **원가와 판매가를 잇는 열쇠**다.
        ⚠ 상태 드롭다운과 **같은 규칙**을 쓴다: 실패하면 되돌리고 말한다. 화면만 바뀐
          채로 두면 담당자는 적었다고 믿는데, 이 칸은 나중에 대조할 때에야 없는 것을
