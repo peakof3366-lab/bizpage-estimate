@@ -1370,14 +1370,6 @@
           </div>
         </div>
 
-        <!-- ⚠ 단독 항목이다 (대표 구성). 산출에도 문서에도 속하지 않고,
-             목적지별 일정 재고를 들여다보는 자리라 혼자 선다.
-             ⚠ 메뉴 하나다(QY) — 「날짜별 일정」과 「방식 A·B」는 같은 목적지의 한 덩어리라
-               갈랐다가 되돌렸다. 이름이 두 구역을 그대로 부른다. -->
-        <button class="sidebar-item" data-tab="itineraries">
-          <span class="si-icon"><i data-lucide="calendar-range"></i></span><span class="si-label">일정·방식 비교</span>
-        </button>
-
         <!-- ══ 견적서 관리 — 낸 **문서**를 다루는 자리 ══
              ⚠ 「견적서 업데이트」가 여기 있는 이유: 실제로 나간 견적서에서 숫자·일정을
                되받아 쌓는 일이라 **문서 쪽 일**이다. 그 값이 아래 「기준 정보」의 재료가 된다. -->
@@ -1397,7 +1389,17 @@
           </div>
         </div>
 
-        <!-- ══ 기준 정보 — 산출이 **기대는 값** ══ -->
+        <!-- ══ 기준 정보 — 산출이 **기대는 값** ══
+             ⚠ **2026-09-08 「일정·방식 비교」를 여기로 넣었다** (ZQ, 대표 지시
+               「일정방식비교 탭도 일관성 있게」). ZP에서는 대표 구성 그대로 단독으로
+               뒀는데, 사이드바에서 **혼자만 묶음 없이 중간에 떠 있었다** — 꺾쇠도 없고
+               띠도 없어 「이건 왜 다르지」가 됐다.
+             ⚠ 여기가 맞는 자리인 이유: 둘 다 **산출이 기대는 기준값**이다.
+                 요율 관리      금액의 기준 (단가가 쌓인다)
+                 일정·방식 비교  내용의 기준 (일정표가 쌓인다)
+               예전 「견적서로 채우는 곳」에서도 둘은 한 묶음이었다(RM).
+             ⚠ 덤으로 한 칸짜리 묶음이 없어졌다 — 「기준 정보」에 한 칸만 있으면
+               묶음을 만든 뜻이 약하다. -->
         <div class="sb-group" data-group="base">
           <button type="button" class="sb-group-head" aria-expanded="false" aria-controls="sbg-base" aria-label="기준 정보 메뉴 — 눌러서 펼치거나 접습니다">
             <span class="sbg-name">기준 정보</span>
@@ -1407,6 +1409,11 @@
           <div class="sb-group-items" id="sbg-base">
             <button class="sidebar-item" data-tab="rates">
               <span class="si-icon"><i data-lucide="database"></i></span><span class="si-label">요율 관리</span>
+            </button>
+            <!-- 메뉴 하나다(QY) — 「날짜별 일정」과 「방식 A·B」는 같은 목적지의 한
+                 덩어리라 갈랐다가 되돌렸다. 이름이 두 구역을 그대로 부른다. -->
+            <button class="sidebar-item" data-tab="itineraries">
+              <span class="si-icon"><i data-lucide="calendar-range"></i></span><span class="si-label">일정·방식 비교</span>
             </button>
           </div>
         </div>
