@@ -7995,7 +7995,7 @@
         + '같은 견적서를 두 번 넣으면 그 값이 실측 중앙값을 끌어당깁니다.\n'
         + '다른 행사가 맞으면 그대로 진행하세요. 넣을까요?')) {
         msg.style.color = 'var(--muted)';
-        msg.textContent = '제출을 멈췄습니다 — 📋 제보 내역에서 이미 넣은 것을 확인해 보세요.';
+        msg.textContent = '제출을 멈췄습니다 — 「제보 내역·삭제」에서 이미 넣은 것을 확인해 보세요.';
         return;
       }
     }
@@ -8068,7 +8068,7 @@
       msg.textContent = skipped.length
         ? '제출되었습니다 — 다만 ' + skipped.map(labelOf).join('·')
           + '은(는) 정확한 값을 못 찾아 실측 평균에서 뺐습니다. '
-          + '「⚠ 확인 필요」 목록에서 견적서를 보고 확정하면 그때 반영됩니다.'
+          + '「확인 필요」 목록에서 견적서를 보고 확정하면 그때 반영됩니다.'
         : '제출되었습니다 — 갱신 제안에 반영됩니다.';
       PR_FIELD_IDS.forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
       PR_MANUAL_FIELDS = {};

@@ -83,5 +83,5 @@ const won = (n) => Number(Math.round(n)).toLocaleString();
               where id = ${p.row.id}`;
   }
   console.log('\n' + plan.length + '행에 표시를 붙였다. 값은 그대로 남아 있고 평균에서만 빠진다 —');
-  console.log('관리자 → 견적서 업데이트 → 「⚠ 확인 필요」 목록에서 확정하면 되살아난다.');
+  console.log('관리자 → 견적서 업데이트 → 「확인 필요」 목록에서 확정하면 되살아난다.');
 })();
