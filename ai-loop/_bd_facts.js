@@ -104,6 +104,54 @@ function currencyOf(text) {
   return { code: hits[0].code, sure: true, n: hits[0].n, others: hits.slice(1).map((h) => h.code + '×' + h.n) };
 }
 
+/* ── 시트에 붙어 있는 위젯을 걷어낸다 ─────────────────────────────────────────
+   🔴 실측(2026-09-08): 하나투어재팬 양식 3건에 **환율 변환 위젯의 HTML이 통째로**
+     셀에 들어 있다 — 한 문서에 `<option>` **370개**. 그 목록에 「홍콩 달러 HKD」
+     「대만 달러 TWD」 「체코 코루나 CZK」가 있어서, 도쿄 견적이 **홍콩·대만·체코가
+     함께 나오는 문서**가 된다. 통화 판정도 같이 흔든다(USD·EUR·CNY가 전부 나온다).
+   ⚠ 문서가 실제로 쓰는 통화는 「요금(YEN)」처럼 **표 머리**에 있다. 위젯은 남의 목록이다.
+   ⚠ 태그만 지우면 안 된다 — `<option>` 안의 **글자까지** 지워야 목록이 사라진다. */
+function stripWidgets(text) {
+  return String(text || '')
+    .replace(/<option[^>]*>[^<]*(?:<\/option>)?/gi, ' ')   /* 목록 항목은 글자까지 */
+    .replace(/<[^>]{1,200}>/g, ' ');                        /* 남은 태그 */
+}
+
+/* ── 표 안의 「박」·「일」 단위 칸에서 일수를 읽는다 ──────────────────────────
+   🔴 **일수를 못 읽어 빠지는 것이 남은 최대 손실이다**(닫힌 43건 중 22건).
+     그런데 문서는 말하고 있다 — 하나투어재팬 양식은 줄마다 단위를 칸으로 적는다:
+
+       ① 호텔 │ 신주쿠 워싱턴 │ 15500 │ 37 │ 명 │ **4** │ **박** │ 2294000
+       ⑤ 가이드 │ 쓰루 가이드  │ 20000 │  1 │ 명 │ **5** │ **일** │  100000
+
+   ⚠ **줄마다 다르다.** 호텔은 4박인데 「휴전일 UP」 줄은 1박이고, 차량은 4일인데
+     가이드는 5일이다. 그래서 **가장 큰 값**을 쓴다 — 전 일정을 덮는 줄이 그것이다.
+
+   🔴 **그리고 둘이 서로 맞을 때만 받는다: 일 = 박 + 1.** 한쪽만 보고 정하면
+     「차량 4일」을 여행 일수로 읽어 하루를 잃는다. 서로 검산되지 않으면 **비워 둔다** —
+     빈칸보다 틀린 값이 위험하다(이 저장소의 규칙). */
+function unitsFromGrid(grids) {
+  let maxN = null, maxD = null;
+  for (const grid of (grids || [])) {
+    for (const row of grid) {
+      for (let c = 0; c < row.length; c++) {
+        const t = String(row[c] === null || row[c] === undefined ? '' : row[c]).trim();
+        if (t !== '박' && t !== '일') continue;
+        /* 단위 칸 **왼쪽 두 칸**까지 본다 — 빈 칸이 하나 끼는 양식이 있다 */
+        for (let k = c - 1; k >= Math.max(0, c - 2); k--) {
+          const v = Number(String(row[k] === null || row[k] === undefined ? '' : row[k]).replace(/,/g, ''));
+          if (!Number.isInteger(v) || v < 1) continue;
+          if (t === '박' && v <= 14) maxN = Math.max(maxN === null ? 0 : maxN, v);
+          if (t === '일' && v <= 15) maxD = Math.max(maxD === null ? 0 : maxD, v);
+          break;
+        }
+      }
+    }
+  }
+  if (maxN && maxD && maxD === maxN + 1) return { nights: maxN, days: maxD };
+  return { nights: null, days: null };
+}
+
 /* ── 넷을 한 번에 ──────────────────────────────────────────────────────────
    @returns {{pax, days, nights, paxFrom, daysFrom, currency, conflict}}
    conflict가 있으면 **쓰지 않는다** — 부르는 쪽이 세어서 밝힌다. */
@@ -128,17 +176,49 @@ function bdFacts(fileName, header, text, hints) {
     conflict.push('인원: 머리글 ' + pax + ' vs 파일명 ' + fromName.pax);
   }
 
+  /* 본문의 **「N박M일」** — `dayRows`와 달리 이건 **문서가 직접 적은 값**이다.
+     머리글은 앞 40줄·40자 이내만 훑어서 표 아래쪽에 적힌 것을 놓친다(대만·방콕·오키나와).
+     ⚠ 서로 다른 값이 여럿 나오면(옵션 설명 등) **고르지 않는다.** */
+  const bodyPairs = [...new Set((String(text || '').match(/(\d{1,2})\s*박\s*(\d{1,2})\s*일/g) || []))];
+  let fromBody = { days: null, nights: null };
+  if (bodyPairs.length === 1) {
+    const m = bodyPairs[0].match(/(\d{1,2})\s*박\s*(\d{1,2})\s*일/);
+    const n = +m[1], d = +m[2];
+    if (d >= 2 && d <= 15 && n >= 1 && n <= 14) fromBody = { days: d, nights: n };
+  }
+
+  /* 표의 단위 칸(「4 박」·「5 일」). 서로 검산될 때만 값이 온다 — 위 `unitsFromGrid` 참고. */
+  const fromUnits = unitsFromGrid(hints && hints.grids);
+
   let days = h.days, nights = h.nights, daysFrom = '머리글';
-  if (days == null) {
+  if (days == null && fromName.days != null) {
     days = fromName.days; nights = fromName.nights; daysFrom = '파일명';
-  } else if (fromName.days != null && fromName.days !== days) {
+  } else if (days == null && fromBody.days != null) {
+    days = fromBody.days; nights = fromBody.nights; daysFrom = '본문N박M일';
+  } else if (days == null && fromUnits.days != null) {
+    days = fromUnits.days; nights = fromUnits.nights; daysFrom = '표의 박·일 칸';
+  } else if (days != null && fromName.days != null && fromName.days !== days) {
     conflict.push('일수: 머리글 ' + days + ' vs 파일명 ' + fromName.days);
   }
+  /* 파일명·본문으로 정한 일수가 표의 단위 칸과 다르면 **고르지 않는다.** */
+  if ((daysFrom === '파일명' || daysFrom === '본문N박M일') && fromUnits.days != null && fromUnits.days !== days)
+    conflict.push('일수: ' + daysFrom + ' ' + days + ' vs 표의 박·일 칸 ' + fromUnits.days);
+  /* 파일명과 본문이 둘 다 있는데 다르면 고르지 않는다 — 인원 쪽과 같은 규칙이다. */
+  if (daysFrom === '파일명' && fromBody.days != null && fromBody.days !== days)
+    conflict.push('일수: 파일명 ' + days + ' vs 본문 ' + fromBody.nights + '박' + fromBody.days + '일');
   /* 박수만 알면 일수는 +1이다(이건 셈이지 추정이 아니다) */
   if (days == null && nights > 0) { days = nights + 1; daysFrom += '(박수+1)'; }
   if (nights == null && days > 1) nights = days - 1;
 
-  return { pax, days, nights, paxFrom, daysFrom, currency: currencyOf(text), conflict };
+  /* ⚠ **`undefined`가 아니라 `null`로 돌려준다.** 머리글에 그 칸이 아예 없으면
+     `h.days`가 `undefined`인데, 그대로 흘리면 `JSON.stringify`가 **칸을 통째로 지운다** —
+     「값이 없다」와 「칸이 없다」가 같은 얼굴이 되어 로그에서 원인을 못 찾는다.
+     (테스트가 이걸 잡았다: `{"d":null}`이어야 할 자리가 `{}`로 찍혔다.) */
+  const orNull = (v) => (v === undefined ? null : v);
+  return {
+    pax: orNull(pax), days: orNull(days), nights: orNull(nights),
+    paxFrom, daysFrom, currency: currencyOf(text), conflict,
+  };
 }
 
-module.exports = { bdFacts, daysFromName, paxFromName, currencyOf };
+module.exports = { bdFacts, daysFromName, paxFromName, currencyOf, stripWidgets };

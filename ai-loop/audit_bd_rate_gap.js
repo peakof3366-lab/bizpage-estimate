@@ -53,7 +53,7 @@ const ROOT = path.join(__dirname, '..');
 const { bdFiles } = require('./_bd_files.js');
 const { extractBd, gridOf } = require('./_bd_extract.js');
 const { cellOf, CELL_TO_RATE, NOT_COMPARED } = require('./_bd_cells.js');
-const { bdFacts } = require('./_bd_facts.js');
+const { bdFacts, stripWidgets } = require('./_bd_facts.js');
 const { destFromName } = require('./_dest_from_name');
 const { loadOverrides, applyOverrides } = require('./_rate_overrides');
 const { golfScope } = require('./_golf_scope');
@@ -95,18 +95,20 @@ const median = (a) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 
-/* 문서 전체를 한 덩이 글로 — 목적지·통화 판정용이다. 폴더 이름은 쓰지 않는다. */
-function flatText(abs) {
+/* 문서를 한 번만 열어 **글과 격자를 함께** 돌려준다. 폴더 이름은 쓰지 않는다.
+   ⚠ 글은 목적지·통화 판정용, 격자는 「4 박」·「5 일」 단위 칸용이다(_bd_facts). */
+function readSheet(abs) {
   try {
     const wb = XLSX.read(fs.readFileSync(abs), { type: 'buffer', cellDates: true });
-    const out = [];
+    const out = [], grids = [];
     for (const name of wb.SheetNames) {
       out.push(name);
-      for (const row of gridOf(wb.Sheets[name]))
-        for (const v of row) if (v !== null && v !== undefined) out.push(String(v));
+      const g = gridOf(wb.Sheets[name]);
+      grids.push(g);
+      for (const row of g) for (const v of row) if (v !== null && v !== undefined) out.push(String(v));
     }
-    return out.join(' ');
-  } catch (e) { return ''; }
+    return { text: out.join(' '), grids };
+  } catch (e) { return { text: '', grids: [] }; }
 }
 
 (async () => {
@@ -125,25 +127,68 @@ function flatText(abs) {
   const docs = [];
   let bdCount = 0;
 
+  /* ── 1차: 읽기만 한다. 목적지 판정은 아직 하지 않는다 ─────────────────────
+     🔴 **두 번 도는 이유**: 문서가 스스로 목적지를 말한 것들에서 먼저
+       「하나투어 견적번호 접두사 → 권역」을 **배워야** 하기 때문이다. 그 표가 있어야
+       폴더 이름을 **검증**할 수 있다(아래 2차). 한 번에 돌면 배우기 전에 써 버린다. */
+  const raw = [];
   for (const f of files) {
     let e;
     try { e = extractBd(f.abs); } catch (err) { continue; }
     if (e.kind !== 'bd') continue;
     bdCount++;
     if (!e.closedBy) { drop.안닫힘++; continue; }
+    /* 🔴 시트에 붙은 환율 위젯을 먼저 걷어낸다 — 안 걷으면 「홍콩 달러 HKD」 같은
+       **남의 통화 목록**이 목적지·통화 판정에 그대로 들어간다(도쿄 문서에 370개). */
+    const sheet = readSheet(f.abs);
+    const txt = stripWidgets(sheet.text);
+    /* 🔴 **`f.rel`이 아니라 `basename`을 넘긴다.** rel에는 폴더 이름이 들어 있어서
+       그대로 넘기면 「폴더는 근거가 아니다」라고 써 놓고 폴더로 판정하게 된다.
+       첫 판에서 실제로 그랬다 — 스스로 세운 규칙을 스스로 어긴 자리다. */
+    const base = path.basename(f.rel);
+    const dn = destFromName(base, txt);
+    const qn = f.quoteNo || (txt.match(/Q[A-Z]0{2}\d{9}/) || [])[0] || null;
+    raw.push({ f, e, txt, base, dn, grids: sheet.grids, prefix: qn ? qn.slice(0, 2) : null });
+  }
 
-    const txt = flatText(f.abs);
-    /* ② 목적지는 **문서 내용**으로. 폴더 이름은 힌트로만 들고 뒤에서 대조한다.
-       🔴 **`f.rel`이 아니라 `basename`을 넘긴다.** rel에는 폴더 이름이 들어 있어서
-         그대로 넘기면 「폴더는 근거가 아니다」라고 써 놓고 폴더로 판정하게 된다.
-         첫 판에서 실제로 그랬다 — 스스로 세운 규칙을 스스로 어긴 자리다. */
-    const dn = destFromName(path.basename(f.rel), txt);
-    if (!dn.key) { drop.목적지.push({ f: f.rel, why: dn.why, hint: f.folderHint }); continue; }
-    const dest = destinationRates.find((d) => d.destination_key === dn.key);
-    if (!dest) { drop.요율표없음.push({ f: f.rel, key: dn.key }); continue; }
+  /* ── 접두사 → 권역: **문서가 스스로 말한 건에서만** 배운다 ────────────────
+     실측(2026-09-08): QJ는 일본 9건 · QA는 동남아 16건이고 **예외가 0건**이다.
+     ⚠ 이건 도시가 아니라 **권역**이다. 「하노이 폴더인데 실은 다낭」은 못 잡는다.
+       잡는 것은 「일본 문서가 베트남 폴더에 있다」 같은 **크게 어긋난 분류**이고,
+       `_bd_files.js`가 기록한 실제 사고(같은 파일이 「대만」과 「시드니」 폴더에)가
+       바로 그 유형이다. */
+  const CLASSIFY = destinationRates.DEST_CLASSIFY || {};
+  const regionOf = (key) => (CLASSIFY[key] || {}).region || null;
+  const prefixRegions = {};
+  for (const r of raw) {
+    if (!r.dn.key || !r.prefix) continue;
+    const rg = regionOf(r.dn.key);
+    if (!rg) continue;
+    (prefixRegions[r.prefix] = prefixRegions[r.prefix] || new Set()).add(rg);
+  }
+
+  /* ── 2차: 목적지를 확정하고 나머지를 판정한다 ───────────────────────────── */
+  for (const { f, e, txt, base, dn, grids, prefix } of raw) {
+    let destKey = dn.key, destFrom = dn.from, weak = false;
+
+    /* 문서가 말하지 않았을 때만 폴더를 **후보**로 본다 — 그리고 문서 안의 견적번호로
+       권역을 대조한다. 대조가 안 되면 쓰지 않는다(폴더는 답이 아니라 후보다).
+       ⚠ 폴더 이름도 **같은 별칭표로** 정규화한다(「북해도」→「삿포로」). 여기서 따로
+         이름을 맞추면 별칭표가 두 벌이 된다(결함 생성기 ①). */
+    if (!destKey && f.folderHint) {
+      const folderKey = (destFromName(f.folderHint) || {}).key;
+      const want = folderKey ? regionOf(folderKey) : null;
+      const seen = prefix ? prefixRegions[prefix] : null;
+      if (want && seen && seen.size === 1 && seen.has(want)) {
+        destKey = folderKey; destFrom = '폴더(번호권역 대조)'; weak = true;
+      }
+    }
+    if (!destKey) { drop.목적지.push({ f: f.rel, why: dn.why, hint: f.folderHint, prefix }); continue; }
+    const dest = destinationRates.find((d) => d.destination_key === destKey);
+    if (!dest) { drop.요율표없음.push({ f: f.rel, key: destKey }); continue; }
 
     /* ③ 인원·일수·통화 */
-    const facts = bdFacts(path.basename(f.rel), e.header, txt, { dayRows: e.dayRows });
+    const facts = bdFacts(base, e.header, txt, { dayRows: e.dayRows, grids });
     if (facts.conflict.length) { drop.어긋남.push({ f: f.rel, why: facts.conflict.join(' · ') }); continue; }
     if (!(facts.pax > 0) || !(facts.days > 0)) {
       drop.인원일수.push({ f: f.rel, pax: facts.pax, days: facts.days });
@@ -163,7 +208,7 @@ function flatText(abs) {
     }
 
     docs.push({
-      file: f.rel, hint: f.folderHint, destKey: dn.key, destFrom: dn.from, dest,
+      file: f.rel, hint: f.folderHint, destKey, destFrom, dest, weak,
       pax: facts.pax, days: facts.days, nights: facts.nights,
       paxFrom: facts.paxFrom, daysFrom: facts.daysFrom, cur: facts.currency,
       cells, sum: e.rowSum, golf: golfScope(txt).isGolfTrip,
@@ -193,12 +238,21 @@ function flatText(abs) {
   }
   console.log('🔎 재는 자 검산');
   console.log('   칸 합계 = 문서 합계 : ' + (mismatch ? '🔴 ' + mismatch + '건 어긋남' : '✅ ' + docs.length + '건 전부 일치'));
+  const strict = docs.filter((d) => !d.weak);
   console.log('   목적지 판정 출처    : 문서본문 ' + docs.filter((d) => d.destFrom === 'text').length
-    + '건 · 파일명 ' + docs.filter((d) => d.destFrom === 'filename').length + '건  (폴더 이름은 안 썼다)');
+    + '건 · 파일명 ' + docs.filter((d) => d.destFrom === 'filename').length + '건'
+    + ' · 📁폴더(번호권역 대조) ' + docs.filter((d) => d.weak).length + '건');
   console.log('   인원 출처           : 머리글 ' + docs.filter((d) => d.paxFrom === '머리글').length
     + '건 · 파일명 ' + docs.filter((d) => d.paxFrom === '파일명').length + '건');
   console.log('   일수 출처           : 머리글 ' + docs.filter((d) => /^머리글/.test(d.daysFrom)).length
-    + '건 · 파일명 ' + docs.filter((d) => /^파일명/.test(d.daysFrom)).length + '건');
+    + '건 · 파일명 ' + docs.filter((d) => /^파일명/.test(d.daysFrom)).length
+    + '건 · 본문N박M일 ' + docs.filter((d) => d.daysFrom === '본문N박M일').length
+    + '건 · 표의 박·일 칸 ' + docs.filter((d) => d.daysFrom === '표의 박·일 칸').length + '건');
+  if (docs.length !== strict.length) {
+    console.log('   ⚠ 📁 = 문서가 목적지를 안 말해 **폴더 이름을 후보로 쓴 것**이다. 문서 안의');
+    console.log('     하나투어 견적번호 접두사(권역)와 대조해 통과한 것만 받았다. 아래 합산은');
+    console.log('     **문서 근거만**과 **폴더 포함**을 나란히 낸다 — 결론이 폴더에 기대고 있는지 보라.');
+  }
   console.log('');
   dropLines();
 
@@ -269,11 +323,12 @@ function flatText(abs) {
     }
     if (!(realSum > 0) || !(engSum > 0)) continue;
     mix[d.destKey] = mix[d.destKey] || { files: [], cells: {} };
-    mix[d.destKey].files.push({ file: d.file, golf: d.golf });
+    mix[d.destKey].files.push({ file: d.file, golf: d.golf, weak: d.weak });
     for (const cell of present) {
       mix[d.destKey].cells[cell] = mix[d.destKey].cells[cell] || [];
       mix[d.destKey].cells[cell].push({
-        real: d.cells[cell] / realSum, eng: engAmt[cell] / engSum, file: d.file, golf: d.golf,
+        real: d.cells[cell] / realSum, eng: engAmt[cell] / engSum,
+        file: d.file, golf: d.golf, weak: d.weak,
       });
     }
   }
@@ -289,8 +344,9 @@ function flatText(abs) {
     if (ONLY && destKey !== ONLY) continue;
     const o = mix[destKey];
     const golfN = o.files.filter((x) => x.golf).length;
+    const weakN = o.files.filter((x) => x.weak).length;
     console.log('\n▪ ' + destKey + '  (블랙다운 ' + o.files.length + '건'
-      + (golfN ? ' · ⛳' + golfN : '') + ')');
+      + (golfN ? ' · ⛳' + golfN : '') + (weakN ? ' · 📁' + weakN : '') + ')');
     console.log('     ' + wpad('칸', 7) + '원가비중   엔진비중      차이   표본');
     for (const cell of CELL_ORDER) {
       const list = o.cells[cell] || [];
@@ -324,15 +380,43 @@ function flatText(abs) {
       + (x.golfN ? '  ⛳' + x.golfN : ''));
   });
 
-  /* 전 목적지 합산 — 계통 편향이 있는지 */
+  /* ── 🔴 합산을 내기 전에 **표본이 어느 쪽으로 쏠렸는지** 먼저 말한다 ──────────
+     실측(2026-09-08): 표본이 10 → 13 → 16으로 늘 때 호텔이 **−12.6pp → −4.8pp →
+     +2.8pp**로 **부호까지 뒤집혔다.** 원인은 잡음이 아니라 **구성**이다 — 새로 읽힌
+     4건이 전부 일본(하나투어재팬) 문서였고, 일본 원가는 호텔 비중이 높다(도쿄 58.5%).
+     즉 이 합산은 「엔진의 계통 편향」이 아니라 **「어느 나라 문서가 읽혔나」**를 재고 있다.
+     → 쏠림을 숨기면 다음에 읽는 사람이 이 표를 그대로 믿는다. 그래서 먼저 찍는다. */
+  const byRegion = {};
+  for (const d of docs) {
+    const rg = regionOf(d.destKey) || '(분류 없음)';
+    byRegion[rg] = (byRegion[rg] || 0) + 1;
+  }
+  const regionRank = Object.entries(byRegion).sort((a, b) => b[1] - a[1]);
+  console.log('\n🧭 표본 구성 — ' + regionRank.map(([k, v]) => k + ' ' + v).join(' · '));
+  const topShare = regionRank.length ? regionRank[0][1] / docs.length : 0;
+  if (topShare >= 0.4) {
+    console.log('   🔴 **「' + regionRank[0][0] + '」가 표본의 ' + Math.round(topShare * 100)
+      + '%다 — 아래 합산은 계통 편향이 아니라 이 쏠림을 재고 있을 수 있다.**');
+    console.log('      실측: 표본이 10→13→16으로 늘 때 호텔이 -12.6pp → -4.8pp → +2.8pp로 **부호까지 뒤집혔다.**');
+    console.log('      권역별로 원가 구성이 다르기 때문이다(일본은 호텔이 두껍다). **목적지별 표를 보라.**');
+  }
+
+  /* 전 목적지 합산 — 계통 편향이 있는지.
+     🔴 **문서 근거만**과 **폴더 포함**을 나란히 낸다. 둘이 같은 말을 하면 결론이
+       폴더에 기대고 있지 않다는 뜻이고, 갈라지면 그 자체가 발견이다. */
   console.log('\n── 전 표본 합산 (목적지 무관) — 계통 편향이 있는가');
+  console.log('   ' + wpad('칸', 7) + '      문서 근거만            │      📁폴더 포함');
   for (const cell of CELL_ORDER) {
     const all = allDests.flatMap((k) => mix[k].cells[cell] || []);
     if (!all.length) continue;
-    const r = median(all.map((x) => x.real));
-    const g = median(all.map((x) => x.eng));
-    console.log('   ' + wpad(cell, 7) + '원가 ' + pct(r) + '%   엔진 ' + pct(g) + '%   '
-      + ((r - g) >= 0 ? '+' : '') + ((r - g) * 100).toFixed(1).padStart(5) + 'pp   (' + all.length + '건)');
+    const line = (list) => {
+      if (!list.length) return wpad('—', 30);
+      const r = median(list.map((x) => x.real));
+      const g = median(list.map((x) => x.eng));
+      return '원가 ' + pct(r) + '%  엔진 ' + pct(g) + '%  '
+        + ((r - g) >= 0 ? '+' : '') + ((r - g) * 100).toFixed(1).padStart(5) + 'pp (' + String(list.length).padStart(2) + '건)';
+    };
+    console.log('   ' + wpad(cell, 7) + line(all.filter((x) => !x.weak)) + ' │ ' + line(all));
   }
 
   /* ═══ ② 절대 단가 — 원화 문서만 ═════════════════════════════════════════ */

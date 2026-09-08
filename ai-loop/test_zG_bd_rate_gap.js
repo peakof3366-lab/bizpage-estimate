@@ -26,7 +26,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const AI = __dirname;
 const { destFromName } = require(path.join(AI, '_dest_from_name.js'));
-const { bdFacts, daysFromName, paxFromName, currencyOf } = require(path.join(AI, '_bd_facts.js'));
+const { bdFacts, daysFromName, paxFromName, currencyOf, stripWidgets } = require(path.join(AI, '_bd_facts.js'));
 const { cellOf, CELL_TO_RATE, NOT_COMPARED } = require(path.join(AI, '_bd_cells.js'));
 const { vehicleCapacity, roomsDouble } = require(path.join(AI, '_engine_consts.js'));
 
@@ -111,6 +111,66 @@ console.log('\n[5] 통화 — 문서가 밝힌 것만 믿는다');
   ok('⑤ 발신처 「유로존」을 유로로 안 읽는다', currencyOf('발신 김소미 드림 / 유로존 DATE').code !== 'EUR');
   ok('⑤ 숫자가 붙은 「5-10유로」는 유로로 읽는다',
     currencyOf('그룹이 인디비식으로 진행시 추가요금 발생되며 (1인 5-10유로 정도)').code === 'EUR');
+}
+
+console.log('\n[5b] 🔴 두 번째 훑기에서 나온 미끼 셋 (닫힌 32건 전수)');
+{
+  /* 「단**체코**드」 — 하나투어재팬 양식의 머리글 고정 항목. 일본 문서가 전부 동유럽으로 샜다. */
+  const r1 = destFromName('도쿄 세부내역서.xlsx', '공급사 하나투어재팬 견적번호 QJ00706096001 단체코드 특이사항 도쿄');
+  ok('⑨ 「단체코드」가 체코→동유럽으로 안 간다', r1.key === '도쿄', JSON.stringify(r1));
+  /* 「아**로마** 맛사지」 — 하노이 문서 2건이 「하노이, 로마 여러 곳」이 됐다 */
+  const r2 = destFromName('비코 블랙다운.xlsx', '하노이 시티투어 200000 42 1 아로마 맛사지 90분(팁포함)');
+  ok('⑨ 「아로마 맛사지」가 로마로 안 간다', r2.key === '하노이', JSON.stringify(r2));
+  /* 통화 이름 — 시트에 환율 위젯이 통째로 붙어 있다 */
+  const r3 = destFromName('도쿄 견적.xlsx', '도쿄 홍콩 달러 HKD 대만 달러 TWD 체코 코루나 CZK 싱가포르 달러 SGD');
+  ok('⑨ 「홍콩 달러」가 홍콩으로 안 간다', r3.key === '도쿄', JSON.stringify(r3));
+  /* 🔴 다만 **진짜 홍콩 문서**는 그대로 잡혀야 한다 — 미끼를 지우다 본체를 지우면 안 된다 */
+  ok('⑨ 진짜 홍콩 문서는 잡는다', destFromName('경기신용보증재단(홍콩) 견적.xlsx').key === '홍콩');
+}
+
+console.log('\n[5c] 시트에 붙은 환율 위젯을 걷어낸다');
+{
+  const raw = 'A <option value="51.12" label="1"> 체코 코루나 CZK</option> <option>홍콩 달러 HKD</option> B';
+  const s = stripWidgets(raw);
+  ok('⑩ option 안의 글자까지 지운다', !s.includes('체코') && !s.includes('홍콩'), s);
+  ok('⑩ 나머지 글은 남는다', s.includes('A') && s.includes('B'), s);
+  ok('⑩ 태그가 없으면 그대로', stripWidgets('요금(YEN) 37 명 4 박') === '요금(YEN) 37 명 4 박');
+}
+
+console.log('\n[5d] 표의 「박」·「일」 칸 — **서로 검산될 때만** 받는다');
+{
+  /* 실측: 도쿄 세부내역서. 호텔 4박 · 가이드 5일 · 차량 4일 → 4박5일 */
+  const g = [[
+    ['① 호텔', '신주쿠 워싱턴', 15500, 37, '명', 4, '박', 2294000],
+    ['', '기사 숙박', 11000, 1, '명', 4, '박', 44000],
+    ['④ 차량비', '대형버스', 125000, 1, '대', 4, '일', 500000],
+    ['⑤ 가이드', '쓰루 가이드', 20000, 1, '명', 5, '일', 100000],
+  ]];
+  const f = bdFacts('도쿄 세부내역서.xlsx', { pax: 37 }, '', { grids: g });
+  ok('⑪ 4박 + 5일 → 4박5일', f.days === 5 && f.nights === 4, JSON.stringify({ d: f.days, n: f.nights }));
+  ok('⑪ 출처를 밝힌다', f.daysFrom === '표의 박·일 칸', f.daysFrom);
+
+  /* 🔴 서로 안 맞으면 안 받는다 — 「차량 4일」만 보고 4일이라 하면 하루를 잃는다 */
+  const g2 = [[['① 호텔', 'X', 100, 1, '명', 4, '박', 400], ['④ 차량', 'Y', 100, 1, '대', 4, '일', 400]]];
+  const f2 = bdFacts('이름없음.xlsx', { pax: 30 }, '', { grids: g2 });
+  ok('⑪ 4박 + 4일(안 맞음) → 안 받는다', f2.days === null, JSON.stringify({ d: f2.days }));
+
+  /* 박만 있으면 안 받는다(검산할 짝이 없다) */
+  const g3 = [[['① 호텔', 'X', 100, 1, '명', 3, '박', 300]]];
+  ok('⑪ 「박」만 있으면 안 받는다', bdFacts('이름없음.xlsx', { pax: 30 }, '', { grids: g3 }).days === null);
+
+  /* 파일명이 있으면 파일명이 먼저고, 표와 다르면 고르지 않는다 */
+  const f4 = bdFacts('도쿄 3일 (5명).xlsx', { pax: 5 }, '', { grids: g });
+  ok('⑪ 파일명 3일 vs 표 5일 → conflict', f4.conflict.length > 0, JSON.stringify(f4.conflict));
+}
+
+console.log('\n[5e] 본문의 「N박M일」 — 머리글이 못 읽은 것을 줍는다');
+{
+  const f = bdFacts('QA00705913001 - 260810.xlsx', { pax: 40 }, '기준 3박4일 상품 안내');
+  ok('⑫ 본문 「3박4일」 → 4일', f.days === 4 && f.daysFrom === '본문N박M일', JSON.stringify(f));
+  /* 서로 다른 값이 여럿이면 고르지 않는다 */
+  const f2 = bdFacts('이름없음.xlsx', { pax: 40 }, '3박4일 기준 · 연장 시 4박5일');
+  ok('⑫ 값이 둘이면 안 고른다', f2.days === null, JSON.stringify({ d: f2.days }));
 }
 
 console.log('\n[6] 분모는 **엔진이 쓰는 수**여야 한다');
