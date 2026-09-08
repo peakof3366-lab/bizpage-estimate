@@ -210,6 +210,27 @@ console.log('\n[7] 칸 분류표는 한 곳에만 있다 (결함 생성기 ①)'
   ok('⑦ 모르는 것은 미분류로 센다', cellOf('헤난', '') === '미분류');
 }
 
+console.log('\n[7b] 🔴 ⚖ 「거의 다 읽음」은 **위아래 양쪽 문**이 있어야 한다');
+{
+  /* 오늘 실제로 당했다: 「0.95 이상」만 걸었더니 coverage 173%·192%·8088%가 들어왔다.
+     coverage는 「우리 합 ÷ 문서 총계」라 1을 넘을 수 있고, 넘는다는 것은 같은 돈을
+     두 번 셌거나 통화가 섞였다는 뜻이다 — 「거의 다 읽음」이 아니라 **다른 병**이다.
+     ⚠ 상수만 있는지 보지 않는다. **실제로 두 문을 다 통과시키는지**를 본다
+       (결함 생성기 ③ — 안전망이 있는데 실행되지 않는 자리). */
+  const src = fs.readFileSync(path.join(AI, 'audit_bd_rate_gap.js'), 'utf8');
+  ok('⑬ 아래 문이 있다', /coverage\s*>=\s*MIX_MIN_COVERAGE/.test(src));
+  ok('⑬ 위 문이 있다', /coverage\s*<=\s*MIX_MAX_COVERAGE/.test(src), '⚠ 없으면 173%·8088% 문서가 들어온다');
+  ok('⑬ 둘을 **같은 조건**에서 본다(하나만 통과해도 받으면 안 된다)',
+    /coverage\s*>=\s*MIX_MIN_COVERAGE\s*&&\s*e\.coverage\s*<=\s*MIX_MAX_COVERAGE/.test(src));
+  /* 문턱 값은 `build_bd_db.js`의 「거의 맞다」 구간과 같아야 한다 — 두 자가 다르면
+     같은 문서가 한쪽에서만 표본에 든다(결함 생성기 ①). */
+  ok('⑬ 위 문 값이 build_bd_db의 「조금 넘는다」 경계와 같다',
+    /MIX_MAX_COVERAGE\s*=\s*1\.005/.test(src)
+    && /ratio\s*>\s*1\.005/.test(fs.readFileSync(path.join(AI, 'build_bd_db.js'), 'utf8')));
+  /* ② 절대 단가는 여전히 닫힌 문서만 받는다 — 축마다 요구하는 완결성이 다르다 */
+  ok('⑬ 절대 단가 축은 ⚖를 받지 않는다', /if \(d\.partial\) return false;/.test(src));
+}
+
 console.log('\n[8] 대조하지 않는 칸은 **이유와 함께** 남는다');
 {
   ok('⑧ 항공·부대·미분류가 대조 대상이 아니다',

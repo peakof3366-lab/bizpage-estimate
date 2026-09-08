@@ -73,6 +73,27 @@ const KRW_FLOOR = 100000;
 /* 구성비를 말할 수 있는 최소 칸 수. 호텔 하나만 읽힌 문서의 「호텔 100%」는
    구성비가 아니라 **덜 읽은 것**이다. */
 const MIN_CELLS = 3;
+/* ── ⚖ 구성비 축에만 허용하는 「거의 다 읽음」 ─────────────────────────────
+   `closedBy`(총계와 정확히 일치)는 **요율 검산**의 관문이다. 그런데 구성비는
+   **비율**이라 요구하는 것이 다르다 — 읽은 돈을 5칸으로 나눈 몫이고, 못 읽은 나머지는
+   부대·미분류와 **같은 취급**(분모에서 빠진다)을 받는다.
+   실측: 안 닫힌 31건 중 **4건이 0.958~0.985**다(대만·발리·체코·코타키나발루).
+   이 넷을 통째로 버리면 표본이 줄 뿐 아니라 **일본 쏠림이 더 심해진다** — 안 닫힌
+   31건은 일본계가 4건(13%)뿐이라 정확히 반대 방향이다.
+   ⚠ **자를 깎는 것이 아니다.** 축마다 필요한 완결성이 다른 것이고, 받은 문서는
+     ⚖로 표시해 **엄격 집계와 나란히** 보여준다. 결론이 여기 기대면 그 자리에서 보인다.
+   ⚠ ② 절대 단가는 **여전히 `closedBy`만** 받는다. 거기서는 못 읽은 2~4%가
+     그대로 단가를 흔든다.
+
+   🔴 **위쪽 문도 반드시 닫는다 — 안 닫아서 한 번 당했다.** 처음에 「0.95 이상」만
+     걸었더니 **173% · 192% · 8088%**가 들어왔다. `coverage`는 「우리 합 ÷ 문서 총계」라
+     1을 넘을 수 있고, 넘는다는 것은 **같은 돈을 두 번 셌거나 통화가 섞였다**는 뜻이다
+     (골프+관광 조 분리 · 항목이 현지화). 그건 「거의 다 읽음」이 아니라 **다른 병**이다.
+     ⚠ 화면이 퍼센트를 함께 찍은 덕에 눈에 걸렸다. 숫자만 셌으면 넷 다 통과했다. */
+const MIX_MIN_COVERAGE = 0.95;
+/* `build_bd_db.js`의 「거의 맞다」 구간 위끝과 같은 값이다(그 위는 「조금 넘는다」로
+   원인이 다르다). 두 자가 다른 문턱을 쓰면 같은 문서가 한쪽에서만 표본에 든다. */
+const MIX_MAX_COVERAGE = 1.005;
 
 const CELL_ORDER = ['호텔', '식사', '차량', '가이드', '관광'];
 const FIELD_LABEL = {
@@ -137,7 +158,11 @@ function readSheet(abs) {
     try { e = extractBd(f.abs); } catch (err) { continue; }
     if (e.kind !== 'bd') continue;
     bdCount++;
-    if (!e.closedBy) { drop.안닫힘++; continue; }
+    /* ⚖ 구성비 축은 「거의 다 읽음」까지 받는다(위 MIX_MIN_COVERAGE 참고). */
+    const partial = !e.closedBy;
+    if (partial && !(e.coverage >= MIX_MIN_COVERAGE && e.coverage <= MIX_MAX_COVERAGE)) {
+      drop.안닫힘++; continue;
+    }
     /* 🔴 시트에 붙은 환율 위젯을 먼저 걷어낸다 — 안 걷으면 「홍콩 달러 HKD」 같은
        **남의 통화 목록**이 목적지·통화 판정에 그대로 들어간다(도쿄 문서에 370개). */
     const sheet = readSheet(f.abs);
@@ -148,7 +173,7 @@ function readSheet(abs) {
     const base = path.basename(f.rel);
     const dn = destFromName(base, txt);
     const qn = f.quoteNo || (txt.match(/Q[A-Z]0{2}\d{9}/) || [])[0] || null;
-    raw.push({ f, e, txt, base, dn, grids: sheet.grids, prefix: qn ? qn.slice(0, 2) : null });
+    raw.push({ f, e, txt, base, dn, grids: sheet.grids, partial, prefix: qn ? qn.slice(0, 2) : null });
   }
 
   /* ── 접두사 → 권역: **문서가 스스로 말한 건에서만** 배운다 ────────────────
@@ -168,7 +193,7 @@ function readSheet(abs) {
   }
 
   /* ── 2차: 목적지를 확정하고 나머지를 판정한다 ───────────────────────────── */
-  for (const { f, e, txt, base, dn, grids, prefix } of raw) {
+  for (const { f, e, txt, base, dn, grids, partial, prefix } of raw) {
     let destKey = dn.key, destFrom = dn.from, weak = false;
 
     /* 문서가 말하지 않았을 때만 폴더를 **후보**로 본다 — 그리고 문서 안의 견적번호로
@@ -209,6 +234,7 @@ function readSheet(abs) {
 
     docs.push({
       file: f.rel, hint: f.folderHint, destKey, destFrom, dest, weak,
+      partial, coverage: e.coverage,
       pax: facts.pax, days: facts.days, nights: facts.nights,
       paxFrom: facts.paxFrom, daysFrom: facts.daysFrom, cur: facts.currency,
       cells, sum: e.rowSum, golf: golfScope(txt).isGolfTrip,
@@ -238,7 +264,13 @@ function readSheet(abs) {
   }
   console.log('🔎 재는 자 검산');
   console.log('   칸 합계 = 문서 합계 : ' + (mismatch ? '🔴 ' + mismatch + '건 어긋남' : '✅ ' + docs.length + '건 전부 일치'));
-  const strict = docs.filter((d) => !d.weak);
+  const strict = docs.filter((d) => !d.weak && !d.partial);
+  const partialN = docs.filter((d) => d.partial).length;
+  if (partialN) {
+    console.log('   검산                : 닫힘 ' + (docs.length - partialN)
+      + '건 · ⚖거의 다 읽음 ' + partialN + '건 ('
+      + docs.filter((d) => d.partial).map((d) => (d.coverage * 100).toFixed(1) + '%').join(' · ') + ')');
+  }
   console.log('   목적지 판정 출처    : 문서본문 ' + docs.filter((d) => d.destFrom === 'text').length
     + '건 · 파일명 ' + docs.filter((d) => d.destFrom === 'filename').length + '건'
     + ' · 📁폴더(번호권역 대조) ' + docs.filter((d) => d.weak).length + '건');
@@ -323,12 +355,12 @@ function readSheet(abs) {
     }
     if (!(realSum > 0) || !(engSum > 0)) continue;
     mix[d.destKey] = mix[d.destKey] || { files: [], cells: {} };
-    mix[d.destKey].files.push({ file: d.file, golf: d.golf, weak: d.weak });
+    mix[d.destKey].files.push({ file: d.file, golf: d.golf, weak: d.weak, partial: d.partial });
     for (const cell of present) {
       mix[d.destKey].cells[cell] = mix[d.destKey].cells[cell] || [];
       mix[d.destKey].cells[cell].push({
         real: d.cells[cell] / realSum, eng: engAmt[cell] / engSum,
-        file: d.file, golf: d.golf, weak: d.weak,
+        file: d.file, golf: d.golf, weak: d.weak, partial: d.partial,
       });
     }
   }
@@ -345,8 +377,10 @@ function readSheet(abs) {
     const o = mix[destKey];
     const golfN = o.files.filter((x) => x.golf).length;
     const weakN = o.files.filter((x) => x.weak).length;
+    const partN = o.files.filter((x) => x.partial).length;
     console.log('\n▪ ' + destKey + '  (블랙다운 ' + o.files.length + '건'
-      + (golfN ? ' · ⛳' + golfN : '') + (weakN ? ' · 📁' + weakN : '') + ')');
+      + (golfN ? ' · ⛳' + golfN : '') + (weakN ? ' · 📁' + weakN : '')
+      + (partN ? ' · ⚖' + partN : '') + ')');
     console.log('     ' + wpad('칸', 7) + '원가비중   엔진비중      차이   표본');
     for (const cell of CELL_ORDER) {
       const list = o.cells[cell] || [];
@@ -405,7 +439,7 @@ function readSheet(abs) {
      🔴 **문서 근거만**과 **폴더 포함**을 나란히 낸다. 둘이 같은 말을 하면 결론이
        폴더에 기대고 있지 않다는 뜻이고, 갈라지면 그 자체가 발견이다. */
   console.log('\n── 전 표본 합산 (목적지 무관) — 계통 편향이 있는가');
-  console.log('   ' + wpad('칸', 7) + '      문서 근거만            │      📁폴더 포함');
+  console.log('   ' + wpad('칸', 7) + '   엄격(닫힘·문서근거)        │   넓게(📁폴더 · ⚖거의다읽음)');
   for (const cell of CELL_ORDER) {
     const all = allDests.flatMap((k) => mix[k].cells[cell] || []);
     if (!all.length) continue;
@@ -416,11 +450,14 @@ function readSheet(abs) {
       return '원가 ' + pct(r) + '%  엔진 ' + pct(g) + '%  '
         + ((r - g) >= 0 ? '+' : '') + ((r - g) * 100).toFixed(1).padStart(5) + 'pp (' + String(list.length).padStart(2) + '건)';
     };
-    console.log('   ' + wpad(cell, 7) + line(all.filter((x) => !x.weak)) + ' │ ' + line(all));
+    console.log('   ' + wpad(cell, 7) + line(all.filter((x) => !x.weak && !x.partial)) + ' │ ' + line(all));
   }
 
   /* ═══ ② 절대 단가 — 원화 문서만 ═════════════════════════════════════════ */
   const krwDocs = docs.filter((d) => {
+    /* ⚠ 절대 단가는 **닫힌 문서만** 받는다 — 못 읽은 2~4%가 그대로 단가를 흔든다.
+       구성비(⚖)와 문턱이 다른 것은 축이 요구하는 완결성이 다르기 때문이다. */
+    if (d.partial) return false;
     if (d.cur.sure) return false;                       /* 외화 표시가 있으면 아니다 */
     return d.sum / d.pax >= KRW_FLOOR;                  /* 크기가 원화로 말이 되는가 */
   });
