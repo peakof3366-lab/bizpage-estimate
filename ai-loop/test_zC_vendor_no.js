@@ -177,16 +177,28 @@ const listReply = () => ({ ok: true, status: 200,
     /* 글자 11px 이상 · 누를 자리 24px 이상 (YA 규칙) */
     ok('⑤ 글자가 11px 이상', /font-size:11\.5px/.test(inputs[0].getAttribute('style') || ''),
       inputs[0].getAttribute('style'));
-    ok('⑤ 누를 자리가 24px보다 크다', /height:26px/.test(inputs[0].getAttribute('style') || ''));
+    /* ⚠ 정확한 픽셀이 아니라 **하한을 넘는가**로 잰다 — 한 픽셀만 다듬어도
+       깨지는 검사는 사람이 지운다(WCAG 2.5.8의 24px 하한이 지키려는 것이다). */
+    ok('⑤ 누를 자리가 24px보다 크다',
+      /height:(2[4-9]|[3-9]\d)px/.test(inputs[0].getAttribute('style') || ''),
+      inputs[0].getAttribute('style'));
     /* 누가 언제 적었는지 — 적힌 건에만 */
     const rows = [...box.querySelectorAll('tbody tr')];
-    ok('⑤ 적은 사람이 보인다', /박재규/.test(rows[1].querySelector('td').textContent),
-      rows[1].querySelector('td').textContent.trim().slice(0, 60));
-    ok('⑤ 안 적힌 줄에는 그 줄이 없다', !/·/.test(rows[0].querySelector('td').textContent));
+    /* ⚠ ZV에서 공급사 번호가 **독립 열**로 나왔다(예전에는 우리 번호 칸 안).
+       칸 위치를 세지 말고 **입력칸이 든 칸**을 찾는다 — 열 순서가 바뀌어도 안 깨진다. */
+    const vtd = (i) => rows[i].querySelector('.led-vno').closest('td');
+    ok('⑤ 적은 사람이 보인다', /박재규/.test(vtd(1).textContent),
+      vtd(1).textContent.trim().slice(0, 60));
+    ok('⑤ 안 적힌 줄에는 그 줄이 없다', !/·/.test(vtd(0).textContent));
     /* 🔴 열을 늘리지 않았다 — `.dash-main`이 overflow-x:hidden이라 넘치면 잘린다 */
     const heads = [...box.querySelectorAll('thead th')].map((e) => e.textContent.trim());
-    ok('⑤ 🔴 열 개수가 그대로다(11열)', heads.length === 11, heads.length + ': ' + JSON.stringify(heads));
-    ok('⑤ 상태·버튼 열이 살아 있다', heads.includes('상태') && heads.includes('총액'));
+    /* 🔴 지키려던 것은 **「11열」이라는 수**가 아니라 **열이 늘지 않는 것**이다 —
+       `.dash-main`이 `overflow-x:hidden`이라 넘치면 스크롤이 아니라 **잘린다**.
+       ZV에서 짝지어 묶어 **8열로 줄였다**. 줄어드는 것은 이 위험을 키우지 않는다. */
+    ok('⑤ 🔴 열이 늘지 않았다(11열 이하)', heads.length <= 11,
+      heads.length + ': ' + JSON.stringify(heads));
+    const headTxt = heads.join(' ');
+    ok('⑤ 상태·총액이 머리글에 살아 있다', /상태/.test(headTxt) && /총액/.test(headTxt), headTxt);
     /* 화면 규칙 5 — 영문·기술 용어를 화면에 내보내지 않는다.
        ⚠ **소스에서 찾으면 안 된다.** 처음에 `>[^<]*vendor_quote_no[^<]*<`로 셌더니
          `<script>` 안의 JS(`r.vendor_quote_no`)가 걸렸다 — 화면에 안 보이는 글자다.
@@ -263,8 +275,14 @@ const listReply = () => ({ ok: true, status: 200,
   console.log('\n[8] 담당자가 이 칸이 무엇인지 화면에서 안다');
   {
     const ADMIN = read('admin.html');
-    ok('⑨ 안내에 무엇을 적는 칸인지 있다', /공급사[\s\S]{0,120}원가 견적번호/.test(ADMIN));
-    ok('⑨ 고객에게 안 나간다고 말한다', /공급사[\s\S]{0,400}고객 견적서에는 나가지 않습니다/.test(ADMIN));
+    /* ⚠ ZV에서 안내를 12줄 → 3줄로 줄이며 이 설명을 **그 칸의 `title`과 머리글**로
+       옮겼다(대표 지시). 지키려던 것은 「파란 상자에 적혀 있다」가 아니라
+       **담당자가 그 칸에서 무엇을 적는지·어디로 안 나가는지 알 수 있다**이다.
+       오히려 칸 옆이 파란 상자보다 가까운 자리다. */
+    ok('⑨ 그 칸이 무엇을 적는 칸인지 말한다', /원가 견적번호/.test(ADMIN));
+    ok('⑨ 고객에게 안 나간다고 말한다', /고객 문서에는 나가지 않습니다/.test(ADMIN));
+    ok('⑨ 머리글이 우리 번호와 공급사 번호를 갈라 말한다',
+      /우리 번호[\s\S]{0,80}판 값/.test(ADMIN) && /공급사 번호[\s\S]{0,80}산 값/.test(ADMIN));
     ok('⑨ 검색 안내에도 들어 있다', /placeholder="견적번호 · 공급사 번호/.test(ADMIN));
     /* ⚠ 영문 기술용어 검사는 **[5]에서 그려 놓고** 한다 — 소스로 세면 script 안이 걸린다 */
   }

@@ -98,12 +98,19 @@ const listOk = () => () => (url) => (/action=list/.test(String(url))
     const heads = [...box.querySelectorAll('thead th')].map((e) => e.textContent.trim());
     ok('① 표가 그려졌다', box.querySelectorAll('tbody tr').length === 3,
       String(box.querySelectorAll('tbody tr').length));
-    ok('① 🔴 「총액」 열이 있다', heads.includes('총액'), JSON.stringify(heads));
-    ok('① 1인당도 그대로 있다', heads.includes('1인당'));
+    /* ⚠ ZV에서 머리글이 **두 줄**이 됐다(「총액」 위 / 「1인당」 아래) — 열을 11개에서
+       8개로 줄이면서 짝지어 묶었기 때문이다. `textContent`는 두 줄이 붙어 나온다.
+       지키려던 것은 **총액과 1인당이 둘 다 머리글에 있다**이지 열이 따로라는 게 아니다. */
+    const headTxt = heads.join(' ');
+    ok('① 🔴 「총액」이 머리글에 있다', /총액/.test(headTxt), JSON.stringify(heads));
+    ok('① 1인당도 그대로 있다', /1인당/.test(headTxt), JSON.stringify(heads));
 
     const cells = (i) => [...box.querySelectorAll('tbody tr')[i].querySelectorAll('td')].map((e) => e.textContent.trim());
-    ok('① 🔴 총액이 값으로 찍힌다', cells(0).includes('7,668,000원'), JSON.stringify(cells(0)));
-    ok('① 큰 금액도 맞다', cells(1).includes('46,973,139원'), JSON.stringify(cells(1)));
+    /* ⚠ 한 칸에 총액+1인당이 함께 들어가므로 `includes`(정확히 일치)가 아니라
+       **그 칸 안에 있는가**로 잰다. */
+    const rowTxt = (i) => cells(i).join(' | ');
+    ok('① 🔴 총액이 값으로 찍힌다', /7,668,000원/.test(rowTxt(0)), rowTxt(0));
+    ok('① 큰 금액도 맞다', /46,973,139원/.test(rowTxt(1)), rowTxt(1));
 
     /* ② 연락처 — 눌러서 걸 수 있고, 없으면 「—」 */
     const tels = [...box.querySelectorAll('a[href^="tel:"]')].map((a) => a.getAttribute('href'));
@@ -111,7 +118,7 @@ const listOk = () => () => (url) => (/action=list/.test(String(url))
     ok('② 🔴 링크에는 숫자만 남는다 (속성이 안 깨진다)',
       tels.every((h) => /^tel:[0-9+]+$/.test(h)), JSON.stringify(tels));
     ok('② 보이는 글자는 적은 모양 그대로', box.textContent.includes('02)123-4567'));
-    ok('② 연락처가 없으면 —', cells(1).includes('—'), JSON.stringify(cells(1)));
+    ok('② 연락처가 없으면 —', /—/.test(rowTxt(1)), rowTxt(1));
 
     /* 🔴 누가 언제 바꿨는가 */
     const rows = [...box.querySelectorAll('tbody tr')];

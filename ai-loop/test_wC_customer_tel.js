@@ -125,7 +125,10 @@ console.log('\n[6] 대장에서 찾고, 눌러서 걸 수 있다');
 {
   ok('⑥ 연락처로도 검색된다', /customer_tel ilike/.test(SHARES));
   ok('⑥ 목록이 연락처를 함께 읽는다', (SHARES.split('customer_label, customer_tel, status').length - 1) === 2);
-  ok('⑥ 대장 화면에 열이 있다', /<th>연락처<\/th>/.test(ADMIN));
+  /* ⚠ ZV에서 연락처를 **고객 칸 아래줄**로 옮겼다(11열 → 8열). 열이 늘수록
+     `.dash-main`의 `overflow-x:hidden` 때문에 오른쪽이 잘리기 때문이다.
+     지키려던 것은 「열이 있다」가 아니라 **연락처가 대장에서 보인다**이다. */
+  ok('⑥ 대장에 연락처 자리가 있다', /고객<div class="sub">연락처<\/div>/.test(ADMIN));
   ok('⑥ 눌러서 바로 걸 수 있다', /href="tel:/.test(ADMIN));
   /* 🔴 전화번호를 href에 넣을 때 숫자와 +만 남긴다 — 따옴표가 섞이면 속성이 깨진다 */
   ok('⑥ tel: 링크에 숫자·+만 넣는다', /replace\(\/\[\^0-9\+\]\/g, ''\)/.test(ADMIN));
