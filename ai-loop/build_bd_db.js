@@ -33,29 +33,10 @@ const ONLY_OPEN = argv.includes('--open');
 const showAt = argv.indexOf('--show');
 const SHOW = showAt >= 0 ? argv[showAt + 1] : null;
 
-/* ── 줄 이름 → 우리 9칸 ──────────────────────────────────────────────────────
-   ⚠ **모르는 것은 「미분류」로 두고 반드시 센다.** 억지로 가장 가까운 칸에 넣으면
-     그 칸의 실측 중앙값이 조용히 오염된다. 견적서 PDF 쪽에서 「돈의 12.4%가 우리 9칸
-     어디에도 안 들어간다」를 알아낸 것이 바로 미분류를 세었기 때문이다. */
-const CELL_RULES = [
-  ['항공', /항공|AIR\b|항공권|유류|TAX|택스/i],
-  ['호텔', /호텔|숙박|객실|룸|ROOM|HOTEL|온천장|리조트|엑스트라|싱글|SGL|TWN|TRP/i],
-  ['식사', /식사|중식|석식|조식|만찬|식대|MEAL|뷔페|BF|런치|디너|식비/i],
-  ['차량', /차량|버스|BUS|전용차|송영|주차|기사|COACH|밴|VAN|스프린터/i],
-  ['가이드', /가이드|GUIDE|인솔|TC\b|T\/C|쓰루|로컬가이드|현지인가이드/i],
-  ['관광', /관광|입장|투어|TOUR|체험|마사지|쇼\b|유람|승선|케이블|스파|골프|라운딩|그린피/i],
-  ['부대', /핸들링|HANDLING|팁|TIP|인두세|서비스|봉사료|보험|물|생수|현수막|기념품|챠지|CHARGE/i],
-];
-/* ⚠ **분류(구분 칸)를 줄 이름보다 먼저 본다.** 줄 이름은 「헤난」「점보크랩」처럼
-   업체 이름이라 규칙에 안 걸린다 — 분류는 블록 왼쪽 칸에 있다. */
-function cellOf(label, group) {
-  for (const src of [group, label]) {
-    const t = String(src || '');
-    if (!t) continue;
-    for (const [name, re] of CELL_RULES) if (re.test(t)) return name;
-  }
-  return '미분류';
-}
+/* 줄 이름 → 우리 9칸. ⚠ **표는 `_bd_cells.js` 하나가 진실이다**(ZG에서 떼어냈다) —
+   `audit_bd_rate_gap.js`가 같은 분류를 쓰는데, 여기 한 벌 더 두면 한쪽만 고쳐진다
+   (결함 생성기 ①). 「미분류를 반드시 센다」는 규칙도 그 파일에 함께 적혀 있다. */
+const { cellOf } = require('./_bd_cells.js');
 
 /* ── 안 닫힌 이유의 **후보** — 판정이 아니라 어디를 볼지 알려 주는 것이다 ────── */
 function openHint(r) {

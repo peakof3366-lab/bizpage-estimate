@@ -50,4 +50,21 @@ function vehicleFieldFor(pax) {
   return Number(pax) > cap.small ? 'vehicle_large' : 'vehicle_small';
 }
 
-module.exports = { vehicleCapacity, vehicleFieldFor, SCRIPT };
+/* 기본 객실 구성(2인 1실)에서 엔진이 잡는 **객실 수**.
+   엔진: `ROOM_CONFIG.double.calcRooms = (n) => Math.ceil(n / 2)`
+   ⚠ 호텔 요율은 **1실 1박** 단가라, 이 수를 틀리면 호텔 칸 전체가 배수로 어긋난다.
+     실측 전례: 실 수를 인원으로 읽어 단가가 3.7배가 된 적이 있다(YL).
+   ⚠ 식(食)을 여기 베껴 적지 않는다 — **엔진의 글자 그대로**를 확인하고, 다르면 죽는다.
+     엔진이 1인 1실이나 혼합으로 기본값을 바꾸면 이 자가 조용히 낡는 것이 더 나쁘다. */
+function roomsDouble(pax) {
+  const m = readScript().match(/double:\s*\{[^}]*calcRooms:\s*\(n\)\s*=>\s*Math\.ceil\(n\s*\/\s*2\)/);
+  if (!m) {
+    throw new Error('script.js에서 ROOM_CONFIG.double.calcRooms를 못 읽었습니다 — '
+      + '엔진의 기본 객실 구성이 바뀌었으면 ai-loop/_engine_consts.js도 함께 고치세요. '
+      + '(기본값으로 넘어가지 않습니다: 낡은 값으로 재는 것이 못 재는 것보다 나쁩니다)');
+  }
+  const n = Number(pax);
+  return n > 0 ? Math.ceil(n / 2) : null;
+}
+
+module.exports = { vehicleCapacity, vehicleFieldFor, roomsDouble, SCRIPT };
