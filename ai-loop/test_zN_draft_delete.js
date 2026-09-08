@@ -1,8 +1,19 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   ZN — **작성중인 견적을 목록에서 바로 지운다**: 실제로 눌러 본다
+   ZN·ZO — **목록 줄에서 상태에 맞는 동작 하나**: 실제로 눌러 본다
 
    2026-09-08 대표: 「작성중이던 견적서를 지울 수 있는 기능도 있어야 할 것 같다.」
    그전에는 **편집 화면을 열어야만** 지울 수 있었다.
+
+   🔴 **그리고 같은 날 규칙이 하나 더 정해졌다 (ZO).**
+     지우고 싶은 것의 대부분은 「지우기」가 아니라 **「내리기」**다. 그래서 상태마다
+     **맞는 동작 하나만** 준다:
+
+         작성중        아무 데도 안 나갔다        → 지운다 (되돌릴 수 없다)
+         확정·판매중    나갔거나 나갈 수 있다      → **내린다** (되돌릴 수 있다)
+         종료·마감      지난 기록                 → 아무것도 안 준다
+
+     확정 건에 삭제를 안 다는 것은 **견적서 대장이 지우지 않고 `void`로 내리는 것과
+     같은 규칙**이다. 지우면 「우리가 그 값을 낸 적 있다」가 사라진다.
 
    🔴 이 검사가 지키는 것은 「버튼이 있다」가 아니라 **「아무거나 지워지지 않는다」**이다:
 
@@ -37,7 +48,7 @@ const ok = (name, cond, extra = '') => {
 };
 const done = () => {
   console.log('\n' + '─'.repeat(64));
-  console.log(`결과: ${pass} pass / ${fail} fail  — ZN 작성중 견적 목록 삭제`);
+  console.log(`결과: ${pass} pass / ${fail} fail  — ZN·ZO 목록 줄의 상태별 동작`);
   process.exit(fail ? 1 : 0);
 };
 
@@ -90,6 +101,7 @@ function run() {
   }
   ok('① 목록에 3줄이 그려졌다', true);
   const has = rows.map((r) => !!r.querySelector('.pkg-del'));
+  const closeBtn = rows.map((r) => r.querySelector('.pkg-close'));
   ok('① 작성중에는 버튼이 있다', has[0] === true);
   ok('① 판매중·확정에는 없다', has[1] === false);
   ok('① 마감에는 없다', has[2] === false);
@@ -97,7 +109,23 @@ function run() {
   /* ⚠ 빈 배열에서 `every`는 **무조건 참**이다 — 줄이 0개면 이 검사가 늘 통과한다.
      줄 수를 함께 본다(늘 통과하는 검사는 아무것도 안 지킨다). */
   ok('⑤ 버튼이 없는 줄도 자리는 남긴다',
-    rows.length === 3 && rows.every((r) => !!r.querySelector('.pkg-del-slot')));
+    rows.length === 3 && rows.every((r) => !!r.querySelector('.pkg-act-slot')));
+
+  console.log('\n[1b] 🔴 확정 건에는 삭제가 아니라 **내리기**가 붙는다 (ZO)');
+  /* 대표와 합의한 규칙: 지우고 싶은 것의 대부분은 「지우기」가 아니라 「내리기」다.
+     확정 건에 삭제를 달지 않는 것은 견적서 대장이 지우지 않고 `void`로 내리는 것과
+     같은 규칙이다 — 지우면 「우리가 그 값을 낸 적 있다」가 사라진다. */
+  ok('⑧ 확정에는 삭제가 없고 내리기가 있다', has[1] === false && !!closeBtn[1]);
+  ok('⑧ 직접견적에서는 「종료」라고 부른다',
+    !!closeBtn[1] && closeBtn[1].textContent.trim() === '종료',
+    closeBtn[1] && closeBtn[1].textContent);
+  ok('⑧ 종료·마감에는 아무것도 안 준다', has[2] === false && !closeBtn[2]);
+  ok('⑧ 작성중에는 내리기가 없다 — 지우는 게 맞다', !closeBtn[0]);
+  /* 되돌릴 수 있는 동작이라 삭제와 **같은 색을 쓰지 않는다** — 둘 다 빨강이면
+     정작 되돌릴 수 없는 삭제가 안 무서워진다. */
+  ok('⑧ 내리기와 삭제가 다른 색이다',
+    /\.pkg-close:hover \{ border-color: var\(--heading\)/.test(ADMIN)
+    && /\.pkg-del:hover \{ border-color: var\(--danger\)/.test(ADMIN));
 
   console.log('\n[2] 눌러도 편집 화면이 열리면 안 된다 (줄 클릭과 겹친다)');
   {
@@ -124,6 +152,41 @@ function run() {
     ok('④ 작성중이 아니면 지우지 않는다', asked === false);
     ok('④ 왜 못 지우는지 말한다',
       typeof alerted === 'string' && alerted.includes('작성중'), String(alerted));
+  }
+
+  console.log('\n[3b] 내리기 — 상태만 바꾸고, 되돌릴 수 있다고 말한다 (ZO)');
+  {
+    let asked = null;
+    w.confirm = (m) => { asked = m; return false; };
+    const card = d.getElementById('pkgEditCard');
+    if (card) card.style.display = 'none';
+    closeBtn[1].click();
+    ok('⑨ 편집 카드가 안 열렸다', !card || card.style.display === 'none');
+    ok('⑨ 무엇을 어떤 상태로 바꾸는지 말한다',
+      typeof asked === 'string' && asked.includes('○○교회 보홀') && asked.includes('종료'), String(asked));
+    ok('⑨ 되돌릴 수 있다고 말한다', typeof asked === 'string' && /되돌릴 수 있습니다/.test(asked));
+    /* ⚠ 확인 창은 **글자 그대로** 보인다 — 마크다운 표기가 새면 별표가 그대로 뜬다.
+       실제로 한 번 새어 나갔고 브라우저로 눌러 보다 잡았다. */
+    ok('⑨ 확인 창에 마크다운 표기가 안 샌다', typeof asked === 'string' && !asked.includes('**'));
+
+    let alerted = null, asked2 = false;
+    w.alert = (m) => { alerted = m; };
+    w.confirm = () => { asked2 = true; return true; };
+    /* 목록이 낡아 그 사이 상태가 바뀐 경우 */
+    w.pkgCloseRow({ id: 'x', title: '이미 종료된 건', status: 'closed' }, true);
+    ok('⑨ 확정이 아니면 안 바꾼다', asked2 === false);
+    ok('⑨ 왜 못 바꾸는지 말한다', typeof alerted === 'string' && alerted.includes('확정'), String(alerted));
+  }
+
+  console.log('\n[3c] 저장 규칙을 두 벌로 만들지 않았다 (결함 생성기 ①)');
+  {
+    /* 상태만 바꾸는 전용 API를 새로 파면 검증·권한·기본값이 두 곳이 되고 반드시
+       어긋난다. 목록이 가진 행을 그대로 PUT으로 되돌려 보내되 status만 바꾼다.
+       ⚠ Vercel 함수 12개 한도에 이미 도달해 새 API 파일 자체가 불가능하기도 하다. */
+    ok('⑩ 기존 PUT을 그대로 쓴다',
+      /pkgCloseRow[\s\S]{0,1600}method: 'PUT'[\s\S]{0,400}status: 'closed'/.test(ADMIN));
+    ok('⑩ 권한 거절을 사람 말로 옮긴다',
+      /adhoc_requires_manager[\s\S]{0,200}매니저 이상만 바꿀 수 있습니다/.test(ADMIN));
   }
 
   console.log('\n[4] 인라인 onclick을 안 쓴다 (CLAUDE.md 결함 생성기 ④)');

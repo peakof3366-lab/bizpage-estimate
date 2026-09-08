@@ -880,7 +880,17 @@
       min-width: 44px; min-height: 30px; padding: .25rem .55rem; cursor: pointer;
     }
     .pkg-del:hover { border-color: var(--danger); color: var(--danger); }
-    .pkg-del-slot { width: 52px; display: flex; justify-content: flex-end; }
+    /* 「내리기·종료」는 **되돌릴 수 있는** 동작이다 — 삭제와 같은 빨강을 쓰지 않는다.
+       색이 같으면 둘 다 「위험한 것」으로 읽혀, 정작 되돌릴 수 없는 삭제가 안 무서워진다. */
+    .pkg-close {
+      border: 1px solid var(--border); background: var(--white); color: var(--muted);
+      font-family: inherit; font-size: .72rem; font-weight: 700;
+      min-width: 44px; min-height: 30px; padding: .25rem .55rem; cursor: pointer;
+    }
+    .pkg-close:hover { border-color: var(--heading); color: var(--heading); }
+    /* 줄 끝의 조작 자리. **상태마다 다른 버튼이 온다**(작성중=삭제 · 확정=종료).
+       그래서 이름이 `del`이 아니라 `act`다 — 이름이 하는 일을 말해야 한다. */
+    .pkg-act-slot { width: 62px; display: flex; justify-content: flex-end; }
     /* 목록 썸네일 (WE) — 30건을 훑어 고르는 일이라 이름만으로는 안 골라진다.
        ⚠ 자리를 **항상 차지한다**(사진이 없어도). 있는 줄만 넓어지면 목록이 들쭉날쭉해서
          훑는 눈이 걸린다. 깨지면 JS가 onerror로 자리만 남긴다(VZ와 같은 규칙). */
@@ -13845,10 +13855,22 @@
         + '<div style="text-align:right;font-weight:800">' + Number(p.pricePerPerson || 0).toLocaleString() + '원</div>'
         + '<div class="pkg-stale">' + (old ? '⚠ ' + age + '일 전 금액' : '') + '</div>'
         + '<div><span class="pkg-st ' + esc(p.status) + '">' + esc(stLabel) + '</span></div>'
-        /* 지우기는 **작성중에만**. 다른 상태는 빈 자리를 남겨 줄 높이를 맞춘다(ZN). */
-        + '<div class="pkg-del-slot">' + (p.status === 'draft'
+        /* ── 상태마다 **맞는 동작 하나만** 준다 (ZO) ─────────────────────────
+             작성중  아무 데도 안 나갔다            → 지운다
+             확정·판매중  나갔거나 나갈 수 있다      → **내린다**(되돌릴 수 있다)
+             종료·마감  지난 기록                   → 아무것도 안 준다
+           🔴 확정 건에 삭제를 달지 않는다 — 견적서 대장이 지우지 않고 `void`로
+             내리는 것과 같은 규칙이다. 지우면 「그 값을 낸 적 있다」가 사라진다.
+           ⚠ 자리는 늘 차지한다 — 있는 줄만 넓어지면 목록이 들쭉날쭉해진다. */
+        + '<div class="pkg-act-slot">' + (
+            p.status === 'draft'
             ? '<button type="button" class="pkg-del" data-del="' + i + '" '
               + 'aria-label="' + esc(p.title) + ' 지우기 — 작성중인 건만 지울 수 있습니다">삭제</button>'
+            : p.status === 'open'
+            ? '<button type="button" class="pkg-close" data-close="' + i + '" '
+              + 'aria-label="' + esc(p.title) + ' ' + (isAdhocView ? '종료' : '내리기')
+              + ' — ' + (isAdhocView ? '「종료」' : '「마감」') + '으로 바꿉니다">'
+              + (isAdhocView ? '종료' : '내리기') + '</button>'
             : '') + '</div>'
         + '</div>';
     }).join('');
@@ -13864,6 +13886,12 @@
       btn.addEventListener('click', (ev) => {
         ev.stopPropagation();
         pkgDeleteRow(list[Number(btn.dataset.del)]);
+      });
+    });
+    box.querySelectorAll('.pkg-close').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        pkgCloseRow(list[Number(btn.dataset.close)], isAdhocView);
       });
     });
   }
@@ -14741,6 +14769,54 @@
        누른 줄이 맞는지 확인할 방법이 없다.
      ⚠ 서버가 `deletion_log`에 행 전체를 남긴다(YP) — 2026-08-24에 상품 30건이
        흔적 없이 사라진 자리라 그 장치가 생겼다. 여기서 다시 세우지 않는다. */
+  /* ── 목록에서 내리기 (ZO) ─────────────────────────────────────────────────
+     대표와 합의한 규칙: **지우고 싶은 것의 대부분은 「지우기」가 아니라 「내리기」다.**
+     견적서 대장이 삭제 대신 `void`로 내리는 것과 같은 판단이고, 여기서도 확정 건에는
+     삭제 대신 이것을 준다.
+
+     🔴 **상태만 바꾼다 — 되돌릴 수 있다.** 그래서 삭제와 달리 빨강을 안 쓰고,
+       확인 창에서도 「되돌릴 수 있습니다」라고 말한다. 실수해도 손해가 없다는 것이
+       이 버튼을 목록에 둘 수 있는 이유다.
+     ⚠ **저장 경로를 새로 만들지 않았다.** 목록이 가진 행을 그대로 PUT으로 되돌려
+       보내되 `status`만 바꾼다 — 저장 규칙(검증·권한·기본값)이 두 벌이 되면 반드시
+       어긋난다(결함 생성기 ①). GET이 주는 이름과 PUT이 읽는 이름이 전부 같은 것을
+       확인하고 이 방식을 골랐다.
+     ⚠ 직접견적(adhoc)은 **매니저 이상만** 저장할 수 있다(서버 규칙). 권한이 없으면
+       서버가 거절하고, 여기서 그 이유를 그대로 보여준다 — 「안 되네」로 끝나면 안 된다. */
+  async function pkgCloseRow(p, isAdhoc) {
+    if (!p || !p.id) return;
+    const verb = isAdhoc ? '종료' : '내리기';
+    const stateName = isAdhoc ? '종료' : '마감';
+    if (p.status !== 'open') {
+      alert('「' + (isAdhoc ? '확정' : '판매중') + '」인 건만 ' + verb + '할 수 있습니다.');
+      return;
+    }
+    if (!confirm('「' + (p.title || p.id) + '」을(를) 「' + stateName + '」으로 바꿉니다.\n'
+      + (isAdhoc ? '새 견적서를 발급할 수 없게 됩니다.' : '고객 목록에서 사라집니다.') + '\n\n'
+      /* ⚠ 확인 창은 **글자 그대로** 보인다 — `**강조**` 같은 표기를 쓰면 별표가 그대로 뜬다. */
+      + '지우는 것이 아니라 상태만 바뀌므로 되돌릴 수 있습니다 (편집 → 상태 → 저장).')) return;
+    try {
+      const r = await fetch('/api/content?action=packages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...p, status: 'closed' }),
+      });
+      if (!r.ok) {
+        let why = 'http_' + r.status;
+        try { const j = await r.json(); if (j && j.error) why = j.error; } catch (e) { /* 본문이 없을 수 있다 */ }
+        if (why === 'adhoc_requires_manager') {
+          throw new Error('직접견적은 매니저 이상만 바꿀 수 있습니다 — 팀장님께 요청해 주세요.');
+        }
+        throw new Error(why);
+      }
+      await renderPackages();
+    } catch (err) {
+      /* ⚠ 조용히 실패하지 않는다 — 목록이 그대로면 「안 바뀌었다」와 「화면이 안 그려졌다」가
+         같은 얼굴이 된다(결함 생성기 ②). */
+      alert(verb + '하지 못했습니다 — ' + String(err.message || err));
+    }
+  }
+
   async function pkgDeleteRow(p) {
     if (!p || !p.id) return;
     if (p.status !== 'draft') {
