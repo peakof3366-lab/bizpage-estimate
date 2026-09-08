@@ -79,7 +79,16 @@
   .aq-shell .fld input[type="number"],
   .aq-shell .fld input[type="text"] { max-width: 20rem; }
   /* 날짜 블록·단계 이동 버튼도 화면 끝까지 늘리지 않는다 */
-  .aq-shell .date-block { max-width: 46rem; }
+  /* ── 「일정 및 인원」은 **한 폭으로 선다** (2026-09-08 대표 지시) ──────────────
+     날짜 상자만 46rem이고 그 아래 「참가 인원 / 연수 기간」 줄은 폭 제한이 없어서,
+     **오른쪽 끝이 서로 어긋나 있었다.** 한 구역인데 두 폭으로 보였다.
+     ⚠ 값을 두 번 적지 않는다 — 토큰 하나를 둘이 함께 쓴다. 숫자를 각자 적으면
+       한쪽만 고쳐지고 다시 어긋난다(결함 생성기 ①).
+     ⚠ `date-block + .fld-row`로 **날짜 상자 바로 다음 줄만** 잡는다. 2단계의
+       「고객 정보」 줄은 위에 상자가 없어 맞출 대상이 없다 — 건드리지 않는다. */
+  .aq-shell { --aq-block-w: 46rem; }
+  .aq-shell .date-block,
+  .aq-shell .date-block + .fld-row { max-width: var(--aq-block-w); }
   .aq-shell .step-actions { max-width: 38rem; }
 
   .aq-controlbar {
