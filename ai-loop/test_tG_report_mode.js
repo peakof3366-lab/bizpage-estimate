@@ -65,8 +65,12 @@ const ok = (name, cond, extra = '') => {
   ok('직접 입력 버튼은 선택 안 된 상태다', /btn-outline-p/.test(($('pr-mode-manual') || {}).className || ''),
     ($('pr-mode-manual') || {}).className);
   ok('PDF 업로드 칸이 보인다', $('pr-pdf-block') && !$('pr-pdf-block').classList.contains('hidden'));
-  ok('안내 문구가 PDF 기준이다', /PDF에서 추출된 값/.test(($('pr-fields-label') || {}).textContent || ''),
-    ($('pr-fields-label') || {}).textContent);
+  /* 2026-09-08 대표 지시 — PDF 모드에서는 칸 위가 아무 말도 하지 않는다.
+     빈 채로 두면 줄 높이만큼 칸이 밀리므로 hidden까지 확인한다. */
+  ok('칸 위 안내가 비어 있고 감춰져 있다',
+    ((($('pr-fields-label') || {}).textContent || '').trim() === '')
+      && $('pr-fields-label').classList.contains('hidden'),
+    ($('pr-fields-label') || {}).className);
 
   /* ── [2] 사장님이 겪은 그대로 재현한다 ────────────────────────────────────
      출발일·견적작성일·박수를 먼저 넣고 → 방식 버튼을 누른다. */

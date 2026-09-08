@@ -100,11 +100,18 @@ const EXTRACT = {
   win.__setUser({ id: 1, role: 'admin', displayName: '김실무' });
   win.__setReports([]);
 
-  /* 안내 문구가 「직접 넣어도 된다」를 말하는가 — 실무자에겐 이 한 줄이 사용법이다 */
+  /* 🔴 예전에는 이 자리에 「직접 넣으면 됩니다」 안내가 있어야 했다(SW).
+     2026-09-08 대표 지시로 PDF 모드 안내 한 줄을 걷었다. 그래서 지금 재는 것은
+     **글이 아니라 동작**이다: 칸이 잠기지 않고, 손으로 친 값이 「담당자 확정」으로
+     바뀌는가(아래 [2] 이하). 안내를 다시 넣는 것이 이 검사의 목적이 아니다.
+     ⚠ 빈 문구면 **감춰져** 있어야 한다 — 안 그러면 지운 글이 빈 줄로 남는다. */
   win.setPriceReportMode('pdf');
-  ok('화면이 직접 넣어도 된다고 말한다',
-    /직접 넣으면 됩니다/.test(doc.getElementById('pr-fields-label').textContent),
+  ok('PDF 모드에서는 칸 위가 비어 있다 (2026-09-08 대표 지시)',
+    doc.getElementById('pr-fields-label').textContent.trim() === '',
     doc.getElementById('pr-fields-label').textContent);
+  ok('비었으면 자리도 차지하지 않는다',
+    doc.getElementById('pr-fields-label').classList.contains('hidden'),
+    doc.getElementById('pr-fields-label').className);
   ok('칸이 잠겨 있지 않다', doc.getElementById('pr-meal').readOnly === false);
 
   doc.getElementById('pr-dest').innerHTML = '<option value="다낭">다낭</option>';

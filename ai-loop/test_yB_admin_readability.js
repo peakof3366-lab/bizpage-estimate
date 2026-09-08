@@ -120,7 +120,10 @@ const rates = fs.existsSync(RATES_FIXTURE)
      `ch`(숫자 0의 폭)로 바꾸면 한글에서 절반쯤으로 어긋난다. */
   ok('🔴 폭 단위가 em이다 (ch는 한글에서 어긋난다)',
     !/--measure:\s*[\d.]+ch/.test(admin));
-  for (const cls of ['.rate-update-info', '.pr-intro', '.empty-state p', '.card-body p', '.page-sub']) {
+  /* ⚠ `.pr-intro`는 리스트에서 빠졌다 — 2026-09-08 대표 지시로 그 머릿글 상자를
+     통째로 걷어내면서 CSS도 같이 지웠다. 쓰는 데가 없는 클래스를 재면
+     「폭이 걸려 있다」가 항상 참이라 아무것도 막지 못한다. */
+  for (const cls of ['.rate-update-info', '.empty-state p', '.card-body p', '.page-sub']) {
     const re = new RegExp(cls.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       + '[^{]*\\{[^}]*max-width:\\s*var\\(--measure\\)');
     ok(`줄글에 폭이 걸려 있다 — ${cls}`, re.test(admin));

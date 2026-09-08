@@ -482,15 +482,6 @@
     /* 접혔을 때만 뜨는 합계 배지 */
     .sbg-badge { display: none; }
     .sb-group:not(.open) > .sb-group-head .sbg-badge.has { display: inline-block; }
-    .pr-intro {
-      background: var(--white); border-left: 3px solid var(--primary);
-      padding: .9rem 1.1rem; margin-bottom: 1.25rem;
-      font-size: .84rem; color: var(--muted); line-height: 1.75;
-      max-width: var(--measure);   /* 87자/줄이었다 (YB) */
-    }
-    .pr-intro strong { color: var(--heading); }
-    .pr-intro b { color: var(--heading); font-weight: 700; }
-    .pr-intro-note { display: block; margin-top: .35rem; font-size: .78rem; color: var(--muted); }
     .pr-progress-total { font-size: .82rem; font-weight: 800; color: var(--heading); margin-bottom: .6rem; }
     .pr-progress-grid { display: flex; flex-wrap: wrap; gap: .4rem; }
     .pr-chip {
@@ -1946,43 +1937,24 @@
     <div class="tab-panel" id="tab-pricereport">
       <div class="page-head">
         <h1 class="page-title">견적서 업데이트</h1>
-        <p class="page-sub">실제 견적서에서 읽은 <b>진짜 단가</b>를 넣는 자리입니다. 여기 쌓인 값이 요율 관리의 갱신 제안이 됩니다.</p>
-      </div>
-      <div class="pr-intro">
-        <strong>여기서 넣은 숫자가 아래 세 화면의 재료가 됩니다.</strong>
-        견적서에서 읽은 <b>실제 단가</b>를 남기면 목적지별로 모여
-        <b>요율 관리</b>의 기준 단가와 비교되고, 차이가 크면 갱신 제안으로 올라옵니다.
-        <span class="pr-intro-note">계산식은 바뀌지 않습니다 — 제안이 뜨면 사람이 보고 반영합니다.</span>
       </div>
 
       <div class="card" id="price-report-card" style="margin-bottom:1.25rem">
         <div class="card-header"><span class="card-title">📝 실제 계약가 업데이트</span></div>
         <div class="card-body">
-          <div style="font-size:.8rem;color:var(--muted);margin-bottom:.9rem;line-height:1.7">
-            <!-- 🔴 **173자짜리 호텔 설명이 여기 통째로 있었다** (YQ). 그런데 그 내용은
-                 아래 「🏨 실제 이용 호텔」 카드가 **이미 같은 말로** 하고 있었다
-                 (요율 미반영 · 고객 비공개 · 지역→나라→도시로 묶임). 같은 말을 두 곳에
-                 두면 반드시 어긋난다(결함 생성기 ①) — 값을 **보는 자리**인 그 카드가
-                 제자리라, 여기서는 「넣으면 어디로 가는지」 한 줄만 남긴다. -->
-            <p style="margin-bottom:.5rem;max-width:var(--measure)">계약이 성사된 실제 항공료·호텔단가·식비를 남겨주세요 — 아는 항목만 채우면 됩니다. 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다.</p>
-            <!-- ⚠ 「고객이 보는 견적서·공개 페이지에는 나가지 않습니다」는 **줄이면 안 되는 말**이다.
-                 담당자가 호텔명을 **넣는 순간** 걱정하는 것이 그것이고, 그 자리에 없으면
-                 안 넣게 된다. (test_rY가 이 문장을 지킨다 — YQ에서 한 번 지웠다가 걸렸다.) -->
-            <p style="margin-bottom:0;max-width:var(--measure)">호텔명을 함께 넣으면 아래 <strong style="color:var(--heading)">🏨 실제 이용 호텔</strong>에 쌓입니다(가격에는 반영되지 않습니다). 고객이 보는 견적서·공개 페이지에는 나가지 않습니다.</p>
-          </div>
 
           <!-- 공통: 목적지 + 날짜 -->
           <!-- ⚠ 출발일은 '있으면 좋은 것'이 아니다 (RZ 후속, 2026-08-06 사장님 지시).
                요율 엔진은 시즌(월별)과 리드타임으로 금액을 움직이는데, 그 계수를 검증할
                실측이 지금 하나도 없다. 출발일이 붙어야 "9월 출발 견적은 실제로 얼마였나"를
                답할 수 있고, 그게 곧 고객이 원하는 출발일 기준 견적의 근거가 된다. -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem 1rem;margin-bottom:1rem;max-width:760px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem 1rem;margin-bottom:1rem;max-width:820px">
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">목적지</div>
               <select id="pr-dest" class="status-select" style="width:100%" aria-label="목적지"></select>
             </div>
             <div>
-              <div class="detail-label" style="margin-bottom:.3rem">출발일 📅</div>
+              <div class="detail-label" style="margin-bottom:.3rem">출발일</div>
               <input type="date" id="pr-depart" class="pw-input" style="width:100%" aria-label="출발일" />
               <div id="pr-depart-note" style="font-size:.7rem;color:var(--muted);margin-top:.25rem"></div>
             </div>
@@ -2010,32 +1982,25 @@
                고친 것은 **이름과 「이건 고르는 것」이라는 표시**뿐이다. -->
           <div class="detail-label" style="margin-bottom:.35rem">입력 방식 고르기</div>
           <div role="group" aria-label="실측 입력 방식" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
-            <button type="button" id="pr-mode-pdf" class="btn-act btn-primary" aria-pressed="true" onclick="setPriceReportMode('pdf')">📄 PDF에서 읽기</button>
-            <button type="button" id="pr-mode-manual" class="btn-act btn-outline-p" aria-pressed="false" onclick="setPriceReportMode('manual')">✏️ 직접 입력</button>
+            <button type="button" id="pr-mode-pdf" class="btn-act btn-primary" aria-pressed="true" onclick="setPriceReportMode('pdf')">PDF에서 읽기</button>
+            <button type="button" id="pr-mode-manual" class="btn-act btn-outline-p" aria-pressed="false" onclick="setPriceReportMode('manual')">직접 입력</button>
           </div>
 
           <!-- 방식 ① PDF 전용 컨트롤 (PDF 모드에서만 노출 — 기본으로 열려 있다) -->
           <div id="pr-pdf-block" style="margin-bottom:1rem;padding:.9rem 1rem;border:1.5px dashed var(--border);border-radius:10px;background:var(--bg)">
             <!-- 🔴 **205자였다** (YQ · 대표 지시 2026-09-03 「글자가 너무 많다」).
                  한 문단이 넷을 동시에 말하고 있었다: 무엇을 하는지 · 파일 제약 ·
-                 값이 틀렸을 때 · 근거 대조. 그래서 **지금 할 일**이 안 보였다.
-                 → ① 지금 할 일 한 줄은 남기고 ② 제약은 접는다.
-               ⚠ **원래 있던 「⚠ 근거를 꼭 대조하세요」는 지운 것이 아니라 없앤 중복이다.**
-                 바로 아래 `#pr-fields-label`이 칸 위에서 같은 말을 한다 — 값을 보는
-                 그 자리가 제자리다. 같은 말을 두 곳에 두면 반드시 어긋난다(결함 생성기 ①).
-               ⚠ 접은 글은 `audit_ux.js`가 세지 않는다. 그게 이 고침이 「글을 지운 것」이
-                 아니라 「자리를 옮긴 것」인 이유다. -->
-            <p style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;line-height:1.6">
-              PDF를 올리고 <strong style="color:var(--heading)">"PDF에서 추출"</strong>을 누르면
-              <strong style="color:var(--heading)">산술이 검산된 단가</strong>만 아래에 채웁니다.
+                 값이 틀렸을 때 · 근거 대조.
+                 2026-09-08 대표 지시로 **「무엇을 하는지」 한 줄도 걷어냈다** — 버튼 이름
+                 (「PDF에서 추출」)이 이미 그 말을 하고 있었다. 접혀 있던 파일 제약은
+                 **밖으로 꺼냈다**: 여기서 사람이 실제로 막히는 것은 「스캔 PDF라 안 되는 것」
+                 하나뿐인데, 접혀 있으면 열어 보지 않아 올린 뒤에야 알게 된다.
+               ⚠ 남은 한 줄은 **제약**이지 안내가 아니다. 3.2MB·저장 안 함까지 같이 있어야
+                 올리기 전에 판단이 끝난다 — 쪼개서 다시 접지 말 것. -->
+            <p style="font-size:.78rem;color:var(--muted);margin:0 0 .6rem;line-height:1.6;max-width:var(--measure)">
+              텍스트가 있는 PDF만 됩니다(스캔 이미지는 안 됩니다) · 3.2MB 이하 ·
+              올린 파일은 저장하지 않습니다.
             </p>
-            <details style="margin-bottom:.6rem">
-              <summary class="fold-note">어떤 파일이 되나요</summary>
-              <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0 0;line-height:1.6;max-width:var(--measure)">
-                텍스트가 있는 PDF만 됩니다(스캔 이미지는 안 됩니다) · 3.2MB 이하 ·
-                올린 파일은 저장하지 않습니다.
-              </p>
-            </details>
             <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
               <!-- 🔴 높이가 20px이었다 (YB). 파일 고르기는 이 화면에서 **가장 먼저
                    하는 동작**인데 가장 누르기 어려웠다. 파일칸은 브라우저가 그리는
@@ -2047,11 +2012,13 @@
             </div>
           </div>
 
-          <!-- 가격 필드: 직접입력 모드=편집 가능 / PDF 모드=읽기전용(추출값) -->
-          <!-- ⚠ 이 문구의 초기값은 **PDF 모드 문구**여야 한다(기본이 PDF다).
-               applyPriceReportModeUI가 곧 덮어쓰지만, 그 사이 한 프레임 동안 다른 방식의
-               안내가 보인다. -->
-          <div id="pr-fields-label" class="detail-label" style="margin-bottom:.5rem">PDF에서 추출된 값 — 근거를 대조하세요. 틀렸으면 후보에서 고르거나 칸에 직접 넣으면 됩니다(「담당자 확정 ✓」로 바뀝니다)</div>
+          <!-- 가격 필드 — 두 방식 모두 편집 가능하다(잠그지 않는다).
+               ⚠ 이 자리의 초기 모습은 **PDF 모드와 같아야** 한다(기본이 PDF다).
+                 applyPriceReportModeUI가 곧 덮어쓰지만, 그 사이 한 프레임 동안 다른 방식이
+                 보인다. PDF 모드에서는 아무 말도 하지 않으므로 **빈 채로 감춰** 둔다
+                 (2026-09-08 대표 지시로 안내 한 줄을 걷어냈다).
+               ⚠ 요소 자체는 지우지 말 것 — renderPdfSummary가 이 자리를 닻으로 쓴다. -->
+          <div id="pr-fields-label" class="detail-label hidden" style="margin-bottom:.5rem"></div>
           <!-- ⚠ align-items를 end → start로 바꿨다 (RY). 호텔명 칸만 아래에 안내 줄이
                하나 더 붙는데, 아래 맞춤이면 그 줄 높이만큼 **호텔명 입력칸만 위로 밀린다**.
                다른 칸은 전부 라벨+입력 한 쌍이라 위 맞춤으로 바꿔도 보이는 모양이 같다.
@@ -2119,9 +2086,9 @@
 
           <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
             <button type="button" class="btn-act btn-primary" onclick="submitPriceReport()">제출</button>
-            <button type="button" class="btn-act btn-outline-p" onclick="openPriceReportsModal()">📋 제보 내역·삭제</button>
+            <button type="button" class="btn-act btn-outline-p" onclick="openPriceReportsModal()">제보 내역·삭제</button>
             <!-- SX: 확정 안 하고 넘어간 칸을 한 곳에 모은다. 건수가 곧 할 일의 양이다. -->
-            <button type="button" class="btn-act btn-outline-p" onclick="openNeedCheckModal()">⚠ 확인 필요 <span id="pr-need-count"></span></button>
+            <button type="button" class="btn-act btn-outline-p" onclick="openNeedCheckModal()">확인 필요 <span id="pr-need-count"></span></button>
           </div>
           <p id="pr-msg" style="font-size:.78rem;font-weight:700;margin-top:.6rem"></p>
         </div>
@@ -2138,9 +2105,8 @@
            이제 **지역 → 나라 → 도시**로 접어서 보여주고, 같은 호텔은 한 줄로 묶어
            사용 횟수와 최근 사용일을 단다. 담당자 누구나 보는 화면이다(권한 제한 없음). -->
       <div class="card hidden" id="hotel-reference-card" style="margin-bottom:1.25rem">
-        <div class="card-header"><span class="card-title">🏨 실제 이용 호텔</span></div>
+        <div class="card-header"><span class="card-title">실제 이용 호텔</span></div>
         <div class="card-body">
-          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">지금까지 넣은 <strong style="color:var(--heading)">실제 이용 호텔명</strong>을 <strong style="color:var(--heading)">지역 → 나라 → 도시</strong>로 묶어 보여줍니다. 같은 호텔은 한 줄로 합치고 사용 횟수·최근 사용일을 답니다. 요율(가격)에는 반영되지 않으며, 고객에게는 나가지 않습니다.</p>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem">
             <input type="text" id="hotel-ref-search" class="pw-input" style="max-width:300px" placeholder="호텔명·나라·지역·도시로 찾기" oninput="renderHotelReference()" aria-label="호텔 검색" />
             <button type="button" class="btn-act btn-outline-p" onclick="exportHotelReferenceCsv()">⤓ CSV 내보내기</button>
@@ -6799,9 +6765,15 @@
     const fieldsLabel = document.getElementById('pr-fields-label');
     /* ⚠ SW: 「후보에서 고르세요」만 적혀 있어서 담당자가 **직접 쳐도 된다는 것을 몰랐다.**
        실무자가 올리는 자리라 이 한 줄이 곧 사용법이다. */
-    if (fieldsLabel) fieldsLabel.textContent = isPdf
-      ? 'PDF에서 추출된 값 — 근거를 대조하세요. 틀렸으면 후보에서 고르거나 칸에 직접 넣으면 됩니다(「담당자 확정 ✓」로 바뀝니다)'
-      : '직접 입력할 값 (아는 항목만)';
+    /* 🔴 PDF 모드 안내 한 줄은 **2026-09-08 대표 지시로 걷어냈다.** 직접 입력 모드의
+       「직접 입력할 값」은 남는다 — 그건 안내가 아니라 이 칸 무리의 이름이다.
+       ⚠ 빈 문자열이면 요소를 **감춘다.** 안 감추면 PDF 모드에서 빈 줄 높이만큼 칸 무리가
+          아래로 밀려, 지운 글이 자리로만 남는다.
+       ⚠ 요소 자체는 지우지 않는다 — renderPdfSummary가 이 자리를 닻으로 쓴다. */
+    if (fieldsLabel) {
+      fieldsLabel.textContent = isPdf ? '' : '직접 입력할 값 (아는 항목만)';
+      fieldsLabel.classList.toggle('hidden', !fieldsLabel.textContent);
+    }
     /* PDF 모드면 가격 필드를 잠근다(직접 수정 불가) — 값은 extractPdfDetails가 채움 */
     PR_FIELD_IDS.forEach(id => {
       const el = document.getElementById(id);
