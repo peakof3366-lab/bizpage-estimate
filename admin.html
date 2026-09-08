@@ -905,7 +905,13 @@
     }
     .pkg-thumb-none { width: 64px; height: 40px; background: #F1F1ED; border: 1px solid #E2E2DC; }
     /* 소규모 견적은 사진 칸을 안 쓴다 — 썸네일 열이 통째로 없다 */
-    .pkg-row--nothumb { grid-template-columns: 1fr auto auto auto; }
+    /* 🔴 **열 수가 칸 수와 같아야 한다** (2026-09-08 고침, ZT).
+       ZN에서 조작 칸(삭제·내리기)을 한 칸 늘리면서 기본 `.pkg-row`만 6열로 고치고
+       여기를 4열로 뒀다. 썸네일이 없는 직접견적 목록은 칸이 5개라 **다섯 번째(삭제
+       버튼)가 다음 줄로 밀려나** 있었다.
+       ⚠ grid는 칸이 넘쳐도 **에러를 안 낸다** — 조용히 줄을 하나 더 만든다. 그래서
+         눈으로 보기 전엔 안 걸린다(대표가 「맨 우측으로 정렬해 달라」고 한 자리다). */
+    .pkg-row--nothumb { grid-template-columns: 1fr auto auto auto auto; }
     /* 빠진 칸 표시 (WH) — ⚠ **결함처럼 빨갛게 쓰지 않는다.** 아직 안 채운 것이지
        고장이 아니다. 빨간 목록을 31줄 보면 사람은 전부 무시하게 된다. */
     .pkg-gaps { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .28rem; }
@@ -1596,7 +1602,7 @@
     <div class="tab-panel" id="tab-inquiries">
       <div class="page-head">
         <h1 class="page-title">문의 관리</h1>
-        <p class="page-sub">고객이 홈페이지에서 보낸 문의가 여기 쌓입니다. 읽고 답한 뒤 상태를 바꿔 두면 다른 담당자도 어디까지 됐는지 압니다.</p>
+        <!-- ⚠ 설명 줄을 뺐다 (2026-09-08 대표 지시) — 화면 제목이 이미 말한다. -->
       </div>
       <div class="toolbar">
         <div class="toolbar-left">
@@ -1615,9 +1621,7 @@
       </div>
       <div class="card">
         <div id="inqEmpty" class="empty-state"><div class="empty-icon">📭</div>
-          <p>아직 들어온 문의가 없습니다.<br>
-          고객이 홈페이지 아래 <strong>「문의 보내기」</strong>나 견적 화면의
-          <strong>「바로 연락 요청」</strong>을 누르면 여기에 쌓입니다.</p></div>
+          <p>아직 들어온 문의가 없습니다.</p></div>
         <table id="inqTable" class="inq-table hidden">
           <thead>
             <tr>
@@ -1641,7 +1645,7 @@
     <div class="tab-panel" id="tab-estmgr">
       <div class="page-head">
         <h1 class="page-title">견적 요청 관리</h1>
-        <p class="page-sub">고객이 직접 낸 견적과 담당자가 만든 견적이 전부 여기 모입니다. 상담 중·계약완료로 상태를 옮기며 관리합니다.</p>
+        <!-- ⚠ 설명 줄을 뺐다 (2026-09-08 대표 지시) — 화면 제목이 이미 말한다. -->
       </div>
 
       <!-- 통계 카드 -->
@@ -1675,9 +1679,7 @@
       <!-- 테이블 -->
       <div class="card" style="overflow:hidden">
         <div id="emEmpty" class="empty-state"><div class="empty-icon">📋</div>
-          <p>아직 산출된 견적이 없습니다.<br>
-          고객이 홈페이지에서 견적을 내면 자동으로 여기에 쌓이고,<br>
-          담당자가 직접 만들려면 왼쪽 <strong>「견적 산출」</strong>에서 하시면 됩니다.</p></div>
+          <p>아직 산출된 견적이 없습니다.</p></div>
         <table id="emTable" class="inq-table hidden">
           <thead>
             <tr>
@@ -2318,7 +2320,7 @@
     <div class="tab-panel" id="tab-quotetool">
       <div class="page-head">
         <h1 class="page-title">자동 견적 산출</h1>
-        <p class="page-sub">담당자가 고객 대신 견적을 내는 화면입니다. 고객 화면과 같은 엔진을 쓰되, 수익 항목까지 함께 보입니다.</p>
+        <!-- ⚠ 설명 줄을 뺐다 (2026-09-08 대표 지시) — 화면 제목이 이미 말한다. -->
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <iframe id="quoteToolFrame" title="내부 견적 산출"
@@ -2521,16 +2523,19 @@
     <div class="tab-panel" id="tab-adhoc">
       <div class="page-head">
         <h1 class="page-title">직접 견적 작성</h1>
-        <p class="page-sub"><b>담당자가 금액을 직접 적는</b> 견적입니다. 자동 계산을 쓰지 않습니다.</p>
+        <!-- ⚠ 설명 줄을 뺐다 (2026-09-08 대표 지시) — 화면 제목이 이미 말한다. -->
       </div>
-      <!-- ⚠ 문구를 줄일 때 **지워도 되는 것과 안 되는 것**이 갈린다 (2026-09-08 대표 지시).
-           지운 것: 엔진을 안 쓰는 근거(+21.5%·+41.7% 실측). 그건 **왜 이렇게 만들었나**라
-             담당자가 매번 읽을 것이 아니다 — 코드 주석과 커밋(VS·WE)에 남아 있다.
-           남긴 것: **여기 적은 값이 그대로 고객에게 간다**와 **고객 목록에 안 나간다**.
-             이 둘은 담당자가 지금 하는 행동을 바꾸는 말이라 지우면 사고가 난다. -->
+      <!-- ⚠ 안내를 **한 마디로** 줄였다 (2026-09-08 대표 지시).
+           🔴 남은 한 줄이 하는 일은 「설명」이 아니라 **지시**다. 이 화면은 엔진을 안
+             타므로 요율·마진이 하나도 안 붙는다 — 적는 사람이 그것까지 **포함해서**
+             적어야 한다. 예전 문구는 「안 붙습니다」라는 **사실**만 말했는데, 대표가
+             「추가 필요」라는 **할 일**로 바꿔 달라고 했다. 같은 사실이지만 담당자가
+             해야 할 일이 그 자리에서 보인다.
+           ⚠ 지운 「고객 목록에 안 나간다」는 화면에서만 빠졌고 **동작은 그대로다** —
+             `kind='adhoc'`는 고객 목록 API를 타지 않는다. 그 보장은 검사가 지킨다
+             (test_vS ⑧을 화면 문구가 아니라 코드로 재도록 옮겼다). -->
       <div class="rate-update-info">
-        <strong>적은 금액이 그대로 고객가입니다</strong>(요율·마진 안 붙음).
-        <b>고객 목록(패키지 여행)에는 안 나가고</b> 견적서 링크로만 나갑니다.
+        <strong>요율·마진 추가 필요</strong>
       </div>
 
       <ol class="pkg-steps">

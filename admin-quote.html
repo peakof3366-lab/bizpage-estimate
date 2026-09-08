@@ -335,10 +335,7 @@
 
   <div class="aq-shell">
     <div class="aq-controlbar">
-      <div class="aq-hint">
-        고객이 직접 입력하지 않아도, 여기서 <strong>직원이 직접 조건을 체크해 바로 견적을 산출</strong>하고
-        견적서(PDF)·엑셀을 내려받을 수 있습니다. 산출 결과는 견적 관리에도 자동 기록됩니다.
-      </div>
+      <!-- ⚠ 안내 줄을 뺐다 (2026-09-08 대표 지시) — 화면을 보면 아는 것이었다. -->
       <!-- 산출 담당자 (PX) — 예전에는 하드코딩된 이름 5개 중에서 **자기가 골랐다.**
            요율 author와 진행 기록에서는 '자칭 신원'을 이미 없앴는데(실계정 도입) 이
            도구에만 남아 있었고, 그 목록은 staff_accounts와 별개로 손으로 적혀 있어
@@ -361,12 +358,14 @@
       <div class="estimate-step step-active" data-step="1">
 
         <div class="aq-section">
-          <div class="aq-section-title">여행 목적지 <span style="font-weight:500;text-transform:none;color:var(--muted);letter-spacing:0">— 클릭하면 목적지 선택창이 펼쳐집니다</span></div>
+          <div class="aq-section-title">여행 목적지</div>
 
           <details class="aq-dest-master" id="destMaster">
             <summary class="aq-dest-selected" id="destSelectedBar">
-              <span>선택된 목적지:</span>
-              <strong id="destSelectedLabel" class="aq-dest-empty">아직 선택되지 않음</strong>
+              <!-- ⚠ 고르기 전에는 **할 일**을 적는다(2026-09-08 대표 지시).
+                   고르고 나면 아래 JS가 이 자리에 목적지 이름을 넣는다 — 그때는
+                   「선택된 목적지:」 같은 머리말 없이 **이름만** 선다. -->
+              <strong id="destSelectedLabel" class="aq-dest-empty">목적지 선택</strong>
               <span class="aq-dest-master-hint">클릭하여 선택/변경</span>
             </summary>
             <div class="aq-dest-master-body">
@@ -586,7 +585,6 @@
           <div class="date-block">
             <div class="date-block-header">
               <span class="date-block-title">연수 날짜</span>
-              <span class="date-block-hint">선택 시 기간 자동 입력</span>
             </div>
             <div class="date-inputs-row">
               <div class="date-input-wrap">
@@ -599,7 +597,7 @@
                 <input type="date" id="endDate" class="date-inp" aria-label="귀국일" />
               </div>
             </div>
-            <div class="date-result-bar" id="dateResultBar">날짜를 선택하면 기간이 자동으로 계산됩니다.</div>
+            <div class="date-result-bar" id="dateResultBar"></div>
             <div class="season-badge hidden" id="seasonBadge"></div>
           </div>
 
@@ -609,7 +607,7 @@
               <input type="number" id="participants" min="1" value="10" required />
             </label>
             <label class="fld">
-              <span class="fld-lbl"><i data-lucide="calendar-days" class="ic-sm"></i>연수 기간 <small class="fld-hint">수정 불가</small></span>
+              <span class="fld-lbl"><i data-lucide="calendar-days" class="ic-sm"></i>연수 기간</span>
               <input type="number" id="days" min="1" value="7" required readonly aria-readonly="true" />
             </label>
           </div>
