@@ -127,11 +127,11 @@
     .sidebar-divider { height: 1px; background: rgba(255,255,255,.1); margin: .4rem 0; }
     .sidebar-item {
       display: flex; align-items: center; gap: .65rem; padding: .6rem .85rem;
-      width: 100%; border: none; background: transparent; color: rgba(255,255,255,.65);
+      width: 100%; border: none; background: transparent; color: rgba(255,255,255,.84);
       font-size: .82rem; font-weight: 500; cursor: pointer; border-radius: 0;
       transition: background .18s, color .18s; text-align: left; position: relative;
     }
-    .sidebar-item:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.9); }
+    .sidebar-item:hover { background: rgba(255,255,255,.13); color: #fff; }
     .sidebar-item.active { background: rgba(200,16,46,.18); color: #fff; font-weight: 700; border-left: 3px solid var(--primary); padding-left: calc(.85rem - 3px); }
     .si-icon  { font-size: 1rem; flex-shrink: 0; }
     .si-label { flex: 1; }
@@ -407,18 +407,23 @@
          한 원인이 「.5 밝기 + 11.8px」였다. 제목임을 말하는 것은 크기가 아니라
          **굵기(800)·자간·들여쓰기 차이·꺾쇠**다. 크기로 이기려 하면 항목과 싸운다. */
       font-family: inherit; font-size: .78rem; font-weight: 800; letter-spacing: .05em;
-      color: rgba(255,255,255,.66); text-align: left;
+      /* 🔴 **완전 흰색** (2026-09-08 대표 지시). 접혀 있든 펴져 있든 같다 —
+         밝기로 상태를 말하던 것을 걷어내고, 상태는 **꺾쇠와 띠**가 말한다.
+         밝기를 상태 표시로 쓰면 「지금 안 열린 묶음」이 「덜 중요한 묶음」으로 읽힌다. */
+      color: #fff; text-align: left;
       transition: color .18s, background .18s;
     }
-    .sb-group-head:hover { color: rgba(255,255,255,.9); background: rgba(255,255,255,.06); }
+    .sb-group-head:hover { color: #fff; background: rgba(255,255,255,.10); }
     .sbg-name { flex: 1; }
     .sbg-chev { display: grid; place-items: center; width: 16px; height: 16px; flex: none;
-      transition: transform .18s; color: rgba(255,255,255,.45); }
+      transition: transform .18s; color: rgba(255,255,255,.72); }
     .sbg-chev svg { width: 14px; height: 14px; }
     .sb-group.open > .sb-group-head .sbg-chev { transform: rotate(180deg); }
-    .sb-group.open > .sb-group-head { color: rgba(255,255,255,.92); }
+    /* 펼침/접힘을 색으로 가르지 않는다 — 위 주석 참고. 남는 표시는 꺾쇠 회전과 띠다. */
     /* 펼친 묶음에만 옅은 띠 — 「지금 이 안에 있다」를 색으로 말한다 */
-    .sb-group.open { background: rgba(255,255,255,.045); }
+    /* 대표 지시로 띠를 올렸다(.045 → .085). 너무 옅어 「박스가 있나?」 싶었다.
+       ⚠ 더 올리면 항목의 hover(.08)와 구별이 안 된다 — 그 위는 못 간다. */
+    .sb-group.open { background: rgba(255,255,255,.085); }
     .sb-group-items { display: none; padding-bottom: .3rem; }
     .sb-group.open > .sb-group-items { display: block; }
     /* 묶음 안의 항목은 한 칸 더 들여쓴다 — 제목과 항목이 같은 선에 있으면 안 갈린다 */
