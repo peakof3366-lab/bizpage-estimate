@@ -637,8 +637,18 @@ function renderPage(d) {
       <button type="button" class="day-tab${i === 0 ? ' active' : ''}"
         data-course="${courseKey}" data-day="${dayNo(day)}"
         onclick="switchDayTab('${courseKey}', ${dayNo(day)})">${dayNo(day)}일차</button>`).join('');
+    /* 🔴 **여는 태그의 닫는 꺾쇠가 빠져 있었다** (2026-09-08, ZW). 그 한 글자 때문에:
+         ① 다음 줄의 day-hd 여는 태그가 통째로 **이 태그의 속성으로 먹히고**
+         ② 그 닫는 태그가 **패널을 일찍 닫아**, 오전·오후·저녁과 현장 Tip이
+            패널 **밖으로** 나갔다
+         ③ 그래서 **날짜 탭이 아무 일도 안 했다** — 어느 일차를 눌러도 7일치가
+            전부 한꺼번에 보였다. 그것도 **고객이 받는 문서**에서.
+       ⚠ HTML 파서는 이것을 **에러로 안 낸다** — 조용히 속성으로 삼는다. 글자는 다
+         있으니 검사도 안 걸렸고, 브라우저로 눌러 보고서야 걸렸다(결함 생성기 ③).
+       ⚠ 이 주석을 템플릿 문자열 **안에** 넣었다가 백틱 때문에 일정 구역이 통째로
+         사라졌다. 여기(밖)가 맞는 자리다. */
     const panels = dayList.map((day, i) => `
-      <div class="day-panel${i === 0 ? ' active' : ''}" data-course="${courseKey}" data-day="${dayNo(day)}"
+      <div class="day-panel${i === 0 ? ' active' : ''}" data-course="${courseKey}" data-day="${dayNo(day)}">
         <div class="day-hd">
           <span class="day-num">DAY ${esc(day.day)}</span>
           <span class="day-title">${esc(day.title) || ''}</span>

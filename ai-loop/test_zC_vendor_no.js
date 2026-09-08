@@ -32,6 +32,8 @@ const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 let pass = 0, fail = 0;
+/* [5]에서 그린 머리글을 [8]에서도 쓴다 — **소스가 아니라 그려진 것**을 재기 위해서다 */
+let headTxt = '';
 const ok = (name, cond, extra = '') => {
   if (cond) { pass++; console.log('  ✓ ' + name); }
   else { fail++; console.log('  ✗ ' + name + (extra ? '  → ' + extra : '')); }
@@ -197,7 +199,7 @@ const listReply = () => ({ ok: true, status: 200,
        ZV에서 짝지어 묶어 **8열로 줄였다**. 줄어드는 것은 이 위험을 키우지 않는다. */
     ok('⑤ 🔴 열이 늘지 않았다(11열 이하)', heads.length <= 11,
       heads.length + ': ' + JSON.stringify(heads));
-    const headTxt = heads.join(' ');
+    headTxt = heads.join(' ');
     ok('⑤ 상태·총액이 머리글에 살아 있다', /상태/.test(headTxt) && /총액/.test(headTxt), headTxt);
     /* 화면 규칙 5 — 영문·기술 용어를 화면에 내보내지 않는다.
        ⚠ **소스에서 찾으면 안 된다.** 처음에 `>[^<]*vendor_quote_no[^<]*<`로 셌더니
@@ -281,8 +283,14 @@ const listReply = () => ({ ok: true, status: 200,
        오히려 칸 옆이 파란 상자보다 가까운 자리다. */
     ok('⑨ 그 칸이 무엇을 적는 칸인지 말한다', /원가 견적번호/.test(ADMIN));
     ok('⑨ 고객에게 안 나간다고 말한다', /고객 문서에는 나가지 않습니다/.test(ADMIN));
-    ok('⑨ 머리글이 우리 번호와 공급사 번호를 갈라 말한다',
-      /우리 번호[\s\S]{0,80}판 값/.test(ADMIN) && /공급사 번호[\s\S]{0,80}산 값/.test(ADMIN));
+    /* 🔴 **여기를 소스로 재면 안 된다 — 실제로 헛돌았다** (2026-09-08).
+       머리글을 「우리 견적번호 / 고객가」로 바꿨는데 이 검사가 **통과**했다.
+       `ADMIN`(소스 전체)에서 찾다 보니 바로 위 **주석**의 「우리 번호(판 값)」에
+       걸린 것이다 — 화면에 없는 글자다. 같은 파일 [5]의 경고가 그대로 재현됐다.
+       → **그려 놓고 `<thead>`를 읽는다.** 머리글이 바뀌면 여기서 걸린다. */
+    ok('⑨ 머리글이 우리 번호와 공급사 번호를 갈라 말한다', headTxt
+      && /우리[\s\S]{0,10}번호/.test(headTxt) && /공급사[\s\S]{0,10}번호/.test(headTxt)
+      && /고객가/.test(headTxt) && /원가/.test(headTxt), String(headTxt));
     ok('⑨ 검색 안내에도 들어 있다', /placeholder="견적번호 · 공급사 번호/.test(ADMIN));
     /* ⚠ 영문 기술용어 검사는 **[5]에서 그려 놓고** 한다 — 소스로 세면 script 안이 걸린다 */
   }
