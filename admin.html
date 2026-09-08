@@ -162,7 +162,27 @@
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
     /* ── CARD ─────────────────────── */
-    .card { background: var(--white); border: 1px solid var(--border); }
+    /* ── 입력칸이 놓이는 바탕 (2026-09-08 대표 지시) ─────────────────────────
+       「입력하는 란마다 위아래 틈이 흰색인데, 다른 여백 배경색과 통일감 있게.
+        이건 전체 적용으로.」
+
+       왜 그렇게 보였나 — **카드도 흰색이고 입력칸도 흰색**이었다(둘 다 `#fff`).
+       그래서 폼이 통째로 흰 판 하나로 읽히고, 칸과 칸 사이 틈이 어디까지인지
+       눈으로 안 갈렸다. 페이지 여백은 `--bg`(#F4F4F2)라 카드 밖과도 어긋났다.
+
+       → **틈(카드 바탕)을 페이지 여백과 같은 톤으로 내리고, 입력칸만 흰색으로 남긴다.**
+         칸이 바탕 위로 떠올라서 경계가 색으로 보인다 — 선을 더 긋지 않아도 된다.
+
+       ⚠ **한 곳에서 바꾼다.** 화면마다 배경을 따로 칠하면 그 화면만 조용히 낡는다
+         (결함 생성기 ①). 그래서 `.card` 하나를 내리고, 흰색이 필요한 것
+         (입력칸·표)만 되돌린다.
+       ⚠ **표는 흰 바탕을 지킨다.** 줄이 많은 표를 회색으로 깔면 얼룩줄(zebra)과
+         섞여 어느 줄이 강조인지 안 보인다.
+       ⚠ 색을 눈으로 고르지 않았다 — 이미 있는 `--bg` 토큰을 쓴다. 새 색을 만들면
+         「여백 색」이 두 개가 된다. */
+    .card { background: var(--bg); border: 1px solid var(--border); }
+    .card :is(input, select, textarea) { background: var(--white); }
+    .card :is(table, thead, tbody, tr) { background: var(--white); }
     .card-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
     .card-title { font-size: .76rem; font-weight: 800; color: var(--heading); letter-spacing: .04em; text-transform: uppercase; }
     .card-body { padding: 1.25rem; }
@@ -1148,7 +1168,7 @@
                위아래가 견적 관리·견적서 대장이라 읽는 순서가 그대로 일하는 순서다.
                상품 카탈로그(패키지 상품) 옆에 두면 다시 상품 관리로 읽힌다. -->
         <button class="sidebar-item" data-tab="adhoc" id="navAdhoc">
-          <span class="si-icon"><i data-lucide="user-round-pen"></i></span><span class="si-label">소규모 견적</span>
+          <span class="si-icon"><i data-lucide="user-round-pen"></i></span><span class="si-label">직접견적</span>
         </button>
         <!-- 견적서 대장 (WB) — 대표 요구: 「담당자가 연차·휴가여도 응대가 가능해야 한다」.
              ⚠ 「견적 관리」와 다른 것이다: 그쪽은 **고객이 남긴 요청**(quotes)이고
@@ -2152,7 +2172,7 @@
         <br>
         여기 있는 상품은 <b>반복해서 파는 것</b>이라 「판매중」으로 열면 고객 화면
         (<b>패키지 여행</b>)에 나갑니다. 손님 한 분을 위한 1회용 견적은
-        왼쪽 <b>「소규모 견적」</b> 메뉴에 있습니다.
+        왼쪽 <b>「직접견적」</b> 메뉴에 있습니다.
       </div>
 
       <!-- 하는 순서 (WE) — 「저장」과 「판매중」이 한 카드 안에 평평하게 놓여 있어서
@@ -2197,7 +2217,14 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════
-         소규모 견적 (WE) — **패키지 상품에서 떼어 냈다**
+         직접견적 (WE) — **패키지 상품에서 떼어 냈다**
+
+         ⚠ **2026-09-08 대표 지시로 화면 이름이 「소규모 견적」 → 「직접견적」으로 바뀌었다.**
+           「소규모」가 「작은 건에만 쓰는 곳」으로 읽혀 오해를 샀다. 실제로는 **담당자가
+           금액을 직접 적는 곳**이고 규모와 무관하다.
+           🔴 **데이터 이름은 안 바꿨다** — `kind='adhoc'`, API, DB, 테스트 전부 그대로다.
+             화면 이름과 데이터 이름은 같을 이유가 없고, 바꾸면 마이그레이션이 붙는다.
+             아래 주석에 남은 「소규모」는 **그때의 기록**이다(고치지 말 것 — 이력이 끊긴다).
 
          2026-08-25 대표 확인: 「견적서를 취합해서 올리는 사람은 다른 사람이고,
          견적서를 만들어 고객들에게 제공하는 사람은 내부 직원들이다.」
@@ -2208,24 +2235,22 @@
          ══════════════════════════════════════════════════════════════════ -->
     <div class="tab-panel" id="tab-adhoc">
       <div class="page-head">
-        <h1 class="page-title">소규모 견적</h1>
-        <p class="page-sub">엔진을 안 거치고 <b>금액을 직접 적어</b> 견적서를 내는 자리입니다. 소규모·특수 건에 씁니다.</p>
+        <h1 class="page-title">직접견적</h1>
+        <p class="page-sub"><b>담당자가 금액을 직접 적어</b> 고객 견적서를 만드는 곳입니다. 자동 계산(견적 엔진)을 쓰지 않습니다.</p>
       </div>
+      <!-- ⚠ 문구를 줄일 때 **지워도 되는 것과 안 되는 것**이 갈린다 (2026-09-08 대표 지시).
+           지운 것: 엔진을 안 쓰는 근거(+21.5%·+41.7% 실측). 그건 **왜 이렇게 만들었나**라
+             담당자가 매번 읽을 것이 아니다 — 코드 주석과 커밋(VS·WE)에 남아 있다.
+           남긴 것: **여기 적은 값이 그대로 고객에게 간다**와 **고객 목록에 안 나간다**.
+             이 둘은 담당자가 지금 하는 행동을 바꾸는 말이라 지우면 사고가 난다. -->
       <div class="rate-update-info">
-        <strong>이 손님 한 분을 위한 1회용 견적입니다</strong> — 가족·친목 모임·소수 기업 팀.
-        <b>고객 목록(패키지 여행)에는 절대 나가지 않고</b> 견적서 링크로만 나갑니다.
+        <strong>여기 적은 1인 금액이 고객가 그대로 나갑니다.</strong> 요율·계수·마진이 붙지 않습니다.
         <br>
-        <strong>금액은 사람이 정합니다 — 계산기가 안 붙습니다.</strong>
-        요율·계수·마진이 하나도 안 붙어서 여기 적은 1인 금액이 고객가 그대로입니다.
-        <br>
-        ⚠ <b>견적 엔진으로 계산하지 않는 이유</b>는 실측입니다. 같은 하나투어 상품을 우리
-        엔진으로 다시 뽑으면 <b>+21.5%·+41.7%</b> 비싸게 나오고, 10명 이하 표본이
-        <b>2건</b>뿐이라 보정할 근거가 없습니다. 그래서 시스템은 계산하지 않고
-        <b>그 값이 어디서 왔는지</b>를 지킵니다.
+        이 손님 한 분을 위한 1회용이라 <b>고객 목록(패키지 여행)에는 안 나가고</b> 견적서 링크로만 나갑니다.
       </div>
 
       <ol class="pkg-steps">
-        <li><b>①</b> <b>「+ 소규모 견적」</b>으로 적는다<em>고객 표시 · 금액 · 금액의 출처</em></li>
+        <li><b>①</b> <b>「+ 직접견적」</b>으로 적는다<em>고객 표시 · 금액 · 금액의 출처</em></li>
         <li><b>②</b> 저장하고 상태를 <b>「확정」</b>으로<em>「이 값으로 견적서를 내도 된다」는 뜻입니다</em></li>
         <li><b>③</b> 인원·연락처 넣고 <b>「견적서 만들기」</b><em>링크가 나옵니다. 연락처는 견적서에 안 찍힙니다</em></li>
       </ol>
@@ -2233,7 +2258,7 @@
       <div class="iti-bar">
         <!-- 1회용 견적은 매니저 이상만 만든다(2026-08-24 대표 결정) — 권한이 없으면
              이 버튼을 아예 안 보여준다. 다만 **방어선은 서버**다(화면은 안내일 뿐). -->
-        <button type="button" class="btn-act btn-primary" id="pkgNewAdhoc">+ 소규모 견적</button>
+        <button type="button" class="btn-act btn-primary" id="pkgNewAdhoc">+ 직접견적</button>
         <span class="iti-spacer"></span>
         <label for="adhocFilterStatus" style="font-size:13px;color:#666">상태</label>
         <select id="adhocFilterStatus">
@@ -2248,13 +2273,13 @@
            (결함 생성기 ②). 왜 못 만드는지를 그 자리에서 말한다. -->
       <p id="adhocGate" class="hidden" style="margin:0 0 14px;padding:11px 14px;background:#FEF3C7;
          border:1px solid #FCD34D;font-size:12px;color:#92400E;line-height:1.75">
-        소규모 견적은 <strong>매니저 이상만 만들 수 있습니다.</strong> 엔진 검증을 거치지 않은
+        직접견적은 <strong>매니저 이상만 만들 수 있습니다.</strong> 엔진 검증을 거치지 않은
         금액이 그대로 고객에게 나가기 때문입니다 — 만드실 일이 있으면 팀장님께 요청해 주세요.
         <strong>이미 만들어진 건은 아래 목록에서 열어 견적서를 발급하실 수 있습니다.</strong>
       </p>
 
       <div class="card">
-        <div class="card-header"><span class="card-title">소규모 견적 목록</span></div>
+        <div class="card-header"><span class="card-title">직접견적 목록</span></div>
         <div id="adhocList" style="padding:4px 0 8px"></div>
       </div>
 
@@ -2274,7 +2299,7 @@
           <label class="pkg-f"><span>종류</span>
             <select id="pkgKind">
               <option value="catalog">패키지 상품 (고객 목록에 나감)</option>
-              <option value="adhoc">소규모 견적 (이 손님 전용 · 목록에 안 나감)</option>
+              <option value="adhoc">직접견적 (이 손님 전용 · 목록에 안 나감)</option>
             </select></label>
           <label class="pkg-f"><span>금액의 출처</span>
             <select id="pkgBasis">
@@ -4543,7 +4568,7 @@
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', pricereport:'견적서 업데이트',
     rates:'요율 관리', quotetool:'내부 견적 산출',
-    itineraries:'일정 · 방식 A·B', packages:'패키지 상품', adhoc:'소규모 견적',
+    itineraries:'일정 · 방식 A·B', packages:'패키지 상품', adhoc:'직접견적',
     ledger:'견적서 대장', content:'콘텐츠 관리',
     manual:'매뉴얼', settings:'설정'
   };
@@ -13290,7 +13315,7 @@
       empty: '등록된 상품이 없습니다. 「+ 새 상품」으로 시작하세요.',
       none:  '그 상태의 상품이 없습니다.' },
     { kind: 'adhoc',   box: 'adhocList', filter: 'adhocFilterStatus',
-      empty: '아직 만든 소규모 견적이 없습니다. 「+ 소규모 견적」으로 시작하세요.',
+      empty: '아직 만든 직접견적이 없습니다. 담당자가 금액을 직접 적어 내는 곳입니다 — 「+ 직접견적」으로 시작하세요.',
       none:  '그 상태의 견적이 없습니다.' },
   ];
 
@@ -13489,8 +13514,8 @@
     const host = document.getElementById(kind === 'adhoc' ? 'pkgHostAdhoc' : 'pkgHostCatalog');
     if (host && card.parentNode !== host) host.appendChild(card);
     document.getElementById('pkgEditTitle').textContent = p
-      ? ((kind === 'adhoc' ? '소규모 견적 — ' : '상품 편집 — ') + p.title)
-      : (kind === 'adhoc' ? '새 소규모 견적' : '새 상품');
+      ? ((kind === 'adhoc' ? '직접견적 — ' : '상품 편집 — ') + p.title)
+      : (kind === 'adhoc' ? '새 직접견적' : '새 상품');
     const v = (id, val) => { const e = document.getElementById(id); if (e) e.value = val == null ? '' : val; };
     v('pkgKind', kind);
     /* 새 1회용 견적의 기본 출처는 **담당자 산출**이다 — 대부분 우리가 조립한다.
@@ -14308,7 +14333,7 @@
           unknown_dest_key: '요율표에 없는 목적지입니다',
           payload_too_large: '일정·포함사항이 너무 깁니다',
           invalid_line_items: '조립 항목을 읽지 못했습니다 — 「이름 | 금액」 형식인지 보세요',
-          adhoc_requires_manager: '소규모 1회용 견적은 매니저 이상만 만들 수 있습니다 (엔진 검증을 거치지 않는 값이라 그렇습니다)',
+          adhoc_requires_manager: '직접견적은 매니저 이상만 만들 수 있습니다 (엔진 검증을 거치지 않는 값이라 그렇습니다)',
           kind_check_failed: '기존 내용을 확인하지 못했습니다 — 잠시 뒤 다시 시도해 주세요',
         }[out.error] || (out.error || ('오류 ' + r.status));
         msg.style.color = '#B91C1C'; msg.textContent = '저장하지 못했습니다 — ' + why;

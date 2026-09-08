@@ -247,7 +247,7 @@
         <li><a href="#quotetool">내부 견적 산출</a></li>
         <li><a href="#itinerary">일정 · 방식 A·B</a></li>
         <li><a href="#packages">패키지 상품</a></li>
-        <li><a href="#adhoc">소규모 견적</a></li>
+        <li><a href="#adhoc">직접견적</a></li>
         <li><a href="#ledger">견적서 대장</a></li>
         <li><a href="#pricereport">견적서 업데이트 — 실제 단가 남기기</a></li>
         <li><a href="#rates">요율 관리 — 단가 갱신</a></li>
@@ -343,7 +343,7 @@
             <tr><td class="field">내부 견적 산출</td><td>담당자가 직접 조건을 넣어 견적서를 뽑는 도구</td><td>상담할 때</td></tr>
             <tr><td class="field">견적서 대장</td><td>우리가 <strong>발급한 견적서 전부</strong> — 번호·고객·목적지·담당자로 찾습니다. <strong>담당자가 휴가여도 응대</strong>할 수 있는 자리</td><td>문의 올 때마다</td></tr>
             <tr><td class="field">패키지 상품</td><td>이미 값이 정해진 여행 상품 — 「판매중」으로 열면 <strong>고객 화면(패키지 여행)에 나갑니다.</strong> <strong>요율·마진이 안 붙습니다</strong>(넣은 금액이 그대로 고객가)</td><td>상품이 생길 때마다</td></tr>
-            <tr><td class="field">소규모 견적</td><td>손님 한 분을 위한 <strong>1회용 견적</strong> — 고객 목록에 안 나가고 <strong>견적서 링크로만</strong> 나갑니다. 만들기는 <strong>매니저 이상</strong></td><td>소규모 상담 때</td></tr>
+            <tr><td class="field">직접견적</td><td><strong>담당자가 금액을 직접 적어</strong> 내는 1회용 견적 — 자동 계산(견적 엔진)을 쓰지 않습니다. 고객 목록에 안 나가고 <strong>견적서 링크로만</strong> 나갑니다. 만들기는 <strong>매니저 이상</strong></td><td>엔진을 안 쓰고 직접 낼 때</td></tr>
             <tr><td class="field">일정 · 방식 A·B</td><td>목적지별 연수 내용 — 한 화면에 <strong>두 구역</strong>(✨ 방식 A·B 소개 / 📅 날짜별 일정)</td><td>필요할 때</td></tr>
             <tr><td class="field">요율 관리</td><td>목적지별 단가 갱신 · 변경 이력</td><td>분기 1회</td></tr>
             <tr><td class="field">방문 통계 · 이벤트 분석 · 견적 분석 · 마케팅 인사이트</td><td>보는 곳(읽기 전용). 무엇을 눌러도 고객 화면은 안 바뀝니다</td><td>필요할 때</td></tr>
@@ -1075,7 +1075,7 @@
         <p>
           예전에는 <strong>「패키지 · 소규모 견적」</strong> 한 메뉴에 둘이 같이 있었습니다. 이제
           <strong>상품을 올리는 일</strong>은 여기(<strong>패키지 상품</strong>), <strong>손님께 견적을 내는 일</strong>은
-          <strong>「소규모 견적」</strong> 메뉴입니다 — 하는 사람이 다르고, 소규모 견적은 손님 수만큼
+          <strong>「직접견적」</strong> 메뉴입니다 — 하는 사람이 다르고, 직접견적은 손님 수만큼
           늘어나서 한 목록에 두면 상품이 파묻히기 때문입니다.
         </p>
       </div>
@@ -1212,10 +1212,11 @@
     </section>
 
     <section id="adhoc">
-      <h2>6-3. 소규모 견적</h2>
+      <h2>6-3. 직접견적</h2>
       <p>
-        정해진 상품이 없는 <strong>소규모 손님</strong>(가족·친목 모임·소수 기업 팀)에게 낼
-        견적입니다. 왼쪽 메뉴 <strong>「소규모 견적」</strong>에서 <strong>「+ 소규모 견적」</strong>
+        <strong>담당자가 금액을 직접 적어</strong> 내는 견적입니다 — 자동 계산(견적 엔진)을 쓰지
+        않습니다. 정해진 상품이 없는 손님(가족·친목 모임·소수 기업 팀)에게 씁니다.
+        왼쪽 메뉴 <strong>「직접견적」</strong>에서 <strong>「+ 직접견적」</strong>
         버튼으로 만듭니다. 상품 목록과 달리 <strong>고객 화면에는 절대 안 나가고</strong>,
         견적서 링크로만 나갑니다.
       </p>
@@ -1228,7 +1229,7 @@
         </p>
       </div>
       <div class="warn">
-        <span class="label">🔴 소규모는 왜 「내부 견적 산출」로 뽑지 않나요</span>
+        <span class="label">🔴 직접견적은 왜 「내부 견적 산출」로 뽑지 않나요</span>
         <p>
           견적 엔진은 <strong>우리가 원가를 조립하고 1인 정액 마진을 얹는</strong> 방식이라
           대량 매입 기반의 소매가를 못 따라갑니다. 실제 하나투어 상품을 우리 엔진으로 다시
@@ -1236,13 +1237,13 @@
           견적서 표본 중 <strong>10명 이하는 2건뿐</strong>이라 계수로 보정할 근거도 없습니다.
         </p>
         <p>
-          그래서 소규모 견적은 <strong>금액을 사람이 정합니다.</strong> 시스템은 계산하지 않고,
+          그래서 직접견적은 <strong>금액을 사람이 정합니다.</strong> 시스템은 계산하지 않고,
           그 값이 <strong>어디서 왔는지</strong>를 기록하고 지킵니다.
         </p>
       </div>
       <h4>만드는 순서</h4>
       <ol>
-        <li><strong>「+ 소규모 견적」</strong>을 누릅니다. (매니저 이상만 보입니다)</li>
+        <li><strong>「+ 직접견적」</strong>을 누릅니다. (매니저 이상만 보입니다)</li>
         <li><strong>고객 표시</strong>에 누구 건인지 적습니다 — 목록에서 찾을 때 씁니다.
           <strong>고객 견적서에는 나가지 않습니다.</strong></li>
         <li>금액을 넣습니다. 두 가지 방법이 있습니다:
@@ -1262,11 +1263,11 @@
       <div class="note">
         <span class="label">유효기간은 비워도 14일이 붙습니다</span>
         <p>
-          소규모는 <strong>항공가 변동이 그대로 손실</strong>입니다. 기한 없는 1회용 견적이
+          직접견적은 <strong>항공가 변동이 그대로 손실</strong>입니다. 기한 없는 1회용 견적이
           쌓이면 언젠가 옛 값으로 발급됩니다. 더 길게·짧게 하려면 직접 넣으시면 그 값이 이깁니다.
         </p>
         <p>
-          ⚠ 소규모 견적은 <strong>엔진 검증을 거치지 않습니다.</strong> 담당자가 적은 숫자가
+          ⚠ 직접견적은 <strong>엔진 검증을 거치지 않습니다.</strong> 담당자가 적은 숫자가
           그대로 고객에게 갑니다 — 그래서 <strong>매니저 이상만</strong> 만들 수 있습니다.
         </p>
       </div>
