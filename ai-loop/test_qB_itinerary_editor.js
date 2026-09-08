@@ -434,7 +434,12 @@ const OVERRIDE_TOKYO = [{
   /* ── QY: 한 화면 안에서 두 구역이 확실히 갈라져 보이는가 ── */
   const labels = Array.from(adoc.querySelectorAll('.sidebar-item .si-label')).map(e => e.textContent.trim());
   ok('메뉴가 하나로 합쳐졌다', labels.filter(l => /일정|방식/.test(l)).length === 1, labels.join(', '));
-  ok('메뉴 이름이 두 구역을 다 말한다', labels.includes('일정 · 방식 A·B'), labels.join(', '));
+  /* ⚠ **이름 글자가 아니라 「두 구역을 다 말하는가」를 잰다** (2026-09-08, ZP에서 고침).
+     대표가 메뉴 이름을 「일정·방식 비교」로 정하면서 이 검사가 걸렸는데, 지키려던 것은
+     `일정 · 방식 A·B`라는 **글자**가 아니라 **이름이 안에 든 것을 말하는가**였다(QV).
+     정확한 문장에 매달리면 한 글자만 다듬어도 깨지고, 그러면 사람이 검사를 지운다. */
+  ok('메뉴 이름이 두 구역을 다 말한다',
+    labels.some((l) => /일정/.test(l) && /방식/.test(l)), labels.join(', '));
 
   const secRec = adoc.getElementById('sec-rec');
   const secDays = adoc.getElementById('sec-days');

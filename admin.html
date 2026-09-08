@@ -1302,16 +1302,33 @@
              패키지는 **견적 엔진을 타지 않는 다른 흐름**이라 위 묶음에 섞으면 담당자가
              여기서도 요율을 만질 수 있다고 읽는다(VP에서 이미 갈라 둔 이유다).
            ══════════════════════════════════════════════════════════════════ -->
+      <!-- ══════════════════════════════════════════════════════════════════
+           사이드바 — **대표가 직접 짜 준 구성** (ZP, 2026-09-08)
+
+           ZK에서 성격별로 다섯 묶음을 만들었는데, 대표가 그 위에 **일하는 순서**를
+           얹어 다시 짜 주셨다. 바뀐 축은 하나다:
+
+             ZK  「누가 언제 여는가」   고객 응대 / 채우는 곳 / 상품 / 살펴보기 / 운영
+             ZP  「무엇을 하는가」      요청을 받고 → 산출하고 → 문서로 내고 → 기준을 쌓고
+
+           그래서 예전 「견적서로 채우는 곳」 한 묶음이 성격대로 셋으로 갈렸다:
+             · 견적 산출   (자동 산출 · 직접 작성)   ← 값을 **만드는** 일
+             · 견적서 관리 (대장 · 업데이트)         ← 낸 **문서**를 다루는 일
+             · 기준 정보   (요율)                   ← 산출이 **기대는 값**
+
+           ⚠ **「일정·방식 비교」는 묶음에 안 넣었다** — 대표 구성 그대로다. 산출에도
+             문서에도 속하지 않고, 목적지별 일정 재고를 들여다보는 자리라 혼자 선다.
+             대시보드·매뉴얼과 같은 성격의 단독 항목이다.
+           ⚠ 메뉴 17개·`data-tab`·배지는 하나도 안 건드렸다. **순서·묶음·이름만** 바뀐다.
+           ⚠ 이름이 바뀐 넷은 화면 제목(`h1`)·`tabTitles`·매뉴얼까지 **같이** 바꿨다 —
+             메뉴와 제목이 다르면 「내가 어느 화면에 있나」가 흐려진다(결함 생성기 ①).
+           ══════════════════════════════════════════════════════════════════ -->
       <div class="sidebar-nav">
         <button class="sidebar-item active" data-tab="dashboard">
           <span class="si-icon"><i data-lucide="layout-dashboard"></i></span><span class="si-label">대시보드</span>
         </button>
 
-        <!-- ══ 고객 응대 — 손님이 남긴 것부터 우리가 낸 문서까지 ══
-             ⚠ 넷의 **순서가 곧 일하는 순서**다: 문의가 오고 → 견적 요청이 되고 →
-               (엔진을 안 쓰면 직접견적으로) → 낸 문서가 대장에 남는다.
-             ⚠ 「견적 관리」와 「견적서 대장」은 다른 것이다 — 앞은 **고객이 남긴 요청**
-               (quotes), 뒤는 **우리가 발급한 문서**(quote_shares)다. 섞으면 둘 다 못 찾는다. -->
+        <!-- ══ 고객 응대 — 손님이 남긴 것을 받는 자리 ══ -->
         <div class="sb-group" data-group="ops">
           <button type="button" class="sb-group-head" aria-expanded="false" aria-controls="sbg-ops" aria-label="고객 응대 메뉴 — 눌러서 펼치거나 접습니다">
             <span class="sbg-name">고객 응대</span>
@@ -1319,64 +1336,84 @@
             <span class="sbg-chev"><i data-lucide="chevron-down"></i></span>
           </button>
           <div class="sb-group-items" id="sbg-ops">
-        <button class="sidebar-item" data-tab="inquiries">
-          <span class="si-icon"><i data-lucide="inbox"></i></span><span class="si-label">문의 관리</span>
-          <span class="si-badge" id="sb-unread"></span>
-        </button>
-        <button class="sidebar-item" data-tab="estmgr">
-          <span class="si-icon"><i data-lucide="clipboard-list"></i></span><span class="si-label">견적 관리</span>
-          <!-- 미처리 견적 배지 (QT) — 문의 쪽 배지와 짝이다. 알림 수단이 하나도 없어
-               담당자가 화면을 열어봐야만 새 건을 알 수 있었다. -->
-          <span class="si-badge" id="sb-new-quotes" style="display:none"></span>
-        </button>
-        <!-- 직접견적 (WE) — **패키지 상품에서 떼어 냈다.**
-             2026-08-25 대표 확인: 「견적서를 취합해서 올리는 사람과, 견적서를 만들어
-             고객에게 제공하는 사람은 다른 사람이다.」
-             ⚠ 자리를 여기로 잡은 이유: 이 일은 「문의 → 견적 → 낸 문서」 흐름에 속한다.
-               상품 카탈로그 옆에 두면 다시 상품 관리로 읽힌다. -->
-        <button class="sidebar-item" data-tab="adhoc" id="navAdhoc">
-          <span class="si-icon"><i data-lucide="user-round-pen"></i></span><span class="si-label">직접견적</span>
-        </button>
-        <!-- 견적서 대장 (WB) — 대표 요구: 「담당자가 연차·휴가여도 응대가 가능해야 한다」. -->
-        <button class="sidebar-item" data-tab="ledger">
-          <span class="si-icon"><i data-lucide="file-text"></i></span><span class="si-label">견적서 대장</span>
-        </button>
-
-        <!-- ══ 견적서로 채우는 곳 (RM) — '값을 만들어 넣는' 메뉴 ══
-             순서에 뜻이 있다. **견적서 업데이트가 맨 위**다 — 실제 견적서에서 뽑은
-             숫자·일정이 아래 세 화면의 재료이기 때문이다. 위에서 아래로 읽으면
-             "무엇을 넣고 → 어디에 쌓이고 → 어떻게 쓰이는지"가 순서대로 보인다. -->
-        </div>
+            <button class="sidebar-item" data-tab="inquiries">
+              <span class="si-icon"><i data-lucide="inbox"></i></span><span class="si-label">문의 관리</span>
+              <span class="si-badge" id="sb-unread"></span>
+            </button>
+            <!-- 「견적 요청 관리」 = **고객이 남긴 요청**(quotes). 우리가 발급한 문서는
+                 아래 「견적서 대장」(quote_shares)이다 — 섞으면 둘 다 못 찾는다(WB). -->
+            <button class="sidebar-item" data-tab="estmgr">
+              <span class="si-icon"><i data-lucide="clipboard-list"></i></span><span class="si-label">견적 요청 관리</span>
+              <!-- 미처리 견적 배지 (QT) — 문의 쪽 배지와 짝이다. -->
+              <span class="si-badge" id="sb-new-quotes" style="display:none"></span>
+            </button>
+          </div>
         </div>
 
-        <div class="sb-group" data-group="build">
-          <button type="button" class="sb-group-head" aria-expanded="false" aria-controls="sbg-build" aria-label="견적서로 채우는 곳 메뉴 — 눌러서 펼치거나 접습니다">
-            <span class="sbg-name">견적서로 채우는 곳</span>
+        <!-- ══ 견적 산출 — 금액을 **만드는** 두 길 ══
+             ⚠ 둘은 **엔진을 타느냐**로 갈린다. 자동은 요율·계수·마진이 붙고,
+               직접은 담당자가 적은 값이 그대로 고객가다(VS·WE). 나란히 두는 이유는
+               담당자가 그 자리에서 「어느 길로 갈까」를 고르기 때문이다. -->
+        <div class="sb-group" data-group="calc">
+          <button type="button" class="sb-group-head" aria-expanded="false" aria-controls="sbg-calc" aria-label="견적 산출 메뉴 — 눌러서 펼치거나 접습니다">
+            <span class="sbg-name">견적 산출</span>
             <span class="si-badge sbg-badge" aria-hidden="true"></span>
             <span class="sbg-chev"><i data-lucide="chevron-down"></i></span>
           </button>
-          <div class="sb-group-items" id="sbg-build">
-        <button class="sidebar-item" data-tab="pricereport">
-          <span class="si-icon"><i data-lucide="file-input"></i></span><span class="si-label">견적서 업데이트</span>
-        </button>
-        <button class="sidebar-item" data-tab="rates">
-          <span class="si-icon"><i data-lucide="database"></i></span><span class="si-label">요율 관리</span>
-        </button>
-        <button class="sidebar-item" data-tab="quotetool">
-          <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">내부 견적 산출</span>
-        </button>
-        <!-- ⚠ 메뉴 하나다 (QY). QU에서 둘로 갈랐다가 되돌렸다 — 둘은 같은 목적지의
-             한 덩어리이고 서로 의존한다. 이름은 두 구역을 그대로 부른다. -->
+          <div class="sb-group-items" id="sbg-calc">
+            <button class="sidebar-item" data-tab="quotetool">
+              <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">자동 견적 산출</span>
+            </button>
+            <button class="sidebar-item" data-tab="adhoc" id="navAdhoc">
+              <span class="si-icon"><i data-lucide="user-round-pen"></i></span><span class="si-label">직접 견적 작성</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ⚠ 단독 항목이다 (대표 구성). 산출에도 문서에도 속하지 않고,
+             목적지별 일정 재고를 들여다보는 자리라 혼자 선다.
+             ⚠ 메뉴 하나다(QY) — 「날짜별 일정」과 「방식 A·B」는 같은 목적지의 한 덩어리라
+               갈랐다가 되돌렸다. 이름이 두 구역을 그대로 부른다. -->
         <button class="sidebar-item" data-tab="itineraries">
-          <span class="si-icon"><i data-lucide="calendar-range"></i></span><span class="si-label">일정 · 방식 A·B</span>
+          <span class="si-icon"><i data-lucide="calendar-range"></i></span><span class="si-label">일정·방식 비교</span>
         </button>
 
-        <!-- ══ 상품 — **견적 엔진을 타지 않는 두 번째 흐름**이다 (VP) ══
-             위 묶음은 전부 「우리가 조립하는 맞춤 견적」용이고, 이것만 「이미 값이
-             정해진 상품」을 다룬다. 한 칸이어도 묶음을 따로 두는 이유다. -->
-        </div>
+        <!-- ══ 견적서 관리 — 낸 **문서**를 다루는 자리 ══
+             ⚠ 「견적서 업데이트」가 여기 있는 이유: 실제로 나간 견적서에서 숫자·일정을
+               되받아 쌓는 일이라 **문서 쪽 일**이다. 그 값이 아래 「기준 정보」의 재료가 된다. -->
+        <div class="sb-group" data-group="docs">
+          <button type="button" class="sb-group-head" aria-expanded="false" aria-controls="sbg-docs" aria-label="견적서 관리 메뉴 — 눌러서 펼치거나 접습니다">
+            <span class="sbg-name">견적서 관리</span>
+            <span class="si-badge sbg-badge" aria-hidden="true"></span>
+            <span class="sbg-chev"><i data-lucide="chevron-down"></i></span>
+          </button>
+          <div class="sb-group-items" id="sbg-docs">
+            <button class="sidebar-item" data-tab="ledger">
+              <span class="si-icon"><i data-lucide="file-text"></i></span><span class="si-label">견적서 대장</span>
+            </button>
+            <button class="sidebar-item" data-tab="pricereport">
+              <span class="si-icon"><i data-lucide="file-input"></i></span><span class="si-label">견적서 업데이트</span>
+            </button>
+          </div>
         </div>
 
+        <!-- ══ 기준 정보 — 산출이 **기대는 값** ══ -->
+        <div class="sb-group" data-group="base">
+          <button type="button" class="sb-group-head" aria-expanded="false" aria-controls="sbg-base" aria-label="기준 정보 메뉴 — 눌러서 펼치거나 접습니다">
+            <span class="sbg-name">기준 정보</span>
+            <span class="si-badge sbg-badge" aria-hidden="true"></span>
+            <span class="sbg-chev"><i data-lucide="chevron-down"></i></span>
+          </button>
+          <div class="sb-group-items" id="sbg-base">
+            <button class="sidebar-item" data-tab="rates">
+              <span class="si-icon"><i data-lucide="database"></i></span><span class="si-label">요율 관리</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ══ 상품 — **견적 엔진을 타지 않는** 흐름 (VP) ══
+             위 「견적 산출」은 우리가 조립하는 맞춤 견적이고, 이것만 이미 값이 정해진
+             상품을 다룬다. 한 칸이어도 묶음을 따로 두는 이유다. -->
         <div class="sb-group" data-group="sell">
           <button type="button" class="sb-group-head" aria-expanded="false" aria-controls="sbg-sell" aria-label="상품 메뉴 — 눌러서 펼치거나 접습니다">
             <span class="sbg-name">상품</span>
@@ -1384,40 +1421,38 @@
             <span class="sbg-chev"><i data-lucide="chevron-down"></i></span>
           </button>
           <div class="sb-group-items" id="sbg-sell">
-        <button class="sidebar-item" data-tab="packages">
-          <span class="si-icon"><i data-lucide="package"></i></span><span class="si-label">패키지 상품</span>
-          <!-- 가격 확인이 오래된 상품 수 — 목록을 열어야만 보이면 아무도 안 본다(결함 생성기 ③) -->
-          <span class="si-badge" id="sb-pkg-stale" style="display:none"></span>
-        </button>
-
-        <!-- ══ 살펴보기 — 숫자를 보는 곳. 급하지 않지만 정기적으로 연다 ══ -->
-        </div>
+            <button class="sidebar-item" data-tab="packages">
+              <span class="si-icon"><i data-lucide="package"></i></span><span class="si-label">패키지 상품</span>
+              <!-- 가격 확인이 오래된 상품 수 — 목록을 열어야만 보이면 아무도 안 본다(결함 생성기 ③) -->
+              <span class="si-badge" id="sb-pkg-stale" style="display:none"></span>
+            </button>
+          </div>
         </div>
 
+        <!-- ══ 분석 — 숫자를 보는 곳 ══ -->
         <div class="sb-group" data-group="look">
-          <button type="button" class="sb-group-head" aria-expanded="false" aria-controls="sbg-look" aria-label="살펴보기 메뉴 — 눌러서 펼치거나 접습니다">
-            <span class="sbg-name">살펴보기</span>
+          <button type="button" class="sb-group-head" aria-expanded="false" aria-controls="sbg-look" aria-label="분석 메뉴 — 눌러서 펼치거나 접습니다">
+            <span class="sbg-name">분석</span>
             <span class="si-badge sbg-badge" aria-hidden="true"></span>
             <span class="sbg-chev"><i data-lucide="chevron-down"></i></span>
           </button>
           <div class="sb-group-items" id="sbg-look">
-        <button class="sidebar-item" data-tab="stats">
-          <span class="si-icon"><i data-lucide="bar-chart-2"></i></span><span class="si-label">방문 통계</span>
-        </button>
-        <button class="sidebar-item" data-tab="events">
-          <span class="si-icon"><i data-lucide="target"></i></span><span class="si-label">이벤트 분석</span>
-        </button>
-        <button class="sidebar-item" data-tab="estimates">
-          <span class="si-icon"><i data-lucide="trending-up"></i></span><span class="si-label">견적 분석</span>
-        </button>
-        <button class="sidebar-item" data-tab="marketing">
-          <span class="si-icon"><i data-lucide="lightbulb"></i></span><span class="si-label">마케팅 인사이트</span>
-        </button>
-
-        <!-- ══ 사이트 운영 — 고객에게 보이는 화면과 우리 계정을 손보는 곳 ══ -->
-        </div>
+            <button class="sidebar-item" data-tab="stats">
+              <span class="si-icon"><i data-lucide="bar-chart-2"></i></span><span class="si-label">방문 통계</span>
+            </button>
+            <button class="sidebar-item" data-tab="events">
+              <span class="si-icon"><i data-lucide="target"></i></span><span class="si-label">이벤트 분석</span>
+            </button>
+            <button class="sidebar-item" data-tab="estimates">
+              <span class="si-icon"><i data-lucide="trending-up"></i></span><span class="si-label">견적 분석</span>
+            </button>
+            <button class="sidebar-item" data-tab="marketing">
+              <span class="si-icon"><i data-lucide="lightbulb"></i></span><span class="si-label">마케팅 인사이트</span>
+            </button>
+          </div>
         </div>
 
+        <!-- ══ 사이트 운영 — 고객에게 보이는 화면과 우리 계정 ══ -->
         <div class="sb-group" data-group="site">
           <button type="button" class="sb-group-head" aria-expanded="false" aria-controls="sbg-site" aria-label="사이트 운영 메뉴 — 눌러서 펼치거나 접습니다">
             <span class="sbg-name">사이트 운영</span>
@@ -1425,17 +1460,15 @@
             <span class="sbg-chev"><i data-lucide="chevron-down"></i></span>
           </button>
           <div class="sb-group-items" id="sbg-site">
-        <button class="sidebar-item" data-tab="content" id="navContent">
-          <span class="si-icon"><i data-lucide="edit-3"></i></span><span class="si-label">콘텐츠 관리</span>
-        </button>
-        <button class="sidebar-item" data-tab="settings">
-          <span class="si-icon"><i data-lucide="settings"></i></span><span class="si-label">설정</span>
-          <!-- 승인 대기 배지 — 가입이 상시 열려 있어 신청이 언제든 들어온다. 기존 알림은
-               설정 탭 안(staff-pending-banner)에만 있어 들어가 봐야 알 수 있었다. -->
-          <span class="si-badge" id="sb-pending-signup" style="display:none"></span>
-        </button>
-
-        </div>
+            <button class="sidebar-item" data-tab="content" id="navContent">
+              <span class="si-icon"><i data-lucide="edit-3"></i></span><span class="si-label">콘텐츠 관리</span>
+            </button>
+            <button class="sidebar-item" data-tab="settings">
+              <span class="si-icon"><i data-lucide="settings"></i></span><span class="si-label">설정</span>
+              <!-- 승인 대기 배지 — 가입이 상시 열려 있어 신청이 언제든 들어온다. -->
+              <span class="si-badge" id="sb-pending-signup" style="display:none"></span>
+            </button>
+          </div>
         </div>
 
         <div class="sidebar-divider"></div>
@@ -1594,7 +1627,7 @@
     <!-- ══ 견적 관리 (신규) ══ -->
     <div class="tab-panel" id="tab-estmgr">
       <div class="page-head">
-        <h1 class="page-title">견적 관리</h1>
+        <h1 class="page-title">견적 요청 관리</h1>
         <p class="page-sub">고객이 직접 낸 견적과 담당자가 만든 견적이 전부 여기 모입니다. 상담 중·계약완료로 상태를 옮기며 관리합니다.</p>
       </div>
 
@@ -2271,7 +2304,7 @@
          공개 견적 계산기에 회귀 버그가 생길 위험이 없다. -->
     <div class="tab-panel" id="tab-quotetool">
       <div class="page-head">
-        <h1 class="page-title">내부 견적 산출</h1>
+        <h1 class="page-title">자동 견적 산출</h1>
         <p class="page-sub">담당자가 고객 대신 견적을 내는 화면입니다. 고객 화면과 같은 엔진을 쓰되, 수익 항목까지 함께 보입니다.</p>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
@@ -2316,7 +2349,7 @@
          동료가 방금 고친 값 그대로 남는다. 그건 갈라서 얻은 진짜 소득이라 버리지 않는다. -->
     <div class="tab-panel" id="tab-itineraries">
       <div class="page-head">
-        <h1 class="page-title">일정 · 방식 A·B</h1>
+        <h1 class="page-title">일정·방식 비교</h1>
         <p class="page-sub">목적지마다 추천 코스와 진행 방식을 정합니다. 여기서 저장한 일정이 고객 견적서에 실려 나갑니다.</p>
       </div>
       <!-- 떠 있는 저장 바 (QZ) — 이 화면은 도쿄 기준 7,500px(약 8화면)이고 입력칸이 94개다.
@@ -2411,7 +2444,7 @@
         <br>
         여기 있는 상품은 <b>반복해서 파는 것</b>이라 「판매중」으로 열면 고객 화면
         (<b>패키지 여행</b>)에 나갑니다. 손님 한 분을 위한 1회용 견적은
-        왼쪽 <b>「직접견적」</b> 메뉴에 있습니다.
+        왼쪽 <b>「직접 견적 작성」</b> 메뉴에 있습니다.
       </div>
 
       <!-- 하는 순서 (WE) — 「저장」과 「판매중」이 한 카드 안에 평평하게 놓여 있어서
@@ -2474,7 +2507,7 @@
          ══════════════════════════════════════════════════════════════════ -->
     <div class="tab-panel" id="tab-adhoc">
       <div class="page-head">
-        <h1 class="page-title">직접견적</h1>
+        <h1 class="page-title">직접 견적 작성</h1>
         <p class="page-sub"><b>담당자가 금액을 직접 적는</b> 견적입니다. 자동 계산을 쓰지 않습니다.</p>
       </div>
       <!-- ⚠ 문구를 줄일 때 **지워도 되는 것과 안 되는 것**이 갈린다 (2026-09-08 대표 지시).
@@ -4875,11 +4908,11 @@
   });
 
   const tabTitles = {
-    dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 관리',
+    dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 요청 관리',
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', pricereport:'견적서 업데이트',
-    rates:'요율 관리', quotetool:'내부 견적 산출',
-    itineraries:'일정 · 방식 A·B', packages:'패키지 상품', adhoc:'직접견적',
+    rates:'요율 관리', quotetool:'자동 견적 산출',
+    itineraries:'일정·방식 비교', packages:'패키지 상품', adhoc:'직접 견적 작성',
     ledger:'견적서 대장', content:'콘텐츠 관리',
     manual:'매뉴얼', settings:'설정'
   };
@@ -14298,7 +14331,7 @@
           + '검색어를 지우고 <strong>새로고침</strong>을 누르면 전체 목록이 나옵니다.</div>'
         : '<div style="padding:16px;color:#888;font-size:.85rem;line-height:1.8">'
           + '아직 발급된 견적서가 없습니다.<br>'
-          + '견적서는 고객이 홈페이지에서 직접 받거나, <strong>「견적 관리」</strong>에서 '
+          + '견적서는 고객이 홈페이지에서 직접 받거나, <strong>「견적 요청 관리」</strong>에서 '
           + '담당자가 발급하면 여기에 기록됩니다.</div>';
       return;
     }
