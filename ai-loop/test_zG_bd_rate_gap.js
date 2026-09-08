@@ -104,6 +104,13 @@ console.log('\n[5] 통화 — 문서가 밝힌 것만 믿는다');
   /* 🔴 큐슈 문서의 함정 — 「원  가」는 열 이름이지 통화가 아니다(값은 엔이었다) */
   const krw = currencyOf('월 일 회수 인원 실원 원 가 비고');
   ok('⑤ 「원가」를 원화 확정으로 읽지 않는다', krw.code === 'KRW?' && krw.sure === false, JSON.stringify(krw));
+
+  /* 🔴 통화 이름이 든 고유명사 — 실측 그대로(바르셀로나 문서) */
+  const gaudi = currencyOf('바르셀로나 까사밀라 28 1 2912 바르셀로나 까사바트요 35 1 3640');
+  ok('⑤ 「까사바트요」를 태국 바트로 안 읽는다', gaudi.code !== 'THB', JSON.stringify(gaudi));
+  ok('⑤ 발신처 「유로존」을 유로로 안 읽는다', currencyOf('발신 김소미 드림 / 유로존 DATE').code !== 'EUR');
+  ok('⑤ 숫자가 붙은 「5-10유로」는 유로로 읽는다',
+    currencyOf('그룹이 인디비식으로 진행시 추가요금 발생되며 (1인 5-10유로 정도)').code === 'EUR');
 }
 
 console.log('\n[6] 분모는 **엔진이 쓰는 수**여야 한다');
