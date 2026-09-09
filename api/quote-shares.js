@@ -369,9 +369,13 @@ async function handleStatus(req, res) {
          set status = ${b.status},
              status_by = ${(req.user && (req.user.displayName || req.user.username)) || 'staff'},
              status_at = now()
-       where id = ${id} returning id`;
+       where id = ${id} returning id, status, status_by, status_at`;
     if (!r.length) return res.status(404).json({ error: 'not_found' });
-    return res.status(200).json({ ok: true });
+    /* 🔴 **누가 언제 바꿨는지를 돌려준다** (ZY). 화면은 「저장」을 누른 뒤 이 줄이
+       생기는 것으로 저장을 확인한다 — 안 돌려주면 화면이 스스로 지어내야 하고,
+       그러면 서버에 안 갔는데 갔다고 적힌 줄이 생긴다(공급사 번호와 같은 규칙). */
+    return res.status(200).json({ ok: true, status: r[0].status,
+      by: r[0].status_by, at: r[0].status_at });
   } catch (err) {
     console.error('[quote-shares] 상태 변경 실패:', err);
     return res.status(500).json({ error: 'update_failed' });

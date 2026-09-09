@@ -144,6 +144,12 @@ const listOk = () => () => (url) => (/action=list/.test(String(url))
     sel.value = 'won';
     sel.dispatchEvent(new w.Event('change', { bubbles: true }));
     await new Promise((r) => setTimeout(r, 120));
+    /* ⚠ ZY(2026-09-09)부터 고르는 것만으로는 저장되지 않는다 — 옆의 「저장」을 눌러야 한다.
+       그래서 이 묶음이 재려던 「실패하면 되돌린다」는 **버튼을 눌러서** 확인한다. */
+    const btn = sel.closest('td').querySelector('.led-st-save');
+    ok('③ 저장 버튼이 켜졌다', !!btn && !btn.disabled);
+    btn.click();
+    await new Promise((r) => setTimeout(r, 120));
     /* 화면만 바뀐 채로 두면 담당자는 바꿨다고 믿는다 */
     ok('③ 🔴 실패하면 값이 되돌아온다', sel.value === 'issued', sel.value);
     ok('③ 그리고 실패했다고 말한다', w.__alerts.some((m) => /바꾸지 못했습니다/.test(m)),

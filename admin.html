@@ -392,6 +392,35 @@
     .tbl tr.st-void td,
     .tbl tr.st-lost td { color: var(--muted); }
 
+    /* ── 상태는 「고르면 바로」가 아니라 「저장을 눌러야」 반영된다 (ZY, 2026-09-09 대표 지시) ──
+       대표: 「상태영역을 선택하고 바꾸면 바로 옆에 저장 버튼이 활성화되고, 누르면 반영되면
+       좋겠다.」 대장은 **훑는 화면**이라 드롭다운 위에서 스크롤·키보드가 스쳐도 값이 바뀐다 —
+       예전에는 그 순간 곧바로 서버로 갔다(되돌릴 문이 없는 저장).
+       ⚠ 그래서 **세 가지 상태가 눈에 보여야** 한다:
+         ① 저장된 그대로  — 버튼이 꺼져 있다(누를 것이 없다)
+         ② 바꿨는데 아직  — 드롭다운이 **주황**으로 변하고 버튼이 켜진다(🔴 색이 「아직」을 말한다)
+         ③ 저장됨        — 버튼이 잠깐 「저장됨」이 되고, 「바꾼 사람 · 날짜」 줄이 생긴다
+       🔴 **②에서 상태색(초록·회색·빗금)을 미리 입히지 않는다.** 미리 칠하면 줄을 훑는
+         사람은 「계약된 건」으로 읽는데 서버에는 아직 안 갔다 — 대장에서 가장 비싼 거짓말이다. */
+    .led-st-wrap { display: flex; align-items: center; gap: .35rem; }
+    /* 🔴 **표가 좁은 화면에서 소리 없이 잘리고 있었다** (ZY에서 브라우저로 재다가 찾았다).
+       `.dash-main`이 `overflow-x:hidden`이라 넘치는 만큼이 **그냥 사라진다** — 스크롤바도
+       안 생기니 담당자는 마지막 열(열기·링크·문의)이 있는 줄도 모른다.
+       실측(1024px · 두 줄): 표 폭이 화면보다 70px 넘쳤다. **저장 버튼을 넣기 전부터** 그랬고,
+       버튼이 58px을 더했다. → 열을 더 줄이는 대신 **이 표만 제 안에서 가로로 구른다.**
+       ⚠ 넘치는 표는 「감춘다」가 아니라 「구르게 한다」로 푼다. 감추면 없는 것이 된다. */
+    #ledList { overflow-x: auto; }
+    /* 표 안이라 버튼이 작아야 한다 — 전역 .btn-act는 이 표에 비해 크다 */
+    .tbl .led-st-save { padding: .25rem .55rem; font-size: 11.5px; min-height: 28px; white-space: nowrap;
+      border-color: var(--border); background: var(--white); color: var(--muted); }
+    /* 🔴 「아직 저장 안 됐다」는 **드롭다운과 버튼이 같은 색으로** 말한다. 한쪽만 말하면
+       버튼을 안 보고 지나간다(버튼은 줄 끝에 있고, 눈은 드롭다운에 있다). */
+    .tbl select.led-st.is-dirty { border-color: #D97706; background: #FFFBEB; color: #92400E; text-decoration: none; }
+    /* ⚠ 채운 버튼의 글자색은 **재고 골랐다.** amber-600(#D97706) 위의 흰 글자는 3.19:1로
+       11.5px 글자에 모자란다 — amber-700(#B45309)이면 5.04:1이다(WCAG 1.4.3 AA). */
+    .tbl .led-st-save.is-on { border-color: #B45309; background: #B45309; color: #fff; cursor: pointer; }
+    .tbl .led-st-save.is-done { border-color: #047857; background: #ECFDF5; color: #065F46; }
+
     .empty-state { text-align: center; padding: 3.5rem 2rem; color: var(--muted); }
     /* 🔴 빈 화면 안내는 **읽히라고 있는 글**이다 (YB) — 「무엇이 없고 무엇을 하면
        되는지」를 말하는 자리인데 79자/줄이었다. 가운데 정렬이라 여백도 함께 준다. */
@@ -14487,14 +14516,32 @@
              구별이 안 됐다. 대장은 **훑는 화면**이다 — 한 줄씩 읽는 곳이 아니다.
              ⚠ 색만으로 말하지 않는다 — 글자(발급/계약/무산/취소)가 그대로 있고
                색은 거드는 것이다. 색각 이상이 있어도 읽힌다(WCAG 1.4.1). */
-          + '<td><select class="led-st led-st--' + esc(r.status || 'issued') + '" data-i="' + i + '">'
+          /* 🔴 **고른 순간 저장되지 않는다** (ZY, 2026-09-09 대표 지시). 바꾸면 옆의
+             「저장」이 켜지고, 그 버튼을 눌러야 서버로 간다. `data-saved`가 **서버에
+             저장된 값**이다 — 화면의 `value`와 이 값을 견주어 「아직 안 됐다」를 안다.
+             ⚠ 저장된 값을 `select.value`로 되짚지 않는다. 그 값은 사람이 방금 바꿔 놓은
+               것이라, 되돌릴 곳이 사라진다. */
+          + '<td><div class="led-st-wrap">'
+          +   '<select class="led-st led-st--' + esc(r.status || 'issued') + '" data-i="' + i + '"'
+          +     ' data-saved="' + esc(r.status || 'issued') + '"'
+          /* ⚠ 낭독기에는 **어느 줄의 상태인지**를 준다 — 같은 드롭다운이 화면에 수십 개다 */
+          +     ' aria-label="' + esc((r.quote_no || '이 견적서') + ' — 진행 상태') + '">'
           +   Object.keys(LED_STATUS).map(k => '<option value="' + k + '"'
                 + (k === (r.status || 'issued') ? ' selected' : '') + '>' + LED_STATUS[k] + '</option>').join('')
-          + '</select>'
-          + (r.status_by
-              ? '<div class="sub">' + esc(r.status_by)
-                + (r.status_at ? ' · ' + esc(day(r.status_at)) : '') + '</div>'
-              : '')
+          +   '</select>'
+          /* 🔴 처음에는 **꺼져 있다.** 늘 켜져 있으면 「누를 것이 있는가」를 버튼이
+             말해 주지 못하고, 안 바뀐 건에도 눌러서 「누가 언제」만 헛되이 갱신된다. */
+          +   '<button type="button" class="btn-act led-st-save" data-i="' + i + '" disabled'
+          +     ' aria-label="' + esc((r.quote_no || '이 견적서') + ' — 바꾼 상태를 저장') + '"'
+          +     ' title="상태를 바꾸면 이 버튼이 켜집니다. 누르기 전에는 저장되지 않습니다.">저장</button>'
+          + '</div>'
+          /* 바꾼 사람 — 클래스로 찾는다(ZV의 교훈: DOM 모양에 기대면 남의 칸을 덮는다).
+             저장에 성공하면 이 줄이 **생기거나 갱신되는 것**이 눈에 보이는 증거다. */
+          /* ⚠ 빈 채로 두면 **빈 줄**이 남아 칸이 3px씩 밀린다(ZX에서 겪었다) — 감춘다.
+             저장하면 그때 hidden을 떼고 채운다. */
+          + '<div class="sub led-st-by"' + (r.status_by ? '' : ' hidden') + '>'
+          +   (r.status_by ? esc(r.status_by) + (r.status_at ? ' · ' + esc(day(r.status_at)) : '') : '')
+          + '</div>'
           + '</td>'
           /* ── ⑧ 조작 ── */
           + '<td style="white-space:nowrap"><button class="btn-act btn-outline-p led-open" data-i="' + i + '">열기</button>'
@@ -14548,6 +14595,8 @@
     box.querySelectorAll('.led-rev').forEach(b => b.addEventListener('click', async () => {
       const row = ledRows[Number(b.dataset.i)];
       if (!row) return;
+      /* ⚠ 이 버튼도 끝나면 목록을 다시 그린다 — 저장 안 한 상태 변경이 있으면 먼저 묻는다 (ZY) */
+      if (!ledLeaveOk()) return;
       const to = b.dataset.to || '';
       b.disabled = true;
       try {
@@ -14620,22 +14669,83 @@
         }
       });
     });
-    box.querySelectorAll('.led-st').forEach(sel => sel.addEventListener('change', async () => {
-      const row = ledRows[Number(sel.dataset.i)];
-      const prev = row.status || 'issued';
+    /* ══ 상태 — 고르고 「저장」을 눌러야 반영된다 (ZY, 2026-09-09 대표 지시) ═════════
+       예전에는 `change` 그 자리에서 서버로 갔다. 대장은 훑는 화면이라 드롭다운 위에서
+       스크롤·↑↓ 한 번이면 값이 바뀌고, 그게 곧 저장이었다 — **되돌릴 문이 없었다.**
+       ⚠ 되돌리는 문이 둘이다: ① 원래 값으로 다시 고르면 버튼이 저절로 꺼진다
+         ② 저장하지 않고 다른 화면으로 가려 하면 **묻는다**(ledLeaveOk).
+       ⚠ 실패 규칙은 그대로다 — 되돌리고 **왜 안 됐는지** 말한다. */
+    const ledSyncSave = (sel) => {
+      const btn = sel.closest('td').querySelector('.led-st-save');
+      if (!btn) return;
+      const dirty = sel.value !== sel.dataset.saved;
+      sel.classList.toggle('is-dirty', dirty);
+      btn.classList.toggle('is-on', dirty);
+      btn.disabled = !dirty;
+      /* 「저장됨」이 남아 있는 채로 또 고치면 거짓말이 된다 — 되돌린다 */
+      if (dirty) { btn.classList.remove('is-done'); btn.textContent = '저장'; }
+    };
+    box.querySelectorAll('.led-st').forEach(sel =>
+      sel.addEventListener('change', () => ledSyncSave(sel)));
+
+    box.querySelectorAll('.led-st-save').forEach(btn => btn.addEventListener('click', async () => {
+      const sel = btn.closest('td').querySelector('.led-st');
+      const row = ledRows[Number(btn.dataset.i)];
+      if (!sel || !row) return;
+      const prev = sel.dataset.saved;            /* 서버에 저장돼 있는 값 */
+      const next = sel.value;
+      if (next === prev) { ledSyncSave(sel); return; }   /* 누를 것이 없다 */
+      btn.disabled = true; sel.disabled = true;
+      btn.textContent = '저장 중…';
       try {
         const r = await fetch('/api/quote-shares?action=status', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: row.id, status: sel.value }),
+          body: JSON.stringify({ id: row.id, status: next }),
         });
+        const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error('http_' + r.status);
-        row.status = sel.value;
+        row.status = next;
+        sel.dataset.saved = next;
+        /* 🔴 **이제서야** 색을 상태색으로 바꾼다 — 서버에 갔다는 것이 확인된 뒤다 */
+        sel.className = 'led-st led-st--' + next;
+        const tr = sel.closest('tr');
+        if (tr) tr.className = 'st-' + next;
+        /* 🔴 「누가 언제」가 갱신되는 것이 **저장됐다는 눈에 보이는 증거**다.
+           서버가 안 알려주면(옛 배포) 그 줄을 건드리지 않는다 — 짐작해서 적지 않는다. */
+        const line = sel.closest('td').querySelector('.led-st-by');
+        if (line && d && d.by) {
+          line.textContent = d.by + (d.at ? ' · ' + day(d.at) : '');
+          line.hidden = false;
+          row.status_by = d.by; row.status_at = d.at || null;
+        }
+        btn.classList.remove('is-on'); btn.classList.add('is-done');
+        btn.textContent = '저장됨';
+        btn.disabled = true;
+        setTimeout(() => { btn.classList.remove('is-done'); btn.textContent = '저장'; }, 2000);
       } catch (err) {
         /* 실패했으면 **되돌린다.** 화면만 바뀐 채로 두면 바꿨다고 믿게 된다 */
         sel.value = prev;
         alert('상태를 바꾸지 못했습니다 — ' + String(err.message || err));
+        btn.textContent = '저장';
+      } finally {
+        sel.disabled = false;
+        ledSyncSave(sel);
       }
     }));
+  }
+
+  /* 🔴 **저장하지 않은 상태 변경을 조용히 버리지 않는다** (ZY).
+     목록을 다시 그리면 고쳐 놓은 드롭다운이 전부 원래 값으로 돌아간다. 담당자는
+     「찾기」를 누른 것뿐인데 바꾼 것이 사라진다 — 그것도 **아무 말 없이**. */
+  function ledDirtyCount() {
+    return [...document.querySelectorAll('#ledList .led-st')]
+      .filter(s => s.value !== s.dataset.saved).length;
+  }
+  function ledLeaveOk() {
+    const n = ledDirtyCount();
+    if (!n) return true;
+    return confirm('아직 저장하지 않은 상태 변경이 ' + n + '건 있습니다.\n'
+      + '지금 목록을 다시 불러오면 그 변경은 사라집니다.\n\n계속할까요?');
   }
 
   /* 🔗 하나투어 상품 주소로 불러오기 (WJ).
@@ -15013,9 +15123,10 @@
     document.getElementById('pkgIssue')?.addEventListener('click', pkgIssueNow);
     document.getElementById('pkgPdfRead')?.addEventListener('click', pkgReadPdf);
     document.getElementById('pkgHtRead')?.addEventListener('click', pkgReadHanatour);
-    document.getElementById('ledFind')?.addEventListener('click', () => renderLedger(document.getElementById('ledSearch').value.trim()));
-    document.getElementById('ledReload')?.addEventListener('click', () => { document.getElementById('ledSearch').value=''; renderLedger(); });
-    document.getElementById('ledSearch')?.addEventListener('keydown', (e) => { if (e.key==='Enter') { e.preventDefault(); renderLedger(e.target.value.trim()); } });
+    /* ⚠ 셋 다 목록을 **다시 그린다** — 저장 안 한 상태 변경이 있으면 먼저 묻는다 (ZY) */
+    document.getElementById('ledFind')?.addEventListener('click', () => { if (ledLeaveOk()) renderLedger(document.getElementById('ledSearch').value.trim()); });
+    document.getElementById('ledReload')?.addEventListener('click', () => { if (!ledLeaveOk()) return; document.getElementById('ledSearch').value=''; renderLedger(); });
+    document.getElementById('ledSearch')?.addEventListener('keydown', (e) => { if (e.key==='Enter') { e.preventDefault(); if (ledLeaveOk()) renderLedger(e.target.value.trim()); } });
     document.getElementById('pkgIssueCopy')?.addEventListener('click', () => {
       const el = document.getElementById('pkgIssueUrl');
       el.select();
