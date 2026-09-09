@@ -36,9 +36,10 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 
 const ROOT = path.join(__dirname, '..');
-const ADMIN = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+const ADMIN = adminSource();
 const CONTENT = fs.readFileSync(path.join(ROOT, 'api', 'content.js'), 'utf8');
 
 let pass = 0, fail = 0;

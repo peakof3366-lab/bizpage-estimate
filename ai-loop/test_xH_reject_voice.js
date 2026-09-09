@@ -35,6 +35,7 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -53,7 +54,7 @@ const done = () => {
 const SHARES = read('api/quote-shares.js');
 const AUTH = read('api/_lib/auth.js');
 const PKGHTML = read('packages.html');
-const ADMIN = read('admin.html');
+const ADMIN = adminSource();
 
 /* 함수 하나의 본문만 잘라 낸다 — 파일 전체에서 코드를 긁으면 **다른 경로의 코드**
    (invalid_share·payload_too_large 등)까지 딸려 와 없는 결함이 생긴다. */

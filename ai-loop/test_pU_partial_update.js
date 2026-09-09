@@ -23,6 +23,7 @@
    실행: node ai-loop/test_pU_partial_update.js  (프로젝트 루트에서) */
 const fs = require('fs');
 const path = require('path');
+const { adminSource } = require('./_admin_source');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
@@ -34,7 +35,7 @@ const ok = (name, cond, extra = '') => {
 
 const inqSrc = read(path.join('api', 'inquiries', '[id].js'));
 const quoteSrc = read(path.join('api', 'quotes', '[id].js'));
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 
 console.log('[1] 서버 — 안 보낸 필드를 기본값으로 초기화하지 않는가');
 /* 이 패턴이 되살아나면 통째 덮어쓰기로 돌아간 것이다. */

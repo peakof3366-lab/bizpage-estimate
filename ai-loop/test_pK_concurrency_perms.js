@@ -15,6 +15,7 @@
    실행: node ai-loop/test_pK_concurrency_perms.js  (프로젝트 루트에서) */
 const fs = require('fs');
 const path = require('path');
+const { adminSource } = require('./_admin_source');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
@@ -79,7 +80,7 @@ for (const [label, src] of [['문의', inqIdSrc], ['견적', qIdSrc]]) {
 }
 
 console.log('\n[4] 화면도 같은 기준으로 가려지는가');
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 ok('삭제 버튼에 id가 붙어 있다', /id="btnDeleteInquiry"/.test(adminSrc) && /id="btnDeleteQuote"/.test(adminSrc));
 /* PV에서 목록에 일괄 삭제 버튼 셋이 추가됐다(문의 전체·견적 선택·견적 전체 — 서버는
    매니저 이상으로 막는데 화면에서 빠져 있었다). 여기서는 개별 삭제 두 개가 여전히

@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -27,7 +28,7 @@ const ok = (name, cond, extra = '') => {
 };
 
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 const manualPath = path.join(ROOT, 'manual.html');
 
 (async () => {

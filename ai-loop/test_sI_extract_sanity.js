@@ -23,6 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 const X = require('../api/_lib/pdf_extract.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -187,7 +188,7 @@ console.log('\n[5] 감사기가 README에 등록돼 있는가');
   ok('오독 후보는 검산 안 된 값도 재 본다', /all\.forEach\(\(x\) => \{/.test(aud));
   /* 화면(갱신 제안)도 같은 원칙을 따라야 한다 — 1건이어도 그 목적지의 기준이 된다.
      ⚠ 집계 키에 목적지가 들어 있어야 지역이 섞이지 않는다. */
-  const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const html = adminSource();
   ok('1건짜리 목적지도 갱신 제안에 뜬다', /RATE_SUGGEST_MIN_COUNT = 1/.test(html));
   ok('자동 적용은 여전히 5건 이상만', /RATE_SUGGEST_CONFIDENT_COUNT = 5/.test(html));
   ok('1건일 때 「첫 실측」이라고 밝힌다', /이 목적지의 첫 실측/.test(html));

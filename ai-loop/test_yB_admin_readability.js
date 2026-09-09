@@ -32,6 +32,7 @@ const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { bootPage } = require('./_page_boot');
 const { adminFixtures, enterDashboard } = require('./_admin_fixtures');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -114,7 +115,7 @@ const rates = fs.existsSync(RATES_FIXTURE)
   }
 
   console.log('\n[2] 줄글 최대 폭 — 안내문이 91자/줄이었다');
-  const admin = read('admin.html');
+  const admin = adminSource();
   ok('폭 토큰이 정의돼 있다', /--measure:\s*\d+(\.\d+)?em/.test(admin));
   /* ⚠ `em`이어야 한다 — 한글은 1자 ≈ 1em이라 글자 크기가 달라도 글자 수가 같다.
      `ch`(숫자 0의 폭)로 바꾸면 한글에서 절반쯤으로 어긋난다. */

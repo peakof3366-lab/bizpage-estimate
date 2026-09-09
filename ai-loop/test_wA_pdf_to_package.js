@@ -41,7 +41,8 @@ const done = () => {
 };
 
 const R = require('./_package_rows');
-const ADMIN = read('admin.html');
+const { adminSource } = require('./_admin_source');
+const ADMIN = adminSource();
 const IMP = read('ai-loop/import_packages.js');
 
 console.log('\n[1] 🔴 금액 확인일 — 자료가 밝힌 것부터, 오늘은 끝까지 안 쓴다');

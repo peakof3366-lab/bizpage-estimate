@@ -35,6 +35,7 @@ const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const X = require('../api/_lib/pdf_extract.js');
 const DATA = require('../data.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -343,7 +344,7 @@ ok('없는 목적지 이름에도 안전하다', DATA.getGolfFee('없는곳') ==
   console.log('\n[14] 골프 실측 배선 — 한 곳이라도 빠지면 조용히 샌다');
   const apiQuotes = read(path.join('api', 'quotes.js'));
   const apiRates = read(path.join('api', 'rates.js'));
-  const adminSrc = read('admin.html');
+  const adminSrc = adminSource();
   const migSrc = read(path.join('ai-loop', 'db_migrate.js'));
 
   ok('마이그레이션이 additive다 (golf_unit)',

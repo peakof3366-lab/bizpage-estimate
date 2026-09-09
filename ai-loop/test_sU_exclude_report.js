@@ -23,6 +23,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -131,11 +132,11 @@ const REPORTS = [
   ok('안 뺀 행은 영향이 없다', win.reportValueToday(REPORTS[0], 'hotel_per_room') === 275500);
   /* 값이 아니라 **어느 항목이 빠졌는지**도 알아야 화면이 이유를 적을 수 있다.
      (두 함수는 const라 window에 안 붙는다 — 실제 동작은 아래 [4]의 렌더로 잰다.) */
-  ok('빠진 항목을 판별하는 자리가 있다', /const reportFieldExcluded =/.test(read('admin.html')));
-  ok('사유를 꺼내는 자리가 있다', /const reportExcludeReason =/.test(read('admin.html')));
+  ok('빠진 항목을 판별하는 자리가 있다', /const reportFieldExcluded =/.test(adminSource()));
+  ok('사유를 꺼내는 자리가 있다', /const reportExcludeReason =/.test(adminSource()));
 
   /* ⚠ 관문이 하나여야 네 곳이 한 번에 빠진다 — 화면마다 따로 거르면 반드시 하나를 빠뜨린다 */
-  const src = read('admin.html');
+  const src = adminSource();
   const gateCount = (src.match(/reportFieldExcluded\(report, rateField\)/g) || []).length;
   ok('빼는 판단이 reportValueToday 안에 있다', gateCount === 1, String(gateCount));
   ok('제보를 기준가와 견주는 자리가 전부 그 함수를 지난다',

@@ -16,6 +16,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 const { safeId, payloadTooLarge, toNumberOrNull, trimText, SAFE_ID_RE, MAX_PAYLOAD_BYTES } =
   require(path.join(ROOT, 'api', '_lib', 'public_input.js'));
 
@@ -80,7 +81,7 @@ ok('저장되는 payload의 id도 안전한 값으로 교체', /\{ \.\.\.payload
 ok('quotes 인원·총액을 숫자로 못 박음', /toNumberOrNull\(payload\.participants\)/.test(qSrc) && /toNumberOrNull\(payload\.total\)/.test(qSrc));
 
 console.log('\n[5] 화면 — safeId 헬퍼와 적용 지점');
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 ok('safeId 헬퍼 정의', /const safeId = \(s\) =>[\s\S]{0,120}replace\(\/\[\^A-Za-z0-9_-\]\/g, ''\)/.test(adminSrc));
 const rawIdSites = adminSrc.split('\n')
   .map((line, i) => ({ line, no: i + 1 }))

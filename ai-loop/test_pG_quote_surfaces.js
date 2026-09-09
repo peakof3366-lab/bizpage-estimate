@@ -6,6 +6,7 @@
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
+const { adminSource } = require('./_admin_source');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
@@ -97,7 +98,7 @@ const ok = (name, cond, extra = '') => {
 
   /* ── ④ 관리자 상세 모달이 그 값을 보여주는가 ── */
   console.log('\n[4] 관리자 견적 상세 — 조건 표시');
-  const adminSrc = read('admin.html');
+  const adminSrc = adminSource();
   const condStart = adminSrc.indexOf('const condExtra = [');
   const condEndMark = ".filter(Boolean).join(' · ');";
   const condBlock = adminSrc.slice(condStart, adminSrc.indexOf(condEndMark, condStart) + condEndMark.length);

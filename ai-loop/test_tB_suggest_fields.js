@@ -24,6 +24,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -70,7 +71,7 @@ const REPORTS = [
 (async () => {
   /* ── [1] 항목이 넓어졌는가 ─────────────────────────────────────────── */
   console.log('[1] 7개 항목 전부를 보는가');
-  const src = read('admin.html');
+  const src = adminSource();
   ['airfare', 'fuel_surcharge', 'hotel_per_room', 'meal_per_person',
     'vehicle_large', 'guide_fee', 'sightseeing_fee'].forEach((f) => {
     ok(`${f} 를 본다`, new RegExp(`RATE_SUGGEST_REPORT_FIELDS = \\{[\\s\\S]{0,320}${f}:`).test(src));

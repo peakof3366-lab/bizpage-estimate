@@ -23,8 +23,9 @@ const ok = (name, cond, extra = '') => {
 
 const DATA = require('../data');
 const DEST_CURRENCY = require('../dest_currency');
+const { adminSource } = require('./_admin_source');
 const scriptSrc = read('script.js');
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 const curSrc = read('dest_currency.js');
 const dataSrc = read('data.js');
 

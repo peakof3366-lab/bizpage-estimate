@@ -6,6 +6,7 @@
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
+const { adminSource } = require('./_admin_source');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
@@ -61,7 +62,7 @@ const ok = (name, cond, extra = '') => {
 
   /* ── C. 표시 경로: 관리자 패널이 새 계수를 렌더하는가 ──────────────────── */
   console.log('\n[3] 관리자 계수 기여도 패널(P12) 렌더');
-  const adminSrc = read('admin.html');
+  const adminSrc = adminSource();
   /* 패널 함수는 바로 위의 COEF_VOL_CAP·COEF_DEFAULTS에 의존하므로 그 선언부터 함께 뜬다 */
   const fnStart = adminSrc.indexOf('const COEF_VOL_CAP');
   const fnSrc = adminSrc.slice(fnStart, adminSrc.indexOf('\n  }', adminSrc.indexOf('function coefContribHtml')) + 4);

@@ -19,6 +19,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -29,7 +30,7 @@ const ok = (name, cond, extra = '') => {
 (async () => {
   /* ── [1] 배선 (소스 고정) ─────────────────────────────────────────────── */
   console.log('[1] 탭이 열릴 때 다시 읽도록 이어져 있는가');
-  const src = read('admin.html');
+  const src = adminSource();
   ok('요율 탭이 갱신 함수를 부른다',
     /name==='rates'\)\s*\{\s*renderRates\(\);\s*refreshRatesOnOpen\(\);/.test(src));
   ok('갱신 함수가 서버 값을 다시 읽는다',

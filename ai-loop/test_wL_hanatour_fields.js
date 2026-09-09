@@ -36,6 +36,7 @@ const { JSDOM, VirtualConsole } = require('jsdom');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const H = require(path.join(ROOT, 'api', '_lib', 'hanatour.js'));
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -49,7 +50,7 @@ const done = () => {
 };
 
 const LIB = read('api/_lib/hanatour.js');
-const ADMIN = read('admin.html');
+const ADMIN = adminSource();
 
 console.log('\n[1] HTML이 섞인 문구 — 태그는 지우되 글자는 안 잃는다');
 {

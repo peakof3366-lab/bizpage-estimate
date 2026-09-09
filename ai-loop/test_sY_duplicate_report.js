@@ -17,6 +17,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -124,7 +125,7 @@ const SHANGHAI_3 = [
 
   /* ── [4] 막지 않고 물어보는가 ───────────────────────────────────────── */
   console.log('\n[4] 막지 않고 물어보는가');
-  const src = read('admin.html');
+  const src = adminSource();
   ok('제출 전에 확인한다', /findDuplicateReports\(destKey, \{/.test(src));
   ok('**confirm으로 묻는다**(강제로 막지 않는다)', /같은 견적서를 이미 넣으셨을 수 있습니다/.test(src));
   ok('취소하면 제출을 멈춘다', /제출을 멈췄습니다/.test(src));

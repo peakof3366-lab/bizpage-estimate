@@ -28,6 +28,7 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -45,7 +46,7 @@ const done = () => {
 
 const PKGLIB = read('api/_lib/packages.js');
 const CONTENT = read('api/content.js');
-const ADMIN = read('admin.html');
+const ADMIN = adminSource();
 
 console.log('\n[1] 「지금 팔 수 있는가」 — 세 조건이 다 있다');
 {

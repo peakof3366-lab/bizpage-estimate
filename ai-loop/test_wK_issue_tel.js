@@ -28,6 +28,7 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -44,7 +45,7 @@ const done = () => {
 };
 
 const SCRIPT = read('script.js');
-const ADMIN = read('admin.html');
+const ADMIN = adminSource();
 const SHARES = read('api/quote-shares.js');
 const AQ = read('admin-quote.html');
 

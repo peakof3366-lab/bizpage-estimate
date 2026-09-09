@@ -27,6 +27,7 @@
    실행: node ai-loop/test_uV_extract_warnings.js  (프로젝트 루트에서) */
 const fs = require('fs');
 const path = require('path');
+const { adminSource } = require('./_admin_source');
 const ROOT = path.join(__dirname, '..');
 
 let pass = 0, fail = 0;
@@ -153,7 +154,7 @@ const texts = (o) => ((o.body && o.body.warnings) || []).join(' || ');
   {
     /* 경고는 화면의 공통 자리(pr-warnings)로 그려진다 — 그 통로가 살아 있어야
        위의 문구가 실제로 보인다. */
-    const admin = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+    const admin = adminSource();
     ok('화면이 warnings를 읽는다', /Array\.isArray\(data\.warnings\)/.test(admin));
     ok('화면이 한 줄씩 ⚠로 그린다', /'⚠ ' \+ t/.test(admin));
   }

@@ -29,6 +29,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -130,7 +131,7 @@ function openAdmin(exposeName, exposeBody) {
   /* ── [2] 규칙을 다시 적은 자리가 남지 않았는가 ──────────────────────── */
   console.log('\n[2] 오버라이드를 코스 목록으로 그냥 읽는 자리가 남았는가');
   {
-    const admin = read('admin.html');
+    const admin = adminSource();
     /* ⚠ 개수로 세면 새 자리가 늘어도 통과한다. 줄마다 **무엇에 쓰는지**를 본다 —
        코스 목록으로 쓰지 않는 것(대입·삭제·존재 확인·rec 함수 경유)만 통과시킨다. */
     const OK_RAW = [

@@ -40,6 +40,7 @@ const done = () => {
 };
 
 const QNO = require(path.join(ROOT, 'api', '_lib', 'quote_no.js'));
+const { adminSource } = require('./_admin_source');
 const SHARES = read('api/quote-shares.js');
 const VIEW_API = read('api/quote-shares/[id].js');
 const MIG = read('ai-loop/db_migrate.js');
@@ -315,7 +316,7 @@ const ROWS = [
 
   console.log('\n[10] 담당자가 화면에서 이 표시를 이해한다');
   {
-    const ADMIN = read('admin.html');
+    const ADMIN = adminSource();
     /* ⚠ ZV에서 안내를 12줄 → 3줄로 줄이며 설명을 **그 물건 옆으로** 옮겼다(대표 지시).
        지키려던 것은 「파란 상자에 있다」가 아니라 **담당자가 그 자리에서 뜻을 알 수
        있다**이다 — 배지의 `title`, 버튼의 `title`이 상자보다 가까운 자리다.

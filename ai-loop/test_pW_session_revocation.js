@@ -40,6 +40,7 @@ require.cache[dbPath] = {
 
 process.env.SESSION_SECRET = 'test-secret-for-pw-session-revocation-check';
 const auth = require(path.join(ROOT, 'api', '_lib', 'auth.js'));
+const { adminSource } = require('./_admin_source');
 
 const authSrc = read(path.join('api', '_lib', 'auth.js'));
 const accountSrc = read(path.join('api', 'admin', 'account.js'));
@@ -177,7 +178,7 @@ const cookieCleared = (res) => /bp_admin_session=;/.test(String(res.headers['Set
     (await auth.requireAdmin({ cookies: { bp_admin_session: legacy } }, rs)) === false && rs.code === 401);
 
   console.log('\n[7] 화면이 503을 사람 말로 설명하는가');
-  const adminSrc = read('admin.html');
+  const adminSrc = adminSource();
   ok('요율 저장 오류 문구에 session_check_failed가 있다',
     /session_check_failed/.test(adminSrc));
   ok('리드 쓰기 오류 문구에도 있다',

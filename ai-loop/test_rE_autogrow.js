@@ -32,6 +32,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -39,7 +40,7 @@ const ok = (name, cond, extra = '') => {
   else { fail++; console.log('  ✗ ' + name + (extra ? '  → ' + extra : '')); }
 };
 
-const adminSrc = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+const adminSrc = adminSource();
 /* 자동 높이 함수 본문만 떼어 본다 — 파일 전체에서 'auto'를 찾으면 아무 데서나 걸린다 */
 const growFn = (adminSrc.match(/function itiAutoGrow\s*\([\s\S]*?\n  \}/) || [''])[0];
 

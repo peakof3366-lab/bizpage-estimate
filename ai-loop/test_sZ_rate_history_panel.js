@@ -19,6 +19,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -36,7 +37,7 @@ const HISTORY = [
 (async () => {
   /* ── [1] 구조 — 두 곳에 두지 않았는가 ──────────────────────────────── */
   console.log('[1] 모달에서 꺼내 한 곳으로 옮겼는가');
-  const src = read('admin.html');
+  const src = adminSource();
   ok('모달 마크업이 없어졌다', !/id="rateHistoryModal"/.test(src));
   ok('모달을 여는 함수도 없어졌다', !/openRateHistoryModal/.test(src));
   ok('필터 바의 「🕘 변경 이력」 버튼이 없어졌다',

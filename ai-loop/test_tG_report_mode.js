@@ -21,6 +21,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -29,7 +30,7 @@ const ok = (name, cond, extra = '') => {
 };
 
 (async () => {
-  const src = read('admin.html');
+  const src = adminSource();
 
   /* ── [0] 소스에서 확인할 것 — 초기 화면과 초기값이 어긋나면 안 된다 ────────── */
   console.log('[0] 기본값과 초기 화면이 같은 것을 가리키는가');

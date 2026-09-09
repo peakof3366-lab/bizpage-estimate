@@ -28,6 +28,7 @@
 
    실행: node ai-loop/test_rN_pdf_rows.js  (프로젝트 루트에서) */
 const fs = require('fs');
+const { adminSource } = require('./_admin_source');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 
@@ -46,7 +47,7 @@ if (!process.env.DATABASE_URL) {
 }
 const quotes = require('../api/quotes.js');
 const X = quotes._extract;
-const adminSrc = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+const adminSrc = adminSource();
 const quotesSrc = fs.readFileSync(path.join(ROOT, 'api', 'quotes.js'), 'utf8');
 /* RZ: 뽑아내는 알맹이는 api/_lib/pdf_extract.js로 옮겼다(층 구조). 여기도 함께 본다. */
 const libSrc = fs.readFileSync(path.join(ROOT, 'api', '_lib', 'pdf_extract.js'), 'utf8');

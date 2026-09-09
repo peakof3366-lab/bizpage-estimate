@@ -24,6 +24,7 @@
    순간 '오류 6건'이 뜬다. 그래서 커스텀 목적지는 **DB 행의 분류값이 채워져 있는가**를
    따로 본다: 값이 비면 편입할 것이 없어 엔진이 조용히 폴백하기 때문. */
 const fs = require('fs');
+const { adminSource } = require('./_admin_source');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -33,7 +34,7 @@ const grab = (src, re, name) => {
   return m[0];
 };
 
-const scriptSrc = read('script.js'), adminSrc = read('admin.html'), idxSrc = read('index.html');
+const scriptSrc = read('script.js'), adminSrc = adminSource(), idxSrc = read('index.html');
 
 /* PY: data.js를 실제 모듈로 불러 파생 결과를 그대로 본다(예전엔 소스에서 리터럴을
    정규식으로 긁었는데, 이제 목록이 리터럴이 아니라 분류표에서 파생되므로 그 방식은

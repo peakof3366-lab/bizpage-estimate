@@ -18,6 +18,7 @@
    실행: node ai-loop/test_pX_internal_quote_origin.js  (프로젝트 루트에서) */
 const fs = require('fs');
 const path = require('path');
+const { adminSource } = require('./_admin_source');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
@@ -30,7 +31,7 @@ const ok = (name, cond, extra = '') => {
 const quotesSrc = read(path.join('api', 'quotes.js'));
 const aqSrc = read('admin-quote.html');
 const scriptSrc = read('script.js');
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 
 console.log('[1] 서버가 출처를 찍는가 (②)');
 ok('내부 저장 전용 action이 있다', /if \(action === 'internal' && req\.method === 'POST'\)/.test(quotesSrc));

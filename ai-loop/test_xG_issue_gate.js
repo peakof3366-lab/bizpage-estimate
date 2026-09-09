@@ -26,6 +26,7 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -46,7 +47,7 @@ const day = (offset) => new Date(Date.now() + offset * 86400000).toISOString().s
 
 console.log('\n[1] 서버 거절 문구가 세 조건을 다 말한다');
 {
-  const admin = read('admin.html');
+  const admin = adminSource();
   const i = admin.indexOf('package_not_available:');
   const line = admin.slice(i, i + 200);
   ok('④ 상태를 말한다', /판매중|확정/.test(line), line.slice(0, 90));
@@ -121,7 +122,7 @@ console.log('\n[2] 🔴 화면이 세 조건을 다 보는가 — 실제로 눌�
       ok('⑤ 서버: 유효기간', /valid_until is null or valid_until >= current_date/.test(iss));
       ok('⑤ 서버: 출발일', /depart_date is null or depart_date >= current_date/.test(iss));
       /* 화면 쪽도 같은 세 가지를 본다 */
-      const admin = read('admin.html');
+      const admin = adminSource();
       const fn = admin.slice(admin.indexOf('function pkgIssueReset'), admin.indexOf('function pkgReadHanatour'));
       ok('⑤ 화면: 상태', /p\.status !== 'open'/.test(fn));
       ok('⑤ 화면: 유효기간', /p\.validUntil/.test(fn));

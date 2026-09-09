@@ -30,6 +30,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -252,7 +253,7 @@ const submitForm = async (w, d) => {
       !/'PATCH'|"PATCH"/.test(aq));
     ok('⑦ 대신 부모의 창구를 부른다', /openQuoteItineraryEditor/.test(aq));
 
-    const admin = read('admin.html');
+    const admin = adminSource();
     ok('⑦ 창구는 admin.html에 있다', /window\.openQuoteItineraryEditor\s*=/.test(admin));
     ok('⑦ 편집기 본체(일자 카드 그리기)도 admin.html에만 있다', /function eqRenderDay/.test(admin));
   }
@@ -359,7 +360,7 @@ const submitForm = async (w, d) => {
     const aq = read('admin-quote.html');
     ok('⑧ 막다른 안내로 끝내지 않고 편집기가 있는 곳으로 보낸다',
       /admin\.html#quote-iti=/.test(aq));
-    const admin = read('admin.html');
+    const admin = adminSource();
     ok('⑧ 그 주소로 들어오면 받아 주는 자리가 있다',
       /#quote-iti=/.test(admin) && /function aqHandleItiHash/.test(admin));
     ok('⑧ 부팅할 때 실제로 불린다 — 만들어만 두지 않는다',

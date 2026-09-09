@@ -26,6 +26,7 @@ const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const RATES = require('../data.js');
 const { destFromName } = require('./_dest_from_name.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -83,7 +84,7 @@ const D = (function () {
   ok('① 엔진이 그 목록을 읽는다', /destGroupsBy\('ins',\s*INSURANCE_ZONE_IDS\)/.test(read('script.js')));
   ok('② 서버도 그 목록을 읽는다',
     /INSURANCE_ZONE_KEYS = new Set\(destinationRates\.INSURANCE_ZONE_IDS/.test(read('api/rates.js')));
-  ok('③ 관리자 새 목적지 폼(admin.html)', /<option value="domestic">국내/.test(read('admin.html')));
+  ok('③ 관리자 새 목적지 폼(admin.html)', /<option value="domestic">국내/.test(adminSource()));
   ok('국내 계수가 해외 최저 구간보다 낮다',
     /domestic: 0\.15, asiaShort: 0\.85/.test(read('script.js')));
 

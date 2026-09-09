@@ -28,6 +28,7 @@ const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const X = require('../api/_lib/pdf_extract.js');
 const P = require('../plausibility.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -117,7 +118,7 @@ ok('그 순서를 왜 지켜야 하는지 적혀 있다', /재는 대상에서�
 
 /* ══ [5] 화면 — 고치지 않고 묻는다 ═══════════════════════════════════ */
 console.log('\n[5] 화면은 고치지 않고 묻는다');
-const admin = read('admin.html');
+const admin = adminSource();
 ok('화면이 공용 잣대를 부른다', /PLAUSIBILITY\.judgeTripTotal\(/.test(admin));
 ok('화면 안에 규칙을 다시 적지 않았다', !/8848000|1400000\s*\)/.test(admin));
 ok('차량·가이드에만 건다', /PLAUSIBILITY\.PER_DAY_FIELDS \|\| \[\]\)\.indexOf\(key\) < 0/.test(admin));

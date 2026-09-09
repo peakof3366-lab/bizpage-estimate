@@ -38,9 +38,10 @@ const ok = (name, cond, extra = '') => {
 };
 
 const PKG = require(path.join(ROOT, 'api/_lib/packages.js'));
+const { adminSource } = require('./_admin_source');
 const CONTENT = read('api/content.js');
 const SHARES = read('api/quote-shares.js');
-const ADMIN = read('admin.html');
+const ADMIN = adminSource();
 const VIEW = read('estimate-view.html');
 const MIG = read('ai-loop/db_migrate.js');
 const LIB = read('api/_lib/packages.js');

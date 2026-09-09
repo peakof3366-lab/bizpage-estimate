@@ -10,6 +10,7 @@
    코드 경로가 끊기면 잡아야 하므로 원문 대조와 실제 주입 시뮬레이션을 함께 쓴다.
    실행: node ai-loop/test_pP_custom_dest.js  (프로젝트 루트에서) */
 const { JSDOM } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
@@ -23,7 +24,7 @@ const ok = (name, cond, extra = '') => {
 
 const scriptSrc = read('script.js');
 const ratesSrc = read(path.join('api', 'rates.js'));
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 const migrateSrc = read(path.join('ai-loop', 'db_migrate.js'));
 
 console.log('[1] 보험 권역이 세 곳에 모두 연결됐는가 (하나만 빠져도 조용히 틀어진다)');

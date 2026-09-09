@@ -27,6 +27,7 @@
 const fs = require('fs');
 const path = require('path');
 const X = require('../api/_lib/pdf_extract.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -98,7 +99,7 @@ console.log('\n[2] 서버가 환율 정보를 온전할 때만 받는가');
 /* ══ [3] 화면이 되돌리는가 — 실제 admin.html의 함수를 그대로 돌린다 ════════ */
 console.log('\n[3] 제보 금액을 오늘 기준으로 되돌리는가');
 {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const html = adminSource();
   /* ⚠ 소스에 문자열이 있는지만 보면 "함수는 있는데 아무도 안 부른다"를 못 잡는다.
      그래서 함수 본문을 꺼내 **실제로 실행**한다. */
   const m = html.match(/const REPORT_FX_KEY = \{[\s\S]*?function reportValueToday\(report, rateField\) \{[\s\S]*?\n  \}/);
@@ -138,7 +139,7 @@ console.log('\n[3] 제보 금액을 오늘 기준으로 되돌리는가');
    제보 금액을 기준가와 견주는 자리는 갱신 제안 · 기준가 이상 경고 · 견적 정확도 셋이다. */
 console.log('\n[4] 비교하는 자리가 전부 되돌리는가');
 {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const html = adminSource();
   const calls = (html.match(/reportValueToday\(/g) || []).length;
   ok('reportValueToday를 정의 포함 4번 이상 쓴다(정의 1 + 사용 3)', calls >= 4, String(calls));
   /* 옛 방식(제보 값을 직접 꺼내 기준가와 나누기)이 남아 있지 않은가 */
@@ -149,7 +150,7 @@ console.log('\n[4] 비교하는 자리가 전부 되돌리는가');
 /* ══ [5] 손으로 고친 칸은 되돌릴 대상에서 빠지는가 ═════════════════════════ */
 console.log('\n[5] 담당자가 고쳐 쓴 칸을 환산값으로 취급하지 않는가');
 {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const html = adminSource();
   ok('추출 당시의 값을 함께 기억한다', /PR_FX_BY_FIELD\[f\.key\]\s*=\s*\{[^}]*value:\s*input\.value/.test(html));
   ok('값이 바뀌었으면 뺀다', /String\(el\.value\)\s*===\s*String\(PR_FX_BY_FIELD\[k\]\.value\)/.test(html));
   ok('제출 본문에 실어 보낸다', /fxPayload/.test(html) && /\}, fxPayload,/.test(html));

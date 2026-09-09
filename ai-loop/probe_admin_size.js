@@ -21,10 +21,11 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { adminSource } = require('./_admin_source');
 const ROOT = path.join(__dirname, '..');
 const ALL = process.argv.includes('--all');
 
-const src = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+const src = adminSource();
 const lineAt = (i) => src.slice(0, i).split('\n').length;
 const bytes = (s) => Buffer.byteLength(s, 'utf8');
 const kb = (n) => Math.round(n / 1024) + 'KB';
@@ -120,25 +121,40 @@ rows.sort((a, b) => b.size - a.size).slice(0, ALL ? rows.length : 6)
 console.log('\n' + '═'.repeat(70));
 console.log('■ ④ 🔴 쪼개면 무엇이 눈이 머나 — 이게 문턱이다');
 console.log('═'.repeat(70));
+/* 🔴 **이 자를 함께 고쳤다** (2026-09-09, 1단계-A).
+   예전에는 「경로를 직접 적었는가」만 셌다. 전환을 끝내면 그 수가 0이 되는데,
+   0을 그대로 두면 이 도구가 **「쪼개도 안전하다」고 거짓 보고**한다 — 이 저장소에서
+   반복해 나온 「재는 자가 먼저 틀린다」가 여기서 재현될 자리였다.
+   → 이제 **전환된 것과 안 된 것을 갈라서** 센다. 남은 것이 0이 되어야 2b로 간다. */
 const AI = path.join(ROOT, 'ai-loop');
-let textReaders = 0; let bootOnly = 0;
+let viaSource = 0; let rawReaders = 0; let bootOnly = 0;
 const names = [];
 for (const f of fs.readdirSync(AI)) {
   if (!f.endsWith('.js')) continue;
   if (f === path.basename(__filename)) continue;   /* 자기 자신은 세지 않는다 */
+  if (f === '_admin_source.js') continue;          /* 단일 출처 자신도 뺀다 */
   const t = fs.readFileSync(path.join(AI, f), 'utf8');
-  if (!t.includes('admin.html')) continue;
-  /* **글자로 읽는가** — 읽는다면 인라인 <script>를 빼는 순간 대조할 것이 사라진다 */
-  if (/readFileSync\([^)]*admin\.html|read\(\s*['"]admin\.html/.test(t)) { textReaders++; names.push(f); }
-  else bootOnly++;
+  if (!t.includes('admin.html') && !t.includes('adminSource')) continue;
+  /* ⚠ 순서가 중요하다 — **아직 경로를 직접 읽는 것**이 있으면 그쪽으로 센다.
+     한 파일이 둘을 섞어 쓰고 있으면 「전환됐다」고 말하면 안 된다. */
+  if (/readFileSync\([^)]*admin\.html|(?<!new JSDOM\()read\(\s*['"]admin\.html/.test(t)) {
+    rawReaders++; names.push(f);
+  } else if (/adminSource\(\)/.test(t)) {
+    viaSource++;
+  } else {
+    bootOnly++;
+  }
 }
-console.log('\n  `admin.html`을 **글자로 읽어** 대조하는 검사: 🔴 ' + textReaders + '개');
-console.log('  이름만 나오는 것(띄우기만 하거나 언급): ' + bootOnly + '개');
-console.log('\n  → 인라인 `<script>`를 바깥 파일로 빼면 이 ' + textReaders + '개가 **읽을 글자를 잃는다.**');
-console.log('    깨지면 차라리 낫다 — 대개는 **조용히 통과**한다(정규식이 아무것도 못 찾으면 0건이고,');
-console.log('    0건을 「지킬 것이 없다」로 읽는 검사가 있다). XQ에서 다섯 건이 정확히 그랬다.');
-console.log('\n  🔴 **쪼개기 전에 할 일은 쪼개기가 아니다** — 이 ' + textReaders + '개가 「admin의 스크립트」를');
-console.log('    한 곳(예: `ai-loop/_admin_src.js`)에서 받아 가게 먼저 바꾼다. 그러면 파일이');
-console.log('    갈라져도 검사는 따라온다. 그 전에는 쪼개면 안 된다.');
-if (ALL) { console.log('\n  글자로 읽는 검사 전체:'); names.forEach((n) => console.log('   · ' + n)); }
+console.log('\n  ✅ 단일 출처(`_admin_source`)를 거치는 검사: ' + viaSource + '개');
+console.log('     → 이것들은 `admin.html`이 갈라져도 **따라온다.** 목록을 늘리면 그만이다.');
+console.log('\n  ' + (rawReaders ? '🔴 ' : '✅ ') + '아직 경로를 직접 읽는 검사: ' + rawReaders + '개');
+if (rawReaders) {
+  console.log('     → 인라인 `<script>`를 바깥 파일로 빼면 이 ' + rawReaders + '개가 **읽을 글자를 잃는다.**');
+  console.log('       깨지면 차라리 낫다 — 대개는 **조용히 통과**한다(정규식이 아무것도 못 찾으면 0건이고,');
+  console.log('       0건을 「지킬 것이 없다」로 읽는 검사가 있다). XQ에서 다섯 건이 정확히 그랬다.');
+  console.log('     🔴 **이 수가 0이 되기 전에는 2b(스크립트 쪼개기)로 가지 않는다.**');
+}
+console.log('\n  화면을 띄우기만 하는 것(다음 단계 몫): ' + bootOnly + '개');
+console.log('     → 이쪽은 글자가 아니라 **띄운 화면**을 보므로 `_admin_boot`가 맡는다.');
+if (ALL && names.length) { console.log('\n  아직 직접 읽는 검사 전체:'); names.forEach((n) => console.log('   · ' + n)); }
 console.log('');

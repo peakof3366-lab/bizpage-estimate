@@ -36,6 +36,7 @@ const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const LIMITS = require(path.join(ROOT, 'limits.js'));
 const PKG = require(path.join(ROOT, 'api', '_lib', 'packages.js'));
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -59,7 +60,7 @@ console.log('\n[1] 상한이 한 곳에서 온다');
     PKG.PKG_MAX_ITEMS === LIMITS.PKG_MAX_ITEMS && PKG.PKG_MAX_ITEM_LABEL === LIMITS.PKG_MAX_ITEM_LABEL);
   /* 화면 힌트도 그 값에서 온다 */
   ok('① 화면 힌트가 data-fact로 값을 받는다',
-    /data-fact="PKG_MAX_ITEMS"/.test(read('admin.html')));
+    /data-fact="PKG_MAX_ITEMS"/.test(adminSource()));
 }
 
 console.log('\n[2] 🔴 서버는 여전히 자른다 — 화면 안내는 방어가 아니다');

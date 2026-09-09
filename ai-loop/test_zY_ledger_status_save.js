@@ -29,6 +29,7 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -220,7 +221,7 @@ const stCalls = (w) => w.__calls.filter((c) => /action=status/.test(c.url));
     ok('⑨ 🔴 「아니오」면 목록을 다시 안 부른다', after === before, before + ' → ' + after);
     ok('⑨ 고쳐 놓은 값이 그대로 남아 있다', sel.value === 'won', sel.value);
     ok('⑨ 「전체」에도 같은 문이 걸려 있다',
-      /ledReload[\s\S]{0,160}ledLeaveOk/.test(read('admin.html')));
+      /ledReload[\s\S]{0,160}ledLeaveOk/.test(adminSource()));
   }
 
   console.log('\n[5] 서버가 「누가 언제」를 돌려준다');

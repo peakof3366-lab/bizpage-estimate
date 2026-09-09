@@ -13,12 +13,13 @@
    실행: node ai-loop/test_pI_staff_signup.js  (프로젝트 루트에서) */
 const fs = require('fs');
 const path = require('path');
+const { adminSource } = require('./_admin_source');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 const accountSrc = read(path.join('api', 'admin', 'account.js'));
 const loginSrc = read(path.join('api', 'admin', 'login.js'));
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 const migrateSrc = read(path.join('ai-loop', 'db_migrate.js'));
 
 let pass = 0, fail = 0;

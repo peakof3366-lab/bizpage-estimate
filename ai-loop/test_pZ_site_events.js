@@ -60,10 +60,11 @@ require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: {
 
 const siteEvents = require(path.join(ROOT, 'api', '_lib', 'site_events.js'));
 const trackHandler = require(path.join(ROOT, 'api', 'track.js'));
+const { adminSource } = require('./_admin_source');
 
 const trackSrc = read(path.join('api', 'track.js'));
 const insightsSrc = read(path.join('api', 'admin', 'insights.js'));
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 const scriptSrc = read('script.js');
 
 function fakeRes() {

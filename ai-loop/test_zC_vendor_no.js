@@ -45,6 +45,7 @@ const done = () => {
 };
 
 const QNO = require(path.join(ROOT, 'api', '_lib', 'quote_no.js'));
+const { adminSource } = require('./_admin_source');
 const SHARES = read('api/quote-shares.js');
 const VIEW_API = read('api/quote-shares/[id].js');
 const VIEW = read('estimate-view.html');
@@ -276,7 +277,7 @@ const listReply = () => ({ ok: true, status: 200,
 
   console.log('\n[8] 담당자가 이 칸이 무엇인지 화면에서 안다');
   {
-    const ADMIN = read('admin.html');
+    const ADMIN = adminSource();
     /* ⚠ ZV에서 안내를 12줄 → 3줄로 줄이며 이 설명을 **그 칸의 `title`과 머리글**로
        옮겼다(대표 지시). 지키려던 것은 「파란 상자에 적혀 있다」가 아니라
        **담당자가 그 칸에서 무엇을 적는지·어디로 안 나가는지 알 수 있다**이다.

@@ -24,6 +24,7 @@
 
    실행: node ai-loop/test_sE_group_column.js  (프로젝트 루트에서) */
 const X = require('../api/_lib/pdf_extract.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -290,7 +291,7 @@ console.log('\n[10] 후보 목록이 분류 출처를 함께 넘기는가');
      화면에 안 띄운 전례가 있다(결함 생성기 ③). admin.html이 실제로 읽는지 본다. */
   const fs = require('fs');
   const path = require('path');
-  const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const html = adminSource();
   ok('admin.html이 categoryFrom을 읽는다', /ev\.categoryFrom\s*===\s*'group'/.test(html));
   ok('구분 열에서 왔다고 화면에 쓴다', /표의 구분 열/.test(html));
 }

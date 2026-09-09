@@ -20,6 +20,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -27,7 +28,7 @@ const ok = (name, cond, extra = '') => {
   else { fail++; console.log('  ✗ ' + name + (extra ? '  → ' + extra : '')); }
 };
 
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 const ratesSrc = read(path.join('api', 'rates.js'));
 
 console.log('[1] 서버 — 목적지별 조회가 있는가');

@@ -32,6 +32,7 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -49,7 +50,7 @@ const done = () => {
 
 const SHARES = read('api/quote-shares.js');
 const PKGHTML = read('packages.html');
-const ADMIN = read('admin.html');
+const ADMIN = adminSource();
 
 console.log('\n[1] 고객 화면이 이름·연락처를 받는다 — 네 번째 입구를 채웠다');
 {

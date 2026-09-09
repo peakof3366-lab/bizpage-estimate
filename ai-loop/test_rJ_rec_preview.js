@@ -25,6 +25,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const { htmlWithDeps } = require('./_jsdom_deps');
 const REC_FALLBACKS = require('../rec_fallbacks.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -32,7 +33,7 @@ const ok = (name, cond, extra = '') => {
   else { fail++; console.log('  ✗ ' + name + (extra ? '  → ' + extra : '')); }
 };
 
-const adminSrc  = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+const adminSrc  = adminSource();
 const indexSrc  = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const scriptSrc = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
 const stylesSrc = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');

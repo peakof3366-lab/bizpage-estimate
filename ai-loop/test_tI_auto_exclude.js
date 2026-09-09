@@ -32,6 +32,7 @@ const ok = (name, cond, extra = '') => {
 /* api/quotes.js는 DB 접속을 모듈 로드 시점에 만든다 — .env.local이 있어야 부를 수 있다 */
 require('./_load_env')();
 const quotes = require('../api/quotes.js');
+const { adminSource } = require('./_admin_source');
 const { autoExcludedFields, AUTO_EXCLUDE_MARK } = quotes._report;
 
 const VALUES = {
@@ -108,10 +109,10 @@ ok('표시 값은 plausibility.js에 있다 (화면·서버 공용)',
   /var AUTO_EXCLUDE_MARK = '\[자동\] ';/.test(plausSrc));
 ok('  ↑ 서버가 그것을 가져다 쓴다 (다시 적지 않는다)',
   /const AUTO_EXCLUDE_MARK = PLAUSIBILITY\.AUTO_EXCLUDE_MARK;/.test(src));
-ok('  ↑ 화면도 다시 적지 않는다', !/'\[자동\] '/.test(read('admin.html')));
+ok('  ↑ 화면도 다시 적지 않는다', !/'\[자동\] '/.test(adminSource()));
 
 console.log('\n[5] 화면이 조용히 넘어가지 않는가');
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 ok('제출 결과에서 빠진 칸을 읽는다', /data\.autoExcluded/.test(adminSrc));
 ok('무엇이 빠졌는지 이름으로 말한다', /실측 평균에서 뺐습니다/.test(adminSrc));
 ok('어떻게 되살리는지도 말한다', /확인 필요.*확정하면 그때 반영/.test(adminSrc));

@@ -55,6 +55,7 @@ const fakeSql = (strings, ...vals) => {
 const dbPath = require.resolve(path.join(ROOT, 'api', '_lib', 'db.js'));
 require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: { sql: fakeSql } };
 const shareGet = require(path.join(ROOT, 'api', 'quote-shares', '[id].js'));
+const { adminSource } = require('./_admin_source');
 
 function fakeRes() {
   const r = { code: 0, body: null };
@@ -141,7 +142,7 @@ const 문서 = (st) => {
     ok('⑤ 서버가 아는 상태 목록이 있다', !!m, String(m));
     const 서버상태 = m ? m[1].split(',').map((x) => x.trim().replace(/['"]/g, '')) : [];
     ok('⑤ 넷이다(발급·계약·무산·취소)', 서버상태.length === 4, 서버상태.join(','));
-    const adm = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+    const adm = adminSource();
     const led = adm.match(/const LED_STATUS = \{([^}]+)\}/);
     const 화면상태 = led ? led[1].split(',').map((x) => x.split(':')[0].trim()) : [];
     ok('🔴 ⑤ 화면 목록이 서버 목록과 같다',

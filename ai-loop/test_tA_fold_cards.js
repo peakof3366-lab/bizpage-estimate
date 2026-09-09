@@ -18,6 +18,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -28,7 +29,7 @@ const ok = (name, cond, extra = '') => {
 (async () => {
   /* ── [1] 구조 ───────────────────────────────────────────────────────── */
   console.log('[1] 세 카드가 같은 방식으로 접히는가');
-  const src = read('admin.html');
+  const src = adminSource();
   const FOLDS = [
     ['airfare-suggestion-card', '📊 실제 계약 데이터 기반 갱신 제안'],
     ['accuracy-stats-card', '📏 견적 정확도 (실제 대비)'],

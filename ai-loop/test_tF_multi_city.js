@@ -23,6 +23,7 @@ const { corpusFiles } = require('./_corpus_files.js');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const ex = require('../api/_lib/pdf_extract.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -37,7 +38,7 @@ ok('문턱을 추출기가 갖는다 (MULTI_CITY_STAYS)', ex.MULTI_CITY_STAYS ==
 
 /* ⚠ 화면이 숫자를 다시 적으면 감사기와 어긋난다(결함 생성기 ①).
    admin.html은 itin.multiCity를 **읽기만** 해야 한다. */
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 ok('화면이 문턱을 다시 세지 않는다', !/stays\.length\s*>=\s*\d/.test(adminSrc),
   'admin.html에서 stays.length >= 숫자 비교가 발견됐다');
 ok('화면이 추출기 판정을 읽는다 (multiCity)', /PR_LAST_ITIN\s*&&\s*PR_LAST_ITIN\.multiCity/.test(adminSrc));

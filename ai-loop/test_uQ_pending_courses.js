@@ -35,6 +35,7 @@ const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
 const R = require(path.join(ROOT, 'rec_fallbacks.js'));
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -143,7 +144,7 @@ delete REVIEWED.pending;
   /* ── [5] 담당자가 검토를 뗄 수 있는가 ──────────────────────────────── */
   console.log('\n[5] 일정 관리 화면 — 배지와 「검토 완료」');
   {
-    const admin = read('admin.html');
+    const admin = adminSource();
     ok('검토 전 배지가 있다', /iti-src-pending/.test(admin));
     ok('④ 「출발점 가져오기」 후보에도 검토 전임을 밝힌다',
       /pending === true \? ' · 🕒 검토 전'/.test(admin));
@@ -300,7 +301,7 @@ delete REVIEWED.pending;
   console.log('\n[8] 고객 화면과 관리자 화면이 같은 규칙을 쓰는가');
   {
     const sc = read('script.js');
-    const ad = read('admin.html');
+    const ad = adminSource();
     ok('고객 계산기가 병합 함수를 부른다', /recApplyOverride\(/.test(sc));
     ok('관리자 발급 경로도 **같은 함수**를 부른다', /recApplyOverride\(/.test(ad));
     ok('관리자가 옛 방식(통째 대체)으로 되돌아가 있지 않다',

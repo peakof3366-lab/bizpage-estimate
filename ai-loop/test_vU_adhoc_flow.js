@@ -27,9 +27,10 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 
 const ROOT = path.join(__dirname, '..');
-const html = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+const html = adminSource();
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {

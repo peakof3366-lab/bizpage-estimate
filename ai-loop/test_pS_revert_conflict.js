@@ -20,6 +20,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -27,7 +28,7 @@ const ok = (name, cond, extra = '') => {
   else { fail++; console.log('  ✗ ' + name + (extra ? '  → ' + extra : '')); }
 };
 
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 
 console.log('[1] 원문 대조 — 거짓 현재값이 되살아나지 않는가');
 /* 이 정규식이 다시 매치되면 확인창이 또 '이력이 넣은 값'을 현재값이라고 말하는 상태다. */

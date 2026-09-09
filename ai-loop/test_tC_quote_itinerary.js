@@ -22,6 +22,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const R = require('../rec_fallbacks.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -110,7 +111,7 @@ if (typeof content.normalizeCourses === 'function') {
 
 /* ── [4] 관리자 화면이 그 사실을 밝히는가 ────────────────────────────── */
 console.log('\n[4] 담당자가 그 규칙을 알 수 있는가');
-const admin = read('admin.html');
+const admin = adminSource();
 /* ⚠ UL에서 변환기(prItinToCourse → recItinToCourse)를 rec_fallbacks.js로 옮겼다.
    견적서 모음을 일괄로 심는 도구가 node에서 **같은 변환**을 불러야 하기 때문이다.
    규칙이 없어진 게 아니라 자리가 바뀐 것이라, 검사 대상을 그 파일로 옮긴다.

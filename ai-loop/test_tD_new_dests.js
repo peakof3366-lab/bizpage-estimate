@@ -21,6 +21,7 @@ const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const RATES = require('../data.js');
 const { destFromName } = require('./_dest_from_name.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -88,7 +89,7 @@ ok('요율표 목적지가 전부 방식 A·B를 갖는다',
 
 /* ── [3] 나라별로 묶는가 ─────────────────────────────────────────────── */
 console.log('\n[3] 목적지 선택을 나라별로 묶는가');
-const admin = read('admin.html');
+const admin = adminSource();
 ok('나라별로 묶는 도우미가 한 곳에 있다', /function appendDestOptionsByCountry/.test(admin));
 ok('견적서 업데이트가 그것을 쓴다', /appendDestOptionsByCountry\(sel, destinationRates\.map/.test(admin));
 ok('일정 관리도 그것을 쓴다', /appendDestOptionsByCountry\(sel, itiDestKeys\(\)/.test(admin));

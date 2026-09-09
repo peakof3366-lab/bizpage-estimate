@@ -13,10 +13,11 @@
    실행: node ai-loop/test_pN_fx_guards.js  (프로젝트 루트에서) */
 const fs = require('fs');
 const path = require('path');
+const { adminSource } = require('./_admin_source');
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const scriptSrc = read('script.js');
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {

@@ -46,9 +46,10 @@ const done = () => {
 };
 
 const QNO = require(path.join(ROOT, 'api', '_lib', 'quote_no.js'));
+const { adminSource } = require('./_admin_source');
 const SHARES = read('api/quote-shares.js');
 const VIEW = read('estimate-view.html');
-const ADMIN = read('admin.html');
+const ADMIN = adminSource();
 const INDEX = read('index.html');
 const MIG = read('ai-loop/db_migrate.js');
 

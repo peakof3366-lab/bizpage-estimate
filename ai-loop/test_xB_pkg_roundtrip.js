@@ -31,6 +31,7 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -135,7 +136,7 @@ const finish = async () => {
 
   console.log('\n[4] 파서가 되붙이는 성질을 고정한다');
   {
-    const src = read('admin.html');
+    const src = adminSource();
     /* 🔴 `parts[1]`로 줄이면 `|`가 든 값이 조용히 잘린다 */
     ok('④ 🔴 나머지를 다시 이어 붙인다', /parts\.slice\(1\)\.join\('\|'\)/.test(src));
     /* 합성 입력으로도 확인 — 규칙이 바뀌면 위 소스 검사가 먼저 걸린다 */

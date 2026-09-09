@@ -21,6 +21,7 @@
 
    실행: node ai-loop/test_rY_hotel_country.js  (프로젝트 루트에서) */
 const { JSDOM } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
@@ -33,7 +34,7 @@ const ok = (name, cond, extra = '') => {
 };
 
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 const dataSrc = read('data.js');
 const ratesSrc = read(path.join('api', 'rates.js'));
 const migrateSrc = read(path.join('ai-loop', 'db_migrate.js'));

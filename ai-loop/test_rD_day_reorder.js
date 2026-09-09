@@ -30,6 +30,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -38,7 +39,7 @@ const ok = (name, cond, extra = '') => {
 };
 
 const contentSrc = fs.readFileSync(path.join(ROOT, 'api', 'content.js'), 'utf8');
-const adminSrc   = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+const adminSrc   = adminSource();
 const manualSrc  = fs.readFileSync(path.join(ROOT, 'manual.html'), 'utf8');
 
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://u:p@localhost/db';

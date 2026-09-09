@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -27,7 +28,7 @@ const ok = (name, cond, extra = '') => {
 };
 
 const contentSrc = fs.readFileSync(path.join(ROOT, 'api', 'content.js'), 'utf8');
-const adminSrc   = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+const adminSrc   = adminSource();
 
 (async () => {
   console.log('\n[1] 코스 상한이 한 곳에서만 나오는가 (QO — 예전엔 두 파일을 대조했다)');

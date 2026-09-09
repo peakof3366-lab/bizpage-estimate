@@ -22,6 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
+const { adminSource } = require('./_admin_source');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -33,7 +34,7 @@ const ok = (name, cond, extra = '') => {
 };
 
 const PKG = read('packages.html');
-const ADMIN = read('admin.html');
+const ADMIN = adminSource();
 const API = read('api/content.js');
 const MIG = read('ai-loop/db_migrate.js');
 /* VS에서 **읽는 조건이 `_lib/packages.js` 한 곳으로 옮겨졌다.** 규칙은 그대로고

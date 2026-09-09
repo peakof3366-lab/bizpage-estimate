@@ -42,6 +42,7 @@ const ROOT = path.join(__dirname, '..');
 const { verifyQuote } = require(path.join(ROOT, 'api', '_lib', 'quote_verify.js'));
 const destinationRates = require(path.join(ROOT, 'data.js'));
 const { bootEngine } = require(path.join(__dirname, '_engine_boot.js'));
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -201,7 +202,7 @@ console.log('\n[2] 🔴 실제로 계산해 본다 — 요율을 받은 브라�
   {
     const SRC = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
     const VER = fs.readFileSync(path.join(ROOT, 'api', '_lib', 'quote_verify.js'), 'utf8');
-    const ADMIN = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+    const ADMIN = adminSource();
     ok('⑤ 기록을 만드는 곳은 한 곳이다(window.__RATE_SOURCE__)',
       (SRC.match(/rateSource:/g) || []).length === 1);
     ok('⑤ 서버는 state 하나만 통과시킨다', /st === 'applied'/.test(VER));

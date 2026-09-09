@@ -21,6 +21,7 @@
       화면이 안 보여 주고 있었다. 값을 지어내지 않는다.
    ═══════════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
+const { adminSource } = require('./_admin_source');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
@@ -40,7 +41,7 @@ const done = () => {
 
 const CORPUS = read('ai-loop/seed_courses_from_corpus.js');
 const BD = read('ai-loop/seed_courses_from_bd.js');
-const ADMIN = read('admin.html');
+const ADMIN = adminSource();
 const { recItinToCourse } = require(path.join(ROOT, 'rec_fallbacks.js'));
 
 console.log('\n[1] 심는 도구 둘이 같은 것을 남긴다');

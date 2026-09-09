@@ -27,6 +27,7 @@
 
    실행: node ai-loop/test_sB_vacuous_rows.js  (프로젝트 루트에서) */
 const X = require('../api/_lib/pdf_extract.js');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -155,7 +156,7 @@ console.log('\n[7] admin.html이 unchecked를 실제로 렌더하는가');
 {
   const fs = require('fs');
   const path = require('path');
-  const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const html = adminSource();
   ok('PR_VIA에 unchecked 항목이 있다', /unchecked\s*:\s*\{\s*text\s*:/.test(html));
   ok('unchecked 배지 색이 정의돼 있다', /\.pr-badge\.via-unchecked/.test(html));
   ok('unchecked 테두리 색이 정의돼 있다', /\.pr-ev\.via-unchecked/.test(html));

@@ -36,11 +36,12 @@ const ok = (name, cond, extra = '') => {
 };
 
 const QNO = require(path.join(ROOT, 'api', '_lib', 'quote_no.js'));
+const { adminSource } = require('./_admin_source');
 const SHARES = read('api/quote-shares.js');
 const SCRIPT = read('script.js');
 const INDEX = read('index.html');
 const AQ = read('admin-quote.html');
-const ADMIN = read('admin.html');
+const ADMIN = adminSource();
 const VIEW = read('estimate-view.html');
 const MIG = read('ai-loop/db_migrate.js');
 

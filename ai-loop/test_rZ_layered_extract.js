@@ -22,6 +22,7 @@
 
    실행: node ai-loop/test_rZ_layered_extract.js  (프로젝트 루트에서) */
 const fs = require('fs');
+const { adminSource } = require('./_admin_source');
 const path = require('path');
 const { JSDOM } = require('jsdom');
 const ROOT = path.join(__dirname, '..');
@@ -34,7 +35,7 @@ const ok = (name, cond, extra = '') => {
 };
 
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
-const adminSrc = read('admin.html');
+const adminSrc = adminSource();
 const quotesSrc = read(path.join('api', 'quotes.js'));
 const X = require('../api/_lib/pdf_extract.js');
 const libSrcRZ = read(path.join('api', '_lib', 'pdf_extract.js'));

@@ -22,6 +22,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -63,7 +64,7 @@ const OVERRIDE_TOKYO = [{
     destKeys.filter(k => !itiKeys.includes(k)).join(','));
 
   /* admin.html이 실제로 이 표를 읽을 수 있는 경로에 있는가 */
-  const adminSrc = read('admin.html');
+  const adminSrc = adminSource();
   ok('admin.html이 data.js를 싣는다', /<script src="data\.js"><\/script>/.test(adminSrc));
   ok('admin.html은 script.js를 싣지 않는다(견적 엔진이라 실으면 안 된다)',
     !/<script src="script\.js"><\/script>/.test(adminSrc));

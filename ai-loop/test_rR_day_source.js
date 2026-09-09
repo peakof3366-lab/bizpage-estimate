@@ -24,6 +24,7 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const ROOT = path.join(__dirname, '..');
 const RF = require('../rec_fallbacks.js');
+const { adminSource } = require('./_admin_source');
 const { recBuildDisplayDays, recRenderDayCard, recDayPool } = RF;
 
 let pass = 0, fail = 0;
@@ -33,7 +34,7 @@ const ok = (name, cond, extra = '') => {
 };
 
 const scriptSrc = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
-const adminSrc  = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+const adminSrc  = adminSource();
 const rfSrc     = fs.readFileSync(path.join(ROOT, 'rec_fallbacks.js'), 'utf8');
 
 /* ⚠ '이 문구가 코드에 남아 있는가'를 볼 때는 **주석을 빼고** 봐야 한다.

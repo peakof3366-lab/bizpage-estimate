@@ -15,6 +15,7 @@ const ROOT = path.join(__dirname, '..');
 const { isValidChange, isValidRateNumber, findOutOfRange, isValidNewDestination, FIELD_MAX, NUMERIC_FIELDS } =
   require(path.join(ROOT, 'api', 'rates.js')).__test;
 const destinationRates = require(path.join(ROOT, 'data.js'));
+const { adminSource } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -103,7 +104,7 @@ ok('음수는 여기서 안 잡음(무효 입력으로 별도 처리)', findOutO
    거치는지 원문 대조로 검사한다. */
 console.log('\n[8] admin.html — 요율 저장 실패 안내가 사람 말로 나가는가');
 const fs = require('fs');
-const adminSrc = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+const adminSrc = adminSource();
 ok('rateSaveErrorMessage 정의 존재', /function rateSaveErrorMessage\(/.test(adminSrc));
 ok('value_out_of_range 분기 존재', adminSrc.includes("=== 'value_out_of_range'"));
 ok('invalid_field_ 분기 존재', adminSrc.includes("startsWith('invalid_field_')"));
