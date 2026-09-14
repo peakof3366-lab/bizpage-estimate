@@ -7676,10 +7676,6 @@
     document.getElementById('pkgIssue')?.addEventListener('click', pkgIssueNow);
     document.getElementById('pkgPdfRead')?.addEventListener('click', pkgReadPdf);
     document.getElementById('pkgHtRead')?.addEventListener('click', pkgReadHanatour);
-    /* ⚠ 셋 다 목록을 **다시 그린다** — 저장 안 한 상태 변경이 있으면 먼저 묻는다 (ZY) */
-    document.getElementById('ledFind')?.addEventListener('click', () => { if (ledLeaveOk()) renderLedger(document.getElementById('ledSearch').value.trim()); });
-    document.getElementById('ledReload')?.addEventListener('click', () => { if (!ledLeaveOk()) return; document.getElementById('ledSearch').value=''; renderLedger(); });
-    document.getElementById('ledSearch')?.addEventListener('keydown', (e) => { if (e.key==='Enter') { e.preventDefault(); if (ledLeaveOk()) renderLedger(e.target.value.trim()); } });
     document.getElementById('pkgIssueCopy')?.addEventListener('click', () => {
       const el = document.getElementById('pkgIssueUrl');
       el.select();

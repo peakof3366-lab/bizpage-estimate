@@ -404,3 +404,19 @@
     return confirm('아직 저장하지 않은 상태 변경이 ' + n + '건 있습니다.\n'
       + '지금 목록을 다시 불러오면 그 변경은 사라집니다.\n\n계속할까요?');
   }
+
+/* ── 화면에 손잡이를 건다 (2b-1b-①) ─────────────────────────────────────────
+   🔴 **DOMContentLoaded로 감싼 이유는 DOM 때문이 아니다.**
+   이 파일은 마크업(1285~2396행) **뒤**에서 실리므로 DOM은 이미 다 그려져 있다.
+   감싸는 이유는 **파일 사이의 순서** 때문이다 — 감싸지 않으면 이 줄들이 실리는
+   순간에 돌고, 그때 아직 안 실린 다른 화면 파일의 값을 부르면 죽는다.
+   DOMContentLoaded는 **모든 조각이 실린 뒤**에 돌아서 그 위험이 통째로 사라진다.
+   ⚠ 그래서 화면 파일에서 손잡이를 걸 때는 **언제나 이 안에** 넣는다.
+
+   ⚠ 셋 다 목록을 **다시 그린다** — 저장 안 한 상태 변경이 있으면 먼저 묻는다 (ZY)
+   ───────────────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('ledFind')?.addEventListener('click', () => { if (ledLeaveOk()) renderLedger(document.getElementById('ledSearch').value.trim()); });
+  document.getElementById('ledReload')?.addEventListener('click', () => { if (!ledLeaveOk()) return; document.getElementById('ledSearch').value=''; renderLedger(); });
+  document.getElementById('ledSearch')?.addEventListener('keydown', (e) => { if (e.key==='Enter') { e.preventDefault(); if (ledLeaveOk()) renderLedger(e.target.value.trim()); } });
+});

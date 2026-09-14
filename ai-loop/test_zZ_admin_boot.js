@@ -144,5 +144,27 @@ const ENV_ALLOWED = [
   ok('⑥ 🔴 로드 순서·TDZ 결함이 없다 (…is not defined 0건)',
     real.length === 0, real.slice(0, 3).join(' | '));
 
+  console.log('');
+  console.log('■ ⑦ 🔴 옮긴 손잡이가 실제로 걸렸나');
+  /* 🔴 **선언이 살아 있는 것과 손잡이가 걸린 것은 다르다.**
+     2b-1b부터 리스너를 화면 파일로 옮긴다. 옮긴 줄이 admin.html에서 사라졌는데
+     새 자리에서 안 걸리면, ④⑤는 전부 통과하면서 **버튼만 죽는다.**
+     ⚠ 「걸렸다」를 addEventListener 호출 수로 세지 않는다 — 그건 코드를 읽는 것이지
+       동작을 보는 것이 아니다. **진짜로 누르고** 반응을 본다.
+     ⚠ 화면 파일로 손잡이를 옮길 때마다 여기 한 줄을 더한다. */
+  const pressed = (id, fnName) => {
+    let hit = false;
+    try {
+      const el = win.document.getElementById(id);
+      if (!el) return '요소 없음: #' + id;
+      win[fnName] = function () { hit = true; };
+      el.click();
+    } catch (e) { return e.message; }
+    return hit;
+  };
+  const ledHit = pressed('ledFind', 'renderLedger');
+  ok('⑦ 🔴 대장 「찾기」를 누르면 목록이 다시 그려진다 (admin/ledger.js가 건 손잡이)',
+    ledHit === true, String(ledHit));
+
   done();
 })().catch((e) => { console.error('실행 오류:', e); process.exit(1); });
