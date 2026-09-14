@@ -447,6 +447,10 @@
       <div class="card">
         <div id="inqEmpty" class="empty-state"><div class="empty-icon">📭</div>
           <p>아직 들어온 문의가 없습니다.</p></div>
+        <!-- 🔴 표가 눌리지 않게 — 좁은 화면에서는 옆으로 민다 (2026-09-14).
+             감싼 카드가 overflow:hidden이라 그냥 두면 칸이 **짓눌려 글자가 두 줄로 꺾인다.**
+             요율 표가 이미 쓰는 방식과 같다(그쪽도 안쪽에 이 감싸개가 있다). -->
+        <div class="tbl-scroll">
         <table id="inqTable" class="inq-table hidden">
           <thead>
             <tr>
@@ -462,6 +466,7 @@
           </thead>
           <tbody id="inqBody"></tbody>
         </table>
+        </div>
         <div class="pager" id="inqPager"></div>
       </div>
     </div>
@@ -505,6 +510,10 @@
       <div class="card" style="overflow:hidden">
         <div id="emEmpty" class="empty-state"><div class="empty-icon">📋</div>
           <p>아직 산출된 견적이 없습니다.</p></div>
+        <!-- 🔴 표가 눌리지 않게 — 좁은 화면에서는 옆으로 민다 (2026-09-14).
+             감싼 카드가 overflow:hidden이라 그냥 두면 칸이 **짓눌려 글자가 두 줄로 꺾인다.**
+             요율 표가 이미 쓰는 방식과 같다(그쪽도 안쪽에 이 감싸개가 있다). -->
+        <div class="tbl-scroll">
         <table id="emTable" class="inq-table hidden">
           <thead>
             <tr>
@@ -525,6 +534,7 @@
           </thead>
           <tbody id="emBody"></tbody>
         </table>
+        </div>
         <div class="pager" id="emPager"></div>
       </div>
     </div>
