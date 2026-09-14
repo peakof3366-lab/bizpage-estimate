@@ -135,21 +135,30 @@ console.log('\n[2] 업계 말을 걷어냈다');
     !/현지 비용의 20%/.test(FORM) && !/견적서 46건/.test(FORM));
 }
 
-console.log('\n[3] 회사/기관명이 더는 길을 막지 않는다');
+console.log('\n[3] 담당자 정보 칸 — 대표 지시로 셋을 뺐다');
 {
   const d = new JSDOM(INDEX).window.document;
-  const org = d.getElementById('organization');
-  ok('③ 회사/기관명이 필수가 아니다', org && !org.hasAttribute('required'),
-    '가족·모임 손님은 여기서 막혀 나간다');
-  /* 🔴 2026-09-14 대표 지시로 「없으면 비워 두셔도 됩니다」 문구를 뺐다.
-     ⚠ **필수가 아니라는 사실 자체는 그대로다**(바로 위 단언이 그것을 잡는다).
-       말로 알려 주지 않을 뿐이라, 가족·모임 손님이 여기서 막히지는 않는다. */
-  ok('③ 「비워도 된다」 문구를 뺐다(대표 지시)', !/없으면 비워 두셔도 됩니다/.test(FORM));
-  ok('③ 모임 손님도 적을 것이 있다고 알린다', /모임 이름/.test(FORM));
-  /* 담당자 이름·연락처는 그대로 필수여야 한다 — 리드가 유실되면 안 된다 */
-  ok('③ 담당자 이름은 여전히 필수다', d.getElementById('contactName').hasAttribute('required'));
-}
+  /* 🔴 **2026-09-14 대표 지시: 회사/모임 이름 · 담당자 이름 · 요청 사항 세 칸을 뺐다.**
+     원래 이 구역은 「회사/기관명이 길을 막지 않는가」를 보던 자리였다(VX에서 필수를
+     풀었던 곳). 칸 자체가 없어졌으니 막힐 일도 없다.
 
+     🔴 **무엇을 잃었는지 적어 둔다 — 이게 이 변경의 값이다.**
+       · 견적 요청에 **회사명·담당자 이름이 안 실린다.** 견적서에도 그 두 줄이 안 찍힌다
+         (빈 줄을 찍지 않도록 `script.js`·`estimate-view.html`을 함께 고쳤다).
+       · 견적 결과에서 바로 누르는 「상담 신청」에도 소속이 안 간다.
+     ✅ **안 잃은 것**: 하단 문의 폼(`#inqOrg`)은 회사/기관명을 **필수로 그대로 받는다.**
+       연락처(`#contactTel`)도 필수 그대로다 — 연락처 없는 견적은 리드가 아니다.
+     ⚠ 되살리려면 `index.html` 2단계에 세 칸을 다시 넣는다. `script.js`는 값을 읽는
+       자리가 그대로 남아 있어 칸만 돌아오면 다시 실린다. */
+  for (const id of ['organization', 'contactName', 'requestDetails']) {
+    ok('③ ' + id + ' 칸이 없다(대표 지시)', !d.getElementById(id));
+  }
+  ok('③ 🔴 연락처는 남아 있고 여전히 필수다',
+    !!d.getElementById('contactTel') && d.getElementById('contactTel').hasAttribute('required'),
+    '연락처 없는 견적은 우리가 먼저 연락할 수 없어 리드가 아니다');
+  ok('③ 🔴 하단 문의 폼은 회사/기관명을 그대로 받는다',
+    !!d.getElementById('inqOrg') && d.getElementById('inqOrg').hasAttribute('required'));
+}
 console.log('\n[4] 1인당이 주인공이다');
 {
   const iPer = INDEX.indexOf('id="perPersonValue"');

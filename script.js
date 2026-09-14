@@ -3668,8 +3668,9 @@ function customQuoteValidUntil(from) {
   const orgTypeText  = document.getElementById('organizationType').selectedOptions[0].textContent;
   const participants = document.getElementById('participants').value;
   const days         = Number(document.getElementById('days').value) || 5;
-  const organization = document.getElementById('organization')?.value.trim() || '—';
-  const contactName  = document.getElementById('contactName')?.value.trim() || '—';
+  /* 🔴 빈 값을 '—'로 채우지 않는다 (2026-09-14) — 그러면 「줄을 넣을지」 판단이 불가능해진다 */
+  const organization = document.getElementById('organization')?.value.trim() || '';
+  const contactName  = document.getElementById('contactName')?.value.trim() || '';
   const issueDate    = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
 
   const CI = window.COMPANY_INFO || {};
@@ -3693,8 +3694,12 @@ function customQuoteValidUntil(from) {
     ['기관 유형', orgTypeText],
     ['참가 인원', participants + '명'],
     ['연수 기간', days + '일'],
-    ['신청 기관', organization],
-    ['담당자', contactName],
+    /* 🔴 2026-09-14 대표 지시로 고객 폼에서 회사명·담당자 칸을 뺐다.
+       그래서 이 값은 대개 비어 있다 — **비면 줄 자체를 안 넣는다.**
+       예전 모양대로 두면 견적서마다 「신청 기관: —」·「담당자: —」 두 줄이 늘 찍혀
+       문서가 덜 만들어진 것처럼 보인다. 담당자가 관리자에서 채워 넣으면 다시 나온다. */
+    ...(organization ? [['신청 기관', organization]] : []),
+    ...(contactName ? [['담당자', contactName]] : []),
     [],
     ['항목', '금액(원)'],
     ...rows.map(r => [r.name, r.amount]),
@@ -3733,8 +3738,9 @@ function openEstimateWindow() {
   const visitModeText = document.getElementById('visitMode')?.selectedOptions[0]?.textContent || '';
   const participants = document.getElementById('participants').value;
   const days         = Number(document.getElementById('days').value) || 5;
-  const organization = document.getElementById('organization')?.value.trim() || '—';
-  const contactName  = document.getElementById('contactName')?.value.trim() || '—';
+  /* 🔴 빈 값을 '—'로 채우지 않는다 (2026-09-14) — 그러면 「줄을 넣을지」 판단이 불가능해진다 */
+  const organization = document.getElementById('organization')?.value.trim() || '';
+  const contactName  = document.getElementById('contactName')?.value.trim() || '';
   const requestDetails = document.getElementById('requestDetails')?.value.trim() || '';
 
   const fmt = n => '₩ ' + n.toLocaleString('ko-KR');

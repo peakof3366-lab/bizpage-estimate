@@ -1890,13 +1890,6 @@ p { line-height:1.8; }
 .estimate-step > .cta-guide-wrap { order:2; }
 .estimate-step > .step-actions { order:3; }
 .estimate-step > .estimate-confirm { order:4; }
-/* 결과 카드가 비어 있을 때 — 가로를 쓰되 가운데로 몰리지 않게
-   (원래 위 여백이 40px였고, 가운데 정렬이라 양옆이 크게 비었다) */
-
-.no-estimate-msg { padding:20px 8px; justify-content:flex-start; gap:20px; }
-.no-estimate-msg .no-est-lead { margin:0; }
-.no-estimate-msg .no-est-steps { margin-left:auto; }
-.estimate-step > .fld,
 .estimate-step > label { margin-bottom:0; }
 
 /* ③ 포함 항목 — 네 구역을 2×2로 */
@@ -1908,17 +1901,13 @@ p { line-height:1.8; }
 .result-totals { flex-direction:row; gap:14px; }
 .result-totals > .total-box { flex:1; min-width:0; }
 
-/* ⑤ 결과 카드도 가로를 쓴다 — 안내는 한 줄로 */
-.no-estimate-msg { display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap; text-align:left; }
-.no-estimate-msg .no-est-steps { display:flex; gap:18px; flex-wrap:wrap; margin:0; }
-
 @media (max-width:1024px) {
   .estimate-step[data-step="1"].step-active,
   .estimate-step[data-step="2"].step-active { grid-template-columns:1fr; }
   .estimate-step > .date-block { grid-column:auto; }
   .item-selector { grid-template-columns:1fr; }
   .result-totals { flex-direction:column; }
-  .no-estimate-msg { flex-direction:column; text-align:center; }
+  /* (빈 결과 안내는 아래 전용 블록이 다룬다) */
 }
 
 
@@ -1933,3 +1922,41 @@ p { line-height:1.8; }
 .cond-tag { padding:4px 11px; font-size:11px; border:1px solid transparent;
             display:inline-flex; align-items:center; }
 .cond-tags-row { margin-top:0; align-items:stretch; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   「예상 견적」이 아직 없을 때 — 다시 짰다 (2026-09-14 대표 지시)
+
+   ■ 무엇이 문제였나
+   아이콘·문구·3단계 상자가 **가로로 흩어져** 있었다. 왼쪽은 크게 비고 상자만
+   오른쪽에 떠 있어, 「무엇을 하면 되는지」를 말하는 자리인데 그 말이 안 읽혔다.
+
+   ■ 어떻게 바꿨나
+   가운데로 모아 **아이콘 → 한 문장 → 세 걸음** 순서로 읽히게 했다.
+   세 걸음은 **같은 폭 카드 셋**으로 나란히 둔다 — 순서가 있는 것은 나란히 놓아야
+   순서로 읽힌다(세로로 쌓으면 길어지고, 흩어 놓으면 순서가 사라진다).
+   ⚠ 좁은 화면에서는 1열로 돌아간다. 셋을 유지하면 한 칸이 100px대가 되어 글자가 끊긴다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.no-estimate-msg {
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+  gap:15px; padding:36px 20px 30px;
+}
+.no-estimate-msg .no-est-icon { margin:0; width:54px; height:54px; }
+.no-estimate-msg .no-est-lead {
+  margin:0; font-size:16px; font-weight:800; letter-spacing:-.01em;
+  color:var(--t-head); line-height:1.55;
+}
+.no-estimate-msg .no-est-steps {
+  margin:4px 0 0; padding:0; width:100%; max-width:760px;
+  background:none; border:0; text-align:left;
+  display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+}
+.no-estimate-msg .no-est-steps li {
+  display:flex; align-items:center; gap:9px; min-height:54px;
+  padding:12px 14px; background:var(--bg-off);
+  border:1px solid var(--rule); border-radius:var(--r);
+  font-size:12.5px; font-weight:600; color:var(--t-head); line-height:1.5;
+}
+@media (max-width:760px) {
+  .no-estimate-msg .no-est-steps { grid-template-columns:1fr; }
+}

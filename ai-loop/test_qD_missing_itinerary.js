@@ -81,12 +81,17 @@ const fillForm = (w, destKey) => {
   doc.getElementById('destination').dispatchEvent(new w.Event('change', { bubbles: true }));
   doc.getElementById('participants').value = '20';
   doc.getElementById('days').value = '5';
-  doc.getElementById('organization').value = '테스트기업';
-  doc.getElementById('contactName').value = '김담당';
+  /* 🔴 2026-09-14 대표 지시로 회사명·담당자·요청사항 칸이 고객 폼에서 빠졌다.
+     없는 칸에 값을 넣으려 하면 여기서 크래시한다 — 있으면 채우고 없으면 지나간다.
+     ⚠ 연락처는 그대로 있다(필수). */
+  const put = (id, v) => { const el = doc.getElementById(id); if (el) el.value = v; };
+  put('organization', '테스트기업');
+  put('contactName', '김담당');
   /* WC: 연락처가 필수가 됐다 — 대장에서 담당자 부재 시 이어받는 데 쓴다.
      ⚠ 이 값은 견적서·링크에 안 실린다(payload 밖으로 간다). */
   doc.getElementById('contactTel').value = '010-1234-5678';
-  doc.getElementById('requestDetails').value = '메모';
+  doc.getElementById('contactTel').value = '010-1234-5678';
+  put('requestDetails', '메모');
   /* XS: 고객 화면에서 **출발일이 필수가 됐다.** 비우면 금액은 나오는데 견적서
      링크가 서버 검증에서 조용히 막혔기 때문이다. 여기서 안 채우면 이 검사가
      보려는 것(일정 탐색 버튼)에 닿기도 전에 제출이 막힌다. */
