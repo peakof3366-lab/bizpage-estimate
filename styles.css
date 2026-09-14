@@ -812,7 +812,13 @@ p { line-height:1.8; }
 .group-checklist[open] > .gcl-head::after { transform:rotate(45deg); color:var(--t-head); }
 .gcl-head:hover .gcl-title { color:var(--red); }
 .gcl-title { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--t-head); transition:color var(--dur); }
-.gcl-body { display:flex; flex-direction:column; gap:16px; }
+/* 🔴 2026-09-14 대표 지시: 체크리스트를 **가로로 나열**한다.
+   세 묶음(사전 준비 · 서류·행정 · 현지 운영)이 세로로 쌓여 12줄이 아래로 길게
+   뻗어 있었다. 셋을 나란히 두면 같은 내용이 4줄 높이로 들어온다.
+   ⚠ 좁은 화면에서는 1열로 돌아간다 — 3열을 유지하면 한 칸이 40px대가 되어 글자가
+     한 자씩 끊긴다(아래 미디어쿼리가 그 자리다). */
+.gcl-body { display:grid; grid-template-columns:repeat(3,1fr); gap:18px 28px; align-items:start; }
+@media (max-width:820px) { .gcl-body { grid-template-columns:1fr; gap:16px; } }
 .gcl-sec-title { font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--red); margin-bottom:8px; }
 .gcl-list { display:flex; flex-direction:column; gap:7px; }
 .gcl-list li { font-size:12.5px; color:var(--t-mute); padding-left:14px; position:relative; line-height:1.6; }
