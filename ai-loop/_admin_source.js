@@ -40,7 +40,7 @@ const ROOT = path.join(__dirname, '..');
    `admin.html`을 쪼갤 때(2a: CSS, 2b: 화면별 스크립트) 이 배열만 늘린다.
    ⚠ 순서는 「사람이 읽는 순서」다. 이 문자열은 **정규식으로 재는 용도**이지
      실행하거나 파싱하는 용도가 아니라, 로드 순서와 같을 필요는 없다. */
-const ADMIN_PARTS = ['admin.html', 'admin.css', 'admin/common.js', 'admin/ledger.js', 'admin/packages.js', 'admin/recommend.js', 'admin/itinerary.js'];
+const ADMIN_PARTS = ['admin.html', 'admin.css', 'admin/common.js', 'admin/ledger.js', 'admin/packages.js', 'admin/recommend.js', 'admin/itinerary.js', 'admin/pricereport.js'];
 
 /* 🔴 **정말 관리자 화면을 읽었는지 확인하는 닻.**
    이어 붙인 결과에 이것이 없으면 목록이 틀렸거나 파일이 비었다는 뜻이다.
