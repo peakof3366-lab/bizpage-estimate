@@ -64,7 +64,8 @@ const COMMON = ['esc', 'get', 'getO', 'set', 'safeId', 'KEYS', 'PAGE_SIZE',
                 /* 패키지 · 소규모 견적 화면 */ 'renderPackages', 'pkgSellable', 'PKG_GAPS',
                 /* 추천 일정 미리보기 (방식 A·B) */ 'recPreviewOpen', 'recPvRender', 'REC_PV_PLANS',
                 /* 일정 관리 화면 (QB) */ 'itiState', 'itiRenderBody', 'renderItineraries',
-                /* 견적서 업데이트 · PDF 추출 화면 */ 'submitPriceReport', 'renderPdfEvidence', 'PR_EVIDENCE_FIELDS'];
+                /* 견적서 업데이트 · PDF 추출 화면 */ 'submitPriceReport', 'renderPdfEvidence', 'PR_EVIDENCE_FIELDS',
+                /* 요율 관리 화면 (앞부분) */ 'renderRates', 'applyRateBulk', 'openRateEditModal'];
 
 /* jsdom 환경 자체가 못 주는 것 — 이것만 예외로 둔다.
    ⚠ 목록을 늘릴 때는 반드시 이유를 적을 것. 여기에 이름을 넣는 것은
