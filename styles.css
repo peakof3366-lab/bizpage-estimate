@@ -1869,28 +1869,28 @@ p { line-height:1.8; }
 .estimate-result { position:static; top:auto; }
 
 /* ② 폼 — 가로를 쓴다 */
-.estimate-step[data-step="1"].step-active { display:grid; grid-template-columns:repeat(3,1fr); gap:16px 22px; align-items:start; }
-.estimate-step[data-step="2"].step-active { display:grid; grid-template-columns:repeat(2,1fr); gap:16px 22px; align-items:start; }
-.estimate-step > .fld-row { display:contents; }
-.estimate-step > .step-head,
-.estimate-step > .step2-dots,
-.estimate-step > .item-selector,
-.estimate-step > .step-actions,
-.estimate-step > .cta-guide-wrap,
-.estimate-step > .estimate-confirm { grid-column:1 / -1; }
+.estimate-grid .estimate-step[data-step="1"].step-active { display:grid; grid-template-columns:repeat(3,1fr); gap:16px 22px; align-items:start; }
+.estimate-grid .estimate-step[data-step="2"].step-active { display:grid; grid-template-columns:repeat(2,1fr); gap:16px 22px; align-items:start; }
+.estimate-grid .estimate-step > .fld-row { display:contents; }
+.estimate-grid .estimate-step > .step-head,
+.estimate-grid .estimate-step > .step2-dots,
+.estimate-grid .estimate-step > .item-selector,
+.estimate-grid .estimate-step > .step-actions,
+.estimate-grid .estimate-step > .cta-guide-wrap,
+.estimate-grid .estimate-step > .estimate-confirm { grid-column:1 / -1; }
 /* 🔴 「여행 기간」 칸을 뺐더니(2026-09-14) 위 두 줄이 3칸씩 꽉 찬다.
    날짜 상자는 한 줄을 **통째로** 쓴다 — 2칸만 쓰면 옆에 빈 칸 하나가 남아 어긋나 보인다. */
-.estimate-step > .date-block { grid-column:1 / -1; }
+.estimate-grid .estimate-step > .date-block { grid-column:1 / -1; }
 /* 🔴 칸이 3열에 고르게 앉게 **순서**를 준다. 날짜 상자(2칸)가 가운데 끼면 그 옆이
    통째로 빈다 — 실제로 「여행 방식」 오른쪽에 빈 구멍이 생겼다. 날짜를 칸 뒤로 보내
    한 줄을 채운다. */
-.estimate-step > .step-head { order:-1; }
-.estimate-step > .date-block { order:1; }
-.estimate-step > .item-selector,
-.estimate-step > .cta-guide-wrap { order:2; }
-.estimate-step > .step-actions { order:3; }
-.estimate-step > .estimate-confirm { order:4; }
-.estimate-step > label { margin-bottom:0; }
+.estimate-grid .estimate-step > .step-head { order:-1; }
+.estimate-grid .estimate-step > .date-block { order:1; }
+.estimate-grid .estimate-step > .item-selector,
+.estimate-grid .estimate-step > .cta-guide-wrap { order:2; }
+.estimate-grid .estimate-step > .step-actions { order:3; }
+.estimate-grid .estimate-step > .estimate-confirm { order:4; }
+.estimate-grid .estimate-step > label { margin-bottom:0; }
 
 /* ③ 포함 항목 — 네 구역을 2×2로 */
 .item-selector { display:grid; grid-template-columns:1fr 1fr; gap:14px 22px; align-items:start; }
@@ -1902,9 +1902,9 @@ p { line-height:1.8; }
 .result-totals > .total-box { flex:1; min-width:0; }
 
 @media (max-width:1024px) {
-  .estimate-step[data-step="1"].step-active,
-  .estimate-step[data-step="2"].step-active { grid-template-columns:1fr; }
-  .estimate-step > .date-block { grid-column:auto; }
+  .estimate-grid .estimate-step[data-step="1"].step-active,
+  .estimate-grid .estimate-step[data-step="2"].step-active { grid-template-columns:1fr; }
+  .estimate-grid .estimate-step > .date-block { grid-column:auto; }
   .item-selector { grid-template-columns:1fr; }
   .result-totals { flex-direction:column; }
   /* (빈 결과 안내는 아래 전용 블록이 다룬다) */

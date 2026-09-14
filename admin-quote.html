@@ -322,6 +322,46 @@
     .aq-list-grid { grid-template-columns: 1fr 1fr; }
     .aq-step1-actions .button, .btn-preview { flex: 1 1 100%; }
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     1단계를 **2열**로 — 직원이 한 화면에서 보게 (2026-09-14 대표 지시)
+
+     ■ 무엇이 문제였나 (실측)
+     네 구역이 세로로 쌓여 **2,157px**였다. 각 구역은 가로를 절반도 안 쓰는데
+     직원은 목적지 하나 고르려고 화면 두 번을 넘겨야 했다.
+
+     ■ 어떻게 놓았나 — 높이가 맞아떨어지게 **자리를 지정**한다
+       [여행 목적지]  [프로그램 · 기관 · 방식]
+       [일정 및 인원]  (프로그램이 두 줄을 쓴다)
+       [항공 · 포함 항목 · 등급 — 한 줄 통째]
+     왼쪽 둘(목적지 짧음 + 일정 중간)의 합이 오른쪽 하나(프로그램 김)와 비슷해
+     빈칸이 안 생긴다. 자동 배치에 맡기면 오른쪽 아래가 통째로 빈다(실제로 그랬다).
+     ⚠ 자리를 **이름으로** 지정한다(`.aq-sec-*`). 순서(nth-child)로 잡으면 구역을
+       하나 넣는 순간 배치가 통째로 어긋난다.
+     ⚠ 좁은 화면(1100px 미만)에서는 1열로 돌아간다 — 2열을 유지하면 선택지 칸이
+       짓눌려 글자가 꺾인다.
+     ═══════════════════════════════════════════════════════════════════════ */
+  .aq-shell .estimate-step[data-step="1"].step-active {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1.25rem; align-items: start;
+  }
+  /* 그리드 안에서는 간격을 gap이 준다 — margin이 겹치면 줄마다 틈이 달라진다 */
+  .aq-shell .estimate-step[data-step="1"].step-active > .aq-section { margin-bottom: 0; }
+  .aq-sec-dest    { grid-column: 1; grid-row: 1; }
+  .aq-sec-when    { grid-column: 1; grid-row: 2; }
+  .aq-sec-program { grid-column: 2; grid-row: 1 / span 2; }
+  .aq-sec-items   { grid-column: 1 / -1; }
+  /* 검증 안내·버튼·미리보기는 한 줄을 통째로 쓴다 */
+  .aq-shell .estimate-step[data-step="1"].step-active > .aq-validate-msg,
+  .aq-shell .estimate-step[data-step="1"].step-active > .step-actions,
+  .aq-shell .estimate-step[data-step="1"].step-active > .aq-preview { grid-column: 1 / -1; }
+
+  @media (max-width: 1100px) {
+    .aq-shell .estimate-step[data-step="1"].step-active { grid-template-columns: 1fr; }
+    .aq-sec-dest, .aq-sec-when, .aq-sec-program, .aq-sec-items {
+      grid-column: 1 / -1; grid-row: auto;
+    }
+  }
 </style>
 </head>
 <body>
@@ -366,7 +406,7 @@
 
       <div class="estimate-step step-active" data-step="1">
 
-        <div class="aq-section">
+        <div class="aq-section aq-sec-dest">
           <div class="aq-section-title">여행 목적지</div>
 
           <details class="aq-dest-master" id="destMaster">
@@ -549,7 +589,7 @@
           </select>
         </div>
 
-        <div class="aq-section">
+        <div class="aq-section aq-sec-program">
           <div class="aq-section-title">프로그램 · 기관 · 방식</div>
 
           <div class="aq-field-block">
@@ -588,7 +628,7 @@
           </select>
         </div>
 
-        <div class="aq-section">
+        <div class="aq-section aq-sec-when">
           <div class="aq-section-title">일정 및 인원</div>
 
           <div class="date-block">
@@ -622,7 +662,7 @@
           </div>
         </div>
 
-        <div class="aq-section">
+        <div class="aq-section aq-sec-items">
           <div class="aq-section-title">항공 · 포함 항목 · 등급</div>
 
           <div class="aq-field-block">
