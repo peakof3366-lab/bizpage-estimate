@@ -184,7 +184,9 @@ const ENV_ALLOWED = [
   const recHit = pressSaw('rec-preview', 'rec-msg', '목적지를 먼저');
   ok('⑦ 🔴 미리보기 「열기」가 걸렸다 (admin/recommend.js)', recHit === true, String(recHit));
   const itiHit = pressSaw('iti-save', 'iti-msg', '목적지를 먼저');
+  const pkgHit = pressSaw('pkgNew', 'pkgEditTitle', '새 상품');
   ok('⑦ 🔴 일정 「저장」이 걸렸다 (admin/itinerary.js)', itiHit === true, String(itiHit));
+  ok('⑦ 🔴 패키지 「+ 새 상품」이 걸렸다 (admin/packages.js)', pkgHit === true, String(pkgHit));
 
   done();
 })().catch((e) => { console.error('실행 오류:', e); process.exit(1); });

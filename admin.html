@@ -7570,37 +7570,6 @@
     if (confirm(`${label}을(를) 초기화하시겠습니까?`)) { keys.forEach(k=>localStorage.removeItem(k)); renderTab(currentTab); alert('초기화되었습니다.'); }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('pkgNew')?.addEventListener('click', () => pkgOpen(null));
-    document.getElementById('pkgNewAdhoc')?.addEventListener('click', () => pkgOpen(null, 'adhoc'));
-    document.getElementById('pkgSave')?.addEventListener('click', pkgSave);
-    document.getElementById('pkgDelete')?.addEventListener('click', pkgDelete);
-    document.getElementById('pkgCancel')?.addEventListener('click', () => {
-      document.getElementById('pkgEditCard').style.display = 'none';
-    });
-    /* 종류 필터는 없앴다 (WE) — **탭이 곧 종류**다. 남겨 두면 「소규모 견적」 탭에서
-       종류를 「패키지 상품」으로 골라 빈 목록을 보는 상태가 만들어진다. */
-    document.getElementById('pkgFilterStatus')?.addEventListener('change', pkgDrawList);
-    document.getElementById('pkgFilterGap')?.addEventListener('change', pkgDrawList);
-    document.getElementById('adhocFilterStatus')?.addEventListener('change', pkgDrawList);
-    /* 종류·출처·항목을 고치면 안내와 합계가 **그 자리에서** 따라간다 */
-    ['pkgKind', 'pkgBasis'].forEach(id =>
-      document.getElementById(id)?.addEventListener('change', pkgSyncNotes));
-    document.getElementById('pkgItems')?.addEventListener('input', pkgSyncNotes);
-    /* 일정·포함사항·사진을 채우면 「비어 있습니다」 안내가 **그 자리에서** 사라져야 한다
-       (WH). 안 사라지면 담당자는 채웠는데도 못 채운 줄 알고 다시 연다. */
-    ['pkgIti', 'pkgIncl', 'pkgImage'].forEach(id =>
-      document.getElementById(id)?.addEventListener('input', pkgSyncNotes));
-    document.getElementById('pkgIssue')?.addEventListener('click', pkgIssueNow);
-    document.getElementById('pkgPdfRead')?.addEventListener('click', pkgReadPdf);
-    document.getElementById('pkgHtRead')?.addEventListener('click', pkgReadHanatour);
-    document.getElementById('pkgIssueCopy')?.addEventListener('click', () => {
-      const el = document.getElementById('pkgIssueUrl');
-      el.select();
-      navigator.clipboard?.writeText(el.value).catch(() => {});
-      document.getElementById('pkgIssueMsg').textContent = '복사했습니다.';
-    });
-  });
 </script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {

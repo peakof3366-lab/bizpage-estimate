@@ -975,3 +975,42 @@
       msg.textContent = '지우지 못했습니다 — ' + String(err.message || err);
     }
   }
+
+/* ── 화면에 손잡이를 건다 (2b-1b-②) ─────────────────────────────────────────
+   패키지 · 소규모 견적 화면.
+   🔴 `DOMContentLoaded`로 감싸는 이유는 DOM이 아니라 **파일 사이의 순서**다
+   (자세한 것은 admin/ledger.js 머리에 적었다).
+   ⚠ 이 블록은 원래 admin.html에서 **이미 DOMContentLoaded로 감싸져 있었다** —
+     그대로 옮기기만 했다. 안을 한 줄도 안 고쳤다.
+   ───────────────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('pkgNew')?.addEventListener('click', () => pkgOpen(null));
+  document.getElementById('pkgNewAdhoc')?.addEventListener('click', () => pkgOpen(null, 'adhoc'));
+  document.getElementById('pkgSave')?.addEventListener('click', pkgSave);
+  document.getElementById('pkgDelete')?.addEventListener('click', pkgDelete);
+  document.getElementById('pkgCancel')?.addEventListener('click', () => {
+    document.getElementById('pkgEditCard').style.display = 'none';
+  });
+  /* 종류 필터는 없앴다 (WE) — **탭이 곧 종류**다. 남겨 두면 「소규모 견적」 탭에서
+     종류를 「패키지 상품」으로 골라 빈 목록을 보는 상태가 만들어진다. */
+  document.getElementById('pkgFilterStatus')?.addEventListener('change', pkgDrawList);
+  document.getElementById('pkgFilterGap')?.addEventListener('change', pkgDrawList);
+  document.getElementById('adhocFilterStatus')?.addEventListener('change', pkgDrawList);
+  /* 종류·출처·항목을 고치면 안내와 합계가 **그 자리에서** 따라간다 */
+  ['pkgKind', 'pkgBasis'].forEach(id =>
+    document.getElementById(id)?.addEventListener('change', pkgSyncNotes));
+  document.getElementById('pkgItems')?.addEventListener('input', pkgSyncNotes);
+  /* 일정·포함사항·사진을 채우면 「비어 있습니다」 안내가 **그 자리에서** 사라져야 한다
+     (WH). 안 사라지면 담당자는 채웠는데도 못 채운 줄 알고 다시 연다. */
+  ['pkgIti', 'pkgIncl', 'pkgImage'].forEach(id =>
+    document.getElementById(id)?.addEventListener('input', pkgSyncNotes));
+  document.getElementById('pkgIssue')?.addEventListener('click', pkgIssueNow);
+  document.getElementById('pkgPdfRead')?.addEventListener('click', pkgReadPdf);
+  document.getElementById('pkgHtRead')?.addEventListener('click', pkgReadHanatour);
+  document.getElementById('pkgIssueCopy')?.addEventListener('click', () => {
+    const el = document.getElementById('pkgIssueUrl');
+    el.select();
+    navigator.clipboard?.writeText(el.value).catch(() => {});
+    document.getElementById('pkgIssueMsg').textContent = '복사했습니다.';
+  });
+});
