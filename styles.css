@@ -1893,7 +1893,10 @@ p { line-height:1.8; }
 .estimate-grid .estimate-step > label { margin-bottom:0; }
 
 /* ③ 포함 항목 — 네 구역을 2×2로 */
-.item-selector { display:grid; grid-template-columns:1fr 1fr; gap:14px 22px; align-items:start; }
+/* 3열로 (2026-09-14 대표 지시). 「현지 기타 비용」 제목을 빼면서 기관 방문·섭외와
+   지방 출발이 **제목 없이 떠 있었다** — 이름 그대로 「추가 선택」이라 그쪽으로 합쳤다.
+   구역이 넷에서 셋이 되어 한 줄에 나란히 들어간다(2×2 292px → 3열). */
+.item-selector { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 22px; align-items:start; }
 .inc-sec { display:flex; flex-direction:column; gap:8px; min-width:0; }
 .inc-sec > .inc-sec-lbl { margin:0; }
 
@@ -1905,6 +1908,9 @@ p { line-height:1.8; }
   .estimate-grid .estimate-step[data-step="1"].step-active,
   .estimate-grid .estimate-step[data-step="2"].step-active { grid-template-columns:1fr; }
   .estimate-grid .estimate-step > .date-block { grid-column:auto; }
+  .item-selector { grid-template-columns:1fr 1fr; }
+}
+@media (max-width:720px) {
   .item-selector { grid-template-columns:1fr; }
   .result-totals { flex-direction:column; }
   /* (빈 결과 안내는 아래 전용 블록이 다룬다) */
