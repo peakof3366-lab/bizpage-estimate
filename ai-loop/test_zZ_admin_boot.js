@@ -59,7 +59,8 @@ const done = () => {
 /* 띄운 화면에 살아 있어야 하는 공용 이름들.
    ⚠ 화면을 새로 떼어낼 때마다 그 화면이 쓰는 이름을 여기 한둘 더한다. */
 const COMMON = ['esc', 'get', 'getO', 'set', 'safeId', 'KEYS', 'PAGE_SIZE',
-                'fmtDate', 'REGION_MAP', 'REGION_ORDER', 'currentTab'];
+                'fmtDate', 'REGION_MAP', 'REGION_ORDER', 'currentTab',
+                /* 2b-2 대장 화면 */ 'renderLedger', 'ledDraw', 'LED_STATUS'];
 
 /* jsdom 환경 자체가 못 주는 것 — 이것만 예외로 둔다.
    ⚠ 목록을 늘릴 때는 반드시 이유를 적을 것. 여기에 이름을 넣는 것은
