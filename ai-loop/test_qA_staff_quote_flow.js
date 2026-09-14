@@ -228,11 +228,14 @@ const setDest = (window, doc, key) => {
 
   /* ── 러너가 이 파일을 실제로 집는가 (결함 생성기 ③) ────────────── */
   console.log('\n[8] 이 테스트가 회귀 스위트에 실제로 포함되는가');
-  const runnerSrc = read(path.join('ai-loop', 'run_all_tests.js'));
-  const m = runnerSrc.match(/\.filter\(f => \/(.+?)\/\.test\(f\)\)/);
-  ok('러너의 파일 패턴을 찾았다', !!m, String(m && m[1]));
-  ok('그 패턴이 이 파일(test_qA_…)을 집는다',
-    !!m && new RegExp(m[1]).test('test_qA_staff_quote_flow.js'),
+  /* 🔴 **러너 소스를 뜯어보지 않는다.** 예전에는 `.filter(f => /…/.test(f))`를 정규식으로
+     찾았는데, 2026-09-14에 러너를 병렬로 바꾸며 `f =>`가 `(f) =>`가 되자
+     **지키려던 것은 멀쩡한데 재는 방법이 부러졌다.**
+     이제 목록을 만드는 함수에 **직접 물어본다**(`_test_files.js` 단일 출처). */
+  const { isInSuite, testFiles } = require('./_test_files');
+  ok('스위트 목록을 만들 수 있다', testFiles([]).length > 50, testFiles([]).length + '개');
+  ok('그 목록이 이 파일(test_qA_…)을 집는다',
+    isInSuite('test_qA_staff_quote_flow.js'),
     'p로 시작하지 않는 테스트가 조용히 빠지면 안 된다');
 
   console.log(`\n결과: ${pass} pass / ${fail} fail`);

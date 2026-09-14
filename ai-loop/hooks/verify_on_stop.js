@@ -74,7 +74,11 @@ function run(script) {
   const r = spawnSync(process.execPath, [path.join('ai-loop', script)], {
     cwd: ROOT, encoding: 'utf8',
     env: { ...process.env, NODE_PATH: path.join(ROOT, 'node_modules') },
-    timeout: 150000,
+    /* 2026-09-14 실측: 회귀 100초 + 정합성 2초 = 약 102초(병렬 6워커).
+       예전 한 줄 실행에서는 319초라 **이 제한에 걸려 죽는 값**이었다.
+       ⚠ 제한은 「보통 걸리는 시간」이 아니라 「이보다 오래 걸리면 뭔가 잘못된 것」이다.
+          컴퓨터가 바쁠 때를 감안해 약 2배로 둔다. */
+    timeout: 240000,
   });
   const out = ((r.stdout || '') + (r.stderr || '')).trim();
   return { ok: r.status === 0, code: r.status, out, timedOut: r.error && r.error.code === 'ETIMEDOUT' };
