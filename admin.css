@@ -1,0 +1,1247 @@
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      /* 프론트엔드(index.html/styles.css) 에디토리얼 블랙&레드 브랜드와 통일된 토큰 */
+      --primary: #C8102E; --primary-dark: #A20D25; --primary-lt: #FBEAEC;
+      --heading: #0D0D0D; --muted: #787878;
+      --bg: #F4F4F2; --white: #ffffff;
+      --border: rgba(0,0,0,.08); --text: #222222;
+      --r: 0px;
+      --shadow-sm: 0 2px 10px rgba(0,0,0,.10);
+      --shadow-lg: 0 6px 24px rgba(0,0,0,.16);
+      /* 🔴 초록·주황을 **한 단계 진하게** (YA). 둘 다 흰 바탕 위 글자색으로만 쓰이는데
+         `#10b981`은 2.3~2.5:1, `#f59e0b`는 **2.15:1**이라 사실상 안 읽혔다
+         (대시보드 통계 숫자가 그 색이다 — 담당자가 매일 보는 숫자다).
+         배경이나 흰 글자로 쓰는 자리가 없어 진하게 해도 잃는 것이 없다(28곳 전수 확인).
+         `#B45309`는 `manual.html`이 이미 쓰던 값이고 admin 안에도 인라인으로 흩어져
+         있었다 — 토큰 쪽을 그 값에 맞췄다(결함 생성기 ①).
+         실측: `#047857` 5.48:1 · `#B45309` 5.02:1 (흰 바탕, WCAG AA 통과). */
+      --danger: #DC2626; --success: #047857; --warn: #B45309;
+      --sidebar-bg: #1A1A1A;
+      /* 🔴 **줄글의 최대 폭** (YB). 한 줄이 길면 눈이 줄 끝에서 **다음 줄 첫머리로
+         돌아오지 못한다** — 같은 줄을 다시 읽거나 한 줄을 건너뛴다. 화면이 넓을수록
+         심해진다(글상자가 화면을 그대로 다 채우기 때문이다).
+         실측(2026-08-28, 탭 17개): 두 줄 이상 접힌 안내문 17개 중 **9개가 줄당 80~91자**.
+         한글은 45~50자가 편하고 60자를 넘으면 놓치기 시작한다.
+         ⚠ **`em`으로 준다.** 한글은 1자 ≈ 1em이라 글자 크기가 달라도 **글자 수가 같다**.
+           `ch`는 숫자 `0`의 폭이라 한글에는 절반쯤으로 어긋난다 — 쓰지 말 것.
+         ⚠ **표·카드에는 걸지 않는다.** 이건 줄글 폭이지 화면 폭이 아니다.
+         `python ai-loop/check_admin_screens.py`가 이 값을 지키는지 잰다. */
+      --measure: 56em;
+    }
+    body { font-family: 'Pretendard','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+    .hidden { display: none !important; }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; }
+
+    /* ── LOGIN ─────────────────────── */
+    #loginPage {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #141414 0%, var(--sidebar-bg) 100%);
+    }
+    .login-box {
+      background: var(--white);
+      border: 1px solid var(--border);
+      padding: 3rem 2.5rem;
+      width: min(400px, calc(100% - 2rem));
+      box-shadow: var(--shadow-lg);
+    }
+    .login-logo {
+      font-size: 1.25rem; font-weight: 900; color: var(--heading); text-align: center;
+      letter-spacing: .06em; text-transform: uppercase; margin-bottom: .6rem;
+      padding-bottom: .6rem; border-bottom: 2px solid var(--primary); display: inline-block; width: 100%;
+    }
+    .login-sub  { text-align: center; color: var(--muted); font-size: .68rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; margin: 1.1rem 0 2rem; }
+    .field { margin-bottom: 1.1rem; }
+    .field label { display: block; font-weight: 700; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--heading); margin-bottom: .5rem; }
+    .field input { width: 100%; padding: .75rem 1rem; border: 1.5px solid var(--border); background: var(--white); color: var(--text); font-size: .9rem; border-radius: var(--r); transition: border-color .2s; }
+    .field input:focus { outline: none; border-color: var(--primary); }
+    .err-msg { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: .65rem 1rem; font-size: .82rem; margin-bottom: .75rem; border-radius: var(--r); }
+    .btn-login { width: 100%; padding: .85rem; background: var(--primary); color: #fff; border: none; font-size: .95rem; font-weight: 700; border-radius: var(--r); transition: background .2s; margin-top: .25rem; }
+    .btn-login:hover { background: var(--primary-dark); }
+
+    /* ── DASH HEADER ───────────────── */
+    .dash-header { background: var(--heading); padding: 0 1.5rem; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .dash-header-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; width: 96%; max-width: 1680px; margin: 0 auto 0 1.5rem; }
+    .dash-brand { font-size: .82rem; font-weight: 900; color: #fff; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid transparent; padding-bottom: 2px; transition: border-color .18s; }
+    .dash-brand:hover { border-color: var(--primary); }
+    .dash-right { display: flex; align-items: center; gap: .75rem; }
+    .dash-user { color: rgba(255,255,255,.55); font-size: .78rem; }
+    .btn-sm { padding: .38rem .9rem; font-size: .8rem; font-weight: 600; border-radius: var(--r); border: 1.5px solid transparent; transition: all .2s; }
+    .btn-ghost { background: transparent; color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.35); }
+    .btn-ghost:hover { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.7); }
+    .current-staff-widget { display: flex; align-items: center; gap: .4rem; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); padding: .3rem .6rem; }
+    .csw-label { font-size: .78rem; font-weight: 700; color: #fff; white-space: nowrap; }
+    .csw-role { font-size: .66rem; font-weight: 700; color: rgba(255,255,255,.6); background: rgba(255,255,255,.1); padding: .1rem .4rem; letter-spacing: .03em; }
+    .rate-author-tag { font-size: .82rem; font-weight: 700; color: var(--heading); background: var(--bg); border: 1.5px solid var(--border); padding: .4rem .8rem; }
+
+    /* ── LAYOUT ────────────────────── */
+    .dash-layout { display: flex; min-height: calc(100vh - 56px); }
+    .dash-sidebar {
+      width: 220px; flex-shrink: 0; background: var(--sidebar-bg);
+      display: flex; flex-direction: column;
+      position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+    }
+    .dash-main { flex: 1; min-width: 0; overflow-x: hidden; }
+
+    /* ── SIDEBAR ───────────────────── */
+    .sidebar-logo { padding: 1.1rem 1.2rem .8rem; color: rgba(255,255,255,.9); font-size: .76rem; font-weight: 900;
+      display: flex; align-items: center; gap: .5rem; border-bottom: 1px solid rgba(255,255,255,.1); letter-spacing: .06em; text-transform: uppercase; }
+    .sidebar-nav { padding: .6rem .6rem; flex: 1; display: flex; flex-direction: column; gap: .15rem; }
+    .sidebar-divider { height: 1px; background: rgba(255,255,255,.1); margin: .4rem 0; }
+    .sidebar-item {
+      display: flex; align-items: center; gap: .65rem; padding: .6rem .85rem;
+      width: 100%; border: none; background: transparent; color: rgba(255,255,255,.84);
+      font-size: .82rem; font-weight: 500; cursor: pointer; border-radius: 0;
+      transition: background .18s, color .18s; text-align: left; position: relative;
+    }
+    .sidebar-item:hover { background: rgba(255,255,255,.13); color: #fff; }
+    .sidebar-item.active { background: rgba(200,16,46,.18); color: #fff; font-weight: 700; border-left: 3px solid var(--primary); padding-left: calc(.85rem - 3px); }
+    .si-icon  { font-size: 1rem; flex-shrink: 0; }
+    .si-label { flex: 1; }
+    .si-badge { background: var(--danger); color: #fff; font-size: .65rem; font-weight: 700;
+      padding: .1rem .35rem; border-radius: 0; line-height: 1.4; }
+    /* 알림 켜기 안내 (QT) — 대시보드 맨 위. 권한이 정해지면 JS가 숨긴다. */
+    .notify-cta { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+      background: #FFF8E1; border: 1px solid #F5D78E; color: #6B4E00;
+      padding: .6rem .9rem; font-size: .84rem; margin-bottom: 1rem; }
+    .notify-cta .btn-sm { margin-left: auto; background: var(--primary); color: #fff; border: 0;
+      font-family: inherit; font-size: .78rem; font-weight: 700; padding: .35rem .8rem; cursor: pointer; }
+    .notify-cta .btn-sm:hover { filter: brightness(1.08); }
+    .notify-cta.done { background: #ECFDF5; border-color: #A7F3D0; color: #065F46; }
+    .sidebar-footer { padding: .8rem .8rem; border-top: 1px solid rgba(255,255,255,.1); display: flex; gap: .5rem; }
+    .sf-link    { flex: 1; padding: .45rem .75rem; background: rgba(255,255,255,.08); color: rgba(255,255,255,.7);
+      font-size: .76rem; font-weight: 600; text-align: center; border-radius: 0; transition: background .18s; text-decoration: none; }
+    .sf-link:hover { background: rgba(255,255,255,.15); color: #fff; }
+    .sf-logout  { padding: .45rem .75rem; background: transparent; color: rgba(255,255,255,.6); border: 1px solid rgba(255,255,255,.2);
+      font-size: .76rem; font-weight: 600; cursor: pointer; border-radius: 0; transition: all .18s; font-family: inherit; }
+    .sf-logout:hover { background: rgba(239,68,68,.2); color: #fff; border-color: rgba(239,68,68,.5); }
+
+    /* 모바일 탭 헤더 */
+    .mobile-tab-header { display: none; padding: .7rem 1.2rem; background: var(--white);
+      border-bottom: 1px solid var(--border); font-weight: 700; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--heading); }
+
+    /* ── CONTENT ───────────────────── */
+    .dash-body { width: 96%; max-width: 1680px; margin: 0 auto 0 1.5rem; padding: 1.75rem 0; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    /* ── CARD ─────────────────────── */
+    /* ── 입력칸이 놓이는 바탕 (2026-09-08 대표 지시) ─────────────────────────
+       「입력하는 란마다 위아래 틈이 흰색인데, 다른 여백 배경색과 통일감 있게.
+        이건 전체 적용으로.」
+
+       왜 그렇게 보였나 — **카드도 흰색이고 입력칸도 흰색**이었다(둘 다 `#fff`).
+       그래서 폼이 통째로 흰 판 하나로 읽히고, 칸과 칸 사이 틈이 어디까지인지
+       눈으로 안 갈렸다. 페이지 여백은 `--bg`(#F4F4F2)라 카드 밖과도 어긋났다.
+
+       → **틈(카드 바탕)을 페이지 여백과 같은 톤으로 내리고, 입력칸만 흰색으로 남긴다.**
+         칸이 바탕 위로 떠올라서 경계가 색으로 보인다 — 선을 더 긋지 않아도 된다.
+
+       ⚠ **한 곳에서 바꾼다.** 화면마다 배경을 따로 칠하면 그 화면만 조용히 낡는다
+         (결함 생성기 ①). 그래서 `.card` 하나를 내리고, 흰색이 필요한 것
+         (입력칸·표)만 되돌린다.
+       ⚠ **표는 흰 바탕을 지킨다.** 줄이 많은 표를 회색으로 깔면 얼룩줄(zebra)과
+         섞여 어느 줄이 강조인지 안 보인다.
+       ⚠ 색을 눈으로 고르지 않았다 — 이미 있는 `--bg` 토큰을 쓴다. 새 색을 만들면
+         「여백 색」이 두 개가 된다. */
+    .card { background: var(--white); border: 1px solid var(--border); }
+    /* 🔴 **입력칸이 있는 카드만** 바탕을 내린다.
+       처음엔 `.card` 전부를 내렸는데, 그러면 목록·통계처럼 **입력칸이 없는 카드까지**
+       페이지와 같은 색이 되어 카드 경계가 테두리 하나로만 남았다(대시보드에서 눈으로 확인).
+       틈이 흰색이라 안 보이던 것은 **폼**이지 카드 전부가 아니었다.
+       ⚠ `:has()`를 못 읽는 브라우저에서는 이 줄이 통째로 무시되고 **예전 모습(전부 흰색)**
+         으로 떨어진다. 안전한 쪽으로 떨어지는 것이라 그대로 둔다. */
+    .card:has(input, select, textarea) { background: var(--bg); }
+    .card :is(input, select, textarea) { background: var(--white); }
+    /* 표는 흰 바탕을 지킨다 — 회색에 깔면 얼룩줄과 섞여 강조 줄이 안 보인다 */
+    .card :is(table, thead, tbody, tr) { background: var(--white); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .card-title { font-size: .76rem; font-weight: 800; color: var(--heading); letter-spacing: .04em; text-transform: uppercase; }
+    .card-body { padding: 1.25rem; }
+
+    /* ── 대시보드 구역 이름 (ZK) ─────────────────────────────────────────────
+       대표: 「너무 글자만 많고 정리가 안 되고 빽빽하다.」
+       카드가 아무 표시 없이 이어지면 **어디까지가 한 덩어리인지** 안 보인다.
+       아임웹 관리자가 구역마다 이름을 달아 끊어 주는 것을 그대로 가져왔다.
+       ⚠ 화면 제목(`h1.page-title`)과 경쟁하지 않게 **작고 조용하게** 둔다 —
+         제목이 둘로 보이면 「이 화면이 무엇인가」가 흐려진다(audit_ux 규칙 1). */
+    .dash-sec {
+      font-size: .78rem; font-weight: 800; color: var(--muted);
+      letter-spacing: .04em; margin: 2rem 0 .85rem;
+    }
+    .dash-sec:first-of-type { margin-top: 1.5rem; }
+
+    /* ── 「지금 할 일」 카드 (ZK) ─────────────────────────────────────────────
+       아임웹의 **진행 카드**(체크리스트 + 진행바)에서 가져왔다. 숫자 넉 장보다
+       「지금 뭘 해야 하나」가 먼저 보여야 한다는 것이 이 카드의 전부다.
+       ⚠ 항목은 **사이드바 배지에서 읽는다**(renderDashTodo 참고). 세는 코드를
+         새로 쓰면 두 숫자가 어긋난다. */
+    .dash-todo { padding: 1.35rem 1.5rem 1.15rem; margin-bottom: .5rem; }
+    .dt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+    .dt-title { font-size: 1.02rem; font-weight: 800; color: var(--heading); }
+    .dt-sub { font-size: .8rem; color: var(--muted); margin-top: .2rem; line-height: 1.6; }
+    .dt-count { font-size: 1.6rem; font-weight: 900; color: var(--primary); line-height: 1; white-space: nowrap; }
+    .dt-count.none { color: var(--success); font-size: 1.05rem; }
+    /* 🔴 **진행바가 아니라 상태선이다.** 아임웹은 「2/4개 완료」처럼 분모가 있어서 진행바를
+       그릴 수 있지만, **우리에겐 분모가 없다** — 「미확인 문의 3건」의 전체가 몇 건인지는
+       아무 데도 없다. 처음에 35%를 채워 넣었다가 걷어냈다. 그건 **지어낸 값**이고,
+       이 저장소가 가장 경계하는 것이다(그럴듯해서 눈으로 안 걸린다).
+       → 그래서 **길이로 말하지 않고 색으로만** 말한다: 할 일이 있으면 빨강, 없으면 초록.
+         길이는 늘 100%다. */
+    .dt-bar { height: 4px; background: rgba(0,0,0,.08); margin: .95rem 0 .2rem; overflow: hidden; }
+    .dt-bar > span { display: block; height: 100%; width: 100%; background: var(--primary); }
+    .dt-bar.done > span { background: var(--success); }
+    .dt-list { list-style: none; margin: 0; padding: 0; }
+    .dt-list li { border-bottom: 1px solid var(--border); }
+    .dt-list li:last-child { border-bottom: 0; }
+    /* ⚠ 줄 전체가 버튼이다 — 44px 이상(WCAG 2.5.5). 작은 글자만 누르게 하지 않는다. */
+    .dt-go {
+      display: flex; align-items: center; gap: .7rem; width: 100%;
+      min-height: 46px; padding: .55rem .1rem; background: none; border: 0;
+      text-align: left; font-family: inherit; font-size: .87rem; color: var(--heading);
+    }
+    .dt-go:hover { color: var(--primary); }
+    .dt-ico { flex: none; width: 20px; height: 20px; display: grid; place-items: center; }
+    .dt-ico svg { width: 17px; height: 17px; }
+    .dt-go .dt-what { flex: 1; min-width: 0; }
+    .dt-n { font-weight: 800; color: var(--primary); }
+    .dt-arrow { flex: none; color: var(--muted); font-size: .9rem; }
+    /* 할 일이 없을 때 — 빈 화면을 남기지 않고 무엇이 정상인지 말한다(audit_ux 규칙 2) */
+    .dt-clear { display: flex; align-items: center; gap: .55rem; padding: .7rem .1rem 0;
+      font-size: .87rem; color: var(--success); font-weight: 700; }
+
+    /* ── STAT CARDS ───────────────── */
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: var(--white); border: 1px solid var(--border); padding: 1.25rem 1.5rem; border-left: 3px solid var(--primary); }
+    .stat-card.warn { border-left-color: var(--warn); }
+    .stat-card.success { border-left-color: var(--success); }
+    .stat-card.danger { border-left-color: var(--danger); }
+    .stat-num { font-size: 1.9rem; font-weight: 800; color: var(--primary); line-height: 1; margin-bottom: .25rem; }
+    .stat-card.warn .stat-num { color: var(--warn); }
+    .stat-card.success .stat-num { color: var(--success); }
+    .stat-card.danger .stat-num { color: var(--danger); }
+    .stat-lbl { font-size: .72rem; color: var(--muted); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+    .stat-sub { font-size: .72rem; color: var(--muted); margin-top: .3rem; }
+
+    /* ── GRID LAYOUTS ─────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+
+    /* ── RECENT INQUIRIES ────────── */
+    .recent-list { display: grid; gap: .5rem; }
+    .recent-item { display: flex; align-items: baseline; gap: .75rem; padding: .7rem .9rem; border: 1px solid var(--border); background: var(--bg); font-size: .82rem; }
+    .recent-item.unread { background: #fffbeb; border-color: #fde68a; }
+    .recent-name { font-weight: 700; min-width: 70px; }
+    .recent-org  { color: var(--muted); min-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-msg  { color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-time { color: var(--muted); font-size: .74rem; white-space: nowrap; }
+
+    /* ── BAR CHART ────────────────── */
+    .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; padding: .5rem 0 0; }
+    .bar-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+    .bar { width: 100%; background: var(--primary); min-height: 4px; transition: height .4s ease; }
+    .bar-lbl { font-size: .72rem; color: var(--muted); font-weight: 500; }
+    .bar-val  { font-size: .72rem; color: var(--primary); font-weight: 700; }
+
+    /* ── HORIZONTAL BAR ───────────── */
+    .h-bar-list { display: grid; gap: .55rem; }
+    .h-bar-row { display: grid; grid-template-columns: 100px 1fr 40px; align-items: center; gap: .75rem; font-size: .8rem; }
+    .h-bar-label { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .h-bar-track { background: rgba(0,0,0,.06); height: 10px; }
+    .h-bar-fill  { height: 100%; background: var(--primary); min-width: 4px; transition: width .5s ease; }
+    .h-bar-count { text-align: right; font-weight: 700; color: var(--primary); }
+
+    /* ── EVENT TABLE ──────────────── */
+    .event-grid { display: grid; gap: .5rem; }
+    .event-row { display: flex; align-items: center; justify-content: space-between; padding: .65rem .9rem; border: 1px solid var(--border); background: var(--bg); font-size: .82rem; }
+    .event-name { font-weight: 600; }
+    .event-count { font-size: 1.1rem; font-weight: 800; color: var(--primary); }
+
+    /* ── INQUIRY TABLE ───────────── */
+    .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: .75rem; }
+    .toolbar-left { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .search-box { padding: .55rem .9rem; border: 1px solid var(--border); font-size: .82rem; min-width: 200px; border-radius: var(--r); }
+    .search-box:focus { outline: none; border-color: var(--primary); }
+    .filter-btn { padding: .4rem .85rem; border: 1.5px solid var(--border); background: var(--white); font-size: .78rem; font-weight: 600; color: var(--muted); border-radius: var(--r); transition: all .2s; }
+    .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .filter-btn:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
+    /* ── 실적 미입력 (RG) ──
+       '계약은 됐는데 실제 총 계약가가 비어 있는 건'. 할 일이 있을 때만 노랗게 켜진다 —
+       0건일 때도 켜져 있으면 곧 아무도 안 보게 된다. 대신 버튼 자체는 늘 자리에 둔다
+       (사라졌다 나타나면 그 자리에 무엇이 있었는지 기억해야 한다). */
+    .filter-btn.filter-warn.has-work {
+      color: #b45309; border-color: #fde68a; background: #fffbeb; font-weight: 800;
+    }
+    .filter-btn.filter-warn.has-work.active { color: #fff; background: #b45309; border-color: #b45309; }
+    .badge-need-actual {
+      display: inline-block; margin-left: .25rem; font-size: .68rem; font-weight: 800;
+      color: #b45309; background: #fef3c7; border: 1px solid #fde68a; padding: .05rem .3rem;
+    }
+    /* 취소하고 입력하러 갈 때 그 칸을 잠깐 켠다 — 스크롤만 하면 어디가 그 칸인지
+       여전히 눈으로 찾아야 한다. */
+    .need-actual-hi { outline: 3px solid #f59e0b; outline-offset: 2px; background: #fffbeb !important; }
+
+    .btn-act { padding: .4rem .9rem; font-size: .78rem; font-weight: 600; border-radius: var(--r); border: 1.5px solid; transition: all .2s; }
+    .btn-act:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline-p { background: var(--white); color: var(--primary); border-color: var(--primary); }
+    .btn-outline-p:hover { background: var(--primary-lt); }
+    .btn-danger-sm { background: #fef2f2; color: var(--danger); border-color: #fecaca; }
+    .btn-danger-sm:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+    .inq-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    .inq-table thead { background: var(--bg); }
+    .inq-table th { padding: .65rem .85rem; text-align: left; font-weight: 700; color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .inq-table td { padding: .75rem .85rem; border-bottom: 1px solid rgba(0,0,0,.05); vertical-align: middle; }
+    .btn-detail { padding: .35rem .8rem; font-size: .78rem; font-weight: 600; border: 1.5px solid var(--border); background: var(--white); color: var(--muted); border-radius: 0; cursor: pointer; transition: all .2s; white-space: nowrap; }
+    .btn-detail:hover { border-color: var(--primary); color: var(--primary); }
+    .inq-table tbody tr:last-child td { border-bottom: none; }
+    .inq-table tbody tr:hover { background: rgba(0,0,0,.02); }
+    .inq-table tbody tr.unread { background: #fffbeb; }
+    .msg-preview { max-width: 260px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .date-col { white-space: nowrap; color: var(--muted); }
+    .badge { display: inline-block; padding: .2rem .55rem; border-radius: 0; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+    .badge-new  { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-read { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-pend { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .badge-done { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+    /* ══ 견적서 대장 표 (ZV, 2026-09-08) ═══════════════════════════════════════
+       🔴 **`.tbl`에는 스타일이 한 줄도 없었다.** 대장 표만 이 클래스를 쓰는데
+         정의가 없어 **브라우저 기본값**으로 그려지고 있었다. 그래서:
+           · `<th>`는 기본이 **가운데**, `<td>`는 **왼쪽** → 머리글과 내용이 안 맞는다
+           · `vertical-align`이 **middle** → 견적번호 칸만 4줄이라, 옆의 한 줄짜리
+             칸들이 **공중에 뜬 것처럼** 보인다
+           · 칸 여백이 0 → 숫자끼리 붙어 「23,800,000원20명」으로 읽힌다
+         대표가 「각 구분별 아래쪽으로 내용이 올바르게 이어지지 않는다」고 한 자리다.
+       ⚠ `.inq-table`과 같은 규칙을 쓴다 — 관리자 안에서 표가 두 가지로 보이면 안 된다.
+       ⚠ 다만 **`vertical-align: top`**이다. 이 표는 한 칸이 여러 줄인 것이 정상이라
+         (번호+차수+최신본), 가운데 정렬이면 줄마다 첫 글자 높이가 달라진다. */
+    .tbl { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .tbl thead { background: var(--bg); }
+    .tbl th {
+      padding: .6rem .8rem; text-align: left; font-weight: 700; color: var(--muted);
+      font-size: .72rem; letter-spacing: .04em; border-bottom: 1px solid var(--border);
+      white-space: nowrap; vertical-align: bottom;
+    }
+    .tbl td { padding: .7rem .8rem; border-bottom: 1px solid rgba(0,0,0,.05); vertical-align: top; }
+    .tbl tbody tr:last-child td { border-bottom: none; }
+    .tbl tbody tr:hover { background: rgba(0,0,0,.02); }
+    /* 숫자는 오른쪽 — **머리글도 같이** 오른쪽이어야 눈이 한 선을 따라간다 */
+    .tbl .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    /* 한 칸 안의 둘째 줄(적은이·바꾼이·1인당) */
+    .tbl .sub { font-size: 11px; color: #888; margin-top: 3px; line-height: 1.5; }
+    .tbl .sub-strong { font-size: 11px; color: #666; margin-top: 2px; line-height: 1.5; }
+
+    /* ── 상태를 색으로 먼저 읽게 한다 (ZW, 2026-09-08 대표 지시) ──────────────
+       대장은 **훑는 화면**이다. 넷이 다 같은 회색 드롭다운이면 「계약된 건」과
+       「무산된 건」이 훑을 때 구별이 안 된다.
+       ⚠ **색만으로 말하지 않는다.** 글자(발급/계약/무산/취소)가 그대로 있고 색은
+         거드는 것이다 — 색각 이상이 있어도 읽힌다(WCAG 1.4.1).
+       ⚠ 색은 **뜻이 있는 것에만** 준다: 계약=초록(끝난 좋은 것) · 무산=회색(끝난 것) ·
+         취소=빗금(없던 일) · 발급=빨강 테두리(아직 살아 있다, 손이 필요할 수 있다).
+         넷 다 알록달록하게 칠하면 아무것도 안 도드라진다. */
+    .tbl select.led-st {
+      font-size: 12px; font-weight: 700; padding: .25rem .4rem;
+      border: 1.5px solid var(--border); background: var(--white); color: var(--heading);
+      min-height: 28px; cursor: pointer;
+    }
+    .tbl select.led-st--issued { border-color: var(--primary); color: var(--primary); }
+    .tbl select.led-st--won    { border-color: #047857; background: #ECFDF5; color: #065F46; }
+    .tbl select.led-st--lost   { border-color: var(--border); background: var(--bg); color: var(--muted); }
+    /* 취소는 「없던 일로 한 건」이다 — 흐리게 두되 **글자는 읽히게** 남긴다 */
+    .tbl select.led-st--void   { border-color: var(--border); background: var(--bg); color: var(--muted); text-decoration: line-through; }
+    /* 줄 전체에도 옅은 신호를 준다 — 드롭다운 하나보다 줄이 먼저 눈에 든다 */
+    .tbl tr.st-won  td { background: rgba(4,120,87,.035); }
+    .tbl tr.st-void td,
+    .tbl tr.st-lost td { color: var(--muted); }
+
+    /* ── 상태는 「고르면 바로」가 아니라 「저장을 눌러야」 반영된다 (ZY, 2026-09-09 대표 지시) ──
+       대표: 「상태영역을 선택하고 바꾸면 바로 옆에 저장 버튼이 활성화되고, 누르면 반영되면
+       좋겠다.」 대장은 **훑는 화면**이라 드롭다운 위에서 스크롤·키보드가 스쳐도 값이 바뀐다 —
+       예전에는 그 순간 곧바로 서버로 갔다(되돌릴 문이 없는 저장).
+       ⚠ 그래서 **세 가지 상태가 눈에 보여야** 한다:
+         ① 저장된 그대로  — 버튼이 꺼져 있다(누를 것이 없다)
+         ② 바꿨는데 아직  — 드롭다운이 **주황**으로 변하고 버튼이 켜진다(🔴 색이 「아직」을 말한다)
+         ③ 저장됨        — 버튼이 잠깐 「저장됨」이 되고, 「바꾼 사람 · 날짜」 줄이 생긴다
+       🔴 **②에서 상태색(초록·회색·빗금)을 미리 입히지 않는다.** 미리 칠하면 줄을 훑는
+         사람은 「계약된 건」으로 읽는데 서버에는 아직 안 갔다 — 대장에서 가장 비싼 거짓말이다. */
+    .led-st-wrap { display: flex; align-items: center; gap: .35rem; }
+    /* 🔴 **표가 좁은 화면에서 소리 없이 잘리고 있었다** (ZY에서 브라우저로 재다가 찾았다).
+       `.dash-main`이 `overflow-x:hidden`이라 넘치는 만큼이 **그냥 사라진다** — 스크롤바도
+       안 생기니 담당자는 마지막 열(열기·링크·문의)이 있는 줄도 모른다.
+       실측(1024px · 두 줄): 표 폭이 화면보다 70px 넘쳤다. **저장 버튼을 넣기 전부터** 그랬고,
+       버튼이 58px을 더했다. → 열을 더 줄이는 대신 **이 표만 제 안에서 가로로 구른다.**
+       ⚠ 넘치는 표는 「감춘다」가 아니라 「구르게 한다」로 푼다. 감추면 없는 것이 된다. */
+    #ledList { overflow-x: auto; }
+    /* 표 안이라 버튼이 작아야 한다 — 전역 .btn-act는 이 표에 비해 크다 */
+    .tbl .led-st-save { padding: .25rem .55rem; font-size: 11.5px; min-height: 28px; white-space: nowrap;
+      border-color: var(--border); background: var(--white); color: var(--muted); }
+    /* 🔴 「아직 저장 안 됐다」는 **드롭다운과 버튼이 같은 색으로** 말한다. 한쪽만 말하면
+       버튼을 안 보고 지나간다(버튼은 줄 끝에 있고, 눈은 드롭다운에 있다). */
+    .tbl select.led-st.is-dirty { border-color: #D97706; background: #FFFBEB; color: #92400E; text-decoration: none; }
+    /* ⚠ 채운 버튼의 글자색은 **재고 골랐다.** amber-600(#D97706) 위의 흰 글자는 3.19:1로
+       11.5px 글자에 모자란다 — amber-700(#B45309)이면 5.04:1이다(WCAG 1.4.3 AA). */
+    .tbl .led-st-save.is-on { border-color: #B45309; background: #B45309; color: #fff; cursor: pointer; }
+    .tbl .led-st-save.is-done { border-color: #047857; background: #ECFDF5; color: #065F46; }
+
+    .empty-state { text-align: center; padding: 3.5rem 2rem; color: var(--muted); }
+    /* 🔴 빈 화면 안내는 **읽히라고 있는 글**이다 (YB) — 「무엇이 없고 무엇을 하면
+       되는지」를 말하는 자리인데 79자/줄이었다. 가운데 정렬이라 여백도 함께 준다. */
+    .empty-state p { max-width: var(--measure); margin-left: auto; margin-right: auto; }
+    /* 카드 안의 설명 줄글·목록도 같은 폭으로 (YB). 표·입력칸에는 안 걸린다. */
+    .card-body p, .card-body li { max-width: var(--measure); }
+    .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+    .pager { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; justify-content: flex-end; }
+    .pager-btn { padding: .3rem .65rem; border: 1px solid var(--border); background: var(--white); font-size: .78rem; border-radius: var(--r); transition: all .2s; }
+    .pager-btn:hover, .pager-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .pager-info { font-size: .78rem; color: var(--muted); }
+
+    /* ── MODAL ───────────────────── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 1rem; }
+    .modal-box { background: var(--white); width: min(580px, 100%); box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem;
+      background: var(--white); color: var(--heading); border-bottom: 1px solid var(--border);
+      border-left: 3px solid var(--primary); position: sticky; top: 0;
+    }
+    .modal-header h3 { font-size: .92rem; font-weight: 800; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: var(--heading); }
+    .modal-body { padding: 1.5rem; }
+
+    /* ── 견적서 업데이트 화면 (RM) ── */
+    /* 🔴 10.2px이었다 — 관리자 화면에서 **가장 작은 글자**였다 (YB).
+       그런데 이건 장식이 아니라 **길잡이**다(사이드바를 두 묶음으로 가르는 유일한 표시).
+       `uppercase`와 `.1em` 자간은 영문용이라 한글에는 흩어뜨리기만 한다 — 함께 덜어냈다.
+       ⚠ 흐림도 한 단계 걷었다(.35 → .5). 검은 사이드바 위 흰 글자에 투명도를
+         겹치면 대비가 두 번 깎인다. */
+    /* ⚠ 남겨 둔다 — `test_yB_admin_readability`가 이 클래스의 글자 크기를 잠근다.
+       지금 사이드바는 아래 접이식(.sb-group)을 쓰고, 이 클래스는 다른 곳에서 쓴다. */
+    .sidebar-sep-lbl {
+      font-size: .74rem; font-weight: 800; letter-spacing: .04em;
+      color: rgba(255,255,255,.5); padding: .9rem 1.15rem .3rem;
+    }
+
+    /* ══ 접이식 사이드바 묶음 (ZL, 2026-09-08 대표 지시) ═══════════════════════
+       「너무 못 알아먹겠다. 옅은 회색이든 클릭하면 펼쳐지는 형태든 구분을 지어 달라.」
+
+       왜 안 읽혔나 — 묶음 이름이 **항목과 거의 같았다**: 밝기 .5 vs .65, 글자 크기
+       11.8px vs 13px, **들여쓰기까지 같았다**. 사람 눈에는 그냥 한 줄로 보인다.
+       색만 더 옅게 하면 더 안 보이고, 더 진하게 하면 항목과 헷갈린다.
+
+       → **구조로 가른다.** 접었다 펴는 묶음이면 「이건 제목, 저건 항목」이 눌러 보는
+         순간 몸으로 이해된다. 주신 아임웹 화면도 같은 방식이다(꺾쇠).
+       → 여기에 **펼친 묶음만 옅은 띠**를 깔아 지금 어느 묶음 안에 있는지 눈으로 보인다.
+
+       🔴 **접으면 배지가 숨는다 — 그게 이 방식의 유일한 위험이다.**
+         「미확인 문의 3건」이 접힌 묶음 안에 있으면 아무도 못 본다. 알림 수단이 이것뿐인데
+         구조를 바꾸다 알림을 죽이는 셈이다(결함 생성기 ② — 조용히 사라진다).
+         → **접힌 묶음은 안쪽 배지를 합쳐 묶음 머리에 띄운다.** 숫자를 새로 세지 않고
+           안쪽 배지 글자를 더한다(배지가 진실이다).
+       ⚠ 지금 보고 있는 화면이 든 묶음은 **항상 펼친다.** 접힌 채로 두면 「내가 어디
+         있는지」가 사라진다. */
+    .sb-group { margin: .15rem 0; }
+    .sb-group-head {
+      display: flex; align-items: center; gap: .5rem; width: 100%;
+      min-height: 44px; padding: .5rem .85rem;            /* 44px — 누를 것의 하한 */
+      border: 0; background: transparent; cursor: pointer;
+      /* ⚠ 크기·밝기를 **항목보다 조금 낮게, 그러나 읽히게** 둔다. 대표가 「못 알아먹겠다」고
+         한 원인이 「.5 밝기 + 11.8px」였다. 제목임을 말하는 것은 크기가 아니라
+         **굵기(800)·자간·들여쓰기 차이·꺾쇠**다. 크기로 이기려 하면 항목과 싸운다. */
+      font-family: inherit; font-size: .78rem; font-weight: 800; letter-spacing: .05em;
+      /* 🔴 **완전 흰색** (2026-09-08 대표 지시). 접혀 있든 펴져 있든 같다 —
+         밝기로 상태를 말하던 것을 걷어내고, 상태는 **꺾쇠와 띠**가 말한다.
+         밝기를 상태 표시로 쓰면 「지금 안 열린 묶음」이 「덜 중요한 묶음」으로 읽힌다. */
+      color: #fff; text-align: left;
+      transition: color .18s, background .18s;
+    }
+    .sb-group-head:hover { color: #fff; background: rgba(255,255,255,.10); }
+    .sbg-name { flex: 1; }
+    .sbg-chev { display: grid; place-items: center; width: 16px; height: 16px; flex: none;
+      transition: transform .18s; color: rgba(255,255,255,.72); }
+    .sbg-chev svg { width: 14px; height: 14px; }
+    .sb-group.open > .sb-group-head .sbg-chev { transform: rotate(180deg); }
+    /* 펼침/접힘을 색으로 가르지 않는다 — 위 주석 참고. 남는 표시는 꺾쇠 회전과 띠다. */
+    /* 펼친 묶음에만 옅은 띠 — 「지금 이 안에 있다」를 색으로 말한다 */
+    /* 대표 지시로 띠를 올렸다(.045 → .085). 너무 옅어 「박스가 있나?」 싶었다.
+       ⚠ 더 올리면 항목의 hover(.08)와 구별이 안 된다 — 그 위는 못 간다. */
+    .sb-group.open { background: rgba(255,255,255,.085); }
+    .sb-group-items { display: none; padding-bottom: .3rem; }
+    .sb-group.open > .sb-group-items { display: block; }
+    /* 묶음 안의 항목은 한 칸 더 들여쓴다 — 제목과 항목이 같은 선에 있으면 안 갈린다 */
+    .sb-group-items .sidebar-item { padding-left: 1.6rem; font-size: .81rem; }
+    .sb-group-items .sidebar-item.active { padding-left: calc(1.6rem - 3px); }
+    /* 접혔을 때만 뜨는 합계 배지 */
+    .sbg-badge { display: none; }
+    .sb-group:not(.open) > .sb-group-head .sbg-badge.has { display: inline-block; }
+    .pr-progress-total { font-size: .82rem; font-weight: 800; color: var(--heading); margin-bottom: .6rem; }
+    .pr-progress-grid { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .pr-chip {
+      font-size: .78rem; font-weight: 600; color: var(--heading);
+      background: var(--bg); border: 1px solid var(--border); padding: .2rem .6rem;
+    }
+    .pr-chip b { color: var(--primary); font-weight: 800; margin-left: .15rem; }
+
+    /* PDF 추출 근거·후보 고르기 (RN) */
+    /* ── 추출 결과 읽기 (RZ 후속) ──────────────────────────────────────────
+       칸마다 값만 보여주면 담당자는 **어느 칸을 확인해야 하는지** 알 수 없다.
+       그래서 값의 출처를 배지로 못박고(견적서/계산/AI/예비), 근거는 왼쪽 색 띠로
+       입력칸과 묶고, 후보 목록은 접어 둔다 — 기본 화면이 조용해야 이상한 칸이 보인다. */
+    .pr-ev {
+      margin-top: .4rem; padding-left: .55rem;
+      border-left: 3px solid var(--border);
+    }
+    .pr-ev.via-rule { border-left-color: #2E7D32; }   /* 견적서 한 줄 그대로 — 가장 믿을 만하다 */
+    .pr-ev.via-calc { border-left-color: #1565C0; }   /* 여러 줄을 합쳐 계산 — 식을 봐야 한다 */
+    .pr-ev.via-doc  { border-left-color: #2E7D32; }
+    .pr-ev.via-ai,
+    .pr-ev.via-unchecked,
+    .pr-ev.via-fallback { border-left-color: #E0A100; }  /* 사람이 꼭 봐야 한다 */
+    .pr-ev.via-none { border-left-color: #C8102E; }
+    /* 타당성 확인 대상 — 출처(via) 색을 덮어쓴다. 「값은 제대로 읽었는데 금액이
+       그 지역 기준과 크게 다르다」는 뜻이라 출처보다 먼저 눈에 들어와야 한다(SO). */
+    .pr-ev.via-check { border-left-color: #E0A100; border-left-width: 4px; }
+    .pr-ev-plaus { color: #8A6100; font-weight: 600; }
+    .pr-ev.via-manual { border-left-color: #6A1B9A; }
+    /* SW: 담당자가 견적서를 보고 **직접 확정**한 칸 — 추출값보다 믿을 수 있다는 뜻이라
+       초록 계열로 둔다(via-rule과 같은 무게). 되돌리기 줄은 흐리게. */
+    .pr-ev.via-confirmed { border-left-color: #1B5E20; border-left-width: 4px; }
+    .pr-ev-revert { color: #5F6B7A; font-weight: 600; }
+    /* 출처 배지 — 라벨 줄 오른쪽에 붙는다 */
+    .pr-badge {
+      float: right; font-size: .64rem; font-weight: 800; letter-spacing: 0;
+      text-transform: none; padding: .05rem .35rem; border: 1px solid;
+      border-radius: 2px; line-height: 1.5;
+    }
+    .pr-badge.via-rule, .pr-badge.via-doc { color: #2E7D32; border-color: #A5D6A7; background: #F1F8F2; }
+    .pr-badge.via-calc { color: #1565C0; border-color: #A9CBEA; background: #F0F6FC; }
+    .pr-badge.via-ai, .pr-badge.via-fallback,
+    .pr-badge.via-unchecked { color: #8A5A00; border-color: #E8C97A; background: #FFF8E8; }
+    .pr-badge.via-none { color: #C8102E; border-color: #F0B5BE; background: #FDF2F4; }
+    .pr-badge.via-manual { color: #6A1B9A; border-color: #D5BCE5; background: #F8F2FB; }
+    /* ⚠ 예전엔 `nowrap + ellipsis`로 한 줄에 우겨넣었다. 그러면 정작 담당자가 대조해야 할
+       근거가 "견적서: 700,000 × 19 × 1 = 1…"처럼 **잘린 채로** 끝난다 (2026-08-06 사장님
+       화면에서 확인). 근거는 읽으라고 있는 것이므로 줄바꿈시킨다 — 칸이 몇 줄 길어지는
+       것보다 값을 못 믿는 쪽이 훨씬 비싸다. 대신 너무 길어지지 않게 4줄에서 자른다. */
+    .pr-ev-src {
+      font-size: .73rem; font-weight: 700; color: var(--heading);
+      line-height: 1.55; word-break: break-word;
+    }
+    /* 계산식 — 숫자가 줄줄이라 자릿수가 맞아야 읽힌다.
+       ⚠ 고정폭 글꼴(monospace)을 쓰면 안 된다. "식 사  총 액  7,049,936 ÷ 인 원  26"처럼
+       **한글이 한 글자씩 벌어진다**(2026-08-06 실측 스크린샷에서 확인). 대신 본문 글꼴을
+       그대로 쓰고 `tabular-nums`로 숫자 폭만 고정한다 — 한글은 멀쩡하고 자릿수는 맞는다. */
+    .pr-ev-calc {
+      font-variant-numeric: tabular-nums;
+      font-size: .71rem; font-weight: 600; color: var(--muted);
+      line-height: 1.6; word-break: break-word; margin-top: .1rem;
+    }
+    /* 담당자가 꼭 알아야 하는 한 줄(골프 제외 등) — 흐리게 두면 안 읽힌다 */
+    .pr-ev-note {
+      font-size: .7rem; font-weight: 700; color: #8A5A00;
+      line-height: 1.55; margin-top: .15rem; word-break: break-word;
+    }
+    .pr-ev-pick {
+      margin-top: .25rem; width: 100%; height: 28px; padding: 0 .4rem;
+      font-family: inherit; font-size: .74rem; font-weight: 600;
+      border: 1.5px solid var(--border); background: #fff; color: var(--heading);
+    }
+    .pr-ev-pick:hover { border-color: var(--primary); }
+    /* 식사는 여러 줄을 골라 합산한다 (RO) */
+    .pr-ev-checks { margin-top: .25rem; display: flex; flex-direction: column; gap: .15rem; max-height: 8.5rem; overflow-y: auto; }
+    .pr-ev-check {
+      display: flex; align-items: center; gap: .35rem; cursor: pointer;
+      font-size: .73rem; font-weight: 600; color: var(--heading);
+      border: 1px solid var(--border); padding: .15rem .35rem; background: #fff;
+    }
+    .pr-ev-check:hover { border-color: var(--primary); }
+    .pr-ev-check input { margin: 0; }
+    .pr-ev-more { margin-top: .3rem; }
+    .pr-ev-more summary { font-size: .7rem; font-weight: 700; color: var(--muted); cursor: pointer; }
+    .pr-ev-more summary:hover { color: var(--primary); }
+    .pr-warn {
+      margin: .8rem 0 0; padding: .7rem .9rem;
+      background: #FFF8E8; border-left: 3px solid #E0A100;
+      font-size: .78rem; font-weight: 700; color: #8A5A00; line-height: 1.7;
+    }
+
+    /* ── 방식 A·B 고객 화면 미리보기 (RJ) ──
+       ⚠ 여기 여백은 취향이 아니라 **폭 예산**이다. 미리보기 안의 카드 폭이 고객 화면과
+       크게 달라지면 줄바꿈 위치가 달라져 "고객 화면에서도 저렇게 접히나?"를 헷갈리게
+       만든다. 껍데기(모달·본문·iframe 여백)가 먹는 만큼 카드가 좁아지므로, 좁은 화면
+       에서는 껍데기를 줄여 폭을 카드에 넘긴다.
+       ai-loop/check_rec_preview.py가 실제 브라우저로 고객 화면과 두 폭을 대조한다. */
+    /* ⚠ #recPvModal로 묶어 둔다. `.recpv-note`만 쓰면 **뒤에 나오는 `.sec-note`**가
+       같은 특이도로 이겨서 여백이 조용히 안 먹는다(실제로 그랬다). */
+    #recPvModal .recpv-note { padding: .85rem 1.25rem 0; }
+    #recPvModal .recpv-body { padding: 1rem 1.25rem 1.25rem; flex: 1; min-height: 0; }
+    #recPvModal #recPvFrame { width: 100%; height: 62vh; border: 1px solid var(--border); background: #F4F4F4; }
+    @media (max-width: 1000px) {
+      #recPvModal { padding: .4rem; }
+      #recPvModal .recpv-note { padding: .6rem .7rem 0; }
+      #recPvModal .recpv-body { padding: .6rem .7rem .7rem; }
+      #recPvModal #recPvFrame { height: 68vh; }
+    }
+    .detail-field { margin-bottom: 1rem; }
+    .detail-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: .3rem; }
+    .detail-value { font-size: .9rem; color: var(--text); }
+    .detail-message { background: var(--bg); border: 1px solid var(--border); padding: .9rem 1rem; font-size: .9rem; line-height: 1.7; white-space: pre-wrap; color: var(--text); min-height: 80px; }
+    .note-area { width: 100%; padding: .7rem .9rem; border: 1px solid var(--border); font-size: .88rem; min-height: 70px; resize: vertical; border-radius: var(--r); font-family: inherit; margin-top: .4rem; }
+    .note-area:focus { outline: none; border-color: var(--primary); }
+    .modal-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .status-select { padding: .5rem .75rem; border: 1px solid var(--border); font-size: .82rem; border-radius: var(--r); }
+    .status-select:focus { outline: none; border-color: var(--primary); }
+    .status-select:disabled { background: var(--bg); color: var(--muted); cursor: not-allowed; }
+
+    /* ── SETTINGS ────────────────── */
+    .setting-section { margin-bottom: 2rem; }
+    .setting-title { font-size: .76rem; font-weight: 800; color: var(--heading); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
+    .setting-row { display: flex; align-items: center; justify-content: space-between; padding: .9rem 0; border-bottom: 1px solid rgba(0,0,0,.05); }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-info p { font-size: .82rem; font-weight: 600; margin-bottom: .15rem; }
+    .setting-info span { font-size: .76rem; color: var(--muted); }
+    .info-tag { display: inline-block; background: var(--primary-lt); color: var(--primary); font-size: .74rem; font-weight: 700; padding: .2rem .55rem; border-radius: 0; margin-left: .4rem; }
+    .pw-form { display: grid; gap: .6rem; max-width: 320px; margin-top: .75rem; }
+    .pw-input { padding: .6rem .85rem; border: 1px solid var(--border); font-size: .85rem; border-radius: var(--r); width: 100%; }
+    .pw-input:focus { outline: none; border-color: var(--primary); }
+
+    /* ── PROGRESS RING ───────────── */
+    .kpi-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .kpi-box { flex: 1; min-width: 120px; background: var(--bg); border: 1px solid var(--border); padding: 1rem; text-align: center; }
+    .kpi-num { font-size: 1.6rem; font-weight: 800; color: var(--primary); }
+    .kpi-lbl { font-size: .76rem; color: var(--muted); margin-top: .2rem; }
+
+    /* ── RATE TABLE ─────────────────────── */
+    .rate-status-panel { margin-bottom:1.25rem; }
+    .rate-meta-banner { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:0; }
+    .rate-meta-box { background:var(--white); border:1px solid var(--border); padding:.9rem 1.1rem; border-left:3px solid var(--primary); }
+    .rate-meta-box.warn   { border-left-color:var(--warn);    background:#fffbeb; }
+    .rate-meta-box.danger { border-left-color:var(--danger);  background:#fef2f2; }
+    .rate-meta-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:.3rem; }
+    .rate-meta-value { font-size:.95rem; font-weight:800; color:var(--primary); }
+    .rate-meta-box.warn .rate-meta-value   { color:#92400e; }
+    .rate-meta-box.danger .rate-meta-value { color:var(--danger); }
+    .rate-status-panel .rate-update-info { margin-top:.6rem; margin-bottom:0; }
+    .rate-filter-bar { display:flex; align-items:center; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; }
+    .rate-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    /* 🔴 **「지역순」에서는 지역 칸이 60행 전부 비어 있었다** (YB, 실측 60/60).
+       지역은 **그룹 머리줄**(「일본」·「홍콩·마카오」…)이 이미 말하고 있어서다.
+       빈 열 하나가 표 폭을 90px 먹고, 목적지 이름이 왼쪽 끝에서 그만큼 밀려 있었다.
+       ⚠ **열을 지우지는 않았다** — 「확인 필요한 순」에서는 그룹 머리줄이 없어서
+         **그 칸이 실제로 채워진다.** 지웠으면 그 모드가 지역을 잃는다.
+         (지우기 전에 다른 정렬을 눌러 본 것이 이 실수를 막았다.)
+       ⚠ 그룹 머리줄은 `colspan` 한 칸이라 `td:first-child`로 감추면 **머리줄이
+         통째로 사라진다.** 그래서 값 칸에만 `.rate-region`을 붙여 그것만 감춘다. */
+    .rate-table.by-region th:first-child,
+    .rate-table.by-region td.rate-region { display:none; }
+    .rate-table thead { background:var(--bg); }
+    .rate-table th { padding:.6rem .85rem; text-align:left; font-weight:700; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--border); white-space:nowrap; }
+    .rate-table td { padding:.65rem .85rem; border-bottom:1px solid rgba(0,0,0,.05); vertical-align:middle; }
+    .rate-table tbody tr:hover { background:rgba(0,0,0,.02); }
+    .rate-badge { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .6rem; border-radius:0; font-size:.72rem; font-weight:700; }
+    .rate-badge.ok    { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
+    .rate-badge.check { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+    .rate-badge.stale { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
+    .rate-region-row td { background:var(--bg); font-weight:700; color:var(--heading); font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; padding:.45rem .85rem; }
+    /* TA: 접히는 카드 — 요율 관리 화면의 긴 목록 셋이 공유한다(갱신 제안 · 견적 정확도 ·
+       변경 이력). ⚠ **한 클래스로 둔다.** 카드마다 따로 적으면 하나만 고쳐진다.
+       기본 삼각형(::marker)을 지우고 오른쪽에 표시를 두는 이유: 브라우저마다 삼각형
+       모양이 달라 카드 머리줄과 어긋나 보인다. */
+    .fold-card > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: .5rem; }
+    .fold-card > summary::-webkit-details-marker { display: none; }
+    .fold-card > summary::after { content: '▾ 펼치기'; margin-left: auto; font-size: .76rem; color: var(--muted); font-weight: 700; }
+    .fold-card[open] > summary::after { content: '▴ 접기'; }
+    .fold-card > summary:hover { background: var(--bg); }
+    /* 접혀 있어도 **몇 건인지는 보인다** — 숫자까지 숨기면 펼쳐 보기 전에는 할 일이 있는지조차 모른다 */
+    .fold-count { font-size: .76rem; font-weight: 800; color: var(--primary); }
+    /* TC: 견적서에서 읽은 코스 표시 — 이 코스가 있으면 **고객은 이것만 본다** */
+    /* ⚠ .68rem = 10.88px이라 「글자는 11px 이상」 규칙에 걸렸다 (ZF에서 잼). 값이 아니라
+       규칙이 정하는 최솟값으로 올린다 — 보이는 모습은 거의 그대로다. */
+    .iti-src-quote { font-size: .7rem; font-weight: 800; background: #1B5E20; color: #fff;
+      padding: .1rem .4rem; margin-left: .4rem; }
+    /* ZF: 코스를 **구별하는 줄**. 제목이 서로 같을 때 이것만이 담당자가 고를 근거다.
+       ⚠ 흐림은 색으로 정한다(opacity 금지 — 대비를 두 번 깎는다). */
+    .iti-course-hint { font-size: .72rem; color: var(--muted); font-weight: 600;
+      margin-left: .5rem; }
+    .fold-hint { font-size: .76rem; color: var(--muted); font-weight: 600; }
+    /* 🔴 **긴 안내문을 접을 때 쓰는 요약줄** (YQ에서 만들고 YU에서 고쳤다).
+       YQ에서 `<details><summary>`를 인라인 스타일로 넣었더니 **높이가 20px**이었다 —
+       `check_admin_screens.py`가 「누르기 작다」로 잡았다(최소 24px, 권장 44px).
+       글자는 짧은데 누를 자리가 얇아서, **눌러야 펴지는 것을 누르기 어려웠다.**
+     ⚠ 그래서 클래스로 뺀다. 인라인으로 두면 다음에 접을 때 또 20px짜리가 생긴다
+       (같은 규칙을 여러 곳에 적는 것이 결함 생성기 ①이다).
+     ⚠ 화살표를 `::after`로 붙여 **접혔는지 펴졌는지**를 말한다 — `fold-card`와 같은 말이라
+       담당자가 두 곳에서 다른 모양을 배우지 않아도 된다. */
+    .fold-note { list-style: none; cursor: pointer; display: flex; align-items: center; gap: .4rem;
+      min-height: 32px; padding: .35rem .5rem; margin: 0 -.5rem;
+      font-size: .8rem; color: var(--muted); font-weight: 600; max-width: var(--measure); }
+    .fold-note::-webkit-details-marker { display: none; }
+    .fold-note::after { content: '▾'; margin-left: .25rem; font-weight: 800; }
+    details[open] > .fold-note::after { content: '▴'; }
+    .fold-note:hover { background: var(--bg); }
+    /* 이 파란 안내 상자는 탭 다섯 곳에서 쓰인다 — 폭을 안 잡아 91자/줄이었다 (YB) */
+    .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; max-width:var(--measure); }
+    .rate-undo-banner { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; font-size:.82rem; font-weight:600; background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:.75rem 1rem; margin-bottom:1.25rem; }
+
+    /* ── CONTENT MANAGEMENT ─────────────── */
+    /* 필드는 항목(목적지/후기/FAQ 등) 단위로 한 줄(row)에 묶인다. 각 필드를 통째로 감싸는
+       래퍼 없이 라벨/안내문/미리보기/입력창/저장버튼을 그 "밴드"별로 평평하게 나열해
+       grid auto-flow가 열(항목)×행(밴드) 순서로 자동 배치하게 한다 — 그 결과 이미지가
+       있는 필드든 없는 필드든 라벨 줄, 입력 줄, 저장 버튼 줄이 전부 같은 높이에서
+       시작해 항목이 몇 개든 항상 가지런하게 정렬된다(열 개수는 JS가 인라인 style로
+       그룹 크기에 맞춰 지정). */
+    .cms-field-row { display:grid; align-items:stretch; gap:.4rem 1.25rem; padding:.85rem 0; border-bottom:1px solid rgba(0,0,0,.06); }
+    .cms-field-row:last-child { border-bottom:none; }
+    .cms-field-label { font-size:.76rem; font-weight:700; color:var(--heading); }
+    .cms-field-row input.cms-field-input, .cms-field-row textarea.cms-field-input { padding:.55rem .75rem; border:1px solid var(--border); font-size:.82rem; border-radius:var(--r); width:100%; font-family:inherit; }
+    .cms-field-row input.cms-field-input:focus, .cms-field-row textarea.cms-field-input:focus { outline:none; border-color:var(--primary); }
+    .cms-field-row textarea.cms-field-input { resize:vertical; min-height:4.5rem; }
+    /* 같은 줄에 textarea(예: 회사소개 본문, 후기 내용)가 섞여 있으면 grid의 기본
+       align-items:stretch 때문에 옆의 한 줄짜리 input(예: 이미지 URL)까지 textarea
+       높이만큼 세로로 길게 늘어나 찌그러져 보인다 — input만 원래 높이를 유지하도록
+       고정한다. */
+    .cms-field-row input.cms-field-input { align-self:start; }
+    .cms-img-hint { font-size:.72rem; color:var(--muted); line-height:1.5; margin:0; }
+    .cms-img-hint strong { color:var(--primary); font-weight:700; }
+    .cms-img-preview, .cms-img-preview-slot { width:100%; max-width:150px; }
+    .cms-img-preview { height:64px; object-fit:cover; border:1px solid var(--border); background:var(--bg); }
+    .cms-field-actions { display:flex; align-items:end; gap:.6rem; align-self:end; }
+    .cms-field-msg { font-size:.76rem; font-weight:700; }
+    .cms-pf-item { border:1px solid var(--border); border-radius:var(--r); padding:.75rem 1rem; margin-bottom:.75rem; }
+    .cms-pf-item summary { cursor:pointer; font-size:.84rem; font-weight:700; color:var(--heading); }
+    .cms-pf-item .cms-field-row { margin-top:.9rem; padding-top:0; border-bottom:none; }
+
+    /* ── RESPONSIVE ──────────────── */
+    @media (max-width: 1100px) {
+      /* 좁은 화면에서는 96% 비율 대신 고정 여백으로 (사이드바+본문 합쳐 좁아지면
+         비율 여백이 너무 작아져 내용이 화면 끝에 붙어 보이는 문제 방지).
+         header-inner는 부모(.dash-header)가 이미 좌우 패딩 1.5rem을 갖고 있으므로
+         너비만 100%로 되돌리고, dash-body는 자체 패딩을 되살린다. */
+      .dash-header-inner { width: 100%; margin-left: 0; }
+      .dash-body { width: 100%; margin-left: 0; padding-left: 1.5rem; padding-right: 1.5rem; }
+    }
+    @media (max-width: 900px) {
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .rate-meta-banner { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      /* 모바일: 사이드바 → 하단 탭바로 전환 */
+      .dash-layout { flex-direction: column; }
+      .dash-sidebar {
+        width: 100%; height: auto; position: relative; top: 0;
+        flex-direction: row; border-right: none; border-bottom: 1px solid rgba(255,255,255,.15);
+      }
+      .sidebar-logo  { display: none; }
+      .sidebar-nav   { flex-direction: row; padding: .3rem .4rem; overflow-x: auto; flex: 1; gap: .1rem; }
+      .sidebar-item  { flex-direction: column; flex-shrink: 0; width: auto; padding: .4rem .5rem; min-width: 56px; text-align: center; gap: .15rem; }
+      .si-label      { flex: none; font-size: .62rem; white-space: nowrap; }
+      .si-icon       { font-size: .9rem; }
+      .sidebar-footer { display: none; }
+      .sidebar-divider { width: 1px; height: auto; margin: .2rem 0; }
+      .mobile-tab-header { display: block; }
+      .cms-field-row { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 600px) {
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+      .h-bar-row { grid-template-columns: 80px 1fr 36px; }
+    }
+
+    /* ══ QB: 일정 관리 ══════════════════════════════════════════════ */
+    .iti-bar {
+      display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+      background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--primary);
+      padding: .9rem 1.1rem; margin-bottom: 1rem; position: sticky; top: 0; z-index: 20;
+    }
+    .iti-bar label { font-size: .8rem; font-weight: 700; color: var(--heading); }
+    .iti-bar select {
+      height: 40px; min-width: 240px; padding: 0 .8rem; font-family: inherit; font-size: .88rem;
+      font-weight: 600; border: 1.6px solid var(--border); background: #fff; color: var(--heading);
+    }
+    /* 🔴 **이 줄에 `input` 규칙이 없었다** (YB). 견적서 대장의 검색칸이 클래스도 없는
+       맨 `<input type=search>`라 브라우저 기본값으로 떨어져 **높이 19px**였다 —
+       옆의 `select`(40px)·버튼(34px)과 나란히 서지도 못했다.
+       ⚠ `select`와 **같은 높이**로 준다. 한 줄에 선 것들의 높이가 제각각이면
+         화면이 정돈되지 않은 것으로 읽히고, 무엇이 한 묶음인지도 흐려진다. */
+    .iti-bar input[type="search"], .iti-bar input[type="text"] {
+      height: 40px; padding: 0 .8rem; font-family: inherit; font-size: .88rem;
+      border: 1.6px solid var(--border); background: #fff; color: var(--heading);
+    }
+    .iti-bar .iti-spacer { margin-left: auto; }
+    /* 이 줄의 버튼 셋은 클래스가 섞여 있다(.iti-btn 둘 + .btn-act 하나). .btn-act는
+       높이가 패딩으로 정해져 혼자 낮아지므로 여기서만 높이를 맞춘다 — 전역 .btn-act는
+       관리자 화면 곳곳에서 쓰이므로 건드리지 않는다. */
+    .iti-bar .btn-act { height: 34px; padding: 0 1rem; }
+    .iti-state { font-size: .8rem; font-weight: 600; color: var(--muted); }
+    .iti-state.is-edited { color: #b45309; }
+    .iti-dirty {
+      font-size: .78rem; font-weight: 800; color: #b45309; background: #fef3c7;
+      border: 1px solid #fde68a; padding: .2rem .55rem;
+    }
+
+    /* ── 한 화면 안의 두 구역 (QY) ──
+       ✨ 방식 A·B = 보라, 📅 날짜별 일정 = 파랑. 구역 전체가 색을 갖는다 —
+       스크롤 중에 편집칸만 보여도 지금 어느 구역을 고치는지 알 수 있어야 한다. */
+    .sec-rec  { --sec: #7C3AED; --sec-bg: #F5F3FF; }
+    .sec-days { --sec: #1D4ED8; --sec-bg: #EFF6FF; }
+    .edit-sec {
+      border: 1px solid var(--border); border-top: 4px solid var(--sec);
+      background: #fff; padding: 0 0 1.1rem; margin-bottom: 1.6rem; scroll-margin-top: 1rem;
+    }
+    .sec-head {
+      display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+      background: var(--sec-bg); padding: .9rem 1.15rem; border-bottom: 1px solid var(--border);
+    }
+    .sec-mark { font-size: 1.5rem; line-height: 1; flex-shrink: 0; }
+    .sec-title { flex: 1; min-width: 14rem; }
+    .sec-title h3 { font-size: 1rem; font-weight: 800; color: var(--sec); display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+    .sec-title .sec-sub { font-size: .74rem; font-weight: 700; color: #fff; background: var(--sec); padding: .1rem .4rem; letter-spacing: .02em; }
+    .sec-title p { font-size: .8rem; color: var(--heading); margin-top: .2rem; }
+    .sec-note { font-size: .8rem; color: var(--muted); padding: .7rem 1.15rem 0; line-height: 1.6; }
+    .sec-note strong { color: var(--heading); }
+    .edit-sec .iti-msg { padding: 0 1.15rem; }
+    .edit-sec #rec-body, .edit-sec #iti-body { padding: .9rem 1.15rem 0; }
+
+    /* 구역 바로가기 — 문서가 길어 스크롤로만 오가면 금방 지친다. */
+    .iti-jumplbl { font-size: .74rem; font-weight: 700; color: var(--muted); }
+    .iti-jump {
+      font-family: inherit; font-size: .78rem; font-weight: 700; cursor: pointer;
+      background: #fff; border: 1px solid var(--border); padding: .3rem .7rem;
+    }
+    .iti-jump.jump-rec  { color: #7C3AED; } .iti-jump.jump-rec:hover  { border-color: #7C3AED; background: #F5F3FF; }
+    .iti-jump.jump-days { color: #1D4ED8; } .iti-jump.jump-days:hover { border-color: #1D4ED8; background: #EFF6FF; }
+
+    /* 두 구역의 의존관계를 숫자로 보여주는 자리 — 이 화면을 합친 이유다. */
+    .sec-link { margin: .9rem 1.15rem 0; padding: .6rem .85rem; font-size: .8rem; line-height: 1.6;
+      background: #F8FAFC; border-left: 3px solid #94A3B8; color: var(--heading); }
+    .sec-link.warn { background: #FFFBEB; border-left-color: #B45309; }
+    .sec-link strong { font-weight: 800; }
+    .sec-link .sl-go { background: none; border: 0; padding: 0; font: inherit; font-weight: 800;
+      color: #7C3AED; text-decoration: underline; cursor: pointer; }
+
+    /* ── 방식 A·B를 **나란히** 둔다 ──
+       A와 B는 고객이 둘 중 하나를 고르는 '대안'이다. 위아래로 쌓으면 순서가 있는 것처럼
+       읽히고, 무엇보다 둘을 견주며 쓰기 어렵다. 고객 화면(카드 두 장)과 같은 모양으로 둔다. */
+    .rec-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
+    @media (max-width: 1180px) { .rec-pair { grid-template-columns: 1fr; } }
+    .rec-plan { border-top-width: 4px; margin-bottom: 0; }
+    .rec-plan.plan-a { border-top-color: #7C3AED; }
+    .rec-plan.plan-b { border-top-color: #DB2777; }
+    .plan-mark {
+      width: 1.9rem; height: 1.9rem; display: grid; place-items: center; flex-shrink: 0;
+      font-size: 1rem; font-weight: 900; color: #fff; letter-spacing: 0;
+    }
+    .plan-a .plan-mark { background: #7C3AED; }
+    .plan-b .plan-mark { background: #DB2777; }
+    .plan-name { font-size: .92rem; font-weight: 800; color: var(--heading); }
+    .plan-hint { font-size: .74rem; color: var(--muted); }
+
+    /* 📅 구역의 코스 카드도 구역 색을 따른다 — 스크롤을 내려 카드만 보일 때도
+       어느 구역인지 알아야 한다는 것이 이 화면의 규칙이다. (합치면서 빠져 있었다.) */
+    .sec-days .iti-course    { border-top-color: var(--sec); }
+    .sec-days .iti-course-no { background: var(--sec); }
+
+    /* ── 떠 있는 저장 바 (QZ) ── 저장 안 한 게 있을 때만 뜬다. */
+    .savebar {
+      position: fixed; left: 50%; transform: translateX(-50%); bottom: 1.1rem; z-index: 60;
+      display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; justify-content: center;
+      background: #111827; color: #fff; padding: .55rem .8rem;
+      box-shadow: 0 6px 26px rgba(0,0,0,.28); max-width: calc(100vw - 2rem);
+    }
+    .savebar[hidden] { display: none; }
+    .savebar-what { font-size: .8rem; font-weight: 700; white-space: nowrap; }
+    .savebar-btn {
+      font-family: inherit; font-size: .8rem; font-weight: 800; color: #fff;
+      border: 0; padding: .4rem .8rem; cursor: pointer; white-space: nowrap;
+    }
+    .savebar-btn.rec  { background: #7C3AED; }
+    .savebar-btn.days { background: #1D4ED8; }
+    .savebar-btn[hidden] { display: none; }
+    .savebar-btn:hover { filter: brightness(1.12); }
+
+    /* 사이드바 '저장 안 함' 표시 — 다른 메뉴에 가 있어도 보인다. */
+    .si-unsaved { color: #FBBF24; font-size: .7rem; line-height: 1; }
+
+    .iti-course {
+      background: #fff; border: 1px solid var(--border); border-top: 3px solid var(--heading);
+      padding: 1.2rem 1.35rem; margin-bottom: 1rem;
+    }
+    .iti-course-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .9rem; flex-wrap: wrap; }
+    /* UQ: 검토 전 배지 — 「견적서 일정」 배지와 나란히 선다. 색을 달리해서 「출처」와
+       「아직 안 나감」이 다른 이야기라는 것을 한눈에 가른다. */
+    .iti-pending-total {
+      font-size: .74rem; font-weight: 800; padding: .22rem .5rem;
+      background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;
+    }
+    /* ── 패키지 상품 (VP) ────────────────────────────────────────────
+       ⚠ 색을 새로 만들지 않았다. 기존 경고색(#FEF3C7/#92400E)·본문색을 그대로 쓴다 —
+         화면마다 다른 색을 쓰면 「경고」가 무슨 색인지 담당자가 매번 다시 배운다. */
+    .pkg-f { display: block; font-size: .8rem; }
+    .pkg-f > span { display: block; font-weight: 700; color: var(--heading); margin-bottom: .3rem; }
+    .pkg-f > span em { font-style: normal; font-weight: 500; color: var(--muted); font-size: .92em; }
+    .pkg-f input, .pkg-f select, .pkg-f textarea {
+      width: 100%; padding: .5rem .6rem; border: 1px solid #D8D8D4; border-radius: 6px;
+      font-family: inherit; font-size: .84rem; color: var(--heading); background: #fff;
+    }
+    .pkg-f textarea { resize: vertical; line-height: 1.7; }
+    /* 하는 순서 (WE) — 세 단계가 한 카드 안에 평평하게 놓여 있어서 어디까지 했는지가
+       안 보였다. 대표가 「어떻게 써야 할지 모르겠다」고 한 자리가 정확히 여기다.
+       ⚠ 색을 옅게 쓰지 않는다 — 안내문이 흐리면 아무도 안 읽는다(check_contrast.py). */
+    .pkg-steps {
+      display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; padding: 0; list-style: none;
+    }
+    .pkg-steps li {
+      flex: 1 1 210px; padding: .6rem .8rem; background: #FAFAF8;
+      border: 1px solid #E2E2DC; border-left: 3px solid var(--primary);
+      font-size: .78rem; color: var(--heading); line-height: 1.6;
+    }
+    .pkg-steps li b { font-weight: 800; }
+    .pkg-steps li em { display: block; margin-top: .2rem; font-style: normal;
+      font-size: .71rem; color: #6E6E6E; }
+    .pkg-row {
+      display: grid; grid-template-columns: auto 1fr auto auto auto auto; gap: .6rem; align-items: center;
+      /* ⚠ 좌우 여백을 **카드 머리와 같은 1.25rem**으로 맞췄다 (2026-09-08 대표 지시).
+         .2rem이라 내용이 상자 끝에 붙어 답답했고, 「직접견적 목록」이라는 머리글과
+         줄의 시작점도 어긋나 있었다. 값을 지어내지 않고 `.card-header`와 같은 수를 쓴다. */
+      padding: .65rem 1.25rem; border-bottom: 1px solid #ECECE8; cursor: pointer;
+    }
+    /* ── 목록에서 바로 지우기 (ZN, 2026-09-08 대표 지시) ─────────────────────
+       「작성중이던 견적서를 지울 수 있는 기능도 있어야 할 것 같다.」
+       그전에는 **편집 화면을 열어야만** 지울 수 있었다. 만들다 만 것 몇 개를
+       치우려면 매번 열고 → 지우고 → 목록으로 돌아와야 했다.
+       🔴 **「작성중」에만 단다.** 「판매중·확정」은 고객에게 나갔을 수 있고,
+         「마감」은 지난 기록이다. 발급은 `status='open'`일 때만 되므로
+         (`api/_lib/packages.js`) **작성중은 견적서가 나간 적이 없다** — 지워도
+         고객 쪽에 아무 영향이 없는 유일한 상태다.
+       ⚠ 자리는 **늘 차지한다**(작성중이 아니면 빈 칸). 있는 줄만 넓어지면 목록이
+         들쭉날쭉해서 훑는 눈이 걸린다(썸네일과 같은 규칙). */
+    .pkg-del {
+      border: 1px solid var(--border); background: var(--white); color: var(--muted);
+      font-family: inherit; font-size: .72rem; font-weight: 700;
+      min-width: 44px; min-height: 30px; padding: .25rem .55rem; cursor: pointer;
+    }
+    .pkg-del:hover { border-color: var(--danger); color: var(--danger); }
+    /* 「내리기·종료」는 **되돌릴 수 있는** 동작이다 — 삭제와 같은 빨강을 쓰지 않는다.
+       색이 같으면 둘 다 「위험한 것」으로 읽혀, 정작 되돌릴 수 없는 삭제가 안 무서워진다. */
+    .pkg-close {
+      border: 1px solid var(--border); background: var(--white); color: var(--muted);
+      font-family: inherit; font-size: .72rem; font-weight: 700;
+      min-width: 44px; min-height: 30px; padding: .25rem .55rem; cursor: pointer;
+    }
+    .pkg-close:hover { border-color: var(--heading); color: var(--heading); }
+    /* 줄 끝의 조작 자리. **상태마다 다른 버튼이 온다**(작성중=삭제 · 확정=종료).
+       그래서 이름이 `del`이 아니라 `act`다 — 이름이 하는 일을 말해야 한다. */
+    .pkg-act-slot { width: 62px; display: flex; justify-content: flex-end; }
+    /* 목록 썸네일 (WE) — 30건을 훑어 고르는 일이라 이름만으로는 안 골라진다.
+       ⚠ 자리를 **항상 차지한다**(사진이 없어도). 있는 줄만 넓어지면 목록이 들쭉날쭉해서
+         훑는 눈이 걸린다. 깨지면 JS가 onerror로 자리만 남긴다(VZ와 같은 규칙). */
+    .pkg-thumb {
+      width: 64px; height: 40px; object-fit: cover; background: #F1F1ED;
+      border: 1px solid #E2E2DC; display: block;
+    }
+    .pkg-thumb-none { width: 64px; height: 40px; background: #F1F1ED; border: 1px solid #E2E2DC; }
+    /* 소규모 견적은 사진 칸을 안 쓴다 — 썸네일 열이 통째로 없다 */
+    /* 🔴 **열 수가 칸 수와 같아야 한다** (2026-09-08 고침, ZT).
+       ZN에서 조작 칸(삭제·내리기)을 한 칸 늘리면서 기본 `.pkg-row`만 6열로 고치고
+       여기를 4열로 뒀다. 썸네일이 없는 직접견적 목록은 칸이 5개라 **다섯 번째(삭제
+       버튼)가 다음 줄로 밀려나** 있었다.
+       ⚠ grid는 칸이 넘쳐도 **에러를 안 낸다** — 조용히 줄을 하나 더 만든다. 그래서
+         눈으로 보기 전엔 안 걸린다(대표가 「맨 우측으로 정렬해 달라」고 한 자리다). */
+    .pkg-row--nothumb { grid-template-columns: 1fr auto auto auto auto; }
+    /* 빠진 칸 표시 (WH) — ⚠ **결함처럼 빨갛게 쓰지 않는다.** 아직 안 채운 것이지
+       고장이 아니다. 빨간 목록을 31줄 보면 사람은 전부 무시하게 된다. */
+    .pkg-gaps { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .28rem; }
+    .pkg-gap {
+      font-size: .67rem; font-weight: 700; padding: .1rem .38rem;
+      background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; border-radius: 3px;
+    }
+    .pkg-gap.is-ok { background: #DCFCE7; color: #166534; border-color: #86EFAC; }
+    /* 목록 전체의 모양 한 줄 (WH) */
+    .pkg-shape {
+      margin: 0 0 .9rem; padding: .7rem .9rem; background: #FAFAF8;
+      border: 1px solid #E2E2DC; border-left: 3px solid var(--primary);
+      font-size: .8rem; color: var(--heading); line-height: 1.75;
+    }
+    .pkg-shape-why { display: inline-block; margin-top: .25rem; font-size: .74rem; color: #6E6E6E; }
+    .pkg-row:hover { background: #FAFAF8; }
+    .pkg-row-t { font-weight: 700; color: var(--heading); }
+    .pkg-row-s { font-size: .72rem; color: var(--muted); }
+    .pkg-st { font-size: .7rem; font-weight: 800; padding: .18rem .5rem; border-radius: 4px; }
+    .pkg-st.open   { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
+    .pkg-st.draft  { background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; }
+    .pkg-st.closed { background: #F1F5F9; color: #94A3B8; border: 1px solid #E2E8F0; }
+    /* 금액을 확인한 지 오래된 상품 — 대리점가라 낡으면 그대로 손해다 */
+    .pkg-stale { font-size: .7rem; font-weight: 800; color: #92400E; }
+    .iti-src-pending {
+      font-size: .7rem; font-weight: 800; padding: .18rem .45rem;
+      background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D;
+    }
+    .iti-course-no {
+      font-size: .68rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+      color: #fff; background: var(--heading); padding: .2rem .55rem;
+    }
+    .iti-lbl { display: block; font-size: .74rem; font-weight: 800; letter-spacing: .04em; color: var(--muted); margin: .7rem 0 .25rem; }
+    .iti-inp, .iti-ta {
+      width: 100%; font-family: inherit; font-size: .88rem; color: var(--heading);
+      border: 1.5px solid var(--border); background: #fff; padding: .5rem .65rem;
+    }
+    /* ── 입력칸 높이 (RC → RE) ──
+       RC에서 모든 칸을 1.8배로 키웠다(38 → 68px, 66 → 119px). 의도는 "이 화면은 고객
+       견적서에 그대로 나가는 문구를 쓰는 곳이라 **쓰는 동안 내용이 다 보여야 한다**"였다.
+       그 의도는 그대로 두고 방법을 바꿨다 — **고정 높이는 그 의도를 양쪽에서 어긴다.**
+       한 줄짜리 문구("도요타 산업기술기념관 견학")에도 119px를 쓰고, 정작 여섯 줄짜리는
+       119px에서 잘려 스크롤해야 보인다. 도쿄 한 목적지가 세로 10,156px가 된 주된 이유다.
+       그래서 높이를 **내용이 정하게** 했다: 짧으면 한 줄, 길면 그만큼 늘어난다(itiAutoGrow).
+       ⚠ 여전히 숫자를 두 벌 적지 않는다 — 한 줄 높이 하나(--iti-line)에서 input의 높이와
+       textarea의 최소 높이가 함께 나온다. 한쪽만 고쳐 어긋나는 것이 이 저장소 단골 결함이다.
+       ⚠ overflow를 hidden으로 잠그지 않는다. 자동 늘리기가 어떤 이유로든 못 돌면
+       내용이 **소리 없이 잘려 안 보이게** 된다(결함 생성기 ②). auto면 그때도 스크롤로 읽힌다. */
+    :root { --iti-line: 38px; }
+    .iti-inp { height: var(--iti-line); }
+    /* resize 손잡이를 없앤 이유: 칸이 늘 내용에 맞으므로 끌어 늘릴 일이 없고, 끌어 놓아도
+       다음 타이핑 때 자동 높이가 이겨서 "왜 도로 줄지?"가 된다. */
+    .iti-ta  { min-height: var(--iti-line); line-height: 1.55; resize: none; overflow-y: auto; }
+    .iti-inp:focus, .iti-ta:focus { outline: none; border-color: var(--primary); }
+
+    /* ── 코스 탭 (RF) ──
+       세 코스를 한꺼번에 펼쳐 두면 고칠 코스를 찾는 데만 스크롤을 쓴다. 탭에 일자 수와
+       빈 칸 수를 적어, **안 보이는 코스의 상태도 탭에서 읽히게** 한다. */
+    .iti-ctabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .9rem; }
+    /* ⚠ flex-wrap: wrap — 탭 안에 들어가는 것이 늘었다(제목·일수·빈칸·방식 배지 2개, RK).
+       한 줄로 묶어 두면 좁은 화면에서 탭이 통째로 잘려 코스 제목이 안 보인다
+       (360px에서 실제로 잘렸고 check_editor_layout.py가 잡았다). 줄을 바꿔서라도 다 보인다. */
+    .iti-ctab {
+      display: flex; align-items: center; gap: .45rem; max-width: 100%; flex-wrap: wrap;
+      padding: .5rem .8rem; font-family: inherit; font-size: .78rem; cursor: pointer;
+      border: 1.5px solid var(--border); border-bottom-width: 3px; background: #fff; color: var(--muted);
+      text-align: left;
+    }
+    .iti-ctab:hover { border-color: var(--heading); }
+    .iti-ctab.on { border-bottom-color: var(--primary); color: var(--heading); background: #fff; }
+    .iti-ctab-no { font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+    .iti-ctab.on .iti-ctab-no { color: var(--primary); }
+    /* 코스 제목이 길어도 탭 줄이 무너지지 않게 한 줄로 자른다 */
+    .iti-ctab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 16rem; }
+    .iti-ctab-meta { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+    .iti-ctab-warn {
+      font-size: .68rem; font-weight: 800; color: #b45309; background: #fef3c7;
+      border: 1px solid #fde68a; padding: .05rem .35rem; white-space: nowrap;
+    }
+    /* 이 코스가 고객 화면에서 방식 A/B 중 무엇으로 나가는지 (RK).
+       A는 방식 A·B 구역의 A 배지와 **같은 색**을 쓴다 — 색이 다르면 같은 것을
+       가리키는 줄 모른다. */
+    .iti-ctab-role {
+      font-size: .66rem; font-weight: 800; padding: .05rem .35rem; white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .iti-ctab-role.role-a { color: #5B21B6; background: #EDE9FE; border-color: #DDD6FE; }
+    .iti-ctab-role.role-b { color: #9D174D; background: #FCE7F3; border-color: #FBCFE8; }
+
+    /* ✨ 구역 맨 위 — 이 목적지에서 무엇이 실제로 고객에게 나가는가 (RK) */
+    .rec-reality { padding: .8rem .9rem; margin-bottom: 1rem; border-left: 3px solid; }
+    .rec-reality.is-live { background: #F0FDF4; border-color: #16A34A; }
+    .rec-reality.is-idle { background: #FFFBEB; border-color: #D97706; }
+    .rec-reality-t { font-size: .84rem; font-weight: 800; color: var(--heading); }
+    .rec-reality-b { font-size: .8rem; color: var(--muted); line-height: 1.65; margin-top: .3rem; }
+    .rec-reality-b .iti-btn { margin-top: .5rem; }
+    /* 안 쓰이는 칸은 흐리게 — 지우지는 않는다. 코스를 다 지우면 다시 쓰이고,
+       예전에 써 둔 글도 그대로 남아 있어야 한다.
+       ⚠ 예전엔 칸 **전체**에 opacity를 걸어서 담당자가 써 넣은 글까지 흐려졌다.
+       "안 쓰이는 칸"이라는 신호는 맞았지만, 그 대가로 **읽을 수가 없었다**
+       (사용자가 "글자가 회색으로 보인다"고 지적). 신호는 라벨과 테두리에만 걸고,
+       사람이 쓴 글은 늘 또렷하게 둔다 — 지금 안 나가더라도 읽고 고칠 값이다. */
+    .rec-fld-idle > .iti-lbl,
+    .rec-fld-idle > .iti-lbl-row { opacity: .6; }
+    .rec-fld-idle > .iti-inp,
+    .rec-fld-idle > .iti-ta { background: #FAFAF8; border-style: dashed; }
+    .rec-fld-idle:focus-within > .iti-lbl,
+    .rec-fld-idle:focus-within > .iti-lbl-row { opacity: 1; }
+    .rec-fld-idle:focus-within > .iti-inp,
+    .rec-fld-idle:focus-within > .iti-ta { background: #fff; border-style: solid; }
+
+    .iti-day {
+      border: 1px solid var(--border); border-left: 3px solid var(--primary);
+      padding: .85rem 1rem; margin-top: .7rem; background: #fcfcfc;
+    }
+    /* ── 일자 접기 (RF) ──
+       접힌 줄이 비어 있으면 접기는 그냥 '숨기기'다. 그래서 줄 자체가 내용을 말한다:
+       DAY 번호 · 그날의 제목(없으면 첫 활동) · 빈 칸이 있으면 그 개수. */
+    .iti-day-toggle {
+      display: flex; align-items: center; gap: .5rem; flex: 1 1 12rem; min-width: 0;
+      padding: .1rem 0; font-family: inherit; font-size: .82rem; text-align: left;
+      border: 0; background: none; color: var(--heading); cursor: pointer;
+    }
+    .iti-caret { font-size: .7rem; color: var(--muted); width: .8rem; flex: none; }
+    .iti-day-toggle:hover .iti-day-sum { text-decoration: underline; }
+    /* 제목이 길어도 버튼 줄이 밀리지 않게 자른다 — 밀리면 ↑↓ 버튼이 줄바꿈된다 */
+    .iti-day-sum { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .iti-day.is-open .iti-day-sum { color: var(--muted); }
+    .iti-day-blank {
+      font-size: .68rem; font-weight: 800; color: #b45309; background: #fef3c7;
+      border: 1px solid #fde68a; padding: .05rem .35rem; white-space: nowrap; flex: none;
+    }
+    .iti-day-body { margin-top: .2rem; }
+    /* RD로 이 줄의 버튼이 1개(삭제)에서 4개(↑ ↓ 복제 삭제)로 늘었다. 360px 화면에서
+       실제로 재 보니 버튼이 카드 오른쪽 밖으로 47px 밀려났다 — 자리가 없으면 줄을
+       바꾸게 한다. wrap이 없으면 flex는 넘치는 쪽을 그냥 밖으로 내보낸다.
+       (필요할 때만 바뀐다: 420px 이상에서는 지금도 한 줄이다.) */
+    .iti-day-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; row-gap: .4rem; }
+    .iti-day-no { font-size: .78rem; font-weight: 800; color: var(--primary); white-space: nowrap; }
+    .iti-day-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .8rem; }
+    .iti-day-grid > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    /* 같은 행의 입력칸 윗선을 맞춘다 — 라벨 길이가 서로 다르면(예: '저녁' vs
+       '참고 팁 (고객 견적서에 함께 나갑니다)') 좁은 화면에서 한쪽만 두 줄이 되어
+       그 칸의 입력칸만 아래로 밀린다. 그리드 행은 높이가 같으므로, 입력칸을 칸
+       아래쪽에 붙이면 라벨이 몇 줄이든 윗선이 항상 일치한다. */
+    .iti-day-grid > div { display: flex; flex-direction: column; }
+    .iti-day-grid > div > .iti-ta, .iti-day-grid > div > .iti-inp { margin-top: auto; }
+
+    .iti-btn {
+      height: 34px; padding: 0 .8rem; font-size: .78rem; font-weight: 700; font-family: inherit;
+      border: 1.5px solid var(--border); background: #fff; color: var(--heading); cursor: pointer;
+    }
+    .iti-btn:hover { border-color: var(--heading); }
+    /* 첫 일자의 ↑, 마지막 일자의 ↓ (RD). 버튼을 아예 빼지 않고 흐리게 남기는 이유:
+       자리마다 버튼 개수가 달라지면 일자 카드의 오른쪽 끝이 들쭉날쭉해지고, "여기는
+       왜 화살표가 하나지?"를 매번 다시 판단하게 된다. */
+    .iti-btn:disabled { opacity: .3; cursor: default; }
+    .iti-btn:disabled:hover { border-color: var(--border); }
+    .iti-btn.danger { color: var(--danger, #dc2626); border-color: #fecaca; }
+    .iti-btn.danger:hover { background: #fef2f2; border-color: #dc2626; }
+
+    /* 👁 고객 화면 미리보기 (RJ) — `.iti-btn` 기본 테두리는 `--border`(8% 검정)라
+       회색 패널 위의 '＋ 코스 추가'에서는 보이지만, **흰 구역 헤더에서 빨간 버튼 둘
+       옆에 놓이면 버튼으로 안 보인다.** 실제로 사용자가 "미리보기 버튼이 안 보인다"고
+       했고, 재어 보니 있기는 한데(135×34px, 안 잘림) 테두리가 사실상 없었다.
+       이 구역의 강조색(--sec)으로 테두리·글자를 준다. ⚠ 채우지는 않는다 — 채우면
+       빨간 '방식 A·B 저장'과 주목도를 다툰다. 저장이 이 화면의 주 동작이다. */
+    #rec-preview, #iti-preview {
+      border-color: var(--sec); color: var(--sec); background: var(--sec-bg); font-weight: 800;
+    }
+    #rec-preview:hover, #iti-preview:hover { background: var(--sec); color: #fff; border-color: var(--sec); }
+
+    /* ── 방식 A·B 탭 (RU) ──
+       한 번에 한 방식만 보여준다. 탭이 손잡이라는 것이 한눈에 보여야 하므로
+       '고른 탭이 아래 내용과 이어져 보이는' 고전적인 모양을 쓴다(아래 테두리를 지운다). */
+    .recpv-tabs {
+      display: flex; gap: .35rem; padding: .7rem 1.25rem 0;
+      border-bottom: 1.5px solid var(--border); margin-bottom: -1.5px;
+    }
+    .recpv-tab {
+      font: inherit; font-size: .86rem; font-weight: 800; line-height: 1.25;
+      padding: .5rem 1.1rem .55rem; cursor: pointer; text-align: left;
+      background: #F4F4F2; color: var(--muted);
+      border: 1.5px solid var(--border); border-bottom: 1.5px solid var(--border);
+    }
+    .recpv-tab:hover { background: #EDEDEA; }
+    .recpv-tab.active {
+      background: #fff; color: var(--heading);
+      border-bottom-color: #fff;               /* 고른 탭만 아래 선을 지운다 */
+      box-shadow: inset 0 3px 0 var(--pvtab);
+      border-top-color: var(--pvtab);
+    }
+    .recpv-tab.is-a { --pvtab: #7C3AED; }      /* 아래 편집 구역의 A·B 색과 같다 */
+    .recpv-tab.is-b { --pvtab: #DB2777; }
+    .recpv-tab-sub {
+      display: block; font-size: .72rem; font-weight: 600; color: var(--muted);
+      margin-top: .1rem; white-space: nowrap;
+    }
+    .recpv-tab.active .recpv-tab-sub { color: var(--pvtab); }
+    @media (max-width: 1000px) { .recpv-tabs { padding: .5rem .7rem 0; } }
+
+    /* 미리보기 창 위쪽의 프로그램 유형 줄 (RK) */
+    .recpv-bar {
+      display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+      padding: .6rem 1.25rem 0; font-size: .8rem; color: var(--muted);
+    }
+    .recpv-bar label { font-weight: 700; color: var(--heading); }
+    .recpv-bar select {
+      height: 30px; padding: 0 .5rem; font-family: inherit; font-size: .8rem; font-weight: 600;
+      border: 1.5px solid var(--border); background: #fff; color: var(--heading);
+    }
+    .recpv-map { font-weight: 800; color: #5B21B6; background: #EDE9FE; padding: .15rem .5rem; }
+    /* '설명 보기' 체크 — 라벨 굵기를 바 기본값(800)에서 되돌린다. 손잡이가 아니라 곁가지다. */
+    .recpv-chk { display: inline-flex; align-items: center; gap: .3rem; font-weight: 600 !important; }
+    .recpv-chk input { width: 14px; height: 14px; }
+    /* 저장은 바의 오른쪽 끝으로 밀어 둔다 — 손잡이(유형·일수)와 섞이면 잘못 누른다. */
+    #recPvSave { margin-left: auto; }
+    #recPvSave:disabled { opacity: .45; cursor: default; }
+    @media (max-width: 1000px) { .recpv-bar { padding: .5rem .7rem 0; } #recPvSave { margin-left: 0; } }
+    .iti-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem; }
+    .iti-msg { font-size: .82rem; font-weight: 700; margin-top: .5rem; }
+    .iti-msg.ok  { color: #15803d; }
+    .iti-msg.err { color: var(--danger, #dc2626); }
+
+    .iti-note {
+      background: #f8fafc; border: 1px solid var(--border); padding: .9rem 1.1rem;
+      font-size: .82rem; line-height: 1.7; color: var(--heading); margin-bottom: 1rem;
+    }
+    .iti-note strong { font-weight: 800; }
+
+    /* ── 활동 고르기 (QL) ── 라벨 줄 오른쪽에 붙는 작은 버튼과, 후보를 고르는 모달.
+         모달 껍데기는 .modal-overlay/.modal-box를 그대로 쓴다(요율 이력 등과 동일). */
+    .iti-lbl-row { display: flex; align-items: flex-end; gap: .5rem; }
+    .iti-lbl-row .iti-lbl { flex: 1; margin-bottom: 0; }
+    .iti-pick-btn {
+      flex-shrink: 0; height: 22px; padding: 0 .5rem; margin-bottom: .25rem;
+      font-size: .7rem; font-weight: 800; font-family: inherit; cursor: pointer;
+      border: 1.5px solid var(--border); background: #fff; color: var(--muted);
+    }
+    .iti-pick-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .itip-bar { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; margin-bottom: .7rem; }
+    .itip-chip {
+      height: 30px; padding: 0 .7rem; font-size: .76rem; font-weight: 700; font-family: inherit;
+      border: 1.5px solid var(--border); background: #fff; color: var(--muted); cursor: pointer;
+    }
+    .itip-chip.on { border-color: var(--primary); color: var(--primary); background: #fff5f6; }
+    .itip-chip[disabled] { opacity: .45; cursor: not-allowed; }
+    .itip-search {
+      width: 100%; height: 36px; padding: 0 .7rem; font-size: .84rem; font-family: inherit;
+      border: 1.5px solid var(--border); background: #fff; color: var(--heading);
+    }
+    .itip-search:focus { outline: none; border-color: var(--primary); }
+    .itip-count { font-size: .76rem; font-weight: 700; color: var(--muted); margin: .6rem 0 .4rem; }
+    .itip-list { display: grid; gap: .35rem; max-height: 46vh; overflow-y: auto; }
+    .itip-item {
+      display: block; width: 100%; text-align: left; font-family: inherit; cursor: pointer;
+      border: 1.5px solid var(--border); background: #fff; padding: .55rem .7rem;
+    }
+    .itip-item:hover { border-color: var(--primary); background: #fff5f6; }
+    .itip-item-text { display: block; font-size: .82rem; line-height: 1.55; color: var(--heading); }
+    /* 기업 연수 적합도 배지 (QX) — 순서의 근거를 문구 옆에 그대로 보여준다.
+       ⚠ '여가'를 빨강(위험)으로 칠하지 않는다. 나쁜 문구가 아니라 성격이 다를 뿐이고,
+       연수 일정에도 여가는 필요하다. 색은 구분용이지 경고가 아니다. */
+    .itip-fit {
+      display: inline-block; font-size: .64rem; font-weight: 800; letter-spacing: .03em;
+      padding: .05rem .3rem; margin-right: .4rem; vertical-align: .08em; border: 1px solid currentColor;
+    }
+    .itip-fit.fit-1 { color: #1D4ED8; }   /* 연수 */
+    .itip-fit.fit-2 { color: #6B7280; }   /* 보완 */
+    .itip-fit.fit-3 { color: #B45309; }   /* 여가 */
+    .itip-item-from { display: block; font-size: .7rem; font-weight: 700; color: var(--muted); margin-top: .25rem; }
+    /* 출처(코스·일자)를 눈에 띄게 — 목록을 훑을 때 "어느 코스 몇 일차 문구인지"가
+       바로 보여야 한다. 후보가 전부 이 목적지 것이라 색은 한 가지면 충분하다 (RB). */
+    .itip-item-from.from-here { color: #1D4ED8; }
+    .itip-cur {
+      background: #f8fafc; border: 1px solid var(--border); padding: .55rem .7rem;
+      font-size: .78rem; line-height: 1.6; color: var(--muted); margin-bottom: .7rem;
+    }
+    .itip-cur strong { font-weight: 800; color: var(--heading); }
+    .itip-empty { font-size: .82rem; color: var(--muted); padding: 1.2rem .2rem; line-height: 1.7; }
+
+    /* ── 코스 가져오기 (QM) ── 후보 한 건이 '코스'라 활동 문구보다 담을 게 많다. */
+    .itic-title { display: block; font-size: .86rem; font-weight: 800; color: var(--heading); line-height: 1.5; }
+    .itic-sub { display: block; font-size: .78rem; color: var(--muted); line-height: 1.55; margin-top: .2rem; }
+    .itic-facts { display: block; font-size: .72rem; font-weight: 700; color: var(--primary); margin-top: .3rem; }
+
+    @media (max-width: 768px) { .iti-day-grid { grid-template-columns: 1fr; } }
+  
+    /* 🔴 **화면 머리말** (XT) — 탭을 눌렀을 때 「여기가 어디고 무엇을 하는 곳인지」를
+       말하는 자리. 예전에는 17개 탭 어디에도 화면 제목이 없어서, 누른 사람은 곧바로
+       도구 막대와 숫자 카드부터 마주쳤다. 팀원이 처음 여는 화면이 특히 그렇다.
+     ⚠ 카드 제목(`.card-title`)은 화면 제목이 아니다 — 그걸 제목으로 세다가
+       「제목이 있다」고 잘못 읽었다(`audit_ux.js`가 이제 `.page-title`만 본다). */
+    .page-head { margin: 0 0 1.1rem; padding-bottom: .85rem; border-bottom: 1px solid var(--line, #E5E2DC); }
+    .page-title { font-size: 1.15rem; font-weight: 800; letter-spacing: -.01em; margin: 0 0 .3rem; }
+    .page-sub { font-size: .84rem; color: var(--muted, #7A7A7A); line-height: 1.65; margin: 0; max-width: var(--measure); }  /* 62rem(=74자/줄)이었다 — 토큰으로 통일 (YB) */

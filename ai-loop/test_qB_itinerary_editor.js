@@ -314,8 +314,9 @@ const OVERRIDE_TOKYO = [{
   ok('스크립트가 실행되지 않았다', aw.__pwned === undefined);
   ok('그래도 값은 입력칸에 그대로 보인다',
     Array.from(body.querySelectorAll('input,textarea')).some(el => el.value === EVIL));
-  /* 편집 화면의 JS 블록만 떼어 본다 — 같은 문구가 <style> 주석에도 있어 그걸 집으면
-     admin.html 본문 전체가 범위에 들어가 엉뚱한 곳에서 걸린다. */
+  /* 편집 화면의 JS 블록만 떼어 본다 — 이름으로 범위를 잡지 않으면 admin.html 본문
+     전체가 범위에 들어가 엉뚱한 곳에서 걸린다. (2026-09-14 2a: 원래 이유는 「같은 문구가
+     <style> 주석에도 있다」였는데 그 <style>은 admin.css로 나갔다. 좁히는 이유는 그대로다.) */
   const itiJsStart = adminSrc.indexOf('const itiState = {');
   const itiJsEnd   = adminSrc.indexOf('async function renderContent');
   const itiJs = adminSrc.slice(itiJsStart, itiJsEnd);

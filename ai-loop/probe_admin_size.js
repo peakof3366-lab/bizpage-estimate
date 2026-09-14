@@ -61,7 +61,11 @@ console.log('   · 동작(인라인 <script>) ' + kb(scriptSum).padStart(7) + ' 
 console.log('   · 모양(<style>)         ' + kb(styleSum).padStart(7) + '  ' + pct(styleSum, total).padStart(4)
   + '   블록 ' + styles.length + '개');
 console.log('   · 뼈대(HTML)           ' + kb(markup).padStart(7) + '  ' + pct(markup, total).padStart(4));
-const ext = [...src.matchAll(/<script[^>]*src="([^"]+)"/g)].map((m) => m[1]);
+/* 바깥으로 나간 것은 스크립트만이 아니다 — 2a에서 admin.css가 나갔다.
+   바깥 CDN(http)은 「우리가 쪼갠 것」이 아니라 원래부터 남의 것이라 뺀다. */
+const ext = [...src.matchAll(/<script[^>]*src="([^"]+)"/g)].map((m) => m[1])
+  .concat([...src.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map((m) => m[1]))
+  .filter((u) => !/^https?:/.test(u));
 console.log('   · 바깥 파일로 이미 나가 있는 것: ' + ext.length + '개 — ' + ext.join(' · '));
 
 console.log('\n' + '═'.repeat(70));
