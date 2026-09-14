@@ -422,6 +422,25 @@ function setActiveStep(step) {
   });
 }
 
+/* 🔴 단계를 바꾸면 **화면을 폼 맨 위로 올린다** (2026-09-14 대표 지시).
+   예전에는 1단계 아래쪽(「다음 단계로 이동」 버튼 자리)에 화면이 머문 채 2단계가
+   그려졌다 — 2단계는 그보다 훨씬 짧아서, 누른 사람은 **거의 빈 화면을 보고 직접
+   스크롤을 올려야** 했다. 계산기 한가운데서 사람을 잃는 자리다.
+ ⚠ 맨 위(0)로 보내지 않는다. 히어로까지 올라가면 폼을 다시 찾아야 한다.
+ ⚠ 붙어 있는 머리줄만큼 빼야 첫 칸이 가리지 않는다.
+ ⚠ **오류 안내(reportMissingField)에서는 부르지 않는다** — 거기서는 비어 있는 칸으로
+   가야 하는데, 맨 위로 올리면 그 칸이 화면 밖으로 나간다. 그래서 setActiveStep 안이
+   아니라 **버튼 두 곳에서만** 부른다.
+ ⚠ jsdom에는 scrollTo가 없을 수 있어 감싼다(검사가 여기서 죽으면 안 된다). */
+function scrollToEstimateForm() {
+  const formEl = document.querySelector('.estimate-form');
+  if (!formEl || typeof formEl.getBoundingClientRect !== 'function') return;
+  const HEADER_H = 72;
+  const y = formEl.getBoundingClientRect().top + (window.pageYOffset || 0) - HEADER_H;
+  try { window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' }); }
+  catch (e) { try { window.scrollTo(0, Math.max(0, y)); } catch (e2) { /* 못 해도 화면은 산다 */ } }
+}
+
 function validateStep(step) {
   const inputs = Array.from(document.querySelectorAll(`.estimate-step[data-step="${step}"] [required]`));
   return inputs.every((input) => input.value.trim());
@@ -1535,10 +1554,12 @@ nextButton.addEventListener('click', () => {
     return;
   }
   setActiveStep(2);
+  scrollToEstimateForm();
 });
 
 backButton.addEventListener('click', () => {
   setActiveStep(1);
+  scrollToEstimateForm();
 });
 
 form.addEventListener('submit', (event) => {

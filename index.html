@@ -356,10 +356,12 @@
                     <span class="fld-lbl"><i data-lucide="users" class="ic-sm"></i>여행 인원</span>
                     <input type="number" id="participants" min="1" value="10" required />
                   </label>
-                  <label class="fld">
-                    <span class="fld-lbl"><i data-lucide="calendar-days" class="ic-sm"></i>여행 기간 <small class="fld-hint">날짜에서 자동 계산</small></span>
-                    <input type="number" id="days" min="1" value="7" required readonly aria-readonly="true" />
-                  </label>
+                  <!-- 🔴 2026-09-14 대표 지시로 「여행 기간」 **보이는 칸을 없앴다.**
+                       값은 살려 둔다 — 견적 엔진이 `days`를 읽어 금액을 만든다(script.js 6곳).
+                       날짜를 고르면 script.js가 여기 채우고, 그 값이 그대로 계산에 들어간다.
+                       ⚠ `required`를 뗐다. 감춘 칸에 required가 붙어 있으면 값이 빌 때
+                         브라우저가 「보이지 않는 칸이 유효하지 않다」며 **제출 자체를 막는다.** -->
+                  <input type="hidden" id="days" value="7" />
                 </div>
 
                 <!-- 출발 공항 -->
@@ -418,11 +420,6 @@
                   <!-- 🔴 휴양을 골랐을 때만 보인다(VV). **왜 꺼졌는지 말한다** — 조용히 끄면
                        고객은 금액이 왜 이렇게 나왔는지 모르고, 우리도 나중에 그 견적을
                        설명할 수 없다(결함 생성기 ②). 다시 켤 수 있다는 것도 함께 알린다. -->
-                  <p class="inc-leisure-note hidden" id="leisureNote">
-                    휴양 여행은 <b>전용 차량과 가이드를 기본으로 빼고</b> 계산합니다 —
-                    소수 인원에서는 이 두 항목이 1인당 금액을 크게 올립니다(정액이라 나눠도 줄지 않습니다).
-                    필요하시면 아래에서 다시 선택하시면 금액에 바로 반영됩니다.
-                  </p>
                   <div class="inc-chips">
                     <label class="inc-chip">
                       <input type="checkbox" id="incHotel" checked />
@@ -528,15 +525,11 @@
               </div>
 
               <div class="estimate-step" data-step="2">
-                <div class="step-head">
-                  <span class="step-badge">2 / 2 단계</span>
-                  <p class="step-guide">견적서를 받으실 분만 알려 주세요 — <b>세 칸</b>이면 됩니다.</p>
-                </div>
                 <!-- ⚠ **필수를 풀었다**(VX). 가족·친목 모임 손님은 여기 적을 것이 없는데
                      필수라 **여기서 막혀 나간다.** 라벨도 「모임 이름」을 함께 제시해
                      적을 것이 있다는 걸 알린다. 회사 손님은 그대로 회사명을 적으면 된다. -->
                 <label>
-                  회사 / 모임 이름 <small class="fld-hint">없으면 비워 두셔도 됩니다</small>
+                  회사 / 모임 이름
                   <input type="text" id="organization" placeholder="예: ○○주식회사 · 김○○ 가족 · 산악회" />
                 </label>
                 <label>
@@ -552,7 +545,7 @@
                        인증이 없어서, 실으면 링크가 퍼질 때 연락처도 같이 퍼진다.
                        우리 대장(로그인한 직원만)에만 남는다. -->
                 <label>
-                  연락처 <small class="fld-hint">견적서에는 표시되지 않습니다 — 담당자 연락용입니다</small>
+                  연락처
                   <input type="tel" id="contactTel" placeholder="010-0000-0000" required />
                 </label>
                 <label>

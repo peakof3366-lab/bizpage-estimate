@@ -105,10 +105,21 @@ console.log('\n[2] 계수 — 값을 지어내지 않았다');
 
 console.log('\n[3] 화면 — 왜 꺼졌는지 말하고, 다시 켤 수 있다');
 {
-  ok('③ 안내 문구 자리가 있다', /id="leisureNote"/.test(INDEX));
-  ok('③ 기본으로 꺼진다고 말한다', /전용 차량과 가이드를 기본으로 빼고/.test(INDEX));
-  ok('③ 정액이라 나눠도 안 줄어든다고 말한다', /정액이라 나눠도 줄지 않습니다/.test(INDEX));
-  ok('③ 다시 켤 수 있다고 말한다', /다시 선택하시면 금액에 바로 반영/.test(INDEX));
+  /* 🔴 **2026-09-14 대표 지시로 이 안내 문구를 통째로 뺐다.**
+     있던 것: 「휴양 여행은 **전용 차량과 가이드를 기본으로 빼고** 계산합니다 —
+     소수 인원에서는 이 두 항목이 1인당 금액을 크게 올립니다(정액이라 나눠도 줄지
+     않습니다). 필요하시면 아래에서 다시 선택하시면 금액에 바로 반영됩니다.」
+     대표 판단: 폼에 글자가 너무 많다.
+
+     🔴 **무엇을 잃었는지 적어 둔다 — 이건 이 저장소가 「결함 생성기 ②」라 부르는 모양이다.**
+       휴양을 고르면 차량·가이드가 **자동으로 꺼지는데**, 이제 화면이 **왜 꺼졌는지
+       말하지 않는다.** 고객은 금액이 왜 그렇게 나왔는지 모르고, 우리도 나중에 그
+       견적을 설명할 수 없다. 「조용한 폴백을 만들지 말 것」이 이 안내가 있던 이유다.
+     ⚠ **끄는 동작 자체는 그대로다**(아래 [1][2]가 잡는다). 말만 없앤 것이다.
+     ⚠ 되살리려면 `index.html`의 `#leisureNote` 자리에 다시 넣는다. `script.js`는
+       `if (note)`로 막아 두어 없어도 안 죽지만, 넣으면 바로 다시 동작한다. */
+  ok('③ 안내 문구를 뺐다(대표 지시)', !/id="leisureNote"/.test(INDEX));
+  ok('③ 문구도 남아 있지 않다', !/전용 차량과 가이드를 기본으로 빼고/.test(INDEX));
   ok('③ 그 문구에 스타일이 있다', /\.inc-leisure-note\s*\{/.test(CSS));
   ok('③ 사람이 켠 것을 지우지 않는다(자동으로 끈 것만 되돌린다)', /autoOff/.test(SCRIPT));
   ok('③ 끄기만 하고 잠그지 않는다고 적혀 있다', /끄기만 하고 잠그지는 않는다/.test(SCRIPT));
@@ -138,10 +149,12 @@ console.log('\n[3] 화면 — 왜 꺼졌는지 말하고, 다시 켤 수 있다'
   prg.value = 'leisure'; prg.dispatchEvent(new window.Event('change'));
   ok('④ 휴양을 고르면 차량이 꺼진다', veh.checked === false);
   ok('④ 휴양을 고르면 가이드가 꺼진다', gd.checked === false);
-  ok('④ 안내 문구가 드러난다', !doc.getElementById('leisureNote').classList.contains('hidden'));
+  /* 🔴 안내 문구는 2026-09-14에 뺐다 — 그래서 「드러난다/숨는다」를 볼 것이 없다.
+     대신 **그 자리에 정말 아무것도 없는지**를 본다. 있으면 누가 되살린 것이고,
+     그때는 위 [3]의 경위를 읽고 판단해야 한다. */
+  ok('④ 안내 문구 자리가 비어 있다', !doc.getElementById('leisureNote'));
   prg.value = 'language'; prg.dispatchEvent(new window.Event('change'));
   ok('④ 연수로 되돌리면 다시 켜진다', veh.checked && gd.checked);
-  ok('④ 안내 문구가 숨는다', doc.getElementById('leisureNote').classList.contains('hidden'));
 
   /* 금액 — 「끄면 크게 내려간다」를 그 자리에서 확인한다(숫자를 못 박지 않는다) */
   const runWithIncludes = (pax, on) => {
