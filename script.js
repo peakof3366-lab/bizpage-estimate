@@ -1879,22 +1879,14 @@ downloadButton.addEventListener('click', openEstimateWindow);
 
   var submitBtn = actions.querySelector('button[type="submit"]');
 
-  /* ── 진행 도트 삽입 (Step2 맨 위) ── */
-  var dotsEl = document.createElement('div');
-  dotsEl.className = 'step2-dots';
-  dotsEl.innerHTML =
-    '<span class="step2-dot-item" id="di-org">'  +
-      '<span class="step2-dot" id="dot-org"></span>회사/기관명' +
-    '</span>' +
-    '<span class="step2-dot-sep">·</span>' +
-    '<span class="step2-dot-item" id="di-name">' +
-      '<span class="step2-dot" id="dot-name"></span>담당자 이름' +
-    '</span>' +
-    '<span class="step2-dot-sep">·</span>' +
-    '<span class="step2-dot-item" id="di-req">'  +
-      '<span class="step2-dot" id="dot-req"></span>요청 사항' +
-    '</span>';
-  step2.insertAdjacentElement('afterbegin', dotsEl);
+  /* 🔴 2026-09-14 대표 지시로 **진행 도트를 없앴다.**
+     있던 것: Step2 맨 위에 「● 회사/기관명 · ● 담당자 이름 · ● 요청 사항」 띠를 만들어
+     채울 때마다 점을 초록으로 바꿔 주던 것. 대표 판단: 화면에 글자가 너무 많다.
+   ⚠ **칸이 채워졌다는 표시 자체는 남아 있다** — 아래 `updateField`가 label에
+     `step2-field-done`(초록 테두리)을 그대로 걸고, 다 채우면 완료 안내도 뜬다.
+     없어진 것은 위쪽 띠 하나뿐이다.
+   ⚠ 아래 `updateField`는 `if (dot)`·`if (item)`으로 막혀 있어 도트가 없어도 안 죽는다.
+     되살리려면 여기서 dotsEl을 다시 만들어 step2 맨 앞에 넣으면 된다(CSS는 남아 있다). */
 
   /* ── 완료 가이드 메시지 삽입 (버튼 바로 위) ── */
   var guideEl = document.createElement('div');

@@ -834,16 +834,34 @@ p { line-height:1.8; }
 .total-per   { background:var(--ink); border-top:3px solid var(--red); }
 .total-grand { background:var(--bg-off); border:1px solid rgba(0,0,0,.08); }
 .total-lbl { font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; margin-bottom:7px; display:block; }
-.total-per   .total-lbl { color:rgba(255,255,255,.65); }
+/* 🔴 2026-09-14 대표 지시: 검은 바탕의 「1인당 금액」은 **흰색**이다.
+   전에는 65% 투명이라 흐렸다. CLAUDE.md — 흐림은 `opacity`가 아니라 **색으로** 정한다. */
+.total-per   .total-lbl { color:#fff; }
 .total-grand .total-lbl { color:var(--t-sub); }
 .total-amt { font-size:22px; font-weight:900; letter-spacing:-.03em; display:block; }
-.total-per   .total-amt { color:var(--red); font-size:32px; }
-.total-grand .total-amt { color:var(--t-head); font-size:18px; }
+/* 🔴 2026-09-14 대표 지시: 두 박스의 **글자·숫자 크기 비율을 맞춘다.**
+   전에는 32px 대 18px이라 나란히 놓였을 때 한쪽만 크게 튀었다. 크기는 같게 두고
+   **색과 바탕으로** 무엇이 먼저 읽히는지 정한다(검정 바탕 + 빨강 = 1인당).
+   ⚠ 총액을 1인당보다 **크게 하지는 않는다** — 8명 여행에서 총액이 제일 먼저 눈에
+     들어오면 사람은 놀라서 나간다(VX에서 순서를 뒤집은 이유다). 같게까지만 한다. */
+.total-per   .total-amt { color:var(--red); font-size:28px; }
+.total-grand .total-amt { color:var(--t-head); font-size:28px; }
 .rate-note-badge { font-size:11px; color:var(--t-sub); background:var(--bg-off); border-radius:var(--r); padding:5px 11px; margin-bottom:12px; text-align:center; }
 .estimate-disclaimer { background:rgba(200,16,46,.04); border:1px solid rgba(200,16,46,.12); border-radius:var(--r); padding:16px; }
 .disc-main { font-size:13px; font-weight:700; color:var(--t-head); margin-bottom:6px; }
 .disc-sub  { font-size:12px; color:var(--t-mute); line-height:1.7; margin-bottom:12px; }
-.disc-cta  { font-size:12px; font-weight:700; color:var(--red); text-decoration:underline; text-underline-offset:3px; }
+/* 🔴 2026-09-14 대표 지시: 상담 신청을 **조금 더 강조**한다.
+   전에는 밑줄 친 작은 글자라 안내문에 묻혀 있었다. 테두리를 둘러 버튼으로 보이게 한다.
+   ⚠ **꽉 찬 빨강으로는 안 한다.** 이 카드에 이미 「견적서 확인하기」와 「바로 상담
+     신청하기」라는 강조 버튼이 있다 — 셋이 되면 무엇부터 눌러야 할지 모른다
+     (CLAUDE.md: 한 자리에 강조 버튼을 둘 두지 않는다).
+   ⚠ 누를 자리는 44px 이상이어야 한다(WCAG 2.5.5). 밑줄을 `text-decoration`으로만
+     쓰던 것을 테두리로 바꾸면서 높이를 확보했다. */
+.disc-cta  { display:inline-flex; align-items:center; min-height:44px;
+             padding:0 20px; font-size:13px; font-weight:800; color:var(--red);
+             background:#fff; border:1.5px solid var(--red); border-radius:var(--r);
+             text-decoration:none; transition:background .18s, color .18s; }
+.disc-cta:hover { background:var(--red); color:#fff; }
 .result-note { font-size:11px; color:var(--t-sub); margin-top:10px; text-align:center; }
 
 /* ── 10. Gallery ────────────────────────────────────────────────── */

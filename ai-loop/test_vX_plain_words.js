@@ -157,8 +157,28 @@ console.log('\n[4] 1인당이 주인공이다');
   ok('④ 1인당이 총액보다 먼저 나온다', iPer > 0 && iTot > 0 && iPer < iTot,
     'per@' + iPer + ' total@' + iTot);
   ok('④ 강조(검은 상자)가 1인당에 붙는다', /\.total-per\s+\{ background:var\(--ink\)/.test(CSS));
-  ok('④ 큰 글씨도 1인당이다', /\.total-per\s+\.total-amt \{ color:var\(--red\); font-size:32px; \}/.test(CSS));
-  /* ⚠ 총액을 없애면 안 된다 — 기업 담당자에게는 그게 결재 숫자다 */
+  /* 🔴 **2026-09-14 대표 지시로 두 숫자를 같은 크기로 맞췄다**(32px/18px → 28px/28px).
+     그래서 「1인당이 더 크다」는 이제 사실이 아니다.
+     ⚠ 하지만 **이 단언이 지키려던 것은 그게 아니다** — VX에서 순서를 뒤집은 이유는
+       「8명 여행에서 총액이 제일 먼저 눈에 들어오면 사람이 놀라서 나간다」였다.
+       즉 진짜 규칙은 **「총액이 1인당보다 크면 안 된다」**이고, 같은 크기는 그 규칙을
+       어기지 않는다. 그래서 단언을 **그 규칙 그대로** 다시 쓴다.
+     ⚠ 먼저 읽히는 것은 여전히 1인당이다 — 검은 바탕 + 빨강(바로 위 단언이 잡는다). */
+  {
+    /* ⚠ 정규식에 역슬래시를 쓰지 않는다 — 이 저장소를 고치는 도구를 거치면서
+       역슬래시가 먹히는 일이 반복됐다(2026-09-14에 여기서만 두 번). 문자열 찾기 +
+       [0-9]로 똑같은 일을 한다. */
+    const px = (marker) => {
+      const i = CSS.indexOf(marker);
+      if (i < 0) return -1;
+      const m = CSS.slice(i, i + 200).match(/font-size:([0-9]+)px/);
+      return m ? Number(m[1]) : -1;
+    };
+    const per = px('.total-per   .total-amt');
+    const tot = px('.total-grand .total-amt');
+    ok('④ 두 금액의 글자 크기를 읽었다', per > 0 && tot > 0, per + 'px / ' + tot + 'px');
+    ok('④ 🔴 총액이 1인당보다 크지 않다', tot <= per, '1인당 ' + per + 'px · 총액 ' + tot + 'px');
+  }
   ok('④ 총액은 그대로 남아 있다', /id="resultValue"/.test(INDEX) && /예상 총액/.test(FORM));
   ok('④ 좁은 화면 크기도 1인당으로 옮겼다', /\.total-per \.total-amt \{ font-size:26px; \}/.test(CSS));
 }
