@@ -22,7 +22,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const { htmlWithDeps } = require('./_jsdom_deps');
-const { adminSource } = require('./_admin_source');
+const { adminSource, adminPart } = require('./_admin_source');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -314,13 +314,13 @@ const OVERRIDE_TOKYO = [{
   ok('스크립트가 실행되지 않았다', aw.__pwned === undefined);
   ok('그래도 값은 입력칸에 그대로 보인다',
     Array.from(body.querySelectorAll('input,textarea')).some(el => el.value === EVIL));
-  /* 편집 화면의 JS 블록만 떼어 본다 — 이름으로 범위를 잡지 않으면 admin.html 본문
-     전체가 범위에 들어가 엉뚱한 곳에서 걸린다. (2026-09-14 2a: 원래 이유는 「같은 문구가
-     <style> 주석에도 있다」였는데 그 <style>은 admin.css로 나갔다. 좁히는 이유는 그대로다.) */
-  const itiJsStart = adminSrc.indexOf('const itiState = {');
-  const itiJsEnd   = adminSrc.indexOf('async function renderContent');
-  const itiJs = adminSrc.slice(itiJsStart, itiJsEnd);
-  ok('편집 화면 JS 블록을 찾았다', itiJsStart > 0 && itiJsEnd > itiJsStart && itiJs.includes('itiRenderCourse'));
+  /* 편집 화면은 이제 **조각 하나**다(2026-09-14 2b-3). 예전에는 admin.html 안에서
+     「itiState부터 renderContent까지」로 범위를 잡았는데, 조각이 갈리자 **이어 붙인
+     순서가 뒤집혀 빈 구간**을 집었다 — 그리고 「innerHTML을 안 쓴다」가 빈 문자열
+     위에서 조용히 참이 됐다(결함 생성기 ③). 범위를 짐작하지 않고 조각을 통째로 받는다. */
+  const itiJs = adminPart('admin/itinerary.js');
+  ok('편집 화면 조각을 받았다', itiJs.length > 1000 && itiJs.includes('itiRenderCourse'),
+    itiJs.length + '자');
   ok('편집 화면이 인라인 onclick에 값을 끼워 넣지 않는다', !/onclick=/.test(itiJs));
   ok('편집 화면이 innerHTML로 값을 그리지 않는다(createElement만 쓴다)',
     !/innerHTML\s*=/.test(itiJs) && /createElement/.test(itiJs));

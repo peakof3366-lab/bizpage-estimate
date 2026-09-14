@@ -40,7 +40,7 @@ const ROOT = path.join(__dirname, '..');
    `admin.html`을 쪼갤 때(2a: CSS, 2b: 화면별 스크립트) 이 배열만 늘린다.
    ⚠ 순서는 「사람이 읽는 순서」다. 이 문자열은 **정규식으로 재는 용도**이지
      실행하거나 파싱하는 용도가 아니라, 로드 순서와 같을 필요는 없다. */
-const ADMIN_PARTS = ['admin.html', 'admin.css', 'admin/common.js', 'admin/ledger.js', 'admin/packages.js', 'admin/recommend.js'];
+const ADMIN_PARTS = ['admin.html', 'admin.css', 'admin/common.js', 'admin/ledger.js', 'admin/packages.js', 'admin/recommend.js', 'admin/itinerary.js'];
 
 /* 🔴 **정말 관리자 화면을 읽었는지 확인하는 닻.**
    이어 붙인 결과에 이것이 없으면 목록이 틀렸거나 파일이 비었다는 뜻이다.
@@ -80,6 +80,23 @@ function adminSource() {
   return src;
 }
 
+/* 🔴 **조각 하나만** 달라 — 화면별로 갈린 뒤에 필요해진 창구.
+   `adminSource()`는 조각을 **이어 붙인 것**이라, 「A와 B 사이」로 범위를 잡던 검사는
+   조각이 갈리는 순간 순서가 뒤집혀 빈 구간을 집는다(2026-09-14 test_qB가 실제로 그랬다).
+   화면 하나를 재는 검사는 그 화면의 조각을 통째로 받아서 재면 된다.
+   ⚠ 목록에 없는 파일을 달라고 하면 **던진다** — 오타로 빈 문자열을 받아 「없다」로
+     조용히 뒤집히는 것을 막는다. */
+function adminPart(file) {
+  if (!ADMIN_PARTS.includes(file)) {
+    throw new Error(`[_admin_source] ADMIN_PARTS에 없는 조각입니다: ${file}
+`
+      + `  있는 것: ${ADMIN_PARTS.join(", ")}`);
+  }
+  const s = fs.readFileSync(path.join(ROOT, file), "utf8");
+  if (!s.trim()) throw new Error(`[_admin_source] 조각이 비어 있습니다: ${file}`);
+  return s;
+}
+
 /* 쪼개기 진행 상황을 사람이 볼 수 있게 — 검사가 아니라 보고용이다 */
 function adminParts() {
   return ADMIN_PARTS.map((f) => ({
@@ -88,4 +105,4 @@ function adminParts() {
   }));
 }
 
-module.exports = { adminSource, adminParts, ADMIN_PARTS };
+module.exports = { adminSource, adminPart, adminParts, ADMIN_PARTS };
