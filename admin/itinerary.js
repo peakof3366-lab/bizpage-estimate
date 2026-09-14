@@ -1600,3 +1600,72 @@
 
   /* 미리보기는 **두 구역 모두에서** 열린다 (RK). 한 곳에만 두면, 다른 구역에서
      작업하던 사람은 버튼이 없는 줄 안다 — 실제로 그래서 "버튼이 안 보인다"가 나왔다. */
+
+  let itiResizeTimer = null;
+
+/* ── 화면에 손잡이를 건다 (2b-1b-②) ─────────────────────────────────────────
+   일정 편집 화면 — 저장·되돌리기·코스 추가·활동 고르기·폭 변화.
+   🔴 `DOMContentLoaded`로 감싸는 이유는 DOM이 아니라 **파일 사이의 순서**다.
+   이 파일은 마크업 뒤에서 실리므로 DOM은 이미 있다. 감싸지 않으면 이 줄들이
+   **실리는 순간에** 돌고, 그때 아직 안 실린 다른 조각의 값을 부르면 죽는다.
+   
+   ───────────────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('rec-save').addEventListener('click', recSave);
+  document.getElementById('rec-revert').addEventListener('click', recRevert);
+  /* 떠 있는 저장 바는 **같은 함수**를 부른다 — 저장 경로가 둘이면 언젠가 갈라진다. */
+  document.getElementById('savebar-rec').addEventListener('click', recSave);
+  document.getElementById('savebar-days').addEventListener('click', itiSave);
+  document.querySelectorAll('[data-jump]').forEach((b) => {
+    b.addEventListener('click', () => itiJump(b.dataset.jump));
+  });
+
+  document.getElementById('iti-dest').addEventListener('change', function () { itiSelectDest(this.value); });
+  document.getElementById('iti-save').addEventListener('click', itiSave);
+  document.getElementById('iti-revert').addEventListener('click', itiRevert);
+  document.getElementById('iti-add-course').addEventListener('click', function () {
+    if (!itiState.destKey) { itiSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
+    const fresh = itiEmptyCourse();
+    itiState.courses.push(fresh);
+    /* 방금 만든 코스로 옮겨 준다 (RF). 안 옮기면 "＋ 코스 추가를 눌렀는데 아무 일도
+       안 일어난다" — 새 코스는 안 보이는 탭에 생기고 화면은 그대로다. */
+    itiView.courseIdx = itiState.courses.length - 1;
+    (fresh.days || []).forEach((d) => itiOpenDays.add(d));
+    itiMarkDirty(); itiRenderBody();
+  });
+
+  /* 활동 고르기 창 (QL). 검색은 입력할 때마다 다시 그린다 — 후보가 1,000건대라
+     실시간으로 좁혀지지 않으면 스크롤로 찾게 되고, 그러면 타이핑보다 느려진다. */
+  document.getElementById('itiPickClose').addEventListener('click', itiPickClose);
+  document.getElementById('itiPickSearch').addEventListener('input', function () {
+    itiPick.q = this.value; itiPickRender();
+  });
+  document.getElementById('itiPickModal').addEventListener('click', function (e) {
+    if (e.target === this) itiPickClose();          /* 바깥을 눌러도 닫힌다 */
+  });
+
+  /* 코스 가져오기 창 (QM) */
+  document.getElementById('iti-copy-course').addEventListener('click', itiCopyOpen);
+  document.getElementById('itiCopyClose').addEventListener('click', itiCopyClose);
+  document.getElementById('itiCopySearch').addEventListener('input', function () {
+    itiCopy.q = this.value; itiCopyRender();
+  });
+  document.getElementById('itiCopyModal').addEventListener('click', function (e) {
+    if (e.target === this) itiCopyClose();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!document.getElementById('itiPickModal').classList.contains('hidden')) itiPickClose();
+    else if (!document.getElementById('itiCopyModal').classList.contains('hidden')) itiCopyClose();
+  });
+
+  /* RE: 폭이 바뀌면 같은 글이 차지하는 줄 수가 달라진다(2×2 격자가 좁은 화면에서 1열이
+     되는 자리라 특히 크게 바뀐다). 다시 재지 않으면 그 뒤로 계속 어긋난 높이로 남는다.
+     연속으로 쏟아지는 이벤트라 마지막 한 번만 처리한다. */
+  window.addEventListener('resize', function () {
+    if (currentTab !== 'itineraries') return;
+    clearTimeout(itiResizeTimer);
+    itiResizeTimer = setTimeout(itiAutoGrowAll, 120);
+  });
+});

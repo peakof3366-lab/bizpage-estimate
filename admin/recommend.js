@@ -820,3 +820,37 @@
   function recPreviewClose() {
     document.getElementById('recPvModal').classList.add('hidden');
   }
+
+/* ── 화면에 손잡이를 건다 (2b-1b-②) ─────────────────────────────────────────
+   추천 일정 미리보기 모달 — 여는 버튼은 「일정 관리」 탭에 있다.
+   🔴 `DOMContentLoaded`로 감싸는 이유는 DOM이 아니라 **파일 사이의 순서**다.
+   이 파일은 마크업 뒤에서 실리므로 DOM은 이미 있다. 감싸지 않으면 이 줄들이
+   **실리는 순간에** 돌고, 그때 아직 안 실린 다른 조각의 값을 부르면 죽는다.
+   ⚠ 여는 버튼이 둘이다(rec-preview · iti-preview). 한 곳에만 걸면 다른 구역에서 "버튼이 안 보인다"가 된다 (RK).
+   ───────────────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('rec-preview').addEventListener('click', recPreviewOpen);
+  document.getElementById('iti-preview').addEventListener('click', recPreviewOpen);
+  document.getElementById('recPvClose').addEventListener('click', recPreviewClose);
+  document.getElementById('recPvExplain').addEventListener('change', recPvRender);
+  document.getElementById('recPvSave').addEventListener('click', recPvSave);
+  /* 탭 전환 (RU). 고른 탭 표시는 여기 한 곳에서만 바꾼다 — 두 곳에서 바꾸면 어긋난다. */
+  document.querySelectorAll('.recpv-tab').forEach((t) => {
+    t.addEventListener('click', function () {
+      document.querySelectorAll('.recpv-tab').forEach((x) => {
+        x.classList.toggle('active', x === t);
+        x.setAttribute('aria-selected', x === t ? 'true' : 'false');
+      });
+      recPvRender();
+    });
+  });
+  /* 바깥을 눌러도 닫는다 — 안쪽(모달 상자)을 누른 것은 닫지 않는다. */
+  document.getElementById('recPvModal').addEventListener('click', function (e) {
+    if (e.target === this) recPreviewClose();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !document.getElementById('recPvModal').classList.contains('hidden')) {
+      recPreviewClose();
+    }
+  });
+});

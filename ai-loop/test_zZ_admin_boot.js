@@ -149,22 +149,42 @@ const ENV_ALLOWED = [
   /* 🔴 **선언이 살아 있는 것과 손잡이가 걸린 것은 다르다.**
      2b-1b부터 리스너를 화면 파일로 옮긴다. 옮긴 줄이 admin.html에서 사라졌는데
      새 자리에서 안 걸리면, ④⑤는 전부 통과하면서 **버튼만 죽는다.**
-     ⚠ 「걸렸다」를 addEventListener 호출 수로 세지 않는다 — 그건 코드를 읽는 것이지
-       동작을 보는 것이 아니다. **진짜로 누르고** 반응을 본다.
-     ⚠ 화면 파일로 손잡이를 옮길 때마다 여기 한 줄을 더한다. */
-  const pressed = (id, fnName) => {
-    let hit = false;
+
+     ⚠ **이름 바꿔치기로는 못 잡는다**(2026-09-14에 헛짚었다). `addEventListener('click', fn)`
+       처럼 **함수를 직접 넘긴** 손잡이는 이미 그 함수 객체를 붙들고 있어서, 나중에
+       `window.fn`을 바꿔도 소용이 없다. 잡히는 것은 `() => fn()`처럼 부를 때 이름을
+       찾는 것뿐이다. → **눈에 보이는 결과**로 본다.
+
+     ⚠ 그리고 **버튼이 하는 일을 알고 골라야 한다.** 미리보기 버튼을 눌러 「모달이
+       열리나」를 봤더니 실패했는데, 진짜 이유는 `recPreviewOpen`이 목적지를 안 고른
+       상태에서 **안내만 남기고 되돌아가기** 때문이었다. 손잡이는 멀쩡했다.
+       → 아무것도 안 고른 상태에서 **반드시 나오는 반응**을 관찰 지점으로 삼는다.
+
+     ⚠ 손잡이를 옮길 때마다 여기 한 줄을 더한다. 안 더하면 그 화면은 안전망 밖이다. */
+  const pressSaw = (btnId, seeId, must) => {
     try {
-      const el = win.document.getElementById(id);
-      if (!el) return '요소 없음: #' + id;
-      win[fnName] = function () { hit = true; };
-      el.click();
+      const b = win.document.getElementById(btnId);
+      if (!b) return '버튼 없음: #' + btnId;
+      const t = win.document.getElementById(seeId);
+      if (!t) return '반응 볼 곳 없음: #' + seeId;
+      t.textContent = '';
+      b.click();
+      return t.textContent.includes(must) ? true
+        : '눌렀는데 반응이 없다 (지금 내용: "' + t.textContent.slice(0, 40) + '")';
     } catch (e) { return e.message; }
-    return hit;
   };
-  const ledHit = pressed('ledFind', 'renderLedger');
-  ok('⑦ 🔴 대장 「찾기」를 누르면 목록이 다시 그려진다 (admin/ledger.js가 건 손잡이)',
-    ledHit === true, String(ledHit));
+  /* 대장은 부를 때 이름을 찾는 모양이라 바꿔치기가 통한다 — 그대로 둔다 */
+  let ledHit = false;
+  try {
+    win.renderLedger = function () { ledHit = true; };
+    const lf = win.document.getElementById('ledFind');
+    if (lf) lf.click();
+  } catch (e) { ledHit = e.message; }
+  ok('⑦ 🔴 대장 「찾기」가 걸렸다 (admin/ledger.js)', ledHit === true, String(ledHit));
+  const recHit = pressSaw('rec-preview', 'rec-msg', '목적지를 먼저');
+  ok('⑦ 🔴 미리보기 「열기」가 걸렸다 (admin/recommend.js)', recHit === true, String(recHit));
+  const itiHit = pressSaw('iti-save', 'iti-msg', '목적지를 먼저');
+  ok('⑦ 🔴 일정 「저장」이 걸렸다 (admin/itinerary.js)', itiHit === true, String(itiHit));
 
   done();
 })().catch((e) => { console.error('실행 오류:', e); process.exit(1); });
