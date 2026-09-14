@@ -71,7 +71,10 @@ const COMMON = ['esc', 'get', 'getO', 'set', 'safeId', 'KEYS', 'PAGE_SIZE',
    ⚠ 목록을 늘릴 때는 반드시 이유를 적을 것. 여기에 이름을 넣는 것은
      「이 오류는 우리 결함이 아니다」라고 선언하는 일이다. */
 const ENV_ALLOWED = [
-  'fetch is not defined',      /* jsdom에 fetch가 없다 — 브라우저에는 있다 */
+  /* ⚠ 비어 있는 것이 정상이다. 여기에 이름을 넣는 것은 「이 오류는 우리 결함이 아니다」라고
+     선언하는 일이라, 넣기 전에 그 오류가 **무엇을 멈추는지**부터 본다.
+     `fetch is not defined`가 여기 있었는데, 그것은 환경 탓이 아니라 **스크립트를 통째로
+     멈추는 오류**였다. 위 beforeParse로 원인을 없앴다. */
 ];
 
 (async () => {
@@ -108,6 +111,14 @@ const ENV_ALLOWED = [
     const dom = await JSDOM.fromFile(path.join(ROOT, 'admin.html'), {
       runScripts: 'dangerously', resources: 'usable',
       virtualConsole: vc, pretendToBeVisual: true,
+      /* 🔴 **fetch를 넣어 주지 않으면 반쪽짜리 화면을 재게 된다.**
+         admin.html의 인라인 <script>는 로드 즉시 `fetch('/api/admin/account?action=me')`를
+         부른다. jsdom에는 fetch가 없어 그 줄에서 **스크립트가 통째로 멈추고**, 그 뒤의
+         const/let이 전부 TDZ로 남는다(2026-09-14에 실제로 당했다 — 계수 패널 대조가
+         1,372건 전부 「초기화 전 접근」으로 나왔다).
+         재려는 것은 「fetch 없는 브라우저」가 아니므로 막아 준다.
+         ⚠ 영영 안 끝나는 Promise를 준다 — 화면이 로그인 상태로 넘어가지 않게. */
+      beforeParse(w) { w.fetch = () => new Promise(() => {}); },
     });
     await new Promise((r) => setTimeout(r, 1500));
     win = dom.window;
@@ -126,6 +137,15 @@ const ENV_ALLOWED = [
   });
   ok('④ 🔴 증거가 될 수 없는 이름이 섞이지 않았다 (요소 id와 겹침)',
     shadowed.length === 0, '겹침: ' + shadowed.join(', ') + ' → 다른 이름으로 바꿀 것');
+
+  /* 🔴 **인라인 스크립트가 끝까지 돌았는가 — 카나리아.**
+     admin.html의 인라인 <script> 안 마지막 const를 짚는다. 스크립트가 중간에서
+     멈추면 이 값은 TDZ로 남아 `typeof`조차 던진다. 선언 검사 ④는 조각 파일만 보므로
+     이 상태를 못 본다 — 그래서 따로 짚는다. */
+  let tail = 'ok';
+  try { if (win.eval('typeof CMS_GROUP_SIZE') === 'undefined') tail = '선언 자체가 없다'; }
+  catch (e) { tail = '끝까지 안 돌았다 — ' + e.message; }
+  ok('④ 🔴 admin.html 인라인 스크립트가 끝까지 돌았다 (CMS_GROUP_SIZE)', tail === 'ok', tail);
 
   const missing = COMMON.filter((n) => {
     try { return win.eval('typeof ' + n) === 'undefined'; } catch (e) { return true; }
