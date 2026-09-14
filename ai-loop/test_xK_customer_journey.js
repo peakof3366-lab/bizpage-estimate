@@ -37,7 +37,11 @@ const done = () => {
 };
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
-const PAGES_WITH_EXCEL = ['index.html', 'estimate-view.html', 'admin-quote.html'];
+/* 🔴 **고객 화면(index.html)은 2026-09-14에 여기서 빠졌다** — 대표 지시로
+   「엑셀로 다운로드」 버튼을 뺐고, 그 버튼이 유일한 진입점이었으므로 sheet_download.js와
+   xlsx CDN도 함께 걷어냈다. 기능은 아래 두 화면에 그대로 있다.
+   ⚠ 다시 넣을 일이 생기면 **여기 목록과 index.html 두 곳을 같이** 고쳐야 한다. */
+const PAGES_WITH_EXCEL = ['estimate-view.html', 'admin-quote.html'];
 
 console.log('\n[1] 「엑셀」을 부르는 화면은 **셋** — 셋 다 같은 자를 싣는다');
 {
@@ -93,8 +97,12 @@ console.log('\n[2] CSV로 떨어질 때의 내용 — 엑셀이 열 수 있어�
 
   ok('③ 화면이 오류 없이 떴다', log.errors.length === 0, log.errors.map((e) => e.msg).slice(0, 3).join(' | '));
   ok('③ 견적 엔진이 살아 있다(CDN을 안 기다린다)', typeof win.getBreakdownData === 'function');
-  ok('③ 엑셀 라이브러리 없이도 다운로드 함수는 있다',
-    typeof win.XLSX === 'undefined' && typeof win.downloadSheet === 'function');
+  /* 🔴 고객 화면은 이제 엑셀 쪽을 **아무것도 안 싣는다**(2026-09-14).
+     예전 단언은 「CDN이 없어도 우리 표 저장기는 있다」였는데, 그 저장기도 뺐으므로
+     **둘 다 없는 것**이 맞는 상태다. 하나라도 다시 실리면 여기서 걸린다. */
+  ok('③ 🔴 고객 화면에 엑셀 라이브러리도 표 저장기도 없다',
+    typeof win.XLSX === 'undefined' && typeof win.downloadSheet === 'undefined',
+    'XLSX=' + typeof win.XLSX + ' downloadSheet=' + typeof win.downloadSheet);
 
   const dep = new Date(); dep.setDate(dep.getDate() + 90);
   const set = (id, v) => { const el = doc.getElementById(id); if (el) { el.value = v; el.dispatchEvent(new win.Event('change', { bubbles: true })); } };
@@ -115,19 +123,20 @@ console.log('\n[2] CSV로 떨어질 때의 내용 — 엑셀이 열 수 있어�
   ok('③ 확인 패널이 다음 걸음을 안내한다',
     /견적서 받기|일정 살펴보기/.test(visibleText(doc.getElementById('estimateConfirm'))));
 
-  /* 「엑셀로 다운로드」 — XLSX가 없는 상태에서 눌러 본다(= CDN이 막힌 고객) */
-  const xl = doc.getElementById('downloadEstimateExcel');
-  ok('③ 엑셀 버튼이 보인다', !!xl && !xl.classList.contains('hidden'));
-  if (xl) {
-    const before = log.downloads.length;
-    xl.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true, view: win }));
-    await tick(60);
-    ok('③ 🔴 CDN이 막혀도 파일이 나간다(CSV)', log.downloads.length === before + 1,
-      '저장 ' + (log.downloads.length - before) + '번');
-    ok('③ 그리고 CSV로 나갔다고 말해 준다',
-      log.says.some((s) => /CSV/.test(s.text)), JSON.stringify(log.says.map((s) => s.text)));
-    ok('③ 「잠시 후 다시 시도」로 끝나지 않는다',
-      !log.says.some((s) => /잠시 후 다시 시도/.test(s.text)));
+  /* 🔴 **고객 화면에는 「엑셀로 다운로드」가 없다** (2026-09-14 대표 지시).
+     예전에는 여기서 「XLSX가 막힌 고객이 눌러도 CSV로 나가는가」를 봤다. 버튼을 뺐으니
+     그 검사는 뜻이 없어졌지만, **그냥 지우면 방침이 아무 데도 안 남는다** — 다음 사람이
+     「있으면 좋겠네」 하고 되살려 놓아도 아무도 모른다. 그래서 반대로 잠근다.
+     ⚠ 기능 자체를 없앤 것이 아니다. 담당자 산출(admin-quote.html)과 공유 견적서
+       (estimate-view.html)에는 그대로 있고, script.js의 함수도 남아 있다. */
+  ok('③ 🔴 고객 결과 패널에 엑셀 버튼이 없다',
+    !doc.getElementById('downloadEstimateExcel'));
+  {
+    const srcs = [...read('index.html').matchAll(/<script[^>]*src="([^"]+)"/g)].map((m) => m[1]);
+    ok('③ 🔴 고객 화면이 엑셀 라이브러리를 안 싣는다 (CDN 400KB)',
+      !srcs.some((s) => /xlsx/i.test(s)), srcs.filter((s) => /xlsx/i.test(s)).join(', '));
+    ok('③ 🔴 고객 화면이 sheet_download.js를 안 싣는다',
+      !srcs.some((s) => /sheet_download/.test(s)));
   }
 
   /* 「견적서 확인하기」 — 새 창이 열리고 **링크**가 나와야 한다(XJ 이전에는 늘 「담당자 확인」) */

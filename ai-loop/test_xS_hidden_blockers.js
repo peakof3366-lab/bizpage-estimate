@@ -473,6 +473,11 @@ const done = () => {
        `downloadSheet`는 문자열('xlsx'|'csv'|'blocked')을 준다 — 객체로 흉내 내면
        `sayAfterDownload`가 다른 갈래를 타고, 그 차이를 검사가 못 본다(WR의 교훈). */
     X.win.downloadSheet = (aoa) => { sheet = aoa; return 'csv'; };
+    /* 🔴 sayAfterDownload도 같은 파일(sheet_download.js)이 내준다. 2026-09-14에 고객
+       화면에서 그 파일을 걷어내면서 여기가 **크래시**했다 — 하나만 흉내 내면 방어를
+       지나 마지막 줄에서 터진다. 이 검사가 보는 것은 **표의 내용**이고, 표를 만드는
+       코드는 admin-quote.html과 공유하는 script.js의 같은 함수다. */
+    X.win.sayAfterDownload = () => {};
     ok('⑪ 엑셀 내려받기 함수가 있다', typeof X.win.downloadEstimateExcel === 'function');
     X.win.downloadEstimateExcel();
     await X.tick(120);

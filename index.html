@@ -659,13 +659,6 @@
                   견적서 확인하기
                 </button>
 
-                <!-- 엑셀 견적서 다운로드 (신규 기능 — 되돌리려면 이 버튼과 script.js의
-                     FEATURE_EXCEL_EXPORT 관련 블록만 삭제하면 됨) -->
-                <button type="button" id="downloadEstimateExcel" class="btn-dl-excel hidden" onclick="downloadEstimateExcel()">
-                  <i data-lucide="file-spreadsheet" style="width:15px;height:15px"></i>
-                  엑셀로 다운로드
-                </button>
-
                 <!-- 견적 기반 상담 신청 버튼 -->
                 <button type="button" id="consultBtn" class="btn-consult hidden" onclick="openConsultForm()">
                   이 견적으로 바로 상담 신청하기
@@ -1797,14 +1790,13 @@
     <!-- 방식 A·B가 비었을 때 나가는 문구 (RJ) — 관리자 미리보기와 같은 값을 본다.
          ⚠ script.js보다 먼저 실어야 한다. -->
     <script src="rec_fallbacks.js"></script>
-    <!-- 표를 파일로 내려주는 자 (XK) — 엑셀 라이브러리가 없거나 막혀도 CSV로 나간다 -->
-    <script src="sheet_download.js"></script>
-    <!-- 엑셀 견적서 다운로드 기능용 (되돌리려면 이 줄 삭제 + script.js의 FEATURE_EXCEL_EXPORT를 false로)
-         🔴 **`defer`다** (XK). 예전엔 이 줄이 `script.js` **바로 앞**에서 막고 있었다 —
-           스크립트는 순서대로 실행되므로, 남의 CDN에서 400KB를 다 받기 전에는
-           **견적 계산기 자체가 살아나지 않는다.** 고객이 「엑셀」을 누를 때만 쓰는
-           것을 첫 화면이 기다린 셈이다. defer로 미루면 계산기가 먼저 산다. -->
-    <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- 2026-09-14 대표 지시로 「엑셀로 다운로드」 버튼을 **고객 화면에서 뺐다**.
+         그 버튼이 유일한 진입점이던 sheet_download.js와, 남의 CDN에서 받던 xlsx 400KB도
+         함께 걷어냈다 — 쓸 곳이 없는데 고객마다 받아 가고 있었다.
+         ⚠ 기능 자체는 살아 있다: admin-quote.html(담당자 산출)과 estimate-view.html
+           (공유 견적서)은 각자 싣고 그대로 쓴다. script.js의 함수도 그대로 둔다.
+         ⚠ 되돌리려면 두 파일을 다시 싣고 결과 패널의 버튼 마크업을 복구한다.
+           고객 화면이 이 기능을 갖지 않는다는 것은 test_xK가 잠근다. -->
     <script src="script.js"></script>
     <!-- ⚠ 위 lucide가 `defer`라 이 시점에는 아직 없다 — `DOMContentLoaded`에서 부른다
          (defer 스크립트는 그 직전에 순서대로 실행된다). 그래도 없으면 조용히 넘어간다:

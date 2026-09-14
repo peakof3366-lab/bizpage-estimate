@@ -3672,8 +3672,14 @@ function customQuoteValidUntil(from) {
   /* ⚠ 예전엔 여기서 `XLSX`가 없으면 「잠시 후 다시 시도해 주세요」로 끝났다. 그 파일은
      남의 CDN에서 오고, 기관·대기업 망에서는 막혀 있는 경우가 흔하다 — 그런 고객에게
      「잠시 후」는 거짓말이고, 결재에 붙일 파일을 영영 못 받는다(XK).
-     이제 `sheet_download.js`가 엑셀/CSV를 갈라 준다. 그 파일은 **우리 것이라 늘 있다.** */
-  if (typeof downloadSheet !== 'function') {
+     이제 `sheet_download.js`가 엑셀/CSV를 갈라 준다.
+     🔴 **2026-09-14 정정: 「우리 것이라 늘 있다」가 더 이상 사실이 아니다.**
+       대표 지시로 고객 화면(index.html)에서 「엑셀로 다운로드」를 뺐고, 그 버튼이 유일한
+       진입점이었으므로 `sheet_download.js`도 그 화면에서 함께 걷어냈다. 이 함수는
+       `admin-quote.html`·`estimate-view.html`에서만 닿는다.
+     ⚠ 그래서 **그 파일이 내주는 둘을 다** 본다. `downloadSheet`만 보면, 그것만 있고
+       `sayAfterDownload`가 없는 상태에서 **마지막 줄에서 터진다**(test_xS가 그렇게 크래시했다). */
+  if (typeof downloadSheet !== 'function' || typeof sayAfterDownload !== 'function') {
     alert('다운로드 기능을 불러오지 못했습니다. 화면의 「견적서 확인하기」로 인쇄·PDF 저장하실 수 있습니다.');
     return;
   }
