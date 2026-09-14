@@ -60,7 +60,8 @@ const done = () => {
    ⚠ 화면을 새로 떼어낼 때마다 그 화면이 쓰는 이름을 여기 한둘 더한다. */
 const COMMON = ['esc', 'get', 'getO', 'set', 'safeId', 'KEYS', 'PAGE_SIZE',
                 'fmtDate', 'REGION_MAP', 'REGION_ORDER', 'currentTab',
-                /* 2b-2 대장 화면 */ 'renderLedger', 'ledDraw', 'LED_STATUS'];
+                /* 2b-2 대장 화면 */ 'renderLedger', 'ledDraw', 'LED_STATUS',
+                /* 패키지 · 소규모 견적 화면 */ 'renderPackages', 'pkgSellable', 'PKG_GAPS'];
 
 /* jsdom 환경 자체가 못 주는 것 — 이것만 예외로 둔다.
    ⚠ 목록을 늘릴 때는 반드시 이유를 적을 것. 여기에 이름을 넣는 것은
@@ -111,6 +112,16 @@ const ENV_ALLOWED = [
     done();
   }
   ok('④ 화면이 떴다', !!win);
+
+  /* 🔴 요소 id와 같은 이름은 **증거가 되지 못한다.** 브라우저는 id를 전역에 올려서,
+     함수가 통째로 사라져도 `typeof pkgSave`가 'object'로 남는다. 2026-09-14에 실제로
+     당했다 — packages.js를 비웠는데 pkgSave만 살아 있다고 나왔다.
+     → 이런 이름이 COMMON에 있으면 **검사 자체를 실패**시킨다. 조용히 통과하는 것보다 낫다. */
+  const shadowed = COMMON.filter((n) => {
+    try { return !!win.document.getElementById(n); } catch (e) { return false; }
+  });
+  ok('④ 🔴 증거가 될 수 없는 이름이 섞이지 않았다 (요소 id와 겹침)',
+    shadowed.length === 0, '겹침: ' + shadowed.join(', ') + ' → 다른 이름으로 바꿀 것');
 
   const missing = COMMON.filter((n) => {
     try { return win.eval('typeof ' + n) === 'undefined'; } catch (e) { return true; }
