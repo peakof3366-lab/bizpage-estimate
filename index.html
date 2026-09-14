@@ -125,8 +125,7 @@
                    ⚠ 칸을 늘리거나 줄이지 않았다. **말만 더했다.** -->
                 <div class="step-head">
                   <span class="step-badge">1 / 2 단계</span>
-                  <p class="step-guide">어디로, 몇 명이, 언제 가시는지만 알려 주세요.
-                    <b>필수는 여섯 칸</b>이고 나머지는 안 고르셔도 견적이 나옵니다.</p>
+                  <p class="step-guide">어디로, 몇 명이, 언제 가시는지만 알려 주세요 — <b>필수는 여섯 칸</b>입니다.</p>
                 </div>
                 <label class="fld">
                   <span class="fld-lbl"><i data-lucide="map-pin" class="ic-sm"></i>여행 목적지</span>
@@ -392,6 +391,7 @@
                 <!-- ══ 포함 항목 선택 ══ -->
                 <div class="item-selector">
 
+                  <div class="inc-sec">
                   <span class="inc-sec-lbl">항공</span>
                   <div class="inc-fixed-row">
                     <i data-lucide="lock" class="ic-sm inc-lock"></i>
@@ -422,7 +422,9 @@
                     <input type="number" id="bizCount" min="0" step="1" value="0" class="vip-count-inp" aria-label="비즈니스 좌석 인원(명)" />
                     <span class="vip-count-unit">명 (나머지는 이코노미)</span>
                   </div>
+                  </div>
 
+                  <div class="inc-sec">
                   <span class="inc-sec-lbl">추가 선택</span>
                   <!-- 🔴 휴양을 골랐을 때만 보인다(VV). **왜 꺼졌는지 말한다** — 조용히 끄면
                        고객은 금액이 왜 이렇게 나왔는지 모르고, 우리도 나중에 그 견적을
@@ -473,15 +475,16 @@
                     이 목적지는 골프 요금이 아직 없어 골프 견적을 낼 수 없습니다 — 담당자에게 문의해 주세요.
                   </div>
 
+                  </div>
+                  <div class="inc-sec">
                   <!-- TP: 현장 부대비용 B안 — **아는 것만 넣으면 더 정확해진다.**
                        아무것도 안 골라도 A안 계수(지상비의 20%)가 이미 깔려 있어 실제에 가깝다.
                        여기는 담당자가 아는 조건을 켜서 그만큼을 실제 단가로 바꾸는 자리다. -->
                   <!-- ⚠ 「지상비」는 업계 말이다(VX). 일반 고객은 그 말을 모르고, 모르는 말이
                        금액 옆에 있으면 금액 자체를 안 믿는다. 뜻을 그대로 풀어 쓴다. -->
-                  <span class="inc-sec-lbl" id="ancSecLbl">현지에서 드는 그 밖의 비용 (아는 것만 넣으세요)</span>
+                  <span class="inc-sec-lbl" id="ancSecLbl">현지 기타 비용</span>
                   <div class="inc-note" id="ancBaseNote">
-                    통역, 행사 운영(현수막·기념품·사진), 현지 진행비 같은 항목은
-                    <strong>현지 비용의 20%</strong>로 이미 더해져 있습니다 — 실제 견적서 46건을 재서 나온 값입니다.
+                    통역·행사 운영·현지 진행비는 <strong>현지 비용의 20%</strong>로 이미 포함돼 있습니다 (견적서 46건 실측).
                   </div>
                   <!-- 기관 방문·섭외는 **연수에만 있는 일**이라 휴양에서는 숨긴다(VX) -->
                   <div class="inc-vip-row" id="agencyVisitRow">
@@ -495,7 +498,9 @@
                       <span>지방 출발(국내 수송)</span>
                     </label>
                   </div>
+                  </div>
 
+                  <div class="inc-sec">
                   <span class="inc-sec-lbl">숙박</span>
                   <div class="inc-grade-row" id="hotelGradeSub">
                     <span class="grade-label">호텔 등급</span>
@@ -527,6 +532,7 @@
                     <input type="number" id="vipCount" min="0" value="0" class="vip-count-inp" aria-label="1인 1실 인원(명)" />
                     <span class="vip-count-unit">명 (임원 · 단독)</span>
                   </div>
+                  </div>
 
                   <input type="radio" name="vehicleType" value="auto" checked style="display:none" aria-hidden="true" />
                 </div>
@@ -539,8 +545,7 @@
               <div class="estimate-step" data-step="2">
                 <div class="step-head">
                   <span class="step-badge">2 / 2 단계</span>
-                  <p class="step-guide">거의 끝났습니다 — 견적서를 받으실 분만 알려 주세요.
-                    <b>세 칸</b>이면 됩니다.</p>
+                  <p class="step-guide">견적서를 받으실 분만 알려 주세요 — <b>세 칸</b>이면 됩니다.</p>
                 </div>
                 <!-- ⚠ **필수를 풀었다**(VX). 가족·친목 모임 손님은 여기 적을 것이 없는데
                      필수라 **여기서 막혀 나간다.** 라벨도 「모임 이름」을 함께 제시해
@@ -620,7 +625,6 @@
                     <span>빠른 상담 신청</span>
                     <button type="button" class="consult-close" onclick="closeConsultForm()" aria-label="닫기">&times;</button>
                   </div>
-                  <p class="consult-form-desc">선택하신 견적 내용으로 담당 컨설턴트가 직접 연락드립니다.</p>
                   <div class="consult-fields">
                     <label class="consult-label">
                       이름 <span class="req">*</span>
@@ -683,7 +687,7 @@
                   <!-- 러프 견적 안내 -->
                   <div class="estimate-disclaimer" id="estimateDisclaimer">
                     <p class="disc-main">본 견적은 <strong>참고용 예상 금액</strong>입니다.</p>
-                    <p class="disc-sub">실제 비용은 현지 사정, 환율, 시즌, 항공 좌석 상황에 따라 달라질 수 있습니다. 정확한 견적은 담당자와의 <strong>1:1 상담</strong>을 통해 확정해 드립니다.</p>
+                    <p class="disc-sub">환율·시즌·항공 상황에 따라 달라질 수 있으며, <strong>1:1 상담</strong>으로 확정해 드립니다.</p>
                     <a href="#contact" class="disc-cta">정확한 견적 상담 신청 →</a>
                   </div>
                   <p class="result-note" id="resultNote"></p>
