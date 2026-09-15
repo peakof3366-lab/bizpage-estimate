@@ -40,6 +40,7 @@ node ai-loop/run_all_tests.js       # 회귀 스위트 — 계산식을 바꿨�
 node ai-loop/fuzz_invariants.js     # 견적 엔진 불변식 (--full = 52,360건)
 node ai-loop/audit_consistency.js   # 목적지 목록 교차 정합성 (오류 0이어야 정상)
 node ai-loop/audit_rates.js         # 요율 '값' 점검 — 결과는 '확인 대상'이지 '오류'가 아니다
+node ai-loop/audit_season_match.js  # 적어 둔 현지 시즌 vs 금액에 쓰는 시즌표 — 뒤집힌 곳을 센다
 node ai-loop/audit_internals.js     # 안쪽 세기 (XQ) — 아무도 안 부르는 파일 · 함수 수 vs 12개 한도 ·
                                     #   두 번 적힌 목록 · 큰 파일. **오류가 아니라 사람이 볼 목록**이다
 node ai-loop/probe_admin_size.js    # admin.html 안에 무엇이 들어 있나 (XR) — --all로 전부
