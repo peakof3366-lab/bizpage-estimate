@@ -678,16 +678,13 @@ p { line-height:1.8; }
 .confirm-msg { font-size:13.5px; color:var(--t-mute); line-height:1.75; margin-bottom:24px; }
 
 /* 견적서 받기 버튼 (연수 일정 탐색하기 다음 순서 — 보조 스타일) */
-.btn-get-estimate {
-  display:flex; align-items:center; justify-content:center; gap:9px;
-  width:100%; padding:17px 24px;
-  background:var(--ink); color:var(--white);
-  border:2px solid var(--ink); border-radius:var(--r);
-  font-size:14.5px; font-weight:800; letter-spacing:.04em;
-  cursor:pointer; margin-bottom:14px;
-  transition:background var(--dur), border-color var(--dur), transform var(--dur);
-}
-.btn-get-estimate:hover { background:var(--ink2); border-color:var(--ink2); transform:translateY(-2px); }
+/* ⚠ `.btn-get-estimate` 규칙 10줄은 **2026-09-15에 걷었다.** 확인 패널의 「견적서 받기」를
+   빼면서 그 클래스를 쓰는 요소가 0개가 됐다(`index.html`·`script.js` 전수 확인).
+   🔴 마크업만 지우고 CSS를 남기면 **아무도 안 쓰는 채로 살아 있고**, 다음에 읽는 사람은
+     그게 도는 줄 알고 고치려다 시간을 쓴다(`test_vT`가 같은 이유로 세운 규칙이다).
+   ⚠ 바로 아래 `@keyframes confirmBtnPulse`는 **남긴다** — `.btn-explore-plan`
+     (「여행 일정 살펴보기」)이 쓴다. 세어 보고 남겼다.
+   경위와 되살리는 법은 `ai-loop/test_zD_quote_entry.js`에 있다. */
 @keyframes confirmBtnPulse {
   0%  { box-shadow:0 0 0 0    rgba(200,16,46,.6); }
   45% { box-shadow:0 0 0 14px rgba(200,16,46,0); }

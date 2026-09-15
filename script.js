@@ -3657,7 +3657,10 @@ function customQuoteValidUntil(from) {
      ⚠ 그래서 **그 파일이 내주는 둘을 다** 본다. `downloadSheet`만 보면, 그것만 있고
        `sayAfterDownload`가 없는 상태에서 **마지막 줄에서 터진다**(test_xS가 그렇게 크래시했다). */
   if (typeof downloadSheet !== 'function' || typeof sayAfterDownload !== 'function') {
-    alert('다운로드 기능을 불러오지 못했습니다. 화면의 「견적서 확인하기」로 인쇄·PDF 저장하실 수 있습니다.');
+    /* ⚠ 여기서 **버튼 이름을 부른다** — 이름을 바꾸면 이 줄도 같이 고쳐야 한다.
+       2026-09-15에 「견적서 확인하기」 → 「견적서 받기」로 바뀌면서 이 안내가 **없는
+       버튼을 가리키고 있었다.** `test_zD`가 「화면에 없는 이름을 말하지 않는가」를 잡는다. */
+    alert('다운로드 기능을 불러오지 못했습니다. 화면의 「견적서 받기」로 인쇄·PDF 저장하실 수 있습니다.');
     return;
   }
   const data = getBreakdownData();
