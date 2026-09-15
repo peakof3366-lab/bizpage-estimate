@@ -1819,7 +1819,16 @@
 
 <!-- ══ 견적 상세 모달 ══ -->
 <div id="emModal" class="modal-overlay hidden">
-  <div class="modal-box" style="width:min(720px,100%)">
+  <!-- 🔴 폭을 720 → 1180px로 넓혔다 (2026-09-15 대표 지시: 「좀 크게 만들어서 가독성 좋게」).
+       실측(화면 1440×900): 상자는 **720×810**인데 내용이 **1552px**이라 세로로 두 배 넘쳐
+       스크롤해야 했다. **가로는 절반이 비어 있는데 세로로만 길었다.**
+       → 넓히면 2열 구역·금액 4칸·항목 표가 각자 자리를 찾아 세로가 줄어든다.
+     ⚠ **여기(인라인)에서만 넓힌다.** `.modal-box`는 이 화면에서 **모달 11개가 함께 쓰는**
+       공용 규칙이다(문의 상세·요율 편집·일괄 수정·일정 고르기 …). 공용 쪽을 키우면
+       「담당자 한 명 고르는 창」까지 1180px가 된다 — 세어 보고 여기만 좁혔다.
+     ⚠ `94vw`를 함께 둔다. 1180px 미만 화면(노트북 1280에서 사이드바를 뺀 폭)에서
+       상자가 화면 밖으로 나가지 않게 한다. -->
+  <div class="modal-box" style="width:min(1180px,94vw)">
     <div class="modal-header">
       <h3 id="emModalTitle">견적 상세</h3>
       <button onclick="document.getElementById('emModal').classList.add('hidden')" class="modal-close">✕</button>
@@ -1867,19 +1876,19 @@
         <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center">
           <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:.25rem">① 고객 청구 금액</div>
           <div id="em-custotal" style="font-size:1.2rem;font-weight:800;color:#1d4ed8"></div>
-          <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">수익 포함 · 홈페이지 표시 동일</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">수익 포함 · 홈페이지 표시 동일</div>
         </div>
         <!-- ② 원가 합계 = 수익 제외 운영비 -->
         <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center">
           <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem">② 원가 합계</div>
           <div id="em-fulltotal" style="font-size:1.2rem;font-weight:800;color:var(--text)"></div>
-          <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">수익 제외 운영비 소계</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">수익 제외 운영비 소계</div>
         </div>
         <!-- ③ 예상 수익 = ① - ② -->
         <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center;background:#f0fdf4">
           <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--success);margin-bottom:.25rem">③ 예상 수익 ①-②</div>
           <div id="em-profit" style="font-size:1.2rem;font-weight:800;color:var(--success)"></div>
-          <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">ENBT + 현지수익 + 보험</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">ENBT + 현지수익 + 보험</div>
         </div>
         <!-- 1인당 -->
         <div style="padding:.9rem 1rem;text-align:center">
@@ -1920,10 +1929,20 @@
           </div>
         </div>
 
-        <!-- 실제 계약 항공료 (신규) — 항공료는 인원별 협상 견적이라 자동 갱신이 안 되니,
-             계약완료된 실제 최종 단가를 여기 한 번 입력해 두면 요율 관리 탭에서 목적지별로
-             모아 "요율표와 얼마나 차이 나는지" 갱신 제안에 반영한다. -->
-        <div style="margin-top:.9rem;padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
+        <!-- 🔴 실제 계약 실적 네 칸 — **2×2로 묶었다** (2026-09-15 대표 지시)
+             실측(화면 1440, 모달 720px): 이 구역이 **896px**로 모달 세로의 60%였다.
+             네 칸이 **세로로 쌓여** 있어 모달을 넓혀도 세로가 안 줄었다(1552 → 1513px).
+             네 칸은 성격이 같은 입력이라 나란히 두는 쪽이 읽기도 쉽다.
+           ⚠ 설명문도 합쳤다. 항공료와 호텔에 **거의 같은 문장**이 한 벌씩 있었다
+             (「…입력해 두세요 — 요율 관리 탭에서 목적지별로 모아 기준 요율과 비교해
+             갱신을 제안합니다.」). **지운 것이 아니라 묶음 위 한 줄로 올린 것**이다 —
+             네 칸 모두에 해당하는 말이라 각자 적을 이유가 없었다.
+           ⚠ 「실제 총 계약가」의 설명은 **남긴다.** 그건 요율 갱신이 아니라 「견적 정확도
+             종합 오차」에 쓰인다는 **다른 이야기**다(RG가 지키는 값이기도 하다). -->
+        <div class="em-actual-wrap">
+        <p class="em-actual-lead">계약이 완료된 건이면 실제 최종 단가를 남겨 주세요 — 요율 관리 탭이 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다.</p>
+        <div class="em-actual-grid">
+        <div style="padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
           <div class="detail-label" style="margin-bottom:.4rem">실제 계약 항공료 (1인당)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <span id="em-est-airfare" style="font-size:.8rem;color:var(--muted)"></span>
@@ -1931,11 +1950,10 @@
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualAirfare()">저장</button>
             <span id="em-actual-airfare-msg" style="font-size:.76rem;font-weight:700"></span>
           </div>
-          <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">계약이 완료된 건이라면, 실제 최종 항공료를 입력해 두세요 — 요율 관리 탭에서 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다.</p>
         </div>
 
         <!-- 실제 계약 호텔단가 (신규) — 위 항공료 카드와 대칭 구조 -->
-        <div style="margin-top:.6rem;padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
+        <div style="padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
           <div class="detail-label" style="margin-bottom:.4rem">실제 계약 호텔단가 (1박)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <span id="em-est-hotel" style="font-size:.8rem;color:var(--muted)"></span>
@@ -1943,11 +1961,10 @@
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualHotel()">저장</button>
             <span id="em-actual-hotel-msg" style="font-size:.76rem;font-weight:700"></span>
           </div>
-          <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">계약이 완료된 건이라면, 실제 최종 호텔단가(1박 기준)를 입력해 두세요 — 요율 관리 탭에서 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다.</p>
         </div>
 
         <!-- 실제 계약 식비 (신규 · P1b) — 위 항공/호텔과 대칭 -->
-        <div style="margin-top:.6rem;padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
+        <div style="padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
           <div class="detail-label" style="margin-bottom:.4rem">실제 계약 식비 (1인 1일)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <span id="em-est-meal" style="font-size:.8rem;color:var(--muted)"></span>
@@ -1959,7 +1976,7 @@
 
         <!-- 실제 총 계약가 (신규 · P1b) — 종합 견적 정확도 측정용. 견적 총액 대비 실제
              최종 계약가를 남겨 "우리 견적이 전체적으로 몇 % 맞았나"를 측정한다. -->
-        <div style="margin-top:.6rem;padding:.75rem .9rem;background:#f0fdf4;border:1px solid var(--border)">
+        <div style="padding:.75rem .9rem;background:#f0fdf4;border:1px solid var(--border)">
           <div class="detail-label" style="margin-bottom:.4rem">실제 총 계약가 (전체 최종 금액)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <span id="em-est-total" style="font-size:.8rem;color:var(--muted)"></span>
@@ -1967,8 +1984,10 @@
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualTotal()">저장</button>
             <span id="em-actual-total-msg" style="font-size:.76rem;font-weight:700"></span>
           </div>
-          <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">계약 완료 건의 실제 최종 총액을 남기면 요율 관리 탭 "견적 정확도"에 <strong style="color:var(--heading)">종합 오차</strong>로 집계됩니다.</p>
+          <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">이 값은 요율 관리 탭 「견적 정확도」의 <strong style="color:var(--heading)">종합 오차</strong>로 집계됩니다.</p>
         </div>
+        </div><!-- /.em-actual-grid -->
+        </div><!-- /.em-actual-wrap -->
         <!-- UI: 이 견적서의 일정 (2026-08-18 대표 지시)
              ⚠ UM에서 **편집기 본체를 이 안에서 꺼냈다.** 산출 화면(admin-quote.html)도
                같은 편집기를 열어야 하는데(대표 지시 2026-08-19), 여기 묻혀 있으면

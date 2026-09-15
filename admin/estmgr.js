@@ -231,7 +231,11 @@
     const hasSnap = ['seasonFactor','leadFactor','peakFactor'].some(k => typeof e[k] === 'number');
     if (!hasSnap) {
       return `<div class="detail-label" style="margin-bottom:.5rem">⚙️ 계수 기여도</div>
-        <div style="color:var(--muted);font-size:.82rem">이 견적은 계수 스냅샷 도입(2026-07) 이전에 생성되어 계수 기여도 정보가 없습니다. 이후 생성된 견적부터 표시됩니다.</div>`;
+        <div style="color:var(--muted);font-size:.82rem">2026-07 이전 견적이라 계수 기록이 없습니다.</div>`;
+        /* ⚠ 2026-09-15 대표 지시로 줄였다. 예전: 「이 견적은 계수 스냅샷 도입(2026-07)
+           이전에 생성되어 계수 기여도 정보가 없습니다. 이후 생성된 견적부터 표시됩니다.」
+           🔴 **지우지 않는다** — 왜 비었는지 말하는 줄이다. 잃은 것은 「이후 견적부터
+             표시된다」는 안내인데, 최신 견적을 한 번 열면 바로 알 수 있는 사실이다. */
     }
     const num = v => (typeof v === 'number' && isFinite(v)) ? v : 1;
     const season = num(e.seasonFactor), lead = num(e.leadFactor), peak = num(e.peakFactor),
@@ -501,7 +505,14 @@
         confEl.classList.add('hidden'); confEl.innerHTML = '';
       } else if (c.insufficient) {
         confEl.classList.remove('hidden');
-        confEl.innerHTML = `<span style="color:var(--muted)">📊 <strong>실측 기준 신뢰구간</strong> — 이 목적지의 계약 실적(상세모달의 '실제 총 계약가' 입력)이 ${CONF_MIN_COUNT}건 이상 쌓이면 예상 범위가 표시됩니다. 현재 ${c.count}건.</span>`;
+        /* ⚠ 2026-09-15 대표 지시로 **줄였다**(「필요 없어 보이는 문구는 간결하게」).
+           예전: 「📊 실측 기준 신뢰구간 — 이 목적지의 계약 실적(상세모달의 '실제 총 계약가'
+                  입력)이 3건 이상 쌓이면 예상 범위가 표시됩니다. 현재 0건.」 → 두 줄을 먹었다.
+           🔴 **지우지는 않는다** — 왜 이 자리가 비었는지 말하는 줄이다. 없애면
+             「신뢰구간이 원래 없는 기능」으로 읽힌다(조용한 폴백).
+           ⚠ 잃은 것: 실적을 **어디에** 넣는지(「상세모달의 '실제 총 계약가'」)를 더는
+             말하지 않는다. 그 입력칸은 **같은 모달 안 아래쪽**에 있어 화면에서 보인다. */
+        confEl.innerHTML = `<span style="color:var(--muted)">📊 <strong>실측 신뢰구간</strong> — 계약 실적 ${c.count}/${CONF_MIN_COUNT}건. ${CONF_MIN_COUNT}건부터 예상 범위를 보여 드립니다.</span>`;
       } else {
         const warn = Math.abs(c.medianErr) >= 0.10
           ? ` <span style="color:${c.medianErr > 0 ? 'var(--danger)' : '#b45309'};font-weight:700">· 견적이 실측 대비 평균 ${c.medianErr > 0 ? '낮음' : '높음'} ${Math.abs(c.medianErr * 100).toFixed(0)}%</span>`

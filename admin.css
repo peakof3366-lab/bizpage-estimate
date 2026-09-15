@@ -410,6 +410,27 @@
     .modal-close:hover { color: var(--heading); }
     .modal-body { padding: 1.5rem; }
 
+    /* ── 견적 상세 모달의 「실제 계약 실적」 네 칸 (2026-09-15 대표 지시) ──
+       대표: 「팝업 창을 좀 크게 만들어서 가독성 좋게, 필요 없어 보이는 문구는 간결하게.」
+       🔴 실측(화면 1440×900): 모달은 **720×810**인데 내용이 **1552px**이라 세로로 두 배
+         넘쳐 스크롤해야 했다. 그중 **이 구역 하나가 896px** — 세로의 60%였다.
+         네 칸(항공료·호텔·식비·총 계약가)이 **세로로 쌓여** 있어, 모달만 넓혀서는
+         세로가 1552 → 1513px로 39px밖에 안 줄었다.
+       → 성격이 같은 입력 넷을 **2열로** 묶는다. 넓힌 가로를 실제로 쓰는 자리가 여기다.
+       ⚠ `#emModal` 안으로 좁힌다 — `.modal-box`는 이 화면에서 **모달 11개가 함께 쓴다.**
+       ⚠ 좁은 화면에서는 1열로 돌아간다. 2열을 유지하면 한 칸이 300px대가 되어
+         「저장」 버튼과 입력칸이 줄바꿈으로 흩어진다. */
+    #emModal .em-actual-wrap { margin-top: .9rem; }
+    #emModal .em-actual-lead {
+      font-size: .74rem; color: var(--muted); line-height: 1.7; margin-bottom: .5rem;
+    }
+    #emModal .em-actual-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; align-items: start;
+    }
+    @media (max-width: 900px) {
+      #emModal .em-actual-grid { grid-template-columns: 1fr; }
+    }
+
     /* ── 견적서 업데이트 화면 (RM) ── */
     /* 🔴 10.2px이었다 — 관리자 화면에서 **가장 작은 글자**였다 (YB).
        그런데 이건 장식이 아니라 **길잡이**다(사이드바를 두 묶음으로 가르는 유일한 표시).

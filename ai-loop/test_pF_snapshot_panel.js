@@ -96,7 +96,10 @@ const ok = (name, cond, extra = '') => {
   ok('구버전엔 관광 행 미표시', !/인원 볼륨 할인은 단가에 이미 반영/.test(htmlOld));
   ok('구버전도 항공·호텔 행은 정상 표시', /항공/.test(htmlOld) && /호텔/.test(htmlOld));
   const htmlNoSnap = mkPanel({});
-  ok('스냅샷 자체가 없으면 안내 문구', /계수 기여도 정보가 없습니다/.test(htmlNoSnap));
+  /* ⚠ 2026-09-15에 문구를 줄였다(대표 지시). 지키려는 것은 **「왜 비었는지 말한다」**이지
+     특정 낱말이 아니다 — 경위는 `test_p12_coef_contrib` [2]에 적어 두었다. */
+  ok('스냅샷 자체가 없으면 왜 비었는지 말한다',
+    /없습니다/.test(htmlNoSnap) && /2026-07/.test(htmlNoSnap), htmlNoSnap.slice(0, 140));
 
   console.log('\n[5] 부분 결손 방어 — 필드가 반쪽만 있어도 안 깨짐');
   ok('insuranceInfo가 빈 객체여도 렌더', typeof mkPanel({ ...baseSnap, insuranceInfo: {} }) === 'string');
