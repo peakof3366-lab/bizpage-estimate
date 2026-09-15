@@ -22,6 +22,7 @@
 | `admin.html` | 관리자 화면 — 요율 편집, 문의·견적 관리, 통계, **일정 관리**, 계정 관리 |
 | `admin-quote.html` | 담당자용 내부 견적 산출 도구 |
 | `estimate-view.html` | 고객에게 공유되는 견적서 화면 |
+| `quote_engine_host.js` | **견적 엔진 호스트** — 엔진(`script.js`)이 읽는 입력칸을 코드로 만든다. 화면을 베껴 세 번째 복사본을 만들지 않으려고 생겼다. `mount()`는 `script.js`보다 **먼저**, `ready({…})`는 **뒤에** 부른다 |
 | `quote_doc.js` · `quote_doc.css` | **견적서 공통 모듈** — 견적서·일정표를 그리는 **유일한** 자리. 규격(`blank`)·변환·렌더가 여기 한 곳이다. `_`로 시작하는 키 = 내부 전용(`stripInternal`이 지운다) |
 | `api/` | 서버리스 함수(인증·요율·문의·견적·공유링크·통계) |
 | `ai-loop/` | 검증·감사 도구와 테스트 (런타임 아님, 배포 제외) |
@@ -43,6 +44,7 @@ node ai-loop/audit_consistency.js   # 목적지 목록 교차 정합성 (오류 
 node ai-loop/audit_rates.js         # 요율 '값' 점검 — 결과는 '확인 대상'이지 '오류'가 아니다
 node ai-loop/audit_season_match.js  # 적어 둔 현지 시즌 vs 금액에 쓰는 시즌표 — 뒤집힌 곳을 센다
 node ai-loop/audit_calendar_stack.js # 월 시즌 × 날짜 피크가 겹쳐 몇 배까지 붙는지 — 시즌표를 고칠 때 함께 볼 것
+node ai-loop/audit_hotel_grade.js   # 등급을 올렸는데 총액이 내려가는 자리 — 마진 밴드 계단 (대기열 0-af)
 node ai-loop/audit_internals.js     # 안쪽 세기 (XQ) — 아무도 안 부르는 파일 · 함수 수 vs 12개 한도 ·
                                     #   두 번 적힌 목록 · 큰 파일. **오류가 아니라 사람이 볼 목록**이다
 node ai-loop/probe_admin_size.js    # admin.html 안에 무엇이 들어 있나 (XR) — --all로 전부
