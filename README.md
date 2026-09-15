@@ -46,6 +46,8 @@ node ai-loop/audit_rates.js         # 요율 '값' 점검 — 결과는 '확인 
 node ai-loop/audit_season_match.js  # 적어 둔 현지 시즌 vs 금액에 쓰는 시즌표 — 뒤집힌 곳을 센다
 node ai-loop/audit_calendar_stack.js # 월 시즌 × 날짜 피크가 겹쳐 몇 배까지 붙는지 — 시즌표를 고칠 때 함께 볼 것
 node ai-loop/audit_hotel_grade.js   # 등급을 올렸는데 총액이 내려가는 자리 — 마진 밴드 계단 (대기열 0-af)
+node ai-loop/audit_amount_drift.js  # 🔴 **옛 커밋의 코드로 직접 돌려** 고객 금액이 움직였는지 대조 — 스냅샷을 못 믿을 때
+node ai-loop/db_migrate_adhoc.js    # 직접견적 → quotes 이관 (기본 dry-run · `--apply`는 스냅샷 먼저)
 node ai-loop/audit_internals.js     # 안쪽 세기 (XQ) — 아무도 안 부르는 파일 · 함수 수 vs 12개 한도 ·
                                     #   두 번 적힌 목록 · 큰 파일. **오류가 아니라 사람이 볼 목록**이다
 node ai-loop/probe_admin_size.js    # admin.html 안에 무엇이 들어 있나 (XR) — --all로 전부
