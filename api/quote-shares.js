@@ -6,6 +6,10 @@ const { verifyQuote } = require('./_lib/quote_verify');
 const PKG = require('./_lib/packages');
 /* 견적번호의 형식과 발급은 **`_lib/quote_no.js` 하나가 진실**이다(WB). */
 const QNO = require('./_lib/quote_no');
+/* 🔴 **내부 전용 필드를 지우는 규칙은 `quote_doc.js` 하나가 진실이다** (2026-09-15).
+   여기에 「`_`로 시작하면 지운다」를 다시 적으면 두 벌이 되고, 한쪽만 고쳐지는
+   순간 원가·마진이 고객에게 나간다(결함 생성기 ①). 같은 함수를 부른다. */
+const QDOC = require('../quote_doc.js');
 
 /* 고객용 견적서 공유 링크(estimate-view.html?id=) 저장소.
 
@@ -544,6 +548,19 @@ module.exports = async (req, res) => {
   try { quoteNo = await QNO.nextQuoteNo(sql); }
   catch (err) { console.error('[quote-shares] 견적번호 발급 실패:', err); return res.status(503).json({ error: 'quote_no_failed' }); }
 
+  /* 문서를 고객용으로 깎는다. 🔴 **받은 것을 그대로 싣지 않는다.** */
+  let docForShare = null;
+  if (quote && quote.doc && typeof quote.doc === 'object') {
+    docForShare = QDOC.stripInternal(quote.doc);
+    /* 지웠는데도 남아 있으면 **발급하지 않는다.** 「지웠겠지」로 넘어가면 그 한 건이
+       고객에게 원가를 보여 준다. 규칙이 깨진 것이므로 조용히 통과시키지 않는다. */
+    const leaks = QDOC.findInternalKeys(docForShare);
+    if (leaks.length) {
+      console.error('[quote-shares] 내부 필드가 남았다 — 발급 중단:', leaks.join(', '));
+      return res.status(500).json({ error: 'internal_field_leak' });
+    }
+  }
+
   try {
     await sql`
       insert into quote_shares (id, payload, quote_no, issued_by, customer_label, customer_tel, quote_id, revision_of)
@@ -553,6 +570,17 @@ module.exports = async (req, res) => {
            없으면 서버가 KST로 채운다 — 없는 채로 두면 만료 계산이 조용히 무력해진다. */
         iso: share.iso || QNO.kstToday(),
         qno: quoteNo,
+        /* 🔴 **새 규격 견적서 문서**(2026-09-15, 개편 요구 5).
+           `quotes.payload.doc`에 저장된 문서를 고객 링크에 함께 싣는다.
+           `estimate-view.html`이 이게 있으면 견적서·일정표 두 탭으로 그린다.
+
+         🔴🔴 **`stripInternal`은 여기(서버)에서 한다.** 화면이 이미 지우고 보내지만,
+           그건 방어선이 아니다 — 이 엔드포인트는 본문을 그대로 받는다. 원가·마진·
+           내부 메모가 든 문서를 통째로 보내는 요청이 와도 **여기서 걸러진다.**
+           `quote_shares.payload`는 링크를 아는 누구나 읽는다(인증이 없다).
+         ⚠ 문서가 없으면 칸 자체를 안 만든다 — `undefined`를 넣으면 JSON에서 사라지지만
+           명시적으로 갈라 두는 편이 읽기 쉽다. */
+        ...(docForShare ? { doc: docForShare } : {}),
         _verify: {
           verdict: result.verdict,
           failedSteps: result.failedSteps,

@@ -21,6 +21,12 @@
 <meta name="twitter:card" content="summary" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<!-- 🔴 **견적서를 그리는 곳은 `quote_doc.js` 하나다** (2026-09-15, 개편 요구 5).
+     새 규격(`payload.doc`)으로 발급된 견적서는 이 모듈이 그린다. 옛 규격(v1)은
+     아래 `renderPage`가 그대로 그린다 — **이미 고객 손에 나간 링크가 있어** v1을
+     없앨 수 없다. 두 경로가 공존하는 것은 의도된 것이고, 갈림은 `d.doc` 하나다. -->
+<link rel="stylesheet" href="quote_doc.css" />
+<script src="quote_doc.js"></script>
 <script src="company-info.js"></script>
 <!-- 표를 파일로 내려주는 자 (XK) — 엑셀이 없으면 CSV로 떨어진다. **우리 파일이라
      늘 있다**: 아래 CDN이 막혀도 「엑셀」 버튼이 빈손으로 끝나지 않는 근거다. -->
@@ -361,6 +367,31 @@ a { color: inherit; text-decoration: none; }
   .cta-btn { padding: 18px 10px; font-size: 12.5px; gap: 6px; }
   .day-tabs-wrap { padding: 8px 20px 22px; }
 }
+
+/* ══ 새 규격 견적서의 탭 (2026-09-15) ══
+   대표 결정: 일정표를 **같은 링크의 다른 탭**으로 낸다.
+   ⚠ 누를 것은 44px 이상(CLAUDE.md YA) · 인쇄에는 안 나간다(`no-print`). */
+.qdv-tabs { display: flex; gap: 0; margin: 0 auto 0; max-width: 900px; }
+.qdv-tab {
+  min-height: 46px; padding: 0 22px; border: 1px solid #DCDCD8; border-bottom: none;
+  background: #EFEFEC; color: #5B5B5B; font-family: inherit; font-size: 14px;
+  font-weight: 700; cursor: pointer; border-radius: 0;
+}
+.qdv-tab[aria-selected="true"] { background: #111111; color: #FFFFFF; border-color: #111111; }
+.qdv-panel { background: #FFFFFF; border: 1px solid #DCDCD8; }
+.qdv-note { max-width: 900px; margin: 10px auto 0; font-size: 12.5px; color: #5B5B5B; }
+/* 🔴 **`hidden` 속성만으로는 안 감춰진다.** `.btn-print`가 `display`를 지정하고
+   있어서 브라우저 기본 `[hidden]{display:none}`을 **이긴다** — 엑셀 버튼을
+   `hidden`으로 내렸는데 그대로 보였다(브라우저로 재고 알았다). 못 박는다. */
+.top-bar-btns [hidden] { display: none !important; }
+@media (max-width: 560px) { .qdv-tab { padding: 0 14px; font-size: 13px; } }
+@media print {
+  /* 🔴 **보고 있는 탭만 인쇄된다.** `[hidden]`은 브라우저 기본 스타일이 감추지만,
+     인쇄 시트에서 확실히 못 박는다 — 두 문서가 한 번에 나오면 고객은 무엇을 받은
+     건지 모른다(대표가 「각각」이라고 정한 이유다). */
+  .qdv-panel[hidden] { display: none !important; }
+  .qdv-panel { border: none; }
+}
 </style>
 </head>
 <body>
@@ -550,12 +581,86 @@ function leftFrom(until) {
   return { expires: until, daysLeft, expired };
 }
 
+/* 🔴 **탭 제목을 정하는 곳은 여기 하나다.**
+   탭 제목을 넣는 줄이 두 곳이 되자마자 `test_wO` ⑤가 잡았다 — 그 검사가 지키는 규칙이
+   바로 「같은 값을 두 곳에서 정하면 반드시 어긋난다」(결함 생성기 ①)이고, 나는 새 규격을
+   넣으면서 그 자리를 하나 더 만들었다. 그래서 **부르는 곳은 늘리되 정하는 곳은 하나**로
+   되돌렸다.
+ ⚠ 고객사명·금액은 넣지 않는다 — 탭 제목은 화면 공유·스크린샷에 그대로 남는다.
+   (옛 규격은 목적지만, 새 규격은 문서 제목 — 둘 다 고객사명이 들어갈 수 있는데,
+    새 규격의 제목은 **문서 첫 줄에 이미 크게 박혀 있는 값**이라 새로 드러나는 것이 없다.) */
+function setDocTitle(d, which) {
+  /* ⚠ **넣는 줄은 맨 아래 하나다.** 분기마다 따로 넣으면 「정하는 곳이
+     하나」라는 규칙이 깨진다. 값을 먼저 만들고
+     ⚠ 그 검사는 **주석 속 글자까지 센다** — 여기 그 대입문을 예로 적으면 또 걸린다.
+     마지막에 한 번 넣는다. */
+  const isDoc = d && d.doc && typeof QuoteDoc !== 'undefined';
+  const name = isDoc
+    ? (QuoteDoc.normalize(d.doc).meta.title || '견적서') + (which === 'iti' ? ' · 일정표' : '')
+    : `${d.dt} ${d.pkg ? '여행' : '연수'} 견적서`;
+  document.title = name + ' · 비즈페이지';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   새 규격 견적서 — **견적서 탭 / 일정표 탭**
+   ───────────────────────────────────────────────────────────────────────────
+   대표 결정(2026-09-15): 일정표를 **같은 링크의 다른 탭**으로 낸다.
+   링크를 둘 발급하면 관리·대장이 두 배가 되고, 고객도 어느 것을 봐야 할지 모른다.
+
+   🔴 **그리는 일은 `quote_doc.js`가 한다.** 여기서 표를 다시 그리지 않는다 —
+     그러면 견적서가 또 한 벌이 되고, 이 저장소가 네 번 당한 그 자리로 돌아간다.
+   ⚠ 인쇄는 **보고 있는 탭만** 나간다. 두 문서가 한 번에 인쇄되면 고객은 무엇을
+     받은 건지 모른다(대표가 「각각」이라고 정한 이유다).
+   ⚠ 내부 필드는 여기까지 오지 않는다 — 발급 시점에 `stripInternal`을 지나므로
+     `payload.doc`에는 애초에 없다. 그래도 **한 번 더 지우고 그린다**(이중 방어):
+     발급 경로가 하나 늘었을 때 조용히 새는 것을 막는다. */
+function renderDocPage(d, validityBanner) {
+  /* ⚠ **순서가 중요하다** — `normalize`가 먼저다. 제목(`meta.title`)·합계·한글 금액이
+     거기서 만들어지기 때문이다. 처음엔 `stripInternal`만 걸었더니 브라우저 탭 이름이
+     그냥 「견적서」로 나왔다(거래처·지역이 빠졌다).
+     ⚠ `normalize`가 빈 `_internal`을 도로 채우므로 **그 뒤에 지운다.** */
+  const doc = QuoteDoc.stripInternal(QuoteDoc.normalize(d.doc));
+  const hasIti = Array.isArray(doc.itinerary) && doc.itinerary.length > 0;
+  const company = window.COMPANY_INFO || {};
+
+  document.getElementById('main-content').innerHTML = `
+    ${validityBanner}
+    <div class="qdv-tabs no-print" role="tablist" aria-label="문서 종류">
+      <button type="button" class="qdv-tab" id="qdvTabQuote" role="tab" aria-selected="true">견적서</button>
+      ${hasIti ? '<button type="button" class="qdv-tab" id="qdvTabIti" role="tab" aria-selected="false">일정표</button>' : ''}
+    </div>
+    <div class="qdv-panel" id="qdvQuote">${QuoteDoc.renderQuote(doc, { company })}</div>
+    ${hasIti ? `<div class="qdv-panel" id="qdvIti" hidden>${QuoteDoc.renderItinerary(doc, { company })}</div>` : ''}
+    ${hasIti ? '' : `<p class="qdv-note no-print">일정표는 아직 준비 중입니다. 담당자에게 문의해 주세요.</p>`}
+  `;
+
+  const tq = document.getElementById('qdvTabQuote');
+  const ti = document.getElementById('qdvTabIti');
+  const pq = document.getElementById('qdvQuote');
+  const pi = document.getElementById('qdvIti');
+  function show(which) {
+    const q = which === 'quote';
+    /* ⚠ `hidden` 속성으로 가른다 — `display:none`을 인라인으로 박으면 인쇄 규칙이
+       그것을 못 이긴다. */
+    if (pq) pq.hidden = !q;
+    if (pi) pi.hidden = q;
+    if (tq) tq.setAttribute('aria-selected', q ? 'true' : 'false');
+    if (ti) ti.setAttribute('aria-selected', q ? 'false' : 'true');
+    /* 인쇄 제목도 함께 바뀐다 — 받은 PDF 파일 이름이 그 제목이 된다.
+       ⚠ **정하는 곳은 `setDocTitle` 하나다**(위 주석 참조). 여기서 다시 조립하지 않는다. */
+    setDocTitle(d, q ? 'quote' : 'iti');
+  }
+  if (tq) tq.addEventListener('click', () => show('quote'));
+  if (ti) ti.addEventListener('click', () => show('iti'));
+  show('quote');
+}
+
 function renderPage(d) {
   /* 탭 제목·인쇄물 머리글·즐겨찾기 이름이 되는 자리. **여기 한 곳뿐이다** —
      WO에서 아래(히어로 제목 옆)에 한 줄 더 썼다가 지웠다. 같은 값을 두 곳에서
      정하면 반드시 어긋난다(결함 생성기 ①). 히어로와 같은 규칙으로 갈린다.
      ⚠ 고객사명·금액은 넣지 않는다 — 탭 제목은 화면 공유·스크린샷에 그대로 남는다. */
-  document.title = `${d.dt} ${d.pkg ? '여행' : '연수'} 견적서 · 비즈페이지`;
+  setDocTitle(d, 'quote');
 
   /* ── 히어로 ── */
   if (d.cover) {
@@ -580,7 +685,20 @@ function renderPage(d) {
       ? '본 견적서의 유효기간은 위에 적힌 상품 유효기간을 따릅니다. 출발일·좌석 상황에 따라 조기 마감될 수 있습니다.'
       : '본 견적서의 유효기간은 담당자에게 확인해 주세요. 출발일·좌석 상황에 따라 조기 마감될 수 있습니다.';
   }
-  document.getElementById('hero-sub').textContent = d.ptx + ' · ' + d.n + '명 · ' + (d.ng ? d.ng + '박 ' : '') + d.d + '일';
+  /* ⚠ 새 규격(v2)에는 `ptx`(프로그램 유형)가 없다 — 그 칸이 **문서에서 사라졌기** 때문이다.
+     그대로 두면 히어로에 **「undefined · 30명 · 4박 5일」**이 찍힌다(브라우저로 보고 찾았다).
+     v2는 문서가 가진 값으로 채운다. */
+  (function heroSub() {
+    const el = document.getElementById('hero-sub');
+    if (!el) return;
+    if (d.doc && typeof QuoteDoc !== 'undefined') {
+      const t = QuoteDoc.normalize(d.doc).trip;
+      el.textContent = [t.orgName || d.org, (t.pax || 0) + '명', t.durationLabel]
+        .filter(Boolean).join(' · ');
+      return;
+    }
+    el.textContent = d.ptx + ' · ' + d.n + '명 · ' + (d.ng ? d.ng + '박 ' : '') + d.d + '일';
+  })();
 
   /* ── 유효기간 ── */
   const validity = calcValidity(
@@ -790,6 +908,15 @@ function renderPage(d) {
   const reqHtml = d.req ? `
     <div class="sec-title">특이사항 / 요청사항</div>
     <div class="req-box">${esc(d.req).replace(/\n/g, '<br>')}</div>` : '';
+
+  /* ══ 🔴 새 규격(v2) — `payload.doc`이 있으면 공통 모듈이 그린다 ═══════════
+     대표 결정(2026-09-15): 「견적서 이외에 일정표가 마찬가지로 생성되어야 한다」 +
+     「같은 링크의 다른 탭」. → 링크 하나에 **탭 둘**을 둔다. 고객은 링크 하나만 받는다.
+     ⚠ 옛 규격은 아래를 그대로 탄다 — 여기서 갈리고, 아래 코드는 한 줄도 안 바꿨다. */
+  if (d.doc && typeof QuoteDoc !== 'undefined') {
+    renderDocPage(d, validityBanner);
+    return;
+  }
 
   /* ── 전체 HTML ── */
   document.getElementById('main-content').innerHTML = `
@@ -1059,6 +1186,17 @@ function renderPage(d) {
        것이 XU의 결정이므로, 그때도 인쇄·엑셀은 그대로 쓸 수 있어야 한다. */
   const acts = document.getElementById('doc-actions');
   if (acts) acts.hidden = false;
+  /* 🔴 **새 규격(v2) 견적서에서는 엑셀 버튼을 감춘다.**
+     `downloadEstimateExcelShared()`는 옛 규격의 `rows`(항목·금액 배열)를 읽는데,
+     v2 문서에는 그 칸이 없다 — 누르면 **항목이 하나도 없는 파일**이 내려간다.
+     빈 파일을 받은 고객은 우리 견적서를 못 믿게 된다. 조용히 실패하게 두지 않고
+     **버튼 자체를 안 보여 준다**(결함 생성기 ②).
+   ⚠ 옛 링크(v1)는 그대로다 — 이미 고객 손에 나가 있고 그쪽 엑셀은 정상이다.
+   ⚠ 되살리려면 v2용 엑셀을 `quote_doc.js`에 만들어야 한다. 그건 별도 건이다. */
+  if (r.data && r.data.doc) {
+    const xls = document.getElementById('downloadExcelBtn');
+    if (xls) xls.hidden = true;
+  }
 })();
 
 /* 엑셀 견적서 다운로드 (신규 — 되돌리려면 이 함수와 위 _quoteData 변수,
