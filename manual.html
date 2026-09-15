@@ -244,7 +244,8 @@
         <li><a href="#flow">하루 흐름 한눈에</a></li>
         <li><a href="#inquiries">문의 관리</a></li>
         <li><a href="#estmgr">견적 요청 관리</a></li>
-        <li><a href="#quotetool">자동 견적 산출</a></li>
+        <li><a href="#quotetool">자동 견적 산출 (고객용)</a></li>
+        <li><a href="#quotepro">자동 견적 산출 (내부직원용)</a></li>
         <li><a href="#itinerary">일정·방식 비교</a></li>
         <li><a href="#packages">패키지 상품</a></li>
         <li><a href="#adhoc">직접 견적 작성</a></li>
@@ -340,7 +341,8 @@
             <tr><td class="field">대시보드</td><td>오늘 들어온 문의·견적 요약</td><td>들어올 때마다</td></tr>
             <tr><td class="field">문의 관리</td><td>홈페이지 문의 폼으로 들어온 건 처리</td><td>매일</td></tr>
             <tr><td class="field">견적 요청 관리</td><td>고객이 직접 뽑은 견적 건 처리 · 견적서 링크 발급</td><td>매일</td></tr>
-            <tr><td class="field">자동 견적 산출</td><td>담당자가 직접 조건을 넣어 견적서를 뽑는 도구</td><td>상담할 때</td></tr>
+            <tr><td class="field">자동 견적 산출 (고객용)</td><td>담당자가 조건을 넣어 <b>고객이 받는 그대로</b>의 견적서를 뽑는 도구</td><td>상담할 때</td></tr>
+            <tr><td class="field">자동 견적 산출 (내부직원용)</td><td>같은 금액을 뽑되 <b>원가·마진이 함께 보이고</b> 항목별로 고칠 수 있는 도구</td><td>금액을 조정해야 할 때</td></tr>
             <tr><td class="field">견적서 대장</td><td>우리가 <strong>발급한 견적서 전부</strong> — 번호·고객·목적지·담당자로 찾습니다. <strong>담당자가 휴가여도 응대</strong>할 수 있는 자리</td><td>문의 올 때마다</td></tr>
             <tr><td class="field">패키지 상품</td><td>이미 값이 정해진 여행 상품 — 「판매중」으로 열면 <strong>고객 화면(패키지 여행)에 나갑니다.</strong> <strong>요율·마진이 안 붙습니다</strong>(넣은 금액이 그대로 고객가)</td><td>상품이 생길 때마다</td></tr>
             <tr><td class="field">직접 견적 작성</td><td><strong>담당자가 금액을 직접 적어</strong> 내는 1회용 견적 — 자동 계산(견적 엔진)을 쓰지 않습니다. 고객 목록에 안 나가고 <strong>견적서 링크로만</strong> 나갑니다. 만들기는 <strong>매니저 이상</strong></td><td>엔진을 안 쓰고 직접 낼 때</td></tr>
@@ -366,7 +368,7 @@
         <li><b>들어온 것을 확인한다</b><span>대시보드 → 문의 관리 <span class="tag bad">신규</span> · 견적 요청 관리 <span class="tag bad">신규</span></span></li>
         <li><b>내가 맡을 건에 담당자를 건다</b><span>상세를 열고 담당자를 나로 지정 — 안 걸면 아무도 자기 일로 보지 않습니다</span></li>
         <li><b>고객과 상담하고 기록을 남긴다</b><span>상태를 <strong>상담중</strong>으로, 오간 내용은 상담 메모와 진행 기록에</span></li>
-        <li><b>견적서를 만들어 보낸다</b><span>고객이 뽑은 건이면 견적 요청 관리에서 링크 발급 / 새로 뽑아야 하면 자동 견적 산출</span></li>
+        <li><b>견적서를 만들어 보낸다</b><span>고객이 뽑은 건이면 견적 요청 관리에서 링크 발급 / 새로 뽑아야 하면 자동 견적 산출 (고객용)</span></li>
         <li><b>계약되면 결과를 남긴다</b><span>상태를 <strong>계약완료</strong>로, 실제 계약 금액을 입력 — 이게 다음 견적의 정확도가 됩니다</span></li>
       </ol>
       <div class="note">
@@ -579,14 +581,15 @@
     </section>
 
     <section id="quotetool">
-      <h2>5. 자동 견적 산출</h2>
+      <h2>5. 자동 견적 산출 (고객용)</h2>
       <p>
         고객이 직접 뽑은 게 아니라 <strong>담당자가 조건을 넣어 견적을 만드는</strong> 도구입니다.
         전화 상담 중에 바로 뽑아 보낼 때 씁니다. 단계를 따라가며 목적지·인원·일정·좌석 등을 고르면 됩니다.
       </p>
       <ul class="plain">
         <li><strong>고객사·담당자 이름·요청 내용</strong>을 채워야 견적서에 제대로 찍힙니다.</li>
-        <li>마지막 단계에서 <strong>견적서(PDF)와 엑셀</strong>을 바로 내려받아 전달할 수 있습니다.</li>
+        <li>마지막 단계에서 <strong>견적서(PDF)</strong>를 바로 내려받아 전달할 수 있습니다.
+            <em>(엑셀 내려받기는 2026-09-15에 없앴습니다 — 쓰는 사람이 없었습니다.)</em></li>
         <li>중간에 <strong>금액만 계산해 보는 버튼</strong>은 아무것도 저장하지 않습니다. 견적 기록이 쌓이지 않으니 마음껏 눌러 보세요.</li>
         <li>조건을 바꾸러 앞 단계로 돌아가도 <strong>입력한 값은 지워지지 않습니다.</strong></li>
       </ul>
@@ -648,6 +651,52 @@
           일정 칸이 그 사실을 먼저 알려 줍니다. 안내대로 조치한 뒤 다시 눌러 주세요.
         </p>
       </div>
+    </section>
+
+    <section id="quotepro">
+      <h2>5-2. 자동 견적 산출 (내부직원용)</h2>
+      <p>
+        <strong>같은 엔진으로 같은 금액</strong>을 뽑습니다. 다른 점은 딱 둘입니다 —
+        <strong>원가와 마진이 보이고</strong>, <strong>항목별 금액을 직접 고칠 수 있습니다.</strong>
+        고객에게 보낼 금액을 조정해야 할 때 이 화면을 씁니다.
+      </p>
+      <div class="warn">
+        <span class="label">🔴 이 화면에는 원가와 마진이 보입니다</span>
+        <p>
+          <strong>고객에게 나가는 견적서에는 실리지 않습니다.</strong> 미리보기에 보이는 문서가
+          곧 고객이 받는 문서이고, 원가·마진·내부 메모는 거기서 <strong>빠진 뒤에</strong> 그려집니다.
+          다만 <strong>화면 자체를 고객에게 보여 주지는 마세요</strong> — 옆에서 보면 그대로 보입니다.
+        </p>
+      </div>
+      <ul class="plain">
+        <li><b>① 여행 조건</b>을 넣고 <strong>「자동 산출하기」</strong>를 누릅니다. 여기까지는 고객 화면과 똑같습니다.</li>
+        <li><b>② 금액</b>에서 항목별 <strong>「적용값」</strong>을 고치면 <strong>「수정됨」</strong> 표시와
+          <strong>자동값 대비 증감</strong>이 붙습니다. <strong>「되돌리기」</strong>로 언제든 자동값으로 돌아갑니다.</li>
+        <li><b>실무 변수</b>(FOC·싱글 차지·항공 BD·지상비·인솔자 비용)는 <strong>제안값을 채워 둔 것</strong>입니다.
+          실제 조건은 담당자가 아는 값이 맞으니 <strong>고쳐 쓰세요.</strong></li>
+        <li><b>③ 견적서 내용</b>에서 <strong>담당자 이름·연락처·메일</strong>을 적습니다.
+          <strong>비어 있으면 견적서에 「미입력」이 빨갛게 찍힙니다</strong> — 그대로 내보내지 마세요.</li>
+        <li><b>④ 일정</b>에 적은 내용이 <strong>견적서 링크의 일정표 탭</strong>에 그대로 나갑니다.
+          <strong>같은 일정을 두 번 적지 않습니다.</strong></li>
+        <li><b>⑤ 미리보기</b>가 <strong>고객이 받는 그대로</strong>입니다. 여기서 인쇄(PDF)하거나 저장합니다.</li>
+      </ul>
+
+      <h3>금액이 어떻게 맞춰지나</h3>
+      <ul class="plain">
+        <li><strong>조정액은 마진에서 나갑니다.</strong> 원가는 그대로입니다 — 공급사에 줄 돈은 안 변하니까요.</li>
+        <li><strong>마진율이 5% 아래로 내려가면 화면이 알려 줍니다.</strong> 마이너스가 되면 빨갛게 경고합니다.</li>
+        <li><strong>「계수 반올림 조정」</strong>이라는 줄이 보일 수 있습니다. 엔진이 마지막에 계수를 한 번 곱하면서
+          생기는 몇 원짜리 차이입니다 — <strong>고칠 수 없고, 고칠 필요도 없습니다.</strong></li>
+        <li><strong>10+1 조건은 표기 단가에 반영됩니다.</strong> 무료 인원을 넣으면 총액이 그만큼 줄고,
+          단가는 <strong>전체 인원</strong>으로 나눈 값이 됩니다(총액 = 단가 × 전체 인원).</li>
+      </ul>
+
+      <h3>저장하면 어떻게 되나</h3>
+      <p>
+        <strong>「견적 저장하기」</strong>를 누르면 <strong>견적 요청 관리</strong> 목록에 올라갑니다.
+        거기서 이 건을 열어 <strong>견적서 링크를 발급</strong>하면 고객에게 보낼 수 있습니다.
+        저장에 실패하면 <strong>그 자리에서 알려 드립니다</strong> — 조용히 넘어가지 않습니다.
+      </p>
     </section>
 
     <section id="itinerary">
@@ -1842,7 +1891,8 @@
             <tr><td>문의 · 견적 건 처리 (상태 · 담당자 · 메모 · 진행 기록)</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>견적서 링크 발급</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>실제 계약 금액 입력</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
-            <tr><td>자동 견적 산출</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
+            <tr><td>자동 견적 산출 (고객용)</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
+            <tr><td>자동 견적 산출 (내부직원용) — <b>원가·마진이 보입니다</b></td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>일정·방식 비교 편집 (두 구역 모두)</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>목적지 단가 개별 수정 · 변경 이력 되돌리기</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>문의 · 견적 <strong>삭제</strong></td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>

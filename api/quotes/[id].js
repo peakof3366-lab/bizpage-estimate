@@ -59,6 +59,41 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true });
       }
 
+      /* 🔴 **견적서 문서 저장** (2026-09-15, 견적산출 3분류 개편 요구 5).
+         `quote_doc.js`가 정한 규격의 문서 1건을 견적에 붙인다. 내부직원용 화면과
+         직접견적 화면이 **같은 규격**을 여기로 보낸다(대표 지시: 결과 데이터 규격 동일).
+
+         ⚠ 위 actual*·itinerary 분기와 같은 이유로 일반 저장과 분리한다 — 아래 일반
+           저장은 status/note/assignee 세 필드를 무조건 덮어쓰므로, 같이 묶으면 실수로
+           문서를 통째로 날린다.
+         ⚠ **payload 안에 넣는다**(별도 컬럼이 아니다). 컬럼을 늘리면 마이그레이션이
+           배포보다 먼저 돌아야 하고, 순서가 뒤바뀌면 그 기능이 500으로 깨진다.
+           `payload`는 이미 jsonb라 추가 비용이 없다.
+         🔴 **여기 담기는 것은 내부본이다** — 원가·마진·내부 메모가 들어 있다.
+           `quotes`는 로그인한 직원만 읽는다(이 파일 첫 줄 `requireAdmin`).
+           고객에게 나가는 `quote_shares.payload`에는 **`stripInternal`을 통과한 것만**
+           싣는다 — 그 경계가 이 시스템의 유일한 마진 방어선이다. */
+      if (body.doc) {
+        const doc = body.doc;
+        if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
+          return res.status(400).json({ error: 'invalid_doc' });
+        }
+        /* 조용히 잘라내지 않는다 — 이유를 돌려준다. 잘라내면 작성자는 저장됐다고 믿고
+           고객에게는 반쪽 견적서가 나간다(itinerary 분기와 같은 원칙). */
+        const size = JSON.stringify(doc).length;
+        if (size > 400000) {
+          return res.status(413).json({ error: 'doc_too_large', message: '견적서 문서가 너무 큽니다 (' + size + '바이트). 일정·상세 내용을 줄여 주세요.' });
+        }
+        const hit = await sql`select 1 from quotes where id = ${id}`;
+        if (!hit.length) return res.status(404).json({ error: 'quote_not_found' });
+        await sql`
+          update quotes
+             set payload = payload || ${JSON.stringify({ doc, docAt: new Date().toISOString() })}::jsonb
+           where id = ${id}
+        `;
+        return res.status(200).json({ ok: true, bytes: size });
+      }
+
       /* UI: 이 견적서 전용 일정 저장 — 작성자가 마지막에 확인·수정한 그 일정.
          위 actual* 분기와 같은 이유로 일반 저장과 분리한다(아래는 세 필드를 무조건
          덮어쓰므로 같이 묶으면 실수로 일정을 null로 되돌린다).

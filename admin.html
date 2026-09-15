@@ -198,7 +198,15 @@
           </button>
           <div class="sb-group-items" id="sbg-calc">
             <button class="sidebar-item" data-tab="quotetool">
-              <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">자동 견적 산출</span>
+              <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">자동 견적 산출 (고객용)</span>
+            </button>
+            <!-- ⚠ 2026-09-15 대표 지시로 **셋으로 갈랐다.** 「(고객용)은 기존 문구 뒤에
+                 (고객용)이라고 붙여 주기만 하면 된다」 — 화면·로직·산출 결과는 그대로다.
+                 🔴 **데이터 이름은 안 바꿨다** — 탭 id·해시·검사가 전부 `quotetool`이다.
+                   화면 이름과 데이터 이름은 같을 이유가 없고, 바꾸면 F5 복원 해시
+                   (`#tab=quotetool`)가 든 북마크가 전부 깨진다. -->
+            <button class="sidebar-item" data-tab="quotepro">
+              <span class="si-icon"><i data-lucide="sliders-horizontal"></i></span><span class="si-label">자동 견적 산출 (내부직원용)</span>
             </button>
             <button class="sidebar-item" data-tab="adhoc" id="navAdhoc">
               <span class="si-icon"><i data-lucide="user-round-pen"></i></span><span class="si-label">직접 견적 작성</span>
@@ -1136,6 +1144,23 @@
       <div class="card" style="padding:0;overflow:hidden">
         <iframe id="quoteToolFrame" title="내부 견적 산출"
           style="width:100%;height:calc(100vh - 150px);border:none;display:block;background:#fff"></iframe>
+      </div>
+    </div>
+
+    <!-- ── 자동 견적 산출 (내부직원용) ── 2026-09-15 신설.
+         🔴 **`admin.html`에 화면을 넣지 않았다** (대표 지시 제약 6: 「admin.html처럼 이미
+           비대해진 파일에 신규 화면을 추가하지 않는다」). 별도 파일을 iframe으로 띄운다 —
+           `quotetool`이 `admin-quote.html`을 띄우는 것과 같은 방식이다.
+         ⚠ 원가·마진이 보이는 화면이지만 **역할로 막지 않는다** (2026-09-15 대표 확인:
+           「내부 직원은 모두 봐도 괜찮아」). 로그인은 그 안의 authGate가 확인한다. -->
+    <div class="tab-panel" id="tab-quotepro">
+      <div class="page-head">
+        <h1 class="page-title">자동 견적 산출 (내부직원용)</h1>
+        <p class="page-sub">고객용과 같은 엔진으로 계산한 뒤 항목별 금액과 실무 변수를 직접 조정합니다. 원가·마진이 함께 보입니다.</p>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <iframe id="quoteProFrame" title="자동 견적 산출 (내부직원용)"
+          style="width:100%;height:calc(100vh - 180px);border:none;display:block;background:#fff"></iframe>
       </div>
     </div>
 
@@ -3742,7 +3767,7 @@
     dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 요청 관리',
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', pricereport:'견적서 업데이트',
-    rates:'요율 관리', quotetool:'자동 견적 산출',
+    rates:'요율 관리', quotetool:'자동 견적 산출 (고객용)', quotepro:'자동 견적 산출 (내부직원용)',
     itineraries:'일정·방식 비교', packages:'패키지 상품', adhoc:'직접 견적 작성',
     ledger:'견적서 대장', content:'콘텐츠 관리',
     manual:'매뉴얼', settings:'설정'
@@ -3881,6 +3906,7 @@
     else if (name==='pricereport') renderPriceReportTab();
     else if (name==='rates') { renderRates(); refreshRatesOnOpen(); }
     else if (name==='quotetool') renderQuoteTool();
+    else if (name==='quotepro') renderQuotePro();
     else if (name==='manual') renderManual();
     else if (name==='itineraries') renderItineraries();
     /* 두 탭이 **같은 자료**(packages)를 본다 — kind로만 갈린다. 불러오는 함수는 하나다
@@ -3895,6 +3921,12 @@
   function renderQuoteTool() {
     const frame = document.getElementById('quoteToolFrame');
     if (frame && !frame.src) frame.src = 'admin-quote.html';
+  }
+
+  /* 내부직원용도 같은 방식 — 처음 열 때 한 번만 src를 지정한다 */
+  function renderQuotePro() {
+    const frame = document.getElementById('quoteProFrame');
+    if (frame && !frame.src) frame.src = 'admin-quote-pro.html';
   }
 
   function renderManual() {

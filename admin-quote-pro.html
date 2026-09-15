@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>자동 견적 산출 (내부직원용) — 비즈페이지 Admin</title>
+<!-- 🔴 검색엔진에 실리지 않는다 — 원가·마진이 보이는 내부 화면이다. -->
+<meta name="robots" content="noindex, nofollow" />
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css" />
+<!-- 견적서를 그리는 곳은 `quote_doc.js` 하나다. 이 화면은 **데이터만 넘긴다.** -->
+<link rel="stylesheet" href="quote_doc.css" />
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   자동 견적 산출 (내부직원용)
+   ───────────────────────────────────────────────────────────────────────────
+   2026-09-15 대표 지시(견적산출 3분류 개편, 요구 3).
+
+   ■ 고객용과 무엇이 다른가 — **노출 범위와 수정 권한** 둘뿐이다
+   · 원가·마진·항목별 단가를 **전부 보여준다**(대표 확인: 내부 직원은 모두 봐도 된다)
+   · 자동 산출값을 기준으로 채우고, 직원이 **항목별로 덮어쓸 수 있다**
+   · 덮어쓴 항목에는 「수정됨」 배지와 **자동값 대비 증감**이 붙는다
+
+   ■ 🔴 금액 계산은 **엔진을 그대로 쓴다**
+   대표 지시 제약 6: 「고객용 자동견적 산출 결과는 불변이어야 한다.」
+   이 화면은 `QuoteEngineHost.compute()`로 **고객과 똑같은 금액**을 받은 뒤,
+   그 **위에** 조정을 얹는다. 엔진 안으로는 한 줄도 안 들어간다.
+   `ai-loop/test_zP_engine_host.js`가 두 금액이 한 원까지 같은지 대조한다.
+
+   ■ 🔴 저장은 **기존 경로를 그대로 탄다**
+   `script.js`의 폼 제출 처리가 58개 키짜리 견적 기록을 만들어 `?action=internal`로
+   보낸다. 그 52줄을 이 화면에 베끼면 두 벌이 되고 반드시 어긋난다(결함 생성기 ①).
+   → 숨은 폼에 **submit을 흘려** 그 경로를 그대로 쓰고, 만들어진 견적에
+     `PATCH /api/quotes/:id { doc }`로 견적서 문서를 붙인다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --ink: #0D0D0D; --red: #C8102E; --red-dk: #A20D25;
+  --bg: #F4F4F2; --card: #FFFFFF; --line: #DCDCD8;
+  --t: #1A1A1A; --t-sub: #5B5B5B; --t-dim: #767676;
+  --ok: #0B6E4F; --warn: #8A5A00; --warn-bg: #FEF3C7; --warn-line: #FCD34D;
+  --measure: 46em;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--t);
+  font-family: Pretendard, 'Malgun Gothic', -apple-system, sans-serif; font-size: 14px; line-height: 1.6; }
+.hidden { display: none !important; }
+
+#authGate { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: #1A1A1A; color: #BDBDBD; font-size: 14px; letter-spacing: .04em; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 18px 18px 80px; }
+
+.page-head { padding: 4px 0 14px; border-bottom: 2px solid var(--ink); margin-bottom: 18px; }
+.page-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+.page-sub { margin: 5px 0 0; font-size: 12.5px; color: var(--t-sub); max-width: var(--measure); }
+
+/* ── 단계 카드 ── 긴 폼은 지금 어디인지 말한다 (CLAUDE.md 화면 규칙 7) */
+.sec { background: var(--card); border: 1px solid var(--line); margin-bottom: 16px; }
+.sec-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid var(--line); background: #FAFAF8; }
+.sec-n { display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 6px; background: var(--ink); color: #fff;
+  font-size: 12px; font-weight: 800; }
+.sec-t { font-size: 14.5px; font-weight: 800; letter-spacing: -.01em; }
+.sec-d { font-size: 12px; color: var(--t-sub); }
+.sec-b { padding: 14px 16px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.f { display: flex; flex-direction: column; gap: 5px; }
+.f > span { font-size: 12px; font-weight: 700; color: var(--t-sub); }
+.f > span em { font-style: normal; font-weight: 500; color: var(--t-dim); }
+.f input, .f select, .f textarea {
+  height: 40px; padding: 0 10px; border: 1.5px solid var(--line); background: #fff;
+  font-family: inherit; font-size: 13.5px; color: var(--t); border-radius: 0;
+}
+.f textarea { height: auto; min-height: 66px; padding: 8px 10px; line-height: 1.6; resize: vertical; }
+.f input:focus, .f select:focus, .f textarea:focus { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+.btn { min-height: 44px; padding: 0 18px; border: 1.5px solid var(--ink); background: #fff;
+  color: var(--ink); font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.btn:hover { background: #F0F0EC; }
+.btn-p { background: var(--ink); color: #fff; }
+.btn-p:hover { background: #333; }
+.btn-r { background: var(--red); border-color: var(--red); color: #fff; }
+.btn-r:hover { background: var(--red-dk); border-color: var(--red-dk); }
+.btn-sm { min-height: 32px; padding: 0 10px; font-size: 12px; font-weight: 600; }
+.btn:disabled { opacity: 1; background: #EDEDEA; color: #8A8A8A; border-color: #D5D5D0; cursor: not-allowed; }
+.bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+.bar-sp { flex: 1 1 auto; }
+
+/* ── 금액 표 ── */
+.mt { width: 100%; border-collapse: collapse; }
+.mt th, .mt td { border-bottom: 1px solid var(--line); padding: 8px 8px; font-size: 13px; vertical-align: middle; }
+.mt thead th { background: #F4F4F0; font-size: 12px; font-weight: 800; color: var(--t-sub); text-align: right; white-space: nowrap; }
+.mt thead th:first-child { text-align: left; }
+.mt td.n, .mt th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mt input.n { width: 128px; height: 34px; text-align: right; border: 1.5px solid var(--line);
+  font-family: inherit; font-size: 13px; padding: 0 8px; font-variant-numeric: tabular-nums; }
+.mt input.n:focus { outline: 2px solid var(--ink); outline-offset: -2px; }
+.mt tr.edited input.n { border-color: var(--red); font-weight: 700; }
+.mt tr.internal { background: #FBF7F7; }
+.mt .nm { font-weight: 600; }
+.mt .sub { display: block; font-size: 11px; color: var(--t-dim); font-weight: 500; }
+
+.badge { display: inline-block; padding: 1px 7px; font-size: 11px; font-weight: 800; border: 1px solid; }
+.badge-ed { color: var(--red); border-color: var(--red); background: #FFF4F5; }
+.badge-in { color: var(--warn); border-color: var(--warn-line); background: var(--warn-bg); }
+.delta { font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.delta.up { color: var(--red); }
+.delta.dn { color: var(--ok); }
+
+/* ── 요약 ── */
+.sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+  background: var(--line); border: 1px solid var(--line); margin-top: 14px; }
+.sum > div { background: #fff; padding: 11px 12px; }
+.sum b { display: block; font-size: 11.5px; font-weight: 700; color: var(--t-sub); margin-bottom: 3px; }
+.sum strong { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.sum em { font-style: normal; font-size: 11.5px; color: var(--t-dim); }
+.sum .int { background: #FBF7F7; }
+
+.note { margin: 10px 0 0; padding: 9px 12px; background: var(--warn-bg); border: 1px solid var(--warn-line);
+  font-size: 12px; color: var(--warn); line-height: 1.75; max-width: var(--measure); }
+.note-i { margin: 0 0 12px; padding: 9px 12px; background: #F3F4F6; border-left: 3px solid var(--ink);
+  font-size: 12px; color: var(--t-sub); line-height: 1.75; max-width: var(--measure); }
+.note-err { background: #FFF4F5; border-color: var(--red); color: var(--red-dk); }
+
+/* ── 일정 ── */
+.day { border: 1px solid var(--line); margin-bottom: 10px; }
+.day-h { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #F4F4F0;
+  font-size: 13px; font-weight: 800; }
+.day-b { padding: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+
+/* ── 미리보기 ── */
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--ink); margin-bottom: 0; }
+.tab { min-height: 44px; padding: 0 18px; border: 1.5px solid var(--line); border-bottom: none;
+  background: #EFEFEC; color: var(--t-sub); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.tab[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.prev { border: 1px solid var(--line); border-top: none; background: #E9E9E6; padding: 16px; overflow-x: auto; }
+.prev .qd { box-shadow: 0 1px 8px rgba(0,0,0,.12); }
+
+.empty { padding: 30px 16px; text-align: center; font-size: 13px; color: var(--t-sub); line-height: 1.9;
+  border: 1px dashed var(--line); }
+.empty b { display: block; font-size: 14px; color: var(--t); }
+
+@media (max-width: 640px) {
+  .wrap { padding: 14px 14px 60px; }
+  .mt input.n { width: 100px; }
+}
+@media print {
+  body { background: #fff; }
+  .wrap > .page-head, .sec, .tabs, .bar { display: none !important; }
+  .sec.print-only, .sec.print-only .sec-b { display: block !important; padding: 0; border: none; }
+  .sec.print-only .sec-h { display: none !important; }
+  .prev { border: none; background: #fff; padding: 0; overflow: visible; }
+  .prev .qd { box-shadow: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="authGate">세션 확인 중…</div>
+
+<div class="wrap hidden" id="app">
+  <div class="page-head">
+    <h1 class="page-title">자동 견적 산출 (내부직원용)</h1>
+    <p class="page-sub">고객용과 <b>같은 엔진</b>으로 계산한 뒤, 항목별 금액과 실무 변수를 직접 조정합니다.
+      원가·마진이 보이는 화면입니다 — 고객에게 나가는 견적서에는 실리지 않습니다.</p>
+  </div>
+
+  <!-- ══ ① 여행 조건 ══ -->
+  <section class="sec">
+    <div class="sec-h"><span class="sec-n">1</span><span class="sec-t">여행 조건</span>
+      <span class="sec-d">고객 화면과 같은 입력입니다 · 필수 4칸</span></div>
+    <div class="sec-b">
+      <div class="grid">
+        <label class="f"><span>목적지 <em>(필수)</em></span><select id="pDest"></select></label>
+        <label class="f"><span>인원 <em>(필수)</em></span><input type="number" id="pPax" min="1" value="10" /></label>
+        <label class="f"><span>일수 <em>(필수)</em></span><input type="number" id="pDays" min="1" value="5" /></label>
+        <label class="f"><span>출발일 <em>(필수)</em></span><input type="date" id="pStart" /></label>
+        <label class="f"><span>귀국일</span><input type="date" id="pEnd" /></label>
+        <label class="f"><span>박수 <em>(견적서 표기 · 기내박이면 하루 적게)</em></span><input type="number" id="pNights" min="0" /></label>
+        <label class="f"><span>프로그램 유형</span><select id="pProgram"></select></label>
+        <label class="f"><span>기관 유형</span><select id="pOrg"></select></label>
+        <label class="f"><span>출발 공항</span><select id="pDepCity"></select></label>
+        <label class="f"><span>호텔 등급</span><select id="pHotelGrade">
+          <option value="standard">3성급</option><option value="superior" selected>4성급</option><option value="deluxe">5성급</option>
+        </select></label>
+        <label class="f"><span>좌석 등급</span><select id="pCabin">
+          <option value="economy" selected>이코노미</option><option value="business">비즈니스</option><option value="mixed">혼합</option>
+        </select></label>
+        <label class="f"><span>비즈니스 인원 <em>(혼합일 때)</em></span><input type="number" id="pBizCount" min="0" value="0" /></label>
+        <label class="f"><span>객실 구성</span><select id="pRoom">
+          <option value="double" selected>2인 1실</option><option value="single">1인 1실</option><option value="mixed">혼합</option>
+        </select></label>
+        <label class="f"><span>1인 1실 임원 <em>(혼합일 때)</em></span><input type="number" id="pVipCount" min="0" value="0" /></label>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <label class="f"><span>포함 항목</span>
+          <span style="display:flex;flex-wrap:wrap;gap:12px;padding-top:8px;font-size:13px;font-weight:500;color:var(--t)">
+            <label><input type="checkbox" id="pIncHotel" checked /> 호텔</label>
+            <label><input type="checkbox" id="pIncMeal" checked /> 식사</label>
+            <label><input type="checkbox" id="pIncVehicle" checked /> 차량</label>
+            <label><input type="checkbox" id="pIncGuide" checked /> 가이드</label>
+            <label><input type="checkbox" id="pIncSight" checked /> 관광</label>
+          </span>
+        </label>
+        <label class="f"><span>골프</span>
+          <span style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-top:6px">
+            <label style="font-size:13px"><input type="checkbox" id="pIncGolf" /> 포함</label>
+            <input type="number" id="pGolfCount" min="0" value="0" placeholder="인원" style="width:84px;height:34px;padding:0 8px;border:1.5px solid var(--line);font-family:inherit" aria-label="골프 인원" />
+            <input type="number" id="pGolfRounds" min="1" value="1" placeholder="라운드" style="width:84px;height:34px;padding:0 8px;border:1.5px solid var(--line);font-family:inherit" aria-label="골프 라운드" />
+          </span>
+        </label>
+      </div>
+      <div class="bar">
+        <button type="button" class="btn btn-p" id="btnCalc">자동 산출하기</button>
+        <span class="bar-sp"></span>
+        <span id="calcState" style="font-size:12px;color:var(--t-sub)"></span>
+      </div>
+      <p class="note hidden" id="calcErr"></p>
+    </div>
+  </section>
+
+  <!-- ══ ② 금액 ══ -->
+  <section class="sec hidden" id="secMoney">
+    <div class="sec-h"><span class="sec-n">2</span><span class="sec-t">금액 — 항목별 조정</span>
+      <span class="sec-d">자동값을 고치면 「수정됨」과 증감이 붙습니다</span></div>
+    <div class="sec-b">
+      <p class="note-i">
+        <b>자동값</b>은 고객이 받는 금액과 <b>같습니다.</b> 여기서 고치는 것은 그 위에 얹는 조정이고,
+        고객용 산출 로직은 바뀌지 않습니다. <b>조정액은 마진에서 나갑니다</b> — 원가는 그대로입니다.
+      </p>
+      <table class="mt">
+        <thead><tr>
+          <th>항목</th><th class="n">자동값</th><th class="n">적용값</th><th class="n">증감</th><th class="n"></th>
+        </tr></thead>
+        <tbody id="moneyRows"></tbody>
+      </table>
+
+      <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">실무 변수</h3>
+      <p class="note-i" style="margin-bottom:10px">
+        🔴 <b>10+1(FOC)은 표기 단가에 반영됩니다</b>(대표 결정) — 총액 = 단가 × <b>전체</b> 인원입니다.
+        무료 인원을 넣으면 그만큼 <b>총액이 줄고</b>, 단가는 전체 인원으로 나눈 값이 됩니다.
+        제안값은 <b>고쳐 쓰시라고</b> 채워 둔 것입니다.
+      </p>
+      <table class="mt">
+        <thead><tr><th>항목</th><th class="n">수량</th><th class="n">금액</th><th class="n"></th><th class="n"></th></tr></thead>
+        <tbody id="adjRows"></tbody>
+      </table>
+
+      <div class="sum" id="sumBox"></div>
+      <p class="note hidden" id="moneyWarn"></p>
+    </div>
+  </section>
+
+  <!-- ══ ③ 견적서 내용 ══ -->
+  <section class="sec hidden" id="secDoc">
+    <div class="sec-h"><span class="sec-n">3</span><span class="sec-t">견적서 내용</span>
+      <span class="sec-d">담당자 연락처는 <b>비어 있습니다</b> — 직접 적으세요</span></div>
+    <div class="sec-b">
+      <div class="grid">
+        <label class="f"><span>거래처명 <em>(제목에 들어갑니다)</em></span><input type="text" id="dClient" placeholder="○○기업" /></label>
+        <label class="f"><span>단체명</span><input type="text" id="dOrgName" placeholder="○○기업 해외연수단" /></label>
+        <label class="f"><span>지역 표기 <em>(국가명_지역명)</em></span><input type="text" id="dRegion" /></label>
+        <label class="f"><span>숙박지</span><input type="text" id="dStay" placeholder="다낭(3)" /></label>
+        <label class="f"><span>담당자 이름</span><input type="text" id="dStaffName" /></label>
+        <label class="f"><span>담당자 연락처</span><input type="text" id="dStaffTel" placeholder="02-0000-0000" /></label>
+        <label class="f"><span>담당자 E-mail</span><input type="text" id="dStaffEmail" placeholder="name@hanatrabiz.com" /></label>
+        <label class="f"><span>유효기간</span><input type="date" id="dValid" /></label>
+        <label class="f"><span>고객 연락처 <em>(대장용 · 견적서엔 안 나감)</em></span><input type="text" id="dCustTel" /></label>
+      </div>
+
+      <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">견적가 구성</h3>
+      <div class="grid">
+        <label class="f"><span>성인 인원</span><input type="number" id="dAdult" min="0" value="0" /></label>
+        <label class="f"><span>아동 인원 <em>(단가는 성인과 같습니다)</em></span><input type="number" id="dChild" min="0" value="0" /></label>
+        <label class="f"><span>유아 인원 <em>(단가는 성인과 같습니다)</em></span><input type="number" id="dInfant" min="0" value="0" /></label>
+        <label class="f"><span>조건 표기</span><input type="text" id="dCondition" placeholder="10+1조건" /></label>
+        <label class="f"><span>유류할증료 기준</span><input type="text" id="dFuel" placeholder="#9월 기준 유류할증료 적용 기준" /></label>
+      </div>
+      <p class="note hidden" id="paxWarn"></p>
+
+      <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">상세 내용</h3>
+      <p class="note-i" style="margin-bottom:10px">자동 산출 결과로 채워 두었습니다. <b>빈 칸은 견적서에 안 나갑니다.</b></p>
+      <div id="detailRows"></div>
+
+      <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">선택 옵션</h3>
+      <div id="optRows"></div>
+      <div class="bar"><button type="button" class="btn btn-sm" id="btnAddOpt">+ 선택 옵션 추가</button></div>
+
+      <div class="grid" style="margin-top:18px">
+        <label class="f" style="grid-column:1/-1"><span>비고</span><textarea id="dRemarks"></textarea></label>
+        <label class="f" style="grid-column:1/-1"><span>취소 규정 <em>(비우면 견적서에 안 나갑니다)</em></span><textarea id="dCancel"></textarea></label>
+        <label class="f" style="grid-column:1/-1"><span>내부 메모 <em>(🔴 고객에게 안 나갑니다)</em></span><textarea id="dMemo"></textarea></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ④ 일정 ══ -->
+  <section class="sec hidden" id="secIti">
+    <div class="sec-h"><span class="sec-n">4</span><span class="sec-t">일정</span>
+      <span class="sec-d">여기 적은 일정이 <b>견적서 링크의 일정표 탭</b>에 그대로 나갑니다 — 두 번 적지 않습니다</span></div>
+    <div class="sec-b">
+      <div id="itiDays"></div>
+      <div class="bar">
+        <button type="button" class="btn btn-sm" id="btnAddDay">+ 하루 추가</button>
+        <button type="button" class="btn btn-sm" id="btnFitDays">일수에 맞추기</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ⑤ 미리보기 ══ -->
+  <section class="sec hidden print-only" id="secPrev">
+    <div class="sec-h"><span class="sec-n">5</span><span class="sec-t">미리보기 · 발급</span>
+      <span class="sec-d">고객이 받는 그대로입니다</span></div>
+    <div class="sec-b">
+      <div class="tabs">
+        <button type="button" class="tab" id="tabQuote" aria-pressed="true">견적서</button>
+        <button type="button" class="tab" id="tabIti" aria-pressed="false">일정표</button>
+      </div>
+      <div class="prev" id="prevBox"></div>
+      <div class="bar">
+        <button type="button" class="btn" id="btnPrint">인쇄 · PDF로 저장</button>
+        <span class="bar-sp"></span>
+        <button type="button" class="btn btn-r" id="btnSave">견적 저장하기</button>
+      </div>
+      <p class="note hidden" id="saveMsg"></p>
+    </div>
+  </section>
+</div>
+
+<!-- ⚠ 순서가 중요하다 — 호스트의 mount()가 script.js보다 **먼저** 돌아야 한다.
+     script.js는 최상위에서 #destination·#estimateForm 등을 붙드는데, 그때 칸이 없으면
+     엔진이 통째로 안 뜬다. -->
+<script src="quote_engine_host.js"></script>
+<script>
+  /* 🔴 내부 도구임을 켠다 — `script.js`가 저장을 `?action=internal`로 보내고,
+     실패를 화면에 알린다(고객 화면은 조용히 넘어간다). */
+  window.__INTERNAL_TOOL__ = true;
+  window.__INTERNAL_STAFF__ = '';
+  QuoteEngineHost.mount();
+</script>
+<script src="data.js"></script>
+<script src="company-info.js"></script>
+<script src="limits.js"></script>
+<script src="rec_fallbacks.js"></script>
+<script src="script.js"></script>
+<script src="quote_doc.js"></script>
+<script>
+(function () {
+  'use strict';
+  /* ⚠ 인라인 스크립트는 전역 `const`를 볼 수 있다 — 모듈 안에서는 안 보인다.
+     그래서 여기서 **명시적으로 넘긴다**(quote_engine_host.js 머리말 참조). */
+  const READY = QuoteEngineHost.ready({
+    destinationRates: destinationRates,
+    estimateCriteria: estimateCriteria,
+    DEPARTURE_CITIES: (typeof DEPARTURE_CITIES !== 'undefined' ? DEPARTURE_CITIES : null),
+  });
+
+  const $ = (id) => document.getElementById(id);
+  const won = (n) => (Number(n) || 0).toLocaleString('ko-KR');
+  const num = (el) => Math.round(Number(String(el.value).replace(/[^\d.-]/g, '')) || 0);
+  const esc = QuoteDoc.esc;
+  /* 🔴 **`toISOString()`으로 날짜를 만들지 않는다.**
+     그건 UTC로 바꾼 값이라 한국(UTC+9)에서는 **하루가 뒤로 밀린다.** 실측: 5/20 출발
+     5일 일정의 귀국일이 **5/24가 아니라 5/23**으로 찍혔다(브라우저로 띄워 보고 찾았다 —
+     소스만 읽었으면 못 봤을 자리다). 날짜는 **현지 시간 그대로** 적는다. */
+  const ymd = (d) => d.getFullYear() + '-'
+    + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+  /* 이 화면의 상태 — **한 곳에 모은다.** 흩어 두면 미리보기와 저장이 다른 값을 본다. */
+  const S = {
+    bd: null,        /* 엔진 산출 결과 */
+    rows: [],        /* {key,name,qty,auto,val,internal} */
+    residual: 0,     /* 계수 반올림 잔차 */
+    adj: [],         /* 실무 변수 조정 */
+    details: [],
+    options: [],
+    iti: [],
+    prevTab: 'quote',
+  };
+
+  /* ── 보기 목록을 고객 화면과 같은 값으로 채운다 ── */
+  function fillSelect(sel, list, labels) {
+    sel.innerHTML = '';
+    list.forEach((v, i) => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = labels ? (labels[i] || v) : v;
+      sel.appendChild(o);
+    });
+  }
+  fillSelect($('pDest'), destinationRates.map((d) => d.destination_key));
+  fillSelect($('pProgram'), Object.keys(estimateCriteria.programFactor));
+  fillSelect($('pOrg'), Object.keys(estimateCriteria.organizationFactor));
+  /* 출발 공항은 숨은 칸이 이미 채워져 있다 — 같은 목록을 두 번 적지 않는다 */
+  (function () {
+    const src = document.getElementById('departureCity');
+    const list = src ? Array.from(src.options).map((o) => o.value) : [];
+    fillSelect($('pDepCity'), list);
+  })();
+  if (!READY.ok) {
+    $('calcErr').textContent = '산출에 필요한 목록을 못 불러왔습니다 (' + READY.missing.join(', ')
+      + '). 새로고침해 주세요 — 이대로 산출하면 계수가 기본값으로 떨어집니다.';
+    $('calcErr').classList.remove('hidden');
+    $('calcErr').classList.add('note-err');
+  }
+
+  /* 일수 ↔ 박수 · 귀국일 자동 채움 (고쳐 쓸 수 있다) */
+  $('pDays').addEventListener('input', () => {
+    const d = num($('pDays'));
+    if (d > 0 && !$('pNights').dataset.touched) $('pNights').value = String(Math.max(0, d - 1));
+    syncEnd();
+  });
+  $('pNights').addEventListener('input', () => { $('pNights').dataset.touched = '1'; });
+  $('pStart').addEventListener('change', syncEnd);
+  function syncEnd() {
+    const s = $('pStart').value, d = num($('pDays'));
+    if (!s || d <= 0 || $('pEnd').dataset.touched) return;
+    const dt = new Date(s + 'T00:00:00'); dt.setDate(dt.getDate() + d - 1);
+    $('pEnd').value = ymd(dt);
+  }
+  $('pEnd').addEventListener('change', () => { $('pEnd').dataset.touched = '1'; });
+  $('pNights').value = String(Math.max(0, num($('pDays')) - 1));
+
+  /* ═══ ① 산출 ═══════════════════════════════════════════════════════════ */
+  function input() {
+    return {
+      dest: $('pDest').value, pax: num($('pPax')), days: num($('pDays')),
+      startDate: $('pStart').value, endDate: $('pEnd').value,
+      programType: $('pProgram').value, orgType: $('pOrg').value, departureCity: $('pDepCity').value,
+      hotelGrade: $('pHotelGrade').value, cabinClass: $('pCabin').value, roomConfig: $('pRoom').value,
+      bizCount: num($('pBizCount')), vipCount: num($('pVipCount')),
+      incHotel: $('pIncHotel').checked, incMeal: $('pIncMeal').checked, incVehicle: $('pIncVehicle').checked,
+      incGuide: $('pIncGuide').checked, incSightseeing: $('pIncSight').checked,
+      incGolf: $('pIncGolf').checked, golfCount: num($('pGolfCount')), golfRounds: num($('pGolfRounds')),
+    };
+  }
+
+  $('btnCalc').addEventListener('click', () => {
+    const v = input();
+    const miss = [];
+    if (!v.dest) miss.push('목적지');
+    if (!v.pax) miss.push('인원');
+    if (!v.days) miss.push('일수');
+    if (!v.startDate) miss.push('출발일');
+    if (miss.length) {
+      $('calcErr').textContent = miss.join(' · ') + '을(를) 채워 주세요.';
+      $('calcErr').classList.remove('hidden'); $('calcErr').classList.add('note-err');
+      return;
+    }
+    $('calcErr').classList.add('hidden');
+
+    let bd = null;
+    try { bd = QuoteEngineHost.compute(v); } catch (e) {
+      $('calcErr').textContent = '산출에 실패했습니다: ' + e.message;
+      $('calcErr').classList.remove('hidden'); $('calcErr').classList.add('note-err');
+      return;
+    }
+    if (!bd) {
+      $('calcErr').textContent = '이 조건으로는 금액이 나오지 않습니다. 목적지·인원·일수를 확인해 주세요.';
+      $('calcErr').classList.remove('hidden'); $('calcErr').classList.add('note-err');
+      return;
+    }
+    S.bd = bd;
+    buildRows(bd);
+    buildAdjust(bd);
+    seedDoc(bd, v);
+    seedItinerary(v);
+    ['secMoney', 'secDoc', 'secIti', 'secPrev'].forEach((id) => $(id).classList.remove('hidden'));
+    $('calcState').textContent = '산출 완료 — 총액 ' + won(bd.total) + '원 · 1인 ' + won(bd.perPerson) + '원';
+    renderAll();
+    $('secMoney').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  /* ═══ ② 금액 ═══════════════════════════════════════════════════════════
+     🔴 **계수를 각 행에 펴서 보여준다.** 엔진은 `total = round(baseTotal × 계수)`로
+       마지막에 한 번 곱하는데, 그대로 두면 화면의 행 합계와 총액이 안 맞는다.
+       행마다 곱한 뒤 남는 **반올림 잔차를 따로 한 줄로 보여준다** — 감추면 담당자가
+       「내가 더한 값과 왜 다르지」에서 멈춘다. */
+  function buildRows(bd) {
+    const cf = bd.combinedFactor || 1;
+    S.rows = (bd.rows || []).map((r, i) => ({
+      key: 'r' + i, name: r.name, qty: r.qty || '', unit: r.unit || 0,
+      auto: Math.round(r.amount * cf), val: Math.round(r.amount * cf),
+      internal: !!r.muted, margin: !!r.muted && !/여행자보험/.test(r.name),
+    }));
+    S.residual = bd.total - S.rows.reduce((s, r) => s + r.auto, 0);
+  }
+
+  function buildAdjust(bd) {
+    /* 제안값은 **고쳐 쓰라고** 채운다. 특히 FOC는 1인당 자동가 × 무료 인원이 기본인데,
+       실제 혜택은 공급사 조건에 따라 다르다 — 담당자가 아는 값이 맞다. */
+    S.adj = [
+      { key: 'foc', label: 'FOC (무료 인원)', qtyLabel: '명', qty: 0, amount: 0, auto: -(bd.perPerson || 0) },
+      { key: 'single', label: '싱글 차지', qtyLabel: '명', qty: 0, amount: 0, auto: 0 },
+      { key: 'bd', label: '항공 BD (좌석 차액)', qtyLabel: '명', qty: 0, amount: 0, auto: 0 },
+      { key: 'ground', label: '지상비 조정', qtyLabel: '건', qty: 0, amount: 0, auto: 0 },
+      { key: 'tc', label: '인솔자 비용', qtyLabel: '명', qty: 0, amount: 0, auto: 0 },
+    ];
+  }
+
+  function renderMoney() {
+    const tb = $('moneyRows'); tb.innerHTML = '';
+    S.rows.forEach((r) => {
+      const d = r.val - r.auto;
+      const tr = document.createElement('tr');
+      if (d !== 0) tr.className = 'edited';
+      if (r.internal) tr.className += ' internal';
+      tr.innerHTML =
+        '<td><span class="nm">' + esc(r.name) + '</span>'
+        + (r.internal ? ' <span class="badge badge-in">내부</span>' : '')
+        + (d !== 0 ? ' <span class="badge badge-ed">수정됨</span>' : '')
+        + '<span class="sub">' + esc(r.qty) + (r.unit ? ' · 단가 ' + won(r.unit) : '') + '</span></td>'
+        + '<td class="n">' + won(r.auto) + '</td>'
+        + '<td class="n"><input class="n" type="text" inputmode="numeric" value="' + won(r.val)
+        + '" aria-label="' + esc(r.name) + ' 적용값" data-k="' + r.key + '" /></td>'
+        + '<td class="n">' + (d === 0 ? '<span style="color:var(--t-dim)">—</span>'
+          : '<span class="delta ' + (d > 0 ? 'up' : 'dn') + '">' + (d > 0 ? '+' : '') + won(d) + '</span>') + '</td>'
+        + '<td class="n">' + (d === 0 ? '' : '<button type="button" class="btn btn-sm" data-undo="' + r.key
+          + '" aria-label="' + esc(r.name) + ' 자동값으로 되돌리기">되돌리기</button>') + '</td>';
+      tb.appendChild(tr);
+    });
+    if (S.residual !== 0) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td><span class="nm">계수 반올림 조정</span>'
+        + '<span class="sub">엔진이 마지막에 계수를 한 번 곱해 생기는 차이입니다 · 고칠 수 없습니다</span></td>'
+        + '<td class="n">' + won(S.residual) + '</td><td class="n">' + won(S.residual)
+        + '</td><td class="n">—</td><td class="n"></td>';
+      tb.appendChild(tr);
+    }
+    tb.querySelectorAll('input[data-k]').forEach((el) => {
+      el.addEventListener('change', () => {
+        const r = S.rows.find((x) => x.key === el.dataset.k);
+        if (r) { r.val = num(el); renderAll(); }
+      });
+    });
+    tb.querySelectorAll('button[data-undo]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const r = S.rows.find((x) => x.key === el.dataset.undo);
+        if (r) { r.val = r.auto; renderAll(); }
+      });
+    });
+
+    const ab = $('adjRows'); ab.innerHTML = '';
+    S.adj.forEach((a) => {
+      const tr = document.createElement('tr');
+      if (a.amount !== 0) tr.className = 'edited';
+      tr.innerHTML =
+        '<td><span class="nm">' + esc(a.label) + '</span>'
+        + (a.key === 'foc' && a.qty > 0 ? '<span class="sub">표기 단가에 반영됩니다 (총액 ÷ 전체 인원)</span>' : '') + '</td>'
+        + '<td class="n"><input class="n" type="text" inputmode="numeric" style="width:76px" value="' + won(a.qty)
+        + '" aria-label="' + esc(a.label) + ' 수량" data-aq="' + a.key + '" /> ' + esc(a.qtyLabel) + '</td>'
+        + '<td class="n"><input class="n" type="text" inputmode="numeric" value="' + won(a.amount)
+        + '" aria-label="' + esc(a.label) + ' 금액" data-aa="' + a.key + '" /></td>'
+        + '<td class="n"></td><td class="n"></td>';
+      ab.appendChild(tr);
+    });
+    ab.querySelectorAll('input[data-aq]').forEach((el) => {
+      el.addEventListener('change', () => {
+        const a = S.adj.find((x) => x.key === el.dataset.aq);
+        if (!a) return;
+        a.qty = Math.max(0, num(el));
+        /* 제안값을 채워 준다 — 담당자가 고칠 수 있다(직접 고친 뒤에는 안 덮는다) */
+        if (a.auto && !a.touched) a.amount = a.auto * a.qty;
+        renderAll();
+      });
+    });
+    ab.querySelectorAll('input[data-aa]').forEach((el) => {
+      el.addEventListener('change', () => {
+        const a = S.adj.find((x) => x.key === el.dataset.aa);
+        if (!a) return;
+        a.amount = num(el); a.touched = true; renderAll();
+      });
+    });
+  }
+
+  function totals() {
+    const cost = S.rows.filter((r) => !r.margin).reduce((s, r) => s + r.val, 0);
+    const autoMargin = S.rows.filter((r) => r.margin).reduce((s, r) => s + r.val, 0);
+    const adjSum = S.adj.reduce((s, a) => s + a.amount, 0);
+    const total = cost + autoMargin + adjSum + S.residual;
+    const margin = autoMargin + adjSum;
+    const pax = num($('pPax')) || 1;
+    return { cost, autoMargin, adjSum, total, margin, unit: Math.round(total / pax), pax,
+      rate: total ? (margin / total * 100) : 0, autoTotal: S.bd ? S.bd.total : 0 };
+  }
+
+  function renderSum() {
+    const t = totals();
+    $('sumBox').innerHTML =
+      '<div><b>자동 산출 총액</b><strong>' + won(t.autoTotal) + '</strong><em>원 · 고객이 받는 금액</em></div>'
+      + '<div><b>최종 총액</b><strong>' + won(t.total) + '</strong><em>원 '
+        + (t.total !== t.autoTotal ? '· 자동 대비 ' + (t.total > t.autoTotal ? '+' : '') + won(t.total - t.autoTotal) : '· 조정 없음') + '</em></div>'
+      + '<div><b>표기 단가</b><strong>' + won(t.unit) + '</strong><em>원 · 총액 ÷ ' + won(t.pax) + '명</em></div>'
+      + '<div class="int"><b>원가 (공급가)</b><strong>' + won(t.cost) + '</strong><em>원 · 🔴 내부</em></div>'
+      + '<div class="int"><b>마진</b><strong>' + won(t.margin) + '</strong><em>원 · 마진율 ' + t.rate.toFixed(1) + '% · 🔴 내부</em></div>';
+
+    const w = $('moneyWarn');
+    if (t.margin < 0) {
+      w.textContent = '🔴 마진이 마이너스입니다 (' + won(t.margin) + '원). 조정액이 마진보다 큽니다 — 이대로 내면 손해입니다.';
+      w.classList.remove('hidden');
+    } else if (t.total > 0 && t.rate < 5) {
+      w.textContent = '마진율이 ' + t.rate.toFixed(1) + '%입니다. 의도한 조정인지 확인해 주세요.';
+      w.classList.remove('hidden');
+    } else w.classList.add('hidden');
+  }
+
+  /* ═══ ③ 견적서 내용 — 자동 산출값으로 **먼저 채운다** ═══════════════════ */
+  function seedDoc(bd, v) {
+    const dest = v.dest;
+    if (!$('dRegion').value) $('dRegion').value = dest;
+    if (!$('dStay').value) $('dStay').value = dest + '(' + Math.max(0, num($('pNights'))) + ')';
+    if (!$('dValid').value) {
+      /* ⚠ +30일은 `estimate-view.html`이 이미 쓰는 값이다. 며칠이 맞는지는 대표 확인
+         대기 중이다(결정대기열 0-ac) — 여기서 임의로 정하지 않고 같은 값을 쓴다. */
+      const d = new Date(); d.setDate(d.getDate() + 30);
+      $('dValid').value = ymd(d);
+    }
+    if (num($('dAdult')) === 0 && num($('dChild')) === 0 && num($('dInfant')) === 0) $('dAdult').value = String(v.pax);
+    if (!$('dFuel').value) {
+      const m = (v.startDate || '').slice(5, 7);
+      $('dFuel').value = '#' + (m ? String(Number(m)) : '00') + '월 기준 유류할증료 적용 기준';
+    }
+
+    const has = (re) => (bd.rows || []).some((r) => re.test(r.name));
+    const D = [];
+    D.push({ label: '항공', note: (v.cabinClass === 'business' ? '비즈니스' : v.cabinClass === 'mixed' ? '혼합 편성' : '이코노미'),
+      left: '', right: '', foot: '' });
+    if (v.incHotel) D.push({ label: '호텔', note: v.roomConfig === 'single' ? '1인 1실 조건' : v.roomConfig === 'mixed' ? '혼합 조건' : '2인 1실 조건',
+      right: (bd.hotelGrade && bd.hotelGrade.label ? bd.hotelGrade.label + ' 기준' : '') });
+    if (v.incVehicle) D.push({ label: '기사/차량', note: '전 일정 포함', right: '' });
+    if (v.incGuide) D.push({ label: '가이드', note: '전 일정 포함', right: '' });
+    if (v.incMeal) D.push({ label: '식사', note: '전 일정 포함', right: '' });
+    if (v.incSightseeing) D.push({ label: '입장료', note: '전 일정 포함', right: '일정표에 기재된 모든 관광지' });
+    if (has(/여행자보험/)) D.push({ label: '여행자보험', note: '전 일정 포함', right: '' });
+    if (v.incGolf) D.push({ label: '골프', note: '전 일정 포함',
+      right: (v.golfCount || 0) + '명 · ' + (v.golfRounds || 1) + '라운드' });
+    D.push({ label: '기타사항', note: '', right: '' });
+    /* 🔴 불포함내역은 `company-info.js`가 진실이다 — 여기 다시 적으면 두 벌이 된다 */
+    const EX = (window.QUOTE_EXCLUDED || []).join(', ');
+    D.push({ label: '불포함내역', note: '', right: EX, red: true });
+    S.details = D;
+    renderDetails();
+    if (!S.options.length) { S.options = []; renderOptions(); }
+  }
+
+  function renderDetails() {
+    const box = $('detailRows'); box.innerHTML = '';
+    S.details.forEach((d, i) => {
+      const row = document.createElement('div');
+      row.className = 'day';
+      row.innerHTML = '<div class="day-h">' + esc(d.label) + (d.red ? ' <span class="badge badge-ed">빨간 글씨</span>' : '') + '</div>'
+        + '<div class="day-b">'
+        + (d.label === '항공' ? '<label class="f"><span>항공사</span><input type="text" data-dl="' + i + '" value="' + esc(d.left || '') + '" placeholder="에어서울" /></label>' : '')
+        + '<label class="f" style="grid-column:1/-1"><span>내용</span><textarea data-dr="' + i + '" placeholder="'
+        + (d.label === '항공' ? 'RS0527 23MAY ICNCXR 19:50~22:55' : '') + '">' + esc(d.right || '') + '</textarea></label>'
+        + '<label class="f"><span>비고</span><input type="text" data-dn="' + i + '" value="' + esc(d.note || '') + '" /></label>'
+        + (d.label === '항공' ? '<label class="f" style="grid-column:1/-1"><span>각주 <em>(파란 글씨 · 줄바꿈으로 여러 줄)</em></span><textarea data-df="' + i + '">' + esc(d.foot || '') + '</textarea></label>' : '')
+        + '</div>';
+      box.appendChild(row);
+    });
+    box.querySelectorAll('[data-dl],[data-dr],[data-dn],[data-df]').forEach((el) => {
+      el.addEventListener('input', () => {
+        const i = Number(el.dataset.dl || el.dataset.dr || el.dataset.dn || el.dataset.df);
+        const k = el.dataset.dl ? 'left' : el.dataset.dr ? 'right' : el.dataset.dn ? 'note' : 'foot';
+        S.details[i][k] = el.value; renderPreview();
+      });
+    });
+  }
+
+  function renderOptions() {
+    const box = $('optRows'); box.innerHTML = '';
+    if (!S.options.length) {
+      box.innerHTML = '<div class="empty"><b>선택 옵션이 없습니다.</b>'
+        + '<span>1인실 사용료·객실 업그레이드처럼 <b>따로 요청해야 하는 항목</b>이 있으면 추가하세요.</span></div>';
+      return;
+    }
+    S.options.forEach((o, i) => {
+      const row = document.createElement('div');
+      row.className = 'day';
+      row.innerHTML = '<div class="day-h">선택' + (i + 1)
+        + '<span style="flex:1"></span><button type="button" class="btn btn-sm" data-orm="' + i + '">삭제</button></div>'
+        + '<div class="day-b">'
+        + '<label class="f"><span>항목명</span><input type="text" data-on="' + i + '" value="' + esc(o.name) + '" placeholder="호텔 1인실 사용(유료)" /></label>'
+        + '<label class="f"><span>단가</span><input type="text" inputmode="numeric" data-ou="' + i + '" value="' + won(o.unit) + '" /></label>'
+        + '<label class="f"><span>인원</span><input type="text" inputmode="numeric" data-oq="' + i + '" value="' + won(o.qty) + '" /></label>'
+        + '<label class="f"><span>비고</span><input type="text" data-oo="' + i + '" value="' + esc(o.note) + '" /></label>'
+        + '</div>';
+      box.appendChild(row);
+    });
+    box.querySelectorAll('[data-on],[data-ou],[data-oq],[data-oo]').forEach((el) => {
+      el.addEventListener('input', () => {
+        const i = Number(el.dataset.on || el.dataset.ou || el.dataset.oq || el.dataset.oo);
+        if (el.dataset.on !== undefined) S.options[i].name = el.value;
+        else if (el.dataset.oo !== undefined) S.options[i].note = el.value;
+        else if (el.dataset.ou !== undefined) S.options[i].unit = num(el);
+        else S.options[i].qty = num(el);
+        renderPreview();
+      });
+    });
+    box.querySelectorAll('[data-orm]').forEach((el) => {
+      el.addEventListener('click', () => { S.options.splice(Number(el.dataset.orm), 1); renderOptions(); renderPreview(); });
+    });
+  }
+  $('btnAddOpt').addEventListener('click', () => {
+    S.options.push({ name: '', unit: 0, qty: 0, note: '' }); renderOptions(); renderPreview();
+  });
+
+  /* ═══ ④ 일정 ═══════════════════════════════════════════════════════════ */
+  function seedItinerary(v) {
+    if (S.iti.length) return;
+    fitDays(v.days);
+  }
+  function fitDays(n) {
+    const want = Math.max(0, Number(n) || 0);
+    while (S.iti.length < want) S.iti.push({ day: S.iti.length + 1, date: '', title: '', am: '', pm: '', eve: '', meals: { b: '', l: '', d: '' }, stay: '', note: '' });
+    while (S.iti.length > want) S.iti.pop();
+    stampDates();
+    renderIti();
+  }
+  function stampDates() {
+    const s = $('pStart').value;
+    S.iti.forEach((it, i) => {
+      it.day = i + 1;
+      if (!s) { it.date = ''; return; }
+      const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + i);
+      it.date = ymd(d).slice(5) + ' (' + ['일', '월', '화', '수', '목', '금', '토'][d.getDay()] + ')';
+    });
+  }
+  function renderIti() {
+    const box = $('itiDays'); box.innerHTML = '';
+    if (!S.iti.length) {
+      box.innerHTML = '<div class="empty"><b>일정이 한 줄도 없습니다.</b>'
+        + '<span>「일수에 맞추기」를 누르면 여행 일수만큼 칸이 생깁니다.</span></div>';
+      return;
+    }
+    S.iti.forEach((it, i) => {
+      const row = document.createElement('div');
+      row.className = 'day';
+      row.innerHTML = '<div class="day-h">DAY ' + it.day + ' <span style="font-weight:500;color:var(--t-dim)">' + esc(it.date) + '</span>'
+        + '<span style="flex:1"></span><button type="button" class="btn btn-sm" data-irm="' + i + '" aria-label="DAY ' + it.day + ' 삭제">삭제</button></div>'
+        + '<div class="day-b">'
+        + '<label class="f"><span>지역</span><input type="text" data-it="' + i + '" data-k="title" value="' + esc(it.title) + '" placeholder="인천 → 다낭" /></label>'
+        + '<label class="f"><span>숙박</span><input type="text" data-it="' + i + '" data-k="stay" value="' + esc(it.stay) + '" /></label>'
+        + '<label class="f" style="grid-column:1/-1"><span>오전</span><input type="text" data-it="' + i + '" data-k="am" value="' + esc(it.am) + '" /></label>'
+        + '<label class="f" style="grid-column:1/-1"><span>오후</span><input type="text" data-it="' + i + '" data-k="pm" value="' + esc(it.pm) + '" /></label>'
+        + '<label class="f" style="grid-column:1/-1"><span>저녁</span><input type="text" data-it="' + i + '" data-k="eve" value="' + esc(it.eve) + '" /></label>'
+        + '<label class="f"><span>조식</span><input type="text" data-im="' + i + '" data-k="b" value="' + esc(it.meals.b) + '" /></label>'
+        + '<label class="f"><span>중식</span><input type="text" data-im="' + i + '" data-k="l" value="' + esc(it.meals.l) + '" /></label>'
+        + '<label class="f"><span>석식</span><input type="text" data-im="' + i + '" data-k="d" value="' + esc(it.meals.d) + '" /></label>'
+        + '<label class="f" style="grid-column:1/-1"><span>참고</span><input type="text" data-it="' + i + '" data-k="note" value="' + esc(it.note) + '" /></label>'
+        + '</div>';
+      box.appendChild(row);
+    });
+    box.querySelectorAll('[data-it]').forEach((el) => {
+      el.addEventListener('input', () => { S.iti[Number(el.dataset.it)][el.dataset.k] = el.value; renderPreview(); });
+    });
+    box.querySelectorAll('[data-im]').forEach((el) => {
+      el.addEventListener('input', () => { S.iti[Number(el.dataset.im)].meals[el.dataset.k] = el.value; renderPreview(); });
+    });
+    box.querySelectorAll('[data-irm]').forEach((el) => {
+      el.addEventListener('click', () => { S.iti.splice(Number(el.dataset.irm), 1); stampDates(); renderIti(); renderPreview(); });
+    });
+  }
+  $('btnAddDay').addEventListener('click', () => { fitDays(S.iti.length + 1); renderPreview(); });
+  $('btnFitDays').addEventListener('click', () => { fitDays(num($('pDays'))); renderPreview(); });
+
+  /* ═══ ⑤ 문서 만들기 · 미리보기 ═════════════════════════════════════════ */
+  function buildDoc() {
+    const t = totals();
+    const adult = num($('dAdult')), child = num($('dChild')), infant = num($('dInfant'));
+    const lines = [];
+    if (adult > 0) lines.push({ kind: 'adult', label: '성인', unit: t.unit, qty: adult });
+    /* 🔴 아동·유아는 **성인과 같은 단가**다 (대표 결정 2026-09-15). */
+    if (child > 0) lines.push({ kind: 'child', label: '아동', unit: t.unit, qty: child });
+    if (infant > 0) lines.push({ kind: 'infant', label: '유아', unit: t.unit, qty: infant });
+
+    const details = S.details.map((d) => {
+      const rows = [];
+      if (d.label === '항공' && (d.left || d.right)) rows.push({ left: d.left, right: d.right, note: d.note });
+      else if (d.right) rows.push({ text: d.right, note: d.note, accent: d.red ? 'red' : '' });
+      return { label: d.label, note: d.note, rows,
+        footnotes: (d.foot || '').split('\n').map((x) => x.trim()).filter(Boolean) };
+    }).filter((d) => d.rows.length || d.footnotes.length);
+
+    return {
+      meta: {
+        client: $('dClient').value, regionLabel: $('dRegion').value,
+        issueDate: ymd(new Date()), validUntil: $('dValid').value,
+        staffName: $('dStaffName').value, staffTel: $('dStaffTel').value, staffEmail: $('dStaffEmail').value,
+      },
+      trip: {
+        orgName: $('dOrgName').value, startDate: $('pStart').value, endDate: $('pEnd').value,
+        days: num($('pDays')), nights: num($('pNights')),
+        region: $('dRegion').value, stayLabel: $('dStay').value, pax: num($('pPax')),
+      },
+      price: { lines, condition: $('dCondition').value, fuelNote: $('dFuel').value },
+      options: S.options.filter((o) => o.name),
+      details,
+      itinerary: S.iti,
+      remarks: $('dRemarks').value,
+      cancelPolicy: $('dCancel').value,
+      /* 🔴 밑줄로 시작 = 내부 전용. `QuoteDoc.stripInternal`이 발급 직전에 지운다. */
+      _internal: {
+        source: 'engine', cost: t.cost, margin: t.margin, memo: $('dMemo').value,
+        engineRows: S.rows.map((r) => ({ name: r.name, auto: r.auto, val: r.val, internal: r.internal })),
+        overrides: S.rows.filter((r) => r.val !== r.auto).map((r) => ({ label: r.name, autoAmount: r.auto, amount: r.val })),
+        adjust: S.adj.filter((a) => a.amount !== 0).map((a) => ({ key: a.key, label: a.label, qty: a.qty, amount: a.amount })),
+        autoTotal: t.autoTotal, finalTotal: t.total, residual: S.residual,
+        customerTel: $('dCustTel').value,
+      },
+    };
+  }
+
+  function renderPreview() {
+    if (!S.bd) return;
+    renderSum();
+    const doc = buildDoc();
+    /* 🔴 **고객이 보는 것을 그대로 보여준다** — 내부 필드를 지운 뒤 그린다.
+       내부본을 그려서 보여주면 「고객도 이게 보이겠지」라는 확인이 거짓이 된다. */
+    const pub = QuoteDoc.stripInternal(doc);
+    $('prevBox').innerHTML = S.prevTab === 'quote'
+      ? QuoteDoc.renderQuote(pub, { company: window.COMPANY_INFO })
+      : QuoteDoc.renderItinerary(pub, { company: window.COMPANY_INFO });
+
+    const t = totals();
+    const sum = num($('dAdult')) + num($('dChild')) + num($('dInfant'));
+    const w = $('paxWarn');
+    if (sum !== t.pax) {
+      w.textContent = '성인·아동·유아 합이 ' + won(sum) + '명인데 여행 인원은 ' + won(t.pax)
+        + '명입니다. 견적서 총액이 ' + won(t.total) + '원과 달라집니다.';
+      w.classList.remove('hidden');
+    } else w.classList.add('hidden');
+  }
+
+  function renderAll() { renderMoney(); renderPreview(); }
+
+  $('tabQuote').addEventListener('click', () => { S.prevTab = 'quote'; syncTabs(); });
+  $('tabIti').addEventListener('click', () => { S.prevTab = 'iti'; syncTabs(); });
+  function syncTabs() {
+    $('tabQuote').setAttribute('aria-pressed', S.prevTab === 'quote' ? 'true' : 'false');
+    $('tabIti').setAttribute('aria-pressed', S.prevTab === 'iti' ? 'true' : 'false');
+    renderPreview();
+  }
+  $('btnPrint').addEventListener('click', () => window.print());
+
+  ['dClient', 'dOrgName', 'dRegion', 'dStay', 'dStaffName', 'dStaffTel', 'dStaffEmail', 'dValid',
+    'dAdult', 'dChild', 'dInfant', 'dCondition', 'dFuel', 'dRemarks', 'dCancel', 'dMemo']
+    .forEach((id) => $(id).addEventListener('input', renderPreview));
+
+  /* ═══ 저장 ═══════════════════════════════════════════════════════════════
+     🔴 **기존 경로를 그대로 탄다.** `script.js`의 폼 제출 처리가 58개 키짜리 견적
+       기록을 만들어 `?action=internal`로 보낸다. 그 52줄을 여기 베끼면 두 벌이 되고
+       반드시 어긋난다(결함 생성기 ①). 숨은 폼에 submit을 흘린 뒤, 만들어진 견적에
+       문서를 붙인다. */
+  $('btnSave').addEventListener('click', async () => {
+    const msg = $('saveMsg');
+    const show = (text, err) => {
+      msg.textContent = text;
+      msg.classList.remove('hidden');
+      msg.classList.toggle('note-err', !!err);
+    };
+    if (!S.bd) { show('먼저 「자동 산출하기」를 눌러 주세요.', true); return; }
+    $('btnSave').disabled = true;
+    show('저장 중…');
+    try {
+      /* 숨은 폼의 고객 정보 칸을 채운 뒤 제출한다 — script.js가 이 값을 읽는다 */
+      const hid = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
+      hid('organization', $('dOrgName').value || $('dClient').value);
+      hid('contactName', $('dStaffName').value);
+      hid('contactTel', $('dCustTel').value);
+      QuoteEngineHost.set(input());
+      window._lastQuoteSaved = null;
+      const form = document.getElementById('estimateForm');
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+      /* script.js가 저장 결과를 약속으로 남긴다(`_lastQuoteSaved`) */
+      const saved = await Promise.resolve(window._lastQuoteSaved).catch(() => null);
+      const id = (window._lastQuoteRecord || {}).id;
+      if (!id) { show('견적 기록을 만들지 못했습니다. 새로고침 후 다시 시도해 주세요.', true); return; }
+
+      const r = await fetch('/api/quotes/' + encodeURIComponent(id), {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doc: buildDoc() }),
+      });
+      if (!r.ok) {
+        show('견적은 저장됐지만 견적서 문서를 붙이지 못했습니다 (오류 ' + r.status
+          + '). 견적 요청 관리에서 이 건을 열어 다시 시도해 주세요. 견적번호: ' + id, true);
+        return;
+      }
+      show('저장했습니다. 관리자 → 견적 요청 관리에서 이 건을 열어 견적서 링크를 발급하실 수 있습니다. (' + id + ')');
+    } catch (e) {
+      show('저장에 실패했습니다: ' + e.message, true);
+    } finally {
+      $('btnSave').disabled = false;
+    }
+  });
+
+  /* ═══ 인증 ═══ admin-quote.html과 같은 방식이다 ═══ */
+  (function authGate() {
+    fetch('/api/admin/account?action=me').then((r) => {
+      if (!r.ok) { (window.top || window).location.href = 'admin.html'; return null; }
+      $('authGate').classList.add('hidden');
+      $('app').classList.remove('hidden');
+      return r.json();
+    }).then((me) => {
+      if (!me) return;
+      /* 🔴 **직원 전원이 볼 수 있다** (2026-09-15 대표 확인: 「내부 직원은 모두 봐도 괜찮아」).
+         역할로 막지 않는다 — 다만 담당자 이름은 로그인 계정에서 채운다. */
+      window.__INTERNAL_STAFF__ = me.displayName || '';
+      if (!$('dStaffName').value) $('dStaffName').value = me.displayName || '';
+    }).catch(() => { (window.top || window).location.href = 'admin.html'; });
+  })();
+})();
+</script>
+</body>
+</html>

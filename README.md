@@ -20,7 +20,8 @@
 | `data.js` | 55개 목적지 요율표 + `DEST_CLASSIFY` 분류표(좌석·보험·지역·통화·시즌·반구) + 추천 콘텐츠(`DEST_REC`)·추천 일정(`ITINERARY_DB`) |
 | `dest_currency.js` · `company-info.js` | 정산 통화 매핑 · 회사 정보 |
 | `admin.html` | 관리자 화면 — 요율 편집, 문의·견적 관리, 통계, **일정 관리**, 계정 관리 |
-| `admin-quote.html` | 담당자용 내부 견적 산출 도구 |
+| `admin-quote.html` | 담당자용 견적 산출 도구 — **고객이 받는 그대로**의 금액 (관리자 메뉴 「자동 견적 산출 (고객용)」) |
+| `admin-quote-pro.html` | **내부직원용** 견적 산출 — 같은 엔진·같은 금액에 **원가·마진이 함께 보이고** 항목별 조정·일정 입력·견적서 미리보기까지 한 화면 |
 | `estimate-view.html` | 고객에게 공유되는 견적서 화면 |
 | `quote_engine_host.js` | **견적 엔진 호스트** — 엔진(`script.js`)이 읽는 입력칸을 코드로 만든다. 화면을 베껴 세 번째 복사본을 만들지 않으려고 생겼다. `mount()`는 `script.js`보다 **먼저**, `ready({…})`는 **뒤에** 부른다 |
 | `quote_doc.js` · `quote_doc.css` | **견적서 공통 모듈** — 견적서·일정표를 그리는 **유일한** 자리. 규격(`blank`)·변환·렌더가 여기 한 곳이다. `_`로 시작하는 키 = 내부 전용(`stripInternal`이 지운다) |
