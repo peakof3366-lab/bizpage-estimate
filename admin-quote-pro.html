@@ -117,6 +117,8 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
 .badge { display: inline-block; padding: 1px 7px; font-size: 11px; font-weight: 800; border: 1px solid; }
 .badge-ed { color: var(--red); border-color: var(--red); background: #FFF4F5; }
 .badge-in { color: var(--warn); border-color: var(--warn-line); background: var(--warn-bg); }
+/* ⚠ `hidden` 속성으로 감추면 위 `display:inline-block`에 진다 — 클래스로 못 박는다 */
+.badge.off { display: none; }
 .delta { font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .delta.up { color: var(--red); }
 .delta.dn { color: var(--ok); }
@@ -141,6 +143,10 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
 .day-h { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #F4F4F0;
   font-size: 13px; font-weight: 800; }
 .day-b { padding: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+/* 한 항목에 줄이 둘 이상일 때 — 기준 양식의 「식사」·「기타사항」이 그렇다 */
+.day-b + .day-b { border-top: 1px dashed var(--line); }
+.day-b .rn { grid-column: 1/-1; display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 800; color: var(--t-sub); }
 
 /* ── 미리보기 ── */
 .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--ink); margin-bottom: 0; }
@@ -295,6 +301,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         <label class="f"><span>담당자 이름</span><input type="text" id="dStaffName" /></label>
         <label class="f"><span>담당자 연락처</span><input type="text" id="dStaffTel" placeholder="02-0000-0000" /></label>
         <label class="f"><span>담당자 E-mail</span><input type="text" id="dStaffEmail" placeholder="name@hanatrabiz.com" /></label>
+        <label class="f"><span>견적서 작성일자</span><input type="date" id="dIssue" /></label>
         <label class="f"><span>유효기간</span><input type="date" id="dValid" /></label>
         <label class="f"><span>고객 연락처 <em>(대장용 · 견적서엔 안 나감)</em></span><input type="text" id="dCustTel" /></label>
       </div>
@@ -310,7 +317,9 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
       <p class="note hidden" id="paxWarn"></p>
 
       <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">상세 내용</h3>
-      <p class="note-i" style="margin-bottom:10px">자동 산출 결과로 채워 두었습니다. <b>빈 칸은 견적서에 안 나갑니다.</b></p>
+      <p class="note-i" style="margin-bottom:10px">자동 산출 결과로 채워 두었습니다. 회색 예시는 <b>표준 양식의 문구</b>이며 그대로 나가지 않습니다 —
+        <b>빈 칸은 견적서에서 그 항목 자체가 빠집니다.</b></p>
+      <p class="note hidden" id="detailWarn"></p>
       <div id="detailRows"></div>
 
       <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">선택 옵션</h3>
@@ -748,10 +757,33 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
   }
 
   /* ═══ ③ 견적서 내용 — 자동 산출값으로 **먼저 채운다** ═══════════════════ */
+
+  /* ── 표준 양식의 예시 문구 ─────────────────────────────────────────────
+     2026-09-08 기준 이미지(`quote_doc.js` 머리말이 가리키는 그 문서)에서 그대로 옮겼다.
+     🔴 **값이 아니라 예시다.** placeholder로만 쓰고 문서에는 절대 들어가지 않는다 —
+       「무사고 경력의 베테랑 기사」·「노쇼핑」은 건별 사실이라 기본값으로 박으면
+       아무도 안 고치고 그대로 고객에게 나간다(`CLAUDE.md` 결함 생성기 ②의 반대편:
+       빈 칸을 조용히 채우는 쪽도 같은 사고다).
+     ⚠ 예시를 늘릴 때는 **그 항목이 실제로 건별로 달라지는가**를 먼저 본다. */
+  const PH = {
+    '항공': 'RS0527 23MAY ICNCXR 19:50~22:55\nRS0528 27MAY CXRICN 00:05~07:10',
+    '호텔': '전일정 특급 호텔 - ○○ 리조트\n※ 18트윈, 2싱글, 2스위트룸 조건',
+    '기사/차량': '무사고 경력의 베테랑 기사와 45인승 이상의 최신식 대형 버스 1대',
+    '가이드': '10년 이상 경력의 한국인 우수가이드 (팁 포함) 1명 & 한국어 가능 현지인 가이드 1명',
+    '인솔자': '행사 담당 PM 외 1명의 책임인솔자 동행, 총 1명',
+    '식사': '조식은 호텔식, 중/석식은 한식과 현지식을 고루 제공',
+    '입장료': '일정표에 기재된 모든 관광지',
+    '여행자보험': '기본 1억원 보장',
+  };
+  /* 항공 각주 — 기준 양식의 파란 두 줄. 이것도 예시다. */
+  const PH_FOOT = '※ FSC (Full Service Career) : 마일리지 적립, 기내식, 사전 좌석 지정 등의 서비스가 포함된 항공사\n'
+    + '※ LCC (Low Cost Career) : FSC가 제공하는 서비스가 제공되지 않거나 유료로 포함 가능한 항공사';
+
   function seedDoc(bd, v) {
     const dest = v.dest;
     if (!$('dRegion').value) $('dRegion').value = dest;
     if (!$('dStay').value) $('dStay').value = dest + '(' + Math.max(0, num($('pNights'))) + ')';
+    if (!$('dIssue').value) $('dIssue').value = ymd(new Date());
     if (!$('dValid').value) {
       /* ⚠ +30일은 `estimate-view.html`이 이미 쓰는 값이다. 며칠이 맞는지는 대표 확인
          대기 중이다(결정대기열 0-ac) — 여기서 임의로 정하지 않고 같은 값을 쓴다. */
@@ -766,48 +798,130 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
 
     const has = (re) => (bd.rows || []).some((r) => re.test(r.name));
     const D = [];
-    D.push({ label: '항공', note: (v.cabinClass === 'business' ? '비즈니스' : v.cabinClass === 'mixed' ? '혼합 편성' : '이코노미'),
-      left: '', right: '', foot: '' });
-    if (v.incHotel) D.push({ label: '호텔', note: v.roomConfig === 'single' ? '1인 1실 조건' : v.roomConfig === 'mixed' ? '혼합 조건' : '2인 1실 조건',
-      right: (bd.hotelGrade && bd.hotelGrade.label ? bd.hotelGrade.label + ' 기준' : '') });
-    if (v.incVehicle) D.push({ label: '기사/차량', note: '전 일정 포함', right: '' });
-    if (v.incGuide) D.push({ label: '가이드', note: '전 일정 포함', right: '' });
-    if (v.incMeal) D.push({ label: '식사', note: '전 일정 포함', right: '' });
-    if (v.incSightseeing) D.push({ label: '입장료', note: '전 일정 포함', right: '일정표에 기재된 모든 관광지' });
-    if (has(/여행자보험/)) D.push({ label: '여행자보험', note: '전 일정 포함', right: '' });
-    if (v.incGolf) D.push({ label: '골프', note: '전 일정 포함',
-      right: (v.golfCount || 0) + '명 · ' + (v.golfRounds || 1) + '라운드' });
-    D.push({ label: '기타사항', note: '', right: '' });
+    const sec = (label, rows, extra) => D.push(Object.assign({ label, rows }, extra || {}));
+    sec('항공', [{
+      left: '', text: '', note: (v.cabinClass === 'business' ? '비즈니스' : v.cabinClass === 'mixed' ? '혼합 편성' : '이코노미'),
+      phLeft: '에어서울', ph: PH['항공'], phNote: 'LCC',
+    }], { foot: '', footPh: PH_FOOT });
+    if (v.incHotel) sec('호텔', [{
+      text: (bd.hotelGrade && bd.hotelGrade.label ? bd.hotelGrade.label + ' 기준' : ''), ph: PH['호텔'],
+      note: v.roomConfig === 'single' ? '1인 1실 조건' : v.roomConfig === 'mixed' ? '혼합 조건' : '2인 1실 조건',
+    }]);
+    if (v.incVehicle) sec('기사/차량', [{ text: '', note: '전 일정 포함', ph: PH['기사/차량'] }]);
+    if (v.incGuide) sec('가이드', [{ text: '', note: '전 일정 포함', ph: PH['가이드'] }]);
+    /* 🔴 **인솔자** — 기준 양식의 독립 행인데 2026-09-16까지 이 화면에 아예 없었다.
+       인원·동행 여부는 건별이라 문구를 박지 않는다(예시만 보여 준다). */
+    sec('인솔자', [{ text: '', note: '전 일정 포함', ph: PH['인솔자'] }]);
+    if (v.incMeal) sec('식사', [{ text: '', note: '전 일정 포함', ph: PH['식사'] }]);
+    if (v.incSightseeing) sec('입장료', [{ text: '일정표에 기재된 모든 관광지', note: '전 일정 포함', ph: PH['입장료'] }]);
+    if (has(/여행자보험/)) sec('여행자보험', [{ text: '', note: '전 일정 포함', ph: PH['여행자보험'] }]);
+    if (v.incGolf) sec('골프', [{ text: (v.golfCount || 0) + '명 · ' + (v.golfRounds || 1) + '라운드', note: '전 일정 포함' }]);
+    /* 🔴 **기타사항은 두 줄**이다(쇼핑센터 방문 · 선택관광 제안). 한 줄짜리 칸만 있던
+       탓에 두 번째 줄을 만들 방법 자체가 없었다. 노쇼핑·노옵션은 **건별 약속**이라
+       기본값으로 박지 않는다 — 박아 두면 아무도 안 고치고 그대로 나간다. */
+    sec('기타사항', [
+      { text: '', note: '', ph: '쇼핑센터 방문', phNote: '방문 없음 (노쇼핑)' },
+      { text: '', note: '', ph: '선택관광 제안', phNote: '제안 없음 (노옵션)' },
+    ]);
     /* 🔴 불포함내역은 `company-info.js`가 진실이다 — 여기 다시 적으면 두 벌이 된다 */
     const EX = (window.QUOTE_EXCLUDED || []).join(', ');
-    D.push({ label: '불포함내역', note: '', right: EX, red: true });
+    sec('불포함내역', [{ text: EX, note: '', accent: 'red' }], { red: true });
     S.details = D;
     renderDetails();
     if (!S.options.length) { S.options = []; renderOptions(); }
   }
 
+  /* ── 「이 항목은 비어 있다」를 재는 자 ──
+     내용(또는 항공사)이 비면 그 줄은 문서로 안 나가고, 줄이 하나도 안 나가면 **항목 자체가
+     사라진다**. 예전엔 그 사라짐을 화면이 말하지 않았다 — 결함 생성기 ②(조용한 폴백)다. */
+  const rowEmpty = (r) => !String(r.text || '').trim() && !String(r.left || '').trim();
+  const secEmpty = (d) => (d.rows || []).every(rowEmpty) && !String(d.foot || '').trim();
+
   function renderDetails() {
     const box = $('detailRows'); box.innerHTML = '';
     S.details.forEach((d, i) => {
-      const row = document.createElement('div');
-      row.className = 'day';
-      row.innerHTML = '<div class="day-h">' + esc(d.label) + (d.red ? ' <span class="badge badge-ed">빨간 글씨</span>' : '') + '</div>'
-        + '<div class="day-b">'
-        + (d.label === '항공' ? '<label class="f"><span>항공사</span><input type="text" data-dl="' + i + '" value="' + esc(d.left || '') + '" placeholder="에어서울" /></label>' : '')
-        + '<label class="f" style="grid-column:1/-1"><span>내용</span><textarea data-dr="' + i + '" placeholder="'
-        + (d.label === '항공' ? 'RS0527 23MAY ICNCXR 19:50~22:55' : '') + '">' + esc(d.right || '') + '</textarea></label>'
-        + '<label class="f"><span>비고</span><input type="text" data-dn="' + i + '" value="' + esc(d.note || '') + '" /></label>'
-        + (d.label === '항공' ? '<label class="f" style="grid-column:1/-1"><span>각주 <em>(파란 글씨 · 줄바꿈으로 여러 줄)</em></span><textarea data-df="' + i + '">' + esc(d.foot || '') + '</textarea></label>' : '')
-        + '</div>';
-      box.appendChild(row);
+      const wrap = document.createElement('div');
+      wrap.className = 'day';
+      let h = '<div class="day-h">' + esc(d.label)
+        + (d.red ? ' <span class="badge badge-ed">빨간 글씨</span>' : '')
+        + ' <span class="badge badge-in' + (secEmpty(d) ? '' : ' off') + '" data-dempty="' + i + '">비어 있음 · 견적서에서 빠집니다</span>'
+        + '<span style="flex:1"></span>'
+        + '<button type="button" class="btn btn-sm" data-dadd="' + i + '">+ 줄 추가</button></div>';
+      d.rows.forEach((r, j) => {
+        const k = i + '-' + j;
+        h += '<div class="day-b">'
+          + (d.rows.length > 1
+            ? '<div class="rn"><span>' + (j + 1) + '번째 줄</span><span style="flex:1"></span>'
+              + '<button type="button" class="btn btn-sm" data-drm="' + k + '">이 줄 삭제</button></div>'
+            : '')
+          + (d.label === '항공'
+            ? '<label class="f"><span>항공사</span><input type="text" data-dl="' + k + '" value="' + esc(r.left || '')
+              + '" placeholder="' + esc(r.phLeft || '') + '" /></label>'
+            : '')
+          + '<label class="f" style="grid-column:1/-1"><span>내용</span>'
+          + '<textarea data-dr="' + k + '" placeholder="' + esc(r.ph || '') + '">' + esc(r.text || '') + '</textarea></label>'
+          + '<label class="f"><span>비고</span><input type="text" data-dn="' + k + '" value="' + esc(r.note || '')
+          + '" placeholder="' + esc(r.phNote || '') + '" /></label>'
+          + '</div>';
+      });
+      /* 각주는 **항목에 하나**다 — 줄마다 붙이면 기준 양식의 파란 두 줄이 여러 벌 찍힌다 */
+      if (d.label === '항공') {
+        h += '<div class="day-b"><label class="f" style="grid-column:1/-1">'
+          + '<span>각주 <em>(파란 글씨 · 줄바꿈으로 여러 줄)</em></span>'
+          + '<textarea data-df="' + i + '" placeholder="' + esc(d.footPh || '') + '">' + esc(d.foot || '') + '</textarea></label></div>';
+      }
+      wrap.innerHTML = h;
+      box.appendChild(wrap);
     });
-    box.querySelectorAll('[data-dl],[data-dr],[data-dn],[data-df]').forEach((el) => {
+    box.querySelectorAll('[data-dl],[data-dr],[data-dn]').forEach((el) => {
       el.addEventListener('input', () => {
-        const i = Number(el.dataset.dl || el.dataset.dr || el.dataset.dn || el.dataset.df);
-        const k = el.dataset.dl ? 'left' : el.dataset.dr ? 'right' : el.dataset.dn ? 'note' : 'foot';
-        S.details[i][k] = el.value; renderPreview();
+        const key = el.dataset.dl || el.dataset.dr || el.dataset.dn;
+        const p = key.split('-'); const i = Number(p[0]), j = Number(p[1]);
+        const f = el.dataset.dl !== undefined ? 'left' : el.dataset.dr !== undefined ? 'text' : 'note';
+        S.details[i].rows[j][f] = el.value;
+        updateDetailWarn(); renderPreview();
       });
     });
+    box.querySelectorAll('[data-df]').forEach((el) => {
+      el.addEventListener('input', () => {
+        S.details[Number(el.dataset.df)].foot = el.value;
+        updateDetailWarn(); renderPreview();
+      });
+    });
+    box.querySelectorAll('[data-dadd]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const d = S.details[Number(el.dataset.dadd)];
+        /* 비고는 **바로 윗줄을 따른다** — 기준 양식이 이웃한 같은 비고를 한 칸으로 묶는다 */
+        const last = d.rows[d.rows.length - 1] || {};
+        d.rows.push({ left: '', text: '', note: last.note || '' });
+        renderDetails(); renderPreview();
+      });
+    });
+    box.querySelectorAll('[data-drm]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const p = el.dataset.drm.split('-'); const i = Number(p[0]);
+        S.details[i].rows.splice(Number(p[1]), 1);
+        /* 줄을 0개로 두면 그 항목을 다시 적을 칸이 사라진다 — 빈 줄 하나는 남긴다 */
+        if (!S.details[i].rows.length) S.details[i].rows.push({ left: '', text: '', note: '' });
+        renderDetails(); renderPreview();
+      });
+    });
+    updateDetailWarn();
+  }
+
+  /* 무엇이 빠지는지 **세어서 위에 적는다.** 배지 하나씩은 스크롤해야 보인다. */
+  function updateDetailWarn() {
+    S.details.forEach((d, i) => {
+      const b = document.querySelector('[data-dempty="' + i + '"]');
+      /* ⚠ `hidden` 속성은 `.badge`의 `display:inline-block`에 진다 — 이 저장소가 두 번 밟았다 */
+      if (b) b.classList.toggle('off', !secEmpty(d));
+    });
+    const empties = S.details.filter(secEmpty).map((d) => d.label);
+    const w = $('detailWarn');
+    if (!empties.length) { w.classList.add('hidden'); return; }
+    w.textContent = '지금 비어 있어 견적서에서 빠지는 항목 ' + empties.length + '개 — ' + empties.join(' · ')
+      + '. 표준 양식에는 있는 자리입니다(비워 두셔도 됩니다).';
+    w.classList.remove('hidden');
   }
 
   function renderOptions() {
@@ -917,18 +1031,22 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     if (child > 0) lines.push({ kind: 'child', label: '아동', unit: t.unit, qty: child });
     if (infant > 0) lines.push({ kind: 'infant', label: '유아', unit: t.unit, qty: infant });
 
+    /* 줄은 **여럿일 수 있다**(기준 양식의 식사·기타사항). 내용이 빈 줄만 버린다. */
     const details = S.details.map((d) => {
-      const rows = [];
-      if (d.label === '항공' && (d.left || d.right)) rows.push({ left: d.left, right: d.right, note: d.note });
-      else if (d.right) rows.push({ text: d.right, note: d.note, accent: d.red ? 'red' : '' });
-      return { label: d.label, note: d.note, rows,
+      const rows = d.rows.map((r) => {
+        if (d.label === '항공' && (r.left || r.text)) return { left: r.left || '', right: r.text || '', note: r.note || '' };
+        if (String(r.text || '').trim()) return { text: r.text, note: r.note || '', accent: r.accent || (d.red ? 'red' : '') };
+        return null;
+      }).filter(Boolean);
+      return { label: d.label, note: (d.rows[0] && d.rows[0].note) || '', rows,
         footnotes: (d.foot || '').split('\n').map((x) => x.trim()).filter(Boolean) };
     }).filter((d) => d.rows.length || d.footnotes.length);
 
     return {
       meta: {
         client: $('dClient').value, regionLabel: $('dRegion').value,
-        issueDate: ymd(new Date()), validUntil: $('dValid').value,
+        /* 작성일자는 **입력칸**이다 — 며칠 전에 뽑아 둔 견적을 오늘 날짜로 찍으면 안 된다 */
+        issueDate: $('dIssue').value || ymd(new Date()), validUntil: $('dValid').value,
         staffName: $('dStaffName').value, staffTel: $('dStaffTel').value, staffEmail: $('dStaffEmail').value,
       },
       trip: {
@@ -986,7 +1104,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
   }
   $('btnPrint').addEventListener('click', () => window.print());
 
-  ['dClient', 'dOrgName', 'dRegion', 'dStay', 'dStaffName', 'dStaffTel', 'dStaffEmail', 'dValid',
+  ['dClient', 'dOrgName', 'dRegion', 'dStay', 'dStaffName', 'dStaffTel', 'dStaffEmail', 'dIssue', 'dValid',
     'dAdult', 'dChild', 'dInfant', 'dCondition', 'dFuel', 'dRemarks', 'dCancel', 'dMemo']
     .forEach((id) => $(id).addEventListener('input', renderPreview));
 
