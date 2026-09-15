@@ -280,9 +280,9 @@ const DEST_CLASSIFY = {
   '다낭':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'danang'        },
   '나트랑':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'nhatrang'        },
   '푸꾸옥':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
-  '세부':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'seasia'        },
-  '마닐라':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'seasia'        },
-  '보홀':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'seasia'        },
+  '세부':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'philippines'        },
+  '마닐라':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'philippines'        },
+  '보홀':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'philippines'        },
   '코타키나발루': { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'말레이시아',   currency:'MYR', season:'kotakinabalu'        },
   '캄보디아':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'캄보디아',    currency:'KHR', season:'seasia'        },
   '방콕':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
@@ -589,6 +589,19 @@ const DEST_SEASON_PROFILES = [
       { id:'peak',    months:[7,8,12,1],        factor:1.15, label:'방학·연휴 성수기', badge:'성수기 +15%' },
       { id:'offpeak', months:[3,4,5,9,10,11],   factor:0.88, label:'비수기',          badge:'비수기 −12%' },
       { id:'normal',  months:[],                factor:1.00, label:'평시',            badge:'평시' },
+    ],
+  },
+  {
+    /* 필리핀 — 조사: **건기 12~2월이 최고점**(여행 최적기) + **한국 여름휴가 7~8월
+       40만원 훌쩍**. 우기 6~10월이 가장 저렴하되 **7~8월은 그 안에서도 성수기**다.
+       ⚠ 즉 성수기가 **두 덩이**로 갈린다 — 「건기=성수기」 하나로 뭉치면 7~8월을
+         비수기로 매기게 된다(그게 고치기 전 상태였다).
+       ⚠ 3~5월·11월은 조사에 뚜렷한 언급이 없어 **평시로 둔다.** */
+    id: 'philippines', name: '필리핀 (건기 12~2월·여름휴가 7~8월 성수기 / 우기 6·9·10월 비수기)',
+    config: [
+      { id:'peak',    months:[12,1,2,7,8],  factor:1.15, label:'성수기',     badge:'성수기 +15%' },
+      { id:'offpeak', months:[6,9,10],      factor:0.88, label:'우기 비수기', badge:'우기 비수기 −12%' },
+      { id:'normal',  months:[],            factor:1.00, label:'평시',       badge:'평시' },
     ],
   },
   {
