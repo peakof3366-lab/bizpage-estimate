@@ -129,6 +129,36 @@ const LIVE_OVERRIDE = { 도쿄: { airfare: 399000, rateDate: '2026-07' } };
   ok('제보 실패 상태에서도 편집창은 열린다',
     !w.document.getElementById('rateEditModal').classList.contains('hidden'));
 
+  console.log('\n[4-b] 🔴 **200인데 배열이 아닌 제보 응답** — 배열인 척 쓰지 않는다');
+  /* ■ 어떻게 나왔나 (2026-09-15)
+       F5로 보던 탭에 남는 기능을 시험하다, 제보 응답을 `{}`로 흉내 냈더니
+       **`priceReportsCache.forEach is not a function`**이 터졌다. 서버는 정상 경로에서
+       늘 배열을 주고(`handlePriceReports`가 `rows.map`), HTTP 실패와 JSON 파싱 실패는
+       이미 막혀 있었다 — **200인데 배열이 아닌 본문** 한 갈래만 열려 있었다.
+
+     ■ 터지면 무엇이 죽나
+       `priceReportsCache`를 **맨몸으로 도는 곳이 7곳**이다(`admin/rates.js` 4 ·
+       `admin/pricereport.js` 3). 요율 갱신 제안·검증 배지·제보 내역 모달이 통째로 죽는다.
+
+     ■ 🔴 기존 방어가 헛돌고 있었다
+       `(priceReportsCache || [])` 꼴이 **9곳** 있는데 `{}`는 truthy라 그대로 통과한다 —
+       **막는 척만 하고 있었다.** 그래서 쓰는 쪽에 방어를 흩뿌리는 대신
+       **들어오는 한 곳**(`loadPriceReports`)에서 `Array.isArray`로 거른다.
+     ⚠ 조용히 비우지 않는다 — `priceReportsStale`을 세워 경고띠에 흔적을 남긴다.
+       「못 읽은 것」과 「없는 것」은 화면에서 똑같이 보이기 때문이다([4]와 같은 이유). */
+  for (const [무엇, 값] of [['객체', { ok: false, error: 'x' }], ['문자열', 'nope'], ['null', null]]) {
+    dom = await bootAdmin({ reportsReply: { notArray: 값 } });
+    w = dom.window;
+    ok(`[${무엇}] 배열이 아닌 응답을 캐시에 담지 않는다`, Array.isArray(w.__priceReports()),
+      typeof w.__priceReports());
+    ok(`[${무엇}] 🔴 조용히 비우지 않는다(경고띠에 남긴다)`, w.__rateState().reports === true);
+    /* 🔴 여기가 핵심이다 — 화면을 실제로 그려서 터지지 않는지 본다.
+       선언만 보면 「캐시가 배열이다」까지만 알 수 있다. */
+    let 터짐 = '';
+    try { w.renderRates(); } catch (e) { 터짐 = String(e.message); }
+    ok(`[${무엇}] 요율 화면이 터지지 않는다`, 터짐 === '', 터짐);
+  }
+
   console.log('\n[5] 정상일 때는 그대로 동작한다 — 가드가 과하게 잠기지 않았는가');
 
   dom = await bootAdmin({});
@@ -201,6 +231,10 @@ async function bootAdmin({ ratesReply, reportsReply } = {}) {
     reports: (typeof priceReportsStale !== 'undefined') ? priceReportsStale : false,
     cache: rateOverridesCache,
   });
+  /* 2026-09-15 [4-b]: 캐시에 **무엇이 담겼는지**를 본다. 「담기지 않았다」를 재려면
+     깃발(priceReportsStale)만으로는 모자라다 — 배열이 아닌 것이 들어와도 깃발은
+     안 설 수 있기 때문이다. 값을 직접 꺼내 본다. */
+  window.__priceReports = () => ((typeof priceReportsCache !== 'undefined') ? priceReportsCache : undefined);
   window.__setHistoryCache = (rows) => { rateHistoryRowsCache = rows; };
   currentUser = { id: '7', username: 'staff1', displayName: '김직원', role: 'staff' };
 }catch(e){ window.__exposeError = String(e); }
@@ -241,6 +275,11 @@ async function bootAdmin({ ratesReply, reportsReply } = {}) {
         }
         if (u.includes('action=priceReports')) {
           if (reportsReply && reportsReply.ok === false) return json({ error: 'nope' }, reportsReply.status);
+          /* 🔴 **200인데 배열이 아닌 본문** — 2026-09-15에 추가한 갈래.
+             서버는 정상 경로에서 늘 배열을 주지만(`rows.map`), 프록시·배포 전환 중
+             끼어드는 응답처럼 200으로 다른 모양이 올 수 있다. 그때 화면이 어떻게
+             되는지를 여기서 잰다. */
+          if (reportsReply && reportsReply.notArray !== undefined) return json(reportsReply.notArray);
           return json([]);
         }
         if (u.includes('action=me')) return json({ ok: true, id: '7', username: 'staff1', displayName: '김직원', role: 'staff' });

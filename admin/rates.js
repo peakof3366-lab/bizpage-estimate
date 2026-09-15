@@ -1155,7 +1155,28 @@
         priceReportsCache = []; priceReportsStale = true;
         return false;
       }
-      priceReportsCache = await res.json();
+      const data = await res.json();
+      /* 🔴 **배열이 아니면 배열인 척 쓰지 않는다** (2026-09-15).
+         서버는 정상 경로에서 늘 배열을 준다(`handlePriceReports`가 `rows.map(...)`).
+         HTTP 실패와 JSON 파싱 실패도 이미 위아래에서 막힌다. 그런데 **200인데 배열이
+         아닌 본문** 한 가지가 남아 있었다(프록시·배포 전환 중 끼어드는 응답 따위).
+         그러면 `priceReportsCache`가 객체가 되어 **요율 갱신 제안·검증 배지·제보 내역
+         모달이 통째로 죽는다**(`.forEach`/`.map`/`.some`이 7곳에서 맨몸으로 돈다).
+
+       ⚠ **`(priceReportsCache || [])` 방어는 이걸 못 막는다.** 그 꼴이 9곳 있는데
+         `{}`는 truthy라 그대로 통과한다 — **막는 척만 하고 있었다.** 그래서 쓰는 쪽
+         14곳에 방어를 흩뿌리는 대신 **들어오는 이 한 곳**에서 거른다(목록이 흩어지면
+         반드시 하나를 빠뜨린다 — 결함 생성기 ①).
+
+       ⚠ 조용히 비우지 않는다. `priceReportsStale`을 세워 **경고띠에 흔적을 남긴다** —
+         「제보를 못 읽은 것」과 「제보가 없는 것」은 화면에서 똑같이 보이기 때문이다
+         (바로 위 주석이 그래서 이 깃발을 만든 것이다). */
+      if (!Array.isArray(data)) {
+        console.warn('[admin] 실제 가격 제보가 배열이 아닙니다:', typeof data);
+        priceReportsCache = []; priceReportsStale = true;
+        return false;
+      }
+      priceReportsCache = data;
       priceReportsStale = false;
       return true;
     } catch (err) {
