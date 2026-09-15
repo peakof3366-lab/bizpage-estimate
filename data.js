@@ -3249,6 +3249,28 @@ const ITINERARY_DB = {
    label = 고객이 STEP1에서 고르는 그 문구(index.html의 option과 같아야 한다).
    short = 관리자 코스 탭 배지처럼 자리가 좁은 곳에서 쓰는 짧은 이름.
    ════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   기관 유형의 **이름표** (2026-09-15 신설)
+   ───────────────────────────────────────────────────────────────────────────
+   계수(`ESTIMATE_FACTORS.organizationFactor`)는 오래전부터 여기 있었는데, **사람이 읽는
+   이름은 `index.html`의 `<option>` 글자에만** 있었다. 그래서 새 화면(내부직원용 견적
+   산출)이 select를 코드로 만들자 **「company」·「public」이 그대로 화면에 나갔다** —
+   CLAUDE.md 화면 규칙 5(「영문·기술 용어를 화면에 내보내지 않는다」)를 그 자리에서 어겼다.
+   브라우저로 띄워 보고서야 보였다.
+
+   → `PROGRAM_TYPES`가 연수 유형에 대해 하는 일을 기관 유형에도 한다.
+   ⚠ `index.html`의 `<option>`은 **화면 구성이라 미파생으로 남는다**(목적지 select와 같다).
+     대신 `ai-loop/test_zQ_quote_pro.js`가 **두 목록을 대조한다** — 한쪽만 고치면 걸린다.
+   ⚠ **키는 계수 표와 같아야 한다.** 다르면 그 유형은 계수가 조용히 1.0이 된다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const ORGANIZATION_TYPES = {
+  company:    { label: '기업',        short: '기업' },
+  public:     { label: '공공기관',    short: '공공' },
+  education:  { label: '교육기관',    short: '교육' },
+  /* 일반 고객 (VV) — 기관이 아니라 개인·가족·친목 모임. 계수는 1.0이다. */
+  individual: { label: '일반 고객 (개인 · 가족 · 모임)', short: '일반' },
+};
+
 const PROGRAM_TYPES = {
   language:   { label: '언어 집중 연수',       short: '언어' },
   leadership: { label: '리더십 / 조직문화',    short: '리더십' },
@@ -3303,6 +3325,7 @@ const PROGRAM_PRIORITY = {
    감사 도구·테스트가 index.html의 select와 이 표를 대조하는 데 쓴다. */
 if (typeof module !== 'undefined' && module.exports) {
   module.exports.PROGRAM_TYPES = PROGRAM_TYPES;
+  module.exports.ORGANIZATION_TYPES = ORGANIZATION_TYPES;
   module.exports.PROGRAM_PRIORITY = PROGRAM_PRIORITY;
   /* US: 기본 코스도 내보낸다. 일괄 심기 도구가 「이 목적지에 기본 코스가 몇 개 있는가」를
      알아야 코스 상한을 제대로 계산한다 — 검토 전 코스는 기본값 위에 얹히므로

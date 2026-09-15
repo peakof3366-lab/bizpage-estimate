@@ -50,6 +50,10 @@ body { margin: 0; background: var(--bg); color: var(--t);
 .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 18px 80px; }
 
 .page-head { padding: 4px 0 14px; border-bottom: 2px solid var(--ink); margin-bottom: 18px; }
+/* iframe 안에서는 바깥 탭이 이미 제목을 그린다 — 두 번 보이지 않게 감춘다.
+   ⚠ 감추는 것은 **제목 줄뿐**이다. 단독 주소로 열면 그대로 보인다. */
+.aqp-embedded .page-head { display: none; }
+.aqp-embedded .wrap { padding-top: 0; }
 .page-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
 .page-sub { margin: 5px 0 0; font-size: 12.5px; color: var(--t-sub); max-width: var(--measure); }
 
@@ -160,6 +164,9 @@ body { margin: 0; background: var(--bg); color: var(--t);
 <div id="authGate">세션 확인 중…</div>
 
 <div class="wrap hidden" id="app">
+  <!-- ⚠ `admin.html` 안에 iframe으로 들어가면 **제목이 두 번** 나온다(바깥 탭이 이미
+       그린다). `admin-quote.html`이 `.aq-embedded`로 같은 일을 한다 — 같은 방식을 쓴다.
+       단독 주소로 열었을 때는 제목이 있어야 한다(무슨 화면인지 말해야 하니까). -->
   <div class="page-head">
     <h1 class="page-title">자동 견적 산출 (내부직원용)</h1>
     <p class="page-sub">고객용과 <b>같은 엔진</b>으로 계산한 뒤, 항목별 금액과 실무 변수를 직접 조정합니다.
@@ -338,6 +345,8 @@ body { margin: 0; background: var(--bg); color: var(--t);
   window.__INTERNAL_TOOL__ = true;
   window.__INTERNAL_STAFF__ = '';
   QuoteEngineHost.mount();
+  /* iframe 안이면 제 제목을 감춘다 — 바깥 탭이 이미 같은 제목을 그린다 */
+  if (window.self !== window.top) document.documentElement.classList.add('aqp-embedded');
 </script>
 <script src="data.js"></script>
 <script src="company-info.js"></script>
@@ -389,13 +398,24 @@ body { margin: 0; background: var(--bg); color: var(--t);
     });
   }
   fillSelect($('pDest'), destinationRates.map((d) => d.destination_key));
-  fillSelect($('pProgram'), Object.keys(estimateCriteria.programFactor));
-  fillSelect($('pOrg'), Object.keys(estimateCriteria.organizationFactor));
-  /* 출발 공항은 숨은 칸이 이미 채워져 있다 — 같은 목록을 두 번 적지 않는다 */
+  /* 🔴 **영문 코드를 화면에 내보내지 않는다** (CLAUDE.md 화면 규칙 5).
+     처음엔 계수 표의 키를 그대로 넣었더니 「language」·「company」가 그대로 보였다 —
+     브라우저로 띄워 보고서야 알았다. 이름표는 `data.js`가 진실이다
+     (`PROGRAM_TYPES` · `ORGANIZATION_TYPES`). 여기 다시 적지 않는다. */
+  const labelOf = (map, k) => (map && map[k] && map[k].label) || k;
+  fillSelect($('pProgram'), Object.keys(estimateCriteria.programFactor),
+    Object.keys(estimateCriteria.programFactor).map((k) => labelOf(typeof PROGRAM_TYPES !== 'undefined' ? PROGRAM_TYPES : null, k)));
+  fillSelect($('pOrg'), Object.keys(estimateCriteria.organizationFactor),
+    Object.keys(estimateCriteria.organizationFactor).map((k) => labelOf(typeof ORGANIZATION_TYPES !== 'undefined' ? ORGANIZATION_TYPES : null, k)));
+  /* 출발 공항 이름표는 `DEPARTURE_CITIES`(script.js)가 가지고 있다 */
   (function () {
     const src = document.getElementById('departureCity');
     const list = src ? Array.from(src.options).map((o) => o.value) : [];
-    fillSelect($('pDepCity'), list);
+    const DC = (typeof DEPARTURE_CITIES !== 'undefined') ? DEPARTURE_CITIES : [];
+    fillSelect($('pDepCity'), list, list.map((v) => {
+      const hit = DC.find((c) => c.value === v);
+      return hit ? hit.label : v;
+    }));
   })();
   if (!READY.ok) {
     $('calcErr').textContent = '산출에 필요한 목록을 못 불러왔습니다 (' + READY.missing.join(', ')

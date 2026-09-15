@@ -168,10 +168,88 @@ ok('[11-d] 카드 결제·알선수수료 칸이 없다', !/카드\s*결제/.tes
 ok('[11-e] 불포함내역을 company-info.js에서 읽는다 (여기 다시 적지 않는다)',
   /window\.QUOTE_EXCLUDED/.test(PRO) && !/여권 발급비/.test(PRO));
 
-console.log('\n══════════════════════════════════════════════════════════════════');
-console.log(' 자동 견적 산출 (내부직원용) — 메뉴 3분류 · admin-quote-pro.html');
-console.log('══════════════════════════════════════════════════════════════════');
-fails.forEach((f) => console.log(' ✗ ' + f));
-if (!fails.length) console.log(' ✓ 전부 통과');
-console.log(`결과: ${pass} pass / ${fails.length} fail`);
-process.exit(fails.length ? 1 : 0);
+/* ═══ ⑫ 🔴 화면에 영문 코드를 내보내지 않는다 (CLAUDE.md 화면 규칙 5) ═══
+   브라우저로 띄워 보고 찾은 결함이다 — 계수 표의 키를 select에 그대로 넣어
+   「language」·「company」가 화면에 보이고 있었다. 이름표는 `data.js`가 진실이다. */
+const DATA = require(path.join(ROOT, 'data.js'));
+ok('[12] data.js가 ORGANIZATION_TYPES를 내보낸다', !!DATA.ORGANIZATION_TYPES);
+ok('[12-b] data.js가 PROGRAM_TYPES를 내보낸다', !!DATA.PROGRAM_TYPES);
+/* 🔴 **글자가 있는지로 재지 않는다.** 처음엔 「PRO에 ORGANIZATION_TYPES가 나오는가」로
+   쟀는데, 이름표를 쓰는 코드를 통째로 빼도 **주석에 그 낱말이 남아 통과했다**
+   (고장을 넣어 보고 알았다 — 자가 틀린 것이다). **화면을 띄워 보기 글자를 읽는다.** */
+const { bootPage } = require('./_page_boot');
+/* ⚠ 띄우는 것은 **비동기**다(`ready`를 기다려야 스크립트가 다 돌았다).
+   그래서 이 부분만 아래 async 묶음에서 잰다 — 결과 줄도 거기서 찍는다. */
+const BOOT_CHECKS = async () => {
+  const boot = bootPage('admin-quote-pro.html');
+  await boot.ready;
+  await boot.tick(150);
+  const PD = boot.doc;
+  const optText = (id) => Array.from((PD.getElementById(id) || { options: [] }).options).map((o) => o.textContent.trim());
+  const CODE_RE = /^[a-z][A-Za-z0-9_]*$/;   /* language · company 같은 영문 코드 */
+  [['pProgram', '연수 유형'], ['pOrg', '기관 유형'], ['pDepCity', '출발 공항']].forEach(([id, what]) => {
+    const t = optText(id);
+    ok('[12-c] ' + what + ' 보기가 비어 있지 않다', t.length > 0, '개수: ' + t.length);
+    ok('[12-c] ' + what + ' 보기에 영문 코드가 안 보인다', t.length > 0 && !t.some((x) => CODE_RE.test(x)),
+      '코드로 보이는 것: ' + t.filter((x) => CODE_RE.test(x)).join(', '));
+  });
+  ok('[12-c2] 목적지 60곳이 채워진다', optText('pDest').length >= 55, '개수: ' + optText('pDest').length);
+  ok('[12-c3] 화면이 오류 없이 뜬다', boot.log.errors.length === 0,
+    boot.log.errors.map((e) => e.msg).slice(0, 2).join(' · '));
+};
+ok('[12-d] 이름표를 화면에 다시 적지 않았다',
+  !/언어 집중 연수/.test(PRO) && !/공공기관/.test(PRO));
+
+/* 🔴 **index.html의 option 글자와 대조한다.** 두 목록이 갈리면 같은 유형이 두 이름으로
+   불린다 — CLAUDE.md가 말한 「불가피하게 나뉘면 테스트로 대조한다」가 이 자리다. */
+const IDXH = read('index.html');
+/* ⚠ **정규식을 문자열로 조립하지 않는다.** `'[\s\S]'`를 JS 작은따옴표 문자열에
+     적으면 `\s`가 그냥 `s`로 죽어 `[sS]`가 된다 — 그러면 아무것도 못 찾고 검사는
+     「index.html을 못 읽음」으로 빨개진다(실제로 그랬다). 잘라서 읽는다. */
+function optionsOf(id) {
+  const open = '<select id="' + id + '"';
+  const i = IDXH.indexOf(open);
+  if (i < 0) return null;
+  const gt = IDXH.indexOf('>', i);
+  const end = IDXH.indexOf('</select>', gt);
+  if (gt < 0 || end < 0) return null;
+  const inner = IDXH.slice(gt + 1, end);
+  return Array.from(inner.matchAll(/<option value="([^"]+)"[^>]*>([^<]*)</g))
+    .map((x) => [x[1], x[2].trim()]);
+}
+[['organizationType', DATA.ORGANIZATION_TYPES], ['programType', DATA.PROGRAM_TYPES]].forEach(([id, map]) => {
+  const opts = optionsOf(id);
+  ok('[12-e] index.html에서 ' + id + ' 보기를 읽었다', !!opts && opts.length > 0, opts ? '' : '못 읽음');
+  if (!opts || !map) return;
+  const bad = opts.filter(([v, t]) => !map[v] || map[v].label !== t)
+    .map(([v, t]) => v + ': 화면 "' + t + '" vs data.js "' + ((map[v] || {}).label || '없음') + '"');
+  ok('[12-f] ' + id + ' 이름표가 고객 화면과 같다', bad.length === 0, bad.join(' · '));
+  const extra = Object.keys(map).filter((k) => !opts.some(([v]) => v === k));
+  ok('[12-g] ' + id + ' data.js에만 있는 값이 없다', extra.length === 0, extra.join(','));
+});
+/* 키가 계수 표와 같아야 한다 — 다르면 그 유형의 계수가 조용히 1.0이 된다 */
+const FAC = DATA.ESTIMATE_FACTORS || {};
+if (FAC.organizationFactor) {
+  ok('[12-h] 기관 유형 키가 계수 표와 같다',
+    Object.keys(FAC.organizationFactor).sort().join(',') === Object.keys(DATA.ORGANIZATION_TYPES).sort().join(','),
+    Object.keys(FAC.organizationFactor).join(',') + ' vs ' + Object.keys(DATA.ORGANIZATION_TYPES).join(','));
+}
+
+/* ═══ ⑬ iframe 안에서 제목이 두 번 나오지 않는다 ═══
+   `admin.html`의 탭이 이미 같은 제목을 그린다. 브라우저로 보고 찾았다. */
+ok('[13] iframe이면 제 제목을 감춘다',
+  /window\.self !== window\.top[\s\S]{0,140}aqp-embedded/.test(PRO)
+  && /\.aqp-embedded \.page-head \{[^}]*display:\s*none/.test(PRO));
+ok('[13-b] 단독으로 열면 제목이 남는다 (통째로 지우지 않았다)',
+  /<h1 class="page-title">자동 견적 산출 \(내부직원용\)<\/h1>/.test(PRO));
+
+(async () => {
+  try { await BOOT_CHECKS(); } catch (e) { fails.push('[12-c] 화면을 못 띄웠다 — ' + e.message); }
+  console.log('\n══════════════════════════════════════════════════════════════════');
+  console.log(' 자동 견적 산출 (내부직원용) — 메뉴 3분류 · admin-quote-pro.html');
+  console.log('══════════════════════════════════════════════════════════════════');
+  fails.forEach((f) => console.log(' ✗ ' + f));
+  if (!fails.length) console.log(' ✓ 전부 통과');
+  console.log(`결과: ${pass} pass / ${fails.length} fail`);
+  process.exit(fails.length ? 1 : 0);
+})();
