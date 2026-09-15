@@ -277,19 +277,19 @@ const DEST_CLASSIFY = {
   '싱가포르':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'싱가포르',    currency:'SGD', season:'seasia'        },
   '하노이':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
   '호치민':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
-  '다낭':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
-  '나트랑':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
+  '다낭':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'danang'        },
+  '나트랑':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'nhatrang'        },
   '푸꾸옥':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
   '세부':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'seasia'        },
   '마닐라':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'seasia'        },
   '보홀':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'필리핀',     currency:'PHP', season:'seasia'        },
-  '코타키나발루': { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'말레이시아',   currency:'MYR', season:'seasia'        },
+  '코타키나발루': { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'말레이시아',   currency:'MYR', season:'kotakinabalu'        },
   '캄보디아':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'캄보디아',    currency:'KHR', season:'seasia'        },
   '방콕':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
   '푸켓':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
   '후아힌':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
   '치앙마이':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'태국',      currency:'THB', season:'seasia'        },
-  '발리':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'인도네시아',   currency:'IDR', season:'seasia'        },
+  '발리':     { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'인도네시아',   currency:'IDR', season:'bali'        },
   '괌':      { zone:'mid'  , ins:'highCost' , region:'오세아니아·태평양', country:'괌',       currency:'USD', season:'guamSaipan'    },
   '사이판':    { zone:'mid'  , ins:'highCost' , region:'오세아니아·태평양', country:'사이판',     currency:'USD', season:'guamSaipan'    },
   '시드니':    { zone:'mid'  , ins:'oceania'  , region:'오세아니아·태평양', country:'호주',      currency:'AUD', season:'southern',     hemi:'S' },
@@ -539,6 +539,66 @@ const DEST_SEASON_PROFILES = [
       { id:'peak',    months:[12,1,2], factor:1.20, label:'현지 여름·연말 성수기', badge:'성수기 +20%' },
       { id:'offpeak', months:[6,7,8],  factor:0.90, label:'현지 겨울 비수기',     badge:'비수기 −10%' },
       { id:'normal',  months:[],       factor:1.00, label:'평시',                badge:'평시' },
+    ],
+  },
+
+  /* ══ 2026-09-15 대표 지시로 **온라인 조사 후 네 곳을 떼어냈다** ══════════════════
+     대표: 「관리자 모드에서 지역별 시즌이 잘못된 곳도 있는 것 같다」 →
+     `audit_season_match.js`로 재 보니 우리가 적어 둔 `season_note`와 시즌표가
+     **정반대**인 곳이 나왔다. 대표 지시로 온라인에서 실가격을 조사해 바로잡는다.
+
+     🔴 **기준은 「현지 기후」가 아니라 「한국 출발 항공·호텔 수요」다.**
+       이 시즌표는 항공·유류·호텔에 곱하는 값이다(이 파일 머리말). 그래서 조사도
+       **한국 출발 항공권 실가격**으로 했다 — 기후 성수기와 자주 어긋난다.
+       (다낭이 그 예다: 날씨 좋은 3~5월이 항공은 **비수기**다.)
+
+     ⚠ **계수(factor)는 `seasia`와 같은 폭을 유지한다**(+15% / −12%).
+       고칠 것은 **달**이지 폭이 아니고, 요율표 기준가가 어느 시점 값인지 모르는 채로
+       폭까지 키우면 이중 반영이 된다. 근거가 생기면 그때 따로 다룬다.
+     ⚠ `seasia`(건기 11~3월 성수기)에 남은 13곳도 **같은 의심이 있다** — 한국 방학
+       7~8월이 성수기일 가능성이 크다. 한꺼번에 바꾸면 금액이 크게 움직여 이번에는
+       손대지 않았다(대표 보고함). 별건으로 다룬다.
+     ══════════════════════════════════════════════════════════════════════════ */
+  {
+    /* 발리 — 조사: 성수기 7~8월 직항 150만원대 / 비수기(우기) 40~70만원, 호텔 30~50% 저렴.
+       ⚠ 남반구(남위 8도)지만 **남반구표(12~2월 성수기)도 정답이 아니다** — 그때가 우기다.
+         적도 근처는 계절보다 건기/우기가 지배한다. 그래서 전용 프로파일을 만든다. */
+    id: 'bali', name: '발리 (여름 7~8월 성수기 / 우기 11~3월 비수기)',
+    config: [
+      { id:'peak',    months:[7,8],          factor:1.15, label:'건기 성수기', badge:'건기 성수기 +15%' },
+      { id:'offpeak', months:[11,12,1,2,3],  factor:0.88, label:'우기 비수기', badge:'우기 비수기 −12%' },
+      { id:'normal',  months:[],             factor:1.00, label:'평시',       badge:'평시' },
+    ],
+  },
+  {
+    /* 코타키나발루 — 조사: 여름휴가 7~8월·겨울방학 1~2월 40~60만원(성수기),
+       3~5월·9~11월 20~30만원(비수기). 건기(1~4월)와 한국 수요가 절반만 겹친다. */
+    id: 'kotakinabalu', name: '코타키나발루 (7~8월·1~2월 성수기 / 3~5월·9~11월 비수기)',
+    config: [
+      { id:'peak',    months:[7,8,1,2],         factor:1.15, label:'방학 성수기', badge:'방학 성수기 +15%' },
+      { id:'offpeak', months:[3,4,5,9,10,11],   factor:0.88, label:'비수기',     badge:'비수기 −12%' },
+      { id:'normal',  months:[],                factor:1.00, label:'평시',       badge:'평시' },
+    ],
+  },
+  {
+    /* 다낭 — 조사: 여름방학 7~8월·연말연시/설 50만원 이상(비수기 대비 최대 2배),
+       3~5월·9~11월 20만원대 초중반.
+       ⚠ **날씨가 좋은 3~5월이 항공은 비수기다** — 기후로 판단하면 정반대가 된다. */
+    id: 'danang', name: '다낭 (7~8월·연말연시 성수기 / 3~5월·9~11월 비수기)',
+    config: [
+      { id:'peak',    months:[7,8,12,1],        factor:1.15, label:'방학·연휴 성수기', badge:'성수기 +15%' },
+      { id:'offpeak', months:[3,4,5,9,10,11],   factor:0.88, label:'비수기',          badge:'비수기 −12%' },
+      { id:'normal',  months:[],                factor:1.00, label:'평시',            badge:'평시' },
+    ],
+  },
+  {
+    /* 나트랑 — 조사: 6~8월 40~60만원(성수기), 우기 9~11월 20만원대(가장 저렴).
+       ⚠ 겨울방학(1~2월)은 근거를 못 찾아 **평시로 둔다.** 지어내지 않는다. */
+    id: 'nhatrang', name: '나트랑 (6~8월 성수기 / 9~11월 비수기)',
+    config: [
+      { id:'peak',    months:[6,7,8],     factor:1.15, label:'건기 성수기', badge:'건기 성수기 +15%' },
+      { id:'offpeak', months:[9,10,11],   factor:0.88, label:'우기 비수기', badge:'우기 비수기 −12%' },
+      { id:'normal',  months:[],          factor:1.00, label:'평시',       badge:'평시' },
     ],
   },
 ];
