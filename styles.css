@@ -811,7 +811,23 @@ p { line-height:1.8; }
 }
 .group-checklist[open] > .gcl-head::after { transform:rotate(45deg); color:var(--t-head); }
 .gcl-head:hover .gcl-title { color:var(--red); }
-.gcl-title { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--t-head); transition:color var(--dur); }
+/* 🔴 제목을 **구역 머리로 세운다** (2026-09-15 대표 지시: 「좀 더 디자인이 입혀졌으면」)
+   고치기 전 실측: **11px** · 자간 .08em · `uppercase`.
+   ⚠ 자간과 `uppercase`는 **영문 라벨을 위한 것**인데 내용은 「기업 단체연수 준비
+     체크리스트」 — 전부 한글이다. 한글은 자간을 벌리면 덩어리가 흩어져 **오히려
+     안 읽힌다**(YA에서 9px→11px과 함께 확인했고, 오늘 포함 항목 제목도 같았다).
+     `uppercase`는 한글에 아무 일도 하지 않으면서 다음 사람을 헷갈리게 한다 — 걷는다.
+   → 13px · 800 · 자간 .01em + **앞에 레드 세로 바**. 바가 「여기서 구역이 시작한다」를
+     긋는다(포함 항목은 가로선, 여기는 세로 바 — 접이식 한 줄짜리 머리이기 때문이다). */
+.gcl-title {
+  font-size:13px; font-weight:800; letter-spacing:.01em;
+  text-transform:none; color:var(--t-head); transition:color var(--dur);
+  display:flex; align-items:center; gap:9px;
+}
+.gcl-title::before {
+  content:''; flex-shrink:0; width:3px; height:14px;
+  background:var(--red); border-radius:1px;
+}
 /* 🔴 2026-09-14 대표 지시: 체크리스트를 **가로로 나열**한다.
    세 묶음(사전 준비 · 서류·행정 · 현지 운영)이 세로로 쌓여 12줄이 아래로 길게
    뻗어 있었다. 셋을 나란히 두면 같은 내용이 4줄 높이로 들어온다.
@@ -819,10 +835,35 @@ p { line-height:1.8; }
      한 자씩 끊긴다(아래 미디어쿼리가 그 자리다). */
 .gcl-body { display:grid; grid-template-columns:repeat(3,1fr); gap:18px 28px; align-items:start; }
 @media (max-width:820px) { .gcl-body { grid-template-columns:1fr; gap:16px; } }
-.gcl-sec-title { font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--red); margin-bottom:8px; }
-.gcl-list { display:flex; flex-direction:column; gap:7px; }
-.gcl-list li { font-size:12.5px; color:var(--t-mute); padding-left:14px; position:relative; line-height:1.6; }
-.gcl-list li::before { content:''; position:absolute; left:0; top:8px; width:5px; height:1.5px; background:var(--t-sub); }
+/* 🔴 묶음 제목 — **10px였다.** 저장소 규칙은 「글자는 11px 이상」인데 셋 다 어겼고,
+   `check_customer_screens.py`가 **이미 ⚠로 잡고 있었다**(「10px · 사전 준비 / 서류 · 행정 /
+   현지 운영 · 폭 전부」). 🔴이 아니라 ⚠이라 199곳 틈에 묻혀 있었을 뿐이다.
+   → 11.5px · 800 · 자간 .02em(여기도 한글이다) · **제목 위 2px 레드 선**.
+   ⚠ 색을 **레드 글자에서 먹색 글자 + 레드 선**으로 옮겼다. 세 묶음 제목이 통째로
+     레드라 시선이 셋으로 갈라졌는데, 선으로 옮기면 **레드 면적은 줄고 구분은 선다.**
+     레드는 CTA·아이브로우·핵심 수치 3곳뿐이라는 원칙(방향 4)에도 이쪽이 맞다.
+   ⚠ 「제목 위 선」은 오늘 포함 항목에 넣은 것과 **같은 구조**다 — 화면이 한 언어를 쓴다.
+     색만 다르다(포함 항목=먹선(주) · 체크리스트=레드선(참고용 보조)). */
+.gcl-sec-title {
+  font-size:11.5px; font-weight:800; letter-spacing:.02em;
+  text-transform:none; color:var(--t-head);
+  border-top:2px solid var(--red); padding-top:9px; margin-bottom:11px;
+}
+.gcl-list { display:flex; flex-direction:column; gap:8px; }
+/* 글자를 한 단계 진하게 — `--t-mute`(#505050)는 힌트용이고, 이건 **읽으라고 둔 목록**이다 */
+.gcl-list li { font-size:12.5px; color:var(--t-body); padding-left:19px; position:relative; line-height:1.65; }
+/* 🔴 **이름이 체크리스트인데 표식이 대시(5×1.5px)였다.** 이름과 모양을 맞춘다.
+   ⚠ 아이콘 라이브러리를 쓰지 않고 **CSS로 그린다** — 어제(`eee3a0e`) 바깥 CDN이 404라
+     아이콘이 한 개도 안 그려지고 있던 사고가 있었다. 테두리 두 변을 돌린 체크는
+     폰트에도 CDN에도 기대지 않는다.
+   ⚠ 색은 `--t-sub` 회색이다. 레드로 하면 체크가 12개라 위 원칙을 넘는다 —
+     레드는 묶음 제목 선 셋으로 충분하다. */
+.gcl-list li::before {
+  content:''; position:absolute; left:3px; top:4px;
+  width:5px; height:9px; background:none;
+  border:solid var(--t-mute); border-width:0 1.8px 1.8px 0;
+  transform:rotate(45deg);
+}
 
 /* 포함 항목 태그 */
 #estimateDetail { margin-top:16px; }
