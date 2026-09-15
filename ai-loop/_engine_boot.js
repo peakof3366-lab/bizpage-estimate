@@ -56,7 +56,14 @@ async function bootEngine(opts) {
   const { loadOverrides, applyOverrides } = require('./_rate_overrides');
   const ov = selfLoad ? { overrides: {}, from: 'script.js가 직접 받음' } : await loadOverrides();
 
-  const EXPOSE = '\n;try{window.__DR=destinationRates;}catch(e){}';
+  /* ⚠ 최상위 `const`는 창 밖에서 안 보인다 — 필요한 것만 여기서 올린다.
+     `__DR`은 예전부터 있던 것이고, `__CAL`은 2026-09-15에 더했다
+     (`audit_calendar_stack.js`가 월 시즌 × 날짜 피크 겹침을 세는 데 쓴다).
+     🔴 **읽기 전용 노출만 늘린다** — 값을 바꾸거나 새 동작을 넣지 않으므로 이 파일을
+       쓰는 검사들의 결과는 그대로다(회귀로 확인함). */
+  const EXPOSE = '\n;try{window.__DR=destinationRates;}catch(e){}'
+    + '\n;try{window.__CAL={getSeasonInfo:getSeasonInfo,PEAK_CALENDAR:PEAK_CALENDAR,'
+    + 'LUNAR_PEAKS:(typeof LUNAR_PEAKS!=="undefined"?LUNAR_PEAKS:[]),DEST_CLASSIFY:DEST_CLASSIFY};}catch(e){}';
   const APP = APP_FILES.map(read).join('\n') + EXPOSE;
   const dom = new JSDOM(read('index.html'), {
     runScripts: 'dangerously', url: 'http://localhost/',
