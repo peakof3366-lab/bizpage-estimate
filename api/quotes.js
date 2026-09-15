@@ -1168,8 +1168,21 @@ async function saveQuote(req, res, origin) {
     /* ⚠ 목적지 이름이 둘이다 — 브라우저 스냅샷은 `destKey`다(XJ). 여기서 `destination`만
        보면 **관리자가 추가한 목적지의 요율 행(customRow)을 못 찾아** 그 목적지의 견적이
        전부 「알 수 없는 목적지」로 걸린다. 판정 쪽과 **같은 순서**로 고른다. */
-    const vctx = await loadVerifyContext(payload.destination || payload.destKey);
-    const verified = verifyQuote(payload, vctx);
+    /* 🔴 **직접 견적은 엔진 값과 대조하지 않는다** (2026-09-15, 개편 요구 4).
+       그 건은 담당자가 금액을 직접 적은 것이라 엔진 산출값과 같을 이유가 없다.
+       그런데 `verifyQuote`는 요율·계수로 다시 계산해 맞춰 보므로 **매번 실패로 기록된다**
+       — 그러면 관리자 화면의 검증 배지가 늘 빨갛고, 곧 아무도 그 배지를 안 본다
+       (결함 생성기 ③: 늘 ✗인 잣대는 아무것도 말하지 않는다).
+     ⚠ 이것은 **패키지에 이미 있던 방침과 같다** — `api/quote-shares.js`가 패키지 발급을
+       검증 앞에서 갈라내는 것과 같은 이유다(「우리가 재산출하지 않는 값」).
+     ⚠ **검증을 끈 것이 아니라 「해당 없음」이라고 적는 것**이다. 화면이 그 차이를
+       읽을 수 있어야 「통과」와 혼동되지 않는다. */
+    const isAdhoc = payload.basis === 'adhoc';
+    const vctx = isAdhoc ? { unavailable: false } : await loadVerifyContext(payload.destination || payload.destKey);
+    const verified = isAdhoc
+      ? { verdict: 'not_applicable', failedSteps: [], steps: [],
+          note: '담당자가 금액을 직접 적은 건이라 엔진 값과 대조하지 않습니다.' }
+      : verifyQuote(payload, vctx);
     /* ⚠ channel·createdBy는 **payload 뒤에** 넣어야 클라이언트가 보낸 값을 덮는다.
        순서가 뒤바뀌면 익명 제출자가 다시 '내부 산출'을 자칭할 수 있다 (PX). */
     const stored = { ...payload, id, participants, total,

@@ -53,6 +53,15 @@ body { margin: 0; background: var(--bg); color: var(--t);
 /* iframe 안에서는 바깥 탭이 이미 제목을 그린다 — 두 번 보이지 않게 감춘다.
    ⚠ 감추는 것은 **제목 줄뿐**이다. 단독 주소로 열면 그대로 보인다. */
 .aqp-embedded .page-head { display: none; }
+/* ── 직접 입력 모드 (`?mode=adhoc`) ──
+   엔진을 안 타므로 **엔진에만 뜻이 있는 칸**을 감춘다. 감추는 것이 아니라 없는 것이다 —
+   프로그램 유형·기관 유형 계수는 이 경로에서 아무 일도 하지 않는다.
+   ⚠ 목적지·인원·일수·날짜는 **남긴다.** 견적서 개요표가 그 값을 쓴다. */
+html.aqp-adhoc .eng-only { display: none !important; }
+html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
+/* ⚠ **이 자리에 `hidden` 클래스를 같이 쓰지 말 것.** `.hidden{display:none!important}`이
+   위 규칙을 이겨서, 직접 입력 모드인데도 원가 칸이 안 보였다(브라우저로 재고 알았다).
+   보임/숨김은 **`<html>`의 모드 클래스 하나**가 정한다. */
 .aqp-embedded .wrap { padding-top: 0; }
 .page-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
 .page-sub { margin: 5px 0 0; font-size: 12.5px; color: var(--t-sub); max-width: var(--measure); }
@@ -168,15 +177,15 @@ body { margin: 0; background: var(--bg); color: var(--t);
        그린다). `admin-quote.html`이 `.aq-embedded`로 같은 일을 한다 — 같은 방식을 쓴다.
        단독 주소로 열었을 때는 제목이 있어야 한다(무슨 화면인지 말해야 하니까). -->
   <div class="page-head">
-    <h1 class="page-title">자동 견적 산출 (내부직원용)</h1>
-    <p class="page-sub">고객용과 <b>같은 엔진</b>으로 계산한 뒤, 항목별 금액과 실무 변수를 직접 조정합니다.
+    <h1 class="page-title" id="pgTitle">자동 견적 산출 (내부직원용)</h1>
+    <p class="page-sub" id="pgSub">고객용과 <b>같은 엔진</b>으로 계산한 뒤, 항목별 금액과 실무 변수를 직접 조정합니다.
       원가·마진이 보이는 화면입니다 — 고객에게 나가는 견적서에는 실리지 않습니다.</p>
   </div>
 
   <!-- ══ ① 여행 조건 ══ -->
   <section class="sec">
-    <div class="sec-h"><span class="sec-n">1</span><span class="sec-t">여행 조건</span>
-      <span class="sec-d">고객 화면과 같은 입력입니다 · 필수 4칸</span></div>
+    <div class="sec-h"><span class="sec-n">1</span><span class="sec-t" id="sec1Title">여행 조건</span>
+      <span class="sec-d" id="sec1Desc">고객 화면과 같은 입력입니다 · 필수 4칸</span></div>
     <div class="sec-b">
       <div class="grid">
         <label class="f"><span>목적지 <em>(필수)</em></span><select id="pDest"></select></label>
@@ -185,22 +194,22 @@ body { margin: 0; background: var(--bg); color: var(--t);
         <label class="f"><span>출발일 <em>(필수)</em></span><input type="date" id="pStart" /></label>
         <label class="f"><span>귀국일</span><input type="date" id="pEnd" /></label>
         <label class="f"><span>박수 <em>(견적서 표기 · 기내박이면 하루 적게)</em></span><input type="number" id="pNights" min="0" /></label>
-        <label class="f"><span>프로그램 유형</span><select id="pProgram"></select></label>
-        <label class="f"><span>기관 유형</span><select id="pOrg"></select></label>
-        <label class="f"><span>출발 공항</span><select id="pDepCity"></select></label>
+        <label class="f eng-only"><span>프로그램 유형</span><select id="pProgram"></select></label>
+        <label class="f eng-only"><span>기관 유형</span><select id="pOrg"></select></label>
+        <label class="f eng-only"><span>출발 공항</span><select id="pDepCity"></select></label>
         <label class="f"><span>호텔 등급</span><select id="pHotelGrade">
           <option value="standard">3성급</option><option value="superior" selected>4성급</option><option value="deluxe">5성급</option>
         </select></label>
         <label class="f"><span>좌석 등급</span><select id="pCabin">
           <option value="economy" selected>이코노미</option><option value="business">비즈니스</option><option value="mixed">혼합</option>
         </select></label>
-        <label class="f"><span>비즈니스 인원 <em>(혼합일 때)</em></span><input type="number" id="pBizCount" min="0" value="0" /></label>
+        <label class="f eng-only"><span>비즈니스 인원 <em>(혼합일 때)</em></span><input type="number" id="pBizCount" min="0" value="0" /></label>
         <label class="f"><span>객실 구성</span><select id="pRoom">
           <option value="double" selected>2인 1실</option><option value="single">1인 1실</option><option value="mixed">혼합</option>
         </select></label>
-        <label class="f"><span>1인 1실 임원 <em>(혼합일 때)</em></span><input type="number" id="pVipCount" min="0" value="0" /></label>
+        <label class="f eng-only"><span>1인 1실 임원 <em>(혼합일 때)</em></span><input type="number" id="pVipCount" min="0" value="0" /></label>
       </div>
-      <div class="grid" style="margin-top:12px">
+      <div class="grid eng-only" style="margin-top:12px">
         <label class="f"><span>포함 항목</span>
           <span style="display:flex;flex-wrap:wrap;gap:12px;padding-top:8px;font-size:13px;font-weight:500;color:var(--t)">
             <label><input type="checkbox" id="pIncHotel" checked /> 호텔</label>
@@ -220,6 +229,7 @@ body { margin: 0; background: var(--bg); color: var(--t);
       </div>
       <div class="bar">
         <button type="button" class="btn btn-p" id="btnCalc">자동 산출하기</button>
+        <button type="button" class="btn btn-p hidden" id="btnStart">금액 입력 시작</button>
         <span class="bar-sp"></span>
         <span id="calcState" style="font-size:12px;color:var(--t-sub)"></span>
       </div>
@@ -232,10 +242,23 @@ body { margin: 0; background: var(--bg); color: var(--t);
     <div class="sec-h"><span class="sec-n">2</span><span class="sec-t">금액 — 항목별 조정</span>
       <span class="sec-d">자동값을 고치면 「수정됨」과 증감이 붙습니다</span></div>
     <div class="sec-b">
-      <p class="note-i">
+      <p class="note-i eng-only">
         <b>자동값</b>은 고객이 받는 금액과 <b>같습니다.</b> 여기서 고치는 것은 그 위에 얹는 조정이고,
         고객용 산출 로직은 바뀌지 않습니다. <b>조정액은 마진에서 나갑니다</b> — 원가는 그대로입니다.
       </p>
+      <p class="note-i adhoc-only">
+        🔴 이 화면은 <b>엔진을 타지 않습니다.</b> 요율·계수·마진이 하나도 안 붙으니
+        <b>그것까지 포함한 금액</b>을 적어 주세요. 아래 <b>원가</b>를 적으면 마진이 자동으로 계산됩니다.
+      </p>
+      <div class="bar adhoc-only" style="margin-top:0;margin-bottom:12px">
+        <button type="button" class="btn btn-sm" id="btnAddLine">+ 항목 추가</button>
+        <span class="bar-sp"></span>
+        <label class="f" style="flex-direction:row;align-items:center;gap:8px">
+          <span style="white-space:nowrap">원가 합계 <em>(🔴 내부)</em></span>
+          <input type="text" inputmode="numeric" id="adhocCost" value="0"
+            style="width:140px;height:34px;text-align:right;border:1.5px solid var(--line);font-family:inherit;padding:0 8px" />
+        </label>
+      </div>
       <table class="mt">
         <thead><tr>
           <th>항목</th><th class="n">자동값</th><th class="n">적용값</th><th class="n">증감</th><th class="n"></th>
@@ -377,7 +400,18 @@ body { margin: 0; background: var(--bg); color: var(--t);
     + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 
   /* 이 화면의 상태 — **한 곳에 모은다.** 흩어 두면 미리보기와 저장이 다른 값을 본다. */
+  /* ══ 모드 ══════════════════════════════════════════════════════════════
+     `?mode=adhoc&pkg=<id>` — 직접 견적 작성에서 열린다. 엔진을 안 타고 담당자가
+     금액을 직접 적는다. **견적서·일정표를 만드는 부분은 자동 모드와 같은 코드다**
+     (대표 지시 요구 4: 「결과 데이터 규격은 완전히 동일」). */
+  const Q = new URLSearchParams(location.search);
+  const ADHOC = Q.get('mode') === 'adhoc';
+  const PKG_ID = Q.get('pkg') || '';
+  if (ADHOC) document.documentElement.classList.add('aqp-adhoc');
+
   const S = {
+    adhoc: ADHOC,
+    pkg: null,       /* 직접견적 원본 (packages 행) */
     bd: null,        /* 엔진 산출 결과 */
     rows: [],        /* {key,name,qty,auto,val,internal} */
     residual: 0,     /* 계수 반올림 잔차 */
@@ -417,6 +451,16 @@ body { margin: 0; background: var(--bg); color: var(--t);
       return hit ? hit.label : v;
     }));
   })();
+  if (ADHOC) {
+    $('pgTitle').textContent = '직접 견적 작성 — 견적서 상세';
+    $('pgSub').innerHTML = '금액을 <b>직접 적어</b> 고객이 받는 견적서와 일정표를 만듭니다. '
+      + '엔진을 타지 않으므로 <b>요율·계수·마진이 붙지 않습니다</b> — 그것까지 포함한 금액을 적어 주세요.';
+    $('sec1Title').textContent = '여행 정보';
+    $('sec1Desc').textContent = '견적서 개요표에 들어갑니다 · 필수 4칸';
+    $('btnCalc').classList.add('hidden');
+    $('btnStart').classList.remove('hidden');
+  }
+
   if (!READY.ok) {
     $('calcErr').textContent = '산출에 필요한 목록을 못 불러왔습니다 (' + READY.missing.join(', ')
       + '). 새로고침해 주세요 — 이대로 산출하면 계수가 기본값으로 떨어집니다.';
@@ -491,6 +535,50 @@ body { margin: 0; background: var(--bg); color: var(--t);
     $('secMoney').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
+  /* ══ 직접 입력 모드 ══════════════════════════════════════════════════════
+     엔진을 안 부른다. 담당자가 항목과 금액을 직접 적고, 그 아래는 자동 모드와 **같은
+     코드**를 탄다(견적서 내용 · 일정 · 미리보기 · 문서 만들기).
+     🔴 **여기서 견적서를 다시 그리지 않는다** — `buildDoc()` 하나가 두 모드를 다 만든다. */
+  $('btnStart').addEventListener('click', () => {
+    const v = input();
+    const miss = [];
+    if (!v.dest) miss.push('목적지');
+    if (!v.pax) miss.push('인원');
+    if (!v.days) miss.push('일수');
+    if (!v.startDate) miss.push('출발일');
+    if (miss.length) {
+      $('calcErr').textContent = miss.join(' · ') + '을(를) 채워 주세요.';
+      $('calcErr').classList.remove('hidden'); $('calcErr').classList.add('note-err');
+      return;
+    }
+    $('calcErr').classList.add('hidden');
+    /* 엔진 결과가 없으므로 「있다」는 표시만 세운다 — 아래 코드가 이 값으로 갈린다 */
+    S.bd = { total: 0, perPerson: 0, combinedFactor: 1, rows: [], hotelGrade: { label: '' } };
+    S.residual = 0;
+    if (!S.rows.length) seedAdhocLines();
+    buildAdjust({ perPerson: 0 });
+    seedDoc(S.bd, v);
+    seedItinerary(v);
+    ['secMoney', 'secDoc', 'secIti', 'secPrev'].forEach((id) => $(id).classList.remove('hidden'));
+    $('calcState').textContent = '항목과 금액을 적어 주세요';
+    renderAll();
+    $('secMoney').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  /* 처음 열 때 채워 두는 줄. 🔴 **금액은 0이다** — 지어낸 값이 그대로 나가지 않게.
+     ⚠ 이름만 채우는 이유: 빈 표는 「무엇을 적어야 하나」를 말하지 않는다. */
+  function seedAdhocLines() {
+    const names = ['항공', '호텔', '식사', '차량', '가이드', '관광 · 입장료', '여행자보험'];
+    S.rows = names.map((n, i) => ({
+      key: 'a' + i, name: n, qty: '', unit: 0, auto: 0, val: 0, internal: false, margin: false,
+    }));
+  }
+  $('btnAddLine').addEventListener('click', () => {
+    S.rows.push({ key: 'a' + Date.now(), name: '', qty: '', unit: 0, auto: 0, val: 0, internal: false, margin: false });
+    renderAll();
+  });
+  $('adhocCost').addEventListener('change', renderAll);
+
   /* ═══ ② 금액 ═══════════════════════════════════════════════════════════
      🔴 **계수를 각 행에 펴서 보여준다.** 엔진은 `total = round(baseTotal × 계수)`로
        마지막에 한 번 곱하는데, 그대로 두면 화면의 행 합계와 총액이 안 맞는다.
@@ -525,18 +613,27 @@ body { margin: 0; background: var(--bg); color: var(--t);
       const tr = document.createElement('tr');
       if (d !== 0) tr.className = 'edited';
       if (r.internal) tr.className += ' internal';
+      /* 🔴 직접 입력 모드에서는 **항목 이름도 담당자가 정한다.** 엔진이 준 이름이
+         아니기 때문이다. 자동 모드에서는 이름을 못 고친다 — 고치면 그 줄이 어느
+         산출 항목이었는지 알 수 없게 되고 역검증이 헛돈다. */
       tr.innerHTML =
-        '<td><span class="nm">' + esc(r.name) + '</span>'
+        '<td>' + (S.adhoc
+          ? '<input type="text" value="' + esc(r.name) + '" data-nm="' + r.key
+            + '" aria-label="항목 이름" style="width:100%;height:34px;border:1.5px solid var(--line);font-family:inherit;font-size:13px;padding:0 8px" />'
+          : '<span class="nm">' + esc(r.name) + '</span>')
         + (r.internal ? ' <span class="badge badge-in">내부</span>' : '')
-        + (d !== 0 ? ' <span class="badge badge-ed">수정됨</span>' : '')
-        + '<span class="sub">' + esc(r.qty) + (r.unit ? ' · 단가 ' + won(r.unit) : '') + '</span></td>'
-        + '<td class="n">' + won(r.auto) + '</td>'
+        + (!S.adhoc && d !== 0 ? ' <span class="badge badge-ed">수정됨</span>' : '')
+        + (S.adhoc ? '' : '<span class="sub">' + esc(r.qty) + (r.unit ? ' · 단가 ' + won(r.unit) : '') + '</span>')
+        + '</td>'
+        + '<td class="n">' + (S.adhoc ? '<span style="color:var(--t-dim)">—</span>' : won(r.auto)) + '</td>'
         + '<td class="n"><input class="n" type="text" inputmode="numeric" value="' + won(r.val)
         + '" aria-label="' + esc(r.name) + ' 적용값" data-k="' + r.key + '" /></td>'
         + '<td class="n">' + (d === 0 ? '<span style="color:var(--t-dim)">—</span>'
           : '<span class="delta ' + (d > 0 ? 'up' : 'dn') + '">' + (d > 0 ? '+' : '') + won(d) + '</span>') + '</td>'
-        + '<td class="n">' + (d === 0 ? '' : '<button type="button" class="btn btn-sm" data-undo="' + r.key
-          + '" aria-label="' + esc(r.name) + ' 자동값으로 되돌리기">되돌리기</button>') + '</td>';
+        + '<td class="n">' + (S.adhoc
+          ? '<button type="button" class="btn btn-sm" data-rm="' + r.key + '" aria-label="' + esc(r.name) + ' 줄 지우기">삭제</button>'
+          : (d === 0 ? '' : '<button type="button" class="btn btn-sm" data-undo="' + r.key
+            + '" aria-label="' + esc(r.name) + ' 자동값으로 되돌리기">되돌리기</button>')) + '</td>';
       tb.appendChild(tr);
     });
     if (S.residual !== 0) {
@@ -551,6 +648,18 @@ body { margin: 0; background: var(--bg); color: var(--t);
       el.addEventListener('change', () => {
         const r = S.rows.find((x) => x.key === el.dataset.k);
         if (r) { r.val = num(el); renderAll(); }
+      });
+    });
+    tb.querySelectorAll('input[data-nm]').forEach((el) => {
+      el.addEventListener('change', () => {
+        const r = S.rows.find((x) => x.key === el.dataset.nm);
+        if (r) { r.name = el.value; renderPreview(); }
+      });
+    });
+    tb.querySelectorAll('button[data-rm]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const i = S.rows.findIndex((x) => x.key === el.dataset.rm);
+        if (i >= 0) { S.rows.splice(i, 1); renderAll(); }
       });
     });
     tb.querySelectorAll('button[data-undo]').forEach((el) => {
@@ -594,6 +703,20 @@ body { margin: 0; background: var(--bg); color: var(--t);
   }
 
   function totals() {
+    /* 🔴 **두 모드의 원가·마진이 다른 데서 온다.**
+       자동: 엔진이 마진 행(ENBT 수익·현지 수익금)을 따로 준다 → 그 합이 마진이다.
+       직접: 엔진이 없다 → 담당자가 **원가를 적고**, 마진은 총액에서 빼서 만든다.
+       ⚠ 여기를 한 식으로 뭉치면 둘 중 하나가 틀린 숫자를 보게 된다. */
+    if (S.adhoc) {
+      const sum = S.rows.reduce((s, r) => s + r.val, 0);
+      const adj = S.adj.reduce((s, a) => s + a.amount, 0);
+      const total = sum + adj;
+      const cost = Math.max(0, num($('adhocCost')));
+      const margin = total - cost;
+      const pax = num($('pPax')) || 1;
+      return { cost, autoMargin: margin, adjSum: adj, total, margin,
+        unit: Math.round(total / pax), pax, rate: total ? (margin / total * 100) : 0, autoTotal: 0 };
+    }
     const cost = S.rows.filter((r) => !r.margin).reduce((s, r) => s + r.val, 0);
     const autoMargin = S.rows.filter((r) => r.margin).reduce((s, r) => s + r.val, 0);
     const adjSum = S.adj.reduce((s, a) => s + a.amount, 0);
@@ -607,9 +730,9 @@ body { margin: 0; background: var(--bg); color: var(--t);
   function renderSum() {
     const t = totals();
     $('sumBox').innerHTML =
-      '<div><b>자동 산출 총액</b><strong>' + won(t.autoTotal) + '</strong><em>원 · 고객이 받는 금액</em></div>'
-      + '<div><b>최종 총액</b><strong>' + won(t.total) + '</strong><em>원 '
-        + (t.total !== t.autoTotal ? '· 자동 대비 ' + (t.total > t.autoTotal ? '+' : '') + won(t.total - t.autoTotal) : '· 조정 없음') + '</em></div>'
+      (S.adhoc ? '' : '<div><b>자동 산출 총액</b><strong>' + won(t.autoTotal) + '</strong><em>원 · 고객이 받는 금액</em></div>')
+      + '<div><b>' + (S.adhoc ? '견적 총액' : '최종 총액') + '</b><strong>' + won(t.total) + '</strong><em>원 '
+        + (S.adhoc ? '· 담당자가 적은 값' : (t.total !== t.autoTotal ? '· 자동 대비 ' + (t.total > t.autoTotal ? '+' : '') + won(t.total - t.autoTotal) : '· 조정 없음')) + '</em></div>'
       + '<div><b>표기 단가</b><strong>' + won(t.unit) + '</strong><em>원 · 총액 ÷ ' + won(t.pax) + '명</em></div>'
       + '<div class="int"><b>원가 (공급가)</b><strong>' + won(t.cost) + '</strong><em>원 · 🔴 내부</em></div>'
       + '<div class="int"><b>마진</b><strong>' + won(t.margin) + '</strong><em>원 · 마진율 ' + t.rate.toFixed(1) + '% · 🔴 내부</em></div>';
@@ -879,10 +1002,44 @@ body { margin: 0; background: var(--bg); color: var(--t);
       msg.classList.remove('hidden');
       msg.classList.toggle('note-err', !!err);
     };
-    if (!S.bd) { show('먼저 「자동 산출하기」를 눌러 주세요.', true); return; }
+    if (!S.bd) { show('먼저 「' + (S.adhoc ? '금액 입력 시작' : '자동 산출하기') + '」을(를) 눌러 주세요.', true); return; }
     $('btnSave').disabled = true;
     show('저장 중…');
     try {
+      /* ══ 직접 입력 모드 ══════════════════════════════════════════════════
+         🔴 **엔진 폼 제출을 태우지 않는다.** 그 경로는 `getBreakdownData()`가 만든
+           58개 키를 담는데, 이 모드에는 산출값이 아예 없다 — 태우면 **0원짜리 엔진
+           견적**이 하나 더 생기고, 그게 견적 요청 관리에 쌓인다.
+         ⚠ 대신 **같은 테이블(`quotes`)에 같은 규격(`doc`)으로** 저장한다
+           (대표 결정: 저장 테이블까지 통일). `basis:'adhoc'`가 「엔진을 안 탄 건」임을
+           말하고, 서버는 그 건을 엔진 값과 대조하지 않는다. */
+      if (S.adhoc) {
+        const t = totals();
+        const doc = buildDoc();
+        const body = {
+          id: 'adhoc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          basis: 'adhoc', pkgId: PKG_ID || null,
+          destination: $('pDest').value, destKey: $('pDest').value,
+          destLabel: $('dRegion').value || $('pDest').value,
+          orgName: $('dOrgName').value || $('dClient').value,
+          contactName: $('dStaffName').value, contactTel: $('dCustTel').value,
+          participants: t.pax, days: num($('pDays')), nights: num($('pNights')),
+          startDate: $('pStart').value, endDate: $('pEnd').value,
+          total: t.total, perPerson: t.unit,
+          ts: Date.now(), status: 'new', note: '',
+          doc: doc,
+        };
+        const res = await fetch('/api/quotes?action=internal', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) { show('저장에 실패했습니다 (오류 ' + res.status + '). 잠시 후 다시 시도해 주세요.', true); return; }
+        const out = await res.json().catch(() => ({}));
+        show('저장했습니다. 관리자 → 견적 요청 관리에서 이 건을 열어 견적서 링크를 발급하실 수 있습니다. ('
+          + (out.id || body.id) + ')');
+        return;
+      }
+
       /* 숨은 폼의 고객 정보 칸을 채운 뒤 제출한다 — script.js가 이 값을 읽는다 */
       const hid = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
       hid('organization', $('dOrgName').value || $('dClient').value);
@@ -915,6 +1072,48 @@ body { margin: 0; background: var(--bg); color: var(--t);
     }
   });
 
+  /* ══ 직접견적 원본 불러오기 ══════════════════════════════════════════════
+     `?pkg=<id>`로 열렸을 때, 「직접 견적 작성」에 저장해 둔 값을 여기 채운다.
+     🔴 **담당자가 같은 값을 두 번 적지 않게 한다** — 상품명·목적지·기간·1인가·포함/
+       불포함·일정이 이미 거기 있다. 두 번 적으면 둘이 어긋나고, 어느 쪽이 맞는지
+       알 방법이 없다.
+   ⚠ 못 불러와도 **화면은 열린다.** 담당자가 처음부터 적으면 되기 때문이다. 다만
+     **왜 못 불러왔는지 말한다** — 조용히 빈 화면을 주면 고장으로 읽는다(결함 생성기 ②). */
+  async function loadPkg() {
+    if (!ADHOC || !PKG_ID) return;
+    try {
+      const r = await fetch('/api/content?action=packages&all=1');
+      if (!r.ok) throw new Error('목록을 받지 못했습니다 (' + r.status + ')');
+      const j = await r.json();
+      const list = Array.isArray(j) ? j : (j.packages || []);
+      const hit = list.find((x) => String(x.id) === String(PKG_ID));
+      if (!hit) throw new Error('이 번호의 직접견적을 찾지 못했습니다');
+      S.pkg = hit;
+      /* 여행 정보 */
+      if (hit.destKey) { const e = $('pDest'); if (e && Array.from(e.options).some((o) => o.value === hit.destKey)) e.value = hit.destKey; }
+      if (hit.days) $('pDays').value = String(hit.days);
+      if (hit.nights !== undefined && hit.nights !== null) { $('pNights').value = String(hit.nights); $('pNights').dataset.touched = '1'; }
+      if (hit.departDate) $('pStart').value = String(hit.departDate).slice(0, 10);
+      /* 견적서 내용 */
+      $('dClient').value = hit.customerLabel || '';
+      $('dOrgName').value = hit.title || '';
+      $('dRegion').value = hit.destLabel || hit.destKey || '';
+      if (hit.validUntil) $('dValid').value = String(hit.validUntil).slice(0, 10);
+      /* 항목 — `lineItems`가 있으면 그대로 옮긴다(담당자가 이미 조립한 값이다) */
+      if (Array.isArray(hit.lineItems) && hit.lineItems.length) {
+        S.rows = hit.lineItems.map((it, i) => ({
+          key: 'a' + i, name: it.label || '', qty: '', unit: 0,
+          auto: 0, val: Math.round(Number(it.amount) || 0), internal: false, margin: false,
+        }));
+      }
+      $('calcState').textContent = '「' + (hit.title || PKG_ID) + '」을(를) 불러왔습니다';
+    } catch (e) {
+      $('calcErr').textContent = '직접견적을 불러오지 못했습니다: ' + e.message
+        + ' — 아래에 직접 적으셔도 됩니다.';
+      $('calcErr').classList.remove('hidden');
+    }
+  }
+
   /* ═══ 인증 ═══ admin-quote.html과 같은 방식이다 ═══ */
   (function authGate() {
     fetch('/api/admin/account?action=me').then((r) => {
@@ -928,6 +1127,8 @@ body { margin: 0; background: var(--bg); color: var(--t);
          역할로 막지 않는다 — 다만 담당자 이름은 로그인 계정에서 채운다. */
       window.__INTERNAL_STAFF__ = me.displayName || '';
       if (!$('dStaffName').value) $('dStaffName').value = me.displayName || '';
+      /* ⚠ **로그인 뒤에** 부른다 — 그 API도 인증이 필요하다 */
+      loadPkg();
     }).catch(() => { (window.top || window).location.href = 'admin.html'; });
   })();
 })();

@@ -986,6 +986,27 @@
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('pkgNew')?.addEventListener('click', () => pkgOpen(null));
   document.getElementById('pkgNewAdhoc')?.addEventListener('click', () => pkgOpen(null, 'adhoc'));
+
+  /* ══ 견적서 상세 작성 (2026-09-15, 개편 요구 4) ═════════════════════════════
+     대표 지시: 「직접 견적 작성도 **3번(내부직원용)과 동일한 수준의 세부 입력**이
+     가능해야 하고, **결과 데이터 규격은 완전히 동일**해야 한다.」
+
+     🔴 **그 화면을 여기 다시 만들지 않는다.** 같은 화면을 `?mode=adhoc`으로 연다 —
+       엔진만 안 타고(금액은 담당자가 적는다) 견적서·일정표를 만드는 부분은 **같은 코드**다.
+       두 벌로 두면 한쪽만 고쳐지는 순간 두 경로가 다른 견적서를 낸다(결함 생성기 ①).
+     ⚠ **저장 전에는 못 연다.** 그 화면은 상품 id로 값을 읽어 오는데, 저장 안 된 건은
+       서버에 없다 — 열어 봐야 빈 화면이고 담당자는 고장으로 읽는다(결함 생성기 ②).
+       그래서 「먼저 저장하세요」를 그 자리에서 말한다.
+     ⚠ 새 탭으로 연다. 편집 중이던 내용을 잃지 않기 위해서다. */
+  document.getElementById('pkgDocBtn')?.addEventListener('click', () => {
+    const msg = document.getElementById('pkgMsg');
+    const id = (document.getElementById('pkgId') || {}).value || '';
+    if (!pkgEditing || !id) {
+      if (msg) { msg.textContent = '먼저 「저장」을 눌러 주세요 — 저장된 건만 견적서를 만들 수 있습니다.'; msg.style.color = '#B45309'; }
+      return;
+    }
+    window.open('admin-quote-pro.html?mode=adhoc&pkg=' + encodeURIComponent(id), '_blank', 'noopener');
+  });
   document.getElementById('pkgSave')?.addEventListener('click', pkgSave);
   document.getElementById('pkgDelete')?.addEventListener('click', pkgDelete);
   document.getElementById('pkgCancel')?.addEventListener('click', () => {

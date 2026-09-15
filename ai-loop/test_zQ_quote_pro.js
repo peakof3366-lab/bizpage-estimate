@@ -241,7 +241,96 @@ ok('[13] iframe이면 제 제목을 감춘다',
   /window\.self !== window\.top[\s\S]{0,140}aqp-embedded/.test(PRO)
   && /\.aqp-embedded \.page-head \{[^}]*display:\s*none/.test(PRO));
 ok('[13-b] 단독으로 열면 제목이 남는다 (통째로 지우지 않았다)',
-  /<h1 class="page-title">자동 견적 산출 \(내부직원용\)<\/h1>/.test(PRO));
+  /<h1 class="page-title"[^>]*>자동 견적 산출 \(내부직원용\)<\/h1>/.test(PRO));
+
+/* ═══ ⑭ 직접 입력 모드 (`?mode=adhoc`) — 개편 요구 4 ═══════════════════════
+   대표 지시: 「직접 견적 작성도 **동일한 수준의 세부 입력**이 가능해야 하고,
+   **결과 데이터 규격은 완전히 동일**해야 한다.」
+
+   🔴 그 화면을 **또 만들지 않았다.** 같은 화면을 직접 입력 모드로 연다 —
+     엔진만 안 타고 견적서·일정표를 만드는 부분은 같은 코드다. 이 검사는 그
+     「한 벌」이 유지되는지를 본다. */
+const PKGJS = read(path.join('admin', 'packages.js'));
+
+ok('[14] 직접견적 카드에 상세 작성 버튼이 있다', /id="pkgDocBtn"/.test(ADMIN));
+ok('[14-b] 그 버튼은 직접견적에서만 보인다', /id="pkgDocBtn"[^>]*data-pkg-only="adhoc"/.test(ADMIN));
+ok('[14-c] 같은 화면을 모드만 바꿔 연다',
+  /admin-quote-pro\.html\?mode=adhoc&pkg=/.test(PKGJS));
+ok('[14-d] 저장 전에는 못 열고 이유를 말한다',
+  /먼저 「저장」을 눌러 주세요/.test(PKGJS));
+/* 🔴 admin.html에 두 번째 입력 화면을 만들지 않았다 */
+ok('[14-e] admin.html에 항공 편명·일자별 일정 칸을 만들지 않았다',
+  !/id="pkgFlightNo"/.test(ADMIN) && !/id="pkgDay1"/.test(ADMIN));
+
+ok('[15] 화면이 mode=adhoc을 읽는다', /Q\.get\('mode'\) === 'adhoc'/.test(PRO));
+ok('[15-b] 엔진 전용 칸을 감춘다', /html\.aqp-adhoc \.eng-only \{ display: none !important; \}/.test(PRO));
+ok('[15-c] 🔴 hidden 클래스와 겹쳐 쓰지 않는다 (CSS가 서로 이긴다)',
+  !/adhoc-only hidden/.test(PRO) && !/eng-only hidden/.test(PRO));
+ok('[15-d] 직접견적 원본을 불러온다 (같은 값을 두 번 안 적는다)',
+  /action=packages&all=1/.test(PRO) && /function loadPkg\(\)/.test(PRO));
+ok('[15-e] 못 불러와도 화면은 열고 이유를 말한다',
+  /직접견적을 불러오지 못했습니다[\s\S]{0,80}직접 적으셔도/.test(PRO));
+ok('[15-f] 불러오기를 로그인 뒤에 부른다', PRO.indexOf('loadPkg();') > PRO.indexOf('action=me'));
+
+/* 🔴 **금액을 지어내지 않는다** — 처음 줄의 금액은 0이다 */
+/* 🔴 **함수 본문만 잘라서 본다.** 처음엔 `seedAdhocLines` 뒤 420자를 봤는데, 그 창이
+   바로 아래 「+ 항목 추가」 핸들러까지 닿아 **거기 있는 `auto: 0, val: 0`을 주웠다** —
+   씨앗 금액에 100만원을 넣어도 통과했다(고장을 넣어 보고 알았다). */
+const iSeed = PRO.indexOf('function seedAdhocLines()');
+const seedBody = iSeed > 0 ? PRO.slice(iSeed, PRO.indexOf("$('btnAddLine')", iSeed)) : '';
+ok('[16] 처음 채우는 항목의 금액이 0이다',
+  !!seedBody && /auto: 0, val: 0/.test(seedBody) && !/auto: [1-9]/.test(seedBody) && !/val: [1-9]/.test(seedBody),
+  seedBody ? (seedBody.match(/auto: \d+, val: \d+/) || ['못 찾음'])[0] : '함수를 못 찾음');
+ok('[16-b] 항목 이름을 담당자가 정한다', /data-nm="/.test(PRO));
+ok('[16-c] 자동 모드에서는 항목 이름을 못 고친다',
+  /S\.adhoc[\s\S]{0,200}data-nm=[\s\S]{0,200}:\s*'<span class="nm">/.test(PRO));
+ok('[16-d] 원가를 입력받아 마진을 만든다',
+  /if \(S\.adhoc\) \{[\s\S]{0,400}const cost = Math\.max\(0, num\(\$\('adhocCost'\)\)\);[\s\S]{0,120}const margin = total - cost;/.test(PRO));
+ok('[16-e] 두 모드의 원가·마진 계산을 한 식으로 뭉치지 않았다',
+  /두 모드의 원가·마진이 다른 데서 온다/.test(PRO));
+
+/* 🔴 저장 — 엔진 폼을 태우지 않는다 (0원짜리 엔진 견적이 생기면 안 된다) */
+/* 🔴 **저장 분기의 순서**를 본다 — 직접 입력 모드는 `action=internal`로 보내고
+   **그 자리에서 return** 한다. 그 return이 없으면 이어서 엔진 폼 제출까지 타서
+   0원짜리 엔진 견적이 하나 더 생긴다.
+ ⚠ 처음엔 이걸 큰 정규식 하나로 재려다 매번 빗나갔다 — **위치로 재는 편이 정확하다.** */
+const iAdhocSave = PRO.indexOf("if (S.adhoc) {\n        const t = totals();");
+/* ⚠ **분기 뒤에서 찾는다.** 그냥 찾으면 위쪽 머리말 주석의 `action=internal`이
+     먼저 걸려 위치 비교가 통째로 뒤집힌다(실제로 그랬다 — 1248 vs 52593). */
+const iInternal = iAdhocSave > 0 ? PRO.indexOf("action=internal", iAdhocSave) : -1;
+const iFormSubmit = PRO.indexOf("form.dispatchEvent(new Event('submit'");
+ok('[17] 직접 입력 모드에 전용 저장 분기가 있다', iAdhocSave > 0, '위치: ' + iAdhocSave);
+ok('[17-a] 그 분기가 엔진 폼 제출보다 먼저다',
+  iAdhocSave > 0 && iInternal > iAdhocSave && iInternal < iFormSubmit,
+  'adhoc ' + iAdhocSave + ' / internal ' + iInternal + ' / submit ' + iFormSubmit);
+/* 🔴 **성공 안내 뒤의 `return;`**을 본다. 처음엔 「분기 안에 return이 있나」로 쟀는데,
+   그 안에는 실패 처리(`if (!res.ok) { … return; }`)의 return이 이미 있어서 **성공 경로의
+   return을 지워도 통과했다**(고장을 넣어 보고 알았다 — 자가 틀린 것이다).
+   창을 성공 안내 줄 뒤로 좁힌다. */
+const iSaved = PRO.indexOf("out.id || body.id", iAdhocSave > 0 ? iAdhocSave : 0);
+const tailAfterSave = (iSaved > 0 && iFormSubmit > iSaved) ? PRO.slice(iSaved, iFormSubmit) : '';
+/* ⚠ 정규식으로 괄호를 세다 또 빗나갔다 — **대조군까지 빨개졌다**(`')');`는 `))`가
+     아니라 `')`다). **순서로 잰다**: 성공 안내와 엔진 경로 사이에 `return;`이 있어야 한다.
+     읽기도 쉽고 빗나갈 자리도 없다. */
+const iEnginePath = tailAfterSave.indexOf('숨은 폼');
+const iReturn = tailAfterSave.indexOf('return;');
+ok('[17-a2] 🔴 성공 안내 뒤에 return 한다 (엔진 경로로 안 흘러간다)',
+  iReturn >= 0 && iEnginePath > iReturn, 'return ' + iReturn + ' / 엔진 경로 ' + iEnginePath);
+ok('[17-b] 같은 테이블(quotes)에 저장한다', /'\/api\/quotes\?action=internal'/.test(PRO));
+ok('[17-c] 같은 규격(doc)을 싣는다', /doc: doc,/.test(PRO));
+ok('[17-d] 엔진을 안 탄 건임을 표시한다', /basis: 'adhoc'/.test(PRO));
+ok('[17-e] 저장 실패를 그 자리에서 말한다', /저장에 실패했습니다 \(오류 /.test(PRO));
+
+/* 🔴 서버 — 직접견적을 엔진 값과 대조하지 않는다 (늘 ✗인 잣대를 만들지 않는다) */
+const QJS = read(path.join('api', 'quotes.js'));
+ok('[18] 서버가 직접견적을 가려낸다', /const isAdhoc = payload\.basis === 'adhoc'/.test(QJS));
+ok('[18-b] 엔진 값과 대조하지 않는다',
+  /const verified = isAdhoc[\s\S]{0,40}verdict: 'not_applicable'/.test(QJS));
+ok('[18-c] 「해당 없음」이지 「통과」가 아니다',
+  /not_applicable/.test(QJS) && !/isAdhoc[\s\S]{0,120}verdict: 'verified'/.test(QJS));
+ok('[18-d] 왜 대조 안 하는지 이유를 남긴다', /엔진 값과 대조하지 않습니다/.test(QJS));
+/* 자동 견적은 여전히 검증한다 — 끈 것이 아니다 */
+ok('[18-e] 자동 견적은 그대로 검증한다', /: verifyQuote\(payload, vctx\)/.test(QJS));
 
 (async () => {
   try { await BOOT_CHECKS(); } catch (e) { fails.push('[12-c] 화면을 못 띄웠다 — ' + e.message); }

@@ -137,7 +137,16 @@ ok('권위 데이터를 못 읽으면 자동 발급을 막는다', /ctx\.unavail
 ok('발급 기록(_verify)을 함께 저장', /issuedBy: isStaffIssue/.test(shareSrc));
 
 const quotesSrc = read(path.join('api', 'quotes.js'));
-ok('견적 저장 시에도 검증한다(2중)', /const verified = verifyQuote\(payload, vctx\)/.test(quotesSrc));
+/* ⚠ **재는 자리를 옮겼다** (2026-09-15). 예전엔 `const verified = verifyQuote(...)`라는
+   **한 줄의 모양**을 봤는데, 직접 견적(엔진을 안 타는 건)이 생기면서 그 줄이 삼항이 됐다.
+   지우지 않고 **뜻으로** 다시 잰다 — 「자동 견적은 저장 시점에도 검증한다」가 규칙이고,
+   그 규칙은 그대로다.
+ 🔴 그리고 **직접 견적이 「통과」로 위장되지 않는지**를 함께 본다. 검증을 끈 것이 아니라
+   「해당 없음」이라고 적는 것이고, 그 차이가 무너지면 이 검사가 지키던 것이 사라진다. */
+ok('견적 저장 시에도 검증한다(2중)', /verifyQuote\(payload, vctx\)/.test(quotesSrc));
+ok('🔴 직접 견적은 「통과」가 아니라 「해당 없음」으로 적는다',
+  !/isAdhoc[\s\S]{0,120}verdict: 'verified'/.test(quotesSrc)
+  && (!/isAdhoc/.test(quotesSrc) || /verdict: 'not_applicable'/.test(quotesSrc)));
 ok('검증 실패해도 견적은 저장한다(리드 유실 방지)', /insert into quotes/.test(quotesSrc));
 
 console.log('\n[11] ?d= 위조 경로가 제거됐는가');
