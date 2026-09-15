@@ -3911,6 +3911,10 @@ a{color:inherit;text-decoration:none}
 .info-tbl td:first-child{width:110px;font-weight:600;color:#5A5A5A;white-space:nowrap}
 .inc-tags{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
 .inc-tag{background:#FEF0F2;color:#111111;padding:4px 12px;border-radius:0;font-size:12px;font-weight:600}
+/* 불포함은 포함과 **눈으로 구별돼야** 한다 — 같은 모양이면 「포함 목록이 길구나」로 읽힌다.
+   포함은 연분홍 채움, 불포함은 흰 바탕 + 테두리. 색만으로 가르지 않는다(제목이 글자로 말한다). */
+.exc-tag{background:#ffffff;color:#6E6E6E;border:1px solid #E5E2DC;font-weight:500}
+.exc-note{font-size:11.5px;color:#6E6E6E;line-height:1.7;margin-top:8px}
 .totals-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0}
 .t-card{padding:18px 22px;border-radius:0;background:#F4F4F4;border-left:4px solid #111111}
 .t-card.per{background:#FEF0F2;border-left-color:#CC001A}
@@ -4145,6 +4149,18 @@ a{color:inherit;text-decoration:none}
 
     <div class="sec-title">포함 항목</div>
     <div class="inc-tags">${incItemsHtml}</div>
+
+    ${/* 🔴 **불포함 내역** (2026-09-15 대표 지시). 전에는 「포함 항목」만 있고 **무엇이
+           빠졌는지는 한 줄도 없었다** — 대표가 표준 양식과 대조하고 「너무 두루뭉실하다」고
+           하신 자리가 이것이다. 나중에 「이건 왜 따로 받나」가 나오는 대목이라 문서에서
+           미리 못 박는다.
+         ⚠ 목록은 `company-info.js` 한 곳에 있다 — 링크 견적서(`estimate-view.html`)도
+           같은 값을 읽는다. **견적서는 두 벌이라** 여기 따로 적으면 반드시 어긋난다
+           (이 저장소가 XC·XD·XP·WQ에서 거듭 당한 자리다). */''}
+    ${((window.QUOTE_EXCLUDED || []).length) ? `
+    <div class="sec-title">불포함 내역</div>
+    <div class="inc-tags">${(window.QUOTE_EXCLUDED || []).map((s) => `<span class="inc-tag exc-tag">${_escHtml(s)}</span>`).join('')}</div>
+    <div class="exc-note">위 항목은 견적 금액에 들어 있지 않습니다. 필요하시면 담당자에게 말씀해 주세요.</div>` : ''}
 
     <div class="totals-row">
       <div class="t-card">
