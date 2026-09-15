@@ -5,10 +5,12 @@ const backButton = document.getElementById('backStepButton');
 const downloadButton = document.getElementById('downloadEstimate');
 const stepElements = Array.from(document.querySelectorAll('.estimate-step'));
 
-/* 엑셀 견적서 다운로드 기능 플래그 (신규) — false로 바꾸거나 이 줄과 아래
-   downloadEstimateExcel() 함수, index.html의 #downloadEstimateExcel 버튼,
-   SheetJS <script> 태그를 지우면 기능 도입 이전 상태로 완전히 되돌아감 */
-const FEATURE_EXCEL_EXPORT = true;
+/* ⚠ `FEATURE_EXCEL_EXPORT` 플래그와 `downloadEstimateExcel()` 함수는
+   **2026-09-15에 걷었다.** 대표 지시로 마지막 진입점(`admin-quote.html`의
+   「엑셀로 다운로드」 버튼)을 뺐고, 고객 화면은 2026-09-14에 먼저 뺐다.
+   🔴 **엑셀 기능이 회사에서 사라진 것은 아니다** — 고객이 카톡으로 받는 견적서
+     (`estimate-view.html`)는 **자체 구현**(`downloadEstimateExcelShared`)으로 그대로다.
+     그 화면은 `script.js`를 싣지도 않으므로 여기와 무관하다. */
 
 /* 요율 실시간 오버라이드 (신규) — 관리자 페이지 "요율 관리"에서 수정한 단가를
    정적 data.js 기본값 위에 얕은 병합한다. 이 fetch가 느리거나 실패해도
@@ -1604,11 +1606,7 @@ form.addEventListener('submit', (event) => {
     });
   }
 
-  /* 2-1. 엑셀 다운로드 버튼도 PDF 버튼과 함께 노출 (신규) */
-  if (FEATURE_EXCEL_EXPORT) {
-    const xlBtn = document.getElementById('downloadEstimateExcel');
-    if (xlBtn) xlBtn.classList.remove('hidden');
-  }
+  /* ⚠ 여기 있던 「엑셀 버튼도 함께 노출」 블록은 2026-09-15에 걷었다 — 그 버튼이 없다. */
 
   /* 3. 상담 신청 버튼 활성화 */
   const consultBtn = document.getElementById('consultBtn');
@@ -1647,8 +1645,6 @@ form.addEventListener('submit', (event) => {
         dlBtn.classList.add('hidden');
         dlBtn.classList.remove('visible');
       }
-      const xlBtnReset = document.getElementById('downloadEstimateExcel');
-      if (xlBtnReset) xlBtnReset.classList.add('hidden');
       if (consultBtn) consultBtn.classList.remove('visible');
       /* 연수 일정 탐색 버튼 · Step 3 섹션 숨기기 */
       const exploreBtnReset = document.getElementById('explorePlanBtn');
@@ -1795,9 +1791,8 @@ form.addEventListener('submit', (event) => {
        (관리자 화면이 견적을 바꿀 때 편집 상태를 지우는 것과 같은 이유다). */
     quoteItiClear();
     window._lastQuoteSaved = null;
-    /* 🔴 앞 견적의 번호가 남아 있으면 **다른 견적의 번호가 찍힌 엑셀**이 나간다.
-       UM에서 앞 고객의 일정이 그대로 실려 나간 것과 같은 자리다. */
-    window._lastQuoteNo = null;
+    /* ⚠ 여기 있던 `window._lastQuoteNo = null`은 2026-09-15에 걷었다 —
+       그 값을 **읽던 유일한 곳이 엑셀 함수**였고, 그 함수를 함께 없앴다. */
     /* 공유 링크 발급 시 서버가 이 스냅샷으로 검증한다(항목별 단가·적용 계수까지).
        shareData만 보내면 표시용 축약값뿐이라 검증 깊이가 얕아진다. */
     window._lastQuoteRecord = estRecord;
@@ -2326,7 +2321,8 @@ function showInternalSaveWarning() {
   const msgLines = [
     '⚠ 이 견적이 서버에 저장되지 않았습니다.',
     '· 견적 관리 목록에 아직 나타나지 않고, 견적서 링크 발급도 할 수 없습니다.',
-    '· 화면의 견적·PDF·엑셀은 정상입니다(계산은 이 브라우저에서 끝났습니다).',
+    /* ⚠ 2026-09-15: 「·엑셀」을 뺐다 — 엑셀 버튼이 없어졌는데 안내가 그걸 부르고 있었다 */
+    '· 화면의 견적·PDF는 정상입니다(계산은 이 브라우저에서 끝났습니다).',
     '· 이 브라우저로 다시 접속하면 자동으로 재전송됩니다. 그때까지 브라우저 데이터를 지우지 마세요.',
     '· 급하면 관리자 → 견적 관리에서 목록에 올라왔는지 확인해 주세요.',
   ];
@@ -3628,96 +3624,18 @@ function _buildDisplayDays(course, destKey, plan, totalDays) {
   return recBuildDisplayDays(course, pRec ? pRec.items : null, totalDays, destKey);
 }
 
-/* ════════════════════════════════════════════════════════════════════
-   엑셀 견적서 다운로드 (신규 기능 — FEATURE_EXCEL_EXPORT)
-   되돌리기: 이 함수 전체와 index.html의 #downloadEstimateExcel 버튼,
-   SheetJS <script> 태그, 파일 상단의 FEATURE_EXCEL_EXPORT 선언만 지우면
-   도입 이전 상태로 완전히 복구됨(openEstimateWindow 등 기존 로직은 무관).
-   ════════════════════════════════════════════════════════════════════ */
-
 /* 맞춤 견적의 유효기간 — **한 곳에서** 만든다 (XS).
-   인쇄용 문서와 엑셀이 **같은 날짜**를 말해야 한다. 각자 계산하면 언젠가 하나만
+   같은 견적을 말하는 문서들이 **같은 날짜**를 말해야 한다. 각자 계산하면 언젠가 하나만
    고쳐지고, 그때 한 고객이 서로 다른 두 유효기간을 손에 쥔다(WP에서 실제로 났다).
+ ⚠ 2026-09-15까지는 엑셀도 이 함수를 썼다. 그 기능은 걷었지만 **한 곳에서 만든다**는
+   이유는 그대로다 — 인쇄용 문서가 여전히 이 값을 쓴다.
  ⚠ 이건 **맞춤 견적 규칙**이다(발급 + 30일). 패키지는 공급사가 정한 기한이 진실이라
    여기를 쓰면 안 된다 — `estimate-view.html`의 `calcValidity`가 그 갈래를 안다. */
 function customQuoteValidUntil(from) {
   const d = from ? new Date(from) : new Date();
   d.setDate(d.getDate() + 30);
   return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-}function downloadEstimateExcel() {
-  if (!FEATURE_EXCEL_EXPORT) return;
-  /* ⚠ 예전엔 여기서 `XLSX`가 없으면 「잠시 후 다시 시도해 주세요」로 끝났다. 그 파일은
-     남의 CDN에서 오고, 기관·대기업 망에서는 막혀 있는 경우가 흔하다 — 그런 고객에게
-     「잠시 후」는 거짓말이고, 결재에 붙일 파일을 영영 못 받는다(XK).
-     이제 `sheet_download.js`가 엑셀/CSV를 갈라 준다.
-     🔴 **2026-09-14 정정: 「우리 것이라 늘 있다」가 더 이상 사실이 아니다.**
-       대표 지시로 고객 화면(index.html)에서 「엑셀로 다운로드」를 뺐고, 그 버튼이 유일한
-       진입점이었으므로 `sheet_download.js`도 그 화면에서 함께 걷어냈다. 이 함수는
-       `admin-quote.html`·`estimate-view.html`에서만 닿는다.
-     ⚠ 그래서 **그 파일이 내주는 둘을 다** 본다. `downloadSheet`만 보면, 그것만 있고
-       `sayAfterDownload`가 없는 상태에서 **마지막 줄에서 터진다**(test_xS가 그렇게 크래시했다). */
-  if (typeof downloadSheet !== 'function' || typeof sayAfterDownload !== 'function') {
-    /* ⚠ 여기서 **버튼 이름을 부른다** — 이름을 바꾸면 이 줄도 같이 고쳐야 한다.
-       2026-09-15에 「견적서 확인하기」 → 「견적서 받기」로 바뀌면서 이 안내가 **없는
-       버튼을 가리키고 있었다.** `test_zD`가 「화면에 없는 이름을 말하지 않는가」를 잡는다. */
-    alert('다운로드 기능을 불러오지 못했습니다. 화면의 「견적서 받기」로 인쇄·PDF 저장하실 수 있습니다.');
-    return;
-  }
-  const data = getBreakdownData();
-  if (!data) { alert('먼저 견적 정보를 입력해 주세요.'); return; }
-
-  const destText     = destinationSelect.selectedOptions[0]?.textContent || '—';
-  const programText  = document.getElementById('programType').selectedOptions[0].textContent;
-  const orgTypeText  = document.getElementById('organizationType').selectedOptions[0].textContent;
-  const participants = document.getElementById('participants').value;
-  const days         = Number(document.getElementById('days').value) || 5;
-  /* 🔴 빈 값을 '—'로 채우지 않는다 (2026-09-14) — 그러면 「줄을 넣을지」 판단이 불가능해진다 */
-  const organization = document.getElementById('organization')?.value.trim() || '';
-  const contactName  = document.getElementById('contactName')?.value.trim() || '';
-  const issueDate    = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
-
-  const CI = window.COMPANY_INFO || {};
-  const legalName = CI.legalName || '(주)하나이엔비티';
-  const rows = data.rows.filter(r => !r.muted);
-
-  const aoa = [
-    [legalName + ' 견적서'],
-    /* 🔴 **결재에 붙는 파일인데 견적번호와 유효기간이 없었다** (XS).
-       WQ가 「엑셀에 조건이 안 실렸다 — **유효기간**은 견적서의 핵심 조건이다」를
-       고쳤는데, 그때 고친 것은 **견적서 화면(estimate-view.html)의 엑셀 한 벌뿐**이다.
-       계산기에서 바로 내려받는 이 파일은 그대로였다 —
-       **유효기간(WQ) · 견적번호(XP) · 인쇄 유효기간(XS) 세 번째로 같은 자리에서 갈렸다.**
-     ⚠ 견적번호는 **서버가 발급한 뒤에야** 안다. 아직 없으면 **줄을 안 만든다** —
-       「견적번호 —」를 찍으면 그게 더 나쁘다(WP 규칙: 없는 칸은 줄을 안 만든다). */
-    ...(window._lastQuoteNo ? [['견적번호', window._lastQuoteNo]] : []),
-    ['발행일', issueDate],
-    ['견적 유효기간', customQuoteValidUntil() + '까지'],
-    ['목적지', destText],
-    ['프로그램', programText],
-    ['기관 유형', orgTypeText],
-    ['참가 인원', participants + '명'],
-    ['연수 기간', days + '일'],
-    /* 🔴 2026-09-14 대표 지시로 고객 폼에서 회사명·담당자 칸을 뺐다.
-       그래서 이 값은 대개 비어 있다 — **비면 줄 자체를 안 넣는다.**
-       예전 모양대로 두면 견적서마다 「신청 기관: —」·「담당자: —」 두 줄이 늘 찍혀
-       문서가 덜 만들어진 것처럼 보인다. 담당자가 관리자에서 채워 넣으면 다시 나온다. */
-    ...(organization ? [['신청 기관', organization]] : []),
-    ...(contactName ? [['담당자', contactName]] : []),
-    [],
-    ['항목', '금액(원)'],
-    ...rows.map(r => [r.name, r.amount]),
-    [],
-    ['합계', data.total],
-    ['1인당 금액', data.perPerson],
-  ];
-
-  const fileDate = new Date().toISOString().slice(0, 10);
-  /* 🔴 엑셀 라이브러리(남의 CDN)가 막혀 있어도 **파일은 나간다** — CSV로 떨어진다(XK).
-     가르는 규칙과 안내 문구는 `sheet_download.js` 한 곳에 있다. 여기서 또 적으면
-     견적서 화면과 계산기가 서로 다른 말을 하게 된다(결함 생성기 ①). */
-  sayAfterDownload(downloadSheet(aoa, `비즈페이지_견적서_${destText}_${fileDate}`, { sheetName: '견적서' }));
 }
-
 /* ════════════════════════════════════════════════════════════════════
    견적서 확인 창 열기 (PDF → 웹 브라우저 창)
    ════════════════════════════════════════════════════════════════════ */
@@ -4554,8 +4472,9 @@ function shareCopyLink() {
         qnoEl.textContent = '견적번호 ' + data.quoteNo;
         qnoEl.style.display = '';
       }
-      /* 엑셀도 같은 번호를 실어야 한다 — 고객이 두 파일을 함께 결재에 올린다 */
-      if (data.quoteNo) window._lastQuoteNo = data.quoteNo;
+      /* ⚠ 여기서 `window._lastQuoteNo`에 번호를 담아 두던 줄은 2026-09-15에 걷었다 —
+         그 값을 읽던 곳이 엑셀 함수 하나뿐이었고, 그 함수를 함께 없앴다.
+         🔴 인쇄 문서의 견적번호는 바로 위 `#doc-qno`가 직접 찍는다(여기와 무관하다). */
     })
     /* 🔴 네트워크가 끊긴 것이다 — **접수되지 않았다.** 예전엔 여기서도
        「접수되었습니다」라고 말했다. */

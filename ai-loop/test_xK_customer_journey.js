@@ -37,13 +37,18 @@ const done = () => {
 };
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
-/* 🔴 **고객 화면(index.html)은 2026-09-14에 여기서 빠졌다** — 대표 지시로
-   「엑셀로 다운로드」 버튼을 뺐고, 그 버튼이 유일한 진입점이었으므로 sheet_download.js와
-   xlsx CDN도 함께 걷어냈다. 기능은 아래 두 화면에 그대로 있다.
-   ⚠ 다시 넣을 일이 생기면 **여기 목록과 index.html 두 곳을 같이** 고쳐야 한다. */
-const PAGES_WITH_EXCEL = ['estimate-view.html', 'admin-quote.html'];
+/* 🔴 **엑셀을 가진 화면이 셋 → 둘 → 하나로 줄었다.** 대표 지시로 두 번에 걸쳐 걷었다:
+     · 2026-09-14 `index.html`(고객 견적 폼)
+     · 2026-09-15 `admin-quote.html`(담당자 산출) — `script.js`의
+       `downloadEstimateExcel()` 73줄과 `FEATURE_EXCEL_EXPORT`도 함께 없앴다.
+   각 화면에서 그 버튼이 **유일한 진입점**이었으므로 `sheet_download.js`와 xlsx CDN
+   400KB도 같이 걷었다.
+   ⚠ **남은 하나(`estimate-view.html`)는 자체 구현이다**(`downloadEstimateExcelShared`).
+     `script.js`를 싣지도 않으므로 위 삭제와 무관하다 — 여기서 계속 지킨다.
+   ⚠ 다시 넣을 일이 생기면 **이 목록과 그 화면 두 곳을 같이** 고쳐야 한다. */
+const PAGES_WITH_EXCEL = ['estimate-view.html'];
 
-console.log('\n[1] 「엑셀」을 부르는 화면은 **셋** — 셋 다 같은 자를 싣는다');
+console.log('\n[1] 「엑셀」이 남은 화면은 **하나** — 그 화면이 같은 자를 싣는다');
 {
   PAGES_WITH_EXCEL.forEach((f) => {
     const s = read(f);

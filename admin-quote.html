@@ -781,7 +781,10 @@
             <i data-lucide="check-circle" style="width:36px;height:36px;color:#22c55e"></i>
           </div>
           <p class="confirm-title">견적 산출 완료!</p>
-          <p class="confirm-msg">아래 버튼으로 견적서(PDF)·엑셀을<br>바로 내려받아 고객에게 전달할 수 있습니다.</p>
+          <!-- ⚠ 2026-09-15: 「·엑셀을」을 뺐다. 엑셀 버튼을 없앴으므로 **없는 버튼을
+               안내하고 있었다.** 버튼 이름을 바꾸거나 없앨 때는 그 이름을 부르는
+               안내문까지 함께 고친다 — 오늘 하루에 세 번 나온 자리다. -->
+          <p class="confirm-msg">아래 버튼으로 견적서(PDF)를<br>바로 내려받아 고객에게 전달할 수 있습니다.</p>
 
           <!-- QA: 산출된 금액 요약 — 예전에는 이 카드에 문장과 버튼만 있어서,
                담당자가 금액을 알려면 PDF를 열어야 했다(고객 전화 중에는 그럴 틈이 없다). -->
@@ -819,10 +822,15 @@
             <i data-lucide="file-text" style="width:18px;height:18px"></i>
             견적서 받기
           </button>
-          <button type="button" id="downloadEstimateExcel" class="btn-dl-excel hidden" onclick="downloadEstimateExcel()">
-            <i data-lucide="file-spreadsheet" style="width:15px;height:15px"></i>
-            엑셀로 다운로드
-          </button>
+          <!-- 🔴 2026-09-15 대표 지시로 「엑셀로 다운로드」를 **뺐다.**
+               2026-09-14에 고객 화면(`index.html`)에서 먼저 뺐고, 이 화면이 마지막 진입점이었다.
+               ⚠ **엑셀 기능이 회사에서 사라진 것은 아니다** — 고객이 카톡으로 받는 견적서
+                 (`estimate-view.html`)는 **자체 구현**(`downloadEstimateExcelShared`)으로
+                 그대로 남아 있다. 그쪽은 `script.js`를 싣지도 않는다.
+               → 이 버튼이 유일한 진입점이던 것들을 함께 걷었다:
+                 · `script.js`의 `downloadEstimateExcel()` 73줄 · `FEATURE_EXCEL_EXPORT` 플래그
+                 · 이 화면의 `sheet_download.js`와 **남의 CDN 400KB**(xlsx)
+               되살리려면 `ai-loop/test_xS_hidden_blockers.js` ⑪의 경위를 먼저 읽을 것. -->
           <!-- QA: 라벨 정정. 이 버튼은 예나 지금이나 **입력값을 지우지 않고** STEP 1로
                돌아갈 뿐인데(script.js resetBtn.onclick — setActiveStep(1)만 한다),
                "새 견적 다시 계산하기"라고 적혀 있어 담당자가 '처음부터 다시 입력해야
@@ -840,7 +848,7 @@
 
     <!-- noEstimateMsg/estimateDetail(실시간 예상 견적 패널)은 요청에 따라 완전히 제거.
          script.js는 이 id들을 매번 getElementById로 조회 후 null 체크하므로
-         DOM에서 빠져도 계산 로직은 정상 동작한다(견적서/엑셀 산출에는 영향 없음). -->
+         DOM에서 빠져도 계산 로직은 정상 동작한다(견적서 산출에는 영향 없음). -->
   </div>
 </div>
 
@@ -856,12 +864,11 @@
 <script src="limits.js"></script>
 <!-- 방식 A·B가 비었을 때 나가는 문구 (RJ) — ⚠ script.js보다 먼저 실어야 한다. -->
 <script src="rec_fallbacks.js"></script>
-<!-- 표를 파일로 내려주는 자 (XK) — `script.js`의 엑셀 버튼이 이 함수를 부른다.
-     ⚠ **빠뜨리면 담당자 도구에서만 엑셀 버튼이 죽는다**(고객 화면 둘은 멀쩡한 채로).
-       같은 함수를 부르는 화면이 셋이라 셋 다 실어야 한다 — 목록이 흩어진 자리다. -->
-<script src="sheet_download.js"></script>
-<!-- 🔴 `defer` — 남의 CDN 400KB를 기다리느라 `script.js`(견적 엔진)가 늦게 살아나던 자리 -->
-<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- ⚠ `sheet_download.js`와 xlsx CDN 400KB는 **2026-09-15에 이 화면에서 걷었다.**
+     엑셀 버튼이 유일한 진입점이었고 그 버튼을 대표 지시로 뺐다(위 참조).
+     🔴 **`estimate-view.html`에서는 걷지 말 것** — 그 화면은 자체 엑셀 기능이 살아 있고
+       `sheet_download.js`를 직접 싣는다. 이 저장소에서 「같은 파일을 싣는 화면이 셋」이라
+       적혀 있던 자리인데, 이제 **하나**다. -->
 <script src="script.js"></script>
 <script>
 
@@ -1220,8 +1227,10 @@
 
       /* 🔴 **요율을 못 받고 계산된 금액이면 여기서도 말한다** (XV).
          경고는 이미 있다 — 화면 맨 위 컨트롤바 아래에 붙는다(aqWarn). 그런데 담당자가
-         실제로 **문서를 고객에게 넘기는 자리는 여기**다: 바로 아래에 「견적서 받기」와
-         「엑셀로 다운로드」가 있고, 그때 맨 위 배너는 이미 화면 밖으로 밀려 있다.
+         실제로 **문서를 고객에게 넘기는 자리는 여기**다: 바로 아래에 「견적서 받기」가
+         있고, 그때 맨 위 배너는 이미 화면 밖으로 밀려 있다.
+         (⚠ 2026-09-15까지는 그 옆에 「엑셀로 다운로드」도 있었다. 대표 지시로 뺐다 —
+          여기서 말해야 하는 이유는 그대로다.)
          금액은 그 사이 조용히 달라져 있다 — 실측(XI, 30명 4일): 오버라이드가 있는
          **23개 목적지 전부**가 움직이고 중앙값 5.9% · 최대 27.3%다.
        ⚠ **막지는 않는다.** 급한 건을 세우지 않는 것이 이 화면의 방침이다(UM와 같다).

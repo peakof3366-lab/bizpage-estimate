@@ -443,83 +443,54 @@ const done = () => {
       revUnsaved.reviewShown === 'block', revUnsaved.reviewShown);
   }
 
-  console.log('\n[11] 🔴 결재에 붙는 엑셀 — 견적번호와 유효기간이 없었다');
+  console.log('\n[11] 🔴 계산기에서 바로 내려받는 엑셀은 **없앴다** (2026-09-15 대표 지시)');
   {
-    /* WQ가 「엑셀에 조건이 안 실렸다 — **유효기간**은 견적서의 핵심 조건이다」를 고쳤는데,
-       그때 고친 것은 **견적서 화면(estimate-view.html)의 엑셀 한 벌뿐**이다.
-       계산기에서 바로 내려받는 파일은 그대로였다.
-       유효기간(WQ) · 견적번호(XP) · 인쇄 유효기간(XS)에 이어 **네 번째로 같은 자리**다.
-     ⚠ 실제 xlsx 라이브러리를 남의 CDN에서 받아 오지 않는다. `downloadSheet`를 가로채
-       **넘어가는 표 자체**를 본다 — 파일 포맷이 아니라 내용이 문제이기 때문이다. */
-    const X = bootPage('index.html');
-    await X.ready; await X.tick(250);
-    const xset = (id, v) => {
-      const el = X.doc.getElementById(id);
-      if (el) { el.value = String(v); el.dispatchEvent(new X.win.Event('input', { bubbles: true })); el.dispatchEvent(new X.win.Event('change', { bubbles: true })); }
-    };
-    xset('destination', '다낭'); xset('programType', 'industry'); xset('organizationType', 'company');
-    xset('participants', 30); xset('days', 4);
-    const xd = new Date(); xd.setDate(xd.getDate() + 60);
-    xset('startDate', xd.toLocaleDateString('sv-SE'));
-    xset('organization', '엑셀점검'); xset('contactName', '엑셀담당');
-    xset('contactTel', '010-0000-0000'); xset('requestDetails', '엑셀 점검');
-    await X.tick(120);
-    X.doc.getElementById('estimateForm').dispatchEvent(new X.win.Event('submit', { bubbles: true, cancelable: true }));
-    await X.tick(300);
+    /* ■ 여기 있던 것
+       계산 직후 화면에서 바로 내려받는 엑셀(`downloadEstimateExcel`)의 **표 내용**을
+       12가지로 검사했다: 유효기간(WQ)·견적번호(XP)가 실리는가, **감춘 수익(ENBT 수익·
+       현지 수익금)과 연락처가 새지 않는가**, 발급 전에는 견적번호 줄을 안 만드는가.
 
-    /* 표를 가로챈다 — 실제 저장은 jsdom에 없다 */
-    let sheet = null;
-    /* ⚠ **서버(여기서는 `sheet_download.js`)가 실제로 돌려주는 모양 그대로** 돌려준다.
-       `downloadSheet`는 문자열('xlsx'|'csv'|'blocked')을 준다 — 객체로 흉내 내면
-       `sayAfterDownload`가 다른 갈래를 타고, 그 차이를 검사가 못 본다(WR의 교훈). */
-    X.win.downloadSheet = (aoa) => { sheet = aoa; return 'csv'; };
-    /* 🔴 sayAfterDownload도 같은 파일(sheet_download.js)이 내준다. 2026-09-14에 고객
-       화면에서 그 파일을 걷어내면서 여기가 **크래시**했다 — 하나만 흉내 내면 방어를
-       지나 마지막 줄에서 터진다. 이 검사가 보는 것은 **표의 내용**이고, 표를 만드는
-       코드는 admin-quote.html과 공유하는 script.js의 같은 함수다. */
-    X.win.sayAfterDownload = () => {};
-    ok('⑪ 엑셀 내려받기 함수가 있다', typeof X.win.downloadEstimateExcel === 'function');
-    X.win.downloadEstimateExcel();
-    await X.tick(120);
-    ok('⑪ 표가 만들어진다', Array.isArray(sheet) && sheet.length > 5, sheet ? sheet.length + '줄' : '없음');
+       ■ 왜 없앴나 (대표 지시, 두 번에 걸쳐)
+       · 2026-09-14 `index.html`(고객 견적 폼)에서 「엑셀로 다운로드」를 뺐다.
+       · 2026-09-15 `admin-quote.html`(담당자 산출)에서도 뺐다 — **마지막 진입점**이었다.
+       그래서 `script.js`의 `downloadEstimateExcel()` 73줄과 `FEATURE_EXCEL_EXPORT`,
+       두 화면의 `sheet_download.js`·xlsx CDN 400KB를 함께 걷었다.
 
-    if (Array.isArray(sheet)) {
-      const label = (k) => {
-        const row = sheet.find((r) => Array.isArray(r) && String(r[0] || '').trim() === k);
-        return row ? String(row[1] == null ? '' : row[1]) : null;
-      };
-      const flat = sheet.map((r) => (Array.isArray(r) ? r.join(' ') : String(r))).join(' | ');
-      ok('🔴 ⑪ 견적 유효기간이 실린다', !!label('견적 유효기간'), flat.slice(0, 100));
-      ok('⑪ 유효기간이 날짜로 적힌다', /\d{4}년/.test(String(label('견적 유효기간') || '')),
-        String(label('견적 유효기간')));
-      ok('⑪ 발행일이 실린다', !!label('발행일'));
-      ok('⑪ 목적지·인원·기간이 실린다',
-        !!label('목적지') && !!label('참가 인원') && !!label('연수 기간'));
-      ok('⑪ 신청 기관·담당자가 실린다', label('신청 기관') === '엑셀점검' && label('담당자') === '엑셀담당',
-        label('신청 기관') + ' / ' + label('담당자'));
-      ok('⑪ 합계와 1인당이 실린다', !!label('합계') && !!label('1인당 금액'));
-      /* 🔴 감춘 수익이 엑셀로 새면 안 된다 — 고객이 그대로 결재에 붙인다 */
-      ok('🔴 ⑪ 감춘 수익 항목이 엑셀에 없다', !/ENBT 수익|현지 수익금/.test(flat));
-      ok('🔴 ⑪ 연락처가 엑셀에 없다', !/010-0000-0000/.test(flat));
-      /* 아직 발급 전이므로 견적번호 줄은 **없어야** 한다 — 「견적번호 —」가 더 나쁘다 */
-      ok('⑪ 발급 전에는 견적번호 줄을 만들지 않는다', label('견적번호') === null,
-        String(label('견적번호')));
+       ■ 🔴 왜 검사를 지우지 않고 **반대로 잠그는가**
+       그냥 지우면 **여기서 지키던 것이 아무 데도 안 남는다.** 특히 「감춘 수익이 엑셀로
+       새면 안 된다」는 고객이 그 파일을 그대로 결재에 붙이기 때문에 생긴 규칙이다.
+       되살리는 것 자체가 나쁜 게 아니라 **모르고 되살리는 것**이 나쁘다.
+       → 여기서 막고, 막힌 사람이 이 글을 읽게 한다(`test_vT`와 같은 방식).
 
-      /* 발급된 뒤에는 같은 번호가 실려야 한다 — 고객이 두 파일을 함께 올린다 */
-      X.doc.getElementById('downloadEstimate').dispatchEvent(
-        new X.win.MouseEvent('click', { bubbles: true, cancelable: true, view: X.win }));
-      await X.tick(500);
-      sheet = null;
-      X.win.downloadEstimateExcel();
-      await X.tick(120);
-      const label2 = (k) => {
-        const row = (sheet || []).find((r) => Array.isArray(r) && String(r[0] || '').trim() === k);
-        return row ? String(row[1] == null ? '' : row[1]) : null;
-      };
-      ok('🔴 ⑪ 발급 뒤에는 엑셀에도 같은 견적번호가 실린다',
-        label2('견적번호') === 'Q-260826-001', String(label2('견적번호')));
-    }
-    X.win.close();
+       ■ ⚠ 엑셀이 회사에서 사라진 것은 아니다
+       고객이 카톡으로 받는 견적서(`estimate-view.html`)는 **자체 구현**
+       (`downloadEstimateExcelShared`)으로 그대로 있다. 그쪽 표의 내용은
+       `test_wO_quote_voice` ⑩이 본다. 그 화면은 `script.js`를 싣지도 않는다.
+       ⚠ 다만 그쪽은 **서버가 이미 `rows.filter(r => !r.muted)`로 거른 payload**를 그리므로
+         여기서 걱정하던 유출 경로와 성격이 다르다. 되살릴 때 이 차이를 알고 결정할 것.
+
+       ■ 되살리려면
+       `git show 2df6efa:script.js`의 `downloadEstimateExcel()`과
+       `git show 2df6efa:admin-quote.html`의 `#downloadEstimateExcel` 버튼을 되돌리고,
+       이 블록을 예전 판으로 되돌린다. */
+    const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+    const src = rd('script.js');
+    const aq = rd('admin-quote.html');
+    ok('⑪ 계산기 엑셀 함수가 없다', !/function downloadEstimateExcel\s*\(/.test(src));
+    ok('⑪ 그 기능 플래그도 없다', !/const FEATURE_EXCEL_EXPORT/.test(src));
+    ok('⑪ 담당자 산출 화면에 엑셀 버튼이 없다', !/id="downloadEstimateExcel"/.test(aq));
+    /* 🔴 버튼만 지우고 딸린 것을 남기면 아무도 안 쓰는 채로 산다(`test_vT`가 세운 규칙) */
+    ok('⑪ 그 화면이 sheet_download.js를 더는 싣지 않는다',
+      !/<script src="sheet_download\.js">/.test(aq));
+    ok('⑪ 🔴 남의 CDN 400KB(xlsx)도 함께 걷었다', !/cdn\.jsdelivr\.net\/npm\/xlsx/.test(aq));
+    /* ⚠ 안내문이 **없는 버튼을 부르지 않는다** — 오늘 하루에 세 번 나온 자리다 */
+    ok('⑪ 그 화면 안내가 엑셀을 약속하지 않는다', !/견적서\(PDF\)·엑셀/.test(aq));
+    ok('⑪ 저장 실패 안내도 엑셀을 말하지 않는다', !/PDF·엑셀은 정상/.test(src));
+    /* ⚠ 함께 지우면 안 되는 것 — 세어 보고 남겼다 */
+    ok('⑪ ⚠ 유효기간을 한 곳에서 만드는 함수는 남아 있다(인쇄 문서가 쓴다)',
+      /function customQuoteValidUntil/.test(src));
+    ok('⑪ ⚠ 고객 견적서의 엑셀은 그대로다(자체 구현)',
+      /function downloadEstimateExcelShared/.test(rd('estimate-view.html')));
   }
 
   ok('전 과정에서 화면 오류가 없다', log.errors.length === 0,

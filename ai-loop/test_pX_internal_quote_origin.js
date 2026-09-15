@@ -82,7 +82,9 @@ ok('요소가 없으면 alert로라도 알린다 (조용히 넘어가지 않는�
   /if \(!el\) \{ if \(typeof alert === 'function'\) alert\(/.test(warnFn));
 ok('무엇이 안 되는지 말한다(견적 관리·링크 발급)',
   /견적 관리 목록에 아직 나타나지 않고, 견적서 링크 발급도 할 수 없습니다/.test(warnFn));
-ok('PDF·엑셀은 정상이라고 구별해 준다', /PDF·엑셀은 정상입니다/.test(warnFn));
+/* ⚠ 2026-09-15: 문구에서 「·엑셀」이 빠졌다(엑셀 버튼을 대표 지시로 걷어냈다).
+   지키려는 것은 **「무엇이 정상이고 무엇이 아닌지 구별해 준다」**이지 낱말이 아니다. */
+ok('무엇은 정상인지 구별해 준다(계산·문서는 멀쩡하다)', /PDF는 정상입니다/.test(warnFn));
 ok('textContent로 넣는다 (innerHTML 보간을 피한다)',
   /createTextNode\(line\)/.test(warnFn) && !/innerHTML =/.test(warnFn));
 
