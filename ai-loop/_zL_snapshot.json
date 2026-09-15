@@ -1,0 +1,2123 @@
+{
+  "오키나와-소규모-휴양": {
+    "total": 5980400,
+    "perPerson": 1495100,
+    "visibleTotal": 4411200,
+    "hiddenTotal": 1569200,
+    "combinedFactor": 1,
+    "seasonFactor": 1,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 2,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 331200,
+        "qty": "4명",
+        "amount": 1324800,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 165600,
+        "qty": "4명",
+        "amount": 662400,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 250000,
+        "qty": "2실×3박",
+        "amount": 1500000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 25000,
+        "qty": "4명×4일",
+        "amount": 400000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 30000,
+        "qty": "4명",
+        "amount": 120000,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 101000,
+        "qty": "4명",
+        "amount": 404000,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 207350,
+        "qty": "4명",
+        "amount": 829400,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 169650,
+        "qty": "4명",
+        "amount": 678600,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 15300,
+        "qty": "4명",
+        "amount": 61200,
+        "muted": true
+      }
+    ]
+  },
+  "오키나와-단체-기본": {
+    "total": 32251400,
+    "perPerson": 1612570,
+    "visibleTotal": 26888400,
+    "hiddenTotal": 5363000,
+    "combinedFactor": 1,
+    "seasonFactor": 1,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 10,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 322092,
+        "qty": "20명",
+        "amount": 6441840,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 161046,
+        "qty": "20명",
+        "amount": 3220920,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 250000,
+        "qty": "10실×3박",
+        "amount": 7500000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 24725,
+        "qty": "20명×4일",
+        "amount": 1978000,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 770000,
+        "qty": "4일",
+        "amount": 3080000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 300000,
+        "qty": "4일",
+        "amount": 1200000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 29835,
+        "qty": "20명",
+        "amount": 596700,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 143547,
+        "qty": "20명",
+        "amount": 2870940,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 135850,
+        "qty": "20명",
+        "amount": 2717000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 117000,
+        "qty": "20명",
+        "amount": 2340000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 15300,
+        "qty": "20명",
+        "amount": 306000,
+        "muted": true
+      }
+    ]
+  },
+  "다낭-연수-30명": {
+    "total": 45738758,
+    "perPerson": 1524625,
+    "visibleTotal": 32622908,
+    "hiddenTotal": 13115850,
+    "combinedFactor": 1,
+    "seasonFactor": 0.88,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 15,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 327564,
+        "qty": "30명",
+        "amount": 9826917,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 218376,
+        "qty": "30명",
+        "amount": 6551291,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 132000,
+        "qty": "15실×4박",
+        "amount": 7920000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 14775,
+        "qty": "30명×5일",
+        "amount": 2216250,
+        "muted": false
+      },
+      {
+        "name": "차량 (대형 · 자동적용)",
+        "unit": 180000,
+        "qty": "5일",
+        "amount": 900000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 202500,
+        "qty": "5일",
+        "amount": 1012500,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 49617,
+        "qty": "30명",
+        "amount": 1488500,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 90248,
+        "qty": "30명",
+        "amount": 2707450,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 223445,
+        "qty": "30명",
+        "amount": 6703350,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 195750,
+        "qty": "30명",
+        "amount": 5872500,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 18000,
+        "qty": "30명",
+        "amount": 540000,
+        "muted": true
+      }
+    ]
+  },
+  "다낭-성수기-7월": {
+    "total": 56044908,
+    "perPerson": 1868164,
+    "visibleTotal": 46831908,
+    "hiddenTotal": 9213000,
+    "combinedFactor": 1,
+    "seasonFactor": 1.15,
+    "peakFactor": 1.2,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 15,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 513680,
+        "qty": "30명",
+        "amount": 15410397,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 342454,
+        "qty": "30명",
+        "amount": 10273611,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 200100,
+        "qty": "15실×4박",
+        "amount": 12006000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 14775,
+        "qty": "30명×5일",
+        "amount": 2216250,
+        "muted": false
+      },
+      {
+        "name": "차량 (대형 · 자동적용)",
+        "unit": 180000,
+        "qty": "5일",
+        "amount": 900000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 202500,
+        "qty": "5일",
+        "amount": 1012500,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 49617,
+        "qty": "30명",
+        "amount": 1488500,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 117488,
+        "qty": "30명",
+        "amount": 3524650,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 154100,
+        "qty": "30명",
+        "amount": 4623000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 135000,
+        "qty": "30명",
+        "amount": 4050000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 18000,
+        "qty": "30명",
+        "amount": 540000,
+        "muted": true
+      }
+    ]
+  },
+  "방콕-대규모-100명": {
+    "total": 154842367,
+    "perPerson": 1548424,
+    "visibleTotal": 125794867,
+    "hiddenTotal": 29047500,
+    "combinedFactor": 1,
+    "seasonFactor": 0.88,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 50,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 361689,
+        "qty": "100명",
+        "amount": 36168880,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 202546,
+        "qty": "100명",
+        "amount": 20254587,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 176000,
+        "qty": "50실×4박",
+        "amount": 35200000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 18904,
+        "qty": "100명×5일",
+        "amount": 9452000,
+        "muted": false
+      },
+      {
+        "name": "차량 (대형 · 자동적용)",
+        "unit": 300000,
+        "qty": "3대×5일",
+        "amount": 4500000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 255000,
+        "qty": "3명×5일",
+        "amount": 3825000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 48325,
+        "qty": "100명",
+        "amount": 4832500,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 115619,
+        "qty": "100명",
+        "amount": 11561900,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 137475,
+        "qty": "100명",
+        "amount": 13747500,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 135000,
+        "qty": "100명",
+        "amount": 13500000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 18000,
+        "qty": "100명",
+        "amount": 1800000,
+        "muted": true
+      }
+    ]
+  },
+  "방콕-연말연시": {
+    "total": 67559005,
+    "perPerson": 2251967,
+    "visibleTotal": 58346005,
+    "hiddenTotal": 9213000,
+    "combinedFactor": 1,
+    "seasonFactor": 1.15,
+    "peakFactor": 1.25,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 15,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 637005,
+        "qty": "30명",
+        "amount": 19110135,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 356722,
+        "qty": "30명",
+        "amount": 10701670,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 276000,
+        "qty": "15실×4박",
+        "amount": 16560000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 19700,
+        "qty": "30명×5일",
+        "amount": 2955000,
+        "muted": false
+      },
+      {
+        "name": "차량 (대형 · 자동적용)",
+        "unit": 300000,
+        "qty": "5일",
+        "amount": 1500000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 255000,
+        "qty": "5일",
+        "amount": 1275000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 49617,
+        "qty": "30명",
+        "amount": 1488500,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 158523,
+        "qty": "30명",
+        "amount": 4755700,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 154100,
+        "qty": "30명",
+        "amount": 4623000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 135000,
+        "qty": "30명",
+        "amount": 4050000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 18000,
+        "qty": "30명",
+        "amount": 540000,
+        "muted": true
+      }
+    ]
+  },
+  "세부-리조트-1인1실": {
+    "total": 36115914,
+    "perPerson": 3009660,
+    "visibleTotal": 32344914,
+    "hiddenTotal": 3771000,
+    "combinedFactor": 1,
+    "seasonFactor": 0.88,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 12,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 335782,
+        "qty": "12명",
+        "amount": 4029378,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 199870,
+        "qty": "12명",
+        "amount": 2398440,
+        "muted": false
+      },
+      {
+        "name": "호텔 (5성급)",
+        "unit": 344960,
+        "qty": "12실×4박",
+        "amount": 16558080,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 24875,
+        "qty": "12명×5일",
+        "amount": 1492500,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 220000,
+        "qty": "5일",
+        "amount": 1100000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 250000,
+        "qty": "5일",
+        "amount": 1250000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 99750,
+        "qty": "12명",
+        "amount": 1197000,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 359960,
+        "qty": "12명",
+        "amount": 4319516,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 161250,
+        "qty": "12명",
+        "amount": 1935000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 135000,
+        "qty": "12명",
+        "amount": 1620000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 18000,
+        "qty": "12명",
+        "amount": 216000,
+        "muted": true
+      }
+    ]
+  },
+  "발리-혼합좌석": {
+    "total": 85272576,
+    "perPerson": 3553024,
+    "visibleTotal": 74524176,
+    "hiddenTotal": 10748400,
+    "combinedFactor": 1,
+    "seasonFactor": 1.15,
+    "peakFactor": 1.2,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 13,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 1008538,
+        "qty": "24명",
+        "amount": 24204918,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 393576,
+        "qty": "24명",
+        "amount": 9445818,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 373520,
+        "qty": "13실×5박",
+        "amount": 24278800,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 39500,
+        "qty": "24명×6일",
+        "amount": 5688000,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 170000,
+        "qty": "6일",
+        "amount": 1020000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 99000,
+        "qty": "6일",
+        "amount": 594000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 103350,
+        "qty": "24명",
+        "amount": 2480400,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 283843,
+        "qty": "24명",
+        "amount": 6812240,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 228250,
+        "qty": "24명",
+        "amount": 5478000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 198000,
+        "qty": "24명",
+        "amount": 4752000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 21600,
+        "qty": "24명",
+        "amount": 518400,
+        "muted": true
+      }
+    ]
+  },
+  "도쿄-벚꽃": {
+    "total": 31960344,
+    "perPerson": 1997522,
+    "visibleTotal": 27646536,
+    "hiddenTotal": 4313808,
+    "combinedFactor": 1,
+    "seasonFactor": 1,
+    "peakFactor": 1.2,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 8,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 410343,
+        "qty": "16명",
+        "amount": 6565488,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 194373,
+        "qty": "16명",
+        "amount": 3109968,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 348000,
+        "qty": "8실×3박",
+        "amount": 8352000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 24781,
+        "qty": "16명×4일",
+        "amount": 1586000,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 840000,
+        "qty": "4일",
+        "amount": 3360000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 300000,
+        "qty": "4일",
+        "amount": 1200000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 29869,
+        "qty": "16명",
+        "amount": 477900,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 187199,
+        "qty": "16명",
+        "amount": 2995180,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 137313,
+        "qty": "16명",
+        "amount": 2197008,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 117000,
+        "qty": "16명",
+        "amount": 1872000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 15300,
+        "qty": "16명",
+        "amount": 244800,
+        "muted": true
+      }
+    ]
+  },
+  "도쿄-비수기-11월": {
+    "total": 27295080,
+    "perPerson": 1705943,
+    "visibleTotal": 22981272,
+    "hiddenTotal": 4313808,
+    "combinedFactor": 1,
+    "seasonFactor": 0.9,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 8,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 307757,
+        "qty": "16명",
+        "amount": 4924116,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 145780,
+        "qty": "16명",
+        "amount": 2332476,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 270000,
+        "qty": "8실×3박",
+        "amount": 6480000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 24781,
+        "qty": "16명×4일",
+        "amount": 1586000,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 840000,
+        "qty": "4일",
+        "amount": 3360000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 300000,
+        "qty": "4일",
+        "amount": 1200000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 29869,
+        "qty": "16명",
+        "amount": 477900,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 163799,
+        "qty": "16명",
+        "amount": 2620780,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 137313,
+        "qty": "16명",
+        "amount": 2197008,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 117000,
+        "qty": "16명",
+        "amount": 1872000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 15300,
+        "qty": "16명",
+        "amount": 244800,
+        "muted": true
+      }
+    ]
+  },
+  "삿포로-겨울": {
+    "total": 45938580,
+    "perPerson": 1837543,
+    "visibleTotal": 39264080,
+    "hiddenTotal": 6674500,
+    "combinedFactor": 1,
+    "seasonFactor": 1,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 13,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 338413,
+        "qty": "25명",
+        "amount": 8460320,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 160301,
+        "qty": "25명",
+        "amount": 4007520,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 250000,
+        "qty": "13실×4박",
+        "amount": 13000000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 24680,
+        "qty": "25명×5일",
+        "amount": 3085000,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 800000,
+        "qty": "5일",
+        "amount": 4000000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 300000,
+        "qty": "5일",
+        "amount": 1500000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 29808,
+        "qty": "25명",
+        "amount": 745200,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 178642,
+        "qty": "25명",
+        "amount": 4466040,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 134680,
+        "qty": "25명",
+        "amount": 3367000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 117000,
+        "qty": "25명",
+        "amount": 2925000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 15300,
+        "qty": "25명",
+        "amount": 382500,
+        "muted": true
+      }
+    ]
+  },
+  "싱가포르-비즈니스": {
+    "total": 34101744,
+    "perPerson": 3410174,
+    "visibleTotal": 29543744,
+    "hiddenTotal": 4558000,
+    "combinedFactor": 1,
+    "seasonFactor": 1,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 5,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 1406054,
+        "qty": "10명",
+        "amount": 14060544,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 183080,
+        "qty": "10명",
+        "amount": 1830800,
+        "muted": false
+      },
+      {
+        "name": "호텔 (5성급)",
+        "unit": 420000,
+        "qty": "5실×3박",
+        "amount": 6300000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 24950,
+        "qty": "10명×4일",
+        "amount": 998000,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 420000,
+        "qty": "4일",
+        "amount": 1680000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 350000,
+        "qty": "4일",
+        "amount": 1400000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 99900,
+        "qty": "10명",
+        "amount": 999000,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 227540,
+        "qty": "10명",
+        "amount": 2275400,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 239800,
+        "qty": "10명",
+        "amount": 2398000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 198000,
+        "qty": "10명",
+        "amount": 1980000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 18000,
+        "qty": "10명",
+        "amount": 180000,
+        "muted": true
+      }
+    ]
+  },
+  "코타키나발루-골프": {
+    "total": 35219320,
+    "perPerson": 2201208,
+    "visibleTotal": 30236312,
+    "hiddenTotal": 4983008,
+    "combinedFactor": 1,
+    "seasonFactor": 0.88,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 8,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 411783,
+        "qty": "16명",
+        "amount": 6588522,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 221729,
+        "qty": "16명",
+        "amount": 3547670,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 308000,
+        "qty": "8실×4박",
+        "amount": 9856000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 24781,
+        "qty": "16명×5일",
+        "amount": 1982500,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 300000,
+        "qty": "5일",
+        "amount": 1500000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 300000,
+        "qty": "5일",
+        "amount": 1500000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 119475,
+        "qty": "16명",
+        "amount": 1911600,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 209376,
+        "qty": "16명",
+        "amount": 3350020,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 158438,
+        "qty": "16명",
+        "amount": 2535008,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 135000,
+        "qty": "16명",
+        "amount": 2160000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 18000,
+        "qty": "16명",
+        "amount": 288000,
+        "muted": true
+      }
+    ]
+  },
+  "상해-짧은일정": {
+    "total": 60722718,
+    "perPerson": 1518068,
+    "visibleTotal": 43698758,
+    "hiddenTotal": 17023960,
+    "combinedFactor": 1,
+    "seasonFactor": 1,
+    "peakFactor": 1.12,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 20,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 370995,
+        "qty": "40명",
+        "amount": 14839815,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 175735,
+        "qty": "40명",
+        "amount": 7029383,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 241120,
+        "qty": "20실×2박",
+        "amount": 9644800,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 19525,
+        "qty": "40명×3일",
+        "amount": 2343000,
+        "muted": false
+      },
+      {
+        "name": "차량 (대형 · 자동적용)",
+        "unit": 450000,
+        "qty": "2대×3일",
+        "amount": 2700000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 255000,
+        "qty": "2명×3일",
+        "amount": 1530000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 49338,
+        "qty": "40명",
+        "amount": 1973500,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 90957,
+        "qty": "40명",
+        "amount": 3638260,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 217609,
+        "qty": "40명",
+        "amount": 8704360,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 195750,
+        "qty": "40명",
+        "amount": 7830000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 12240,
+        "qty": "40명",
+        "amount": 489600,
+        "muted": true
+      }
+    ]
+  },
+  "장가계-관광비큰곳": {
+    "total": 55473060,
+    "perPerson": 1584945,
+    "visibleTotal": 44899560,
+    "hiddenTotal": 10573500,
+    "combinedFactor": 1,
+    "seasonFactor": 1,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 18,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 316059,
+        "qty": "35명",
+        "amount": 11062080,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 158030,
+        "qty": "35명",
+        "amount": 5531040,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 120000,
+        "qty": "18실×4박",
+        "amount": 8640000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 14700,
+        "qty": "35명×5일",
+        "amount": 2572500,
+        "muted": false
+      },
+      {
+        "name": "차량 (대형 · 자동적용)",
+        "unit": 420000,
+        "qty": "5일",
+        "amount": 2100000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 255000,
+        "qty": "5일",
+        "amount": 1275000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 257177,
+        "qty": "35명",
+        "amount": 9001200,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 134793,
+        "qty": "35명",
+        "amount": 4717740,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 151800,
+        "qty": "35명",
+        "amount": 5313000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 135000,
+        "qty": "35명",
+        "amount": 4725000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 15300,
+        "qty": "35명",
+        "amount": 535500,
+        "muted": true
+      }
+    ]
+  },
+  "파리-장거리": {
+    "total": 115170120,
+    "perPerson": 5758506,
+    "visibleTotal": 102592920,
+    "hiddenTotal": 12577200,
+    "combinedFactor": 1,
+    "seasonFactor": 1.2,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 10,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 1503096,
+        "qty": "20명",
+        "amount": 30061920,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 590502,
+        "qty": "20명",
+        "amount": 11810040,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 420000,
+        "qty": "10실×7박",
+        "amount": 29400000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 34615,
+        "qty": "20명×8일",
+        "amount": 5538400,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 1125000,
+        "qty": "8일",
+        "amount": 9000000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 435000,
+        "qty": "8일",
+        "amount": 3480000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 159120,
+        "qty": "20명",
+        "amount": 3182400,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 506008,
+        "qty": "20명",
+        "amount": 10120160,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 313500,
+        "qty": "20명",
+        "amount": 6270000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 270000,
+        "qty": "20명",
+        "amount": 5400000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 45360,
+        "qty": "20명",
+        "amount": 907200,
+        "muted": true
+      }
+    ]
+  },
+  "유럽-추석연휴": {
+    "total": 130591229,
+    "perPerson": 6529561,
+    "visibleTotal": 118014029,
+    "hiddenTotal": 12577200,
+    "combinedFactor": 1,
+    "seasonFactor": 1.2,
+    "peakFactor": 1.22,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 10,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 1833777,
+        "qty": "20명",
+        "amount": 36675538,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 720413,
+        "qty": "20명",
+        "amount": 14408251,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 493920,
+        "qty": "10실×7박",
+        "amount": 34574400,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 34615,
+        "qty": "20명×8일",
+        "amount": 5538400,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 1125000,
+        "qty": "8일",
+        "amount": 9000000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 435000,
+        "qty": "8일",
+        "amount": 3480000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 159120,
+        "qty": "20명",
+        "amount": 3182400,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 557752,
+        "qty": "20명",
+        "amount": 11155040,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 313500,
+        "qty": "20명",
+        "amount": 6270000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 270000,
+        "qty": "20명",
+        "amount": 5400000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 45360,
+        "qty": "20명",
+        "amount": 907200,
+        "muted": true
+      }
+    ]
+  },
+  "뉴욕-장거리-이코노미": {
+    "total": 134323800,
+    "perPerson": 8954920,
+    "visibleTotal": 121883400,
+    "hiddenTotal": 12440400,
+    "combinedFactor": 1,
+    "seasonFactor": 1,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 8,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 1713040,
+        "qty": "15명",
+        "amount": 25695600,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 676200,
+        "qty": "15명",
+        "amount": 10143000,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 550000,
+        "qty": "8실×7박",
+        "amount": 30800000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 74400,
+        "qty": "15명×8일",
+        "amount": 8928000,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 2600000,
+        "qty": "8일",
+        "amount": 20800000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 650000,
+        "qty": "8일",
+        "amount": 5200000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 398400,
+        "qty": "15명",
+        "amount": 5976000,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 956053,
+        "qty": "15명",
+        "amount": 14340800,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 424000,
+        "qty": "15명",
+        "amount": 6360000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 360000,
+        "qty": "15명",
+        "amount": 5400000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 45360,
+        "qty": "15명",
+        "amount": 680400,
+        "muted": true
+      }
+    ]
+  },
+  "시드니-남반구": {
+    "total": 78014064,
+    "perPerson": 4334115,
+    "visibleTotal": 70410864,
+    "hiddenTotal": 7603200,
+    "combinedFactor": 1,
+    "seasonFactor": 1.2,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 9,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 1184040,
+        "qty": "18명",
+        "amount": 21312720,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 559728,
+        "qty": "18명",
+        "amount": 10075104,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 300000,
+        "qty": "9실×6박",
+        "amount": 16200000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 34650,
+        "qty": "18명×7일",
+        "amount": 4365900,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 975000,
+        "qty": "7일",
+        "amount": 6825000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 400000,
+        "qty": "7일",
+        "amount": 2800000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 129350,
+        "qty": "18명",
+        "amount": 2328300,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 361324,
+        "qty": "18명",
+        "amount": 6503840,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 210000,
+        "qty": "18명",
+        "amount": 3780000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 180000,
+        "qty": "18명",
+        "amount": 3240000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 32400,
+        "qty": "18명",
+        "amount": 583200,
+        "muted": true
+      }
+    ]
+  },
+  "몽골-여름최성수기": {
+    "total": 53470552,
+    "perPerson": 2430480,
+    "visibleTotal": 46495320,
+    "hiddenTotal": 6975232,
+    "combinedFactor": 1,
+    "seasonFactor": 1.25,
+    "peakFactor": 1.2,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 11,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 562475,
+        "qty": "22명",
+        "amount": 12374460,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 267845,
+        "qty": "22명",
+        "amount": 5892600,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 284200,
+        "qty": "11실×5박",
+        "amount": 15631000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 24705,
+        "qty": "22명×6일",
+        "amount": 3261000,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 280000,
+        "qty": "6일",
+        "amount": 1680000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 255000,
+        "qty": "6일",
+        "amount": 1530000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 64616,
+        "qty": "22명",
+        "amount": 1421550,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 213850,
+        "qty": "22명",
+        "amount": 4704710,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 156136,
+        "qty": "22명",
+        "amount": 3434992,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 135000,
+        "qty": "22명",
+        "amount": 2970000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 25920,
+        "qty": "22명",
+        "amount": 570240,
+        "muted": true
+      }
+    ]
+  },
+  "괌-가족여행": {
+    "total": 16826352,
+    "perPerson": 2804392,
+    "visibleTotal": 14231952,
+    "hiddenTotal": 2594400,
+    "combinedFactor": 1,
+    "seasonFactor": 1.15,
+    "peakFactor": 1.2,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 3,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 825240,
+        "qty": "6명",
+        "amount": 4951440,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 406272,
+        "qty": "6명",
+        "amount": 2437632,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 400200,
+        "qty": "3실×4박",
+        "amount": 4802400,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 30000,
+        "qty": "6명×5일",
+        "amount": 900000,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 190080,
+        "qty": "6명",
+        "amount": 1140480,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 220000,
+        "qty": "6명",
+        "amount": 1320000,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 180000,
+        "qty": "6명",
+        "amount": 1080000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 32400,
+        "qty": "6명",
+        "amount": 194400,
+        "muted": true
+      }
+    ]
+  },
+  "하노이-호텔만": {
+    "total": 19490985,
+    "perPerson": 1624249,
+    "visibleTotal": 14120229,
+    "hiddenTotal": 5370756,
+    "combinedFactor": 1,
+    "seasonFactor": 1.15,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 6,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 470149,
+        "qty": "12명",
+        "amount": 5641785,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 292537,
+        "qty": "12명",
+        "amount": 3510444,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 230000,
+        "qty": "6실×3박",
+        "amount": 4140000,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 69000,
+        "qty": "12명",
+        "amount": 828000,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 233813,
+        "qty": "12명",
+        "amount": 2805756,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 195750,
+        "qty": "12명",
+        "amount": 2349000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 18000,
+        "qty": "12명",
+        "amount": 216000,
+        "muted": true
+      }
+    ]
+  },
+  "푸꾸옥-대규모-올인": {
+    "total": 118491510,
+    "perPerson": 1974859,
+    "visibleTotal": 100664010,
+    "hiddenTotal": 17827500,
+    "combinedFactor": 1,
+    "seasonFactor": 1.15,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 30,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 409922,
+        "qty": "60명",
+        "amount": 24595326,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 273281,
+        "qty": "60명",
+        "amount": 16396884,
+        "muted": false
+      },
+      {
+        "name": "호텔 (5성급)",
+        "unit": 322000,
+        "qty": "30실×4박",
+        "amount": 38640000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 14430,
+        "qty": "60명×5일",
+        "amount": 4329000,
+        "muted": false
+      },
+      {
+        "name": "차량 (대형 · 자동적용)",
+        "unit": 180000,
+        "qty": "2대×5일",
+        "amount": 1800000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 202500,
+        "qty": "2명×5일",
+        "amount": 2025000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 48875,
+        "qty": "60명",
+        "amount": 2932500,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 165755,
+        "qty": "60명",
+        "amount": 9945300,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 144125,
+        "qty": "60명",
+        "amount": 8647500,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 135000,
+        "qty": "60명",
+        "amount": 8100000,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 18000,
+        "qty": "60명",
+        "amount": 1080000,
+        "muted": true
+      }
+    ]
+  },
+  "홍콩-2박3일": {
+    "total": 22496608,
+    "perPerson": 1606901,
+    "visibleTotal": 16344000,
+    "hiddenTotal": 6152608,
+    "combinedFactor": 1,
+    "seasonFactor": 0.9,
+    "peakFactor": 1,
+    "leadFactor": 0.92,
+    "volScale": 1,
+    "rooms": 7,
+    "rows": [
+      {
+        "name": "항공",
+        "unit": 390343,
+        "qty": "14명",
+        "amount": 5464800,
+        "muted": false
+      },
+      {
+        "name": "유류할증료",
+        "unit": 162643,
+        "qty": "14명",
+        "amount": 2277000,
+        "muted": false
+      },
+      {
+        "name": "호텔 (4성급)",
+        "unit": 207000,
+        "qty": "7실×2박",
+        "amount": 2898000,
+        "muted": false
+      },
+      {
+        "name": "식사",
+        "unit": 19857,
+        "qty": "14명×3일",
+        "amount": 834000,
+        "muted": false
+      },
+      {
+        "name": "차량 (소형 · 자동적용)",
+        "unit": 520000,
+        "qty": "3일",
+        "amount": 1560000,
+        "muted": false
+      },
+      {
+        "name": "가이드",
+        "unit": 300000,
+        "qty": "3일",
+        "amount": 900000,
+        "muted": false
+      },
+      {
+        "name": "관광",
+        "unit": 69750,
+        "qty": "14명",
+        "amount": 976500,
+        "muted": false
+      },
+      {
+        "name": "현장 부대비용",
+        "unit": 102407,
+        "qty": "14명",
+        "amount": 1433700,
+        "muted": false
+      },
+      {
+        "name": "💼 ENBT 수익",
+        "unit": 231482,
+        "qty": "14명",
+        "amount": 3240748,
+        "muted": true
+      },
+      {
+        "name": "🏷️ 현지 수익금",
+        "unit": 195750,
+        "qty": "14명",
+        "amount": 2740500,
+        "muted": true
+      },
+      {
+        "name": "🛡️ 여행자보험",
+        "unit": 12240,
+        "qty": "14명",
+        "amount": 171360,
+        "muted": true
+      }
+    ]
+  }
+}
