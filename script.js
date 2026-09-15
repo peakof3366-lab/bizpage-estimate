@@ -3963,7 +3963,17 @@ a{color:inherit;text-decoration:none}
 .btn-close{background:transparent;color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.25);padding:8px 16px;border-radius:0;cursor:pointer;font-size:13px;transition:all .2s}
 .btn-close:hover{background:rgba(255,255,255,.08)}
 /* ── ANCHOR NAV ── */
-.anchor-nav{background:#fff;border-bottom:1px solid #E5E2DC;display:flex;gap:0;overflow-x:auto}
+/* 🔴 탭 셋(견적 내용·추천 일정·현지 사진)이 **스크롤을 따라온다** (2026-09-15 대표 지시).
+   전에는 위로 사라져, 일정을 보다가 견적으로 돌아가려면 맨 위까지 올려야 했다.
+   이 문서는 길다(견적 + 일정 + 사진) — 탭이 안 보이면 탭이 있다는 것조차 잊는다.
+   ⚠ top:0이 아니라 **머리줄 높이만큼 아래**에 붙인다. .top-nav가 이미 sticky라
+     0으로 두면 두 줄이 겹쳐 탭이 머리줄 뒤로 들어간다. 높이는 JS가 재서 --navh에 넣는다.
+   ⚠ 인쇄에는 영향이 없다 — 이 줄은 no-print라 display:none!important로 빠진다.
+   ⚠ 부모에 overflow가 걸리면 sticky는 조용히 안 먹는다. body·.page-wrap 둘 다
+     걸려 있지 않은 것을 확인하고 넣었다(자기 자신의 overflow-x는 무관하다).
+   🔴 **이 블록에 백틱을 쓰지 말 것** — 이 문서는 통째로 JS 템플릿 리터럴 안이라
+     백틱 하나가 문자열을 끊어 파일 전체가 SyntaxError가 된다(여기서 실제로 당했다). */
+.anchor-nav{background:#fff;border-bottom:1px solid #E5E2DC;display:flex;gap:0;overflow-x:auto;position:sticky;top:var(--navh,52px);z-index:40}
 .anchor-nav a{padding:12px 22px;font-size:13px;font-weight:600;color:#5A5A5A;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
 .anchor-nav a:hover,.anchor-nav a.active{color:#111111;border-bottom-color:#CC001A}
 /* ── LAYOUT ── */
@@ -4098,7 +4108,7 @@ a{color:inherit;text-decoration:none}
      ai-loop/check_contrast.py가 이걸 찾아냈다. -->
 <a href="${base}" class="nav-brand" style="text-decoration:none;cursor:pointer">비즈페이지 · 해외연수 견적서</a>
   <div class="nav-btns">
-    <button class="btn-share" onclick="document.getElementById('share-modal').style.display='flex'"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>고객 링크 공유</button>
+    <button class="btn-share" onclick="document.getElementById('share-modal').style.display='flex'"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>링크 공유</button>
     <button class="btn-print" onclick="window.print()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>견적서 인쇄</button>
     <button class="btn-close" onclick="window.close()">&times; 닫기</button>
   </div>
@@ -4339,6 +4349,28 @@ function shareCopyLink() {
 (function initAnchorNav() {
   const sections = ['quote','rec','gallery'];
   const links = { quote: document.getElementById('anc-quote'), rec: document.getElementById('anc-rec'), gallery: document.getElementById('anc-gallery') };
+
+  /* 🔴 탭이 붙을 자리를 **재서** 정한다 (2026-09-15).
+     머리줄(.top-nav)도 sticky라, 탭을 top:0으로 두면 그 뒤로 들어가 안 보인다.
+     ⚠ 높이를 숫자로 박으면 안 된다 — 좁은 화면에서는 .top-nav가 flex-wrap:wrap으로
+       **두 줄이 되어 높이가 달라진다**(같은 파일의 720px 미디어쿼리). 그래서 잰다.
+     ⚠ 창 크기가 바뀌면 다시 잰다. 한 번만 재면 폰을 돌렸을 때 어긋난다.
+     ⚠ 백틱 금지 — 이 블록도 템플릿 리터럴 안이다. */
+  const nav = document.querySelector('.top-nav');
+  const setNavH = function() {
+    if (!nav) return;
+    document.documentElement.style.setProperty('--navh', nav.offsetHeight + 'px');
+  };
+  setNavH();
+  window.addEventListener('resize', setNavH, { passive: true });
+
+  /* 앵커로 뛰었을 때 제목이 탭 밑에 가리지 않도록 — 뛰는 거리만큼 자리를 비운다.
+     ⚠ scroll-margin-top은 **뛰어갈 대상**에 거는 것이지 탭에 거는 것이 아니다. */
+  sections.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.scrollMarginTop = 'calc(var(--navh, 52px) + 52px)';
+  });
+
   window.addEventListener('scroll', function() {
     let active = 'quote';
     sections.forEach(function(id) {
@@ -4420,10 +4452,13 @@ function shareCopyLink() {
   /* 🔴 **모달을 안 열어도 보이는 한 줄** (XX). 위 `REVIEW_TEXT`를 그대로 쓴다 —
      문구를 여기 새로 적으면 모달과 이 줄이 서로 다른 말을 하게 된다.
      「무엇을 하면 되는지」는 종류마다 다르므로 그것만 여기서 붙인다. */
+  /* ⚠ 버튼 이름을 **글자로 부른다** — 버튼 이름을 바꾸면 이 셋도 함께 고쳐야 한다.
+     2026-09-15에 「고객 링크 공유」 → 「링크 공유」로 바뀌면서 같이 고쳤다.
+     `test_zH_doc_voice`가 「화면에 없는 이름을 부르지 않는가」를 잡는다. */
   const NOTE_DO = {
-    review: '「고객 링크 공유」를 눌러 안내를 확인해 주세요.',
-    reviewUnsaved: '「고객 링크 공유」를 눌러 확인하시거나, 아래 연락처로 알려 주세요.',
-    retry: '「고객 링크 공유」를 다시 눌러 주세요. 이 견적서는 그대로 인쇄·저장하실 수 있습니다.',
+    review: '「링크 공유」를 눌러 안내를 확인해 주세요.',
+    reviewUnsaved: '「링크 공유」를 눌러 확인하시거나, 아래 연락처로 알려 주세요.',
+    retry: '「링크 공유」를 다시 눌러 주세요. 이 견적서는 그대로 인쇄·저장하실 수 있습니다.',
   };
   const setNote = (kind, 말) => {
     if (w.closed) return;
@@ -4492,8 +4527,23 @@ function shareCopyLink() {
       if (inp) inp.value = base + 'estimate-view.html?id=' + data.id;
       if (verifying) verifying.style.display = 'none';
       if (ready) ready.style.display = 'flex';
-      /* 잘 됐다는 것도 화면에서 보여야 한다 — 안 그러면 고객은 링크가 생겼는지도 모른다 */
-      setNote('ok', '고객에게 보낼 링크가 준비되었습니다 — 「고객 링크 공유」에서 복사하실 수 있습니다.'
+      /* 잘 됐다는 것도 화면에서 보여야 한다 — 안 그러면 보는 사람은 링크가 생겼는지도 모른다.
+
+         🔴 **이 문서는 고객도 담당자도 연다** (2026-09-15 대표 지적).
+         `openEstimateWindow()`는 `index.html`(고객)과 `admin-quote.html`(담당자) 양쪽에서
+         불리는데, 여기 문구가 **담당자 기준 한 벌**이었다:
+             「고객에게 보낼 링크가 준비되었습니다 — …에서 복사하실 수 있습니다」
+         고객이 자기 견적서를 열면 **자기더러 자기에게 보내라는 말**이 된다.
+         ⚠ 바로 위 주석이 「안 그러면 **고객은** 링크가 생겼는지 모른다」라고 적혀 있었다 —
+           **고객을 염두에 두고 쓴 코드인데 문구만 담당자 말투였다.** 이런 자리는
+           눈으로 열어 보기 전에는 안 걸린다.
+         → 보는 사람에 따라 갈라 쓴다. `window.__INTERNAL_TOOL__`은 `admin-quote.html`이
+           미리 켜 두는 **이미 있는 표식**이다(채널 구분·통계 제외에 쓰던 것) — 새로
+           만들지 않는다. 이 함수는 부모 창에서 도므로 그 값이 곧 「누가 열었나」다. */
+      const 담당자가열었다 = !!window.__INTERNAL_TOOL__;
+      setNote('ok', (담당자가열었다
+        ? '고객에게 보낼 링크가 준비되었습니다 — 「링크 공유」에서 복사하실 수 있습니다.'
+        : '견적서가 준비되었습니다 — 이 화면에서 바로 인쇄하거나 PDF로 저장하실 수 있습니다.')
         + (data.quoteNo ? ' (견적번호 ' + data.quoteNo + ')' : ''));
       /* 🔴 **인쇄되는 문서에도 견적번호를 찍는다** (XP 후속). 이 창에서 바로 인쇄·PDF로
          저장하는 고객이 있는데, 그 종이에 번호가 없으면 전화가 왔을 때 우리도 고객도
