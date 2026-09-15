@@ -69,15 +69,22 @@ const approx = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
   ok('호텔 hotelPeakFactor=1.175 (1+(1.35-1)*0.5)', approx(h.hotelPeakFactor, 1.175), 'got '+h.hotelPeakFactor);
   ok('항공 peakFactor 여전히 1.35', approx(h.peakFactor, 1.35), 'got '+h.peakFactor);
 
-  console.log('[4] seasonStrength=0.5 → 시즌 진폭 절반 (도쿄 10월 일본peak 1.15)');
+  console.log('[4] seasonStrength=0.5 → 시즌 진폭 절반 (도쿄 7월 초 일본peak 1.15)');
   resetCoef(); COEF.seasonStrength = 0.5;
-  setForm('2027-10-15'); // 일본 peak [10,11] 1.15, 10월 중순은 날짜피크 없음
+  /* ⚠ 2026-09-15: 예전엔 **10월 중순**을 썼다. 대표 지시로 일본 시즌표를 다시 짜면서
+     10·11월이 성수기에서 빠져(벚꽃·골든위크는 PEAK_CALENDAR가 날짜로 가산하므로 월
+     시즌표는 넓은 시즌만 맡는다) 이 날짜가 **평시**가 됐다.
+     → 지금도 월 성수기인 **7월 초**로 옮긴다. 이 검사가 보는 것은 「시즌 진폭이 절반이
+       되는가」이지 특정 달이 아니다.
+   🔴 **7/15~8/20은 PEAK_CALENDAR 여름 피크(×1.20)가 겹친다** — 이 검사는 날짜 피크가
+     없는 자리를 써야 시즌 계수만 따로 잴 수 있다. 그래서 7월 **초**다. */
+  setForm('2027-07-05'); // 일본 peak [7,8] 1.15, 7월 초는 날짜피크 없음(여름 피크는 7/15부터)
   const s = gbd();
   ok('seasonFactor=1.075 (1+(1.15-1)*0.5)', approx(s.seasonFactor, 1.075), 'got '+s.seasonFactor);
 
   console.log('[5] seasonStrength 변화가 호텔 단가에도 반영(항공·유류·호텔 공통)');
-  resetCoef(); setForm('2027-10-15'); const full = gbd();
-  COEF.seasonStrength = 0.5; setForm('2027-10-15'); const half = gbd();
+  resetCoef(); setForm('2027-07-05'); const full = gbd();
+  COEF.seasonStrength = 0.5; setForm('2027-07-05'); const half = gbd();
   const hpFull = full.rows.find(r=>/호텔/.test(r.name)).unit;
   const hpHalf = half.rows.find(r=>/호텔/.test(r.name)).unit;
   ok('시즌 완만화 시 호텔단가 하락', hpHalf < hpFull, `${hpHalf} < ${hpFull}`);
