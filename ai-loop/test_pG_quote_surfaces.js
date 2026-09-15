@@ -73,6 +73,29 @@ const ok = (name, cond, extra = '') => {
   ok('  └ 현지 수익금 비공개', muted.some(n => /현지 수익/.test(n)));
   ok('  └ 여행자보험 비공개', muted.some(n => /여행자보험/.test(n)));
   ok('고객 노출 행에 마진·보험 없음', !shown.some(n => /ENBT|수익|보험/.test(n)), shown.join('/'));
+
+  /* ── 🔴 2026-09-15 대표 지시: **보험은 「금액 행」에서는 계속 가리되, 「포함 항목」에는
+        사실만 알린다** ──────────────────────────────────────────────────────
+     보험료는 견적 금액에 들어 있는데 `muted`라 걸러져, 고객은 **보험이 들어 있는 줄도
+     몰랐다.** ENBT 수익·현지 수익금은 **우리 마진**이라 가리는 게 맞지만 보험은
+     **고객이 받는 실비**다 — 금액을 가리는 것과 포함 사실을 안 알리는 것은 다르다.
+     표준 업무 양식도 「여행자보험」을 포함 항목으로 명시한다.
+
+   🔴 **그래서 위 세 줄과 아래 세 줄이 동시에 참이어야 한다.** 모순이 아니다:
+       · 금액 행(rows)에는 보험이 **없다**        ← 위 검사들이 지킨다
+       · 포함 항목 칩에는 보험이 **있다**          ← 아래 검사들이 지킨다
+     다음에 이 자리를 읽는 사람이 「어느 쪽이 맞나」로 헷갈리지 않게 함께 적어 둔다. */
+  ok('🔴 공유 payload에 보험 **불리언**이 실린다(금액 아님)',
+    /ins:\s*\(data\.rows\s*\|\|\s*\[\]\)\.some\(/.test(shareBlock),
+    (shareBlock.match(/ins:.*/) || ['(없음)'])[0].trim());
+  /* ⚠ 불리언 하나여야 한다. 금액·권역·기간이 실리면 그때부터 유출이다. */
+  ok('🔴 보험 금액을 payload에 싣지 않는다', !/insuranceInfo|zoneLabel|durationLabel|INSURANCE_RATE/.test(shareBlock));
+  /* 두 문서가 **둘 다** 칩을 더한다 — 견적서는 두 벌이라 한쪽만 고치면 갈린다 */
+  ok('팝업 견적서가 포함 칩에 보험을 더한다',
+    /hasInsurance\s*\?\s*'<span class="inc-tag">여행자보험<\/span>'/.test(scriptSrc));
+  ok('링크 견적서도 더한다(d.ins)',
+    /d\.ins\s*\?\s*'<span class="inc-tag">여행자보험<\/span>'/.test(
+      fs.readFileSync(path.join(ROOT, 'estimate-view.html'), 'utf8')));
   const custSum = bd.rows.filter(r => !r.muted).reduce((s, r) => s + r.amount, 0);
   ok('고객 노출 행 합계 < 총액(비공개분만큼 차이)', custSum < bd.total);
 

@@ -3687,8 +3687,21 @@ function openEstimateWindow() {
   const rateVer  = typeof RATE_META !== 'undefined' ? RATE_META.version : '—';
 
   /* 포함 항목 */
+  /* 🔴 **여행자보험은 금액에 들어 있는데 고객에게는 항목조차 안 보였다** (2026-09-15
+     대표 지시로 고침). 보험 행은 `muted: true`라 ENBT 수익·현지 수익금과 **같이**
+     걸러진다. 그런데 그 둘은 **우리 마진**이고 보험은 **고객이 받는 실비**다 —
+     금액을 가리는 것과 **포함 사실을 안 알리는 것**은 다른 이야기다.
+     표준 업무 양식도 「여행자보험」을 포함 항목으로 명시한다.
+
+   ⚠ **`rows`는 건드리지 않는다.** `filter(r => !r.muted)` 한 줄이 마진을 고객에게서
+     가리는 유일한 방어선이고(`test_pG_quote_surfaces`가 회귀로 잡는다),
+     여기서 바꾸는 것은 **칩 목록뿐**이다 — 금액은 여전히 한 자리도 안 나간다.
+   ⚠ 보험이 있는지는 **`test_pG`와 같은 기준**(행 이름)으로 본다. 기준이 둘이 되면
+     언젠가 한쪽만 바뀐다. 보장 한도는 실거래 조건이라 **적지 않는다**(대기열 0-ac). */
+  const hasInsurance = (data.rows || []).some(r => r.muted && /여행자보험/.test(r.name));
   const incItemsHtml = data.rows.filter(r => !r.muted)
-    .map(r => `<span class="inc-tag">${r.name}</span>`).join('');
+    .map(r => `<span class="inc-tag">${r.name}</span>`).join('')
+    + (hasInsurance ? '<span class="inc-tag">여행자보험</span>' : '');
 
   /* 일정 추천
      ⚠ 예전엔 `getItineraries(...) || [ITINERARY_DB[destKey][0], …]`였는데, 폴백 쪽도
@@ -3775,6 +3788,13 @@ function openEstimateWindow() {
     id: issueDate,
     rd: rateDate, rv: rateVer,
     rows: data.rows.filter(r => !r.muted).map(r => [r.name, r.amount]),
+    /* 🔴 **보험이 포함된다는 사실만** 싣는다 (2026-09-15 대표 지시). 금액은 안 싣는다.
+       보험 행은 `muted`라 위 `rows`에서 걸러지는데, 그러면 고객은 **보험이 들어 있는
+       줄도 모른다.** ENBT 수익·현지 수익금은 우리 마진이라 가리는 게 맞지만 보험은
+       **고객이 받는 실비**다 — 표준 업무 양식도 포함 항목으로 명시한다.
+     ⚠ **불리언 하나다.** 금액·권역·기간이 실리면 그때부터 유출이다.
+       기준은 `test_pG_quote_surfaces`가 쓰는 것과 같게 행 이름으로 본다. */
+    ins: (data.rows || []).some(r => r.muted && /여행자보험/.test(r.name)),
     req: requestDetails.slice(0, 300),
     /* 일정이 없으면 아예 싣지 않는다. estimate-view.html은 `d.itiA || d.itiB`로
        섹션 자체를 감싸고 있어 빠져도 정상 렌더된다(공유 견적서 확인). */
