@@ -420,6 +420,42 @@
        ⚠ `#emModal` 안으로 좁힌다 — `.modal-box`는 이 화면에서 **모달 11개가 함께 쓴다.**
        ⚠ 좁은 화면에서는 1열로 돌아간다. 2열을 유지하면 한 칸이 300px대가 되어
          「저장」 버튼과 입력칸이 줄바꿈으로 흩어진다. */
+    /* ── 「이 견적서의 제안 일정」 자리 (2026-09-15 대표 지시) ──
+       대표: 「일정 수정 관련 버튼이 눈에 좀 잘 띄었으면.」
+       고치기 전 실측: 버튼이 **102×30px**의 테두리형이라 81px 구역 오른쪽 끝에 작게
+       붙어 있었다. **고객에게 무엇이 나가는지 정하는 자리인데 화면에서 가장 조용했다.**
+       → 구역에 레드 세로 바를 세우고, 버튼을 **먹색으로 채운다.**
+     ⚠ 레드 채움(`btn-primary`)을 쓰지 않는다 — 이 모달의 결론은 아래 「저장」이고
+       그쪽이 레드다. 같은 색이면 무엇부터 눌러야 할지 흐려진다(화면 규칙 ⑥).
+     ⚠ 누를 자리를 30 → **36px**로 키운다. 24px 미만이 오류이고 44px가 권장이라
+       그 사이에서, 같은 줄의 다른 요소와 어긋나지 않는 값으로 잡았다. */
+    #emModal .em-iti-box {
+      margin-top: .6rem; padding: .75rem .9rem;
+      background: #fbfaf8; border: 1px solid var(--border);
+      border-left: 3px solid var(--primary);
+    }
+    #emModal .btn-iti-edit {
+      background: var(--heading); color: #fff; border-color: var(--heading);
+      padding: .5rem 1.1rem; font-size: .8rem; font-weight: 700; letter-spacing: .01em;
+    }
+    #emModal .btn-iti-edit:hover { background: #000; border-color: #000; }
+
+    /* ── 일정 편집 모달의 저장 줄을 **바닥에 붙인다** (2026-09-15 대표 지시) ──
+       대표: 「일정 수정 관련 버튼이 눈에 좀 잘 띄었으면.」
+       🔴 실측: 이 창의 내용이 **3,034px**인데 「이 견적서 일정으로 저장」이 **맨 아래**에
+         있었다. 일차 카드를 다 고치고 저장하려면 3,000px를 내려야 보인다 —
+         버튼이 약해서가 아니라 **거기 있는지 모르는 것**이 문제였다.
+       → 스크롤을 따라오게 한다. 버튼 색(레드 채움)은 그대로 둔다 — 이 창의 결론이다.
+     ⚠ `.modal-actions`는 이 화면에서 **여섯 곳이 함께 쓴다.** `#eqModal` 안으로 좁힌다.
+     ⚠ 좌우 음수 마진으로 본문 padding 밖까지 늘려, 바닥에 붙었을 때 띠가 중간에서
+       끊겨 보이지 않게 한다. 배경을 주지 않으면 밑에 있는 일차 카드가 비쳐 읽을 수 없다. */
+    #eqModal .modal-actions {
+      position: sticky; bottom: 0; z-index: 5;
+      background: var(--white);
+      margin: 1rem -1.5rem -1.5rem; padding: .85rem 1.5rem;
+      box-shadow: 0 -6px 16px rgba(0,0,0,.06);
+    }
+
     #emModal .em-actual-wrap { margin-top: .9rem; }
     #emModal .em-actual-lead {
       font-size: .74rem; color: var(--muted); line-height: 1.7; margin-bottom: .5rem;

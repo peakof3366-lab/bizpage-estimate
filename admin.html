@@ -1994,12 +1994,27 @@
                산출 쪽에 한 벌을 새로 만들게 되고 그게 이 저장소가 반복해 당한
                결함 생성기 ①이다. 지금은 두 화면 모두 eqModal 하나를 연다.
              여기 남은 것은 「지금 이 견적서에 무엇이 실려 나가는가」 한 줄과 여는 버튼이다. -->
-        <div style="margin-top:.6rem;padding:.75rem .9rem;background:#fbfaf8;border:1px solid var(--border)">
+        <!-- 🔴 일정 자리를 **눈에 띄게** 했다 (2026-09-15 대표 지시: 「일정 수정 관련
+             버튼이 눈에 좀 잘 띄었으면」).
+             고치기 전 실측: 버튼이 **102×30px**의 테두리형(흰 배경)이라 81px 구역
+             오른쪽 끝에 작게 붙어 있었다. 이 구역은 「고객에게 무엇이 나가는가」를
+             정하는 자리인데 가장 조용했다.
+           ⚠ **레드 채움(`btn-primary`)을 쓰지 않았다.** 이 모달의 결론은 아래
+             「저장」이고 그쪽이 레드다. 같은 색으로 채우면 무엇부터 눌러야 할지
+             흐려진다(CLAUDE.md 화면 규칙 ⑥).
+             → **먹색 채움**으로 띄운다. 색이 달라 경쟁하지 않으면서 테두리형보다 강하다.
+           ⚠ 왼쪽 레드 바는 오늘 고객 화면 체크리스트에 쓴 것과 **같은 언어**다. -->
+        <div class="em-iti-box">
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <div class="detail-label" style="margin:0">📅 이 견적서의 제안 일정</div>
             <span id="em-iti-state" style="font-size:.74rem;color:var(--muted)"></span>
             <span style="margin-left:auto"></span>
-            <button type="button" class="btn-act btn-outline-p" onclick="eqOpen(emCurrentId)">일정 확인·수정</button>
+            <!-- ⚠ **이름은 그대로 둔다.** 눈에 띄게 하려고 잠깐 「일정 확인 · 수정」으로
+                 띄어쓰기를 넣었다가 되돌렸다 — `manual.html` 두 곳과 `admin-quote.html`의
+                 같은 버튼이 **「일정 확인·수정」을 글자 그대로 부른다.** 오늘 하루에 네 번
+                 나온 자리다(버튼 이름을 건드리면 부르는 곳까지 함께 고쳐야 한다).
+                 여기서 바꾼 것은 **모양뿐**이다. -->
+            <button type="button" class="btn-act btn-iti-edit" onclick="eqOpen(emCurrentId)">일정 확인·수정</button>
           </div>
           <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">
             여기서 고친 일정은 <strong style="color:var(--heading)">이 견적서에만</strong> 적용됩니다.
@@ -2326,7 +2341,14 @@
        window.openQuoteItineraryEditor(id)를 부른다 — 편집기 코드는 여기 한 곳뿐이다.
      ══════════════════════════════════════════════════════════════════════ -->
 <div id="eqModal" class="modal-overlay hidden">
-  <div class="modal-box" style="width:min(880px,100%)">
+  <!-- 🔴 폭을 880 → 1180px로 (2026-09-15 대표 지시: 「아까 상세 부분처럼 넓게」).
+       실측: 이 창은 **880×810인데 내용이 3034px** — 세로로 3.7배 넘친다. 그런데 바로 뒤에
+       열려 있는 견적 상세는 **1180px**라, 더 많은 것을 편집하는 창이 **더 좁았다.**
+       일차 카드가 「오전|오후」·「저녁|참고 팁」 2열이라 넓힐수록 한 줄에 더 들어간다.
+     ⚠ 상세 모달과 **같은 값**을 쓴다. 두 창이 겹쳐 뜨는데 폭이 다르면 뒤 창이 삐져나와
+       어느 창을 보고 있는지 흐려진다.
+     ⚠ `.modal-box`는 이 화면에서 **모달 11개가 함께 쓰는** 공용 규칙이라 여기서만 넓힌다. -->
+  <div class="modal-box" style="width:min(1180px,94vw)">
     <div class="modal-header">
       <h3>📅 이 견적서의 제안 일정</h3>
       <button type="button" class="modal-close" onclick="eqClose()">✕</button>
