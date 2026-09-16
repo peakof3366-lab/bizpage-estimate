@@ -37,7 +37,10 @@ const ok = (n, c, x) => { if (c) pass++; else fails.push(n + (x ? ' — ' + x : 
 const SRC = read('script.js').replace(/\r\n/g, '\n');
 
 /* ═══ ① 엔진 소스에서 뽑아 맞춘다 ═══ */
-const gi = SRC.indexOf('function getBreakdownData()');
+/* ⚠ 괄호 안을 고정으로 적지 말 것 — 2026-09-16에 `getBreakdownData(opts)`로 인자가
+   하나 붙자 **추출이 통째로 0이 되어** 이 파일의 검사 셋이 한꺼번에 빨개졌다.
+   화면이 아니라 **자르는 규칙이 틀린 것**이었다(이 저장소가 같은 유형으로 여러 번 당했다). */
+const gi = SRC.search(/function getBreakdownData\s*\(/);
 const gj = SRC.indexOf('\n}\n', gi);
 ok('[1] getBreakdownData를 찾았다', gi >= 0 && gj > gi);
 const BODY = SRC.slice(gi, gj);

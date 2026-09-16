@@ -887,7 +887,10 @@ function formatRateDate(rateDate) {
    · 호텔:        × 호텔 등급 계수 × 시즌 계수
    · 식사·차량·가이드·관광·마진: 원가 그대로 (비시즌 변동 없음)
    ─────────────────────────────────────────────────────────────── */
-function getBreakdownData() {
+function getBreakdownData(opts) {
+  /* ⚠ `opts`는 **내부 재계산 전용**이다(등급 역전 보정). 화면·서버·검사는 전부 인자
+     없이 부른다 — 그래야 「고객이 보는 값」과 같은 것을 잰다. */
+  const _o = opts || {};
   const destKey      = destinationSelect.value;
   const participants = Number(document.getElementById('participants').value) || 0;
   const days         = Number(document.getElementById('days').value) || 0;
@@ -918,7 +921,8 @@ function getBreakdownData() {
   const paxTier       = getPaxTier(participants);
   const startDateVal  = document.getElementById('startDate')?.value || '';
   const seasonInfo    = getSeasonInfo(startDateVal, destKey);
-  const hotelGradeKey = document.querySelector('input[name="hotelGrade"]:checked')?.value || 'superior';
+  const hotelGradeKey = _o.gradeOverride
+    || document.querySelector('input[name="hotelGrade"]:checked')?.value || 'superior';
   const hotelGrade    = HOTEL_GRADES[hotelGradeKey] || HOTEL_GRADES.superior;
 
   /* ── v3 신규: 출발 공항 · 좌석 등급 · 객실 구성 ── */
@@ -1222,11 +1226,50 @@ function getBreakdownData() {
     muted: true, adminLabel:`여행자보험 (${insuranceInfo.zoneLabel}·${insuranceInfo.durationLabel})`,
   });
 
-  const baseTotal      = rows.reduce((s, r) => s + r.amount, 0);
   const programFactor  = estimateCriteria.programFactor[programType]  || 1.0;
   const orgFactor      = estimateCriteria.organizationFactor[orgType] || 1.0;
   const combinedFactor = programFactor * orgFactor;
-  const total          = Math.round(baseTotal * combinedFactor);
+
+  /* ═══ 🔴 등급 역전 보정 — 「등급을 올렸는데 총액이 내려가는」 자리를 막는다 ═══════
+     2026-09-16 대표 승인((b)안). 실측: 270조합 중 **27자리(10%)**에서 역전이 났다.
+     가장 큰 것은 나트랑 50명 5일 — 3성급 76,954,850 → 4성급 75,099,700(−1,855,150).
+
+     ■ 왜 생기나 (원인은 그대로 둔다)
+     호텔비는 제대로 오른다. 그런데 1인당 원가소계가 `MARGIN_BANDS`의 구간을 넘으면
+     마진 배수가 **한 칸 떨어지고**, 그 계단이 호텔 인상분보다 큰 구간이 있다.
+     밴드 자체는 의도된 장치다(비싼 여행일수록 마진율을 낮추는 실거래 관행) —
+     그래서 계단을 손대지 않고 **결과만** 막는다. 금액이 전면적으로 움직이지 않는다.
+
+     ■ 어떻게 막나
+     한 등급 아래로 **같은 조건을 다시 계산해** 그 총액을 바닥으로 깐다. 아래 등급도
+     자기 아래 등급으로 이미 보정된 값이라(재귀) 3성→4성→5성이 **단조**가 된다.
+     🔴 **차액을 조용히 삼키지 않는다** — `⚖️ 등급 역전 보정` 줄로 남긴다.
+       CLAUDE.md 결함 생성기 ②: 폴백은 흔적을 남겨야 한다. 이 줄은 `muted`라
+       고객 견적서에는 안 나가고 담당자 화면·역검증에서 보인다.
+     ⚠ 재계산은 **인자로만** 한다. DOM 라디오를 잠깐 바꿔 읽으면 그 사이에 다른
+       코드가 화면을 읽을 수 있다(그리고 되돌리기 전에 예외가 나면 화면이 틀어진다). */
+  let baseTotal = rows.reduce((s, r) => s + r.amount, 0);
+  let total     = Math.round(baseTotal * combinedFactor);
+  let gradeFloor = null;
+  const HG_ORDER = ['standard', 'superior', 'deluxe'];
+  const hgIdx = HG_ORDER.indexOf(hotelGradeKey);
+  if (incHotel && hgIdx > 0 && combinedFactor > 0) {
+    const lower = getBreakdownData({ gradeOverride: HG_ORDER[hgIdx - 1] });
+    if (lower && lower.total > total) {
+      /* 보정액은 **계수 적용 전** 값이다 — 아래 줄들과 같은 자에 올려야 합계가 맞는다.
+         ⚠ `ceil`이다. `round`면 내림이 나와 바닥보다 1원 낮게 끝나는 경우가 생긴다. */
+      const adj = Math.ceil((lower.total - total) / combinedFactor);
+      rows.push({
+        name: '⚖️ 등급 역전 보정', unit: participants > 0 ? Math.round(adj / participants) : 0,
+        qty: `${participants}명`, amount: adj,
+        muted: true, adminLabel: `등급 역전 보정 (${HOTEL_GRADES[HG_ORDER[hgIdx - 1]].label} 금액을 바닥으로)`,
+      });
+      baseTotal = rows.reduce((s, r) => s + r.amount, 0);
+      total = Math.max(Math.round(baseTotal * combinedFactor), lower.total);
+      gradeFloor = { applied: true, from: HG_ORDER[hgIdx - 1],
+        fromLabel: HOTEL_GRADES[HG_ORDER[hgIdx - 1]].label, lowerTotal: lower.total, adjust: adj };
+    }
+  }
   const perPerson      = participants > 0 ? Math.round(total / participants) : 0;
 
   /* 관리자용: 비공개 항목만의 합계 */
@@ -1283,6 +1326,9 @@ function getBreakdownData() {
        ⚠ `costSubtotalUnit`(판정에 쓴 소계)까지 함께 남긴다. 배수만 남기면
          **왜 그 구간이 됐는지**를 화면이 말할 수 없다(조용한 폴백이 된다). */
     marginBandMul, marginBandLabel: marginBand.label, costSubtotalUnit,
+    /* 등급 역전 보정이 걸렸는가 (2026-09-16). null이면 안 걸린 것 — 이 값이 없으면
+       담당자는 「왜 4성급과 금액이 같은가」를 설명할 방법이 없다. */
+    gradeFloor,
     /* 🔴 **대형버스 몇 대로 계산했는가** (XY). 정원 하나가 차량비와 가이드 인원을
        **동시에** 움직이는데(`guideCount = vehicleCount`), 지금까지 그 대수가 밖으로
        안 나왔다. 그래서 「39명에서 1인 금액이 15% 뛴다」를 볼 때마다 원인이 정원

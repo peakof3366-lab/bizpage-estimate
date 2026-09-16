@@ -350,10 +350,10 @@
     ]
   },
   "방콕-대규모-100명": {
-    "total": 154842367,
-    "perPerson": 1548424,
+    "total": 156543767,
+    "perPerson": 1565438,
     "visibleTotal": 125794867,
-    "hiddenTotal": 29047500,
+    "hiddenTotal": 30748900,
     "combinedFactor": 1,
     "seasonFactor": 0.88,
     "peakFactor": 1,
@@ -436,6 +436,13 @@
         "unit": 18000,
         "qty": "100명",
         "amount": 1800000,
+        "muted": true
+      },
+      {
+        "name": "⚖️ 등급 역전 보정",
+        "unit": 17014,
+        "qty": "100명",
+        "amount": 1701400,
         "muted": true
       }
     ]
