@@ -332,6 +332,35 @@ ok('[18-d] 왜 대조 안 하는지 이유를 남긴다', /엔진 값과 대조�
 /* 자동 견적은 여전히 검증한다 — 끈 것이 아니다 */
 ok('[18-e] 자동 견적은 그대로 검증한다', /: verifyQuote\(payload, vctx\)/.test(QJS));
 
+/* ═══ ⑲ 한 번에 한 단계만 보인다 (2026-09-16) ═══════════════════════════════
+   🔴 예전엔 「자동 산출하기」 한 번에 다섯 단계가 **동시에** 열렸다. 브라우저로 잰
+   문서 높이가 900px → 10,886px(12배)였고, `admin.html`의 iframe은
+   `calc(100vh - 180px)` 고정이라 창의 15배를 그 안에서 굴려야 했다. 단계 이동 버튼도
+   목차도 없어 마지막 행동인 「견적 저장하기」가 바닥 10,886px 지점에 있었다.
+   ⚠ 여기서 고정하는 것은 **보임 규칙**이다. 금액은 이 변경과 무관하고
+     `audit_amount_drift.js`가 24건 전부 한 원까지 같음을 따로 증명한다. */
+ok('[19] 단계 막대를 그린다', /id="steps"/.test(PRO) && /class="step"/.test(PRO));
+ok('[19-b] 고르는 것이 아니라 이동이다 — aria-current를 쓴다',
+  /aria-current['"]?,\s*['"]step['"]/.test(PRO) && !/\.step[^\n]*aria-pressed/.test(PRO));
+ok('[19-c] 단계 다섯을 모두 이름으로 부른다',
+  /여행 조건/.test(PRO) && /금액 조정/.test(PRO) && /견적서 내용/.test(PRO)
+  && /일정/.test(PRO) && /미리보기 · 발급/.test(PRO));
+ok('[19-d] 산출 전에는 2~5단계가 잠긴다', /if \(!unlocked && n > 1\) return;/.test(PRO));
+ok('[19-e] 잠긴 이유를 버튼 자신이 말한다', /「자동 산출하기」를 먼저 누르세요/.test(PRO));
+ok('[19-f] 한 단계만 남기고 감춘다',
+  /STEPS\.forEach\(\(s\) => \$\(s\.sec\)\.classList\.toggle\('hidden', s\.n !== n\)\)/.test(PRO));
+ok('[19-g] 5단계로 들어올 때 미리보기를 다시 그린다',
+  /if \(n === 5\) renderPreview\(\);/.test(PRO));
+ok('[19-h] 각 단계에 다음·이전 버튼이 있다',
+  (PRO.match(/data-goto="/g) || []).length >= 7);
+/* 🔴 필수 4칸과 나머지를 같은 무게로 늘어놓지 않는다 — 나머지는 접는다 */
+ok('[19-i] 세부 조건을 접어 둔다', /<details class="more" id="moreCond">/.test(PRO));
+ok('[19-j] 접힌 칸 수를 세어서 적는다 — 모드마다 다르다',
+  /ADHOC && el\.classList\.contains\('eng-only'\)/.test(PRO));
+/* 🔴 `select`는 첫 보기가 그냥 골라진 값이다 — 안 건드리면 목록 첫 행으로 산출됐다 */
+ok('[19-k] 목적지는 「고르지 않음」으로 시작한다',
+  /목적지를 고르세요/.test(PRO) && /sel\.value = '';/.test(PRO));
+
 (async () => {
   try { await BOOT_CHECKS(); } catch (e) { fails.push('[12-c] 화면을 못 띄웠다 — ' + e.message); }
   console.log('\n══════════════════════════════════════════════════════════════════');

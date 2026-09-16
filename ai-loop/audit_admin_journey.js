@@ -22,16 +22,18 @@
    ■ 두 상태로 돈다 — **빈 계정과 며칠 쓴 계정은 다른 화면이다**
      목록이 비었을 때만 나는 결함이 있고(XN이 그랬다), 줄이 있을 때만 나는 것도 있다.
 
-   ■ 담당자가 쓰는 화면은 **둘**이다 (XV에서 더했다)
+   ■ 담당자가 쓰는 화면은 **셋**이다 (XV에서 둘, 2026-09-16에 셋)
      · `admin.html` — 목록·요율·일정. 탭 17개를 한 칸씩 연다
      · `admin-quote.html` — **고객에게 나갈 견적을 실제로 만드는 자리.** STEP 1 → 2 → 결과
-     한쪽만 훑고 「담당자 화면은 깨끗하다」고 말하면 그게 곧 거짓 초록이다.
+     · `admin-quote-pro.html` — 내부직원용. 원가·마진이 보이고 1 → 5단계로 간다
+     하나만 훑고 「담당자 화면은 깨끗하다」고 말하면 그게 곧 거짓 초록이다.
 
    실행:
      node ai-loop/audit_admin_journey.js
      node ai-loop/audit_admin_journey.js --verbose
      node ai-loop/audit_admin_journey.js --mode=filled
      node ai-loop/audit_admin_journey.js --mode=quote    (견적 산출 화면만)
+     node ai-loop/audit_admin_journey.js --mode=pro      (내부직원용 화면만)
    ═══════════════════════════════════════════════════════════════════════════ */
 const { auditPage, visibleText } = require('./_journey_probe');
 const { adminFixtures, enterDashboard } = require('./_admin_fixtures');
@@ -123,6 +125,74 @@ function 폼채우기(B) {
   set('endDate', 날(49));
 }
 
+/* 🔴 담당자가 쓰는 화면은 **셋**이다 (2026-09-16에 더했다)
+   `admin-quote-pro.html`은 2026-09-15에 생겼는데 이 자도, `audit_ux.js`도,
+   `check_admin_screens.py`도 그 화면을 안 보고 있었다 — 담당자가 고객에게 나갈 견적을
+   **실제로 만드는 자리**가 검사망 바깥에 하루 넘게 있었다(결함 생성기 ③).
+   ⚠ 이 화면은 **한 번에 한 단계만** 보인다. 단계를 안 열고 훑으면 1단계 칸 몇 개만
+     세어 놓고 「깨끗하다」고 말하게 된다 — 그래서 단계마다 `enter`로 직접 연다. */
+async function 내부견적화면() {
+  const 단계열기 = async (B, n) => {
+    const b = B.doc.querySelector('.step[data-step="' + n + '"]');
+    if (!b) throw new Error(n + '단계 막대가 없다');
+    if (b.disabled) throw new Error(n + '단계가 잠겨 있다 — 앞 단계가 안 끝났다');
+    b.dispatchEvent(new B.win.MouseEvent('click', { bubbles: true, cancelable: true, view: B.win }));
+    await B.tick(200);
+  };
+  const 산출 = async (B) => {
+    const d = B.doc;
+    /* ⚠ 목적지 첫 보기는 **빈 값**이다(「고르세요」). 그대로 두면 필수 검사에 걸려
+         산출이 안 되고, 그러면 2~5단계가 잠긴 채 검사가 아무것도 못 본다. */
+    const sel = d.getElementById('pDest');
+    if (sel && sel.options.length > 1) sel.value = sel.options[1].value;
+    const 날 = (n) => { const x = new Date(); x.setDate(x.getDate() + n); return x.toLocaleDateString('sv-SE'); };
+    d.getElementById('pStart').value = 날(45);
+    d.getElementById('btnCalc').dispatchEvent(
+      new B.win.MouseEvent('click', { bubbles: true, cancelable: true, view: B.win }));
+    await B.tick(400);
+  };
+
+  return auditPage('admin-quote-pro.html', {
+    fixtures: adminFixtures('filled'),
+    settle: 320,
+    skipDetached: true,
+    /* 이 화면에서만 누를 수 있는 것 — 단계 막대와 「세부 조건」 접는 줄 */
+    also: '.step, summary',
+    /* 이 화면이 말을 거는 자리 — 누르기 전에 비우고 잰다 */
+    messageSelector: '#calcState, #calcErr, #moneyWarn, #saveMsg, #detailWarn, #paxWarn',
+    after: async (B) => {
+      /* 🔴 로그인 게이트를 정말 지났는지 확인한다 — 못 지나면 `#app`이 통째로 감춰져
+         「누를 것이 몇 개뿐인데 전부 깨끗하다」는 거짓 초록이 된다. */
+      const app = B.doc.getElementById('app');
+      if (!app || app.classList.contains('hidden')) {
+        throw new Error('내부 견적 화면이 안 열렸다 — 로그인 픽스처를 확인할 것');
+      }
+    },
+    sections: async () => [
+      {
+        name: '1단계 여행 조건',
+        /* 접어 둔 세부 조건 12칸을 펼친다 — 접힌 채로는 담당자가 못 누르는 것을
+           눌러 놓고 눌러 봤다고 세게 된다. */
+        enter: async (B) => { Array.from(B.doc.querySelectorAll('details')).forEach((d) => { d.open = true; }); },
+        scope: (d) => d.getElementById('sec1'),
+      },
+      {
+        name: '2단계 금액 조정',
+        enter: async (B) => {
+          await 산출(B);
+          if (B.doc.getElementById('secMoney').classList.contains('hidden')) {
+            throw new Error('「자동 산출하기」를 눌렀는데 2단계가 안 열렸다');
+          }
+        },
+        scope: (d) => d.getElementById('secMoney'),
+      },
+      { name: '3단계 견적서 내용', enter: async (B) => 단계열기(B, 3), scope: (d) => d.getElementById('secDoc') },
+      { name: '4단계 일정',        enter: async (B) => 단계열기(B, 4), scope: (d) => d.getElementById('secIti') },
+      { name: '5단계 미리보기·발급', enter: async (B) => 단계열기(B, 5), scope: (d) => d.getElementById('secPrev') },
+    ],
+  });
+}
+
 async function 견적산출화면() {
   const 단계 = (d, n) => d.querySelector('.estimate-step[data-step="' + n + '"]');
   const 열려있나 = (d, n) => { const s = 단계(d, n); return !!s && s.classList.contains('step-active'); };
@@ -189,7 +259,7 @@ async function 견적산출화면() {
 
 (async () => {
   /* `--mode=quote`는 견적 산출 화면만 본다(관리자 화면은 오래 걸린다) */
-  const modes = ONE === 'quote' ? [] : (ONE ? [ONE] : ['empty', 'filled']);
+  const modes = (ONE === 'quote' || ONE === 'pro') ? [] : (ONE ? [ONE] : ['empty', 'filled']);
   /* 담당자가 쓰는 화면은 **둘**이다 — 관리자 화면과 견적 산출 화면.
      한쪽만 훑고 「담당자 화면은 깨끗하다」고 말하면 그게 곧 거짓 초록이다. */
   const 훑기 = modes.map((mode) => ({
@@ -197,6 +267,7 @@ async function 견적산출화면() {
     run: () => 담당자화면(mode),
   }));
   if (!ONE || ONE === 'quote') 훑기.push({ 이름: 'admin-quote.html — 견적 산출 (STEP 1 → 2 → 결과)', run: 견적산출화면 });
+  if (!ONE || ONE === 'pro') 훑기.push({ 이름: 'admin-quote-pro.html — 내부직원용 (1 → 5단계)', run: 내부견적화면 });
 
   let 터짐 = 0, 죽은링크 = 0, 조용함 = 0, 눌러본것 = 0, 건너뜀 = 0, 사라짐 = 0;
 

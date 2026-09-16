@@ -86,7 +86,15 @@ async function run() {
 
   const err = D.getElementById('calcErr');
   ok('[0-d] 산출이 오류 없이 끝났다', err.classList.contains('hidden'), err.textContent);
-  ok('[0-e] 견적서 내용 칸이 열렸다', !D.getElementById('secDoc').classList.contains('hidden'));
+  /* 🔴 2026-09-16부터 이 화면은 **한 번에 한 단계만** 보인다(예전엔 산출 한 번에
+     다섯이 동시에 열려 문서 높이가 10,886px였다). 산출 직후 열리는 것은 2단계(금액)이고
+     견적서 내용은 3단계다 — **담당자와 같은 순서로** 단계를 눌러서 연다.
+     ⚠ 칸이 감춰졌을 뿐 DOM에는 그대로 있다. 아래 항목 검사는 영향을 받지 않는다. */
+  ok('[0-e] 산출이 끝나면 2단계가 열린다', !D.getElementById('secMoney').classList.contains('hidden'));
+  ok('[0-e2] 3단계 막대가 잠금 해제됐다', !D.querySelector('.step[data-step="3"]').disabled);
+  D.querySelector('.step[data-step="3"]').click();
+  await sleep(30);
+  ok('[0-e3] 견적서 내용 칸이 열렸다', !D.getElementById('secDoc').classList.contains('hidden'));
 
   /* ═══ ① 표준 양식의 항목이 **칸으로 존재하는가** ═══════════════════════ */
   const secs = Array.from(D.querySelectorAll('#detailRows .day'));

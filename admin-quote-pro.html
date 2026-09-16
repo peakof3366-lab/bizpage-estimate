@@ -66,6 +66,42 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
 .page-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
 .page-sub { margin: 5px 0 0; font-size: 12.5px; color: var(--t-sub); max-width: var(--measure); }
 
+/* ── 단계 막대 ── 다섯 단계짜리 일이라는 것을 **먼저** 말한다 (CLAUDE.md 화면 규칙 7).
+   예전엔 「자동 산출하기」 한 번에 다섯 단계가 **동시에** 펼쳐졌다. 브라우저로 잰
+   문서 높이가 900px → 10,886px(12배)였고, iframe은 `calc(100vh-180px)` 고정이라
+   그 안에서 창 15배 길이를 스크롤했다. 단계 이동 버튼도 목차도 없어 **끝이 어딘지
+   모른 채** 굴리는 화면이었다 — 처음 쓰는 사람이 길을 잃던 자리가 여기다. */
+.steps { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.step { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px 0 10px;
+  border: 1.5px solid var(--line); background: #fff; font-family: inherit; font-size: 13px;
+  font-weight: 700; color: var(--t-sub); cursor: pointer; }
+.step:hover:not(:disabled) { background: #F0F0EC; }
+.step-n { display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; background: #E5E5E1; color: var(--t-sub);
+  font-size: 11px; font-weight: 800; }
+.step[aria-current="step"] { border-color: var(--ink); background: var(--ink); color: #fff; }
+.step[aria-current="step"] .step-n { background: #fff; color: var(--ink); }
+.step.done { color: var(--t); border-color: var(--ink); }
+.step.done .step-n { background: var(--ok); color: #fff; }
+/* ⚠ `opacity`로 흐리게 만들지 않는다(CLAUDE.md 색 규칙) — 잠긴 것도 **색으로** 말한다.
+   `--t-dim`(#767676)은 이 바탕(#F2F2EF)에서 4.5:1을 넘는다. */
+.step:disabled { background: #F2F2EF; color: var(--t-dim); border-color: #E2E2DE; cursor: not-allowed; }
+.step:disabled .step-n { background: #E2E2DE; color: var(--t-dim); }
+
+/* ── 단계 이동 ── 각 단계는 **다음에 무엇을 하는지** 이름으로 말한다 (화면 규칙 3) */
+.navbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+/* ── 접어 두는 세부 칸 ── 필수 4칸과 나머지 12칸을 **같은 무게로 두지 않는다** */
+.more { margin-top: 14px; border: 1px solid var(--line); background: #FBFBF9; }
+.more > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px;
+  font-size: 13px; font-weight: 700; color: var(--t); cursor: pointer; list-style: none; }
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary::before { content: '▸'; font-size: 11px; color: var(--t-sub); }
+.more[open] > summary::before { content: '▾'; }
+.more > summary em { font-style: normal; font-weight: 500; font-size: 12px; color: var(--t-sub); }
+.more-b { padding: 2px 14px 14px; }
+
 /* ── 단계 카드 ── 긴 폼은 지금 어디인지 말한다 (CLAUDE.md 화면 규칙 7) */
 .sec { background: var(--card); border: 1px solid var(--line); margin-bottom: 16px; }
 .sec-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
@@ -184,20 +220,38 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
        단독 주소로 열었을 때는 제목이 있어야 한다(무슨 화면인지 말해야 하니까). -->
   <div class="page-head">
     <h1 class="page-title" id="pgTitle">자동 견적 산출 (내부직원용)</h1>
-    <p class="page-sub" id="pgSub">고객용과 <b>같은 엔진</b>으로 계산한 뒤, 항목별 금액과 실무 변수를 직접 조정합니다.
+    <p class="page-sub" id="pgSub">여행 조건 <b>4칸</b>만 채우면 금액이 자동으로 나옵니다.
+      다섯 단계를 지나면 <b>고객에게 보낼 견적서 링크</b>가 만들어집니다.
       원가·마진이 보이는 화면입니다 — 고객에게 나가는 견적서에는 실리지 않습니다.</p>
   </div>
 
+  <!-- ══ 단계 막대 ══
+       🔴 **고르는 버튼이 아니라 이동이다** — `aria-pressed`가 아니라 `aria-current="step"`을
+       쓴다(화면 규칙 3). 산출 전에는 2~5가 `disabled`이고, **왜 잠겼는지를 버튼 자신이
+       말한다**(`title`) — 잠긴 채 아무 말도 안 하면 고장으로 읽힌다. -->
+  <nav class="steps" id="steps" aria-label="견적 만들기 5단계"></nav>
+
   <!-- ══ ① 여행 조건 ══ -->
-  <section class="sec">
+  <section class="sec" id="sec1">
     <div class="sec-h"><span class="sec-n">1</span><span class="sec-t" id="sec1Title">여행 조건</span>
-      <span class="sec-d" id="sec1Desc">고객 화면과 같은 입력입니다 · 필수 4칸</span></div>
+      <span class="sec-d" id="sec1Desc">필수는 아래 4칸뿐입니다 · 나머지는 그대로 두어도 됩니다</span></div>
     <div class="sec-b">
       <div class="grid">
         <label class="f"><span>목적지 <em>(필수)</em></span><select id="pDest"></select></label>
         <label class="f"><span>인원 <em>(필수)</em></span><input type="number" id="pPax" min="1" value="10" /></label>
         <label class="f"><span>일수 <em>(필수)</em></span><input type="number" id="pDays" min="1" value="5" /></label>
         <label class="f"><span>출발일 <em>(필수)</em></span><input type="date" id="pStart" /></label>
+      </div>
+
+      <!-- ── 세부 조건 ── **접어 둔다.**
+           필수 4칸과 나머지를 같은 무게로 늘어놓으면 처음 쓰는 사람은 16칸을 다 채워야
+           하는 줄 안다. 실제로는 여기는 전부 기본값이 들어 있고, 그대로 두어도 산출된다.
+           ⚠ 칸 수는 **세어서 넣는다** — `?mode=adhoc`에서는 `.eng-only`가 통째로 사라져
+           숫자를 적어 두면 그 모드에서 틀린 말이 된다. -->
+      <details class="more" id="moreCond">
+        <summary id="moreCondSum">세부 조건 <em>그대로 두면 기본값으로 계산합니다</em></summary>
+        <div class="more-b">
+      <div class="grid">
         <label class="f"><span>귀국일</span><input type="date" id="pEnd" /></label>
         <label class="f"><span>박수 <em>(견적서 표기 · 기내박이면 하루 적게)</em></span><input type="number" id="pNights" min="0" /></label>
         <label class="f eng-only"><span>프로그램 유형</span><select id="pProgram"></select></label>
@@ -228,14 +282,22 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         <label class="f"><span>골프</span>
           <span style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-top:6px">
             <label style="font-size:13px"><input type="checkbox" id="pIncGolf" /> 포함</label>
-            <input type="number" id="pGolfCount" min="0" value="0" placeholder="인원" style="width:84px;height:34px;padding:0 8px;border:1.5px solid var(--line);font-family:inherit" aria-label="골프 인원" />
-            <input type="number" id="pGolfRounds" min="1" value="1" placeholder="라운드" style="width:84px;height:34px;padding:0 8px;border:1.5px solid var(--line);font-family:inherit" aria-label="골프 라운드" />
+            <!-- ⚠ `placeholder`는 이름이 아니다(값을 넣으면 사라진다 — 화면 규칙 4).
+                 「0」과 「1」만 떠 있던 칸이라 무엇을 적는 자리인지 보이지 않았다. -->
+            <label style="font-size:12px;color:var(--t-sub);display:flex;align-items:center;gap:5px">인원
+              <input type="number" id="pGolfCount" min="0" value="0" style="width:72px;height:34px;padding:0 8px;border:1.5px solid var(--line);font-family:inherit" /></label>
+            <label style="font-size:12px;color:var(--t-sub);display:flex;align-items:center;gap:5px">라운드
+              <input type="number" id="pGolfRounds" min="1" value="1" style="width:72px;height:34px;padding:0 8px;border:1.5px solid var(--line);font-family:inherit" /></label>
           </span>
         </label>
       </div>
+        </div>
+      </details>
+
       <div class="bar">
         <button type="button" class="btn btn-p" id="btnCalc">자동 산출하기</button>
         <button type="button" class="btn btn-p hidden" id="btnStart">금액 입력 시작</button>
+        <button type="button" class="btn hidden" id="btnNext1">다음: 금액 조정 →</button>
         <span class="bar-sp"></span>
         <span id="calcState" style="font-size:12px;color:var(--t-sub)"></span>
       </div>
@@ -285,6 +347,11 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
 
       <div class="sum" id="sumBox"></div>
       <p class="note hidden" id="moneyWarn"></p>
+      <div class="navbar">
+        <button type="button" class="btn" data-goto="1">← 이전: 여행 조건</button>
+        <span class="bar-sp"></span>
+        <button type="button" class="btn btn-p" data-goto="3">다음: 견적서 내용 →</button>
+      </div>
     </div>
   </section>
 
@@ -331,6 +398,11 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         <label class="f" style="grid-column:1/-1"><span>취소 규정 <em>(비우면 견적서에 안 나갑니다)</em></span><textarea id="dCancel"></textarea></label>
         <label class="f" style="grid-column:1/-1"><span>내부 메모 <em>(🔴 고객에게 안 나갑니다)</em></span><textarea id="dMemo"></textarea></label>
       </div>
+      <div class="navbar">
+        <button type="button" class="btn" data-goto="2">← 이전: 금액 조정</button>
+        <span class="bar-sp"></span>
+        <button type="button" class="btn btn-p" data-goto="4">다음: 일정 →</button>
+      </div>
     </div>
   </section>
 
@@ -343,6 +415,11 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
       <div class="bar">
         <button type="button" class="btn btn-sm" id="btnAddDay">+ 하루 추가</button>
         <button type="button" class="btn btn-sm" id="btnFitDays">일수에 맞추기</button>
+      </div>
+      <div class="navbar">
+        <button type="button" class="btn" data-goto="3">← 이전: 견적서 내용</button>
+        <span class="bar-sp"></span>
+        <button type="button" class="btn btn-p" data-goto="5">다음: 미리보기 · 발급 →</button>
       </div>
     </div>
   </section>
@@ -358,6 +435,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
       </div>
       <div class="prev" id="prevBox"></div>
       <div class="bar">
+        <button type="button" class="btn" data-goto="4">← 이전: 일정</button>
         <button type="button" class="btn" id="btnPrint">인쇄 · PDF로 저장</button>
         <span class="bar-sp"></span>
         <button type="button" class="btn btn-r" id="btnSave">견적 저장하기</button>
@@ -441,6 +519,17 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     });
   }
   fillSelect($('pDest'), destinationRates.map((d) => d.destination_key));
+  /* 🔴 **고르지 않은 상태를 만든다.** `select`는 첫 보기가 그냥 골라진 값이라,
+     목적지를 안 건드리면 목록 첫 행(제주도)으로 조용히 산출됐다 — 해외연수 견적에서
+     가장 비싼 오해다. 빈 값을 맨 앞에 두면 아래 필수 검사(`if (!v.dest)`)가 그대로 잡는다.
+     ⚠ `?pkg=`로 열리는 경로는 뒤에서 `e.value = hit.destKey`로 직접 세우므로 영향이 없다. */
+  (function blankFirst() {
+    const sel = $('pDest');
+    const o = document.createElement('option');
+    o.value = ''; o.textContent = '— 목적지를 고르세요 —';
+    sel.insertBefore(o, sel.firstChild);
+    sel.value = '';
+  })();
   /* 🔴 **영문 코드를 화면에 내보내지 않는다** (CLAUDE.md 화면 규칙 5).
      처음엔 계수 표의 키를 그대로 넣었더니 「language」·「company」가 그대로 보였다 —
      브라우저로 띄워 보고서야 알았다. 이름표는 `data.js`가 진실이다
@@ -508,6 +597,86 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     };
   }
 
+  /* ══ 단계 ═══════════════════════════════════════════════════════════════
+     한 번에 **한 단계만** 보여준다.
+     🔴 예전엔 「자동 산출하기」 한 번에 다섯 단계가 **동시에** 열렸다. 브라우저로 잰
+     문서 높이가 900px → 10,886px(12배)였는데, `admin.html`의 iframe은
+     `calc(100vh - 180px)` 고정이라 **창의 15배 길이를 그 안에서** 굴려야 했다.
+     단계 이동 버튼도 목차도 없어 스크롤이 유일한 이동 수단이었고, 마지막 행동인
+     「견적 저장하기」는 바닥 10,886px 지점에 있었다 — 처음 쓰는 사람이 길을 잃던 자리다.
+     ⚠ **감추는 것은 보임뿐이다.** 칸은 DOM에 그대로 있고 `buildDoc()`·저장은 지금까지와
+     똑같이 전부를 읽는다. 금액에 손대지 않는다(`audit_amount_drift.js`가 증명한다). */
+  const STEPS = [
+    { n: 1, sec: 'sec1',     name: '여행 조건' },
+    { n: 2, sec: 'secMoney', name: '금액 조정' },
+    { n: 3, sec: 'secDoc',   name: '견적서 내용' },
+    { n: 4, sec: 'secIti',   name: '일정' },
+    { n: 5, sec: 'secPrev',  name: '미리보기 · 발급' },
+  ];
+  let curStep = 1;
+  let unlocked = false;
+
+  function paintSteps() {
+    /* 🔴 잠긴 이유를 **버튼 자신이 말한다.** 잠긴 채 아무 말도 안 하면 고장으로 읽힌다. */
+    const why = ADHOC ? '「금액 입력 시작」을 먼저 누르세요' : '「자동 산출하기」를 먼저 누르세요';
+    Array.prototype.forEach.call($('steps').querySelectorAll('.step'), (b) => {
+      const n = Number(b.dataset.step);
+      const locked = !unlocked && n > 1;
+      b.disabled = locked;
+      b.classList.toggle('done', unlocked && n < curStep);
+      if (n === curStep) b.setAttribute('aria-current', 'step');
+      else b.removeAttribute('aria-current');
+      /* 낭독기에는 「2단계: 금액 조정」처럼 자리까지 읽어 준다 (화면 규칙 4) */
+      b.setAttribute('aria-label', n + '단계: ' + STEPS[n - 1].name
+        + (locked ? ' — 아직 잠김, ' + why : ''));
+      if (locked) b.title = why; else b.removeAttribute('title');
+    });
+  }
+
+  function showStep(n) {
+    if (!unlocked && n > 1) return;
+    curStep = n;
+    STEPS.forEach((s) => $(s.sec).classList.toggle('hidden', s.n !== n));
+    paintSteps();
+    /* 5단계는 들어올 때 **다시 그린다** — 앞 단계에서 고친 것이 안 비치면
+       옛 내용 그대로 발급된다고 믿게 된다. */
+    if (n === 5) renderPreview();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function unlockSteps() {
+    unlocked = true;
+    $('btnNext1').classList.remove('hidden');
+    paintSteps();
+  }
+
+  $('steps').innerHTML = STEPS.map((s) =>
+    '<button type="button" class="step" data-step="' + s.n + '">'
+    + '<span class="step-n">' + s.n + '</span><span class="step-t">' + s.name + '</span></button>'
+  ).join('');
+  $('steps').addEventListener('click', (e) => {
+    const b = e.target.closest('.step');
+    if (b && !b.disabled) showStep(Number(b.dataset.step));
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-goto]'), (b) => {
+    b.addEventListener('click', () => showStep(Number(b.dataset.goto)));
+  });
+  $('btnNext1').addEventListener('click', () => showStep(2));
+  paintSteps();
+
+  /* 세부 조건이 몇 칸인지 **세어서** 적는다 — `?mode=adhoc`에서는 `.eng-only`가
+     통째로 사라지므로 숫자를 적어 두면 그 모드에서 틀린 말이 된다. */
+  (function countMore() {
+    /* ⚠ `offsetParent`로 재지 않는다 — 접힌 `<details>` 안은 **전부** null이라
+         닫힌 채로는 한 칸도 안 세어진다. 감추는 규칙(`.eng-only`)으로 직접 가린다. */
+    const n = Array.prototype.filter.call(
+      $('moreCond').querySelectorAll('label.f'),
+      (el) => !(ADHOC && el.classList.contains('eng-only'))
+    ).length;
+    const box = $('moreCondSum');
+    if (box && n) box.innerHTML = '세부 조건 ' + n + '칸 <em>그대로 두면 기본값으로 계산합니다</em>';
+  })();
+
   $('btnCalc').addEventListener('click', () => {
     const v = input();
     const miss = [];
@@ -516,7 +685,9 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     if (!v.days) miss.push('일수');
     if (!v.startDate) miss.push('출발일');
     if (miss.length) {
-      $('calcErr').textContent = miss.join(' · ') + '을(를) 채워 주세요.';
+      /* ⚠ 「목적지을(를)」처럼 조사가 깨지지 않게 **낱말을 뒤로 뺀다.**
+         목적지는 고르는 칸이고 인원은 적는 칸이라 하나의 서술어로 묶을 수도 없다. */
+      $('calcErr').textContent = '아직 비어 있는 칸이 있습니다 — ' + miss.join(' · ');
       $('calcErr').classList.remove('hidden'); $('calcErr').classList.add('note-err');
       return;
     }
@@ -538,10 +709,10 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     buildAdjust(bd);
     seedDoc(bd, v);
     seedItinerary(v);
-    ['secMoney', 'secDoc', 'secIti', 'secPrev'].forEach((id) => $(id).classList.remove('hidden'));
+    unlockSteps();
     $('calcState').textContent = '산출 완료 — 총액 ' + won(bd.total) + '원 · 1인 ' + won(bd.perPerson) + '원';
     renderAll();
-    $('secMoney').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showStep(2);
   });
 
   /* ══ 직접 입력 모드 ══════════════════════════════════════════════════════
@@ -556,7 +727,9 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     if (!v.days) miss.push('일수');
     if (!v.startDate) miss.push('출발일');
     if (miss.length) {
-      $('calcErr').textContent = miss.join(' · ') + '을(를) 채워 주세요.';
+      /* ⚠ 「목적지을(를)」처럼 조사가 깨지지 않게 **낱말을 뒤로 뺀다.**
+         목적지는 고르는 칸이고 인원은 적는 칸이라 하나의 서술어로 묶을 수도 없다. */
+      $('calcErr').textContent = '아직 비어 있는 칸이 있습니다 — ' + miss.join(' · ');
       $('calcErr').classList.remove('hidden'); $('calcErr').classList.add('note-err');
       return;
     }
@@ -568,10 +741,10 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     buildAdjust({ perPerson: 0 });
     seedDoc(S.bd, v);
     seedItinerary(v);
-    ['secMoney', 'secDoc', 'secIti', 'secPrev'].forEach((id) => $(id).classList.remove('hidden'));
+    unlockSteps();
     $('calcState').textContent = '항목과 금액을 적어 주세요';
     renderAll();
-    $('secMoney').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showStep(2);
   });
 
   /* 처음 열 때 채워 두는 줄. 🔴 **금액은 0이다** — 지어낸 값이 그대로 나가지 않게.

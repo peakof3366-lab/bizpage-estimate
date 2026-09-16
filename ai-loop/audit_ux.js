@@ -306,7 +306,19 @@ module.exports = { auditScreen, measure, 빈상태, 기술용어, adminSections,
 /* ─────────────────────────────────────────────────────────────────────── */
 if (require.main === module) (async () => {
   const 고객화면 = ['index.html', 'packages.html', 'estimate-view.html', '404.html'];
-  const 담당자화면 = ['admin.html', 'admin-quote.html', 'manual.html'];
+  /* 🔴 `admin-quote-pro.html`은 2026-09-15에 생겼는데 **2026-09-16까지 이 목록에
+     없었다** — `audit_admin_journey.js`에도 없어서 담당자가 실제로 견적을 만드는
+     화면이 검사망 **바깥**에 있었다(결함 생성기 ③: 안전망이 실제로 실행된 적이 없다).
+     ⚠ 브라우저 도구 둘(`check_admin_screens.py`·`check_contrast.py`)에는 **아직 없다.**
+       그 둘은 `admin.html`의 탭을 도는데 이 화면은 iframe이고, `file://`에서는 iframe
+       안을 읽을 수 없다. 탭 이름만 넣으면 **껍데기를 재고 통과**한다 — 그게 정확히
+       거짓 초록이다. 폭·색을 재려면 `check_quotetool_width.py`처럼 **iframe이 받는
+       폭으로 내부 화면을 따로 여는** 도구가 따로 있어야 한다(아직 없음).
+     ⚠ 이 화면의 **「낭독기 이름 없음 40」은 결함이 아니다.** 37칸 중 27칸이
+     `quote_engine_host.js`가 만드는 숨은 폼 `#__qeh` 안이다 — 사람이 쓰는 칸이 아니라
+     `script.js`의 엔진이 읽는 자리이고, `aria-hidden="true"` + 전 칸 `tabindex="-1"`이라
+     낭독기도 Tab도 닿지 않는다. 숫자를 0으로 만들려고 자를 깎지 않고 여기 적어 둔다. */
+  const 담당자화면 = ['admin.html', 'admin-quote.html', 'admin-quote-pro.html', 'manual.html'];
   const 전부 = ONLY ? [ONLY] : [...고객화면, ...담당자화면];
 
   let 기술용어총 = 0, 무색총 = 0, 막다른길 = 0, 이름없음 = 0, 강조둘이상 = 0, 같은이름총 = 0;
