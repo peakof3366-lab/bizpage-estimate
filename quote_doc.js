@@ -425,6 +425,7 @@
       <div class="qd-corp">
         ${c.legalName ? `<div class="qd-corp-n">${esc(c.legalName)}</div>` : ''}
         ${c.address ? `<div>${esc(c.address)}</div>` : ''}
+        ${c.address2 ? `<div>${esc(c.address2)}</div>` : ''}
         ${c.tel ? `<div>Tel. ${esc(c.tel)}</div>` : ''}
       </div>
     </header>

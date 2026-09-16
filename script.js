@@ -3648,6 +3648,9 @@ function openEstimateWindow() {
   const ciLegalName = CI.legalName || '(주)하나이엔비티';
   const ciTel       = CI.tel       || '02-2088-4253';
   const ciAddress   = CI.address   || '서울 금천구 시흥대로73길 67, 1012호';
+  /* 광주 사무소 (2026-09-16 대표 지시). 폴백을 두지 않는다 — `company-info.js`가 없는
+     상황에서 주소를 지어내면 그게 고객 문서에 찍힌다. 없으면 안 그린다. */
+  const ciAddress2  = CI.address2  || '';
   const ciEmail     = CI.email     || 'skp1004651@hanatrabiz.com';
 
   const destKey      = destinationSelect.value;
@@ -4255,7 +4258,7 @@ a{color:inherit;text-decoration:none}
 </div><!-- /page-wrap -->
 
 <footer class="win-footer no-print">
-  ${ciLegalName} &nbsp;|&nbsp; ${ciAddress} &nbsp;|&nbsp; ${ciTel} &nbsp;|&nbsp; ${ciEmail}<br>
+  ${ciLegalName} &nbsp;|&nbsp; ${ciAddress}${ciAddress2 ? ' &nbsp;|&nbsp; ' + ciAddress2 : ''} &nbsp;|&nbsp; ${ciTel} &nbsp;|&nbsp; ${ciEmail}<br>
   Copyright ⓒ ${new Date().getFullYear()} ${ciLegalName.replace(/^\(주\)/, '')}. All rights reserved.
 </footer>
 

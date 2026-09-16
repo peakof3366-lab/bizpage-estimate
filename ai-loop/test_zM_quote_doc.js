@@ -220,6 +220,27 @@ ok('[10-e] 글자 크기가 11px 아래로 안 내려간다',
   !(css.match(/font-size:\s*(\d+(?:\.\d+)?)px/g) || []).some((m) => parseFloat(m.replace(/[^\d.]/g, '')) < 11));
 ok('[10-f] 인쇄 규칙이 있다 (PDF가 곧 인쇄다)', /@media print/.test(css) && /break-inside/.test(css));
 
+/* ═══ ⑪ 사무소 주소 둘 — 2026-09-16 대표 지시 ═══════════════════════════════
+   「앞으로 나갈 양식에는 광주 주소까지 나갈 수 있게」.
+   🔴 회사 정보를 **화면에 직접 적지 않는다** — `company-info.js` 한 곳이 진실이다.
+     견적서가 두 벌(팝업 v1 · 새 양식 v2)이라 한쪽만 고치면 그 자리에서 갈린다. */
+const CINFO = (() => {
+  const w = {}; require('vm').runInNewContext(fs.readFileSync(path.join(ROOT, 'company-info.js'), 'utf8'), { window: w });
+  return w.COMPANY_INFO || {};
+})();
+ok('[11] 회사 정보에 광주 주소가 있다', /광주/.test(CINFO.address2 || ''), CINFO.address2 || '없음');
+ok('[11-b] 서울 주소가 그대로 있다', /서울/.test(CINFO.address || ''), CINFO.address || '없음');
+const head2 = Q.renderQuote(fixture(), { company: CINFO });
+ok('[11-c] 새 양식 머리에 두 주소가 다 나온다',
+  /서울 금천구/.test(head2) && /광주광역시/.test(head2));
+/* 옛 팝업 견적서(script.js)도 같은 값을 읽는가 — 한쪽만 고쳐지는 사고를 막는다 */
+const SJS = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
+ok('[11-d] 팝업 견적서가 address2를 읽는다', /CI\.address2/.test(SJS));
+ok('[11-e] 팝업 견적서 바닥에 그 주소를 찍는다', /\$\{ciAddress2/.test(SJS));
+/* 🔴 폴백에 주소를 지어 넣지 않는다 — company-info.js가 없을 때 없는 주소가 찍힌다 */
+ok('[11-f] address2에 하드코딩 폴백을 두지 않았다',
+  /CI\.address2\s*\|\|\s*''/.test(SJS));
+
 console.log('\n══════════════════════════════════════════════════════════════════');
 console.log(' 견적서 공통 모듈 — quote_doc.js / quote_doc.css');
 console.log('══════════════════════════════════════════════════════════════════');
