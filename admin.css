@@ -99,6 +99,11 @@
     .sidebar-item.active { background: rgba(200,16,46,.18); color: #fff; font-weight: 700; border-left: 3px solid var(--primary); padding-left: calc(.85rem - 3px); }
     .si-icon  { font-size: 1rem; flex-shrink: 0; }
     .si-label { flex: 1; }
+    /* 🔴 「자동 견적 산출 (고객용)」이 폭에 따라 **괄호 한가운데서** 끊겼다
+       (「…산출 (고객」 / 「용)」). 2026-09-16 대표 지시로 괄호 묶음을 한 덩어리로
+       **아래 줄에** 내린다. 두 메뉴의 줄바꿈 자리가 같아야 나란히 읽힌다.
+       ⚠ 글자는 안 바꿨다 — 탭 제목·iframe 제목·검사가 같은 이름을 쓴다(결함 생성기 ①). */
+    .si-sub { display: block; }
     .si-badge { background: var(--danger); color: #fff; font-size: .65rem; font-weight: 700;
       padding: .1rem .35rem; border-radius: 0; line-height: 1.4; }
     /* 알림 켜기 안내 (QT) — 대시보드 맨 위. 권한이 정해지면 JS가 숨긴다. */
@@ -794,6 +799,8 @@
       .sidebar-nav   { flex-direction: row; padding: .3rem .4rem; overflow-x: auto; flex: 1; gap: .1rem; }
       .sidebar-item  { flex-direction: column; flex-shrink: 0; width: auto; padding: .4rem .5rem; min-width: 56px; text-align: center; gap: .15rem; }
       .si-label      { flex: none; font-size: .62rem; white-space: nowrap; }
+      /* 하단 탭바에서는 한 줄이 맞다 — 여기서 block이면 탭 높이만 두 배가 된다 */
+      .si-sub        { display: inline; }
       .si-icon       { font-size: .9rem; }
       .sidebar-footer { display: none; }
       .sidebar-divider { width: 1px; height: auto; margin: .2rem 0; }
