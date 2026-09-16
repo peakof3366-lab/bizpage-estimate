@@ -92,6 +92,12 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
 .navbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 
+/* ── 날짜 상태 줄 ── 출발일·귀국일·일수가 서로 맞는지를 한 줄로 말한다 */
+.datebar { margin: 12px 0 0; padding: 9px 12px; border-left: 3px solid var(--line);
+  background: #FBFBF9; font-size: 12.5px; color: var(--t-sub); max-width: var(--measure); }
+.datebar.ok { border-left-color: var(--ok); color: var(--t); font-weight: 700; }
+.datebar.err { border-left-color: var(--red); background: #FEF2F2; color: var(--red-dk); font-weight: 700; }
+
 /* ── 접어 두는 세부 칸 ── 필수 4칸과 나머지 12칸을 **같은 무게로 두지 않는다** */
 .more { margin-top: 14px; border: 1px solid var(--line); background: #FBFBF9; }
 .more > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px;
@@ -234,14 +240,19 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
   <!-- ══ ① 여행 조건 ══ -->
   <section class="sec" id="sec1">
     <div class="sec-h"><span class="sec-n">1</span><span class="sec-t" id="sec1Title">여행 조건</span>
-      <span class="sec-d" id="sec1Desc">필수는 아래 4칸뿐입니다 · 나머지는 그대로 두어도 됩니다</span></div>
+      <span class="sec-d" id="sec1Desc">필수는 목적지 · 인원 · 일수 · 출발일 4칸입니다 · 나머지는 그대로 두어도 됩니다</span></div>
     <div class="sec-b">
       <div class="grid">
         <label class="f"><span>목적지 <em>(필수)</em></span><select id="pDest"></select></label>
         <label class="f"><span>인원 <em>(필수)</em></span><input type="number" id="pPax" min="1" value="10" /></label>
         <label class="f"><span>일수 <em>(필수)</em></span><input type="number" id="pDays" min="1" value="5" /></label>
         <label class="f"><span>출발일 <em>(필수)</em></span><input type="date" id="pStart" /></label>
+        <!-- 🔴 귀국일은 **여기 있어야 한다.** 「세부 조건」 안에 접어 두었더니 날짜 둘이
+             떨어져, 고르려면 매번 펼쳐야 하고 일수와 맞는지도 눈으로 못 봤다. -->
+        <label class="f"><span>귀국일 <em>(고르면 일수가 따라옵니다)</em></span><input type="date" id="pEnd" /></label>
       </div>
+      <!-- 🔴 날짜와 일수가 **맞는지를 그 자리에서** 보여 준다. -->
+      <p class="datebar" id="dateState"></p>
 
       <!-- ── 세부 조건 ── **접어 둔다.**
            필수 4칸과 나머지를 같은 무게로 늘어놓으면 처음 쓰는 사람은 16칸을 다 채워야
@@ -252,7 +263,6 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         <summary id="moreCondSum">세부 조건 <em>그대로 두면 기본값으로 계산합니다</em></summary>
         <div class="more-b">
       <div class="grid">
-        <label class="f"><span>귀국일</span><input type="date" id="pEnd" /></label>
         <label class="f"><span>박수 <em>(견적서 표기 · 기내박이면 하루 적게)</em></span><input type="number" id="pNights" min="0" /></label>
         <label class="f eng-only"><span>프로그램 유형</span><select id="pProgram"></select></label>
         <label class="f eng-only"><span>기관 유형</span><select id="pOrg"></select></label>
@@ -566,22 +576,88 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     $('calcErr').classList.add('note-err');
   }
 
-  /* 일수 ↔ 박수 · 귀국일 자동 채움 (고쳐 쓸 수 있다) */
+  /* ── 날짜 ↔ 일수 ── **세 칸이 늘 서로 맞는다** (2026-09-16 대표 지적)
+     🔴 예전엔 연동이 **한 방향뿐**이었다. 귀국일을 고치면 `dataset.touched` 표시만 세우고
+     **일수는 그대로 뒀다.** 담당자가 달력에서 11/10~11/16을 고르면 화면에는 7일이 아니라
+     직전 값(5일)이 남았고, 일수는 호텔 박수·차량 일수·가이드 일당에 **그대로 들어간다** —
+     즉 아무도 모르는 채 **틀린 금액**이 나갔다(결함 생성기 ②: 폴백이 조용하다).
+     🔴 게다가 귀국일을 한 번 건드리면 그 `touched` 때문에 `syncEnd`가 즉시 return이라,
+     **출발일을 바꿔도 귀국일이 안 따라왔다** — 일정을 통째로 옮기면 옛 날짜가 남았다.
+     → 고객 화면(`script.js`의 `initDatePicker`)이 이미 쓰는 규칙과 **같게** 맞춘다:
+       날짜 둘이 다 있으면 **일수는 날짜에서 나온다.** 일수를 고치면 귀국일이 따라온다.
+     ⚠ 박수만은 손댄 값을 지킨다 — 「기내박이면 하루 적게」가 실무에 있다.
+     ⚠ 날짜는 `ymd()`로만 만든다. `toISOString()`은 UTC라 한국에서 **하루가 밀린다.** */
+  function 날짜차(s, e) {
+    if (!s || !e) return null;
+    return Math.round((new Date(e + 'T00:00:00') - new Date(s + 'T00:00:00')) / 864e5);
+  }
+  function setNights(n) {
+    if ($('pNights').dataset.touched) return;
+    $('pNights').value = String(Math.max(0, n));
+  }
+  /* 🔴 **맞는지를 그 자리에서 보여 준다.** 세 칸이 흩어져 있어(일수는 위, 귀국일은
+     「세부 조건」 안) 담당자가 눈으로 맞춰 볼 방법이 없던 것이 이 결함이 오래 산 이유다. */
+  function sayDates() {
+    const box = $('dateState');
+    if (!box) return;
+    const s = $('pStart').value, e = $('pEnd').value;
+    const fmt = (x) => { const t = new Date(x + 'T00:00:00'); return (t.getMonth() + 1) + '월 ' + t.getDate() + '일'; };
+    if (!s) { box.textContent = '출발일을 고르면 귀국일과 일수가 자동으로 맞춰집니다.'; box.className = 'datebar'; return; }
+    if (!e) { box.textContent = '귀국일이 비어 있습니다 — 지금은 일수 ' + num($('pDays')) + '일로 계산합니다.'; box.className = 'datebar'; return; }
+    const diff = 날짜차(s, e);
+    let txt = fmt(s) + ' ~ ' + fmt(e) + ' · ' + Math.max(0, diff) + '박 ' + (diff + 1) + '일';
+    /* ⚠ 박수를 손으로 정했고 날짜 차이와 다르면 **그 사실을 말한다.** 안 그러면
+       줄은 「7박」이라는데 칸은 5박이라 어느 쪽이 견적서로 가는지 알 수 없다. */
+    const nights = num($('pNights'));
+    if ($('pNights').dataset.touched && nights !== Math.max(0, diff)) {
+      txt += ' — 견적서 표기는 ' + nights + '박 (직접 정한 값)';
+    }
+    box.textContent = txt;
+    box.className = 'datebar ok';
+  }
+
+  /* 일수를 직접 고치면 → 귀국일이 따라온다 */
   $('pDays').addEventListener('input', () => {
     const d = num($('pDays'));
-    if (d > 0 && !$('pNights').dataset.touched) $('pNights').value = String(Math.max(0, d - 1));
-    syncEnd();
+    if (d > 0) {
+      setNights(d - 1);
+      const s = $('pStart').value;
+      if (s) { const dt = new Date(s + 'T00:00:00'); dt.setDate(dt.getDate() + d - 1); $('pEnd').value = ymd(dt); }
+    }
+    sayDates();
   });
   $('pNights').addEventListener('input', () => { $('pNights').dataset.touched = '1'; });
-  $('pStart').addEventListener('change', syncEnd);
-  function syncEnd() {
-    const s = $('pStart').value, d = num($('pDays'));
-    if (!s || d <= 0 || $('pEnd').dataset.touched) return;
-    const dt = new Date(s + 'T00:00:00'); dt.setDate(dt.getDate() + d - 1);
-    $('pEnd').value = ymd(dt);
-  }
-  $('pEnd').addEventListener('change', () => { $('pEnd').dataset.touched = '1'; });
+
+  /* 출발일을 바꾸면 → **기간을 유지한 채** 귀국일을 민다 (일정을 통째로 옮기는 경우다) */
+  $('pStart').addEventListener('change', () => {
+    const s = $('pStart').value;
+    if (s) {
+      $('pEnd').min = s;
+      const d = Math.max(1, num($('pDays')));
+      const dt = new Date(s + 'T00:00:00'); dt.setDate(dt.getDate() + d - 1);
+      $('pEnd').value = ymd(dt);
+      setNights(d - 1);
+    }
+    sayDates();
+  });
+
+  /* 🔴 귀국일을 바꾸면 → **일수가 따라온다.** 여기가 통째로 빠져 있던 자리다. */
+  $('pEnd').addEventListener('change', () => {
+    const diff = 날짜차($('pStart').value, $('pEnd').value);
+    if (diff === null) { sayDates(); return; }
+    if (diff < 0) {
+      /* ⚠ 귀국일을 비우지 않는다 — 담당자가 방금 고른 값을 지우면 다시 골라야 한다.
+           무엇이 잘못됐는지만 말하고 일수는 건드리지 않는다. */
+      $('dateState').textContent = '⚠ 귀국일이 출발일보다 앞섭니다 — 일수는 그대로 두었습니다. 날짜를 다시 골라 주세요.';
+      $('dateState').className = 'datebar err';
+      return;
+    }
+    $('pDays').value = String(diff + 1);
+    setNights(diff);
+    sayDates();
+  });
   $('pNights').value = String(Math.max(0, num($('pDays')) - 1));
+  sayDates();
 
   /* ═══ ① 산출 ═══════════════════════════════════════════════════════════ */
   function input() {
