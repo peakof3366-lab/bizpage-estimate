@@ -186,6 +186,22 @@ async function run() {
     await sleep(10);
   }
   ok('[7-b] 적은 각주가 견적서에 나온다', /유료 서비스 포함 가능/.test(D.getElementById('prevBox').textContent));
+  /* 🔴 **각주는 항공만의 것이 아니다** — 기준 양식은 식사·여행자보험에도 파란 줄이 붙는다 */
+  const mealFoot = find('식사') && find('식사').querySelector('textarea[data-df]');
+  ok('[7-c] 식사에도 각주 칸이 있다', !!mealFoot,
+    '식사 각주 칸이 없다 — 「※ 계약 체결 후 …」를 적을 자리가 없다');
+  ok('[7-d] 식사 각주에 표준 문구가 예시로 붙어 있다',
+    !!mealFoot && /계약 체결 후/.test(mealFoot.placeholder));
+  if (mealFoot) {
+    /* 식사 내용이 비면 항목째 빠지므로 내용도 함께 적는다 */
+    type(find('식사'), 0, '조식은 호텔식');
+    mealFoot.value = '※ 계약 체결 후 협의하에 변경 가능';
+    mealFoot.dispatchEvent(new W.Event('input', { bubbles: true }));
+    await sleep(10);
+  }
+  const detHtml = (D.querySelector('#prevBox .qd-det') || { innerHTML: '' }).innerHTML;
+  ok('[7-e] 식사 각주가 파란 글씨로 나간다', /qd-foot[\s\S]{0,80}협의하에 변경 가능/.test(detHtml),
+    '견적서에서 식사 각주를 못 찾음');
 
   /* ⑧ 작성일자 — 오늘로 박히지 않는다 */
   const iss = D.getElementById('dIssue');

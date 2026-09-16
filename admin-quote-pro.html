@@ -775,9 +775,11 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     '입장료': '일정표에 기재된 모든 관광지',
     '여행자보험': '기본 1억원 보장',
   };
-  /* 항공 각주 — 기준 양식의 파란 두 줄. 이것도 예시다. */
+  /* 각주(파란 글씨) 예시 — 🔴 **항공만이 아니다.** 기준 양식에서 파란 줄이 붙는 자리는
+     항공·식사·여행자보험 셋이고, 그중 둘은 같은 문장이다(계약 체결 후 협의). */
   const PH_FOOT = '※ FSC (Full Service Career) : 마일리지 적립, 기내식, 사전 좌석 지정 등의 서비스가 포함된 항공사\n'
     + '※ LCC (Low Cost Career) : FSC가 제공하는 서비스가 제공되지 않거나 유료로 포함 가능한 항공사';
+  const PH_FOOT_DEAL = '※ 계약 체결 후 상황에 따라 협의하에 구성과 단가 업그레이드 가능';
 
   function seedDoc(bd, v) {
     const dest = v.dest;
@@ -812,9 +814,9 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     /* 🔴 **인솔자** — 기준 양식의 독립 행인데 2026-09-16까지 이 화면에 아예 없었다.
        인원·동행 여부는 건별이라 문구를 박지 않는다(예시만 보여 준다). */
     sec('인솔자', [{ text: '', note: '전 일정 포함', ph: PH['인솔자'] }]);
-    if (v.incMeal) sec('식사', [{ text: '', note: '전 일정 포함', ph: PH['식사'] }]);
+    if (v.incMeal) sec('식사', [{ text: '', note: '전 일정 포함', ph: PH['식사'] }], { foot: '', footPh: PH_FOOT_DEAL });
     if (v.incSightseeing) sec('입장료', [{ text: '일정표에 기재된 모든 관광지', note: '전 일정 포함', ph: PH['입장료'] }]);
-    if (has(/여행자보험/)) sec('여행자보험', [{ text: '', note: '전 일정 포함', ph: PH['여행자보험'] }]);
+    if (has(/여행자보험/)) sec('여행자보험', [{ text: '', note: '전 일정 포함', ph: PH['여행자보험'] }], { foot: '', footPh: PH_FOOT_DEAL });
     if (v.incGolf) sec('골프', [{ text: (v.golfCount || 0) + '명 · ' + (v.golfRounds || 1) + '라운드', note: '전 일정 포함' }]);
     /* 🔴 **기타사항은 두 줄**이다(쇼핑센터 방문 · 선택관광 제안). 한 줄짜리 칸만 있던
        탓에 두 번째 줄을 만들 방법 자체가 없었다. 노쇼핑·노옵션은 **건별 약속**이라
@@ -825,7 +827,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     ]);
     /* 🔴 불포함내역은 `company-info.js`가 진실이다 — 여기 다시 적으면 두 벌이 된다 */
     const EX = (window.QUOTE_EXCLUDED || []).join(', ');
-    sec('불포함내역', [{ text: EX, note: '', accent: 'red' }], { red: true });
+    sec('불포함내역', [{ text: EX, note: '', accent: 'red', phNote: '요청 시 사후정산 가능' }], { red: true });
     S.details = D;
     renderDetails();
     if (!S.options.length) { S.options = []; renderOptions(); }
@@ -864,12 +866,12 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
           + '" placeholder="' + esc(r.phNote || '') + '" /></label>'
           + '</div>';
       });
-      /* 각주는 **항목에 하나**다 — 줄마다 붙이면 기준 양식의 파란 두 줄이 여러 벌 찍힌다 */
-      if (d.label === '항공') {
-        h += '<div class="day-b"><label class="f" style="grid-column:1/-1">'
-          + '<span>각주 <em>(파란 글씨 · 줄바꿈으로 여러 줄)</em></span>'
-          + '<textarea data-df="' + i + '" placeholder="' + esc(d.footPh || '') + '">' + esc(d.foot || '') + '</textarea></label></div>';
-      }
+      /* 각주는 **항목에 하나**다 — 줄마다 붙이면 기준 양식의 파란 두 줄이 여러 벌 찍힌다.
+         🔴 **모든 항목에 연다.** 예전엔 항공에만 있었는데, 기준 양식은 식사·여행자보험에도
+           파란 줄이 붙는다 — 칸이 없으면 그 문장을 적을 방법 자체가 없었다(2026-09-16). */
+      h += '<div class="day-b"><label class="f" style="grid-column:1/-1">'
+        + '<span>각주 <em>(파란 글씨 · 줄바꿈으로 여러 줄)</em></span>'
+        + '<textarea data-df="' + i + '" placeholder="' + esc(d.footPh || '') + '">' + esc(d.foot || '') + '</textarea></label></div>';
       wrap.innerHTML = h;
       box.appendChild(wrap);
     });
