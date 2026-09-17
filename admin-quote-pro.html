@@ -422,6 +422,17 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     <div class="sec-h"><span class="sec-n">4</span><span class="sec-t">일정</span>
       <span class="sec-d">여기 적은 일정이 <b>견적서 링크의 일정표 탭</b>에 그대로 나갑니다 — 두 번 적지 않습니다</span></div>
     <div class="sec-b">
+      <!-- 🔴 **추천 일정 초안** (2026-09-17, 결정대기열 0-ah 대표 승인).
+           지운 「자동 견적 산출 (고객용)」은 목적지 공통 일정을 견적서에 **자동으로** 실었다.
+           그 화면을 지우면서 담당자가 매번 빈 칸을 처음부터 적게 됐다 — 전화 상담 중에
+           뽑는 자리라 여기서 시간이 가장 많이 든다. 그래서 초안을 깔아 준다.
+           ⚠ **초안일 뿐이다.** 여기 남은 글자가 그대로 고객에게 간다(위 설명 줄 참조). -->
+      <div class="bar" id="itiDraftBar">
+        <label class="f" style="margin:0;min-width:260px"><span>추천 코스</span><select id="itiCourse"></select></label>
+        <button type="button" class="btn btn-sm" id="btnItiDraft">추천 일정으로 채우기</button>
+        <span class="bar-sp"></span>
+      </div>
+      <p class="note hidden" id="itiDraftState"></p>
       <div id="itiDays"></div>
       <div class="bar">
         <button type="button" class="btn btn-sm" id="btnAddDay">+ 하루 추가</button>
@@ -1242,6 +1253,21 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
   function seedItinerary(v) {
     if (S.iti.length) return;
     fitDays(v.days);
+    /* 🔴 빈 칸만 만들어 두고 끝내지 않는다 — 담당자가 전화를 받으면서 5일치를 처음부터
+       적어야 했다(0-ah). 추천 코스를 **초안으로** 깔고, 무엇을 깔았는지 말한다. */
+    fillCourseSelect();
+    /* 🔴 **오버라이드를 기다렸다가 깐다.** 안 기다리면 관리자 → 일정·방식 비교에서 고친
+       일정이 아니라 `data.js`의 기본 일정이 깔리고, 화면은 그 사실을 말하지 않는다
+       (결함 생성기 ②). ④단계는 산출 직후 보이는 화면이 아니라 기다려도 사람은 못 느낀다. */
+    if (typeof itineraryOverridesReady !== 'undefined' && ITI_SRC === 'base') {
+      Promise.resolve(itineraryOverridesReady).catch(() => {}).then(() => {
+        if (!S.iti.length) return;
+        fillCourseSelect();
+        applyItiDraft(true);
+      });
+      return;
+    }
+    applyItiDraft(true);
   }
   function fitDays(n) {
     const want = Math.max(0, Number(n) || 0);
@@ -1296,6 +1322,107 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
   }
   $('btnAddDay').addEventListener('click', () => { fitDays(S.iti.length + 1); renderPreview(); });
   $('btnFitDays').addEventListener('click', () => { fitDays(num($('pDays'))); renderPreview(); });
+
+  /* ═══ ④ 일정 — 추천 코스 초안 (0-ah · 2026-09-17 대표 승인) ═══════════════
+     🔴 **추천 일정을 여기에 다시 적지 않는다.** 진실은 `data.js`의 `ITINERARY_DB`이고,
+       관리자 → 일정·방식 비교에서 고친 내용은 `script.js`(`applyItineraryOverrides`)가
+       그 위에 **얹어 준다**. 우리는 기다렸다가 읽기만 한다 — 목록을 두 벌로 만들면
+       반드시 어긋난다(결함 생성기 ①).
+     🔴 그래서 **기다리는 것이 중요하다.** 안 기다리면 관리자가 고친 일정이 아니라
+       기본 일정이 깔리는데, 화면은 그걸 말해 주지 않는다(결함 생성기 ②). */
+  let ITI_SRC = 'base';   /* base(아직 못 기다림) · merged(오버라이드 반영) · failed(못 불러옴) */
+
+  function itiCourses() {
+    const dest = $('pDest').value;
+    const db = (typeof ITINERARY_DB !== 'undefined') ? ITINERARY_DB : null;
+    const list = (dest && db) ? db[dest] : null;
+    return Array.isArray(list) ? list.filter((c) => c && Array.isArray(c.days) && c.days.length) : [];
+  }
+
+  function itiState(msg, bad) {
+    const el = $('itiDraftState');
+    el.textContent = msg || '';
+    el.classList.toggle('hidden', !msg);
+    el.classList.toggle('note-err', !!bad);
+  }
+
+  function fillCourseSelect() {
+    const sel = $('itiCourse');
+    const list = itiCourses();
+    sel.innerHTML = '';
+    list.forEach((c, i) => {
+      const o = document.createElement('option');
+      o.value = String(i);
+      /* 코스가 하나뿐이면 「코스 A」라는 말이 오히려 「B도 있나」를 묻게 만든다 */
+      o.textContent = (list.length > 1 ? '코스 ' + 'ABCDE'.charAt(i) + ' · ' : '')
+        + (c.title || '이름 없는 코스') + ' (' + c.days.length + '일)';
+      sel.appendChild(o);
+    });
+    const none = !list.length;
+    sel.disabled = none;
+    $('btnItiDraft').disabled = none;
+    if (none) {
+      const o = document.createElement('option');
+      /* ⚠ 비활성 칸이 **왜** 잠겼는지 스스로 말한다 — 말 없이 잠기면 고장으로 읽힌다 */
+      o.textContent = $('pDest').value ? '이 목적지에는 저장된 추천 일정이 없습니다' : '목적지를 먼저 고르세요';
+      sel.appendChild(o);
+    }
+  }
+
+  /* 🔴 **적어 둔 것은 지우지 않는다 — 빈 칸만 채운다.** 초안이 담당자가 쓴 글을 덮으면
+     그 순간부터 아무도 이 버튼을 안 누른다. 대신 무엇을 남겼는지 말해 준다. */
+  function applyItiDraft(auto) {
+    const list = itiCourses();
+    const c = list[Math.max(0, Number($('itiCourse').value) || 0)] || list[0];
+    if (!c) {
+      if (!auto) itiState('이 목적지에는 저장된 추천 일정이 없습니다 — 일정을 직접 적어 주세요.', true);
+      return;
+    }
+    const days = c.days;
+    /* 코스의 `tip`(현장 Tip)은 지운 화면에서도 **고객 견적서에 나가던 값**이다 —
+       여기서는 「참고」 칸으로 들어간다. 담당자가 지우면 안 나간다. */
+    const MAP = [['title', 'title'], ['am', 'am'], ['pm', 'pm'], ['eve', 'eve'], ['note', 'tip']];
+    let filled = 0, kept = 0;
+    S.iti.forEach((row, i) => {
+      const d = days[i];
+      if (!d) return;
+      MAP.forEach((pair) => {
+        const val = String(d[pair[1]] || '').trim();
+        if (!val) return;
+        if (String(row[pair[0]] || '').trim()) { kept += 1; return; }
+        row[pair[0]] = val; filled += 1;
+      });
+    });
+    renderIti(); renderPreview();
+
+    const over = Math.max(0, S.iti.length - days.length);
+    const under = Math.max(0, days.length - S.iti.length);
+    const say = [];
+    say.push(filled
+      ? '「' + (c.title || '추천 코스') + '」로 ' + Math.min(S.iti.length, days.length) + '일치를 채웠습니다.'
+      : '새로 채운 칸이 없습니다.');
+    if (kept) say.push('이미 적으신 ' + kept + '칸은 그대로 뒀습니다 — 바꾸려면 그 칸을 비우고 다시 누르세요.');
+    if (over) say.push('DAY ' + (days.length + 1) + '~' + S.iti.length + '은 코스에 없어 비어 있습니다.');
+    if (under) say.push('코스가 ' + days.length + '일짜리라 뒤 ' + under + '일은 안 실었습니다.');
+    say.push('🔴 여기 남은 글이 고객 일정표에 그대로 나갑니다 — 읽어 보고 고쳐 주세요.');
+    if (ITI_SRC === 'failed') say.push('⚠ 관리자 화면에서 고친 일정은 못 불러왔습니다(기본 일정입니다).');
+    itiState(say.join(' '), ITI_SRC === 'failed');
+  }
+
+  $('btnItiDraft').addEventListener('click', () => applyItiDraft(false));
+  $('pDest').addEventListener('change', fillCourseSelect);
+  fillCourseSelect();
+
+  if (typeof itineraryOverridesReady !== 'undefined') {
+    itineraryOverridesReady.then((st) => {
+      ITI_SRC = (st && st.state === 'failed') ? 'failed' : 'merged';
+      fillCourseSelect();
+      if (ITI_SRC === 'failed') {
+        itiState('⚠ 수정된 추천 일정을 불러오지 못했습니다 — 초안은 기본 일정으로 깔립니다. '
+          + '관리자 → 일정·방식 비교에서 최근 수정본을 확인해 주세요.', true);
+      }
+    }).catch(() => { ITI_SRC = 'failed'; });
+  }
 
   /* ═══ ⑤ 문서 만들기 · 미리보기 ═════════════════════════════════════════ */
   function buildDoc() {
