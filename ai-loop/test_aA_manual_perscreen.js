@@ -160,5 +160,46 @@ if (fs.existsSync(path.join(ROOT, 'ai-loop', 'shoot_manual.py'))) {
 }
 
 
+console.log('\n[9] 30초 요약과 「한 절만 보기」');
+/* 🔴🔴 **`hidden`은 display 규칙에 진다 — 이 저장소에서 세 번째로 밟았다.**
+     `section { display:flex }`가 브라우저 기본값 `[hidden]{display:none}`을 이겨서,
+     `?only=`가 감췄다고 믿은 15개 절이 **그대로 다 보이고 있었다.**
+   🔴 더 나쁜 것은 **내가 만든 검사가 그걸 통과시켰다**는 것이다 — `el.hidden`(속성)을
+     재고 「감췄다」고 읽었다. 속성은 내가 방금 넣은 값이라 늘 참이다.
+     **감춰졌는지는 `getComputedStyle().display`로 재야 한다.**
+   ⚠ 여기서는 파일만 읽으므로 **CSS 방어선이 있는지**를 본다. 실제 렌더는 브라우저로 잰다. */
+ok('[hidden]을 display로 눌러 두었다',
+   /\[hidden\][^{]*\{[^}]*display:\s*none\s*!important/.test(manual),
+   'section의 display 규칙이 hidden을 이겨 감춘 절이 다 보인다');
+
+const tldrSecs = [...manual.matchAll(/<section id="([^"]+)">([\s\S]*?)<\/section>/g)]
+  .filter(([, , body]) => body.includes('class="tldr"'))
+  .map(([, id]) => id);
+/* 🔴 **있어야 할 절을 못 박는다.** 처음엔 「요약이 있는 절」만 훑었는데, 요약이
+     통째로 **사라지면 그 절을 건너뛰어** 아무것도 안 걸렸다(일부러 지워 보고 알았다).
+     자가 늘 통과하면 아무것도 말하지 않는다 — 목록을 여기 적어 둔다.
+   ⚠ 짧은 절(roles·errors·dont·flow·inquiries·owner)에는 일부러 안 단다. 요약보다 짧다. */
+const MUST_TLDR = ['start', 'estmgr', 'quotepro', 'itinerary', 'packages',
+                   'adhoc', 'ledger', 'pricereport', 'rates', 'newdest'];
+for (const id of MUST_TLDR) {
+  ok('「' + id + '」에 30초 요약이 있다', tldrSecs.includes(id),
+     '요약이 사라졌다 — 화면 매뉴얼을 열면 첫 화면이 다시 벽이 된다');
+}
+/* ⚠ 요약은 **절 맨 위(<h2> 바로 뒤)**에만 있어야 한다 — 중간에 있으면 요약이 아니다. */
+for (const [, id, body] of manual.matchAll(/<section id="([^"]+)">([\s\S]*?)<\/section>/g)) {
+  const n = (body.match(/class="tldr"/g) || []).length;
+  if (!n) continue;
+  ok('「' + id + '」 요약이 하나뿐이다', n === 1, n + '개나 있다');
+  ok('「' + id + '」 요약이 제목 바로 뒤에 있다',
+     /^\s*<h2[\s\S]*?<\/h2>\s*<div class="tldr">/.test(body),
+     '중간에 있으면 요약이 아니다');
+}
+/* 🔴 요약이 길면 요약이 아니다. 30초에 읽을 수 있어야 한다. */
+for (const m of manual.matchAll(/<div class="tldr">([\s\S]*?)<\/div>/g)) {
+  const t = m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  ok('요약이 320자 이하다 (' + t.length + '자)', t.length <= 320, t.slice(0, 40) + '…');
+}
+
+
 console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
