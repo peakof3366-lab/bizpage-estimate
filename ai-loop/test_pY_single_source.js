@@ -55,7 +55,9 @@ const EXPECT = {
   '몽골':     'short|evac|몽골·대만|MNT|mongolia|',
   '대만':     'short|asiaShort|몽골·대만|TWD|taiwan|',
   '가오슝':    'short|asiaShort|몽골·대만|TWD|taiwan|',
-  '라오스':    'mid|asiaMid|동남아|LAK|seasia|',
+  /* ⚠ 2026-09-17: `seasia` → `laos`. 시즌표 조사에서 **7·8월과 12월의 방향이 반대**였다
+     (한국 출발 항공권 실가격 기준 7월 최고·12월 최저). 나머지 5축은 그대로다. */
+  '라오스':    'mid|asiaMid|동남아|LAK|laos|',
   '싱가포르':   'mid|asiaMid|동남아|SGD|seasia|',
   '하노이':    'mid|asiaMid|동남아|VND|seasia|',
   '호치민':    'mid|asiaMid|동남아|VND|seasia|',

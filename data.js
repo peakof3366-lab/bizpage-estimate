@@ -273,7 +273,7 @@ const DEST_CLASSIFY = {
   '몽골':     { zone:'short', ins:'evac'     , region:'몽골·대만',     country:'몽골',      currency:'MNT', season:'mongolia'      },
   '대만':     { zone:'short', ins:'asiaShort', region:'몽골·대만',     country:'대만',      currency:'TWD', season:'taiwan'        },
   '가오슝':    { zone:'short', ins:'asiaShort', region:'몽골·대만',     country:'대만',      currency:'TWD', season:'taiwan'        },
-  '라오스':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'라오스',     currency:'LAK', season:'seasia'        },
+  '라오스':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'라오스',     currency:'LAK', season:'laos'          },
   '싱가포르':   { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'싱가포르',    currency:'SGD', season:'seasia'        },
   '하노이':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
   '호치민':    { zone:'mid'  , ins:'asiaMid'  , region:'동남아',       country:'베트남',     currency:'VND', season:'seasia'        },
@@ -635,6 +635,31 @@ const DEST_SEASON_PROFILES = [
       { id:'peak',    months:[6,7,8],     factor:1.15, label:'건기 성수기', badge:'건기 성수기 +15%' },
       { id:'offpeak', months:[9,10,11],   factor:0.88, label:'우기 비수기', badge:'우기 비수기 −12%' },
       { id:'normal',  months:[],          factor:1.00, label:'평시',       badge:'평시' },
+    ],
+  },
+  {
+    /* 라오스 — 2026-09-17 조사. `seasia`(건기 11~3월 성수기 / 우기 5~9월 비수기)에서
+       뺐다. 🔴 **두 달이 방향까지 반대였다.**
+       ■ 근거 — 한국 출발 항공권 실가격(KAYAK 두 페이지가 같은 말을 한다)
+         · **가장 비싼 달 7월**(612,954원 / 684,295원) · 8월도 2위권(594,043원)
+           → 그런데 시즌표는 **우기 비수기 −12%**로 깎고 있었다.
+         · **가장 싼 달 12월**(367,741원 / 394,329원, 연평균 484,046원)
+           → 그런데 시즌표는 **건기 성수기 +15%**로 올리고 있었다.
+       ⚠ **현지 기후 자료는 반대로 말한다**(12~2월 건기가 여행 적기 · 7~8월 우기).
+         둘 다 맞다 — 우리 시즌표가 움직이는 것은 **날씨가 아니라 한국 출발 가격**이고,
+         라오스는 직항이 적어 **방학 수요가 우기 할증을 이긴다**(필리핀과 같은 모양).
+       🔴 **7·8월을 성수기(+15%)로 올리지 않고 평시로 둔 이유** — `PEAK_CALENDAR`의
+         「여름 7/15~8/20 ×1.20」이 **모든 목적지에 이미 붙는다.** 월 시즌표까지 올리면
+         1.15 × 1.20 = 1.38배가 되어 일본 벚꽃에서 겪은 **이중 반영**이 된다.
+         이 파일 머리말대로 **월 시즌표는 넓은 시즌만, 날짜 피크는 PEAK_CALENDAR가** 맡는다.
+       ⚠ 12월도 같은 이유로 **평시**다 — 12/20~1/3은 연말연시 ×1.25가 따로 붙는다.
+       ⚠ 11·1~3월(성수기)과 5·6·9월(비수기)은 **근거가 바뀌지 않아 그대로 뒀다.**
+         10월이 두 번째로 비싸다는 자료가 하나 있었지만 **한 곳뿐이라 안 옮겼다.** */
+    id: 'laos', name: '라오스 (건기 11·1~3월 성수기 / 5·6·9월 비수기 · 7·8·12월 평시)',
+    config: [
+      { id:'peak',    months:[11,1,2,3], factor:1.15, label:'건기 성수기', badge:'건기 성수기 +15%' },
+      { id:'offpeak', months:[5,6,9],    factor:0.88, label:'우기 비수기', badge:'우기 비수기 −12%' },
+      { id:'normal',  months:[],         factor:1.00, label:'평시',       badge:'평시' },
     ],
   },
 ];
