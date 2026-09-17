@@ -10,13 +10,16 @@
 # 못 잡는다")를 공개해 둘 이유가 없다.
 #
 # ⚠ 여기에 추가할 때는 런타임에 필요한 파일을 빼지 않도록 주의할 것.
-#   필요: index.html·admin.html·admin-quote.html·admin-quote-pro.html·estimate-view.html
+#   필요: index.html·admin.html·admin-quote-pro.html·estimate-view.html
 #         styles.css·script.js
 #         quote_doc.js·quote_doc.css (견적서 공통 모듈 — 고객 견적서 화면이 직접 읽고,
 #                  api/quote-shares.js가 발급 때 `stripInternal`을 부른다. 빼면
 #                  **원가·마진을 지우는 코드가 서버에서 사라진다**)
 #         quote_engine_host.js (내부직원용 화면이 엔진 입력칸을 만드는 자리)
-#         data.js·dest_currency.js·company-info.js (브라우저가 직접 로드)
+#         data.js·dest_currency.js (브라우저가 직접 로드)
+#         company-info.js (브라우저가 직접 로드 + 🔴 **서버도 require 한다** —
+#                  api/quote-shares.js가 고객 직접 건을 표준 양식으로 만들 때 불포함내역을
+#                  읽는다. 빼면 그 건이 **조용히 옛 양식으로** 나간다)
 #         limits.js·plausibility.js (admin.html이 <script src>로 읽는 단일 출처 파일들 —
 #                  빼면 화면이 조용히 판정 없이 돌아간다)
 #         이미지/ ← 폴더 이름이 한글이다. 'images/'가 아니다(예전 주석이 그렇게 적혀
