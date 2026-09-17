@@ -23,23 +23,34 @@
    잘리지 않게 `break-inside`를 건다.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ═══ 2026-09-17 「정돈」(대표 승인 A안) ══════════════════════
+   ⚠ **레이아웃·칸 구성·순서는 안 건드렸다.** 기준 이미지와 같은 문서로 보여야 한다
+     (9/15 지시: 「첨부한 견적서 이미지와 동일한 레이아웃으로」). 바꿈 것은 **읽는 품질**뿐:
+     ① 브랜드 레드를 문서의 주색으로 — 고치기 전엔 회사 레드(#C8102E)가 **한 곳도 안 쓰였고**
+        다른 빨강(#D01027)이 쓰이고 있었다.
+     ② 색 넷(검정 띠·청록·파랑·빨강) → **둘**(먹색·레드). 강조가 넷이면 강조가 아니다.
+     ③ 표 실선을 굵은 검정 → 얙은 회색. **글자가 앞으로 나온다.**
+     ④ 합계 금액이 문서에서 가장 큰 숫자. 고치기 전엔 **불포함내역(빨강)이 제일 강했다** —
+        「안 해 주는 것」이 제일 크면 안 된다.
+   🔴 색을 바꾸자 숨어 있던 것이 드러났다 — `.qd-w`(₩)가 **청록 배경 전제로 흰색**이었다.
+     배경을 흰색으로 바꾸면 기호가 사라진다. 아래에서 함께 고쳤다. */
 .qd {
-  --qd-ink: #111111;
-  --qd-line: #7A7A7A;          /* 표 실선 — 이미지의 가는 검정 테두리 */
-  --qd-th-bg: #F2F2F2;         /* 머리칸 바탕 */
-  --qd-red: #D01027;           /* 불포함내역·유류할증료 — 흰 바탕 전용 */
-  --qd-blue: #1F3FBF;          /* 각주 */
-  --qd-opt: #0F7A7A;           /* 선택 옵션 줄 (위 머리말 참조) */
-  --qd-muted: #5E5E5E;
-  --qd-pad: 7px 9px;
+  --qd-ink: #16181D;
+  --qd-line: #D8D6D2;
+  --qd-th-bg: #FAF9F7;
+  --qd-red: #C8102E;
+  --qd-blue: #5E6472;
+  --qd-opt: #16181D;
+  --qd-muted: #6B7280;
+  --qd-pad: 10px 12px;
 
-  max-width: 900px;
+  max-width: 880px;
   margin: 0 auto;
-  padding: 22px 20px 30px;
+  padding: 34px 34px 40px;
   background: #FFFFFF;
   color: var(--qd-ink);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.7;
   font-family: Pretendard, 'Malgun Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
   box-sizing: border-box;
 }
@@ -49,10 +60,10 @@
 .qd-head {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 16px; flex-wrap: wrap;
-  padding-bottom: 12px; border-bottom: 3px solid var(--qd-ink);
+  padding-bottom: 14px; border-bottom: 2px solid var(--qd-red);
 }
 .qd-brand {
-  font-size: 27px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1;
+  font-size: 24px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1;
 }
 .qd-brand-sm { font-size: 15px; }
 .qd-corp { text-align: right; font-size: 11px; color: var(--qd-muted); line-height: 1.65; }
@@ -60,9 +71,11 @@
 
 /* ── 검은 제목 바 ── 이미지에서 가장 먼저 눈에 들어오는 줄이다 */
 .qd-title {
-  margin: 16px 0 14px; padding: 12px 14px;
-  background: var(--qd-ink); color: #FFFFFF;
-  font-size: 17px; font-weight: 800; text-align: center; letter-spacing: -.01em;
+  /* ⚠ 2026-09-17: 검정 풀블록 → **흰 바탕 + 레드 왼쪽 바**. 인쇄 잉크도 아낌다. */
+  margin: 16px 0 14px; padding: 13px 0 11px 16px;
+  background: #FFFFFF; color: var(--qd-ink);
+  border-left: 5px solid var(--qd-red); border-bottom: 1px solid var(--qd-line);
+  font-size: 19px; font-weight: 800; text-align: left; letter-spacing: -.02em;
   word-break: keep-all;
 }
 
@@ -84,7 +97,7 @@
 /* ── 표 공통 ── */
 .qd-t {
   width: 100%; border-collapse: collapse; table-layout: fixed;
-  border: 1px solid var(--qd-ink);
+  border: 1px solid var(--qd-line);
 }
 .qd-t th, .qd-t td {
   border: 1px solid var(--qd-line); padding: var(--qd-pad);
@@ -94,24 +107,38 @@
 .qd-sub { background: #FAFAFA; }
 .qd-mid { text-align: center; }
 .qd-num { text-align: right; font-variant-numeric: tabular-nums; }
+/* 🔴 이 기호는 한때 **청록 배경 전제로 흰색**이었다(선택 옵션 줄).
+   배경을 바꾸자 기호가 **사라졌다** — 시안을 그려 보고 찾은 자리다. */
 .qd-w { float: left; color: var(--qd-muted); }
 .qd-bold { font-weight: 800; }
 .qd-sm { font-size: 11.5px; line-height: 1.7; }
-.qd-red { color: var(--qd-red); font-weight: 700; }
+/* ⚠ 고치기 전엔 불포함내역(굵은 빨강 두 줄)이 문서에서 가장 강했다.
+   빨강은 합계에 쓴다. */
+.qd-red { color: var(--qd-ink); font-weight: 500; }
 .qd-blue { color: var(--qd-blue); }
 
 /* 유류할증료 기준 — 이미지에서 표 바로 아래 빨간 한 줄 */
-.qd-fuel { margin: 6px 0 0; font-size: 11.5px; font-weight: 700; color: var(--qd-red); }
+.qd-fuel { margin: 8px 0 0; font-size: 11.5px; font-weight: 600; color: var(--qd-muted); }
 
 /* ── 선택 옵션 ── 위 머리말대로 어두운 청록이다 */
+/* ⚠ 2026-09-17: 청록 채움을 걷었다. 위아래 굵은 선으로 「다른 묶음」을 말한다.
+   🔴 `.qd-opt .qd-w`(흰색 ₩)는 **지웠다** — 배경이 흰색이 되면 기호가 안 보인다. */
 .qd-opt th, .qd-opt td {
-  background: var(--qd-opt); color: #FFFFFF; border-color: #FFFFFF; font-weight: 600;
+  background: #FFFFFF; color: var(--qd-ink); font-weight: 600;
+  border-top: 2px solid var(--qd-ink); border-bottom: 2px solid var(--qd-ink);
+  border-left-color: var(--qd-line); border-right-color: var(--qd-line);
 }
-.qd-oth { background: var(--qd-opt); font-weight: 800; text-align: center; }
-.qd-opt .qd-w { color: rgba(255, 255, 255, .85); }
+.qd-oth { font-weight: 800; text-align: center; }
 
 /* ── 상세 내용 ── */
+/* ── 합계요금 줄 ── 문서에서 **가장 큰 숫자**여야 하는 자리 (2026-09-17) */
+.qd-sum .qd-th, .qd-sum .qd-mid, .qd-sum .qd-num { background: #FCF8F8; }
+.qd-sum .qd-num { font-size: 17px; color: var(--qd-red); }
+.qd-han { font-size: 12px; line-height: 1.5; }
+
 .qd-dl { font-weight: 800; }
+/* 여러 줄에 걸친 비고 — 「묶여 있다」를 색으로 말한다 */
+.qd-note-m { background: #FBFAF8; color: var(--qd-muted); }
 .qd-flt { font-size: 11.5px; line-height: 1.75; letter-spacing: 0; }
 .qd-foot {
   background: #FBFCFF; color: var(--qd-blue);
@@ -126,13 +153,38 @@
   font-size: 12.5px; line-height: 1.85; white-space: normal;
 }
 
-/* ── 일정표 ── */
-.qd-day { font-weight: 800; font-size: 12.5px; line-height: 1.4; }
+/* ── 일정표 ── (2026-09-17 정돈: 견적서와 같은 언어로 맞췄다)
+   ⚠ 일정표는 **하루가 한 덩어리**다. DAY 칸에 레드 세로선을 줘서 줄의 시작을 눈으로 잡게 하고,
+     라벨(오전·조식)은 작게 물리고 **내용을 앞으로** 낸다. */
+.qd-day {
+  font-weight: 800; font-size: 13px; line-height: 1.4;
+  border-left: 3px solid var(--qd-red); text-align: left; padding-left: 12px;
+}
 /* ⚠ 11px 아래로 안 내린다 (CLAUDE.md YA) — 10.5px로 뒀다가 검사에서 걸렸다 */
 .qd-day-d { display: block; font-weight: 500; font-size: 11px; color: var(--qd-muted); }
-.qd-iti-b { text-align: left; font-size: 12px; line-height: 1.8; }
-.qd-iti-b b { display: inline-block; min-width: 2.6em; font-weight: 800; color: var(--qd-muted); }
-.qd-iti-n { margin-top: 3px; font-size: 11px; color: var(--qd-muted); }
+.qd-iti-b { text-align: left; font-size: 12px; line-height: 1.85; }
+.qd-iti-b > div + div { margin-top: 2px; }
+/* 라벨은 작고 흐리게 — 읽어야 하는 것은 내용이다 */
+.qd-iti-b b {
+  display: inline-block; min-width: 3em; font-weight: 700; font-size: 11px;
+  color: var(--qd-muted); letter-spacing: .02em;
+}
+.qd-iti-n {
+  margin-top: 5px; padding-top: 4px; border-top: 1px dotted var(--qd-line);
+  font-size: 11px; color: var(--qd-muted);
+}
+/* 🔴 식사·숙박 — 끼니마다 한 줄. 예전엔 「조식 기내식 · 중식 기내식 · 석식 현지식」을
+   한 줄로 이어 붙여, 칸이 좁으면 **「석식」과 「현지식」이 다른 줄로 갈라졌다**(실측).
+   라벨과 값이 갈리면 끼니를 잘못 짚는다 → 줄 단위로 잠근다. */
+.qd-stay { text-align: left; vertical-align: top; }
+.qd-meal { display: flex; gap: 7px; align-items: baseline; line-height: 1.7; }
+.qd-meal b {
+  flex: 0 0 auto; min-width: 2.6em; font-weight: 700; font-size: 11px;
+  color: var(--qd-muted); letter-spacing: .02em;
+}
+.qd-meal span { flex: 1 1 auto; word-break: keep-all; }
+.qd-meal-s { margin-top: 5px; padding-top: 4px; border-top: 1px dotted var(--qd-line); }
+.qd-meal-s span { font-weight: 600; }
 
 /* ── 비었을 때 ── 「없습니다」로 끝내지 않고 **다음 행동**을 말한다 (CLAUDE.md 화면 규칙 2) */
 .qd-empty {

@@ -325,10 +325,13 @@
           <td class="qd-mid" colspan="4">${won(d.trip.pax)}명</td>
         </tr>
         ${priceRows}
-        <tr>
+        <tr class="qd-sum">
           <th class="qd-th" colspan="2">합계요금</th>
-          <td class="qd-mid qd-bold">${esc(d.price.totalHangul.replace(/^일금 /, '일금 '))}</td>
-          <td class="qd-num qd-bold" colspan="3">${money(d.price.total)}</td>
+          <!-- 🔴 한글 금액 칸이 좁아 **세 줄로 접혔다**(「일금 / 오천육백…/ 원정」).
+               계약 문서에서 숫자 위조를 막으려고 적는 줄인데 읽히지 않으면 뜻이 없다.
+               → 두 칸으로 넓힌다(19% → 27%). ⚠ 합은 그대로 6이라 표가 안 틀어진다. -->
+          <td class="qd-mid qd-bold qd-han" colspan="2">${esc(d.price.totalHangul.replace(/^일금 /, '일금 '))}</td>
+          <td class="qd-num qd-bold" colspan="2">${money(d.price.total)}</td>
         </tr>
       </tbody>
     </table>
@@ -400,8 +403,10 @@
         content = `<td class="qd-mid${cls}" colspan="2">${escLines(p.row.text || p.row.right)}</td>`;
       }
       const noteCls = (p.note || '').indexOf('사후정산') >= 0 ? ' qd-red' : '';
+      /* ⚠ 같은 비고가 여러 줄에 걸치면 그 칸이 **허공에 뜬 것처럼** 보인다(실측: 「전 일정
+         포함」이 여섯 줄에 걸쳐 가운데). 묶였다는 것을 색으로 말해 준다 — `qd-note`. */
       const note = p.noteFirst
-        ? `<td class="qd-mid${noteCls}" rowspan="${p.noteSpan}">${escLines(p.note)}</td>` : '';
+        ? `<td class="qd-mid qd-note${p.noteSpan > 1 ? ' qd-note-m' : ''}${noteCls}" rowspan="${p.noteSpan}">${escLines(p.note)}</td>` : '';
       return `<tr>${item}${content}${note}</tr>`;
     }).join('');
 
@@ -469,8 +474,13 @@
         <span>견적 작성 화면의 「일정」 칸에 일자별 내용을 적으면 여기에 함께 나옵니다.</span>
       </div></article>`;
     }
-    const meal = (m) => [m.b && '조식 ' + m.b, m.l && '중식 ' + m.l, m.d && '석식 ' + m.d]
-      .filter(Boolean).join(' · ');
+    /* 🔴 식사는 **끼니마다 한 줄**로 쪼갠다 (2026-09-17).
+       예전엔 「조식 기내식 · 중식 기내식 · 석식 현지식」을 한 줄로 이어 붙였는데, 칸이
+       좁아 아무 데서나 접혀 **「석식」과 「현지식」이 다른 줄**로 갈라졌다(실측 사진).
+       라벨과 값이 갈리면 읽는 사람이 끼니를 잘못 짚는다. */
+    const mealRows = (m) => [['조식', m.b], ['중식', m.l], ['석식', m.d]]
+      .filter((x) => String(x[1] || '').trim())
+      .map((x) => `<div class="qd-meal"><b>${x[0]}</b><span>${esc(x[1])}</span></div>`).join('');
     return `<article class="qd">
       ${headHtml(d, opts)}
       <h2 class="qd-h2">일정표</h2>
@@ -488,9 +498,9 @@
               ${it.eve ? `<div><b>저녁</b> ${escLines(it.eve)}</div>` : ''}
               ${it.note ? `<div class="qd-iti-n">${escLines(it.note)}</div>` : ''}
             </td>
-            <td class="qd-mid qd-sm">
-              ${meal(it.meals) ? `<div>${esc(meal(it.meals))}</div>` : ''}
-              ${it.stay ? `<div><b>숙박</b> ${esc(it.stay)}</div>` : ''}
+            <td class="qd-sm qd-stay">
+              ${mealRows(it.meals)}
+              ${it.stay ? `<div class="qd-meal qd-meal-s"><b>숙박</b><span>${esc(it.stay)}</span></div>` : ''}
             </td>
           </tr>`).join('')}
         </tbody>
