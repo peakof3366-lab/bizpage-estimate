@@ -1151,11 +1151,17 @@ p { line-height:1.8; }
   padding:20px; opacity:0; transition:opacity var(--dur-md);
 }
 .pf-card:hover .pf-hover-info { opacity:1; }
-.pf-hi-region { font-size:10px; font-weight:700; letter-spacing:.14em; color:var(--brand); text-transform:uppercase; margin-bottom:9px; }
-.pf-hi-title  { font-size:14px; font-weight:700; color:var(--white); text-align:center; line-height:1.5; }
+/* 포트폴리오 카드 글자 — 2026-09-17 대표 지적「더 크게」.
+   같이 고친 것 둘(크기만 올리면 더 안 읽혔다):
+   ① 롤오버 지역명이 **검정 위의 보라(2.9:1)**였다 — `--brand-on-dk`(민트)로.
+     ⚠ `check_contrast.py`가 이걸 못 잡는다 — 평소엔 `opacity:0`이라 재는 자가 안 본다.
+   ② 한글에 `letter-spacing`을 벌려 놓았다(.14em/.08em) — 영문 대문자용이라 떼었다.
+     `text-transform:uppercase`도 한글엔 아무 일도 안 한다 — 같이 떼다. */
+.pf-hi-region { font-size:12px; font-weight:700; letter-spacing:0; color:var(--brand-on-dk); margin-bottom:9px; }
+.pf-hi-title  { font-size:17px; font-weight:700; color:var(--white); text-align:center; line-height:1.5; }
 .pf-body { padding:18px 20px 20px; }
-.pf-dest  { font-size:10px; font-weight:700; color:var(--brand); letter-spacing:.08em; text-transform:uppercase; margin-bottom:7px; }
-.pf-title { font-size:13.5px; font-weight:600; color:var(--t-head); line-height:1.5; }
+.pf-dest  { font-size:12px; font-weight:700; color:var(--brand); letter-spacing:0; margin-bottom:7px; }
+.pf-title { font-size:15.5px; font-weight:600; color:var(--t-head); line-height:1.55; }
 .pf-cta { display:flex; align-items:center; gap:12px; justify-content:center; margin-top:44px; }
 .pf-blog-btn { color:var(--t-head); border-color:var(--t-head); }
 
