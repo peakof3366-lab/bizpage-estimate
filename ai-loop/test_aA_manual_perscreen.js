@@ -102,5 +102,35 @@ if (adhocLbl && adhocSec) {
 }
 
 
+console.log('\n[7] 대장의 개정 버튼 설명이 화면과 같은가');
+/* 🔴 **대표가 「개정 아님으로가 무슨 뜻이냐」고 물었다**(2026-09-17). 매뉴얼에 그 말이
+     아예 없었다 — 화면에만 있는 버튼은 아무도 못 배운다.
+   ⚠ 버튼 글자는 `admin/ledger.js`에 있다. 거기서 이름을 바꾸면 매뉴얼이 조용히
+     낡는다 — 그래서 **파일에서 읽어** 대조한다(문자열을 여기 다시 적지 않는다). */
+const ledjs = fs.readFileSync(path.join(ROOT, 'admin', 'ledger.js'), 'utf8');
+const ledSec = manual.match(/<section id="ledger">([\s\S]*?)<\/section>/);
+ok('매뉴얼에 견적서 대장 절이 있다', !!ledSec);
+const cut = ledjs.includes('개정 아님으로') ? '개정 아님으로' : null;
+ok('화면에 「개정 아님으로」 버튼이 있다', !!cut, 'admin/ledger.js에서 사라졌다');
+if (ledSec && cut) {
+  const t = ledSec[1].replace(/<[^>]+>/g, '');
+  ok('매뉴얼이 「' + cut + '」을 설명한다', t.includes(cut),
+     '화면에만 있고 매뉴얼엔 없다 — 담당자가 물어보게 된다');
+  ok('언제 누르는지도 적혀 있다', t.includes('A안') || t.includes('개정 아님으로」는 언제'),
+     '이름만 적고 쓰는 때를 안 적으면 여전히 모른다');
+  ok('「최신본」 경고를 설명한다', t.includes('최신본'),
+     '옛 견적서로 응대하는 것을 막는 표시인데 설명이 없다');
+  ok('「차수 모름」을 설명한다', t.includes('차수 모름'));
+  /* 🔴 **금액이 안 바뀐다는 말이 꼭 있어야 한다.** 없으면 담당자가 무서워서 안 누른다 —
+     못 누르는 안전장치는 없는 것과 같다. */
+  ok('끊어도 금액이 안 바뀐다고 말한다', t.includes('금액은 아무것도 안 바뀝니다'),
+     '무서워서 안 누르면 잘못 이어진 채로 남는다');
+}
+/* ⚠ 매뉴얼은 관리자 CSS를 안 싣는다 — `pkg-st` 같은 관리자 전용 클래스를 쓰면
+     배지가 **맨 글자**로 나온다(2026-09-17에 실제로 그렇게 썼다가 재서 알았다). */
+ok('매뉴얼이 관리자 전용 클래스를 안 쓴다', !manual.includes('pkg-st'),
+   '관리자 CSS가 없어 배지가 맨 글자로 나온다');
+
+
 console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

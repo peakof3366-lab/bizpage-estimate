@@ -1441,6 +1441,59 @@
         <li><strong>목적지</strong> (예: 오키나와)</li>
         <li><strong>발급한 직원 이름</strong></li>
       </ul>
+      <h4 id="ledger-rev">차수와 「최신본」 — 옛 견적서를 보고 응대하지 않게</h4>
+      <p>
+        <strong>같은 문의로 견적서를 다시 내면 시스템이 앞 건과 이어 붙입니다.</strong>
+        번호 칸에 이렇게 보입니다.
+      </p>
+      <div class="scroller">
+        <table>
+          <tbody>
+            <tr><td class="field"><span class="tag">2차</span></td>
+              <td>이 문의로 <strong>두 번째</strong> 낸 견적서입니다. 1차에는 안 붙습니다.</td></tr>
+            <tr><td class="field">↳ Q260917-01 개정</td>
+              <td>어느 건을 고쳐 낸 것인지.</td></tr>
+            <tr><td class="field"><span class="tag bad">🔴 최신본 Q260917-02</span></td>
+              <td><strong>이 줄은 옛 견적서입니다.</strong> 고객이 들고 있는 것은 저 번호입니다 —
+                이 금액으로 응대하지 마세요.</td></tr>
+            <tr><td class="field"><span class="tag">차수 모름</span></td>
+              <td>앞선 견적서를 못 찾았습니다. <strong>짐작한 차수를 보여 주지 않습니다</strong> —
+                틀린 차수가 더 위험하기 때문입니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>「개정 아님으로」는 언제 누르나</h4>
+      <p>
+        이어 붙이는 것은 <strong>자동이라 틀릴 때가 있습니다.</strong>
+        가장 흔한 경우가 <strong>한 문의에 A안·B안을 같이 낸 때</strong>입니다.
+      </p>
+      <div class="warn">
+        <span class="label">🔴 이런 일이 생깁니다</span>
+        <p>
+          같은 고객 문의로 <strong>「베트남안」</strong>과 <strong>「일본안」</strong>을 각각 발급했습니다.
+          시스템은 시간 순서만 보고 <strong>「일본안 = 베트남안의 2차」</strong>로 잇습니다.
+          그러면 베트남안에 <strong>🔴 최신본</strong> 경고가 붙어
+          <strong>버려진 견적서처럼 보입니다</strong> — 둘 다 살아 있는 제안인데요.
+        </p>
+        <p>
+          그 줄의 <strong>「개정 아님으로」</strong>를 누르면 연결이 끊기고,
+          차수 배지와 빨간 경고가 사라져 <strong>둘이 대등한 견적서로 돌아갑니다.</strong>
+        </p>
+      </div>
+      <p>
+        <strong>같은 버튼이 반대로도 씁니다.</strong> 이어져 있지 않은데 이어야 할 건이면
+        <strong>「Q260917-01 개정으로」</strong>라고 나옵니다 — 누르면 이어집니다.
+        이을 건이 없으면 버튼 자체가 안 나옵니다.
+      </p>
+      <div class="note">
+        <span class="label">📌 금액은 아무것도 안 바뀝니다</span>
+        <p>
+          차수는 <strong>줄과 줄의 관계</strong>일 뿐입니다. 끊거나 이어도
+          <strong>견적서 금액과 이미 나간 링크는 그대로입니다.</strong>
+          바뀌는 것은 대장에서 보이는 배지와 경고뿐이니, 잘못 눌러도 되돌리면 됩니다.
+        </p>
+      </div>
       <h4>상태를 바꿔 두세요</h4>
       <p>
         각 줄의 상태를 <strong>발급 / 계약 / 무산 / 취소</strong>로 바꿀 수 있습니다.
