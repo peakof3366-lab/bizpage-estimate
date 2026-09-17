@@ -93,7 +93,9 @@ const EXPECT = {
   '샌프란시스코': 'long|highCost|북미|USD|northAmerica|',
   '워싱턴':    'long|highCost|북미|USD|northAmerica|',
   '뉴욕':     'long|highCost|북미|USD|northAmerica|',
-  '하와이':    'long|highCost|북미|USD|northAmerica|',
+  /* 2026-09-17: 북미 공용표에서 뗐다. 북미표가 2~3월을 「늦겨울 비수기」 −8%로 매기는데
+     하와이는 그때가 최성수기다(data.js의 `hawaii` 프로파일 주석에 근거를 적어 뒀다). */
+  '하와이':    'long|highCost|북미|USD|hawaii|',
   '밴쿠버':    'long|highCost|북미|CAD|northAmerica|',
   '토론토':    'long|highCost|북미|CAD|northAmerica|',
   '카자흐스탄':  'mid|evac|중앙아시아|KZT|centralAsia|',

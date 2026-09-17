@@ -307,7 +307,7 @@ const DEST_CLASSIFY = {
   '샌프란시스코': { zone:'long' , ins:'highCost' , region:'북미',        country:'미국',      currency:'USD', season:'northAmerica'  },
   '워싱턴':    { zone:'long' , ins:'highCost' , region:'북미',        country:'미국',      currency:'USD', season:'northAmerica'  },
   '뉴욕':     { zone:'long' , ins:'highCost' , region:'북미',        country:'미국',      currency:'USD', season:'northAmerica'  },
-  '하와이':    { zone:'long' , ins:'highCost' , region:'북미',        country:'미국',      currency:'USD', season:'northAmerica'  },
+  '하와이':    { zone:'long' , ins:'highCost' , region:'북미',        country:'미국',      currency:'USD', season:'hawaii'        },
   '밴쿠버':    { zone:'long' , ins:'highCost' , region:'북미',        country:'캐나다',     currency:'CAD', season:'northAmerica'  },
   '토론토':    { zone:'long' , ins:'highCost' , region:'북미',        country:'캐나다',     currency:'CAD', season:'northAmerica'  },
   '호주':     { zone:'long' , ins:'oceania'  , region:'오세아니아·태평양', country:'호주',      currency:'AUD', season:'southern',     hemi:'S' },
@@ -533,12 +533,43 @@ const DEST_SEASON_PROFILES = [
     ],
   },
   {
-    /* 북미 — 여름(6~8월)·연말(12월) 성수기 / 늦겨울(2~3월) 비수기. 하와이는 겨울도 강성수기라 예외 */
+    /* 북미 — 여름(6~8월)·연말(12월) 성수기 / 늦겨울(2~3월) 비수기.
+       ⚠ **하와이는 여기 없다** — 아래 전용 프로파일 `hawaii`로 뗐다(2026-09-17).
+         이 줄에 「하와이는 겨울도 강성수기라 예외」라고 적혀 있었는데 **예외가 코드에
+         없었다.** 주석만 예외를 말하고 하와이는 이 표를 그대로 쓰고 있었다. */
     id: 'northAmerica', name: '북미 (여름 6~8월·연말 성수기 / 늦겨울 비수기)',
     config: [
       { id:'peak',    months:[6,7,8,12], factor:1.15, label:'여름·연말 성수기', badge:'성수기 +15%' },
       { id:'offpeak', months:[2,3],      factor:0.92, label:'늦겨울 비수기',   badge:'비수기 −8%' },
       { id:'normal',  months:[],         factor:1.00, label:'평시',            badge:'평시' },
+    ],
+  },
+  {
+    /* 하와이 — 2026-09-17에 `northAmerica`에서 뗐다.
+       ■ 무엇이 틀려 있었나: 북미표가 **2~3월을 「늦겨울 비수기」 −8%**로 매긴다.
+         본토(뉴욕·시카고·토론토)는 혹한기라 맞지만, **하와이는 그때가 최성수기**다.
+         우리 `season_note`도 「성수기: 12월말~3월(연말연시 최고가)」라고 적고 있었다 —
+         즉 **저장소가 스스로 모순**이었고 `audit_season_match.js`가 A등급으로 잡아냈다.
+
+       ■ 🔴 기준은 기후가 아니라 **한국 출발 항공권 실가격**이다(이 파일 머리말·seasia 교훈).
+         조사: 인천→호놀룰루 편도 평균이 **1월 825,700원으로 최고 · 9월 560,700원으로 최저**
+         (1.47배). 「비수기 4~5월·9~10월은 성수기 대비 최대 30% 저렴」. 방향이 두 출처와
+         우리 season_note에서 **모두 같다** — 그래서 고쳤다(갈렸으면 안 고친다).
+
+       ■ 무엇을 바꿨나 — **올리는 쪽만** 바꿨다
+         · 1·2·3월 → **성수기**. 2~3월은 −8%에서 올라오고, 1월은 평시에서 올라간다.
+         · 6·7·8·12월 성수기는 **그대로 둔다**(북미와 동일. 한국 방학·연말 수요).
+         · 계수는 북미와 같은 **+15%** — 고친 것은 **달**이지 폭이 아니다(seasia 때와 같은 방침).
+       ⚠ **비수기를 비워 뒀다.** 조사는 4~5월·9~10월을 비수기라 말하지만 그건 **금액을
+         내리는 방향**이라 대표 판단 자리다(결정대기열 0-ak). 내렸다가 틀리면 싸게 불러
+         덜 남고, 그쪽이 더 아프다.
+       ⚠ **하와이는 견적서 표본이 0건이다** — 역검증으로 검산할 수 없다. 조사에만 기댄 값이라
+         실측이 한 건이라도 생기면 그때 다시 잰다. */
+    id: 'hawaii', name: '하와이 (겨울 12~3월·여름 6~8월 성수기 · 연중 수요)',
+    config: [
+      { id:'peak',    months:[12,1,2,3,6,7,8], factor:1.15, label:'성수기', badge:'성수기 +15%' },
+      { id:'offpeak', months:[],               factor:0.92, label:'비수기', badge:'비수기 −8%' },
+      { id:'normal',  months:[],               factor:1.00, label:'평시',   badge:'평시' },
     ],
   },
   {
