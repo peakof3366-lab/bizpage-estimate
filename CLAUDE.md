@@ -143,7 +143,14 @@ python ai-loop/check_quote_form_layout.py   # 폼에 도착했을 때 무엇이 
 python ai-loop/check_contrast.py            # 안 읽히는 글자 — 고객 견적서·패키지 포함
 python ai-loop/check_customer_screens.py    # 폰 폭에서 밀림·잘림·누르기·줄 길이 (브라우저)
 python ai-loop/check_admin_screens.py       # 담당자 탭 17개 × 폭 3가지 (브라우저)
+python ai-loop/audit_roles.py               # 🔴 **직원이 첫날 보는 화면** (owner·manager·staff)
 ```
+
+🔴 **`audit_roles.py`는 다른 것이 못 보는 것을 본다.** 나머지 검사는 전부 로그인을
+건너뛰어 `currentUser`가 **없는 상태**로 잰다 — 그래서 화면이 역할로 가르는 11곳이
+한 번도 안 재졌다. 이 도구만 가짜 `?action=me` 응답으로 **진짜 권한 코드를 돌린다.**
+  ⚠ `window.currentUser`로 심으면 안 닿는다(IIFE 안의 `let`) — 그렇게 했다가 **없는
+    결함 14건을 찾았다고 할 뻔했다.** 목록이 화면과 어긋나는지는 `test_aB_role_gates.js`가 잡는다.
 
 ⚠ 위 두 브라우저 도구의 **재는 규칙은 `ai-loop/_screen_probe.py` 하나가 진실이다.**
 문턱값도 판정도 거기 있다. 새 잣대를 넣으면 두 화면이 **동시에** 그 잣대로 재진다 —
