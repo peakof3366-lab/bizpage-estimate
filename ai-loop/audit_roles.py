@@ -55,7 +55,10 @@ GATED = [
     ("ownerDataDangerZone",   "데이터 초기화 구역",      "owner"),
     ("btnRateBulk",           "요율 일괄 조정",          "manager"),
     ("btnNewDest",            "새 목적지 추가",          "manager"),
-    ("pkgNewAdhoc",           "+ 직접 견적 작성",        "manager"),
+    # 🔴 2026-09-17: 감출 자리가 「+ 직접견적 버튼」에서 **메뉴 자체**로 바뀌었다.
+    #   그 화면이 마법사가 되면서 버튼이 없어졌는데, 메뉴를 열어 두면 직원이 들어가
+    #   다 적고 **저장 단계에서야 403**을 만난다. 들어가기 전에 감춘다.
+    ("navAdhoc",              "직접 견적 작성 메뉴",     "manager"),
     ("btnDeleteInquiry",      "문의 삭제",               "manager"),
     ("btnDeleteQuote",        "견적 삭제",               "manager"),
     ("clearAllBtn",           "문의 전체 삭제",          "manager"),
@@ -64,7 +67,8 @@ GATED = [
 ]
 
 # 감췄을 때 「왜 없는지」를 말해 주는 자리가 있으면 여기 적는다.
-EXPLAINERS = {"pkgNewAdhoc": "adhocGate"}
+# 감췄을 때 「왜 없는지」를 말해 주는 자리. 지금은 없다 — 생기면 여기 한 줄 늘린다.
+EXPLAINERS = {}
 
 BOOT = """async () => {
   document.getElementById('loginPage').style.display = 'none';

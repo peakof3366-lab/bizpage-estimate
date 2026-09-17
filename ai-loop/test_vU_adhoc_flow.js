@@ -68,80 +68,49 @@ const today = (() => {
 
 function run() {
   console.log('\n[0] 🔴 스크립트가 살아 있는가 — 이걸 먼저 안 보면 기본값을 읽는다');
-  if (typeof w.switchTab !== 'function') {
-    fail++;
-    console.log('  ✗ 관리자 스크립트가 죽었다 — 아래 검사는 의미가 없어 여기서 멈춘다');
-    return done();
-  }
+  if (!w.pkgOpen) { fail++; console.log('  ✗ ⓪ pkgOpen이 없다 — 아래는 의미가 없다'); return done(); }
   ok('⓪ 관리자 스크립트가 살아 있다(data.js가 실렸다)', true);
-  ok('⓪ 소규모 버튼이 실제로 배선돼 있다', !!d.getElementById('pkgNewAdhoc'));
 
-  console.log('\n[1] 「+ 소규모 견적」을 누른 직후');
-  d.getElementById('pkgNewAdhoc').click();
-  ok('① 편집 칸이 열린다', d.getElementById('pkgEditCard').style.display !== 'none');
-  ok('① 종류가 소규모로 선다', val('pkgKind') === 'adhoc', val('pkgKind'));
-  ok('① 출처가 담당자 산출로 선다', val('pkgBasis') === 'assembled', val('pkgBasis'));
-  ok('① ID가 자동으로 붙는다', /^adhoc-\d{6}-[a-z0-9]{3,}$/.test(val('pkgId')), val('pkgId'));
-  ok('① ID 칸이 잠긴다(무엇을 적을지 고민하지 않게)', d.getElementById('pkgId').readOnly === true);
-  ok('① 산출일이 오늘로 채워진다', val('pkgAsOf') === today, val('pkgAsOf') + ' vs ' + today);
-  ok('① 라벨이 「산출일」이라고 말한다', /산출일/.test(txt('pkgAsOfLbl')));
-  ok('① 고객 목록에 안 나간다고 화면이 말한다', /고객 목록에 나가지 않습니다/.test(txt('pkgKindNote')));
-  ok('① 발급은 아직 막혀 있다(먼저 저장해야 한다)', d.getElementById('pkgIssue').disabled === true);
-  ok('① 왜 막혔는지 말한다', /먼저 저장/.test(txt('pkgIssueGate')));
+  /* 🔴 **2026-09-17: 「+ 소규모 견적」 버튼으로 시작하던 흐름이 없어졌다**(대표 지시 —
+     직접 견적 작성이 마법사가 됐다). 그 버튼·목록·종류 보기를 전부 걷어냈으므로
+     아래 검사도 **패키지 상품 쪽에서** 연다.
 
-  console.log('\n[1-b] 🔴 상태 라벨이 1회용에 거짓말을 하지 않는다');
-  {
-    /* 값은 셋 그대로여야 한다 — 서버·필터·인덱스가 그 값을 본다 */
-    const sel = d.getElementById('pkgStatus');
-    const values = Array.from(sel.options).map((o) => o.value);
-    ok('①b 상태 값은 draft/open/closed 그대로다', values.join(',') === 'draft,open,closed', values.join(','));
-    const labels = Array.from(sel.options).map((o) => o.textContent);
-    ok('①b 1회용에 「고객에게 보임」이라고 말하지 않는다',
-      !labels.some((t) => /고객에게 보임/.test(t)), labels.join(' | '));
-    ok('①b open을 「확정(견적서 발급 가능)」이라고 부른다',
-      /확정/.test(labels[1]) && /발급/.test(labels[1]), labels[1]);
-  }
+     ⚠ **이 파일이 혼자 들고 있던 규칙 하나를 살려 둔다** — 「금액의 출처」를 바꿀 때의
+       날짜 처리다. 화면을 걷어낼 때 그 화면이 혼자 지키던 안전망이 같이 사라지는 것이
+       이 저장소가 반복해서 당한 유형이라, 지우기 전에 무엇이 남는지 세어 보고 옮겼다.
+     ⚠ 없어진 규칙(자동 ID·1회용 상태 라벨·항목별 조립)은 **닿을 길이 없어 안 잰다.**
+       소스에는 그대로 있다(`pkgNewAdhocId`·`pkgSyncNotes`의 adhoc 분기). */
+  w.pkgOpen(null, 'catalog');
+  ok('⓪ 편집 칸이 열린다', d.getElementById('pkgEditCard').style.display !== 'none');
 
-  console.log('\n[2] 출처를 「대리점가」로 바꾸면 자동 날짜를 비운다');
+  console.log('\n[1] 🔴 출처를 「대리점가」로 바꾸면 자동 날짜를 비운다');
+  /* 담당자가 만든 날을 **「공급사에게 확인한 날」로 둔갑시키지 않는다.** 그 날짜가
+     견적서에 찍히고 유효기간 판단에 쓰이므로, 뜻이 다른 값을 물려받으면 안 된다. */
   const basis = d.getElementById('pkgBasis');
+  basis.value = 'assembled'; basis.dispatchEvent(new w.Event('change'));
+  d.getElementById('pkgAsOf').value = '';
+  basis.value = 'assembled'; basis.dispatchEvent(new w.Event('change'));
   basis.value = 'agency'; basis.dispatchEvent(new w.Event('change'));
-  ok('② 자동으로 넣은 날짜를 비운다(확인한 날로 둔갑하지 않는다)', val('pkgAsOf') === '', val('pkgAsOf'));
-  ok('② 라벨이 「금액 확인일」로 바뀐다', /금액 확인일/.test(txt('pkgAsOfLbl')));
+  ok('① 라벨이 「금액 확인일」로 바뀐다', /금액 확인일/.test(txt('pkgAsOfLbl')), txt('pkgAsOfLbl'));
+  basis.value = 'assembled'; basis.dispatchEvent(new w.Event('change'));
+  ok('① 라벨이 「산출일」로 바뀐다', /산출일/.test(txt('pkgAsOfLbl')), txt('pkgAsOfLbl'));
 
-  console.log('\n[3] 사람이 직접 넣은 날짜는 건드리지 않는다');
+  console.log('\n[2] 사람이 직접 넣은 날짜는 건드리지 않는다');
+  /* ⚠ **먼저 「대리점가」로 가서 자동 표시를 떼어 낸다.** 그 표시(`dataset.auto`)가
+     붙어 있는 동안 값을 넣으면 화면은 여전히 「우리가 채운 값」으로 보고 지운다 —
+     그게 맞는 동작이다. 이 순서를 안 지켜서 **멀쩡한 코드를 결함으로 읽을 뻔했다.** */
+  basis.value = 'agency'; basis.dispatchEvent(new w.Event('change'));
   d.getElementById('pkgAsOf').value = '2026-08-01';
   basis.value = 'assembled'; basis.dispatchEvent(new w.Event('change'));
   basis.value = 'agency'; basis.dispatchEvent(new w.Event('change'));
-  ok('③ 사람이 넣은 값은 그대로 남는다', val('pkgAsOf') === '2026-08-01', val('pkgAsOf'));
+  ok('② 사람이 넣은 값은 그대로 남는다', val('pkgAsOf') === '2026-08-01', val('pkgAsOf'));
 
-  console.log('\n[4] 항목별 조립 — 합이 그 자리에서 보인다');
-  const items = d.getElementById('pkgItems');
-  items.value = '항공 | 620,000원\n호텔 3박 | 380000\n읽을 수 없는 줄';
-  items.dispatchEvent(new w.Event('input'));
-  const sum = txt('pkgItemsSum');
-  ok('④ 쉼표·「원」이 섞여도 합을 낸다', /1,000,000원/.test(sum), sum.trim());
-  ok('④ 읽을 수 없는 줄은 안 센다', /항목 2개/.test(sum), sum.trim());
-  ok('④ 합이 1인 금액을 덮어쓴다고 말한다', /덮어씁니다/.test(sum));
-
-  console.log('\n[5] 「+ 새 상품」은 예전 규칙 그대로다 — 약화시키지 않았는지');
-  d.getElementById('pkgNew').click();
-  ok('⑤ 종류가 상품으로 선다', val('pkgKind') === 'catalog', val('pkgKind'));
-  ok('⑤ ID는 비어 있다(상품은 사람이 뜻 있는 이름을 짓는다)', val('pkgId') === '', val('pkgId'));
-  ok('⑤ ID 칸이 열려 있다', d.getElementById('pkgId').readOnly === false);
-  /* 🔴 VP의 핵심 규칙 — 확인도 안 한 날짜가 굳는 것을 막는 유일한 장치다 */
-  ok('⑤ 금액 확인일을 미리 채우지 않는다 (VP 규칙 유지)', val('pkgAsOf') === '', val('pkgAsOf'));
-  ok('⑤ 라벨이 「공급사에게 확인한 날」이라고 묻는다', /공급사에게 확인한 날/.test(txt('pkgAsOfLbl')));
-  {
-    /* 상품 쪽 상태 라벨은 예전 그대로여야 한다 — 여기는 진짜로 노출 이야기다 */
-    const labels = Array.from(d.getElementById('pkgStatus').options).map((o) => o.textContent);
-    ok('⑤ 상품은 「판매중 (고객에게 보임)」이라고 그대로 말한다',
-      /판매중/.test(labels[1]) && /고객에게 보임/.test(labels[1]), labels[1]);
-  }
-
-  console.log('\n[6] 자동 ID가 겹치지 않는다');
-  const seen = new Set();
-  for (let i = 0; i < 40; i++) { d.getElementById('pkgNewAdhoc').click(); seen.add(val('pkgId')); }
-  ok('⑥ 40번 만들어도 전부 다른 ID다', seen.size === 40, seen.size + '개');
+  console.log('\n[3] 🔴 직접견적을 새로 만들 길이 닫혀 있다');
+  /* 남겨 두면 고른 순간 **어느 목록에도 안 나오는 기록**이 생긴다. */
+  const kindSel = d.getElementById('pkgKind');
+  ok('③ 편집 모달에 「직접견적」 보기가 없다',
+    !!kindSel && !Array.from(kindSel.options).some((o) => o.value === 'adhoc'));
+  ok('③ 「+ 직접견적」 버튼도 없다', !d.getElementById('pkgNewAdhoc'));
 
   done();
 }

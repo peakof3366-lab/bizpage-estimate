@@ -68,12 +68,17 @@ const dom = new JSDOM(ADMIN, {
 });
 const w = dom.window, d = w.document;
 
+/* 🔴 **2026-09-17: 허구를 `adhoc` → `catalog`로 바꿨다.**
+   직접 견적 작성이 마법사가 되면서 그 목록(`adhocList`)이 화면에서 없어졌다 —
+   거기서 재면 **없는 화면을 재는 검사**가 된다(늘 0줄이라 통과도 안 된다).
+   ⚠ **지키려던 규칙은 그대로다** — 「작성중은 지우고 확정·판매중은 내린다」는
+     종류와 무관하게 `pkgDrawList`가 상태로 정한다. 살아 있는 목록(패키지 상품)에서 재다. */
 const FIXTURE = [
-  { id: 'adhoc-260908-aa', kind: 'adhoc', title: '김보균님 오키나와', status: 'draft',
+  { id: 'adhoc-260908-aa', kind: 'catalog', title: '김보균님 오키나와', status: 'draft',
     pricePerPerson: 1190000, customerLabel: '김보균님 4명', destLabel: '오키나와' },
-  { id: 'adhoc-260908-bb', kind: 'adhoc', title: '○○교회 보홀', status: 'open',
+  { id: 'adhoc-260908-bb', kind: 'catalog', title: '○○교회 보홀', status: 'open',
     pricePerPerson: 1450000, customerLabel: '○○교회 20명', destLabel: '보홀' },
-  { id: 'adhoc-260908-cc', kind: 'adhoc', title: '지난 건 세부', status: 'closed',
+  { id: 'adhoc-260908-cc', kind: 'catalog', title: '지난 건 세부', status: 'closed',
     pricePerPerson: 990000, customerLabel: '세부 12명', destLabel: '세부' },
 ];
 
@@ -94,7 +99,7 @@ function run() {
   w.eval('pkgAll = ' + JSON.stringify(FIXTURE) + '; pkgDrawList();');
 
   console.log('\n[1] 삭제 버튼은 **작성중에만** 붙는다');
-  const rows = rowsOf('adhocList');
+  const rows = rowsOf('pkgList');
   if (rows.length !== 3) {
     fail++;
     console.log('  ✗ ① 목록에 3줄이 그려졌다 → 실제 ' + rows.length + ' — 아래는 의미가 없어 멈춘다');
@@ -117,8 +122,11 @@ function run() {
      확정 건에 삭제를 달지 않는 것은 견적서 대장이 지우지 않고 `void`로 내리는 것과
      같은 규칙이다 — 지우면 「우리가 그 값을 낸 적 있다」가 사라진다. */
   ok('⑧ 확정에는 삭제가 없고 내리기가 있다', has[1] === false && !!closeBtn[1]);
-  ok('⑧ 직접견적에서는 「종료」라고 부른다',
-    !!closeBtn[1] && closeBtn[1].textContent.trim() === '종료',
+  /* ⚠ 2026-09-17: 허구를 catalog로 옮기면서 **이름도 그쪽 것**이 된다.
+     패키지 상품은 「내리기」(→ 마감), 직접견적은 「종료」였다 —
+     직접견적 목록이 화면에서 없어졌으니 여기서는 살아 있는 쪽을 잰다. */
+  ok('⑧ 패키지 상품에서는 「내리기」라고 부른다',
+    !!closeBtn[1] && closeBtn[1].textContent.trim() === '내리기',
     closeBtn[1] && closeBtn[1].textContent);
   ok('⑧ 종료·마감에는 아무것도 안 준다', has[2] === false && !closeBtn[2]);
   ok('⑧ 작성중에는 내리기가 없다 — 지우는 게 맞다', !closeBtn[0]);
@@ -140,7 +148,7 @@ function run() {
     ok('③ 무엇을 지우는지 **이름을 넣어** 물었다',
       typeof asked === 'string' && asked.includes('김보균님 오키나와'), String(asked));
     ok('③ 되돌릴 수 없다고 말했다', typeof asked === 'string' && /되돌릴 수 없습니다/.test(asked));
-    ok('② 취소하면 줄이 그대로다', rowsOf('adhocList').length === 3);
+    ok('② 취소하면 줄이 그대로다', rowsOf('pkgList').length === 3);
   }
 
   console.log('\n[3] 목록이 낡았을 때 — 코드가 한 번 더 막는다');
@@ -164,7 +172,7 @@ function run() {
     closeBtn[1].click();
     ok('⑨ 편집 카드가 안 열렸다', !card || card.style.display === 'none');
     ok('⑨ 무엇을 어떤 상태로 바꾸는지 말한다',
-      typeof asked === 'string' && asked.includes('○○교회 보홀') && asked.includes('종료'), String(asked));
+      typeof asked === 'string' && asked.includes('○○교회 보홀') && asked.includes('마감'), String(asked));
     ok('⑨ 되돌릴 수 있다고 말한다', typeof asked === 'string' && /되돌릴 수 있습니다/.test(asked));
     /* ⚠ 확인 창은 **글자 그대로** 보인다 — 마크다운 표기가 새면 별표가 그대로 뜬다.
        실제로 한 번 새어 나갔고 브라우저로 눌러 보다 잡았다. */

@@ -110,8 +110,11 @@ console.log('\n[3] 🔴 1회용 견적은 관리자만 만들고 관리자만 �
     /=== 'adhoc'\)[\s\S]{0,200}requireAdmin/.test(SHARES));
   ok('③ 왜 감추는 것만으로 부족한지가 적혀 있다',
     /노출 방지지 접근 통제가 아니다/.test(SHARES + LIB));
-  ok('③ 화면도 매니저 이상에게만 버튼을 보인다',
-    /pkgNewAdhoc/.test(ADMIN) && /btnNewAdhoc[\s\S]{0,120}isManagerUp/.test(ADMIN));
+  /* 🔴 **2026-09-17: 감추는 자리가 바뀌었다.** 직접 견적 작성이 마법사가 되면서
+     「+ 직접견적」 버튼이 없어졌다 — 이제 **메뉴 자체**를 감춘다(위 [10]이 잰다).
+     ⚠ 옛 버튼(`pkgNewAdhoc`)을 계속 찾으면 **늘 ✗**라 이 검사를 아무도 안 보게 된다. */
+  ok('③ 화면도 매니저 이상에게만 보인다',
+    /navAdhoc[\s\S]{0,140}isManagerUp/.test(ADMIN));
 }
 
 console.log('\n[4] 항목의 합이 이긴다 — 일부러 어긋나게 넣어 본다');
@@ -240,6 +243,28 @@ console.log('\n[9] 기존 방어선이 살아 있다 — 이번 변경으로 안
 console.log('\n' + '─'.repeat(64));
 /* ⚠ 「결과:」로 시작해야 `run_all_tests.js`가 집계한다 — 이 접두어가 없으면
    스위트가 **크래시로 세고**, 그 파일의 pass는 합계에 들어가지 않는다. */
+
+console.log('\n[10] 🔴 직접 견적은 여전히 매니저 이상이다 — 화면이 바뀌어도');
+/* 🔴 **2026-09-17에 이 통제가 한 번 사라졌다.** 직접 견적 작성이 마법사가 되면서
+     저장 경로가 `content.js`(패키지)에서 `api/quotes.js`(?action=internal)로 옮겨 갔는데,
+     **검문이 같이 따라오지 않았다.** `requireAdmin`은 「로그인한 직원 누구나」라서
+     그대로 뒀으면 직원이 **엔진 검증 없는 금액을 고객에게** 낼 수 있었다.
+   ⚠ 2026-08-24 대표 결정이다 — 화면을 옮길 때 그 화면이 지나던 검문도 같이 옮긴다. */
+const quotesApi = fs.readFileSync(path.join(ROOT, 'api', 'quotes.js'), 'utf8');
+const internalBlock = quotesApi.match(/action === 'internal'[\s\S]{0,900}?\n  \}/);
+ok('⑩ ?action=internal 분기를 찾았다', !!internalBlock);
+if (internalBlock) {
+  ok('⑩ 직접 견적 저장은 매니저 이상만',
+    /basis === 'adhoc'/.test(internalBlock[0])
+    && /\['owner', 'manager'\]/.test(internalBlock[0])
+    && /adhoc_requires_manager/.test(internalBlock[0]),
+    '직원이 엔진 검증 없는 금액을 고객에게 낼 수 있다');
+}
+/* ⚠ 화면 쪽도 본다 — 서버만 막으면 직원은 **다 적고 저장 단계에서야** 거절당한다. */
+ok('⑩ 화면이 메뉴를 감춘다(들어가기 전에)',
+  /navAdhoc[\s\S]{0,140}toggle\('hidden', !isManagerUp\)/.test(ADMIN),
+  '들어가서 다 적은 뒤에 403을 만난다');
+
 console.log(`결과: ${pass} pass / ${fail} fail  — VS 소규모 1회용 견적`);
 process.exit(fail ? 1 : 0);
 

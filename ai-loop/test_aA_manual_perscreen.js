@@ -74,33 +74,31 @@ ok('비교표(#which-screen)가 있다', manual.includes('id="which-screen"'));
 ok('칸별 안내(#fields)가 있다', manual.includes('id="fields"'));
 ok('직접 견적 절이 비교표로 안내한다', manual.includes('href="#which-screen"'));
 
-console.log('\n[6] 상태 이름이 화면과 매뉴얼에서 같은가');
-/* 🔴 **매뉴얼이 화면과 어긋나 있었다**(2026-09-17 대표 지적). 직접 견적 절이
-     「판매중」이라고 적혀 있었는데 화면은 「확정」이라고 말한다 — 같은 값(open)을
-     두 화면이 **다른 이름**으로 부르기 때문이다(`admin/packages.js`가 종류에 따라
-     라벨을 바꾼다). 매뉴얼만 옛 이름에 멈춰 있었다.
-   ⚠ 값(draft/open/closed)이 아니라 **사람이 읽는 이름**을 대조한다. 값은 서버가
-     보고 이름은 사람이 본다 — 어긋나는 것은 늘 이름 쪽이다. */
-const pkgjs = fs.readFileSync(path.join(ROOT, 'admin', 'packages.js'), 'utf8');
-const adhocLbl = pkgjs.match(/kind === 'adhoc'\s*\n?\s*\?\s*\{([^}]*)\}/);
-ok('화면이 직접견적용 상태 이름을 따로 쓴다', !!adhocLbl,
-   'admin/packages.js에서 라벨을 바꾸는 표가 사라졌다');
+console.log('\n[6] 직접 견적 작성 절이 지금 화면과 같은가');
+/* 🔴 **2026-09-17에 이 검사의 대상이 통째로 바뀌었다.** 예전엔 `admin/packages.js`의
+     adhoc 상태 라벨(「확정 (견적서 발급 가능)」 등)을 매뉴얼과 대조했다.
+     그런데 직접 견적 작성이 **마법사**가 되면서 그 목록·모달 경로를 걷어냈고,
+     그 라벨은 **화면에서 닿을 길이 없어졌다.** 계속 대조하면 매뉴얼에 **쓰면 안 되는
+     말을 쓰라고 요구**하게 된다 — 자가 화면을 거꾸로 끌고 가는 자리다.
+   → 이제 **새 흐름**을 잰다. */
 const adhocSec = manual.match(/<section id="adhoc">([\s\S]*?)<\/section>/);
 ok('매뉴얼에 직접 견적 절이 있다', !!adhocSec);
-if (adhocLbl && adhocSec) {
-  const names = [...adhocLbl[1].matchAll(/'([^']*)'/g)].map((m) => m[1]);
-  const text = adhocSec[1].replace(/<[^>]+>/g, '');
-  for (const n of names) {
-    ok('매뉴얼이 「' + n + '」을 그대로 쓴다', text.includes(n),
-       '화면은 이렇게 말하는데 매뉴얼엔 없다 — 직원이 화면에서 못 찾는다');
+if (adhocSec) {
+  const t = adhocSec[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  ok('5단계 마법사라고 말한다', /5단계|다섯 단계/.test(t),
+     '목록·모달 시절 설명이 남아 있으면 직원이 없는 버튼을 찾는다');
+  ok('「금액 입력 시작」 버튼을 말한다', t.includes('금액 입력 시작'));
+  ok('엔진을 안 탄다고 말한다', /엔진을 안 탑?니다|엔진을 안 타/.test(t));
+  ok('매니저 이상이라고 말한다', t.includes('매니저 이상'));
+  ok('저장 뒤 어디로 가는지 말한다', t.includes('견적 요청 관리'),
+     '저장하고 나서 어디서 발급하는지 모르면 거기서 멈춘다');
+  ok('비교표로 가는 길이 있다', adhocSec[1].includes('href="#which-screen"'));
+  /* 🔴 **없어진 경로를 설명하면 안 된다.** 직원이 없는 버튼을 찾아 헤맨다. */
+  for (const 옛말 of ['+ 직접 견적 작성', '「판매중」으로']) {
+    ok('없어진 「' + 옛말 + '」을 안 쓴다', !t.includes(옛말),
+       '그 버튼은 화면에 없다');
   }
-  /* 패키지 쪽 이름을 직접견적 절에서 **설명 없이** 쓰면 안 된다.
-     ⚠ 「판매중」은 두 화면을 견주는 표에서는 나와야 한다 — 그래서 표가 있는지로 가른다. */
-  ok('직접견적 절이 「판매중」을 설명 없이 쓰지 않는다',
-     !text.includes('판매중') || text.includes('같은 상태가 화면마다 다른 이름으로'),
-     '패키지 쪽 이름이 설명 없이 섞여 있다');
 }
-
 
 console.log('\n[7] 대장의 개정 버튼 설명이 화면과 같은가');
 /* 🔴 **대표가 「개정 아님으로가 무슨 뜻이냐」고 물었다**(2026-09-17). 매뉴얼에 그 말이

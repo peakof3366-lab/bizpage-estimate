@@ -83,9 +83,28 @@ ok('[3] 내부직원용 패널이 iframe 하나로 끝난다',
 ok('[3-b] 그 패널에 입력칸을 만들지 않았다',
   !!panel && panel.querySelectorAll('input,select,textarea').length === 0,
   panel ? '입력칸 ' + panel.querySelectorAll('input,select,textarea').length + '개' : '');
-/* 새 화면이 admin.html을 얼마나 키웠는지 — 비대해진 파일에 안 넣었다는 것의 실측 */
-ok('[3-c] admin.html이 크게 안 늘었다 (신규 화면분 40줄 이내)',
-  (ADMIN.match(/quotepro|renderQuotePro|quoteProFrame|admin-quote-pro/g) || []).length <= 12);
+/* 새 화면이 admin.html을 얼마나 키웠는지 — 비대해진 파일에 안 넣었다는 것의 실측
+   🔴 **2026-09-17: 12 → 16으로 올렸다.** 직접 견적 작성 탭도 **같은 iframe 방식**이 되면서
+     같은 낱말(`admin-quote-pro`)을 쓰기 때문이다. 숫자를 깎아 통과시킨 것이 아니다 —
+     그날 admin.html은 오히려 **12줄 줄었다**(40 추가 / 52 삭제, 목록·모달을 걷어냄).
+   ⚠ 이 줄은 **대리 지표**다. 진짜 방어선은 아래 [3]·[3-b]와 [3-d]다 —
+     「패널이 iframe 하나로 끝나는가」·「입력칸을 안 만들었는가」를 직접 본다. */
+ok('[3-c] admin.html이 크게 안 늘었다 (같은 낱말 16개 이내)',
+  (ADMIN.match(/quotepro|renderQuotePro|quoteProFrame|admin-quote-pro/g) || []).length <= 16);
+
+/* 🔴 **직접 견적 작성도 같은 규칙을 지키는가** (2026-09-17 대표 지시로 마법사가 됐다).
+   [3]·[3-b]가 자동 견적 산출에 거는 것과 **똑같은 자**를 직접 견적에도 건다 —
+   한쪽만 지키면 다음에 화면을 거기 다시 그리게 된다. */
+const adhocPanel = D.getElementById('tab-adhoc');
+ok('[3-d] 직접 견적 패널도 iframe 하나로 끝난다',
+  !!adhocPanel && adhocPanel.querySelectorAll('iframe').length === 1,
+  adhocPanel ? 'iframe ' + adhocPanel.querySelectorAll('iframe').length + '개' : '패널이 없다');
+ok('[3-e] 직접 견적 패널에 입력칸을 만들지 않았다',
+  !!adhocPanel && adhocPanel.querySelectorAll('input,select,textarea').length === 0,
+  adhocPanel ? '입력칸 ' + adhocPanel.querySelectorAll('input,select,textarea').length + '개' : '');
+ok('[3-f] 직접 견적은 직접 입력 모드로 연다',
+  /adhocFrame[\s\S]{0,400}?mode=adhoc|mode=adhoc/.test(ADMIN),
+  '?mode=adhoc이 없으면 엔진이 도는 화면이 열린다');
 
 /* ═══ ④ 스크립트 순서 — mount가 script.js보다 먼저 ═══ */
 const iMount = PRO.indexOf('QuoteEngineHost.mount()');

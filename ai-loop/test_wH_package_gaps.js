@@ -105,14 +105,12 @@ function run() {
       !!rows[0].querySelector('.pkg-gap') && !!rows[2].querySelector('.pkg-gap.is-ok'));
   }
 
-  console.log('\n[2] 🔴 소규모 견적에는 안 붙인다 — 없는 게 정상이라 늘 켜지면 아무도 안 본다');
-  {
-    const a = rowsIn('adhocList');
-    ok('② 소규모 1건이 그려졌다', a.length === 1);
-    ok('② 「일정 없음」이 안 붙는다',
-      !a[0].textContent.includes('일정 없음') && !a[0].textContent.includes('포함사항 없음'));
-    ok('② 「팔 준비됨」도 안 붙는다', !a[0].textContent.includes('팔 준비됨'));
-  }
+/* 🔴 **2026-09-17: 소규모 견적 목록이 화면에서 없어졌다**(대표 지시 — 직접 견적
+   작성이 마법사가 됐다). 그래서 「소규모에는 안 붙인다」를 재던 줄들을 걷어냈다 —
+   **없는 화면을 재는 검사는 늘 빈 결과를 돌려줘 아무것도 지키지 못한다.**
+   ⚠ 규칙 자체는 살아 있다 — `pkgDrawOne`이 `view.kind === 'catalog'`일 때만 채움
+     필터를 보고, `pkgSyncNotes`도 `kind === 'adhoc'`이면 간격 안내를 안 띄운다.
+     그 분기는 소스에 그대로 있고, 다만 화면에서 닿을 길이 없어졌을 뿐이다. */
 
   console.log('\n[3] 목록 전체의 모양을 스크롤 전에 한 줄로 말한다');
   {
@@ -154,10 +152,6 @@ function run() {
     setSel('pkgFilterGap', '');
     draw();
     ok('④ 필터를 풀면 3건으로 돌아온다', rowsIn('pkgList').length === 3);
-    /* 소규모 목록은 채움 필터에 흔들리지 않는다 */
-    setSel('pkgFilterGap', 'ready');
-    ok('④ 소규모 목록은 그대로 1건', rowsIn('adhocList').length === 1);
-    setSel('pkgFilterGap', '');
   }
 
   console.log('\n[5] 덜 채워진 채로 「판매중」이 되는 것을 편집 칸이 미리 말한다');
@@ -185,10 +179,6 @@ function run() {
     incl.value = '왕복 항공권\n호텔 3박';
     incl.dispatchEvent(new w.Event('input', { bubbles: true }));
     ok('⑤ 둘 다 채우면 안내가 사라진다', gn.classList.contains('hidden'));
-
-    /* 소규모 견적에는 이 안내가 안 뜬다 */
-    rowsIn('adhocList')[0].click();
-    ok('⑤ 소규모 견적에는 안 뜬다', d.getElementById('pkgGapNote').classList.contains('hidden'));
   }
 
   console.log('\n[6] 사진은 「팔 준비」의 조건이 아니다');

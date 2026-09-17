@@ -1112,6 +1112,16 @@ module.exports = async (req, res) => {
      복사하면 두 벌이 어긋난다(이 저장소가 여러 번 겪은 유형). */
   if (action === 'internal' && req.method === 'POST') {
     if (!(await requireAdmin(req, res))) return;
+    /* 🔴 **직접 견적(엔진을 안 탄 값)은 매니저 이상만 낼 수 있다** (2026-08-24 대표 결정).
+       엔진 검증을 거치지 않은 금액이 그대로 고객에게 나가므로 권한이 곧 통제다.
+       ⚠ 2026-09-17에 직접 견적 작성이 마법사가 되면서 저장 경로가
+         `content.js`(패키지)에서 여기로 옮겨 왔는데, **이 검문이 같이 안 따라왔었다** —
+         그대로 뒀으면 직원이 검증 없는 금액을 고객에게 낼 수 있었다.
+         화면을 옮길 때는 **그 화면이 지나던 검문도 같이 옮긴다.** */
+    if (req.body && req.body.basis === 'adhoc'
+        && !['owner', 'manager'].includes(req.user && req.user.role)) {
+      return res.status(403).json({ error: 'adhoc_requires_manager' });
+    }
     return saveQuote(req, res, { channel: 'internal', createdBy: req.user.displayName || '' });
   }
 

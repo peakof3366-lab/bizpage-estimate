@@ -728,6 +728,23 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     { n: 4, sec: 'secIti',   name: '일정' },
     { n: 5, sec: 'secPrev',  name: '미리보기 · 발급' },
   ];
+  /* 🔴 **직접 입력 모드에서는 단계 이름도 바꿈**(2026-09-17 대표 지시).
+     안 바꾸면 화면이 스스로 어긋난 말을 한다 — 본문은 「여행 정보」인데 위 단계는
+     「여행 조건」, 버튼은 「금액 입력 시작」인데 단계는 「금액 **조정**」이었다.
+     직접 입력에는 **조정할 자동값이 없다.**
+     ⚠ STEPS 선언 **뒤**에 둔다 — 앞에 두면 `const` 시간사각지대로 터진다(한 번 틀렸다). */
+  if (ADHOC) {
+    STEPS[0].name = '여행 정보';
+    STEPS[1].name = '금액 입력';
+    const 다시적기 = { '다음: 금액 조정 →': '다음: 금액 입력 →',
+                       '← 이전: 금액 조정': '← 이전: 금액 입력',
+                       '← 이전: 여행 조건': '← 이전: 여행 정보' };
+    document.querySelectorAll('button').forEach((b) => {
+      const t = (b.textContent || '').trim();
+      if (다시적기[t]) b.textContent = 다시적기[t];
+    });
+  }
+
   let curStep = 1;
   let unlocked = false;
 

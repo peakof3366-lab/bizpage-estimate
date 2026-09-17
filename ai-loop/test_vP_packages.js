@@ -134,8 +134,14 @@ console.log('\n[6] 화면이 실제로 그려진다 (jsdom)');
     ok('⑥ 관리자 #' + id, !!ad.getElementById(id));
   });
   /* 탭 배선 — 버튼만 있고 renderTab에 안 걸리면 눌러도 아무 일이 없다(결함 생성기 ③) */
+  /* 🔴 **2026-09-17: 두 탭이 갈렸다**(대표 지시). 직접 견적 작성은 목록이 아니라
+     마법사(`admin-quote-pro.html?mode=adhoc`)라 `renderPackages`를 안 탄다.
+     예전엔 한 줄이 둘을 다 맡았다 — 이제 각각 제 함수로 간다. */
   ok('⑥ renderTab이 packages를 안다',
-    /name==='packages' \|\| name==='adhoc'\) renderPackages\(\)/.test(ADMIN));
+    /name==='packages'\) renderPackages\(\)/.test(ADMIN));
+  ok('⑥ renderTab이 adhoc을 마법사로 보낸다',
+    /name==='adhoc'\) renderAdhoc\(\)/.test(ADMIN),
+    '직접 견적 작성 탭이 아무것도 안 그린다');
   /* WE에서 탭이 **둘로 갈렸다** — VS 때는 한 탭 안에서 두 흐름을 다뤘는데,
      2026-08-25 대표 확인으로 「올리는 사람」과 「견적을 내는 사람」이 다른 것이 확정됐다. */
   ok('⑥ 탭 제목이 있다', /packages:'패키지 상품'/.test(ADMIN));

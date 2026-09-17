@@ -119,106 +119,56 @@ function run() {
   ok('② 문서 전체에 pkgEditCard가 하나', d.querySelectorAll('#pkgEditCard').length === 1);
   ok('② 20칸을 복사하지 않았다(pkgPrice·pkgAsOf도 하나씩)',
     d.querySelectorAll('#pkgPrice').length === 1 && d.querySelectorAll('#pkgAsOf').length === 1);
-  ok('② 두 탭에 카드가 들어올 자리가 있다',
-    !!d.getElementById('pkgHostCatalog') && !!d.getElementById('pkgHostAdhoc'));
+  /* 🔴 **2026-09-17: 「소규모 견적」 탭이 목록을 버리고 마법사가 됐다**(대표 지시).
+     그래서 아래 [3]~[10]에 있던 **두 목록 세계**의 검사를 걷어냈다 —
+     `adhocList`·`adhocFilterStatus`·`pkgHostAdhoc`이 화면에 없으니 그걸 재던 줄은
+     **늘 빈 결과를 돌려줘 아무것도 지키지 못한다.**
 
-  console.log('\n[3] 두 목록이 서로의 종류를 안 보여준다');
+     ⚠ **이 검사가 지키던 결정은 그대로 살아 있다.** 2026-08-25 대표 확인 —
+       「견적서를 취합해서 올리는 사람」과 「견적을 내는 사람」은 다른 사람이다.
+       그 갈림은 오히려 **더 뚜렷해졌다**: 한쪽은 목록(패키지 상품), 다른 쪽은
+       마법사(직접 견적 작성)로 화면 자체가 다르다. 위 [1]이 그것을 잰다.
+     ⚠ 새 화면 쪽(패널이 iframe 하나인가·입력칸을 안 만들었는가·`?mode=adhoc`인가)은
+       `test_zQ_quote_pro.js`의 [3-d]·[3-e]·[3-f]가 잰다 — 두 곳에서 재지 않는다. */
+  console.log('\n[3] 직접 견적 작성은 이제 **마법사**다 — 목록·모달이 아니다');
+  ok('③ 패널에 목록이 없다', !d.getElementById('adhocList'));
+  ok('③ 패널에 카드 자리가 없다', !d.getElementById('pkgHostAdhoc'));
+  ok('③ 「+ 직접견적」 버튼이 없다', !d.getElementById('pkgNewAdhoc'));
+  /* 🔴 **새로 만들 길까지 닫았는가.** 편집 모달에 「직접견적」 종류가 남아 있으면
+     고르는 순간 **어느 목록에도 안 나오는 기록**이 생긴다(만든 사람은 사라졌다고 읽는다). */
+  const kindSel = d.getElementById('pkgKind');
+  ok('③ 패키지 편집에서 「직접견적」을 새로 못 만든다',
+    !!kindSel && !Array.from(kindSel.options).some((o) => o.value === 'adhoc'),
+    '보이지 않는 기록이 생긴다');
+
+  console.log('\n[4] 패키지 상품 목록은 그대로다 — 썸네일로 훑는다');
   w.eval('pkgAll = ' + JSON.stringify(FIXTURE) + '; pkgDrawList();');
-  const pkgRows = d.querySelectorAll('#pkgList .pkg-row');
-  const adhocRows = d.querySelectorAll('#adhocList .pkg-row');
-  ok('③ 상품 목록에 상품 2건', pkgRows.length === 2, '실제 ' + pkgRows.length);
-  ok('③ 소규모 목록에 견적 2건', adhocRows.length === 2, '실제 ' + adhocRows.length);
-  const pkgText = d.getElementById('pkgList').textContent;
-  const adhocText = d.getElementById('adhocList').textContent;
-  ok('③ 상품 목록에 소규모 견적이 안 섞인다', !pkgText.includes('김보균님'));
-  ok('③ 소규모 목록에 상품이 안 섞인다', !adhocText.includes('오키나와 3박4일'));
-  /* 상태 라벨은 종류마다 뜻이 갈린다(VU) — 목록에서도 각자 말을 써야 한다 */
-  ok('③ 상품은 「판매중」, 소규모는 「확정」이라고 부른다',
-    pkgText.includes('판매중') && adhocText.includes('확정') && !adhocText.includes('판매중'));
-
-  console.log('\n[4] 썸네일 — 30건을 훑어 고르는 일이라 이름만으로는 안 골라진다');
+  const pkgRows2 = d.querySelectorAll('#pkgList .pkg-row');
+  ok('④ 상품 목록에 상품 2건', pkgRows2.length === 2, '실제 ' + pkgRows2.length);
+  ok('④ 상품 목록에 소규모 견적이 안 섞인다',
+    !d.getElementById('pkgList').textContent.includes('김보균님'));
   ok('④ 사진이 있는 상품에 썸네일이 붙는다', !!d.querySelector('#pkgList img.pkg-thumb'));
-  /* ⚠ **사진이 없어도 자리를 남긴다.** 있는 줄만 넓어지면 목록이 들쭉날쭉해서 눈이 걸린다 */
+  /* ⚠ **사진이 없어도 자리를 남긴다.** 있는 줄만 넓어지면 목록이 들쭉날쭉해 눈이 걸린다 */
   ok('④ 사진이 없어도 자리가 남는다', !!d.querySelector('#pkgList .pkg-thumb-none'));
-  ok('④ 소규모 견적에는 썸네일 열 자체가 없다',
-    !d.querySelector('#adhocList .pkg-thumb') && !d.querySelector('#adhocList .pkg-thumb-none')
-    && !!d.querySelector('#adhocList .pkg-row--nothumb'));
 
-  console.log('\n[5] 목록에서 고르면 카드가 **그 탭으로** 옮겨 온다');
-  d.querySelectorAll('#adhocList .pkg-row')[0].click();
-  ok('⑤ 소규모를 고르면 카드가 소규모 탭에 들어간다',
-    d.getElementById('pkgEditCard').parentNode.id === 'pkgHostAdhoc');
-  ok('⑤ 그때 편집 칸이 열린다', d.getElementById('pkgEditCard').style.display !== 'none');
+  console.log('\n[5] 고르면 카드가 상품 탭으로 들어온다');
   d.querySelectorAll('#pkgList .pkg-row')[0].click();
-  ok('⑤ 상품을 고르면 카드가 상품 탭으로 옮겨 온다',
+  ok('⑤ 카드가 상품 탭에 들어간다',
     d.getElementById('pkgEditCard').parentNode.id === 'pkgHostCatalog');
-  /* 🔴 옮기고 나서 **카드가 하나로 남아 있어야** 한다 — appendChild가 복사가 아니라
-     이동인지를 직접 잰다. 복사였다면 여기서 2개가 된다. */
+  ok('⑤ 그때 편집 칸이 열린다', d.getElementById('pkgEditCard').style.display !== 'none');
+  /* 🔴 appendChild가 **복사가 아니라 이동**인지 직접 잰다 — 복사였다면 2개가 된다 */
   ok('⑤ 옮긴 뒤에도 카드는 하나다', d.querySelectorAll('#pkgEditCard').length === 1);
 
-  console.log('\n[6] 그 일에 안 쓰는 칸은 감춘다 — 폼 20칸에서 쓰는 칸을 찾게');
-  /* 지금은 상품(catalog)이 열려 있다 */
-  ok('⑥ 상품에는 사진·공급사코드가 보인다',
-    !fieldHidden('pkgImage') && !fieldHidden('pkgSourceCode'));
-  ok('⑥ 상품에는 「고객 표시」가 안 보인다', fieldHidden('pkgCustomer'));
-  d.querySelectorAll('#adhocList .pkg-row')[0].click();
-  ok('⑥ 소규모에는 「고객 표시」가 보인다', !fieldHidden('pkgCustomer'));
-  ok('⑥ 소규모에는 사진·공급사코드가 안 보인다',
-    fieldHidden('pkgImage') && fieldHidden('pkgSourceCode'));
+  console.log('\n[6] 탭이 곧 종류다 — 종류 필터는 없앴다');
+  ok('⑥ 종류 필터가 없다', !d.getElementById('pkgFilterKind'));
+  ok('⑥ 상품 탭에 자기 상태 필터가 있다', !!d.getElementById('pkgFilterStatus'));
 
-  console.log('\n[7] 🔴 **감춘 것과 비운 것은 다르다** — 값까지 지우면 되돌릴 수 없다');
-  /* 소규모가 열린 상태에서 사진 칸(지금 감춰져 있다)에 값을 넣고, 종류를 상품으로
-     되돌렸을 때 그 값이 살아 있는지 본다. 감추면서 지우면 담당자가 종류를 잘못 골랐다
-     되돌릴 때 적어 둔 값이 사라진다(VS에서 세운 규칙). */
-  d.getElementById('pkgImage').value = 'https://image.example.com/keep.jpg';
-  const kindSel = d.getElementById('pkgKind');
-  kindSel.value = 'catalog';
-  kindSel.dispatchEvent(new w.Event('change', { bubbles: true }));
-  ok('⑦ 종류를 바꾸면 감췄던 칸이 다시 보인다', !fieldHidden('pkgImage'));
-  ok('⑦ 감춰져 있던 동안에도 값은 그대로다',
-    d.getElementById('pkgImage').value === 'https://image.example.com/keep.jpg');
-
-  console.log('\n[8] 권한 — 버튼을 조용히 감추지 않는다');
-  /* ⚠ 매니저가 아니면 「+ 소규모 견적」이 사라진다. 탭이 통째로 「소규모 견적」이 된
-     지금, 버튼만 없애면 직원에게는 **빈 화면**만 남아 고장으로 읽힌다(결함 생성기 ②). */
-  w.eval("currentUser = { role: 'staff' }; applyRolePermissionsToUI();");
-  ok('⑧ 직원에게는 만들기 버튼이 안 보인다', hidden('pkgNewAdhoc'));
-  ok('⑧ 대신 왜 못 만드는지를 화면이 말한다', !hidden('adhocGate'));
-  ok('⑧ 이미 만들어진 건은 열 수 있다고 말한다',
-    (d.getElementById('adhocGate').textContent || '').includes('견적서를 발급'));
-  w.eval("currentUser = { role: 'manager' }; applyRolePermissionsToUI();");
-  ok('⑧ 매니저에게는 버튼이 보이고 안내가 사라진다',
-    !hidden('pkgNewAdhoc') && hidden('adhocGate'));
-
-  console.log('\n[9] 탭이 곧 종류다 — 종류 필터는 없앴다');
-  /* 남겨 두면 「소규모 견적」 탭에서 종류를 「패키지 상품」으로 골라 **빈 목록**을 보는
-     상태가 만들어진다. 각 탭은 자기 상태 필터만 갖는다. */
-  ok('⑨ 종류 필터가 없다', !d.getElementById('pkgFilterKind'));
-  ok('⑨ 탭마다 자기 상태 필터가 있다',
-    !!d.getElementById('pkgFilterStatus') && !!d.getElementById('adhocFilterStatus'));
-  /* 실제로 걸러지는지 — 소규모 쪽만 「확정」으로 좁히고 상품 목록이 안 흔들리는지 본다 */
-  const af = d.getElementById('adhocFilterStatus');
-  af.value = 'open';
-  af.dispatchEvent(new w.Event('change', { bubbles: true }));
-  ok('⑨ 소규모 필터가 자기 목록만 좁힌다',
-    d.querySelectorAll('#adhocList .pkg-row').length === 1
-    && d.querySelectorAll('#pkgList .pkg-row').length === 2);
-  /* 소규모 상태 필터의 말도 그 종류의 말이어야 한다 */
-  ok('⑨ 소규모 필터가 「확정」이라고 부른다',
-    Array.from(af.options).some(o => o.textContent.trim() === '확정')
-    && !Array.from(af.options).some(o => o.textContent.trim() === '판매중'));
-
-  console.log('\n[10] 하는 순서가 화면에 그려져 있다');
-  /* 대표가 「어떻게 써야 할지 모르겠다」고 한 자리다 — 저장과 발급 사이에 「확정으로
-     바꾼다」가 숨어 있어서 어디까지 했는지가 안 보였다. */
-  const advSteps = d.querySelectorAll('#tab-adhoc .pkg-steps li');
-  const pkgSteps = d.querySelectorAll('#tab-packages .pkg-steps li');
-  ok('⑩ 두 탭 모두 순서가 3단계로 적혀 있다',
-    advSteps.length === 3 && pkgSteps.length === 3);
-  const advText = d.getElementById('tab-adhoc').textContent;
-  ok('⑩ 소규모 순서가 「확정」 단계를 빠뜨리지 않는다',
-    advText.includes('확정') && advText.includes('견적서 만들기'));
-  ok('⑩ 상품 순서가 「판매중」 단계를 빠뜨리지 않는다',
+  console.log('\n[7] 하는 순서가 화면에 그려져 있다');
+  /* 대표가 「어떻게 써야 할지 모르겠다」고 한 자리다. 상품 쪽은 그대로 3단계고,
+     직접 견적 쪽은 **마법사의 5단계 막대**가 그 일을 한다(`admin-quote-pro.html`). */
+  ok('⑦ 상품 순서가 3단계로 적혀 있다',
+    d.querySelectorAll('#tab-packages .pkg-steps li').length === 3);
+  ok('⑦ 상품 순서가 「판매중」 단계를 빠뜨리지 않는다',
     d.getElementById('tab-packages').textContent.includes('판매중'));
 
   done();
