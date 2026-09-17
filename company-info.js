@@ -8,7 +8,11 @@
    `window.COMPANY_INFO || {}` + 기존 하드코딩 문자열 폴백 방식으로 읽으므로
    이 파일이 없어도 기존과 동일하게 동작함(에러 없음).
    ══════════════════════════════════════════════════════════════════ */
-window.COMPANY_INFO = {
+/* ⚠ 2026-09-17: 서버도 이 값을 읽어야 한다(고객이 직접 뽑은 견적도 새 양식으로
+   나가면서, 불포함내역을 **문서에 직접 싣게** 됐다). 그런데 이 파일은 `window`에만
+   붙어 Node에서 `require` 하면 터졌다. → **양쪽에 내보낸다.**
+   🔴 값을 한 줄도 안 바꿨다 — 담는 방식만 달라졌다(불포함내역의 진실은 여전히 여기다). */
+const COMPANY_INFO = {
   brand:          '비즈페이지',
   legalName:      '(주)하나이엔비티',
   ceo:            '박재규',
@@ -52,10 +56,20 @@ window.COMPANY_INFO = {
    사후정산」을 약속할지는 **실거래 조건**이라 지어내지 않았다. 정해지면 여기 한 줄씩
    더하면 두 문서에 동시에 반영된다.
    ══════════════════════════════════════════════════════════════════ */
-window.QUOTE_EXCLUDED = [
+const QUOTE_EXCLUDED = [
   '여권 발급비 · 비자 수수료',
   '개인 경비 (기념품 · 쇼핑 등)',
   '식사 시 주류 · 음료 비용',
   '초과 수하물 요금',
   '일정에 없는 개인 활동 비용',
 ];
+
+/* 브라우저에서는 지금까지처럼 `window.COMPANY_INFO`·`window.QUOTE_EXCLUDED`로 읽는다.
+   ⚠ 그 이름을 바꾸지 않는다 — 읽는 곳이 여럿 곳이다(script.js·estimate-view·admin …). */
+if (typeof window !== 'undefined') {
+  window.COMPANY_INFO = COMPANY_INFO;
+  window.QUOTE_EXCLUDED = QUOTE_EXCLUDED;
+}
+if (typeof module === 'object' && module.exports) {
+  module.exports = { COMPANY_INFO, QUOTE_EXCLUDED };
+}

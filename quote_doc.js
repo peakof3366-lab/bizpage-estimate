@@ -512,9 +512,129 @@
     </article>`;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     표준 문구 — **한 곳** (2026-09-17)
+     ───────────────────────────────────────────────────────────────────────
+     대표 결정: 고객이 직접 뽑은 견적도 **이 양식으로 통일**한다.
+     그런데 이 양식의 「상세 내용」은 사람이 적는 칸이라, 고객 직접 건은 적을 사람이 없다.
+     비워 두면 **항목이 통째로 빠져** 3줄짜리 견적서가 나간다(실측: 14항목 1,044자 → 3항목 488자).
+     → 표준 문구를 기본값으로 깐다.
+
+     🔴 **여기가 그 문구의 유일한 자리다.** 예전엔 `admin-quote-pro.html` 안에만 있었고
+       서버는 볼 수 없었다. 두 벌이 되면 담당자가 만든 견적서와 고객이 직접 뽑은 견적서가
+       **다른 말을 하게 된다**(결함 생성기 ①).
+     ⚠ 이 문구는 **우리가 고객에게 하는 약속**이다(「45인승 이상」·「10년 이상 경력」).
+       바꿀 때는 실제로 그렇게 해 줄 수 있는지 먼저 확인할 것 — 대표 승인 사항이다.
+     ⚠ 건별로 달라지는 것(인솔자 인원·호텔 이름·항공 편명)은 **넣지 않는다.**
+       지어내면 그 값이 견적서에 찍혀 사실로 굳는다. */
+  const STD_TEXT = {
+    '호텔': '전일정 특급 호텔',
+    '기사/차량': '무사고 경력의 베테랑 기사와 45인승 이상의 최신식 대형 버스',
+    '가이드': '10년 이상 경력의 한국인 우수가이드 (팁 포함) & 한국어 가능 현지인 가이드',
+    '인솔자': '행사 담당 책임인솔자 동행',
+    '식사': '조식은 호텔식, 중/석식은 한식과 현지식을 고루 제공',
+    '입장료': '일정표에 기재된 모든 관광지',
+    '여행자보험': '기본 1억원 보장',
+  };
+  const STD_FOOT_DEAL = '※ 계약 체결 후 상황에 따라 협의하에 구성과 단가 업그레이드 가능';
+
+  /* 고객이 직접 뽑은 견적의 **항목 이름**으로 무엇이 포함인지 가린다.
+     🔴 우리가 짐작하지 않는다 — 그 견적의 금액 줄에 실제로 있는 것만 싣는다.
+       (없는 것을 「포함」이라 적으면 계약 분쟁이 된다.) */
+  function standardDetails(rowNames, opts) {
+    const o = opts || {};
+    const has = (re) => (rowNames || []).some((n) => re.test(String(n || '')));
+    const out = [];
+    const sec = (label, text, note, extra) => {
+      if (!text) return;
+      out.push(Object.assign({ label, rows: [{ text, note: note || '' }], footnotes: [] }, extra || {}));
+    };
+    /* 🔴 항공은 **편명·시각이 건별**이라 표준 문구로 박을 수 없다. 그렇다고 행을 통째로
+       빼면 고객이 「항공이 빠진 견적인가」로 읽는다(금액에는 들어 있다).
+       → 약속이 되지 않는 선에서 **있다는 사실만** 적고, 확정 시 안내한다고 말한다. */
+    if (has(/항공/)) sec('항공', '왕복 항공권 — 편명·시각은 확정 후 안내', '');
+    if (has(/호텔|숙박/)) sec('호텔', STD_TEXT['호텔'] + (o.nights ? ' · ' + o.nights + '박' : ''), '');
+    if (has(/차량|버스|기사/)) sec('기사/차량', STD_TEXT['기사/차량'], '전 일정 포함');
+    if (has(/가이드/)) sec('가이드', STD_TEXT['가이드'], '전 일정 포함');
+    if (has(/식사|식비/)) {
+      out.push({ label: '식사', rows: [{ text: STD_TEXT['식사'], note: '전 일정 포함' }],
+        footnotes: [STD_FOOT_DEAL] });
+    }
+    if (has(/관광|입장/)) sec('입장료', STD_TEXT['입장료'], '전 일정 포함');
+    if (has(/보험/)) {
+      out.push({ label: '여행자보험', rows: [{ text: STD_TEXT['여행자보험'], note: '전 일정 포함' }],
+        footnotes: [STD_FOOT_DEAL] });
+    }
+    /* 🔴 불포함내역의 진실은 `company-info.js`다 — 여기 다시 적지 않는다 */
+    const ex = (o.excluded || []).filter(Boolean);
+    if (ex.length) {
+      out.push({ label: '불포함내역', rows: [{ text: ex.join(', '), note: '', accent: 'red' }], footnotes: [] });
+    }
+    return out;
+  }
+
+  /* ═══ 옛 규격(v1) 공유 payload → 이 규격(v2) 문서 ═══════════════════════
+     🔴 **금액을 다시 계산하지 않는다.** payload에 있는 값을 그대로 옮긴다 —
+       여기서 곱하거나 나누면 고객이 받은 금액과 문서의 금액이 달라질 수 있다.
+     ⚠ 옛 링크는 이 함수를 안 탄다(이미 만들어진 payload는 그대로다). 새로 발급하는
+       건에만 적용된다. */
+  function fromShare(share, opts) {
+    const s = share || {};
+    const o = opts || {};
+    const rowNames = (s.rows || []).map((r) => (Array.isArray(r) ? r[0] : (r && r.name)));
+    const c = (o.company || (typeof window !== 'undefined' && window.COMPANY_INFO) || {});
+    const d = blank();
+    d.meta.client = s.org || '';
+    d.meta.quoteNo = s.qno || '';
+    d.meta.issueDate = s.iso || '';
+    /* 🔴 **담당자 칸을 비워 두면 고객이 빨간 「미입력」을 받는다.**
+       고객이 직접 뽑은 건은 아직 담당자가 배정되기 전이다 — 그 자리에 회사 대표
+       연락처를 넣는다. 「미입력」은 담당자가 만들다 빠뜨린 것을 잡으라고 있는 표시지,
+       고객에게 보여 주려고 있는 것이 아니다. */
+    d.meta.staffName = c.brand || '비즈페이지';
+    d.meta.staffTel = c.tel || '';
+    d.meta.staffEmail = c.email || '';
+    d.trip.orgName = s.org || '';
+    d.trip.region = s.dt || s.dk || '';
+    d.trip.startDate = s.sd || '';
+    /* 귀국일은 payload에 없다. **출발일 + 일수 − 1**로 만든다(엔진이 쓰는 정의 그대로).
+       ⚠ `toISOString()`을 쓰지 않는다 — UTC라 한국에서 하루가 밀린다(두 번 밟은 자리). */
+    if (s.sd && Number(s.d) > 0) {
+      const t = new Date(String(s.sd) + 'T00:00:00');
+      if (!isNaN(t.getTime())) {
+        t.setDate(t.getDate() + Number(s.d) - 1);
+        d.trip.endDate = t.getFullYear() + '-'
+          + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+      }
+    }
+    d.trip.pax = Number(s.n) || 0;
+    d.trip.days = Number(s.d) || 0;
+    d.trip.nights = Number(s.ng) || 0;
+    /* ⚠ 숙박지는 **모른다.** 객실 구성(`rcl`: 「2인 1실」)을 여기 넣었다가 숙박지 칸에
+       객실 조건이 찍혔다 — 다른 것을 같은 칸에 넣으면 고객이 잘못 읽는다. 비워 둔다. */
+    d.price.lines = (Number(s.n) > 0 && Number(s.pp) > 0)
+      ? [{ kind: 'adult', label: '성인', unit: Number(s.pp), qty: Number(s.n) }] : [];
+    d.price.total = Number(s.t) || 0;
+    /* 유류할증료가 금액에 들어 있으면 그 사실을 적는다 — 옛 양식은 표에 줄로 보였다 */
+    if (rowNames.some((n) => /유류/.test(String(n || '')))) d.price.fuelNote = '유류할증료 포함';
+    d.details = standardDetails(rowNames, { nights: Number(s.ng) || 0, excluded: o.excluded });
+    /* 제안 일정이 있으면 **일정표 탭으로 옮긴다** — 옛 규격은 코스(itiA/itiB)로 실렸다.
+       ⚠ `doc`이 붙으면 화면은 v2 경로로만 그린다. 안 옮기면 일정이 통째로 사라진다. */
+    const course = s.itiA || s.itiB;
+    if (course && Array.isArray(course.d)) {
+      d.itinerary = course.d.map((x, i) => ({
+        day: Number(x.day) || (i + 1), date: '',
+        title: x.title || '', am: x.am || '', pm: x.pm || '', eve: x.eve || '',
+        meals: { b: '', l: '', d: '' }, stay: '', note: x.tip || '',
+      }));
+    }
+    return normalize(d);
+  }
+
   return {
     SPEC, esc, escLines, won, hangulAmount, durationLabel, dateLabel,
     blank, normalize, stripInternal, findInternalKeys,
     renderQuote, renderItinerary,
+    STD_TEXT, standardDetails, fromShare,
   };
 });
