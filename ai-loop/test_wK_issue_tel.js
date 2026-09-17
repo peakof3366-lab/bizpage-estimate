@@ -71,8 +71,11 @@ console.log('\n[2] 🔴 그래도 고객 견적서 payload에는 안 실린다 �
     !/contactTel|customerTel/.test(block),
     block.split('\n').filter((l) => /Tel/.test(l)).join(' | '));
 
-  /* 담당자 발급이 서버로 보내는 share(=payload)도 마찬가지다 */
-  const s2 = ADMIN.indexOf('const share = {\n      v: 1, dk: rec.destKey');
+  /* 담당자 발급이 서버로 보내는 share(=payload)도 마찬가지다
+     ⚠ 2026-09-17: 그 payload를 만드는 자리가 **함수로 빠졌다**(`emBuildShare`) —
+       발급과 미리보기가 같은 것을 만들어야 하기 때문이다. 자를 그 자리로 옮긴다.
+       🔴 지키는 것은 그대로다: **연락처는 payload에 안 들어간다**(링크는 인증이 없다). */
+  const s2 = ADMIN.indexOf('v: 1, dk: rec.destKey');
   ok('② 담당자 발급 payload 자리를 찾았다', s2 > 0);
   const b2 = ADMIN.slice(s2, ADMIN.indexOf('};', s2));
   ok('② 담당자 발급 payload에도 연락처가 없다', !/Tel/.test(b2));

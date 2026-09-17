@@ -2076,6 +2076,12 @@
         <div class="modal-actions" style="margin-top:.75rem">
           <button class="btn-act btn-primary" onclick="saveEstimateDetail()">저장</button>
           <button class="btn-act btn-outline-p" onclick="printEstimateAdmin()">관리자용 출력</button>
+          <!-- 🔴 **발급 전에 나갈 문서를 본다** (2026-09-17 대표 지시).
+               예전에는 링크를 발급해야만 고객 견적서를 볼 수 있었다 — 확인하려고 발급하면
+               대장에 번호가 남고 되돌릴 수 없다. 이 버튼은 **서버에 아무것도 안 만든다.**
+               ⚠ 이름에 「고객 화면」을 넣는다 — 옆의 「관리자용 출력」은 원가가 든 **다른**
+                 문서다. 둘 다 「출력」이면 담당자가 어느 것이 고객에게 가는지 헷갈린다. -->
+          <button class="btn-act btn-outline-p" onclick="previewShareLink()">👁 고객 화면 미리보기</button>
           <button class="btn-act btn-outline-p" onclick="issueShareLink()">🔗 견적서 링크 발급</button>
           <button class="btn-act btn-danger-sm" id="btnDeleteQuote" onclick="deleteEstimate()">삭제</button>
           <button class="btn-act" onclick="document.getElementById('emModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
@@ -5318,6 +5324,96 @@
      담당자 발급은 검증에 걸려도 진행할 수 있다. 조건을 조정해 보내는 정상 업무가 있고
      그 판단은 사람이 하기 때문이다. 대신 검증 결과를 먼저 보여주고 확인을 받는다.
      발급 이력은 공유 레코드의 _verify.issuedBy에 담당자 이름으로 남는다. */
+  /* ══ 고객 견적서 payload를 만드는 **한 곳** (2026-09-17) ═══════════════════
+     🔴 발급과 미리보기가 **같은 함수**를 쓴다. 미리보기가 따로 만들면 「미리 본 것과
+       실제로 나간 것이 다르다」가 생기는데, 그건 미리보기가 없는 것보다 나쁘다 —
+       담당자가 확인했다고 믿기 때문이다(결함 생성기 ①).
+
+     공유 페이로드는 고객 견적서에 실제로 실리는 항목만 담는다.
+     ⚠ 비공개 항목(ENBT 수익·현지 수익금·여행자보험)이 새지 않도록 isHidden을 거른다 —
+       공개 계산기 쪽 shareData와 동일한 방어선이다(script.js rows 필터).
+     ⚠ `dk`는 **`rec.destKey`**다. 예전엔 `rec.destination`을 읽었는데 견적 기록에는
+       그런 필드가 없어서(운영 DB 9건 전수 확인) 늘 undefined였다 — 고객 견적서의
+       "일정 더 탐색하기" 링크가 목적지 없이 나갔고, 일정을 실으려 해도 어느
+       목적지인지 알 수 없었다. `dt`가 destLabel로 먼저 채워져 눈에 안 띄었다. */
+  function emBuildShare(rec, itiSnap) {
+    return {
+      v: 1, dk: rec.destKey, dt: rec.destLabel || rec.destKey,
+      n: rec.participants, d: rec.days, ng: rec.nights,
+      org: rec.orgName || '', cn: rec.contact || '',
+      t: rec.total, pp: rec.perPerson,
+      iso: new Date().toISOString().slice(0, 10),
+      id: rec.id, rd: rec.rateDate || '', rv: rec.rateVersion || '',
+      ccl: rec.cabinClassLabel || '', rcl: rec.roomConfigLabel || '', dcl: rec.departureCityLabel || '',
+      rows: (rec.items || []).filter(it => !it.isHidden).map(it => [it.name, it.amount]),
+      req: (rec.request || '').slice(0, 300),
+      sd: rec.startDate || '',
+      /* UI: 제안 일정. estimate-view.html이 `d.itiA || d.itiB`로 섹션 전체를 감싸고
+         있어, 코스가 없는 목적지(null)면 그 섹션만 빠지고 나머지는 정상 렌더된다.
+         ⚠ `itiSnap.courses`(코스 원본)는 넣지 않는다 — 내부 표시(source 등)가 함께 나간다. */
+      itiA: itiSnap ? itiSnap.a : null,
+      itiB: itiSnap ? itiSnap.b : null,
+    };
+  }
+
+  /* ══ 👁 견적서 미리보기 — **발급하지 않고** 나갈 문서를 본다 (2026-09-17 대표 지시) ══
+     「지금은 견적서 링크를 발급해서 웹상에 띄워야만 견적서를 볼 수 있다. 담당자가
+       나가는 견적서를 미리 살펴볼 수 있게 해 달라.」
+
+     🔴 **payload를 URL에 싣지 않는다.** URL로 받으면 누구나 조작한 견적서 링크를 만들어
+       남에게 보낼 수 있다 — `estimate-view.html`의 `decodeShareData`를 되살리면 안 되는
+       이유가 그것이고 CLAUDE.md가 못 박아 둔 자리다.
+       → **같은 브라우저의 `sessionStorage`**로만 건넨다. 그 사람 화면에만 살아 있어서
+         남에게 보낼 수 없고, 탭을 닫으면 사라진다.
+     🔴 **원가·마진을 지우고 건넨다.** 미리보기는 「고객이 받는 것」을 보는 자리다.
+       평소엔 서버가 지우지만 여기는 서버를 안 거치므로 **화면이 지운다** —
+       지우는 규칙은 `quote_doc.js` 하나(`stripInternal`)를 그대로 쓴다.
+     ⚠ 서버에 아무것도 안 만든다 — 대장에 번호가 생기지 않고 고객에게도 안 나간다. */
+  const EM_PREVIEW_KEY = 'bizpage_preview_share';
+  async function previewShareLink() {
+    const rec = getEstsFull().find(x => x.id === emCurrentId);
+    if (!rec) { alert('견적 정보를 찾을 수 없습니다.'); return; }
+
+    /* 일정은 발급 때와 **같은 순서**로 고른다(전용 일정 → 목적지 공통).
+       ⚠ 여기서는 확인창을 띄우지 않는다 — 보러 가는 길에 묻는 것은 방해다.
+         무엇이 나가는지는 미리보기 자체가 보여 준다. */
+    let itiSnap = null;
+    try {
+      const itiTables = await emLoadItiTables();
+      const saved = rec.itinerary || null;
+      itiSnap = recQuoteItinerary(
+        Object.assign({}, itiTables, { savedCourses: saved && saved.courses, savedDays: saved && saved.days }),
+        { destKey: rec.destKey, programType: rec.program, totalDays: rec.days });
+    } catch (err) {
+      /* 못 불러와도 미리보기는 연다 — 다만 **일정이 빠진 화면**이라는 것을 말한다 */
+      console.warn('[admin] 미리보기 일정 준비 실패:', err);
+      alert('추천 일정을 불러오지 못했습니다. 일정 없이 미리보기를 엽니다 — 발급 전에 다시 확인해 주세요.');
+    }
+
+    const payload = emBuildShare(rec, itiSnap);
+    /* 문서(v2)가 붙어 있으면 그것이 이긴다 — 발급 때 서버가 하는 일과 같은 순서다 */
+    if (rec.doc && typeof QuoteDoc !== 'undefined') {
+      try {
+        const safe = QuoteDoc.stripInternal(QuoteDoc.normalize(rec.doc));
+        const leaks = QuoteDoc.findInternalKeys(safe);
+        /* 🔴 지웠는데 남아 있으면 **열지 않는다.** 서버가 발급에서 하는 판단과 같다 —
+           미리보기라고 느슨하게 하면 담당자가 그 화면을 캡처해 보낼 수도 있다. */
+        if (leaks.length) { alert('내부 항목이 남아 있어 미리보기를 열지 않았습니다 (' + leaks.join(', ') + ').'); return; }
+        payload.doc = safe;
+      } catch (err) {
+        alert('견적서 문서를 준비하지 못했습니다: ' + (err && err.message || ''));
+        return;
+      }
+    }
+
+    try { sessionStorage.setItem(EM_PREVIEW_KEY, JSON.stringify(payload)); }
+    catch (err) { alert('미리보기를 준비하지 못했습니다 (브라우저 저장 공간). 창을 닫고 다시 시도해 주세요.'); return; }
+
+    const w = window.open('estimate-view.html?preview=1', '_blank');
+    /* 팝업 차단을 조용히 넘기지 않는다 — 안 그러면 「눌렀는데 아무 일도 안 난다」가 된다 */
+    if (!w) alert('팝업이 차단되어 미리보기를 열지 못했습니다. 이 사이트의 팝업을 허용해 주세요.');
+  }
+
   async function issueShareLink() {
     const rec = getEstsFull().find(x => x.id === emCurrentId);
     if (!rec) { alert('견적 정보를 찾을 수 없습니다.'); return; }
@@ -5346,30 +5442,7 @@
       { destKey: rec.destKey, programType: rec.program, totalDays: rec.days });
     if (!emConfirmItinerary(itiSnap, itiTables, rec)) return;
 
-    /* 공유 페이로드는 고객 견적서에 실제로 실리는 항목만 담는다.
-       ⚠ 비공개 항목(ENBT 수익·현지 수익금·여행자보험)이 새지 않도록 isHidden을 거른다 —
-       공개 계산기 쪽 shareData와 동일한 방어선이다(script.js rows 필터).
-       ⚠ `dk`는 **`rec.destKey`**다. 예전엔 `rec.destination`을 읽었는데 견적 기록에는
-         그런 필드가 없어서(운영 DB 9건 전수 확인) 늘 undefined였다 — 고객 견적서의
-         "일정 더 탐색하기" 링크가 목적지 없이 나갔고, 일정을 실으려 해도 어느
-         목적지인지 알 수 없었다. `dt`가 destLabel로 먼저 채워져 눈에 안 띄었다. */
-    const share = {
-      v: 1, dk: rec.destKey, dt: rec.destLabel || rec.destKey,
-      n: rec.participants, d: rec.days, ng: rec.nights,
-      org: rec.orgName || '', cn: rec.contact || '',
-      t: rec.total, pp: rec.perPerson,
-      iso: new Date().toISOString().slice(0, 10),
-      id: rec.id, rd: rec.rateDate || '', rv: rec.rateVersion || '',
-      ccl: rec.cabinClassLabel || '', rcl: rec.roomConfigLabel || '', dcl: rec.departureCityLabel || '',
-      rows: (rec.items || []).filter(it => !it.isHidden).map(it => [it.name, it.amount]),
-      req: (rec.request || '').slice(0, 300),
-      sd: rec.startDate || '',
-      /* UI: 제안 일정. estimate-view.html이 `d.itiA || d.itiB`로 섹션 전체를 감싸고
-         있어, 코스가 없는 목적지(null)면 그 섹션만 빠지고 나머지는 정상 렌더된다.
-         ⚠ `itiSnap.courses`(코스 원본)는 넣지 않는다 — 내부 표시(source 등)가 함께 나간다. */
-      itiA: itiSnap ? itiSnap.a : null,
-      itiB: itiSnap ? itiSnap.b : null,
-    };
+    const share = emBuildShare(rec, itiSnap);
 
     /* 🔴 연락처 없이는 발급하지 않는다 (WK). 이 경로가 **대장에 연락처를 한 번도 남긴
          적이 없다** — 담당자 도구(admin-quote.html)에 WC가 넣은 칸은 견적 기록에 저장되지
