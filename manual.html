@@ -219,7 +219,20 @@
      목차가 빠진 자리는 그리드가 알아서 한 칸으로 줄인다. */
   body.manual-only .layout { grid-template-columns: 1fr; }
 
+  /* 화면 캡처 (2026-09-17 대표 지시: 「이미지 캡쳐해서 매뉴얼을 만들어 주면 좋겠다」)
+     ⚠ 그림은 **손으로 찍지 않는다** — `ai-loop/shoot_manual.py`가 찍는다. 화면이 바뀌면
+       다시 돌리면 된다. 글과 달리 그림은 낡아도 눈에 안 띄므로 자동으로 다시 찍을 수 있어야 한다.
+     ⚠ 폭을 100%로 두고 테두리를 준다 — 캡처가 흰 바탕이라 테두리가 없으면 어디까지가
+       화면인지 안 보인다. */
+  figure.shot { margin: 0; display: flex; flex-direction: column; gap: .4rem; }
+  figure.shot img { display: block; width: 100%; height: auto; border: 1px solid var(--border); background: var(--white); }
+  figure.shot figcaption { font-size: .78rem; color: var(--muted); line-height: 1.6; }
+  /* 두 화면을 견줄 때 — 좁으면 위아래로 쌓인다 */
+  .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 760px) { .shots { grid-template-columns: 1fr; } }
+
   @media print {
+    figure.shot, .shots { break-inside: avoid; }
     body { background: #fff; font-size: 11pt; }
     .layout { display: block; max-width: none; padding: 0; }
     .print-btn, .docsearch, .backtop { display: none; }
@@ -343,30 +356,37 @@
       </ul>
 
       <h3>왼쪽 메뉴 — 어디에 무엇이 있나</h3>
+      <p>
+        <strong>지도입니다.</strong> 각 화면이 무엇을 하는지는 그 장에 있으니,
+        여기서는 <strong>어디에 있고 얼마나 자주 쓰는지</strong>만 보시면 됩니다.
+      </p>
       <div class="scroller">
         <table>
-          <thead><tr><th>메뉴</th><th>무엇을 하는 곳</th><th>얼마나 자주</th></tr></thead>
+          <thead><tr><th>메뉴</th><th>하는 일</th><th>얼마나 자주</th></tr></thead>
           <tbody>
             <tr><td class="field">대시보드</td><td>오늘 들어온 문의·견적 요약</td><td>들어올 때마다</td></tr>
-            <tr><td class="field">문의 관리</td><td>홈페이지 문의 폼으로 들어온 건 처리</td><td>매일</td></tr>
-            <tr><td class="field">견적 요청 관리</td><td>고객이 직접 뽑은 견적 건 처리 · 견적서 링크 발급</td><td>매일</td></tr>
-            <tr><td class="field">자동 견적 산출 (내부직원용)</td><td>담당자가 조건을 넣어 견적서를 뽑는 도구. <b>원가·마진이 함께 보이고</b> 항목별로 고칠 수 있습니다</td><td>상담할 때 · 금액을 조정할 때</td></tr>
-            <tr><td class="field">견적서 대장</td><td>우리가 <strong>발급한 견적서 전부</strong> — 번호·고객·목적지·담당자로 찾습니다. <strong>담당자가 휴가여도 응대</strong>할 수 있는 자리</td><td>문의 올 때마다</td></tr>
-            <tr><td class="field">패키지 상품</td><td>이미 값이 정해진 여행 상품 — 「판매중」으로 열면 <strong>고객 화면(패키지 여행)에 나갑니다.</strong> <strong>요율·마진이 안 붙습니다</strong>(넣은 금액이 그대로 고객가)</td><td>상품이 생길 때마다</td></tr>
-            <tr><td class="field">직접 견적 작성</td><td><strong>담당자가 금액을 직접 적어</strong> 내는 1회용 견적 — 자동 계산(견적 엔진)을 쓰지 않습니다. 고객 목록에 안 나가고 <strong>견적서 링크로만</strong> 나갑니다. 만들기는 <strong>매니저 이상</strong></td><td>엔진을 안 쓰고 직접 낼 때</td></tr>
-            <tr><td class="field">일정·방식 비교</td><td>목적지별 연수 내용 — 한 화면에 <strong>두 구역</strong>(✨ 방식 A·B 소개 / 📅 날짜별 일정)</td><td>필요할 때</td></tr>
-            <tr><td class="field">요율 관리</td><td>목적지별 단가 갱신 · 변경 이력</td><td>분기 1회</td></tr>
-            <tr><td class="field">방문 통계 · 이벤트 분석 · 견적 분석 · 마케팅 인사이트</td><td>보는 곳(읽기 전용). 무엇을 눌러도 고객 화면은 안 바뀝니다</td><td>필요할 때</td></tr>
-            <tr><td class="field">매뉴얼</td><td>이 문서</td><td>막힐 때마다</td></tr>
-            <tr><td class="field">콘텐츠 관리</td><td>홈페이지 문구·이미지<span class="role-flag">관리자</span></td><td>드물게</td></tr>
-            <tr><td class="field">설정</td><td>비밀번호 변경, 직원 계정 관리<span class="role-flag">관리자</span></td><td>드물게</td></tr>
+            <tr><td class="field"><a href="#inquiries">문의 관리</a></td><td>홈페이지 문의 처리</td><td>매일</td></tr>
+            <tr><td class="field"><a href="#estmgr">견적 요청 관리</a></td><td>고객이 뽑은 견적 처리 · 링크 발급</td><td>매일</td></tr>
+            <tr><td class="field"><a href="#quotepro">자동 견적 산출</a></td><td>엔진이 금액을 뽑습니다</td><td>상담할 때</td></tr>
+            <tr><td class="field"><a href="#adhoc">직접 견적 작성</a></td><td>담당자가 금액을 직접 적습니다 <span class="tag off">매니저 이상</span></td><td>엔진을 안 쓸 때</td></tr>
+            <tr><td class="field"><a href="#ledger">견적서 대장</a></td><td>발급한 견적서 전부 — 번호·고객·담당자로 찾습니다</td><td>문의 올 때마다</td></tr>
+            <tr><td class="field"><a href="#packages">패키지 상품</a></td><td>값이 정해진 여행 상품 — 고객 화면에 나갑니다</td><td>상품이 생길 때</td></tr>
+            <tr><td class="field"><a href="#itinerary">일정·방식 비교</a></td><td>목적지별 연수 내용</td><td>필요할 때</td></tr>
+            <tr><td class="field"><a href="#pricereport">견적서 업데이트</a></td><td>실제 견적서에서 단가를 읽어 쌓습니다</td><td>견적서 받을 때</td></tr>
+            <tr><td class="field"><a href="#rates">요율 관리</a></td><td>목적지별 단가 갱신 · 변경 이력</td><td>분기 1회</td></tr>
+            <tr><td class="field">방문 통계 · 이벤트 분석<br>견적 분석 · 마케팅 인사이트</td><td><strong>보는 곳입니다</strong> — 무엇을 눌러도 고객 화면은 안 바뀝니다</td><td>필요할 때</td></tr>
+            <tr><td class="field">콘텐츠 관리 · 설정</td><td>홈페이지 문구 · 계정 <span class="tag off">관리자</span></td><td>드물게</td></tr>
           </tbody>
         </table>
       </div>
       <div class="note">
         <span class="label">안 보이는 메뉴가 있다면</span>
-        <p>고장이 아닙니다. <strong>권한에 따라 아예 안 보이게</strong> 해 둔 것입니다 — 누를 수 없는 버튼을 보여주고 눌렀을 때 거절하는 것보다 낫기 때문입니다. 필요하면 매니저나 관리자에게 요청하세요.</p>
+        <p>
+          고장이 아닙니다. <strong>권한에 따라 아예 안 보이게</strong> 해 둔 것입니다.
+          필요하면 매니저나 관리자에게 요청하세요.
+        </p>
       </div>
+
     </section>
 
     <section id="flow">
@@ -642,6 +662,20 @@
           </tbody>
         </table>
       </div>
+      <div class="shots">
+        <figure class="shot">
+          <img src="이미지/매뉴얼/qp-1-조건.png" alt="자동 견적 산출 1단계 — 여행 조건. 세부 조건 11칸." loading="lazy">
+          <figcaption><strong>자동 견적 산출</strong> — 세부 조건 <strong>11칸</strong> · 버튼은 <strong>「자동 산출하기」</strong></figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="이미지/매뉴얼/adhoc-1-조건.png" alt="직접 견적 작성 1단계 — 여행 정보. 세부 조건 6칸." loading="lazy">
+          <figcaption><strong>직접 견적 작성</strong> — 세부 조건 <strong>6칸</strong> · 버튼은 <strong>「금액 입력 시작」</strong></figcaption>
+        </figure>
+      </div>
+      <p>
+        같은 화면인데 <strong>칸이 5개 줄어 있습니다.</strong> 사라진 칸이 곧
+        <strong>엔진이 금액을 만드는 데 쓰는 칸</strong>입니다 — 직접 견적은 엔진을 안 타니까요.
+      </p>
       <div class="warn">
         <span class="label">🔴 손으로 적은 금액을 「자동」 쪽에 넣지 마세요</span>
         <p>
@@ -653,6 +687,14 @@
           「수정됨」과 증감이 남습니다. <strong>처음부터 전부 새로 적을 상황이면 「직접 견적 작성」</strong>입니다.
         </p>
       </div>
+      <figure class="shot">
+        <img src="이미지/매뉴얼/qp-2-금액.png" alt="2단계 금액 조정 — 항목별 자동값·적용값·증감 표." loading="lazy">
+        <figcaption>
+          <strong>2단계 금액</strong> — <strong>자동값</strong>이 고객이 받는 금액입니다.
+          <strong>적용값</strong>을 고치면 오른쪽에 증감이 붙고 <strong>「수정됨」</strong> 표시가 남습니다.
+          <span class="tag off">내부</span>가 붙은 줄(ENBT 수익·현지 수익금)은 <strong>고객 견적서에 안 나갑니다.</strong>
+        </figcaption>
+      </figure>
       <h3>금액이 어떻게 맞춰지나</h3>
       <ul class="plain">
         <li><strong>조정액은 마진에서 나갑니다.</strong> 원가는 그대로입니다 — 공급사에 줄 돈은 안 변하니까요.</li>

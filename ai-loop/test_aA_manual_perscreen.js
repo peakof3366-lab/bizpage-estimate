@@ -132,5 +132,33 @@ ok('매뉴얼이 관리자 전용 클래스를 안 쓴다', !manual.includes('pk
    '관리자 CSS가 없어 배지가 맨 글자로 나온다');
 
 
+console.log('\n[8] 매뉴얼 그림');
+/* 🔴 **그림은 낡아도 눈에 안 띈다.** 글이 틀리면 읽다가 걸리지만, 화면이 바뀌어도
+     옛 캡처는 멀쩡해 보인다. 그래서 두 가지를 검사한다:
+       ① 파일이 실제로 있는가 (없으면 깨진 그림이 나간다)
+       ② 다시 찍는 도구가 저장소에 남아 있는가 (없으면 다음 사람이 손으로 찍는다) */
+const shots = [...manual.matchAll(/<img[^>]+src="(이미지\/매뉴얼\/[^"]+)"/g)].map((m) => m[1]);
+ok('매뉴얼에 화면 캡처가 있다', shots.length > 0, '한 장도 없다');
+for (const rel of shots) {
+  ok('그림 파일이 있다 — ' + rel.split('/').pop(),
+     fs.existsSync(path.join(ROOT, decodeURIComponent(rel))), '파일이 없다 — 깨진 그림이 나간다');
+}
+/* ⚠ 낭독기와, 그림이 안 뜰 때를 위해 대체 글이 있어야 한다. */
+const imgs = [...manual.matchAll(/<img[^>]+src="이미지\/매뉴얼\/[^"]*"[^>]*>/g)].map((m) => m[0]);
+ok('모든 그림에 대체 글(alt)이 있다', imgs.every((t) => /alt="[^"]+"/.test(t)),
+   '그림이 안 뜨면 아무것도 안 남는다');
+ok('모든 그림에 설명(figcaption)이 붙어 있다',
+   (manual.match(/figure class="shot"/g) || []).length === imgs.length,
+   '그림만 있고 무엇을 보라는 말이 없으면 못 읽는다');
+ok('다시 찍는 도구가 있다', fs.existsSync(path.join(ROOT, 'ai-loop', 'shoot_manual.py')),
+   '손으로 찍으면 화면이 바뀌어도 아무도 다시 안 찍는다');
+/* 🔴 **프로덕션에서 찍으면 고객 이름·연락처가 그림에 박힌다.** 도구가 그것을 막는지 본다. */
+if (fs.existsSync(path.join(ROOT, 'ai-loop', 'shoot_manual.py'))) {
+  const sh = fs.readFileSync(path.join(ROOT, 'ai-loop', 'shoot_manual.py'), 'utf8');
+  ok('찍는 도구가 로컬 주소만 허용한다', sh.includes('localhost') && /def guard/.test(sh),
+     '프로덕션에서 찍으면 실제 고객 정보가 그림에 남는다');
+}
+
+
 console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
