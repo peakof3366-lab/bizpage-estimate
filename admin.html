@@ -1172,7 +1172,12 @@
         <h1 class="page-title">매뉴얼</h1>
         <p class="page-sub">이 화면을 처음 쓰는 분을 위한 사용 설명서입니다. 새 탭으로 열어 두고 따라 하셔도 됩니다.</p>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:.6rem">
+      <!-- 🔴 **읽히는지를 재는 자리** (2026-09-17 대표 요청).
+           「아무도 안 읽을 것 같다」는 짐작이었고, 재고 있지 않았다. 각 화면의
+           「📄 이 화면 매뉴얼」을 누른 횟수를 세어 여기 보여 준다.
+           ⚠ **0도 답이다** — 안 읽힌다는 사실이 보여야 손을 쓸 수 있다. -->
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:.6rem;flex-wrap:wrap">
+        <div id="manualStats" class="dim" style="font-size:.82rem;line-height:1.7">지난 30일 열람 횟수를 불러오는 중…</div>
         <a href="manual.html" target="_blank" rel="noopener" class="btn-act btn-outline-p"
            style="text-decoration:none;display:inline-flex;align-items:center">새 탭으로 열기 ↗</a>
       </div>

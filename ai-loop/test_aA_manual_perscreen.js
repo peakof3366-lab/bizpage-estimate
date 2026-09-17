@@ -201,5 +201,57 @@ for (const m of manual.matchAll(/<div class="tldr">([\s\S]*?)<\/div>/g)) {
 }
 
 
+console.log('\n[10] 매뉴얼을 읽는지 세는 장치');
+/* 🔴 **주석을 먼저 걷어낸다.** 처음엔 원문을 그대로 봤는데, 내가 주석에 써 둔
+     「public: false」를 코드로 읽어 **일부러 망가뜨려도 통과했다**(확인하다 알았다).
+     이 저장소에서 두 번째로 밟은 함정이다(`test_tA`도 같은 이유로 주석을 지운다). */
+const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+const ev  = strip(fs.readFileSync(path.join(ROOT, 'api', '_lib', 'site_events.js'), 'utf8'));
+const ins = strip(fs.readFileSync(path.join(ROOT, 'api', 'admin', 'insights.js'), 'utf8'));
+const mjs2 = strip(fs.readFileSync(path.join(ROOT, 'admin', 'manual.js'), 'utf8'));
+
+ok('이벤트 이름이 단일 출처에 있다', /name:\s*'manual_open'/.test(ev),
+   'site_events.js에 없으면 서버가 안 받는다');
+/* 🔴 **공개 `/api/track`이 받으면 안 된다.** 인증이 없어 바깥에서 부를 수 있고,
+     한 건만 섞여도 「우리 직원이 읽는가」라는 물음의 답이 못 쓰게 된다. */
+ok('공개 엔드포인트는 이 이름을 안 받는다', /public:\s*false/.test(ev),
+   '누구나 숫자를 부풀릴 수 있다 — 그러면 세는 의미가 없다');
+ok('ALLOWED_NAMES가 public:false를 걸러낸다',
+   /ALLOWED_NAMES[\s\S]{0,160}public !== false/.test(ev),
+   '거르지 않으면 public 표시가 장식이다');
+/* ⚠ 고객 퍼널(버튼 클릭 통계)에 직원 행동을 섞으면 안 된다. */
+ok('고객 퍼널에 안 섞인다', /manual_open'[^}]*click:\s*false/.test(ev),
+   '직원 행동이 고객 전환율에 들어간다');
+ok('어느 화면인지 함께 남긴다', /invalid_screen/.test(ev),
+   '몇 번인지만 남으면 어느 화면이 안 읽히는지 모른다');
+
+ok('인증된 기록 경로가 있다', /type === 'event'/.test(ins) && /ADMIN_EVENT_NAMES/.test(ins));
+ok('인증된 조회 경로가 있다', /type === 'manual'/.test(ins));
+/* ⚠ Vercel Hobby 함수 12개 한도 — 새 파일을 만들면 배포가 깨진다. */
+const fnCount = (function walk(d) {
+  let n = 0;
+  for (const f of fs.readdirSync(d, { withFileTypes: true })) {
+    if (f.name === '_lib') continue;
+    const p2 = path.join(d, f.name);
+    n += f.isDirectory() ? walk(p2) : (f.name.endsWith('.js') ? 1 : 0);
+  }
+  return n;
+})(path.join(ROOT, 'api'));
+ok('서버리스 함수가 12개를 안 넘는다 (' + fnCount + '개)', fnCount <= 12,
+   'Vercel Hobby 한도 — 넘으면 배포가 안 된다');
+
+ok('버튼을 누르면 기록을 보낸다', /manual_open/.test(mjs2) && /type=event/.test(mjs2));
+/* 🔴 통계 때문에 매뉴얼이 안 열리면 본말이 뒤집힌다. */
+ok('기록이 링크를 막지 않는다', /keepalive/.test(mjs2) && /\.catch\(/.test(mjs2),
+   '응답을 기다리면 매뉴얼이 늦게 열린다');
+/* 🔴 **0과 「못 셌다」는 다른 말이다.** 못 센 것을 0으로 보이게 하면
+     「아무도 안 읽는다」는 틀린 결론을 내리게 된다(결함 생성기 ②). */
+ok('0회와 「못 셌다」를 구별해 말한다',
+   /연 사람이 없습니다/.test(mjs2) && /0회라는 뜻이 아닙니다/.test(mjs2),
+   '못 센 것을 0으로 보이게 하면 틀린 결론을 내린다');
+ok('관리자 화면에 볼 자리가 있다',
+   admin.includes('id="manualStats"'), '숫자를 쌓기만 하고 아무도 못 보면 없는 것과 같다');
+
+
 console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

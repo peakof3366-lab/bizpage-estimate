@@ -55,15 +55,67 @@
       a.setAttribute('aria-label',
         (title ? title.textContent.trim() : tab)
         + ' 매뉴얼을 새 탭에서 열기 — 거기서 PDF로 저장할 수 있습니다');
+      /* 🔴 **누가 여는지 센다**(2026-09-17 대표 요청: 「2주면 안다」).
+         ⚠ 링크를 **막지 않는다** — `keepalive`로 던지고 응답을 안 기다린다.
+           통계 때문에 매뉴얼이 안 열리면 본말이 뒤집힌다.
+         ⚠ 실패해도 조용히 넘어간다. 다만 **콘솔에는 남긴다** — 조용한 폴백은
+           「안 읽는다」와 「못 셌다」를 구별 못 하게 만든다(결함 생성기 ②).
+         ⚠ 인증이 걸린 `/api/admin/insights`로 보낸다. 공개 `/api/track`은
+           이 이름을 **받지 않는다**(`public: false`) — 바깥에서 한 건만 들어와도
+           「우리 직원이 읽는가」라는 물음의 답이 못 쓰게 된다. */
+      a.addEventListener('click', () => {
+        try {
+          fetch('/api/admin/insights?type=event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'manual_open', meta: { screen: tab } }),
+            keepalive: true,
+          }).catch((err) => console.warn('[매뉴얼] 열람을 세지 못했다:', err && err.message));
+        } catch (err) {
+          console.warn('[매뉴얼] 열람을 세지 못했다:', err && err.message);
+        }
+      });
       head.appendChild(a);
       n++;
     });
     return n;
   }
 
+  /* ══ 얼마나 읽히나 — 매뉴얼 탭에 띄운다 ═══════════════════════════════
+     🔴 **0도 답이다.** 「한 번도 안 열렸습니다」가 보여야 손을 쓸 수 있다 —
+       숫자가 없으면 「안 읽는 것 같다」는 짐작에서 영원히 못 벗어난다.
+     ⚠ 못 불러왔을 때 **빈칸으로 두지 않는다.** 0과 「못 셌다」는 다른 말이다. */
+  const SCREEN_LABEL = {
+    inquiries: '문의 관리', estmgr: '견적 요청 관리', quotepro: '자동 견적 산출',
+    itineraries: '일정·방식 비교', packages: '패키지 상품', adhoc: '직접 견적 작성',
+    ledger: '견적서 대장', pricereport: '견적서 업데이트', rates: '요율 관리',
+  };
+
+  async function showStats() {
+    const box = document.getElementById('manualStats');
+    if (!box) return;
+    try {
+      const res = await fetch('/api/admin/insights?type=manual');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const d = await res.json();
+      if (!d.total) {
+        box.textContent = '지난 30일 — 화면 매뉴얼을 연 사람이 없습니다 (0회).';
+        return;
+      }
+      const top = (d.byScreen || []).slice(0, 5)
+        .map((r) => (SCREEN_LABEL[r.screen] || r.screen) + ' ' + r.c + '회').join(' · ');
+      box.textContent = '지난 30일 — 화면 매뉴얼 ' + d.total + '회 열림' + (top ? ' · ' + top : '');
+    } catch (err) {
+      /* 🔴 「0회」로 떨어뜨리지 않는다. 못 센 것을 안 읽은 것으로 보이게 하면 안 된다. */
+      box.textContent = '열람 횟수를 불러오지 못했습니다 — 0회라는 뜻이 아닙니다.';
+      console.warn('[매뉴얼] 열람 통계를 못 불러왔다:', err && err.message);
+    }
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mountAll);
+    document.addEventListener('DOMContentLoaded', () => { mountAll(); showStats(); });
   } else {
     mountAll();
+    showStats();
   }
 })();

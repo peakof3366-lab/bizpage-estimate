@@ -11,7 +11,7 @@
    GET  ?type=inbox     = 미처리 건수 + 가장 최근 접수 시각만 (화면이 주기적으로 부른다) */
 const { sql } = require('../_lib/db');
 const { requireAdmin } = require('../_lib/auth');
-const { CLICK_EVENT_NAMES } = require('../_lib/site_events');
+const { CLICK_EVENT_NAMES, ADMIN_EVENT_NAMES, metaTooLarge, normalizeMeta } = require('../_lib/site_events');
 const OpenAI = require('openai');
 
 const MAX_SOURCES = 150;
@@ -176,6 +176,48 @@ async function handleMarketingPost(req, res) {
   }
 }
 
+
+/* ══ 매뉴얼 열람 (2026-09-17) ══════════════════════════════════════════════
+   🔴 **인증이 걸린 자리에서만 기록한다.** 공개 `/api/track`으로도 받게 하면
+     바깥에서 한 건만 들어와도 「우리 직원이 읽는가」라는 물음에 답을 못 한다.
+   ⚠ **새 파일을 만들지 않는다** — Vercel Hobby 함수 12/12를 이미 다 썼다.
+     기존 엔드포인트에 `?type=`으로 붙인다(CLAUDE.md 규칙). */
+async function handleEventPost(req, res) {
+  const { name, meta } = req.body || {};
+  if (typeof name !== 'string' || !ADMIN_EVENT_NAMES.has(name)) {
+    return res.status(400).json({ error: 'invalid_name' });
+  }
+  if (metaTooLarge(meta)) return res.status(413).json({ error: 'meta_too_large' });
+  const norm = normalizeMeta(name, meta, null);
+  if (!norm.ok) return res.status(400).json({ error: norm.error });
+  try {
+    await sql`insert into site_events (name, meta) values (${name}, ${JSON.stringify(norm.meta)}::jsonb)`;
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    /* 🔴 **통계 때문에 화면이 멈추면 안 된다.** 부르는 쪽도 응답을 안 기다린다. */
+    console.error('[insights] 이벤트 기록 실패:', err.message);
+    res.status(500).json({ error: 'insert_failed' });
+  }
+}
+
+/* 지난 30일 매뉴얼 열람 — 화면별.
+   ⚠ **0도 답이다.** 「아무도 안 읽는다」를 알려면 0이 보여야 한다. */
+async function handleManualStats(req, res) {
+  try {
+    const rows = await sql`
+      select coalesce(meta->>'screen', '(알 수 없음)') as screen, count(*)::int as c
+        from site_events
+       where name = 'manual_open'
+         and created_at >= now() - interval '30 days'
+       group by 1 order by c desc limit 30`;
+    const total = rows.reduce((s, r) => s + r.c, 0);
+    res.status(200).json({ days: 30, total, byScreen: rows });
+  } catch (err) {
+    console.error('[insights] 매뉴얼 열람 조회 실패:', err.message);
+    res.status(500).json({ error: 'query_failed' });
+  }
+}
+
 module.exports = async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
 
@@ -195,6 +237,16 @@ module.exports = async (req, res) => {
   if (type === 'inbox') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
     return handleInbox(req, res);
+  }
+
+  if (type === 'event') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    return handleEventPost(req, res);
+  }
+
+  if (type === 'manual') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+    return handleManualStats(req, res);
   }
 
   res.status(400).json({ error: 'invalid_type' });

@@ -23,9 +23,21 @@ const EVENT_DEFS = [
   { name: 'kakao',             label: '카카오톡 상담 버튼',        click: true },
   { name: 'consult_request',   label: '상담 신청 제출',            click: true },
   { name: 'dest_select',       label: '연수지 선택',               click: false },
+  /* 🔴 **직원이 매뉴얼을 여는지 재려고 만든 것**(2026-09-17 대표 요청).
+     `public: false` — **공개 `/api/track`으로는 못 넣는다.** 그 엔드포인트는
+     인증이 없어 누구든 부를 수 있는데, 이 숫자는 「우리 직원이 읽는가」를 재는 것이라
+     바깥에서 한 건이라도 들어오면 그 순간 아무 뜻이 없어진다.
+     기록은 인증이 걸린 `/api/admin/insights?type=event`만 한다.
+     ⚠ `click: false` — 고객 퍼널(버튼 클릭 통계)에 섞으면 안 된다. 직원 행동이다. */
+  { name: 'manual_open',       label: '매뉴얼 열람 (직원)',        click: false, public: false },
 ];
 
-const ALLOWED_NAMES = new Set(EVENT_DEFS.map((d) => d.name));
+/* 공개 `/api/track`이 받아 주는 이름. `public: false`인 것은 빠진다 —
+   ⚠ 기본값은 **공개**다(기존 여섯 개가 전부 그렇다). 새 이벤트가 직원 것이면
+     `public: false`를 명시할 것. */
+const ALLOWED_NAMES = new Set(EVENT_DEFS.filter((d) => d.public !== false).map((d) => d.name));
+/* 인증된 관리자 경로가 받아 주는 이름 — 전부. */
+const ADMIN_EVENT_NAMES = new Set(EVENT_DEFS.map((d) => d.name));
 const CLICK_EVENT_NAMES = EVENT_DEFS.filter((d) => d.click).map((d) => d.name);
 const EVENT_LABELS = Object.fromEntries(EVENT_DEFS.map((d) => [d.name, d.label]));
 
@@ -59,6 +71,16 @@ function metaTooLarge(meta) {
    knownDestKeys가 null = 커스텀 목적지 조회 실패. 이때는 형식만 보고 통과시키되
    `destUnverified: true`를 남긴다 — 확인하지 못했다는 사실 자체를 데이터에 적는다. */
 function normalizeMeta(name, meta, knownDestKeys) {
+  /* 매뉴얼 열람 — **어느 화면에서 열었는지**를 남긴다. 그게 없으면 「몇 번 열렸다」만
+     남고 「어느 화면이 안 읽히는가」를 못 본다(그게 알고 싶은 것이다).
+     ⚠ 화면 이름은 짧은 영문 키다. 길이와 글자를 제한해 그대로 저장하지 않는다. */
+  if (name === 'manual_open') {
+    const screen = meta && typeof meta === 'object' ? meta.screen : undefined;
+    if (typeof screen !== 'string' || !/^[a-z]{1,24}$/.test(screen)) {
+      return { ok: false, error: 'invalid_screen' };
+    }
+    return { ok: true, meta: { screen } };
+  }
   if (name !== 'dest_select') return { ok: true, meta: {} };
 
   const dest = meta && typeof meta === 'object' ? meta.dest : undefined;
@@ -73,6 +95,7 @@ function normalizeMeta(name, meta, knownDestKeys) {
 module.exports = {
   EVENT_DEFS,
   ALLOWED_NAMES,
+  ADMIN_EVENT_NAMES,
   CLICK_EVENT_NAMES,
   EVENT_LABELS,
   BUILTIN_DEST_KEYS,
