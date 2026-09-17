@@ -148,7 +148,12 @@ p { line-height:1.8; }
 /* 방향 1 — 섹션 아이브로우 (레드 최소화) */
 .eyebrow {
   display:block;
-  font-size:10.5px; font-weight:700;
+/* ⚠ 10.5px였다 — 이 저장소 규칙「글자는 11px 이상」을 어기고 있었다.
+   FAQ 라벨을 고치다 발견했고, 따로 `.section-faq .eyebrow`로 빼면 **같은 규칙이
+   두 벌**이 된다(결함 생성기 ①). 한 곳에서 11.5px로 올렸다 — 이 클래스를 쓰는
+   다섯 자리(FAQ·회사소개·문의·404·매뉴얼)가 같이 올라간다 — 원래 한 식구다.
+   이 저장소엔 10.5px가 아직 **19곳** 남아 있다 — 이번 지시 밖이라 안 건드렸다. */
+  font-size:11.5px; font-weight:700;
   letter-spacing:.22em; text-transform:uppercase;
   color:var(--brand);
   margin-bottom:14px;
@@ -1214,21 +1219,29 @@ p { line-height:1.8; }
 .faq-wrap { display:grid; grid-template-columns:300px 1fr; gap:72px; align-items:start; }
 .faq-list { display:flex; flex-direction:column; min-width:0; }
 .faq-left h2 { font-size:clamp(24px,3.5vw,40px); font-weight:900; color:var(--t-head); letter-spacing:-.04em; line-height:1.2; margin-bottom:18px; }
-.faq-sub { font-size:14px; color:var(--t-mute); line-height:1.85; }
+/* FAQ 글자 — 2026-09-17 대표 지시「여러 상황 고려해서 알맞게」. 재고 정한 값이다:
+   · 답 14 → 15.5px — 1440px에서 **줄당 54자**였다(편한 구간 45~50자를 넘어섬).
+     칸 폭은 그대로니 글자를 키우면 줄이 짧아진다 → **49자**.
+     크기와 읽힘이 같은 방향으로 간 드문 자리다(보통은 키우면 줄이 길어져 손해를 본다).
+   · 줄간 1.85 → 1.8 — 글자가 커졌으니 비율을 그대로 두면 문단이 설것게 벌어진다.
+   · 질문 15 → 16.5px — 답보다 크게 둔다(접힌 목록을 훑는 제목 역할).
+   · 겹치는 `+` 22 → 24px — 질문만 키우면 부호가 작아 보인다.
+   ⚠ 질문은 **누르는 자리**다 — 높이 83px(폰 75px)로 44px 기준을 넘긴다(재봤다). */
+.faq-sub { font-size:15px; color:var(--t-mute); line-height:1.8; }
 .faq-item { border-bottom:1px solid var(--rule); }
 .faq-q {
   width:100%; text-align:left; background:none; border:none;
-  padding:22px 0; font-size:15px; font-weight:600; color:var(--t-head);
+  padding:22px 0; font-size:16.5px; font-weight:600; color:var(--t-head);
   cursor:pointer; display:flex; align-items:center;
   justify-content:space-between; gap:16px; transition:color var(--dur);
 }
-.faq-q::after { content:'+'; font-size:22px; font-weight:300; color:var(--t-sub); flex-shrink:0; transition:transform var(--dur), color var(--dur); }
+.faq-q::after { content:'+'; font-size:24px; font-weight:300; color:var(--t-sub); flex-shrink:0; transition:transform var(--dur), color var(--dur); }
 .faq-q.open::after  { transform:rotate(45deg); color:var(--t-head); }
 .faq-q:hover { color:var(--t-head); }
 .faq-q:hover::after { color:var(--t-head); }
 .faq-a { display:none; padding-bottom:22px; }
 .faq-a.open { display:block; }
-.faq-a p { font-size:14px; color:var(--t-mute); line-height:1.85; }
+.faq-a p { font-size:15.5px; color:var(--t-mute); line-height:1.8; }
 
 /* ── 15. About ──────────────────────────────────────────────────── */
 .section-about { padding:var(--sec-y) 0; background:var(--bg-off); }
@@ -1463,7 +1476,7 @@ p { line-height:1.8; }
   .trust-item:nth-child(4) { border-bottom:none; }
 
   .faq-wrap  { grid-template-columns:1fr; gap:36px; }
-  .faq-q { font-size:14px; padding:18px 0; }
+  .faq-q { font-size:15.5px; padding:18px 0; }
   .about-grid    { grid-template-columns:1fr; gap:36px; }
   .partners-group { grid-template-columns:1fr; gap:12px; padding:20px 0; }
   .p-chip { font-size:13px; padding:6px 12px; }
