@@ -941,7 +941,15 @@ p { line-height:1.8; }
 .dest-recommender { background:var(--bg-dk2); border:1px solid var(--rule-inv); padding:22px 24px; margin-bottom:24px; }
 .dest-rec-lbl { display:block; font-size:13.5px; font-weight:700; color:var(--white); margin-bottom:14px; }
 .dest-rec-row { display:flex; flex-wrap:wrap; align-items:center; gap:14px; }
+/* 🔴 눌렀을 때 열리는 목록만 회색으로 튀었다(2026-09-17 대표 지적).
+   상자는 여기서 검게 칠하지만, **열리는 목록은 브라우저가 그린다** — CSS가
+   닿지 않는다. `color-scheme`이 없으면 그 목록을 **밝은 모습으로** 그려서,
+   검은 구역 위에서 혼자 흰하게 뜨게 된다. `dark`를 주면 목록까지 어두워진다.
+   ⚠ 이 쏘은 **어둠 면에 놓인 select가 이것 하나라서** 여기 있다.
+     나머지 5개(destination·programType·organizationType·visitMode·departureCity)는
+     흰 폼 안이라 기본값이 맞다. **어두운 면에 select를 새로 놓으면 여기 같이 적을 것.** */
 #destIndustry {
+  color-scheme:dark;
   appearance:none; -webkit-appearance:none;
   background:var(--bg-dk) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23ffffff' stroke-opacity='.5' stroke-width='1.4' fill='none'/%3E%3C/svg%3E") no-repeat right 14px center;
   border:1px solid var(--rule-inv); color:var(--white);
@@ -949,6 +957,12 @@ p { line-height:1.8; }
   min-width:260px; cursor:pointer;
 }
 #destIndustry:focus { outline:none; border-color:var(--brand); }
+/* color-scheme을 안 보는 브라우저 몴 — 목록 줄을 직접 칠한다. 둘 다 있어야 안전하다. */
+#destIndustry option   { background:var(--bg-dk2); color:var(--white); }
+#destIndustry optgroup { background:var(--bg-dk);  color:var(--brand-on-dk); font-weight:700; }
+/* 고를 수 없는 줄(「분야를 골라 주세요」)은 흐리게 — 단 `opacity` 말고 **색으로**.
+   귀칙은 이 저장소에 이미 있다(투명도는 뒤에 무엇이 오느냐에 따라 결과가 달라진다). */
+#destIndustry option:disabled { color:rgba(255,255,255,.45); }
 .dest-rec-result {
   display:inline-flex; align-items:center; flex-wrap:wrap; gap:8px;
   font-size:13px; color:rgba(255,255,255,.92); line-height:1.6;

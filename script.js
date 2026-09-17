@@ -1557,6 +1557,21 @@ function syncGolfAvailability() {
     });
   });
 
+  /* 🔴 「미국을(를)」처럼 나가고 있었다(2026-09-17 대표 화면에서 보임).
+     한글은 받침이 있으면 「을」, 없으면 「를」다. 가→힙은 유니코드에서 0xAC00부터
+     28칸씩 끈어져 있고, 그 28칸 중 첫 칸(나머지 0)이 받침 없는 글자다.
+     ⚠ 끝글자가 한글이 아니면(영문·숫자·괄호) 판단할 수 없으니 안전하게 「를」로 둔다.
+     ⚠ 이 저장소엔 같은 「을(를)」이 **다른 곳에도 있다**(주로 관리자 화면).
+     이번 지시 밖이라 안 건드렸다 — 손대게 되면 이 함수를 가져다 쓸 것(두 벌로 적지 말 것). */
+  /* ⚠ 조사는 **<strong> 안에** 넣는다 — `.dest-rec-result`가 `inline-flex; gap:8px`라
+     밖에 두면 사이에 8px 틈이 생겨 「중앙아시아 를」처럼 벌어진다(화면으로 확인했다). */
+  function josaEul(word) {
+    const last = String(word || '').trim().slice(-1);
+    const code = last.charCodeAt(0);
+    if (!(code >= 0xAC00 && code <= 0xD7A3)) return '를';
+    return ((code - 0xAC00) % 28) === 0 ? '를' : '을';
+  }
+
   if (industrySel && resultEl) {
     industrySel.addEventListener('change', () => {
       const destKey = industrySel.value;
@@ -1571,7 +1586,7 @@ function syncGolfAvailability() {
 
       const destName = card.querySelector('h3')?.textContent || destKey;
       const tag      = card.querySelector('.gallery-tag')?.textContent || '';
-      resultEl.innerHTML = industryLabel + ' 분야에는 <strong>' + destName + '</strong>을(를) 추천드려요 👍 <span class="dest-rec-tag">' + tag + '</span>';
+      resultEl.innerHTML = industryLabel + ' 분야에는 <strong>' + destName + josaEul(destName) + '</strong> 추천드려요 👍 <span class="dest-rec-tag">' + tag + '</span>';
       resultEl.classList.add('show');
 
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });
