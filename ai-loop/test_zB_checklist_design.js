@@ -139,14 +139,14 @@ const ok = (name, cond, extra = '') => {
   console.log('\n[6] 색은 **CSS 소스로** 확인한다 (jsdom은 var()를 계산하지 않는다)');
   const secRule = flat(rule('.gcl-sec-title'));
   ok('⑥ 묶음 제목이 먹색이다', secRule.indexOf('color:var(--t-head)') >= 0, secRule);
-  ok('⑥ 묶음 제목 위에 레드 선이 있다', secRule.indexOf('border-top:2pxsolidvar(--red)') >= 0, secRule);
+  ok('⑥ 묶음 제목 위에 레드 선이 있다', secRule.indexOf('border-top:2pxsolidvar(--brand)') >= 0, secRule);
   ok('⑥ 구역 제목 앞에 레드 바가 있다',
-    flat(rule('.gcl-title::before')).indexOf('background:var(--red)') >= 0, flat(rule('.gcl-title::before')));
+    flat(rule('.gcl-title::before')).indexOf('background:var(--brand)') >= 0, flat(rule('.gcl-title::before')));
   ok('⑥ 항목 글자가 --t-body다(힌트색 --t-mute가 아니다)',
     flat(rule('.gcl-list li')).indexOf('color:var(--t-body)') >= 0, flat(rule('.gcl-list li')));
   /* ⚠ 레드는 CTA·아이브로우·핵심 수치 3곳뿐(방향 4). 체크 표식은 12개라 레드로 칠하면
      그 원칙을 넘는다 — 레드는 묶음 제목 선 셋과 구역 머리 바 하나로 충분하다. */
-  ok('⑥ 🔴 체크 표식 12개를 레드로 칠하지 않았다', bullet.indexOf('var(--red)') < 0, bullet);
+  ok('⑥ 🔴 체크 표식 12개를 레드로 칠하지 않았다', bullet.indexOf('var(--brand)') < 0, bullet);
 
   console.log('\n[7] 3열 배치와 좁은 화면 되돌림은 그대로다 (2026-09-14에 정한 것)');
   const bodyRule = flat(rule('.gcl-body'));

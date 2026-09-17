@@ -39,7 +39,8 @@
 }
 .pk-nav-in { display: flex; align-items: center; gap: 20px; height: 62px; }
 .pk-brand { font-weight: 800; font-size: 17px; letter-spacing: -.01em; color: var(--white); }
-.pk-brand span { color: var(--red); }
+/* 이 줄은 먹색 바(`--ink`) 위다 — 보라는 2.95:1이라 안 읽힌다(측정). 민트로 쓴다. */
+.pk-brand span { color: var(--brand-on-dk); }
 .pk-nav-sep { flex: 1; }
 .pk-nav a.pk-back {
   font-size: 13px; color: rgba(255,255,255,.72); border: 1px solid var(--rule-inv);
@@ -51,7 +52,7 @@
 .pk-hero { background: var(--bg-off); padding: 56px 0 44px; border-bottom: 1px solid var(--rule); }
 .pk-eyebrow {
   display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .08em;
-  color: var(--red); margin-bottom: 12px;
+  color: var(--brand); margin-bottom: 12px;
 }
 .pk-hero h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; line-height: 1.25; color: var(--t-head); }
 .pk-hero p { margin-top: 12px; font-size: 15px; color: var(--t-mute); max-width: 640px; line-height: 1.8; }
@@ -84,7 +85,7 @@
 }
 .pk-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pk-card-top { display: flex; align-items: center; gap: 8px; }
-.pk-dest { font-size: 12px; font-weight: 700; color: var(--red); letter-spacing: .04em; }
+.pk-dest { font-size: 12px; font-weight: 700; color: var(--brand); letter-spacing: .04em; }
 .pk-dur { font-size: 12px; color: var(--t-sub); }
 .pk-title { font-size: 16px; font-weight: 700; line-height: 1.5; color: var(--t-head); }
 .pk-meta { font-size: 13px; color: var(--t-mute); line-height: 1.7; }
@@ -95,14 +96,14 @@
 /* ⚠ **가격이 언제 값인지를 카드마다 찍는다.** 패키지가는 자주 바뀌고 우리는
    대리점이라 그 값으로 팔아야 한다 — 조회 시점 없이 보여주면 낡은 값인지 아무도 모른다. */
 .pk-asof { margin-top: 6px; font-size: 11px; color: var(--t-sub); }
-.pk-asof.stale { color: var(--red); font-weight: 700; }
+.pk-asof.stale { color: var(--brand); font-weight: 700; }
 
 .pk-cta {
   margin-top: 14px; width: 100%; padding: 12px 0; border: 0; border-radius: 10px;
-  background: var(--red); color: var(--white); font-size: 14px; font-weight: 700; cursor: pointer;
+  background: var(--brand); color: var(--white); font-size: 14px; font-weight: 700; cursor: pointer;
   font-family: inherit; transition: .16s;
 }
-.pk-cta:hover { background: var(--red-dk); }
+.pk-cta:hover { background: var(--brand-dk); }
 
 /* ── 빈 상태 ── **비어 있는 이유를 말한다.** 그냥 비면 고장으로 읽힌다 */
 .pk-empty { padding: 56px 20px; text-align: center; color: var(--t-sub); font-size: 14px; line-height: 1.9; }
@@ -123,9 +124,9 @@
 .pk-day { border-left: 2px solid var(--rule-md); padding: 0 0 18px 16px; margin-left: 6px; position: relative; }
 .pk-day::before {
   content: ''; position: absolute; left: -5px; top: 6px; width: 8px; height: 8px;
-  border-radius: 50%; background: var(--red);
+  border-radius: 50%; background: var(--brand);
 }
-.pk-day h4 { font-size: 13px; font-weight: 800; color: var(--red); margin-bottom: 6px; }
+.pk-day h4 { font-size: 13px; font-weight: 800; color: var(--brand); margin-bottom: 6px; }
 .pk-day p { font-size: 13px; color: var(--t-body); line-height: 1.8; }
 .pk-ask { display: flex; align-items: center; gap: 8px; margin-top: 22px; font-size: 13px; color: var(--t-mute); }
 .pk-ask input {
@@ -149,7 +150,7 @@
      연락처를 적게 만드는 유일한 이유라, 안 읽히면 칸이 비어서 온다. */
 .pk-lead { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
 .pk-lead label { font-size: 13px; color: var(--t-mute); margin-top: 6px; }
-.pk-lead label b { color: var(--red); font-weight: 800; }
+.pk-lead label b { color: var(--brand); font-weight: 800; }
 .pk-lead label small { display: block; margin-top: 3px; font-size: 11.5px; color: var(--t-sub); line-height: 1.6; }
 .pk-lead input {
   width: 100%; padding: 10px 12px; border: 1px solid var(--rule-md); border-radius: 8px;
@@ -425,14 +426,14 @@
         var msg = document.getElementById('pkAskMsg');
         var pax = Number((document.getElementById('pkPax') || {}).value);
         if (!(pax >= 1 && pax <= 500)) {
-          msg.style.color = 'var(--red)';
+          msg.style.color = 'var(--brand)';
           msg.textContent = '인원을 1~500명 사이로 넣어 주세요.';
           return;
         }
         var nm = ((document.getElementById('pkName') || {}).value || '').trim();
         var tel = ((document.getElementById('pkTel') || {}).value || '').trim();
         if (!nm) {
-          msg.style.color = 'var(--red)';
+          msg.style.color = 'var(--brand)';
           msg.textContent = '받으실 분 이름을 넣어 주세요.';
           return;
         }
@@ -441,7 +442,7 @@
            고객은 적었다고 생각한다(결함 생성기 ②). 형식은 조이지 않는다:
            「01012345678」·「02)123-4567」·「+82 10 …」·내선이 다 온다. */
         if (tel.replace(/\D/g, '').length < 9) {
-          msg.style.color = 'var(--red)';
+          msg.style.color = 'var(--brand)';
           msg.textContent = '연락처를 다시 확인해 주세요. (숫자 9자 이상)';
           return;
         }
@@ -492,7 +493,7 @@
                    1회용(adhoc) 견적을 고객이 주소로 찔렀을 때만 나오는데, 고객이 할 수
                    있는 일이 「문의」밖에 없다. 빠뜨린 게 아니라 정한 것이다(검사가 센다). */
               }[(o.j || {}).error] || '견적서를 만들지 못했습니다. 문의해 주시면 담당자가 바로 도와드립니다.';
-              msg.style.color = 'var(--red)';
+              msg.style.color = 'var(--brand)';
               msg.textContent = why;
               ask.disabled = false;
               return;
@@ -507,7 +508,7 @@
              XH가 고친 것과 **같은 이유, 같은 화면의 다른 갈래**다.
            ⚠ 문구는 `SOON_MSG` 한 곳에서 온다 — 따로 적으면 언젠가 하나만 고쳐진다. */
           .catch(function () {
-            msg.style.color = 'var(--red)';
+            msg.style.color = 'var(--brand)';
             msg.textContent = SOON_MSG;
             ask.disabled = false;
           });
