@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 브랜드 심볼 파비콘 (2026-09-17) — 예전엔 아예 없어 브라우저 기본 아이콘이 떴다.
+       SVG라 탭에서도 선명하고, 다크 모드 탭 바에서도 보인다(마크가 보라+민트다). -->
+  <link rel="icon" type="image/svg+xml" href="이미지/biz-mark.svg">
 <title>자동 견적 산출 (내부직원용) — 비즈페이지 Admin</title>
 <!-- 🔴 검색엔진에 실리지 않는다 — 원가·마진이 보이는 내부 화면이다. -->
 <meta name="robots" content="noindex, nofollow" />
@@ -33,7 +36,7 @@
      `PATCH /api/quotes/:id { doc }`로 견적서 문서를 붙인다.
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --ink: #0D0D0D; --red: #C8102E; --red-dk: #A20D25;
+  --ink: #0D0D0D; --red: #514dc2; --red-dk: #3E3AA6;
   --bg: #F4F4F2; --card: #FFFFFF; --line: #DCDCD8;
   --t: #1A1A1A; --t-sub: #5B5B5B; --t-dim: #767676;
   --ok: #0B6E4F; --warn: #8A5A00; --warn-bg: #FEF3C7; --warn-line: #FCD34D;

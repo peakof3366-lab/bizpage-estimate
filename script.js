@@ -2650,8 +2650,10 @@ function submitConsult() {
 
       /* 글로우 헤일로 */
       const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, sz * 6);
-      grd.addColorStop(0, 'rgba(200,16,46,0.22)');
-      grd.addColorStop(1, 'rgba(200,16,46,0)');
+      /* 🔴 어두운 지도 위의 도시 불빛 — BI 민트(#63d6d4).
+         보라는 검정 바탕에서 거의 안 보인다(2.9:1) — 여기는 어두운 면이다. */
+      grd.addColorStop(0, 'rgba(99,214,212,0.24)');
+      grd.addColorStop(1, 'rgba(99,214,212,0)');
       ctx.beginPath();
       ctx.arc(cx, cy, sz * 6, 0, Math.PI * 2);
       ctx.fillStyle = grd;
@@ -2660,7 +2662,7 @@ function submitConsult() {
       /* 외곽 링 (단일 고정) */
       ctx.beginPath();
       ctx.arc(cx, cy, sz * 2.4, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(200,16,46,0.18)';
+      ctx.strokeStyle = 'rgba(99,214,212,0.20)';
       ctx.lineWidth = 0.8;
       ctx.stroke();
 
