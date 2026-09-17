@@ -209,7 +209,7 @@ function seedQuote(w, over) {
        (그게 WK가 지키는 것이다) 픽스처도 실제 저장 모양대로 이 칸을 갖는다. */
     orgName: '테스트기업', contact: '홍길동', contactTel: '010-1234-5678', request: '',
     items: [{ name: '항공료', amount: 8000000, isHidden: false },
-            { name: 'ENBT 수익', amount: 1000000, isHidden: true }],
+            { name: '본사 수익', amount: 1000000, isHidden: true }],
   }, over || {});
   w.localStorage.setItem('linkedt_estimates_full', JSON.stringify([rec]));
   w.__login();

@@ -1914,7 +1914,7 @@
         <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center;background:#f0fdf4">
           <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--success);margin-bottom:.25rem">③ 예상 수익 ①-②</div>
           <div id="em-profit" style="font-size:1.2rem;font-weight:800;color:var(--success)"></div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">ENBT + 현지수익 + 보험</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">본사 수익 + 현지수익 + 보험</div>
         </div>
         <!-- 1인당 -->
         <div style="padding:.9rem 1rem;text-align:center">
@@ -4830,7 +4830,7 @@
   });
 
   CMS_FIELDS.push(
-    { key:'about.eyebrow',  section:'about', label:'상단 라벨',   type:'text',     def:'SINCE 2010 · 하나이엔비티 소개' },
+    { key:'about.eyebrow',  section:'about', label:'상단 라벨',   type:'text',     def:'SINCE 2010 · 비즈페이지 소개' },
     { key:'about.headline', section:'about', label:'헤드라인',   type:'text',     def:'기업·공공기관·교육기관의 신뢰할 수 있는 연수 파트너' },
     { key:'about.body',     section:'about', label:'본문',       type:'textarea', def:'평균 경력 10년 이상의 전문 컨설턴트가 연수 기획부터 현지 운영까지 원스톱으로 책임집니다. 14년간 1,400건 이상의 연수를 성공적으로 진행한 검증된 파트너입니다.' },
     { key:'about.img',      section:'about', label:'대표 이미지 URL', type:'img',  def:'이미지/발리/1.jpg', ratio:'4:3 가로형', minRes:'1200×900px' },
@@ -5337,7 +5337,7 @@
        담당자가 확인했다고 믿기 때문이다(결함 생성기 ①).
 
      공유 페이로드는 고객 견적서에 실제로 실리는 항목만 담는다.
-     ⚠ 비공개 항목(ENBT 수익·현지 수익금·여행자보험)이 새지 않도록 isHidden을 거른다 —
+     ⚠ 비공개 항목(본사 수익·현지 수익금·여행자보험)이 새지 않도록 isHidden을 거른다 —
        공개 계산기 쪽 shareData와 동일한 방어선이다(script.js rows 필터).
      ⚠ `dk`는 **`rec.destKey`**다. 예전엔 `rec.destination`을 읽었는데 견적 기록에는
        그런 필드가 없어서(운영 DB 9건 전수 확인) 늘 undefined였다 — 고객 견적서의

@@ -309,7 +309,7 @@
 
     const wholeChips = chip('프로그램×기관', combined) + chip('인원(항공·유류)', pax);
 
-    /* VK: 금액 구간별 마진 계수. **마진 두 줄(ENBT·현지)에만** 걸리므로 위 행들과 섞지
+    /* VK: 금액 구간별 마진 계수. **마진 두 줄(본사·현지)에만** 걸리므로 위 행들과 섞지
        않는다 — 같은 자리에 두면 「항공·호텔에도 붙는다」고 오해하게 된다(보험 행과 같은 이유).
        ⚠ 스냅샷에 없으면(VK 이전 견적) 행 자체를 렌더하지 않는다 — 1.0으로 보이면
          「구간 계수가 없었다」와 「1배 구간이었다」가 구분되지 않는다(조용한 폴백). */
@@ -319,7 +319,7 @@
         (typeof e.costSubtotalUnit === 'number'
           ? ` <span style="color:var(--muted);font-size:.72rem">· 판정 기준 원가소계 ${Math.round(e.costSubtotalUnit).toLocaleString('ko-KR')}원/인 (마진·보험 전)</span>`
           : '') +
-        ` <span style="color:var(--muted);font-size:.72rem">· ENBT 수익·현지 수익금 두 줄에만 적용</span>`,
+        ` <span style="color:var(--muted);font-size:.72rem">· 본사 수익·현지 수익금 두 줄에만 적용</span>`,
       netBadge(mb));
 
     /* 적용된 노브(coef)가 기본값과 다르면 별도 안내 — 전 견적에 전역 영향을 준 값 */

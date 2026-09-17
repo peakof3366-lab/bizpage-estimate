@@ -424,9 +424,19 @@
     /* 담당자 칸은 **공란일 수 있다**(대표 지시). 비어 있으면 「미입력」으로 보이게 둔다 —
        조용히 감추면 담당자가 빠뜨린 줄 모르고 그대로 보낸다(결함 생성기 ②). */
     const todo = (v) => v ? esc(v) : '<span class="qd-todo">미입력</span>';
+    /* 🔴 **견적서 머리의 로고** (2026-09-17 대표 지시: 「공유될 견적서에도 로고가」).
+       기준 양식(대표가 첨부한 견적서 이미지)은 이 자리가 글자가 아니라 로고 그림이다.
+       ⚠ **로고가 없으면 예전 그대로 글자가 나간다** — 물러설 곳을 없애면 로고를 못 읽는
+         날 머리가 통째로 빈다. 값은 `company-info.js`의 `logo` 한 곳이 정한다(data URI인
+         이유도 거기 적어 뒀다 — 팝업은 about:blank라 상대경로가 안 뜬다).
+       ⚠ `alt`는 브랜드 이름이다. 그림이 안 떠도 **무슨 회사 문서인지는 남아야** 한다. */
+    const brandText = c.brand || d.meta.vendor || '비즈페이지';
+    const brandHtml = c.logo
+      ? `<img class="qd-logo" src="${esc(c.logo)}" alt="${esc(brandText)}">`
+      : esc(brandText);
     return `
     <header class="qd-head">
-      <div class="qd-brand">${esc(c.brand || d.meta.vendor || '비즈페이지')}</div>
+      <div class="qd-brand">${brandHtml}</div>
       <div class="qd-corp">
         ${c.legalName ? `<div class="qd-corp-n">${esc(c.legalName)}</div>` : ''}
         ${c.address ? `<div>${esc(c.address)}</div>` : ''}

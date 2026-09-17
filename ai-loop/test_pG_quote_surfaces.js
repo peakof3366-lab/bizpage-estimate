@@ -68,8 +68,12 @@ const ok = (name, cond, extra = '') => {
   const bd = build();
   const muted = bd.rows.filter(r => r.muted).map(r => r.name);
   const shown = bd.rows.filter(r => !r.muted).map(r => r.name);
-  ok('비공개 3종이 muted로 표시됨(ENBT·현지수익·보험)', muted.length === 3, muted.join('/'));
-  ok('  └ ENBT 수익 비공개', muted.some(n => /ENBT/.test(n)));
+  ok('비공개 3종이 muted로 표시됨(본사 수익·현지수익·보험)', muted.length === 3, muted.join('/'));
+  ok('  └ 본사 수익 비공개', muted.some(n => /본사 수익/.test(n)));
+  /* 🔴 2026-09-17 대표 지시로 「ENBT」를 걷어냈다. **옛 이름이 되살아나는 것도 잡는다** —
+     이름만 바꾸고 검사를 새 이름으로 옮기면, 누가 되돌려도 아무도 모른다. */
+  ok('  └ 옛 이름(ENBT)이 어느 행에도 없다', !bd.rows.some(r => /ENBT/i.test(r.name || '')),
+    bd.rows.map(r => r.name).join('/'));
   ok('  └ 현지 수익금 비공개', muted.some(n => /현지 수익/.test(n)));
   ok('  └ 여행자보험 비공개', muted.some(n => /여행자보험/.test(n)));
   ok('고객 노출 행에 마진·보험 없음', !shown.some(n => /ENBT|수익|보험/.test(n)), shown.join('/'));

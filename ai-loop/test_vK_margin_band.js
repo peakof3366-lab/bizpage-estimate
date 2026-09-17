@@ -102,14 +102,14 @@ console.log('\n[0] 구간표는 data.js 하나가 진실이다');
     ok('① 저가 구간으로 판정된다', low.marginBandMul === 1.45,
       '소계 ' + Math.round(low.costSubtotalUnit) + ' · ×' + low.marginBandMul);
     const jeju = window.__DR.find((d) => d.destination_key === '제주도');
-    const enbt = low.rows.find((r) => /ENBT/.test(r.name));
+    const enbt = low.rows.find((r) => /본사 수익/.test(r.name));
     const local = low.rows.find((r) => /현지 수익/.test(r.name));
     /* 인원 24명 → ENBT 구간계수가 붙으므로 정확한 배수는 현지 쪽으로 확인한다
        (현지 수익금은 인원과 무관하게 margin × 0.9 고정이라 배수가 그대로 보인다) */
     ok('① 현지 수익금이 정확히 1.45배다',
       local && local.unit === Math.round(jeju.margin_per_traveler * 1.45 * 0.90),
       local && (local.unit + ' vs ' + Math.round(jeju.margin_per_traveler * 1.45 * 0.90)));
-    ok('① ENBT 수익도 함께 올랐다', enbt && enbt.unit > jeju.margin_per_traveler,
+    ok('① 본사 수익도 함께 올랐다', enbt && enbt.unit > jeju.margin_per_traveler,
       enbt && String(enbt.unit));
 
     /* 싱가포르 5명 6일 — 코퍼스에서 원가소계 354만대(가장 비싼 구간) */

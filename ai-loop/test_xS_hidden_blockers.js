@@ -268,7 +268,7 @@ const done = () => {
       ok('⑧ 1인 금액이 있다', txt.includes(won(rec2.perPerson)));
       ok('⑧ 목적지가 있다', /다낭/.test(txt));
       ok('⑧ 요율 기준이 있다', /요율 기준/.test(txt));
-      ok('🔴 ⑧ 감춘 수익 항목이 새지 않는다', !/ENBT 수익|현지 수익금/.test(txt));
+      ok('🔴 ⑧ 감춘 수익 항목이 새지 않는다', !/본사 수익|ENBT 수익|현지 수익금/.test(txt));
       ok('🔴 ⑧ 연락처가 찍히지 않는다', !txt.includes('010-0000-0000'));
       /* 끝나는 날을 안 받았을 때 물결표가 매달려 있었다 — 「2026년 10월 26일 ~ —」 */
       ok('⑧ 끝나는 날이 없으면 물결표를 매달지 않는다', !/~\s*—/.test(txt),
@@ -340,7 +340,7 @@ const done = () => {
       ok('⑨ 견적 내용이 함께 간다', !!b.estimate && b.estimate.total > 0);
       ok('⑨ 일반 문의와 구별되는 표시가 있다', b.type === 'estimate_inquiry', String(b.type));
       ok('🔴 ⑨ 감춘 수익 항목이 리드로 새지 않는다',
-        !/ENBT 수익|현지 수익금/.test(JSON.stringify(b)));
+        !/본사 수익|ENBT 수익|현지 수익금/.test(JSON.stringify(b)));
     }
 
     /* 일반 문의는 **연결을 기대하지 않는다** — 그게 그 폼의 성격이다 */

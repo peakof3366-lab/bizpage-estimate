@@ -1200,10 +1200,15 @@ function getBreakdownData(opts) {
   const localMarginUnit = Math.round(bandedMargin * 0.90);
 
   rows.push({
-    name:'💼 ENBT 수익', unit: enbtMarginUnit,
+    /* 2026-09-17 대표 지시(「하나이엔비티는 전부 없애줘」)로 이름만 바꿨다 —
+       예전 이름은 「💼 ENBT 수익」이었다. **금액·계산은 1원도 안 바뀐다.**
+       ⚠ 이 행은 `muted: true`라 고객 견적서에서 걸러진다. 그 방어선은 이름이 아니라
+         `muted` 플래그다(script.js의 `rows.filter(r => !r.muted)`) — 이름을 바꾼다고
+         가려지는 것도, 드러나는 것도 아니다. 검사는 새 이름으로 같이 옮겼다. */
+    name:'💼 본사 수익', unit: enbtMarginUnit,
     qty:`${participants}명`,
     amount: enbtMarginUnit * participants,
-    muted: true, adminLabel:'ENBT 수익금',
+    muted: true, adminLabel:'본사 수익금',
   });
 
   rows.push({

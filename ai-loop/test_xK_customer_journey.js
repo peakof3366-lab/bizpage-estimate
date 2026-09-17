@@ -241,8 +241,8 @@ console.log('\n[2] CSV로 떨어질 때의 내용 — 엑셀이 열 수 있어�
       ok('⑥ 유효기간이 보인다', /유효기간/.test(text));
       ok('⑥ 목적지가 보인다', text.includes('다낭'));
       /* 🔴 비공개 항목은 고객 문서에 없어야 한다 */
-      ok('⑥ ENBT 수익·현지 수익금이 안 보인다',
-        !/ENBT 수익|현지 수익금/.test(text));
+      ok('⑥ 본사 수익·현지 수익금이 안 보인다',
+        !/본사 수익|ENBT 수익|현지 수익금/.test(text));
       /* 엑셀 버튼을 실제로 눌러 본다 — 여기서도 CDN 없이 파일이 나가야 한다 */
       const xlb = V.doc.getElementById('downloadExcelBtn');
       const before = V.log.downloads.length;

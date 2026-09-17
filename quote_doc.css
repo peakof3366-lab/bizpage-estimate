@@ -73,6 +73,13 @@
   font-size: 24px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1;
 }
 .qd-brand-sm { font-size: 15px; }
+/* 🔴 로고 그림 (2026-09-17). 글자 대신 들어가지만 **글자가 들어올 수도 있다** —
+   `company-info.js`의 logo가 비면 quote_doc.js가 글자로 물러난다. 그래서 위 글자
+   규칙은 그대로 두고 그림 규칙만 더한다.
+   ⚠ 높이로 고정하고 너비는 auto다. 로고를 가로세로비가 다른 것으로 바꿔도 안 찌그러진다.
+   ⚠ `max-width`를 준다 — 아주 가로로 긴 로고가 오면 오른쪽 회사 정보를 밀어낸다. */
+.qd-logo { height: 34px; width: auto; max-width: 260px; display: block; }
+.qd-brand-sm .qd-logo { height: 20px; max-width: 170px; }
 .qd-corp { text-align: right; font-size: 11px; color: var(--qd-muted); line-height: 1.65; }
 .qd-corp-n { font-weight: 700; color: var(--qd-ink); font-size: 12px; }
 
