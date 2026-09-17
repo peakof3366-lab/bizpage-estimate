@@ -1378,9 +1378,32 @@
         <li><strong>금액의 출처</strong>를 고릅니다. 공급사에게 받아 적었으면 「대리점가」,
           우리가 조립했으면 <strong>「담당자 산출」</strong>입니다.
           이 선택이 견적서 문구와 기록에 그대로 남습니다.</li>
-        <li>저장한 뒤 <strong>「판매중」</strong>으로 바꾸고 <strong>인원</strong>을 넣어
-          <strong>「견적서 만들기」</strong>를 누르면 링크가 나옵니다.</li>
+        <li>저장한 뒤 상태를 <strong>「확정 (견적서 발급 가능)」</strong>으로 바꾸고
+          <strong>인원</strong>을 넣어 <strong>「견적서 만들기」</strong>를 누르면 링크가 나옵니다.</li>
       </ol>
+      <div class="note">
+        <span class="label">⚠ 같은 상태가 화면마다 다른 이름으로 보입니다</span>
+        <p>
+          <strong>패키지 상품</strong>과 <strong>직접 견적 작성</strong>은 같은 편집 창을 씁니다.
+          상태 값도 같습니다 — 하지만 <strong>뜻이 달라서 이름이 바뀝니다.</strong>
+        </p>
+        <div class="scroller">
+          <table>
+            <thead><tr><th>&nbsp;</th><th>패키지 상품</th><th>직접 견적 작성</th></tr></thead>
+            <tbody>
+              <tr><td class="field">만들던 중</td><td>「작성중 (고객에게 안 보임)」</td><td>「작성중 (아직 견적서를 낼 수 없음)」</td></tr>
+              <tr><td class="field">열린 상태</td><td>「판매중 (고객에게 보임)」</td><td>「확정 (견적서 발급 가능)」</td></tr>
+              <tr><td class="field">닫힌 상태</td><td>「마감 (고객에게 안 보임)」</td><td>「종료 (발급 중지)」</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          패키지의 「판매중」은 <strong>고객 화면에 뜨는다</strong>는 뜻이고,
+          직접 견적의 「확정」은 <strong>이 값으로 견적서를 내도 된다</strong>는 뜻입니다.
+          직접 견적은 <strong>고객 목록에 절대 안 뜹니다</strong> — 「판매중」이라고 적혀 있었다면
+          공개하는 것으로 읽혀 못 누르셨을 것입니다.
+        </p>
+      </div>
       <div class="note">
         <span class="label">유효기간은 비워도 14일이 붙습니다</span>
         <p>

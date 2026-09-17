@@ -74,5 +74,33 @@ ok('비교표(#which-screen)가 있다', manual.includes('id="which-screen"'));
 ok('칸별 안내(#fields)가 있다', manual.includes('id="fields"'));
 ok('직접 견적 절이 비교표로 안내한다', manual.includes('href="#which-screen"'));
 
+console.log('\n[6] 상태 이름이 화면과 매뉴얼에서 같은가');
+/* 🔴 **매뉴얼이 화면과 어긋나 있었다**(2026-09-17 대표 지적). 직접 견적 절이
+     「판매중」이라고 적혀 있었는데 화면은 「확정」이라고 말한다 — 같은 값(open)을
+     두 화면이 **다른 이름**으로 부르기 때문이다(`admin/packages.js`가 종류에 따라
+     라벨을 바꾼다). 매뉴얼만 옛 이름에 멈춰 있었다.
+   ⚠ 값(draft/open/closed)이 아니라 **사람이 읽는 이름**을 대조한다. 값은 서버가
+     보고 이름은 사람이 본다 — 어긋나는 것은 늘 이름 쪽이다. */
+const pkgjs = fs.readFileSync(path.join(ROOT, 'admin', 'packages.js'), 'utf8');
+const adhocLbl = pkgjs.match(/kind === 'adhoc'\s*\n?\s*\?\s*\{([^}]*)\}/);
+ok('화면이 직접견적용 상태 이름을 따로 쓴다', !!adhocLbl,
+   'admin/packages.js에서 라벨을 바꾸는 표가 사라졌다');
+const adhocSec = manual.match(/<section id="adhoc">([\s\S]*?)<\/section>/);
+ok('매뉴얼에 직접 견적 절이 있다', !!adhocSec);
+if (adhocLbl && adhocSec) {
+  const names = [...adhocLbl[1].matchAll(/'([^']*)'/g)].map((m) => m[1]);
+  const text = adhocSec[1].replace(/<[^>]+>/g, '');
+  for (const n of names) {
+    ok('매뉴얼이 「' + n + '」을 그대로 쓴다', text.includes(n),
+       '화면은 이렇게 말하는데 매뉴얼엔 없다 — 직원이 화면에서 못 찾는다');
+  }
+  /* 패키지 쪽 이름을 직접견적 절에서 **설명 없이** 쓰면 안 된다.
+     ⚠ 「판매중」은 두 화면을 견주는 표에서는 나와야 한다 — 그래서 표가 있는지로 가른다. */
+  ok('직접견적 절이 「판매중」을 설명 없이 쓰지 않는다',
+     !text.includes('판매중') || text.includes('같은 상태가 화면마다 다른 이름으로'),
+     '패키지 쪽 이름이 설명 없이 섞여 있다');
+}
+
+
 console.log('\n결과: ' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
