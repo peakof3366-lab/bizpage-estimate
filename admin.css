@@ -445,6 +445,26 @@
     }
     #emModal .btn-iti-edit:hover { background: #000; border-color: #000; }
 
+    /* 🧾 이 견적서 문서 미리보기 (2026-09-17)
+       ⚠ 접어 둔 채로 시작한다 — 이 모달은 이미 세로가 길다(1180px로 넓힌 이유가 그것이다).
+       ⚠ 문서 자체는 `quote_doc.css`가 그린다. 여기서는 **담는 상자만** 정한다 —
+         문서 규칙을 여기 적으면 링크 견적서와 두 벌이 된다(결함 생성기 ①). */
+    #emModal .em-doc-box {
+      margin-top: .6rem; padding: .75rem .9rem;
+      background: #fbfaf8; border: 1px solid var(--border);
+      border-left: 3px solid var(--heading);
+    }
+    /* 🔴 **요약줄 규칙을 여기서 새로 쓰지 않는다.** 접는 줄은 `.fold-note`가 이미
+       정한다(높이 32px·화살표·hover). 한 벌 더 만들면 담당자가 두 곳에서 다른 모양을
+       배우게 되고, `test_tA_fold_cards`가 「접는 규칙이 한 곳에만 있다」로 막는다 —
+       실제로 이 자리를 만들다 걸렸다. 마크업에서 `class="fold-note"`를 붙여 쓴다. */
+    /* A4 문서가 1180px 모달보다 넓을 수 있다 — 가로로 밀지 않고 상자 안에서 굴린다 */
+    #emModal .em-doc-prev {
+      margin-top: .75rem; max-height: 60vh; overflow: auto;
+      background: #fff; border: 1px solid var(--border); padding: .6rem;
+    }
+    #emModal .em-doc-prev .qd { box-shadow: 0 1px 6px rgba(0,0,0,.08); margin-bottom: .8rem; }
+
     /* ── 일정 편집 모달의 저장 줄을 **바닥에 붙인다** (2026-09-15 대표 지시) ──
        대표: 「일정 수정 관련 버튼이 눈에 좀 잘 띄었으면.」
        🔴 실측: 이 창의 내용이 **3,034px**인데 「이 견적서 일정으로 저장」이 **맨 아래**에

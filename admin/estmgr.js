@@ -401,6 +401,7 @@
     eqOnSaved = null;
     eqReset();
     emRenderItiState();
+    emRenderDocPreview(e);
 
     document.getElementById('emModalTitle').textContent = `견적 상세 — ${e.destLabel||e.destKey}`;
 
@@ -781,6 +782,31 @@
        그대로 나가는 경우가 대부분이라 "내가 안 본 일정이 고객에게 갔다"가 생긴다. */
   function emConfirmItinerary(snap, tables, rec) {
     const NL = String.fromCharCode(10);
+
+    /* 🔴 **문서가 붙어 있으면 그 문서의 일정이 나간다** (2026-09-17).
+       고치기 전에는 여기서 목적지 공통 코스를 보여 주며 「이 일정이 고객에게 나갑니다」라고
+       말했다 — 실제로 나가는 것은 담당자가 내부직원용 ④단계에 적은 일정이었다.
+       확인하라고 띄운 창이 틀린 것을 보여 주고 있었던 셈이다(결함 생성기 ②의 반대 꼴 —
+       조용한 폴백이 아니라 **큰 소리로 틀린 말**). */
+    const doc = emDocOf(rec);
+    if (doc) {
+      const days = emDocItiDays(doc);
+      const lines = days.slice(0, 12).map((x) => '   DAY ' + (x.day || '')
+        + '  ' + String(x.title || x.am || '').slice(0, 40)).join(NL);
+      if (!days.length) {
+        return confirm('이 견적서에는 **내부직원용에서 만든 문서**가 붙어 있습니다.'
+          + NL + '그런데 그 문서의 **일정표가 비어 있습니다.**'
+          + NL + NL + '🔴 목적지 공통 일정은 나가지 않습니다 — 일정 없이 견적서만 나갑니다.'
+          + NL + '일정을 넣으려면 자동 견적 산출(내부직원용) ④단계에 적고 다시 저장하세요.'
+          + NL + NL + '이대로 발급할까요?');
+      }
+      return confirm('이 견적서와 함께 아래 일정이 고객에게 나갑니다. 확인해 주세요.'
+        + NL + NL + '출처 · 🧾 내부직원용에서 작성한 견적서 문서 (' + days.length + '일)'
+        + NL + lines + (days.length > 12 ? NL + '   …' : '')
+        + NL + NL + '고칠 것이 있으면 자동 견적 산출(내부직원용)에서 이 건을 다시 만들어 저장하세요.'
+        + NL + NL + '이대로 발급할까요?');
+    }
+
     if (!snap) {
       return confirm('이 견적서에는 **일정이 실리지 않습니다.**' + NL + NL
         + '"' + (rec.destLabel || rec.destKey || '') + '"에 등록된 코스가 없습니다.'
@@ -839,10 +865,78 @@
      편집기를 열지 않아도 전용 일정이 있는지 없는지는 보여야 한다 — 안 보이면
      담당자는 열어 봐야만 알 수 있고, 열어 보지 않으면 기본 일정이 나가는 줄 모른다
      (결함 생성기 ②). */
+  /* 이 견적에 **내부직원용에서 만든 문서**가 붙어 있는가.
+     🔴 붙어 있으면 발급 때 **그 문서가 그대로** 고객 링크에 실리고, 아래 「목적지 공통
+       일정」·「이 견적서 전용 일정」은 **한 줄도 안 나간다**(`estimate-view.html`이
+       `d.doc`이 있으면 v2 경로로만 그린다). 그걸 모르고 공통 코스를 보여 주면
+       화면이 거짓말을 한다 — 2026-09-17에 실제로 그러고 있었다. */
+  function emDocOf(rec) {
+    const doc = rec && rec.doc;
+    return (doc && typeof doc === 'object' && !Array.isArray(doc)) ? doc : null;
+  }
+  function emDocItiDays(doc) {
+    if (!doc || !Array.isArray(doc.itinerary)) return [];
+    return doc.itinerary.filter((x) => x && ['title', 'am', 'pm', 'eve', 'stay', 'note']
+      .some((k) => String(x[k] || '').trim()));
+  }
+
+  /* ══ 🧾 이 견적서 문서 미리보기 (2026-09-17 대표 지시) ═══════════════════
+     「자동 견적 산출에서 뽑은 견적서 양식이 그대로 유지되면 좋겠다」 — 유지는 이미
+     되고 있었다. 없던 것은 **담당자가 발급 전에 확인할 자리**다.
+     🔴 **여기서 문서를 다시 그리지 않는다.** 그리는 곳은 `quote_doc.js` 하나다. */
+  function emRenderDocPreview(rec) {
+    const box = document.getElementById('em-doc-box');
+    const prev = document.getElementById('em-doc-prev');
+    const state = document.getElementById('em-doc-state');
+    if (!box || !prev || !state) return;
+    /* 앞 견적에서 펼쳐 둔 상태를 물려받지 않는다 — 남의 문서를 편 채로 열리면 안 된다 */
+    box.open = false;
+    prev.innerHTML = '';
+
+    const doc = emDocOf(rec);
+    if (!doc) {
+      state.textContent = '문서 없음 — 옛 방식(항목·금액 표)으로 발급됩니다';
+      state.style.color = 'var(--muted)';
+      return;
+    }
+    if (typeof QuoteDoc === 'undefined') {
+      /* 조용히 빈 칸으로 두지 않는다 — 「문서가 없다」와 「못 그렸다」는 다른 말이다 */
+      state.textContent = '⚠ 문서는 있는데 그리지 못했습니다 (quote_doc.js 미탑재)';
+      state.style.color = 'var(--warn)';
+      return;
+    }
+    let safe;
+    try {
+      /* 🔴 고객이 받는 그대로를 본다 — 원가·마진·내부 메모를 지우고 그린다
+         (`estimate-view.html`과 같은 순서: normalize → stripInternal). */
+      safe = QuoteDoc.stripInternal(QuoteDoc.normalize(doc));
+      prev.innerHTML = QuoteDoc.renderQuote(safe) + QuoteDoc.renderItinerary(safe);
+    } catch (err) {
+      state.textContent = '⚠ 문서를 그리다 오류가 났습니다 — ' + (err && err.message || '');
+      state.style.color = 'var(--warn)';
+      return;
+    }
+    const days = emDocItiDays(safe).length;
+    const items = (safe.details || []).length;
+    state.innerHTML = '상세 ' + items + '항목 · 일정 ' + days + '일'
+      + (days ? '' : '  ·  <strong>일정표가 비어 있습니다</strong>');
+    state.style.color = days ? '#15803D' : 'var(--warn)';
+  }
+
   function emRenderItiState() {
     const el = document.getElementById('em-iti-state');
     if (!el) return;
     const rec = getEstsFull().find((x) => x.id === emCurrentId);
+    /* 🔴 문서가 붙어 있으면 **아래 일정은 고객에게 안 나간다.** 먼저 그 사실을 말한다. */
+    const doc = emDocOf(rec);
+    if (doc) {
+      const n = emDocItiDays(doc).length;
+      el.textContent = n
+        ? '🧾 견적서 문서의 일정이 나갑니다 (' + n + '일) — 아래 코스는 나가지 않습니다'
+        : '🧾 견적서 문서가 붙어 있는데 일정표가 비어 있습니다 — 일정 없이 나갑니다';
+      el.style.color = n ? '#15803D' : 'var(--warn)';
+      return;
+    }
     const it = rec && rec.itinerary;
     if (it && Array.isArray(it.courses) && it.courses.length) {
       el.textContent = '📝 이 견적서 전용 일정'
