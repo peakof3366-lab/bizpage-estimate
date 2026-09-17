@@ -289,6 +289,7 @@ async function handleList(req, res) {
                  vendor_quote_no, vendor_no_by, vendor_no_at,
                  payload->>'dt' dest, payload->>'org' org, payload->>'cn' cn,
                  payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
+                 payload->'doc'->'price' docprice,
                  payload->'_verify'->>'verdict' verdict
             from quote_shares
            where quote_no ilike ${like} or customer_label ilike ${like}
@@ -301,6 +302,7 @@ async function handleList(req, res) {
                  vendor_quote_no, vendor_no_by, vendor_no_at,
                  payload->>'dt' dest, payload->>'org' org, payload->>'cn' cn,
                  payload->>'iso' iso, payload->>'n' pax, payload->>'t' total, payload->>'pp' per,
+                 payload->'doc'->'price' docprice,
                  payload->'_verify'->>'verdict' verdict
             from quote_shares order by created_at desc limit ${LIST_MAX}`;
     /* 차수·개정 관계 (ZE) — **뼈대만 따로 읽어 센다.**
@@ -326,6 +328,29 @@ async function handleList(req, res) {
       revs = null;
     }
     if (revs) for (const r of rows) Object.assign(r, revs[r.id] || {});
+
+    /* 🔴 **대장이 보여줄 금액은 「고객이 실제로 받은 금액」이다** (2026-09-17).
+       ─────────────────────────────────────────────────────────────────────
+       그동안 대장은 `payload.t`만 보여줬다. 그런데 고객이 여는 견적서(v2)는
+       **`payload.doc`을 그린다** — 그리고 그 둘은 **같을 의무가 없었다.**
+       담당자가 문서에서 단가를 조정해 발급하는 것은 정상 업무이기 때문이다
+       (이 파일의 발급 분기: 「담당자 발급은 검증 결과를 기록만 하고 막지 않는다 —
+        조건을 조정해 보내는 정상 업무가 있고, 그 판단은 사람이 한다」).
+
+       🔴 **실측(2026-09-17 백업)**: 발급 26건 중 doc이 붙은 1건에서 대장 20,791,309원 ·
+         **고객 문서 18,712,180원 — 정확히 −10.00%**. 어긋남을 알리는 것은 아무 데도 없었다.
+       ⚠ 이 대장의 존재 이유가 「**우리가 그 금액을 낸 적 있다**」는 기록이다(이 파일 머리
+         주석: 삭제 버튼을 두지 않은 이유). 고객이 못 본 금액을 적어 두면 그 일을 못 한다 —
+         이어받은 사람이 20,791,309원으로 응대하는데 고객 손에는 18,712,180원이 있다.
+
+       ⚠ **합산 규칙을 여기 다시 적지 않는다.** `QDOC.normalize`가 `금액 = 단가 × 인원`을
+         정하는 유일한 자리다(결함 생성기 ①). 여기서 `reduce`를 한 벌 더 쓰면 10+1 같은
+         규칙이 바뀌는 날 대장만 옛 규칙으로 남는다.
+       ⚠ **doc이 없는 건은 그대로 `t`다** — 옛 양식(v1)은 payload의 항목을 그리므로
+         그 금액이 곧 고객이 본 금액이다. 25건이 여기 해당한다.
+       ⚠ 못 읽어도 **목록을 막지 않는다.** 대장의 일은 찾는 것이다(차수 계산과 같은 원칙). */
+    applyDocTotals(rows);
+
     /* ⚠ 상한에 걸렸으면 **말한다.** 조용히 자르면 「전부 봤다」로 읽힌다. */
     return res.status(200).json({ shares: rows, capped: rows.length >= LIST_MAX, max: LIST_MAX,
       revisions: revs ? true : false });
@@ -333,6 +358,34 @@ async function handleList(req, res) {
     console.error('[quote-shares] 대장 조회 실패:', err);
     return res.status(500).json({ error: 'query_failed' });
   }
+}
+
+/* 대장 행의 금액을 **고객이 실제로 받은 금액**으로 맞춘다 (2026-09-17). 자세한 이유는
+   위 `handleList`의 호출부 주석에 있다. 여기 함수로 뺀 것은 **검사가 부를 수 있어야**
+   하기 때문이다 — 인라인으로 두면 DB를 띄우지 않고는 한 줄도 못 재고, 그러면
+   「안전망이 실제로 실행된 적이 없다」(결함 생성기 ③)가 그대로 재현된다. */
+function applyDocTotals(rows) {
+  for (const r of rows) {
+    const raw = r.docprice;
+    delete r.docprice;            /* 화면에 단가 줄까지 실어 보내지 않는다 */
+    if (!raw) continue;
+    try {
+      /* ⚠ 합산 규칙은 `QDOC.normalize` 하나가 진실이다 — 여기 reduce를 한 벌 더 쓰면
+         10+1 같은 규칙이 바뀌는 날 대장만 옛 규칙으로 남는다(결함 생성기 ①). */
+      const docTotal = QDOC.normalize({ price: raw }).price.total;
+      if (!(docTotal > 0)) continue;
+      const ledgerTotal = Number(r.total);
+      r.total = String(docTotal);  /* 고객이 받은 금액 */
+      /* 어긋날 때만 남긴다 — 늘 붙는 표시는 곧 아무도 안 본다(결함 생성기 ③). */
+      if (Number.isFinite(ledgerTotal) && ledgerTotal !== docTotal) {
+        r.totalQuoted = String(ledgerTotal);
+        r.totalDrift = Number((((docTotal - ledgerTotal) / ledgerTotal) * 100).toFixed(2));
+      }
+    } catch (err) {
+      console.error('[quote-shares] 문서 금액을 못 읽었다(대장은 t로 표시):', err && err.message);
+    }
+  }
+  return rows;
 }
 
 /* 「이 문의에 견적서가 나갔나」 — 견적 관리 화면이 쓰는 **역방향** 조회 (ZB).
@@ -637,3 +690,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'insert_failed' });
   }
 };
+
+/* 검사가 DB 없이 대장 금액 규칙만 직접 돌릴 수 있게 노출한다.
+   (규칙을 테스트에 다시 옮겨 적으면 두 벌이 어긋난다 — api/content.js와 같은 방식) */
+module.exports.applyDocTotals = applyDocTotals;
