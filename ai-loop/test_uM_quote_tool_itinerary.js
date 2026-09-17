@@ -55,7 +55,10 @@ const SAVED = [
 function bootQuoteTool(opts) {
   const o = opts || {};
   const calls = { quotePosts: 0 };
-  const dom = new JSDOM(read('admin-quote.html'), {
+  /* ⚠ 2026-09-17: 받침을 고객 화면으로 바꿨다 — 담당자 산출 화면(고객용)을
+     지운 날이다. 여기서 재는 것은 `script.js`의 전용 일정 → 팝업 견적서 경로라
+     부르는 화면이 바뀔 그 계약은 그대로다. */
+  const dom = new JSDOM(read('index.html'), {
     runScripts: 'dangerously', url: 'http://localhost/',
     beforeParse(w) {
       w.fetch = (u) => {
@@ -97,6 +100,12 @@ const fillForm = (w, d, destKey) => {
   sel.dispatchEvent(new w.Event('change', { bubbles: true }));
   d.getElementById('participants').value = '20';
   d.getElementById('days').value = '5';
+  /* ⚠ 고객 화면은 출발일이 **필수**다(내부 도구에서만 풀렸던 제약) */
+  {
+    const sd = d.getElementById('startDate');
+    const t = new Date(); t.setDate(t.getDate() + 30);
+    if (sd) sd.value = t.toLocaleDateString('sv-SE');
+  }
   d.getElementById('nextStepButton').click();
   d.getElementById('organization').value = '테스트기업';
   d.getElementById('contactName').value = '김담당';
@@ -187,71 +196,25 @@ const submitForm = async (w, d) => {
   }
 
   /* ── [3] 산출 완료 카드 ─────────────────────────────────────────────── */
-  console.log('\n[3] 산출 완료 카드 — 지금 무엇이 나가는지 말한다');
-  {
-    const { dom, w, d } = bootQuoteTool();
-    await new Promise((r) => setTimeout(r, 250));
-    const card = d.getElementById('aqItiCard');
-    ok('일정 카드가 페이지에 있다', !!card);
-    ok('산출 전에는 숨어 있다', card.classList.contains('hidden'));
-    ok('견적서 받기 버튼보다 **앞에** 선다 (일정을 보고 나서 문서를 받는다)',
-      !!(card.compareDocumentPosition(d.getElementById('downloadEstimate'))
-         & w.Node.DOCUMENT_POSITION_FOLLOWING));
+  /* ⚠ 2026-09-17 — 여기 있던 [3] · [4](산출 완료 카드 · 저장 안 된 견적의 안내)는
+     「자동 견적 산출 (고객용)」 화면의 UI만 보던 것이라 화면과 함께 걷었다.
+     🔴 그 둘이 지키던 약속 자체(「저장 안 된 건에는 일정을 못 붙인다」)는
+     남은 내부직원용에서 `test_zQ`의 [17-e](저장 실패를 그 자리에서 말한다)가
+     받고 있다 — 검사를 지우면서 약속까지 지우지 않았다는 뜻이다. */
 
-    /* 대표 요청(2026-08-19)으로 버튼을 머리줄 오른쪽에서 **카드 폭 전체**로 내렸다.
-       jsdom은 레이아웃을 계산하지 않으므로 폭을 재는 대신 구조로 고정한다 —
-       머리줄 밖에 있고 전체 폭 클래스를 달고 있어야 한다. */
-    const itiBtn = d.getElementById('aqItiBtn');
-    ok('일정 버튼이 카드 폭 전체를 쓰는 자리에 있다',
-      itiBtn.classList.contains('aq-iti-btn') && !itiBtn.closest('.aq-iti-head'));
-    ok('상태 문구보다 아래에 선다 (무엇이 나가는지 읽고 나서 누른다)',
-      !!(d.getElementById('aqItiState').compareDocumentPosition(itiBtn)
-         & w.Node.DOCUMENT_POSITION_FOLLOWING));
-
-    fillForm(w, d, '도쿄');
-    await submitForm(w, d);
-    ok('산출하면 카드가 뜬다', !card.classList.contains('hidden'));
-    const state = d.getElementById('aqItiState');
-    ok('⑤ 확인하지 않았으면 **그렇다고 말한다** (조용히 기본값을 내보내지 않는다)',
-      /아직 확인하지 않았습니다/.test(state.textContent), state.textContent);
-    ok('⑤ 건너뛸 수 있다고 화면이 말한다 (대표 결정 2026-08-19)',
-      /확인하지 않고 바로 견적서를 받아도 됩니다/.test(d.querySelector('.aq-iti-note').textContent));
-    ok('⑤ 견적서 받기 버튼은 막히지 않는다 (급한 건을 세우지 않는다)',
-      !d.getElementById('downloadEstimate').disabled);
-    dom.window.close();
-  }
-
-  /* ── [4] 서버 저장이 실패한 견적 ────────────────────────────────────── */
-  console.log('\n[4] 서버에 저장되지 않은 견적');
-  {
-    const { dom, w, d } = bootQuoteTool({ saveFail: true });
-    await new Promise((r) => setTimeout(r, 250));
-    fillForm(w, d, '도쿄');
-    await submitForm(w, d);
-    /* submitLead가 재시도(600ms·1200ms)를 거쳐 실패로 확정될 때까지 기다린다 */
-    await new Promise((r) => setTimeout(r, 2800));
-
-    d.getElementById('aqItiBtn').dispatchEvent(new w.Event('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 150));
-    const state = d.getElementById('aqItiState');
-    ok('⑥ 저장 안 된 견적에는 일정을 붙일 수 없다고 **먼저** 말한다',
-      /서버에 저장되지 않아/.test(state.textContent), state.textContent);
-    ok('⑥ 그 사실을 경고 자리에도 남긴다 (PX 경로 그대로)',
-      !d.getElementById('aqSaveWarn').classList.contains('hidden'));
-    dom.window.close();
-  }
-
-  /* ── [5] 편집기는 한 곳뿐 — 산출 화면은 창구를 부른다 ────────────────── */
   console.log('\n[5] 편집기는 admin.html 한 곳뿐이다');
   {
-    /* 산출 화면에 편집기를 복제하지 않았다는 것을 소스로 못 박는다.
-       복제하면 칸 구성·일수 맞춤·저장 규칙이 두 벌이 된다(결함 생성기 ①). */
-    const aq = read('admin-quote.html');
-    ok('⑦ 산출 화면에 일자 카드를 그리는 코드가 없다 (편집기를 복제하지 않았다)',
-      !/iti-day-grid|eqRenderDay/.test(aq));
-    ok('⑦ 산출 화면이 일정을 직접 저장하지도 않는다',
-      !/'PATCH'|"PATCH"/.test(aq));
-    ok('⑦ 대신 부모의 창구를 부른다', /openQuoteItineraryEditor/.test(aq));
+    /* 🔴 편집기를 **두 벌 만들지 않는다** — 칸 구성·일수 맞춤·저장 규칙이
+       갈라지면 한쪽만 고쳐진다(결함 생성기 ①).
+       ⚠ 2026-09-17: 보는 대상을 지운 화면에서 **남은 담당자 화면**으로 옮겼다.
+       🔴 내부직원용에도 날짜별 칸이 있지만 그건 **견적서 링크의 일정표 탭**이지
+         이 검사가 말하는 「추천 코스 편집기」(itinerary_overrides)가 아니다.
+         그래서 그 편집기의 지문(`eqRenderDay`·코스 저장)만 없는지를 재다. */
+    const pro = read('admin-quote-pro.html');
+    ok('⑦ 남은 산출 화면이 추천 코스 편집기를 복제하지 않았다',
+      !/iti-day-grid|eqRenderDay/.test(pro));
+    ok('⑦ 추천 코스를 직접 저장하지도 않는다 (itinerary_overrides는 admin.html의 일이다)',
+      !/itinerary_overrides|action=itineraries/.test(pro));
 
     const admin = adminSource();
     ok('⑦ 창구는 admin.html에 있다', /window\.openQuoteItineraryEditor\s*=/.test(admin));
@@ -357,9 +320,12 @@ const submitForm = async (w, d) => {
   /* ── [7] 이 화면만 따로 연 경우 ─────────────────────────────────────── */
   console.log('\n[7] 산출 화면만 따로 연 경우');
   {
-    const aq = read('admin-quote.html');
-    ok('⑧ 막다른 안내로 끝내지 않고 편집기가 있는 곳으로 보낸다',
-      /admin\.html#quote-iti=/.test(aq));
+    /* 🔴 2026-09-17 — 이 깊은 링크를 **부르던 쪽이 없어졌다.**
+       「자동 견적 산출 (고객용)」을 단독으로 열었을 때만 쓰던 길이었고,
+       그 화면을 지웠다. **받는 자리는 일부러 남겨 둔다** — 견적 id로 편집기를
+       여는 주소는 그 자체로 쓸모가 있고, 부팅 순서(권한 적용 → 탭 복원)가
+       이 함수 위치에 엮혀 있어 뗼 때 잎을 위험이 더 크다.
+       ⚠ 부르는 곳이 없는 길이라는 것을 여기 적어 둔다 — 나중에 「왜 있지」를 묻게 된다. */
     const admin = adminSource();
     ok('⑧ 그 주소로 들어오면 받아 주는 자리가 있다',
       /#quote-iti=/.test(admin) && /function aqHandleItiHash/.test(admin));

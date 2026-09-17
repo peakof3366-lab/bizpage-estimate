@@ -188,9 +188,16 @@ const OVERRIDE_TOKYO = [{
   ok('실패를 상태로 남긴다', w2.__ITINERARY_SOURCE__.state === 'failed', w2.__ITINERARY_SOURCE__.state);
   ok('무엇이 실패했는지도 남긴다', /http_500/.test(w2.__ITINERARY_SOURCE__.error), w2.__ITINERARY_SOURCE__.error);
   ok('그래도 화면은 기본 일정으로 정상 동작한다', w2.ITINERARY_DB['도쿄'][0].title === defaultTokyoTitle);
-  const aqSrc = read('admin-quote.html');
-  ok('내부 산출 도구가 그 실패를 담당자에게 보여준다',
-    /itineraryOverridesReady/.test(aqSrc) && /state !== 'failed'/.test(aqSrc));
+  /* 🔴 2026-09-17 — 이 경고를 달고 있던 화면(「자동 견적 산출 · 고객용」)을 지웠다.
+     남은 내부직원용은 추천 일정 오버라이드를 **아예 안 쓴다** — 담당자가
+     ④단계에서 일정을 직접 적는다. 못 불러왔다고 견적서가 틀리는 경로가 없으므로
+     경고할 것도 없다. 🔴 단, 나중에 내부직원용이 추천 일정을 끌어다 채우게 되면
+     **그때 이 경고를 다시 달아야 한다** — 아래 검사가 그 때를 잡아 알려 준다. */
+  const proSrc = read('admin-quote-pro.html');
+  const proUsesIti = /ITINERARY_DB|itineraryOverrides/.test(proSrc);
+  ok('내부 산출 도구가 추천 일정을 쓰면 실패도 알려야 한다',
+    !proUsesIti || /itineraryOverridesReady/.test(proSrc),
+    proUsesIti ? '추천 일정을 쓰기 시작했는데 실패 안내가 없다' : '');
   ok('고객 화면(index.html)에는 그 경고를 띄우지 않는다', !/ITINERARY_SOURCE/.test(read('index.html')));
 
   /* ── [5] 관리자 편집 화면 ────────────────────────────────────────────── */

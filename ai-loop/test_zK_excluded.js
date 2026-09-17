@@ -87,8 +87,8 @@ for (const [이름, src] of [['링크 견적서', viewCode], ['팝업 견적서'
 /* 두 문서가 싣는지도 본다 — 안 실으면 값이 undefined라 조용히 아무것도 안 그린다 */
 ok('② 링크 견적서가 company-info.js를 싣는다', VIEW.indexOf('src="company-info.js"') >= 0);
 ok('② 팝업을 만드는 화면도 싣는다(index.html)', read('index.html').indexOf('src="company-info.js"') >= 0);
-ok('② 담당자 산출 화면도 싣는다(admin-quote.html)',
-  read('admin-quote.html').indexOf('src="company-info.js"') >= 0);
+ok('② 담당자 산출 화면도 싣는다(admin-quote-pro.html)',
+  read('admin-quote-pro.html').indexOf('src="company-info.js"') >= 0);
 
 console.log('\n[3] 두 문서가 **같은 제목**으로 보여 준다');
 ok('③ 링크 견적서에 「불포함 내역」 제목이 있다', viewCode.indexOf('>불포함 내역<') >= 0);

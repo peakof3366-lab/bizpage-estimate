@@ -10,7 +10,7 @@
    반드시 어긋난다(결함 생성기 ①). 그래서 아는 곳을 여기 하나로 두고 둘 다 읽어 간다.
    limits.js(QO)와 같은 방식이다.
 
-   - 고객 화면: index.html·admin-quote.html이 <script src="rec_fallbacks.js">로 싣고
+   - 고객 화면: index.html·admin-quote-pro.html이 <script src="rec_fallbacks.js">로 싣고
      script.js가 전역 REC_FALLBACKS를 읽는다. **script.js보다 먼저 실어야 한다.**
    - 관리자 화면: admin.html이 같은 파일을 싣고 미리보기가 읽는다.
    - 테스트: ai-loop/test_rJ_rec_preview.js가 세 곳이 같은 값을 보는지 대조한다.

@@ -193,69 +193,6 @@ async function 내부견적화면() {
   });
 }
 
-async function 견적산출화면() {
-  const 단계 = (d, n) => d.querySelector('.estimate-step[data-step="' + n + '"]');
-  const 열려있나 = (d, n) => { const s = 단계(d, n); return !!s && s.classList.contains('step-active'); };
-
-  return auditPage('admin-quote.html', {
-    fixtures: adminFixtures('filled'),
-    settle: 320,
-    skipDetached: true,
-    /* 이 화면에서만 누를 수 있는 것 — 고르는 줄과 나라별 접기 */
-    also: 'label.aq-list-row, summary',
-    /* 검색으로 걸러진 목적지 줄은 화면에 없다(`.aq-row-hidden { display:none }`) */
-    hiddenClasses: ['aq-row-hidden'],
-    /* 이 화면이 말을 거는 자리 — 누르기 전에 비우고 잰다(안 그러면 「조용하다」로 세어진다) */
-    messageSelector: '.step-missing, #aqSaveWarn, #aqItiState',
-    after: async (B) => {
-      /* 🔴 **로그인 게이트를 정말 지났는지 확인한다.** 못 지나면 `#quoteApp`이 통째로
-         감춰져 있어 「누를 것이 5개뿐인데 전부 깨끗하다」는 거짓 초록이 된다. */
-      const app = B.doc.getElementById('quoteApp');
-      if (!app || app.classList.contains('hidden')) {
-        throw new Error('견적 산출 화면이 안 열렸다 — 로그인 픽스처를 확인할 것');
-      }
-    },
-    sections: async () => [
-      {
-        name: 'STEP1 여행정보',
-        /* 나라별 접기를 전부 펼친다 — 접힌 채로 누르면 「담당자가 못 누르는 것」을
-           눌러 놓고 눌러 봤다고 세게 된다. 펼치는 줄(`<summary>`) 자체도 훑는다. */
-        enter: async (B) => { Array.from(B.doc.querySelectorAll('details')).forEach((d) => { d.open = true; }); },
-        scope: (d) => 단계(d, 1),
-      },
-      {
-        name: 'STEP2 고객정보',
-        enter: async (B) => {
-          폼채우기(B);
-          await B.tick(120);
-          const next = B.doc.getElementById('nextStepButton');
-          if (next) next.dispatchEvent(new B.win.MouseEvent('click', { bubbles: true, cancelable: true, view: B.win }));
-          await B.tick(200);
-          if (!열려있나(B.doc, 2)) throw new Error('「다음 단계로 이동」을 눌렀는데 STEP 2가 안 열렸다');
-        },
-        scope: (d) => 단계(d, 2),
-      },
-      {
-        name: '견적 결과',
-        enter: async (B) => {
-          const conf = B.doc.getElementById('estimateConfirm');
-          if (!conf || conf.classList.contains('hidden')) {
-            폼채우기(B);
-            await B.tick(120);
-            B.doc.getElementById('estimateForm')
-              .dispatchEvent(new B.win.Event('submit', { bubbles: true, cancelable: true }));
-            await B.tick(400);
-          }
-          const c2 = B.doc.getElementById('estimateConfirm');
-          if (!c2 || c2.classList.contains('hidden')) {
-            throw new Error('「견적 산출하기」를 눌렀는데 결과 카드가 안 열렸다');
-          }
-        },
-        scope: (d) => d.getElementById('estimateConfirm'),
-      },
-    ],
-  });
-}
 
 (async () => {
   /* `--mode=quote`는 견적 산출 화면만 본다(관리자 화면은 오래 걸린다) */
@@ -266,7 +203,8 @@ async function 견적산출화면() {
     이름: 'admin.html — ' + (mode === 'empty' ? '빈 계정 (막 만든 팀원)' : '며칠 쓴 계정'),
     run: () => 담당자화면(mode),
   }));
-  if (!ONE || ONE === 'quote') 훑기.push({ 이름: 'admin-quote.html — 견적 산출 (STEP 1 → 2 → 결과)', run: 견적산출화면 });
+  /* ⚠ 2026-09-17: `admin-quote.html`(고객용)을 지우면서 이 훑기도 내렸다 —
+     담당자가 견적을 만드는 자리는 이제 아래 `--mode=pro` 하나다. */
   if (!ONE || ONE === 'pro') 훑기.push({ 이름: 'admin-quote-pro.html — 내부직원용 (1 → 5단계)', run: 내부견적화면 });
 
   let 터짐 = 0, 죽은링크 = 0, 조용함 = 0, 눌러본것 = 0, 건너뜀 = 0, 사라짐 = 0;

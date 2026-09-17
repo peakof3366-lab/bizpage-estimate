@@ -42,7 +42,6 @@ const done = () => {
 };
 
 const INDEX = read('index.html');
-const AQ = read('admin-quote.html');
 const SCRIPT = read('script.js');
 const CSS = read('styles.css');
 const { PROGRAM_TYPES } = require(path.join(ROOT, 'data.js'));
@@ -54,29 +53,30 @@ function optsOf(html, id) {
   return sel ? Array.from(sel.options).map((o) => ({ v: o.value, t: o.textContent.trim() })) : null;
 }
 
-console.log('\n[1] 🔴 목록이 세 곳에 있다 — 셋을 함께 대조한다');
+console.log('\n[1] 목록은 이제 두 곳이다 — data.js와 고객 화면을 대조한다');
 {
-  /* 예전엔 test_rK가 index.html만 data.js와 대조했다. admin-quote.html은 아무도 안 봤다 —
-     담당자 화면에만 유형이 빠져도 조용히 통과하는 상태였다(결함 생성기 ①). */
+  /* ⚠ 2026-09-17: 예전엔 세 곳(data.js · index.html · admin-quote.html)이었다.
+     「자동 견적 산출 (고객용)」을 지우면서 **적어 둔 목록 한 벌이 없어졌다.**
+     남은 내부직원용은 `quote_engine_host.js`가 `data.js`를 그대로 읽어 칸을 만든다 —
+     두 벌이 애초에 없으므로 어긋날 자리도 없다. 그 사실을 아래에서 직접 재다. */
   const iP = optsOf(INDEX, 'programType');
-  const aP = optsOf(AQ, 'programType');
   const keys = Object.keys(PROGRAM_TYPES);
-  ok('① 세 곳 다 프로그램 유형 목록을 갖는다', !!iP && !!aP && keys.length > 0);
+  ok('① 고객 화면이 프로그램 유형 목록을 갖는다', !!iP && keys.length > 0);
   ok('① index.html이 data.js와 키가 같다', iP.map((o) => o.v).join(',') === keys.join(','),
     iP.map((o) => o.v).join(',') + ' vs ' + keys.join(','));
-  ok('① admin-quote.html도 data.js와 키가 같다', aP.map((o) => o.v).join(',') === keys.join(','),
-    aP.map((o) => o.v).join(',') + ' vs ' + keys.join(','));
   ok('① 이름(label)까지 같다',
-    iP.every((o) => PROGRAM_TYPES[o.v] && PROGRAM_TYPES[o.v].label === o.t)
-    && aP.every((o) => PROGRAM_TYPES[o.v] && PROGRAM_TYPES[o.v].label === o.t));
+    iP.every((o) => PROGRAM_TYPES[o.v] && PROGRAM_TYPES[o.v].label === o.t));
   ok('① 휴양이 들어 있다', keys.includes('leisure'), keys.join(','));
 
   const iO = optsOf(INDEX, 'organizationType');
-  const aO = optsOf(AQ, 'organizationType');
   ok('① 기관 유형에 「일반 고객」이 있다', iO.some((o) => o.v === 'individual'),
     iO.map((o) => o.v).join(','));
-  ok('① 기관 유형도 두 화면이 같다', iO.map((o) => o.v).join(',') === aO.map((o) => o.v).join(','),
-    iO.map((o) => o.v).join(',') + ' vs ' + aO.map((o) => o.v).join(','));
+
+  /* 🔴 내부직원용이 목록을 **다시 적어 두면** 예전처럼 한쪽만 빠지는 사고가 돌아온다.
+     그러면 이 검사가 먼저 울리게 해 둔다. */
+  const PRO = read('admin-quote-pro.html');
+  ok('① 내부직원용은 유형 목록을 베껴 적지 않는다',
+    !optsOf(PRO, 'programType') && !optsOf(PRO, 'organizationType'));
 }
 
 console.log('\n[2] 계수 — 값을 지어내지 않았다');

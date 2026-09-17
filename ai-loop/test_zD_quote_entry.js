@@ -38,7 +38,6 @@ const { bootPage, visibleText } = require('./_page_boot.js');
 
 const ROOT = path.join(__dirname, '..');
 const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-const AQ = fs.readFileSync(path.join(ROOT, 'admin-quote.html'), 'utf8');
 const CSS = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
 const SCRIPT = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
 
@@ -132,8 +131,13 @@ const ok = (name, cond, extra = '') => {
   /* 같은 `id="downloadEstimate"`가 담당자 산출 화면에도 있다. 거기서는 처음부터
      「견적서 받기」였는데 고객 화면만 「견적서 확인하기」였다 — 매뉴얼과 검사가 같은
      것을 두 이름으로 부르고 있었다. */
-  ok('⑤ 담당자 산출 화면에도 같은 id가 있다', AQ.indexOf('id="downloadEstimate"') >= 0);
-  ok('⑤ 그 화면의 이름이 「견적서 받기」다', AQ.indexOf('견적서 받기') >= 0);
+  /* ⚠ 2026-09-17: 두 화면 중 한쪽(「자동 견적 산출 · 고객용」)을 지웠다.
+     남은 내부직원용은 같은 `id="downloadEstimate"`를 화면에 두지 않는다 —
+     그 id는 `quote_engine_host.js`가 **숨긴 폼 안에** 만드는 엔진용 버튼이고,
+     담당자가 누르는 것은 ⑤단계의 「인쇄 · PDF로 저장」이다.
+     🔴 그래서 이제 **고객 화면의 이름만이 기준**이다 — 아래 ⑤가 그것을 지킨다. */
+  ok('⑤ 고객 화면이 「견적서 받기」로 부른다',
+    indexNoComments.indexOf('견적서 받기') >= 0);
   /* ⚠ **주석을 걷어내고 센다.** 위 경위를 적은 주석에 그 글자가 들어 있어, 그대로 세면
      내가 쓴 설명 때문에 검사가 실패한다 — 저장소가 여러 번 겪은 함정이다(`test_zC` ⑨). */
   ok('⑤ 🔴 고객 화면에 「견적서 확인하기」가 남아 있지 않다',

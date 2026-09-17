@@ -318,7 +318,8 @@ if (require.main === module) (async () => {
      `quote_engine_host.js`가 만드는 숨은 폼 `#__qeh` 안이다 — 사람이 쓰는 칸이 아니라
      `script.js`의 엔진이 읽는 자리이고, `aria-hidden="true"` + 전 칸 `tabindex="-1"`이라
      낭독기도 Tab도 닿지 않는다. 숫자를 0으로 만들려고 자를 깎지 않고 여기 적어 둔다. */
-  const 담당자화면 = ['admin.html', 'admin-quote.html', 'admin-quote-pro.html', 'manual.html'];
+  /* ⚠ 2026-09-17: `admin-quote.html`(자동 견적 산출 · 고객용)을 대표 지시로 지웠다. */
+  const 담당자화면 = ['admin.html', 'admin-quote-pro.html', 'manual.html'];
   const 전부 = ONLY ? [ONLY] : [...고객화면, ...담당자화면];
 
   let 기술용어총 = 0, 무색총 = 0, 막다른길 = 0, 이름없음 = 0, 강조둘이상 = 0, 같은이름총 = 0;

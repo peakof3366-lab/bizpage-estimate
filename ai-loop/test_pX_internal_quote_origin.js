@@ -29,7 +29,7 @@ const ok = (name, cond, extra = '') => {
 };
 
 const quotesSrc = read(path.join('api', 'quotes.js'));
-const aqSrc = read('admin-quote.html');
+const aqSrc = read('admin-quote-pro.html');
 const scriptSrc = read('script.js');
 const adminSrc = adminSource();
 
@@ -60,10 +60,12 @@ for (const name of ['송주연', '정직한', '방민정', '오윤정', '조혜�
   ok(`하드코딩된 이름 '${name}'이 남아 있지 않다`, !aqSrc.includes(name));
 }
 ok('로그인 계정 표시명을 담당자로 쓴다', /window\.__INTERNAL_STAFF__ = me\.displayName/.test(aqSrc));
-ok('authGate가 받은 me를 버리지 않는다 (예전엔 r.json()을 읽지도 않았다)',
-  /return r\.json\(\);/.test(aqSrc));
-ok('표시 전용 요소를 쓴다(입력칸이 아니다)', /<output id="aqStaffName"/.test(aqSrc));
-ok('사용자가 바꿀 수 있는 change 리스너가 없다', !/aqStaff'\)\?\.addEventListener\('change'/.test(aqSrc));
+ok('authGate가 받은 me를 버리지 않는다', /r\.json\(\)/.test(aqSrc));
+/* ⚠ 2026-09-17: 예전 화면은 담당자를 `<output>`으로 **보여주기만** 했다.
+   남은 화면은 그 칸이 **견적서에 찍힐 담당자 이름**이라 고쳐 쓸 수 있어야 한다
+   (대리 작성이 실무에 있다). 🔴 그래서 「못 바꾼다」로 지키지 않고,
+   **저장되는 출처는 서버가 세션에서 찍는다**는 위 [1]과 아래 [8]이 진짜 안전망이다. */
+ok('계정 이름을 칸에 미리 채운다(빈칸이면)', /if \(!\$\('dStaffName'\)\.value\) \$\('dStaffName'\)\.value = me\.displayName/.test(aqSrc));
 
 console.log('\n[3] 내부 도구는 인증 경로로 보내는가');
 ok('엔드포인트를 내부/공개로 나눈다',

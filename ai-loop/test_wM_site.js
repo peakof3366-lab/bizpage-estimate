@@ -94,7 +94,7 @@ console.log('\n[4] 검색엔진 · 공유 미리보기 — 목록을 손으로 �
   /* 🔴 견적서 링크는 인증이 없다(WC) — 색인되면 남의 견적서가 검색에 뜬다 */
   ok('④ 🔴 견적서 화면은 noindex', /name="robots"[^>]*noindex/.test(p2('estimate-view.html')));
   ok('④ 관리자 화면도 noindex', /name="robots"[^>]*noindex/.test(p2('admin.html')));
-  ok('④ 담당자 견적 도구도 noindex', /name="robots"[^>]*noindex/.test(p2('admin-quote.html')));
+  ok('④ 담당자 견적 도구도 noindex', /name="robots"[^>]*noindex/.test(p2('admin-quote-pro.html')));
 
   /* ⚠ 견적서 미리보기에 **견적 내용이 들어가면 안 된다** — 링크를 받은 누구에게나 보인다.
      정적 문구뿐인지 실제 태그를 잘라서 본다(WC에서 연락처를 payload에 안 넣은 것과 같은 결). */

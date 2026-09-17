@@ -47,11 +47,11 @@ const done = () => {
 const SCRIPT = read('script.js');
 const ADMIN = adminSource();
 const SHARES = read('api/quote-shares.js');
-const AQ = read('admin-quote.html');
+const PRO = read('admin-quote-pro.html');
 
 console.log('\n[1] 견적 기록이 연락처를 담는다 — 칸만 있고 안 읽히던 상태를 막는다');
 {
-  ok('① 담당자 도구에 연락처 칸이 있다 (WC)', /id="contactTel"/.test(AQ));
+  ok('① 담당자 도구(내부직원용)에 연락처 칸이 있다 (WC)', /id="dCustTel"/.test(PRO));
   ok('① 고객 계산기에도 있다 (WC)', /id="contactTel"/.test(read('index.html')));
   /* 🔴 여기가 이번에 고친 자리다. 칸을 읽어 estRecord에 넣지 않으면
      저장했다가 나중에 발급하는 순간 값이 사라진다. */

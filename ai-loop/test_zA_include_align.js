@@ -153,22 +153,17 @@ const ok = (name, cond, extra = '') => {
       && /\binc-grade-row\b/.test(r.selectorText)), '라벨을 세로로 쌓는');
   }
 
-  /* 🔴 **여기가 누수를 진짜로 잡는 자리다.** 위 [⑥ 선택자 검사]는 내가 고른 대상만 보지만,
-     이것은 **담당자 산출 화면을 실제로 띄워 계산된 값을 읽는다.**
-     `.inc-vip-row`는 `admin-quote.html`도 쓰는 유일한 클래스다(세어 봤다). 원래
-     `margin-top:8px`인데, 오늘 규칙에서 `.item-selector` 접두사가 빠지면 그 화면에서도
-     **0px로 눌린다.** 어제 그 화면의 오른쪽 2/3가 비었던 사고가 정확히 이 모양이었다. */
-  const { win: aWin, doc: aDoc, ready: aReady } = bootPage('admin-quote.html');
-  await aReady;
-  ok('⑥ 담당자 산출 화면을 띄웠다', [...aDoc.styleSheets].some((s) => /styles\.css/.test(s.href || '')));
-  ok('⑥ 담당자 산출 화면은 .item-selector를 쓰지 않는다', aDoc.querySelectorAll('.item-selector').length === 0);
-  const aqVip = aDoc.querySelector('.inc-vip-row');
-  ok('⑥ 🔴 .inc-vip-row는 그 화면도 쓴다 — 그래서 좁혀야 한다', !!aqVip);
-  if (aqVip) {
-    ok('⑥ 🔴 담당자 화면의 .inc-vip-row가 오늘 규칙에 **안 걸렸다**',
-      aWin.getComputedStyle(aqVip).marginTop === '8px',
-      `margin-top=${aWin.getComputedStyle(aqVip).marginTop} (8px여야 한다 — 0px면 규칙이 샜다)`);
-  }
+  /* 🔴 **이 검사가 무엇을 지키던 것인가** — 2026-09-17에 대상이 바뀌었다.
+     원래 `.inc-vip-row`는 **두 화면이 같이 쓰던** 클래스였다 — 고객 계산기와
+     담당자 산출 화면. 그래서 오늘 규칙에서 `.item-selector` 접두사가 빠지면
+     저쪽 화면이 조용히 망가졌다. 그 화면을 2026-09-17에 지우면서 **샐 자리가 없어졌다.**
+     🔴 다만 「지금 한 곳」은 사실일 뿐 약속이 아니다 — 누가 다시 둘로 늘리면
+     옆 화면이 예전처럼 위험해진다. 그래서 **쓰는 화면을 센다.** */
+  const usesVip = ['index.html', 'admin.html', 'admin-quote-pro.html', 'packages.html', 'estimate-view.html']
+    .filter((f) => { try { return fs.readFileSync(path.join(ROOT, f), 'utf8').includes('inc-vip-row'); }
+                     catch (e) { return false; } });
+  ok('⑥ `.inc-vip-row`를 쓰는 화면은 고객 계산기 하나다',
+    usesVip.join(',') === 'index.html', usesVip.join(',') || '(없음)');
 
   console.log('\n' + '─'.repeat(64));
   console.log(`결과: ${pass} pass / ${fail} fail  — ZA 포함 항목 세 영역 정렬`);

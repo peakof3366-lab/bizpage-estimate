@@ -53,8 +53,11 @@ NEW.forEach(({ key, peer, country, currency, season }) => {
   ok(`③ ${key} 기본 코스가 있다`, Array.isArray(D.ITINERARY_DB[key]) && D.ITINERARY_DB[key].length >= 1,
     String((D.ITINERARY_DB[key] || []).length));
   ok(`④ ${key} 방식 A·B가 있다`, !!(D.DEST_REC[key] && D.DEST_REC[key].a && D.DEST_REC[key].b));
-  ok(`⑤ ${key} 화면 select 두 곳에 있다`,
-    read('index.html').includes(`<option value="${key}">`) && read('admin-quote.html').includes(`<option value="${key}">`));
+  /* ⚠ 2026-09-17: 담당자 산출 화면(고객용)을 지우면서 **보는 곳이 하나로 줄었다.**
+     남은 내부직원용은 목적지 목록을 `destinationRates`에서 그려서
+     적어 둔 option 목록이 없다 — 두 벌이 어긋날 자리 자체가 없어졌다. */
+  ok(`⑤ ${key} 고객 화면 select에 있다`,
+    read('index.html').includes(`<option value="${key}">`));
   ok(`⑥ ${key} 견적서 파일명으로 알아본다`, destFromName(`굿리치 ${key} 워크샵.pdf`).key === key,
     JSON.stringify(destFromName(`굿리치 ${key} 워크샵.pdf`)));
 

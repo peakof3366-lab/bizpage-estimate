@@ -206,7 +206,7 @@ const done = () => {
     ok('⑦ 하한을 UTC로 만들지 않는다',
       !/const today = new Date\(\)\.toISOString\(\)/.test(src)
       && /const today = new Date\(\)\.toLocaleDateString\('sv-SE'\)/.test(src));
-    const admin = fs.readFileSync(path.join(ROOT, 'admin-quote.html'), 'utf8');
+    const admin = fs.readFileSync(path.join(ROOT, 'admin-quote-pro.html'), 'utf8');
     ok('⑦ 담당자 도구가 script.js보다 먼저 자신을 내부 도구라 밝힌다',
       admin.indexOf('__INTERNAL_TOOL__') > -1
       && admin.indexOf('__INTERNAL_TOOL__') < admin.indexOf('<script src="script.js">'));
@@ -475,7 +475,10 @@ const done = () => {
        이 블록을 예전 판으로 되돌린다. */
     const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
     const src = rd('script.js');
-    const aq = rd('admin-quote.html');
+    /* ⚠ 위 「되살리려면」의 `2df6efa:admin-quote.html`은 **과거의 주소**라 그대로 둔다.
+       그 화면 자체는 2026-09-17에 지워졌고, 엑셀이 따라붙지 않았는지는 남은
+       담당자 화면(내부직원용)에서 재야 한다. */
+    const aq = rd('admin-quote-pro.html');
     ok('⑪ 계산기 엑셀 함수가 없다', !/function downloadEstimateExcel\s*\(/.test(src));
     ok('⑪ 그 기능 플래그도 없다', !/const FEATURE_EXCEL_EXPORT/.test(src));
     ok('⑪ 담당자 산출 화면에 엑셀 버튼이 없다', !/id="downloadEstimateExcel"/.test(aq));

@@ -222,7 +222,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
 
 <div class="wrap hidden" id="app">
   <!-- ⚠ `admin.html` 안에 iframe으로 들어가면 **제목이 두 번** 나온다(바깥 탭이 이미
-       그린다). `admin-quote.html`이 `.aq-embedded`로 같은 일을 한다 — 같은 방식을 쓴다.
+       그린다). `admin-quote.html (⚠ admin-quote.html은 2026-09-17에 지워졌다)`이 `.aq-embedded`로 같은 일을 한다 — 같은 방식을 쓴다.
        단독 주소로 열었을 때는 제목이 있어야 한다(무슨 화면인지 말해야 하니까). -->
   <div class="page-head">
     <h1 class="page-title" id="pgTitle">자동 견적 산출 (내부직원용)</h1>
@@ -312,6 +312,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         <span id="calcState" style="font-size:12px;color:var(--t-sub)"></span>
       </div>
       <p class="note hidden" id="calcErr"></p>
+      <p class="note hidden" id="rateWarn"></p>
     </div>
   </section>
 
@@ -451,6 +452,11 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         <button type="button" class="btn btn-r" id="btnSave">견적 저장하기</button>
       </div>
       <p class="note hidden" id="saveMsg"></p>
+      <!-- 🔴 `script.js`가 저장 실패를 적는 자리(`showInternalSaveWarning`). 이 칸이 없으면
+           그 함수는 `alert`로 떨어진다 — 알리긴 하지만 닫고 나면 사라진다.
+           ⚠ 2026-09-17: 이 칸은 원래 「자동 견적 산출 (고객용)」에 있었다. 그 화면을
+             지우면서 **저장 실패 안내가 alert로 떨어질 뻔한 것**을 여기로 옮겼다. -->
+      <p class="note note-err hidden" id="aqSaveWarn"></p>
     </div>
   </section>
 </div>
@@ -567,6 +573,25 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     $('sec1Desc').textContent = '견적서 개요표에 들어갑니다 · 필수 4칸';
     $('btnCalc').classList.add('hidden');
     $('btnStart').classList.remove('hidden');
+  }
+
+  /* 🔴 **요율·환율을 못 불러왔으면 금액 자체가 달라진다.**
+     기본 요율(data.js)로 계산되고 환율 보정이 통째로 빠진 값이라, 모르고 고객에게
+     불러 주면 그대로 나간다. 조용한 폴백이 가장 비싸지는 자리다(결함 생성기 ②).
+     ⚠ 2026-09-17 — 이 경고는 원래 「자동 견적 산출 (고객용)」에**만** 있었다.
+       그 화면을 지우면서 **안전망까지 같이 사라질 뻔한 것**을 여기로 옮겨 심었다.
+       화면을 걷어낼 때는 그 화면이 혼자 들고 있던 경고가 있는지를 먼저 본다. */
+  if (typeof rateOverridesReady !== 'undefined') {
+    rateOverridesReady.then((st) => {
+      if (!st || st.state !== 'failed') return;
+      const w = $('rateWarn');
+      if (!w) return;
+      w.textContent = '⚠ 최신 요율·환율을 불러오지 못했습니다 — 지금 산출되는 금액은 '
+        + '기본 요율로 계산된 값이고 환율 보정이 빠져 있습니다. '
+        + '고객에게 안내하기 전에 새로고침 후 다시 산출해 주세요.';
+      w.classList.remove('hidden');
+      w.classList.add('note-err');
+    });
   }
 
   if (!READY.ok) {
@@ -1483,7 +1508,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     }
   }
 
-  /* ═══ 인증 ═══ admin-quote.html과 같은 방식이다 ═══ */
+  /* ═══ 인증 ═══ admin-quote.html (⚠ admin-quote.html은 2026-09-17에 지워졌다)과 같은 방식이다 ═══ */
   (function authGate() {
     fetch('/api/admin/account?action=me').then((r) => {
       if (!r.ok) { (window.top || window).location.href = 'admin.html'; return null; }

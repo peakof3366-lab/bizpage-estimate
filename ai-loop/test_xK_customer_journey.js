@@ -39,7 +39,7 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 /* 🔴 **엑셀을 가진 화면이 셋 → 둘 → 하나로 줄었다.** 대표 지시로 두 번에 걸쳐 걷었다:
      · 2026-09-14 `index.html`(고객 견적 폼)
-     · 2026-09-15 `admin-quote.html`(담당자 산출) — `script.js`의
+     · 2026-09-15 `admin-quote-pro.html`(담당자 산출) — `script.js`의
        `downloadEstimateExcel()` 73줄과 `FEATURE_EXCEL_EXPORT`도 함께 없앴다.
    각 화면에서 그 버튼이 **유일한 진입점**이었으므로 `sheet_download.js`와 xlsx CDN
    400KB도 같이 걷었다.
@@ -64,7 +64,7 @@ console.log('\n[1] 「엑셀」이 남은 화면은 **하나** — 그 화면이
      기관·대기업 망에서 그 CDN이 느리거나 막혀 있으면 그동안 흰 화면이다.
    ⚠ 새 화면을 만들 때 여기서 걸린다. `defer`를 붙였으면 그 파일을 쓰는 **호출 시점**도
      같이 옮겼는지 확인할 것(안 옮기면 아이콘이 통째로 안 그려진다). */
-  ['index.html', 'packages.html', 'estimate-view.html', 'admin.html', 'admin-quote.html', '404.html'].forEach((f) => {
+  ['index.html', 'packages.html', 'estimate-view.html', 'admin.html', 'admin-quote-pro.html', '404.html'].forEach((f) => {
     const s = read(f);
     const blocking = (s.match(/<script(?![^>]*\b(defer|async)\b)[^>]*src="https?:\/\/[^"]+"/g) || []);
     ok('① ' + f + ' 는 바깥 스크립트로 첫 화면을 막지 않는다', blocking.length === 0,
@@ -132,7 +132,7 @@ console.log('\n[2] CSV로 떨어질 때의 내용 — 엑셀이 열 수 있어�
      예전에는 여기서 「XLSX가 막힌 고객이 눌러도 CSV로 나가는가」를 봤다. 버튼을 뺐으니
      그 검사는 뜻이 없어졌지만, **그냥 지우면 방침이 아무 데도 안 남는다** — 다음 사람이
      「있으면 좋겠네」 하고 되살려 놓아도 아무도 모른다. 그래서 반대로 잠근다.
-     ⚠ 기능 자체를 없앤 것이 아니다. 담당자 산출(admin-quote.html)과 공유 견적서
+     ⚠ 기능 자체를 없앤 것이 아니다. 담당자 산출(admin-quote-pro.html)과 공유 견적서
        (estimate-view.html)에는 그대로 있고, script.js의 함수도 남아 있다. */
   ok('③ 🔴 고객 결과 패널에 엑셀 버튼이 없다',
     !doc.getElementById('downloadEstimateExcel'));

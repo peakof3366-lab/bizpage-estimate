@@ -197,14 +197,12 @@
             <span class="sbg-chev"><i data-lucide="chevron-down"></i></span>
           </button>
           <div class="sb-group-items" id="sbg-calc">
-            <button class="sidebar-item" data-tab="quotetool">
-              <span class="si-icon"><i data-lucide="calculator"></i></span><span class="si-label">자동 견적 산출 <span class="si-sub">(고객용)</span></span>
-            </button>
-            <!-- ⚠ 2026-09-15 대표 지시로 **셋으로 갈랐다.** 「(고객용)은 기존 문구 뒤에
-                 (고객용)이라고 붙여 주기만 하면 된다」 — 화면·로직·산출 결과는 그대로다.
-                 🔴 **데이터 이름은 안 바꿨다** — 탭 id·해시·검사가 전부 `quotetool`이다.
-                   화면 이름과 데이터 이름은 같을 이유가 없고, 바꾸면 F5 복원 해시
-                   (`#tab=quotetool`)가 든 북마크가 전부 깨진다. -->
+            <!-- ⚠ 「자동 견적 산출 (고객용)」은 **2026-09-17 대표 지시로 삭제**했다.
+                 그 화면(`admin-quote.html`)은 이름과 달리 고객이 쓰는 화면이 아니라
+                 담당자 도구였고, 내부직원용이 입력·출력 모두를 덮는다(골프·비즈니스석·
+                 방문처 칸은 내부직원용에만 있었다). 고객이 쓰는 화면은 `index.html`이고
+                 이 삭제와 무관하다.
+                 🔴 옛 북마크(`#tab=quotetool`)는 `restoreTabFromHash`가 내부직원용으로 보낸다. -->
             <button class="sidebar-item" data-tab="quotepro">
               <span class="si-icon"><i data-lucide="sliders-horizontal"></i></span><span class="si-label">자동 견적 산출 <span class="si-sub">(내부직원용)</span></span>
             </button>
@@ -1130,27 +1128,10 @@
 
     </div>
 
-    <!-- ── 내부 견적 산출 (신규) ──
-         공개 견적 계산기와 100% 동일한 계산 로직(script.js/data.js)을 admin-quote.html이
-         그대로 재사용하도록 하고, 그 페이지를 이 탭 안에 <iframe>으로 임베드한다.
-         이렇게 하면 별도 브라우저 탭으로 이동하지 않고 관리자 페이지 안에서 바로 쓸 수 있고,
-         계산 엔진(DOM 결합도가 높아 손대기 위험한 getBreakdownData 등)은 전혀 건드리지 않아
-         공개 견적 계산기에 회귀 버그가 생길 위험이 없다. -->
-    <div class="tab-panel" id="tab-quotetool">
-      <div class="page-head">
-        <h1 class="page-title">자동 견적 산출</h1>
-        <!-- ⚠ 설명 줄을 뺐다 (2026-09-08 대표 지시) — 화면 제목이 이미 말한다. -->
-      </div>
-      <div class="card" style="padding:0;overflow:hidden">
-        <iframe id="quoteToolFrame" title="내부 견적 산출"
-          style="width:100%;height:calc(100vh - 150px);border:none;display:block;background:#fff"></iframe>
-      </div>
-    </div>
-
     <!-- ── 자동 견적 산출 (내부직원용) ── 2026-09-15 신설.
          🔴 **`admin.html`에 화면을 넣지 않았다** (대표 지시 제약 6: 「admin.html처럼 이미
            비대해진 파일에 신규 화면을 추가하지 않는다」). 별도 파일을 iframe으로 띄운다 —
-           `quotetool`이 `admin-quote.html`을 띄우는 것과 같은 방식이다.
+           다른 탭들이 `manual.html`을 띄우는 것과 같은 방식이다.
          ⚠ 원가·마진이 보이는 화면이지만 **역할로 막지 않는다** (2026-09-15 대표 확인:
            「내부 직원은 모두 봐도 괜찮아」). 로그인은 그 안의 authGate가 확인한다. -->
     <div class="tab-panel" id="tab-quotepro">
@@ -3784,7 +3765,7 @@
     dashboard:'대시보드', inquiries:'문의 관리', estmgr:'견적 요청 관리',
     stats:'방문 통계', events:'이벤트 분석', estimates:'견적 분석',
     marketing:'마케팅 인사이트', pricereport:'견적서 업데이트',
-    rates:'요율 관리', quotetool:'자동 견적 산출 (고객용)', quotepro:'자동 견적 산출 (내부직원용)',
+    rates:'요율 관리', quotepro:'자동 견적 산출 (내부직원용)',
     itineraries:'일정·방식 비교', packages:'패키지 상품', adhoc:'직접 견적 작성',
     ledger:'견적서 대장', content:'콘텐츠 관리',
     manual:'매뉴얼', settings:'설정'
@@ -3869,7 +3850,12 @@
   function restoreTabFromHash() {
     const m = /^#tab=([a-z0-9-]+)$/i.exec(location.hash || '');
     if (!m) return false;
-    const want = m[1];
+    /* 🔴 **없어진 화면으로 가는 북마크를 대신받는다** (2026-09-17).
+       `quotetool`(자동 견적 산출 · 고객용)을 지우면 그 주소를 저장해 둔 사람은
+       아무 말 없이 대시보드로 떨어진다 — 그 일을 한 것이 우리인데 화면은 아무 말도
+       안 한다(결함 생성기 ②: 조용한 폴백). 갈아끼운 화면으로 보낸다. */
+    const ALIAS = { quotetool: 'quotepro' };
+    const want = ALIAS[m[1]] || m[1];
     const btn = document.querySelector('.sidebar-item[data-tab="' + want + '"]');
     const panel = document.getElementById('tab-' + want);
     /* 없는 이름이면 조용히 기본 화면에 머문다 — 주소는 사람이 고칠 수 있는 값이다 */
@@ -3922,7 +3908,6 @@
     else if (name==='marketing') renderMarketingInsights();
     else if (name==='pricereport') renderPriceReportTab();
     else if (name==='rates') { renderRates(); refreshRatesOnOpen(); }
-    else if (name==='quotetool') renderQuoteTool();
     else if (name==='quotepro') renderQuotePro();
     else if (name==='manual') renderManual();
     else if (name==='itineraries') renderItineraries();
@@ -3931,13 +3916,6 @@
     else if (name==='packages' || name==='adhoc') renderPackages();
     else if (name==='ledger') renderLedger();
     else if (name==='content') renderContent();
-  }
-
-  /* iframe은 처음 탭을 열 때 한 번만 src를 지정해 불필요한 로드를 피한다
-     (되돌리려면 이 함수와 위 renderTab의 분기, 사이드바 버튼, tab-panel만 지우면 됨) */
-  function renderQuoteTool() {
-    const frame = document.getElementById('quoteToolFrame');
-    if (frame && !frame.src) frame.src = 'admin-quote.html';
   }
 
   /* 내부직원용도 같은 방식 — 처음 열 때 한 번만 src를 지정한다 */

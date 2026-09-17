@@ -20,7 +20,6 @@
 | `data.js` | 55개 목적지 요율표 + `DEST_CLASSIFY` 분류표(좌석·보험·지역·통화·시즌·반구) + 추천 콘텐츠(`DEST_REC`)·추천 일정(`ITINERARY_DB`) |
 | `dest_currency.js` · `company-info.js` | 정산 통화 매핑 · 회사 정보 |
 | `admin.html` | 관리자 화면 — 요율 편집, 문의·견적 관리, 통계, **일정 관리**, 계정 관리 |
-| `admin-quote.html` | 담당자용 견적 산출 도구 — **고객이 받는 그대로**의 금액 (관리자 메뉴 「자동 견적 산출 (고객용)」) |
 | `admin-quote-pro.html` | **내부직원용** 견적 산출 — 같은 엔진·같은 금액에 **원가·마진이 함께 보이고** 항목별 조정·일정 입력·견적서 미리보기까지 한 화면 |
 | `estimate-view.html` | 고객에게 공유되는 견적서 화면 |
 | `quote_engine_host.js` | **견적 엔진 호스트** — 엔진(`script.js`)이 읽는 입력칸을 코드로 만든다. 화면을 베껴 세 번째 복사본을 만들지 않으려고 생겼다. `mount()`는 `script.js`보다 **먼저**, `ready({…})`는 **뒤에** 부른다 |
@@ -243,7 +242,6 @@ python ai-loop/check_manual_layout.py --shots   # 스크린샷도 저장 (--shot
 
 python ai-loop/check_contrast.py                # 안 읽히는 글자 — 31개 화면(고객 견적서·패키지 포함)
 python ai-loop/check_contrast.py --all          # 확인 대상(흐린 글자)까지 전부
-python ai-loop/check_quotetool_width.py         # 내부 견적 산출 화면 폭 (RW)
 python ai-loop/check_quote_form_layout.py       # 🔴 고객 견적 폼 — 폼에 도착했을 때 무엇이 보이나 (XT)
 python ai-loop/check_customer_screens.py        # 🔴 고객이 손에 쥐는 화면 — 폰 폭부터 (YA)
 python ai-loop/check_customer_screens.py --selftest   # 안전망이 살아 있는지 (고장 주입)
@@ -309,13 +307,13 @@ node ai-loop/smoke_prod_journey.js --live --cleanup  # 🔴 운영 DB에 실제�
 
 node ai-loop/audit_admin_journey.js               # 🔴 **담당자 화면 둘**의 버튼을 전부 눌러 본다 (XT·XV)
 node ai-loop/audit_admin_journey.js --mode=filled #   admin.html만, 며칠 쓴 계정 상태로
-node ai-loop/audit_admin_journey.js --mode=quote  #   admin-quote.html(견적 산출)만
+node ai-loop/audit_admin_journey.js --mode=pro    #   admin-quote-pro.html(내부직원용 1→5단계)만
 ```
 
-⚠ 담당자 화면은 `admin.html` **하나가 아니다.** `admin-quote.html`(내부 견적 산출)이
-고객에게 나갈 금액을 실제로 만드는 자리다 — XV 전까지 어느 훑기에도 안 들어 있었다.
-그 화면은 목적지·조건을 `<label>` 줄로 고르므로 기본 선택자로는 **9개**만 잡힌다
-(실제 131개). `also`·`hiddenClasses`로 **부르는 쪽이** 더 준다.
+⚠ 담당자 화면은 `admin.html` **하나가 아니다.** `admin-quote-pro.html`(내부직원용 견적 산출)이
+고객에게 나갈 금액을 실제로 만드는 자리다 — 그래서 `--mode=pro`로 따로 훑는다.
+⚠ 2026-09-17: 예전엔 `admin-quote.html`(「자동 견적 산출 · 고객용」)도 있었고 `--mode=quote`로
+훑았다. 대표 지시로 지웠다 — 이름과 달리 담당자 도구였고, 내부직원용이 그 칸을 전부 덮는다.
 
 🔴 **고장은 반드시 난다 — 그때 사람이 보는 화면을 재는 것이 `fault_journey.js`다** (XX).
 세 갈래를 훑는다:

@@ -56,9 +56,9 @@ const D = (function () {
   ok('나라가 대한민국이다', cls && cls.country === '대한민국');
   ok('기본 코스가 있다', Array.isArray(D.ITINERARY_DB['제주도']) && D.ITINERARY_DB['제주도'].length >= 1);
   ok('방식 A·B가 있다', !!(D.DEST_REC['제주도'] && D.DEST_REC['제주도'].a && D.DEST_REC['제주도'].b));
-  ok('고객 화면 select 두 곳에 있다',
-    read('index.html').includes('<option value="제주도">')
-    && read('admin-quote.html').includes('<option value="제주도">'));
+  /* ⚠ 2026-09-17: 담당자 산출(고객용)을 지우면서 한 곳이 됐다(tD와 같은 이유) */
+  ok('고객 화면 select에 있다',
+    read('index.html').includes('<option value="제주도">'));
   ok('국내 그룹으로 묶였다', /<optgroup label="국내 — 대한민국">/.test(read('index.html')));
 
   /* ⚠ 온라인 취합값이라는 것을 행이 스스로 말해야 한다 — 나중에 손볼 자리를 잃지 않게 */

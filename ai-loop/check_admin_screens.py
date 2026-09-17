@@ -61,7 +61,7 @@ WIDTHS = [("사무실 1440", 1440), ("노트북 1280", 1280), ("작은 노트북
 
 # `audit_ux.js`·`check_contrast.py`와 **같은 목록**이다. 탭을 늘리면 셋 다 늘린다.
 TABS = ["dashboard", "inquiries", "estimates", "estmgr", "adhoc", "ledger", "stats",
-        "events", "marketing", "content", "pricereport", "rates", "quotetool",
+        "events", "marketing", "content", "pricereport", "rates",
         "itineraries", "packages", "manual", "settings"]
 
 LOGIN = """

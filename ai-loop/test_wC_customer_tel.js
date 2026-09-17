@@ -40,7 +40,7 @@ const { adminSource } = require('./_admin_source');
 const SHARES = read('api/quote-shares.js');
 const SCRIPT = read('script.js');
 const INDEX = read('index.html');
-const AQ = read('admin-quote.html');
+const PRO = read('admin-quote-pro.html');
 const ADMIN = adminSource();
 const VIEW = read('estimate-view.html');
 const MIG = read('ai-loop/db_migrate.js');
@@ -93,7 +93,9 @@ console.log('\n[3] 화면이 「견적서에 안 나온다」고 먼저 말한�
        안 적는다」는 이유로 넣은 것이다. 연락처는 **필수 칸**이라 안 적으면 견적을
        못 받지만, 망설이다 나가는 사람이 늘 수 있다. 리드가 줄면 이 줄을 다시 본다. */
   ok('③ 그 안내를 뺐다(대표 지시)', !/견적서에는 표시되지 않습니다/.test(INDEX));
-  ok('③ 담당자 도구도 말한다', /견적서에는 표시되지 않습니다/.test(AQ));
+  /* ⚠ 2026-09-17: 「고객용」 화면을 지우면서 내부직원용이 유일한 담당자 입구가 됐다.
+     거기서는 칸 이름 자체가 「견적서엔 안 나감」을 말한다 — 같은 약속을 다른 문장으로 한다. */
+  ok('③ 담당자 도구도 말한다', /견적서엔 안 나감/.test(PRO));
   ok('③ 관리자 발급 자리도 말한다', /견적서에 표시되지 않고 링크에도 실리지 않습니다/.test(ADMIN));
 }
 
@@ -105,9 +107,12 @@ console.log('\n[4] 세 입구에서 다 받는다');
   ok('④ 필수다(연락처 없는 견적은 리드가 아니다)', t1 && t1.hasAttribute('required'));
   ok('④ type=tel이다(휴대폰에서 숫자 자판이 뜬다)', t1 && t1.getAttribute('type') === 'tel');
 
-  const d2 = new JSDOM(AQ).window.document;
-  const t2 = d2.getElementById('contactTel');
-  ok('④ 담당자 견적 도구에도 있다', !!t2 && t2.hasAttribute('required'));
+  const d2 = new JSDOM(PRO).window.document;
+  const t2 = d2.getElementById('dCustTel');
+  /* ⚠ 내부직원용에서는 **필수가 아니다** — 전화를 받으면서 적는 자리라
+     고객 계산기(리드가 되는 자리)와 조건이 다르다. 칸이 있고 기록에 실리는지가 핵심이다. */
+  ok('④ 담당자 견적 도구에도 있다', !!t2);
+  ok('④ 그 값이 견적 기록으로 간다', /contactTel: \$\('dCustTel'\)\.value/.test(PRO));
 
   const d3 = new JSDOM(ADMIN).window.document;
   ok('④ 패키지·소규모 발급 자리에도 있다', !!d3.getElementById('pkgIssueTel'));

@@ -41,7 +41,7 @@ window.COMPANY_INFO = {
    링크 견적서(`estimate-view.html`). 이 저장소는 그 둘이 갈려서 한쪽만 고쳐지는 사고를
    여러 번 겪었다(XC·XD·XP·WQ). 목록을 두 번 적으면 **반드시 어긋난다**(결함 생성기 ①).
    → 둘 다 싣는 유일한 파일이 여기다(`index.html`·`estimate-view.html`·
-     `admin-quote.html`·`packages.html` 네 곳이 싣는다).
+     `admin-quote-pro.html`·`packages.html` 네 곳이 싣는다).
 
    ■ ⚠ 패키지 견적서는 **이 목록을 쓰지 않는다**
    패키지는 공급사가 준 `excluded` 목록이 진실이다(2026-08-21 대표 결정 — 우리가

@@ -38,7 +38,7 @@ const indexSrc  = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const scriptSrc = fs.readFileSync(path.join(ROOT, 'script.js'), 'utf8');
 const stylesSrc = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
 const manualSrc = fs.readFileSync(path.join(ROOT, 'manual.html'), 'utf8');
-const aqSrc     = fs.readFileSync(path.join(ROOT, 'admin-quote.html'), 'utf8');
+const aqSrc     = fs.readFileSync(path.join(ROOT, 'admin-quote-pro.html'), 'utf8');
 
 const FULL = {
   a: { tag: '역량강화', desc: 'A 설명', points: ['A포인트1', 'A포인트2'],
@@ -339,11 +339,11 @@ const EMPTY = {
   console.log('\n[6] 기본 문구를 두 벌로 적지 않았는가 (③)');
   ok('rec_fallbacks.js를 admin.html이 싣는다', /<script src="rec_fallbacks\.js">/.test(adminSrc));
   ok('rec_fallbacks.js를 index.html이 싣는다', /<script src="rec_fallbacks\.js">/.test(indexSrc));
-  ok('rec_fallbacks.js를 admin-quote.html도 싣는다', /<script src="rec_fallbacks\.js">/.test(aqSrc));
+  ok('rec_fallbacks.js를 admin-quote-pro.html도 싣는다', /<script src="rec_fallbacks\.js">/.test(aqSrc));
   /* ⚠ script.js보다 먼저 실려야 한다 — 뒤면 로드 시점에 undefined다 */
   ok('index.html에서 script.js보다 먼저 실린다',
     indexSrc.indexOf('rec_fallbacks.js') < indexSrc.indexOf('<script src="script.js">'));
-  ok('admin-quote.html에서도 script.js보다 먼저 실린다',
+  ok('admin-quote-pro.html에서도 script.js보다 먼저 실린다',
     aqSrc.indexOf('rec_fallbacks.js') < aqSrc.indexOf('<script src="script.js">'));
   ok('script.js가 REC_FALLBACKS에서 읽는다', /REC_FALLBACKS\.(tag|desc|points|items|value)/.test(scriptSrc));
   /* 옛 하드코딩이 남아 있으면 두 벌이 된 것이다 */

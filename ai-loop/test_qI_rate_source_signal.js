@@ -92,7 +92,7 @@ const tokyo = (w) => w.destinationRates.find(d => d.destination_key === '도쿄'
 
   console.log('\n[3] 담당자가 쓰는 내부 산출 도구가 그 사실을 알린다');
 
-  const aqSrc = read('admin-quote.html');
+  const aqSrc = read('admin-quote-pro.html');
   ok('내부 도구가 rateOverridesReady를 읽는다', /rateOverridesReady/.test(aqSrc));
   ok('실패일 때만 경고한다', /rateOverridesReady[\s\S]{0,200}state !== 'failed'/.test(aqSrc));
   ok('경고문이 "금액이 다를 수 있다"는 사실을 말한다',
@@ -108,7 +108,7 @@ const tokyo = (w) => w.destinationRates.find(d => d.destination_key === '도쿄'
     if (s.includes('action=itineraries')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ overrides: {}, recOverrides: {}, meta: {} }) });
     return new Promise(() => {});
   });
-  const warnText = [...aqWin.document.querySelectorAll('.aq-save-warn')].map(e => e.textContent).join(' | ');
+  const warnText = [...aqWin.document.querySelectorAll('#rateWarn')].map(e => e.textContent).join(' | ');
   ok('내부 도구 화면에 경고가 실제로 붙는다', /최신 요율·환율을 불러오지 못했습니다/.test(warnText),
     warnText.slice(0, 200) || '(경고 없음)');
 
@@ -119,7 +119,7 @@ const tokyo = (w) => w.destinationRates.find(d => d.destination_key === '도쿄'
     if (s.includes('action=itineraries')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ overrides: {}, recOverrides: {}, meta: {} }) });
     return new Promise(() => {});
   });
-  const warnText2 = [...aqWin2.document.querySelectorAll('.aq-save-warn')].map(e => e.textContent).join(' | ');
+  const warnText2 = [...aqWin2.document.querySelectorAll('#rateWarn')].map(e => e.textContent).join(' | ');
   ok('정상일 때는 경고가 붙지 않는다(경고가 상시면 아무도 안 읽는다)',
     !/최신 요율·환율/.test(warnText2), warnText2.slice(0, 200));
 
@@ -127,10 +127,10 @@ const tokyo = (w) => w.destinationRates.find(d => d.destination_key === '도쿄'
   if (fail) process.exit(1);
 })().catch((err) => { console.error(err); process.exit(1); });
 
-/* admin-quote.html은 <script src>를 실제로 싣지 않으므로 의존 스크립트를 인라인한다. */
+/* admin-quote-pro.html은 <script src>를 실제로 싣지 않으므로 의존 스크립트를 인라인한다. */
 async function bootInternal(fetchImpl) {
   const { htmlWithDeps } = require('./_jsdom_deps');
-  const dom = new JSDOM(htmlWithDeps('admin-quote.html'), {
+  const dom = new JSDOM(htmlWithDeps('admin-quote-pro.html'), {
     runScripts: 'dangerously', url: 'http://localhost/',
     beforeParse(w) {
       w.fetch = fetchImpl;

@@ -72,7 +72,11 @@ const TABLES = { itineraryDb: { '도쿄': [C_A, C_B] }, priority: {}, destRec: {
   /* ── [2] 견적서에 실제로 하나만 실리는가 ───────────────────────────── */
   console.log('\n[2] 견적서 문서 — 탭이 사라지고 코스 하나만 나간다');
   {
-    const dom = new JSDOM(read('admin-quote.html'), {
+    /* ⚠ 2026-09-17: 받침을 고객 화면으로 바꿨다. 예전엔 담당자 산출 화면을
+       띄웠는데 그 화면을 지운 날이다. 여기서 재는 것은 `script.js`의 팝업 견적서라
+       누가 불러도 같다 — 고객 화면은 그 팝업을 실제로 여는 자리이기도 하다.
+       ⚠ 고객 화면은 출발일이 **필수**다(내부 도구에서만 풀렸던 제약) — 아래에서 채운다. */
+    const dom = new JSDOM(read('index.html'), {
       runScripts: 'dangerously', url: 'http://localhost/',
       beforeParse(w) {
         w.fetch = (u) => (String(u).includes('account?action=me')
@@ -105,6 +109,11 @@ const TABLES = { itineraryDb: { '도쿄': [C_A, C_B] }, priority: {}, destRec: {
     sel.dispatchEvent(new w.Event('change', { bubbles: true }));
     d.getElementById('participants').value = '20';
     d.getElementById('days').value = '5';
+    {
+      const sd = d.getElementById('startDate');
+      const t = new Date(); t.setDate(t.getDate() + 30);
+      if (sd) sd.value = t.toLocaleDateString('sv-SE');
+    }
     d.getElementById('nextStepButton').click();
     d.getElementById('organization').value = '테스트기업';
     d.getElementById('contactName').value = '김담당';

@@ -424,7 +424,7 @@ def run():
 
         # ── 매뉴얼 · 담당자용 견적 도구 ──
         for fname, label in (("packages.html", "고객 · 패키지 목록"),
-                             ("manual.html", "운영 매뉴얼"), ("admin-quote.html", "담당자 · 내부 견적")):
+                             ("manual.html", "운영 매뉴얼"), ("admin-quote-pro.html", "담당자 · 내부직원용 견적")):
             pg = ctx.new_page()
             pg.route("**/api/**", lambda r: r.abort())
             pg.goto((ROOT / fname).as_uri())
@@ -441,7 +441,7 @@ def run():
         ap.evaluate(ADMIN_LOGIN)
         ap.wait_for_timeout(300)
         TABS = ["dashboard", "inquiries", "estimates", "estmgr", "pricereport", "rates",
-                "content", "itineraries", "quotetool", "stats", "events", "marketing",
+                "content", "itineraries", "stats", "events", "marketing",
                 "manual", "settings"]
         for t in TABS:
             if not ap.evaluate(ADMIN_TAB, "tab-" + t):

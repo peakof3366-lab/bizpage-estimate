@@ -414,8 +414,11 @@ async function 패키지화면(f) {
   return out;
 }
 
-/* 담당자 견적 산출 화면 — **고객에게 나갈 금액을 만드는 자리**다(XV에서 처음 훑었다).
-   여기서 저장이 조용히 실패하면 담당자는 만든 줄 알고 넘어가고, 견적 기록이 없다. */
+/* 담당자 견적 산출 화면 — **고객에게 나갈 금액을 만드는 자리**다.
+   여기서 저장이 조용히 실패하면 담당자는 만든 줄 알고 넘어가고, 견적 기록이 없다.
+   ⚠ 2026-09-17 — 이 고장 주입은 원래 `admin-quote.html`(고객용)을 띄웠다.
+     그 화면을 지우면서 **지금 저장을 하는 화면**(내부직원용)으로 옮겨 다시 진다.
+     🔴 검사를 같이 지우면 「저장이 조용히 죽는가」를 재는 자가 하나도 안 남는다. */
 async function 견적산출화면고장(f) {
   const { adminFixtures: AF } = require('./_admin_fixtures');
   const fx = AF('filled');
@@ -424,11 +427,11 @@ async function 견적산출화면고장(f) {
     if (f.hit(u, opt)) return f.how ? f.how(json) : json({ error: 'boom' }, false, 500);
     return orig.call(this, u, opt, json);
   };
-  const B = bootPage('admin-quote.html', { fixtures: fx });
+  const B = bootPage('admin-quote-pro.html', { fixtures: fx });
   const { win, doc, tick } = B;
   await B.ready; await tick(450);
   const out = { key: f.key, 말: f.말, 나쁨: [] };
-  const app = doc.getElementById('quoteApp');
+  const app = doc.getElementById('app');
   if (!app || app.classList.contains('hidden')) {
     out.나쁨.push('🔴 화면이 안 열렸다 — 픽스처를 확인할 것');
     win.close(); return out;
@@ -436,29 +439,35 @@ async function 견적산출화면고장(f) {
   const ev = (el, k) => el.dispatchEvent(new win.Event(k, { bubbles: true }));
   const set = (id, v) => { const el = doc.getElementById(id); if (el) { el.value = String(v); ev(el, 'input'); ev(el, 'change'); } };
   const 날 = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('sv-SE'); };
-  set('destination', '오키나와'); set('programType', 'industry'); set('organizationType', 'company');
-  set('visitMode', 'official'); set('departureCity', 'ICN'); set('participants', '30');
-  set('startDate', 날(45)); set('endDate', 날(49));
-  set('organization', '[점검] 한빛전자'); set('contactName', '[점검] 김담당');
-  set('contactTel', '010-0000-0000'); set('requestDetails', '[점검] 고장 주입');
-  await tick(150);
-  doc.getElementById('estimateForm').dispatchEvent(new win.Event('submit', { bubbles: true, cancelable: true }));
-  /* 저장 결과가 화면에 붙기를 기다린다 — 고정 시간으로 재면 없는 결함이 생긴다(문의에서 겪었다) */
+  /* 1단계 — 필수 칸만 채운다(나머지는 기본값이 있다) */
+  set('pDest', '오키나와'); set('pPax', '30'); set('pDays', '5'); set('pStart', 날(45));
+  await tick(120);
+  doc.getElementById('btnCalc').dispatchEvent(new win.Event('click', { bubbles: true }));
+  await tick(350);
+  /* 3단계 — 견적서에 찍힐 것들. 비워 두면 저장이 아니라 입력 경고에서 멈췄다 */
+  set('dClient', '[점검] 한빛전자'); set('dOrgName', '[점검] 한빛전자 연수단');
+  set('dStaffName', '[점검] 김담당'); set('dCustTel', '010-0000-0000');
+  await tick(120);
+  doc.getElementById('btnSave').dispatchEvent(new win.Event('click', { bubbles: true }));
+  /* 저장 결과가 화면에 붙기를 기다린다 — 고정 시간으로 재면 없는 결함이 생긴다 */
   for (let i = 0; i < 20; i++) {
     await tick(200);
     const w = doc.getElementById('aqSaveWarn');
-    if (w && !w.classList.contains('hidden') && (w.textContent || '').trim()) break;
+    const m = doc.getElementById('saveMsg');
+    const 뗴다 = (el) => el && !el.classList.contains('hidden') && (el.textContent || '').trim();
+    if (뗴다(w) || 뗴다(m)) break;
   }
-  const card = doc.getElementById('estimateConfirm');
-  const 글 = shownText(card || doc.body).replace(/\s+/g, ' ').trim();
-  out.글 = 글;
+  const 알림 = doc.getElementById('saveMsg');
   const 저장경고 = doc.getElementById('aqSaveWarn');
-  const 경고글 = (저장경고 && !저장경고.classList.contains('hidden')) ? (저장경고.textContent || '').trim() : '';
+  const 보이는글 = (el) => (el && !el.classList.contains('hidden')) ? (el.textContent || '').trim() : '';
+  const 경고글 = [보이는글(저장경고), 보이는글(알림)].filter(Boolean).join(' | ');
+  const 글 = shownText(doc.getElementById('sec5') || doc.body).replace(/\s+/g, ' ').trim();
+  out.글 = 글.slice(0, 400);
   if (f.key === 'aqSave500' || f.key === 'aqSaveDown') {
     if (!경고글 && !/저장|실패|기록되지|다시/.test(글)) {
       out.나쁨.push('🔴 견적 기록 저장이 실패했는데 담당자에게 아무 말도 안 한다');
     }
-    if (/기록됨/.test(글) && !경고글) out.나쁨.push('🔴 저장이 안 됐는데 「기록됨」이라고 했다');
+    if (/저장했습니다/.test(경고글)) out.나쁨.push('🔴 저장이 안 됐는데 「저장했습니다」라고 했다');
   }
   out.경고 = 경고글;
   win.close();

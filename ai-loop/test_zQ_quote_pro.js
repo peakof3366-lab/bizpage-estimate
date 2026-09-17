@@ -43,22 +43,35 @@ const D = dom.window.document;
 const calc = D.querySelector('.sb-group[data-group="calc"]');
 ok('[1] 견적 산출 메뉴 묶음이 있다', !!calc);
 const items = calc ? Array.from(calc.querySelectorAll('.sidebar-item')) : [];
-ok('[1-b] 하위 메뉴가 셋이다', items.length === 3, '개수: ' + items.length);
+/* ⚠ 2026-09-17 — 대표 지시로 **「자동 견적 산출 (고객용)」을 지웠다.**
+   그 화면은 이름과 달리 고객이 쓰는 화면이 아니라 **담당자 도구**였고, 내부직원용이
+   그 칸을 전부 덮는다(골프·비즈니스석·방문처 칸은 내부직원용에만 있었다).
+   고객이 쓰는 화면은 `index.html`이고 이 삭제와 무관하다.
+   🔴 그래서 오늘부터 **산출 묶음은 둘**이다. */
+ok('[1-b] 하위 메뉴가 둘이다', items.length === 2, '개수: ' + items.length);
 const labels = items.map((b) => (b.querySelector('.si-label') || {}).textContent || '');
 const tabs = items.map((b) => b.dataset.tab);
-ok('[1-c] 고객용 이름이 「자동 견적 산출 (고객용)」', labels[0] === '자동 견적 산출 (고객용)', labels[0]);
-ok('[1-d] 내부직원용 이름이 「자동 견적 산출 (내부직원용)」', labels[1] === '자동 견적 산출 (내부직원용)', labels[1]);
-ok('[1-e] 직접 견적 작성이 그대로 있다', labels[2] === '직접 견적 작성', labels[2]);
-/* 🔴 여기가 핵심 — **탭 id는 안 바꿨다** */
-ok('[1-f] 고객용 탭 id가 그대로 quotetool', tabs[0] === 'quotetool', tabs[0]);
-ok('[1-g] 내부직원용 탭 id는 quotepro', tabs[1] === 'quotepro', tabs[1]);
-ok('[1-h] 직접견적 탭 id가 그대로 adhoc', tabs[2] === 'adhoc', tabs[2]);
+ok('[1-c] 내부직원용이 첫 자리다', labels[0] === '자동 견적 산출 (내부직원용)', labels[0]);
+ok('[1-d] 직접 견적 작성이 그대로 있다', labels[1] === '직접 견적 작성', labels[1]);
+/* 🔴 탭 id는 그대로다 — 바꾸면 `#tab=` 북마크가 깨진다 */
+ok('[1-f] 내부직원용 탭 id는 quotepro', tabs[0] === 'quotepro', tabs[0]);
+ok('[1-g] 직접견적 탭 id가 그대로 adhoc', tabs[1] === 'adhoc', tabs[1]);
+/* 🔴 지운 화면이 **정말로 없는지** — 버튼만 지우고 패널을 남기면 주소로 들어간다 */
+ok('[1-e] 고객용 탭이 남아 있지 않다', !D.getElementById('tab-quotetool'));
+ok('[1-e2] 그 화면 파일도 없다',
+  !require('fs').existsSync(require('path').join(__dirname, '..', 'admin-quote.html')));
+/* 🔴 옆에 있는 집을 안 밟았는지 — 삭제가 가장 쉽게 망가뜨리는 자리다 */
+ok('[1-e3] 예전 북마크(#tab=quotetool)를 내부직원용으로 보낸다',
+  /ALIAS = \{ quotetool: 'quotepro' \}/.test(ADMIN));
+
 /* 탭마다 패널이 실제로 있어야 한다 — 없으면 눌러도 빈 화면이다 */
 tabs.forEach((t) => ok('[1-i] tab-' + t + ' 패널이 있다', !!D.getElementById('tab-' + t)));
 
 /* 이름·제목·해시가 한 벌로 움직이는가 */
 ok('[2] tabTitles에 quotepro가 있다', /quotepro:\s*'자동 견적 산출 \(내부직원용\)'/.test(ADMIN));
-ok('[2-b] tabTitles의 고객용에도 (고객용)이 붙었다', /quotetool:\s*'자동 견적 산출 \(고객용\)'/.test(ADMIN));
+/* ⚠ 「quotetool:」만 찾으면 북마크 별칭(ALIAS)에 걸린다 — 화면 이름표만 본다 */
+ok('[2-b] tabTitles에 고객용이 남아 있지 않다',
+  !/quotetool:\s*'자동 견적 산출/.test(ADMIN));
 ok('[2-c] renderTab이 quotepro를 처리한다', /name===['"]quotepro['"]\)\s*renderQuotePro\(\)/.test(ADMIN));
 ok('[2-d] renderQuotePro가 iframe src를 지정한다',
   /function renderQuotePro\(\)[\s\S]{0,220}admin-quote-pro\.html/.test(ADMIN));
