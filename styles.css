@@ -212,8 +212,11 @@ p { line-height:1.8; }
   letter-spacing:.06em; text-transform:uppercase; flex-shrink:0;
   display:flex; align-items:center;
 }
-/* BI 로고 — 높이로만 크기를 정한다(가로는 비율이 정한다). 헤더 줄 높이에 맞춘 값이다. */
-.brand-logo { display:block; height:30px; width:auto; }
+/* BI 로고 — 높이로만 크기를 정한다(가로는 비율이 정한다).
+   🔴 2026-09-17 「좀더 크게」는 이 값만 올려서는 안 됐다 — **로고 파일 자체가 여백 33%**였다
+   (그림이 세로 67%만 차지). 보기 영역(viewBox)을 그림에 맞춘 뒤에 높이를 올렸다.
+   ⚠ 머리줄은 64px(폰 56px)다 — 더 키우면 줄이 부풀거나 메뉴와 붙는다. */
+.brand-logo { display:block; height:34px; width:auto; }
 .nav-links { display:flex; align-items:center; gap:2px; flex-wrap:nowrap; }
 .nav-links a {
   font-size:11.5px; font-weight:600; color:rgba(255,255,255,.78);
