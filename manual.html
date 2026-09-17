@@ -212,6 +212,13 @@
      지원하지 않아 "넣었는데 안 나오는" 상태가 된다. 브라우저 인쇄 설정의
      머리글/바닥글을 쓰면 된다. */
   @page { margin: 14mm; }
+  /* 한 절만 뽑아 볼 때 — 목차가 빠져 본문이 혼자 남는다.
+     ⚠ 처음엔 여기서 `max-width`와 옆 `padding`을 다시 줌다 — 그러자 **폰 폭에서
+       머리글이 611px로 부풀어** 가로 스크롤이 생겼다(재봤다). `.layout`이 이미
+       폭과 여백을 정하고 `main`엔 `min-width:0`이 있다 — **더 줄 것이 없었다.**
+     목차가 빠진 자리는 그리드가 알아서 한 칸으로 줄인다. */
+  body.manual-only .layout { grid-template-columns: 1fr; }
+
   @media print {
     body { background: #fff; font-size: 11pt; }
     .layout { display: block; max-width: none; padding: 0; }
@@ -618,6 +625,53 @@
         <li><b>⑤ 미리보기</b>가 <strong>고객이 받는 그대로</strong>입니다. 여기서 인쇄(PDF)하거나 저장합니다.</li>
       </ul>
 
+      <h3 id="which-screen">어느 쪽을 쓰나 — 「자동 견적 산출」과 「직접 견적 작성」</h3>
+      <p>
+        두 메뉴는 <strong>같은 화면</strong>입니다. 여는 문만 다릅니다 —
+        견적서를 만드는 부분도, 저장되는 자리도, 나가는 문서 모양도 똑같습니다.
+        <strong>다른 것은 딱 하나, 금액을 누가 만드느냐입니다.</strong>
+      </p>
+      <div class="scroller">
+        <table>
+          <caption>2026-09-17 두 화면을 직접 열어 칸을 세어 대조했습니다.</caption>
+          <thead>
+            <tr><th>&nbsp;</th><th>자동 견적 산출 (내부직원용)</th><th>직접 견적 작성</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="field">금액</td>
+              <td><strong>엔진이 계산합니다.</strong> 요율·시즌·계수·마진이 자동으로 붙습니다.</td>
+              <td><strong>담당자가 적습니다.</strong> 엔진을 안 타니 요율·마진이 <span class="no">하나도 안 붙습니다</span> — 그것까지 포함한 금액을 적어야 합니다.</td></tr>
+            <tr><td class="field">항목 이름</td>
+              <td>엔진이 정합니다 — <span class="no">고칠 수 없습니다.</span></td>
+              <td><span class="yes">담당자가 짓습니다.</span></td></tr>
+            <tr><td class="field">줄 추가·삭제</td>
+              <td><span class="no">안 됩니다</span></td>
+              <td><span class="yes">「+ 항목 추가」·「삭제」로 합니다</span></td></tr>
+            <tr><td class="field">원가</td>
+              <td>엔진이 알고 있습니다 (따로 적는 칸 없음)</td>
+              <td><strong>「원가 합계」 칸에 적습니다</strong> — 적으면 마진이 자동으로 계산됩니다.</td></tr>
+            <tr><td class="field">서버 검증</td>
+              <td>요율로 다시 계산해 <strong>맞는지 대조합니다.</strong></td>
+              <td><strong>「해당 없음」</strong>으로 기록됩니다.</td></tr>
+            <tr><td class="field">이럴 때 씁니다</td>
+              <td>우리가 조건을 받아 <strong>값을 뽑아 드려야 할 때</strong></td>
+              <td>공급사에게 <strong>이미 금액을 받아 놓았을 때</strong>,<br>정해진 상품이 없는 손님(가족·친목·소수 팀)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="warn">
+        <span class="label">🔴 직접 적은 금액을 「자동」 쪽에 넣지 마세요</span>
+        <p>
+          자동 견적 산출은 <strong>엔진이 낸 값이 맞았는지 채점</strong>하는 자리이기도 합니다.
+          손으로 적은 금액을 그쪽에 넣으면 <strong>엔진이 낸 적 없는 값이 엔진 성적표에 들어가고</strong>,
+          검증 배지가 늘 빨갛게 됩니다. 늘 빨간 표시는 곧 아무도 안 보게 됩니다.
+        </p>
+        <p>
+          ⚠ 자동 견적 산출에서도 <strong>항목별 금액을 고칠 수는 있습니다.</strong> 그건 조정이고,
+          고친 줄에는 <strong>「수정됨」</strong>과 <strong>자동값 대비 증감</strong>이 남습니다.
+          <strong>처음부터 전부 새로 적을 상황이면 「직접 견적 작성」이 맞습니다.</strong>
+        </p>
+      </div>
       <h3>금액이 어떻게 맞춰지나</h3>
       <ul class="plain">
         <li><strong>조정액은 마진에서 나갑니다.</strong> 원가는 그대로입니다 — 공급사에 줄 돈은 안 변하니까요.</li>
@@ -627,6 +681,79 @@
         <li><strong>10+1 조건은 표기 단가에 반영됩니다.</strong> 무료 인원을 넣으면 총액이 그만큼 줄고,
           단가는 <strong>전체 인원</strong>으로 나눈 값이 됩니다(총액 = 단가 × 전체 인원).</li>
       </ul>
+
+
+      <h3 id="fields">칸별 활용 안내 — 어느 칸이 금액을 바꾸나</h3>
+      <p>
+        칸이 많아 보이지만 <strong>하는 일은 셋뿐</strong>입니다.
+        <strong>① 금액을 만드는 칸</strong>, <strong>② 견적서에 글자로 찍히는 칸</strong>,
+        <strong>③ 일정에 들어가는 칸</strong>. 이 구분만 알면 어디를 신경 써야 하는지가 보입니다.
+      </p>
+      <div class="note">
+        <span class="label">가장 쉬운 구분법</span>
+        <p>
+          <strong>「직접 견적 작성」에서 사라지는 칸이 곧 금액을 만드는 칸입니다.</strong>
+          그 화면은 엔진을 안 타니까 계산에 쓰는 칸이 통째로 감춰집니다 —
+          화면을 열어 비교해 보시면 바로 보입니다.
+        </p>
+      </div>
+
+      <h4>① 금액을 만드는 칸 — 고치면 총액이 바뀝니다</h4>
+      <div class="scroller">
+        <table>
+          <caption>「직접 견적 작성」에서는 이 칸들이 안 보입니다 (골프·포함항목·좌석 등 13칸).</caption>
+          <thead><tr><th>칸</th><th>무엇을 정하나</th><th>주의</th></tr></thead>
+          <tbody>
+            <tr><td class="field">목적지</td><td>모든 단가의 출발점입니다. 항공·호텔·식사·차량·가이드·관광비가 여기서 정해집니다.</td><td>지역이 다르면 <strong>다른 목적지</strong>입니다 — 이웃 목적지로 대신 뽑지 마세요.</td></tr>
+            <tr><td class="field">인원</td><td>단체 할인 구간(10·30·50명)이 걸립니다.</td><td>—</td></tr>
+            <tr><td class="field">일수</td><td>숙박·식사·차량·가이드가 일수에 비례합니다.</td><td>🔴 <strong>관광비는 일수에 비례하지 않습니다</strong> — 4~5일 기준 묶음값입니다.</td></tr>
+            <tr><td class="field">출발일</td><td><strong>시즌이 여기서 갈립니다.</strong> 성수기·비수기 배율이 붙습니다.</td><td>여름 7/15~8/20, 연말 12/20~1/3은 <strong>날짜 성수기</strong>가 한 번 더 붙습니다.</td></tr>
+            <tr><td class="field">출발 공항</td><td>지방 출발이면 항공가가 달라집니다.</td><td>—</td></tr>
+            <tr><td class="field">호텔 등급</td><td>3·4·5성급에 따라 숙박비가 바뀝니다.</td><td>—</td></tr>
+            <tr><td class="field">좌석 등급</td><td>이코노미·비즈니스·혼합.</td><td>「혼합」을 골라야 <strong>비즈니스 인원</strong> 칸이 나타납니다.</td></tr>
+            <tr><td class="field">객실 구성</td><td>2인 1실·1인 1실·혼합. 싱글 차지가 걸립니다.</td><td>「혼합」을 골라야 <strong>1인 1실 임원</strong> 칸이 나타납니다.<br>🔴 이 칸은 <strong>좌석과 무관</strong>합니다 — 방을 혼자 쓰는 인원입니다.</td></tr>
+            <tr><td class="field">포함 항목</td><td>호텔·식사·차량·가이드·관광을 <strong>끄면 그 금액이 빠집니다.</strong></td><td>끈 항목은 <strong>견적서 상세에서도 통째로 사라집니다.</strong></td></tr>
+            <tr><td class="field">골프</td><td>인원과 라운드 수만큼 그린피가 붙습니다.</td><td>—</td></tr>
+            <tr><td class="field">프로그램 유형<br>기관 유형</td><td>일정 추천과 문구가 달라집니다.</td><td>금액 영향은 작습니다 — 일정 쪽에서 더 크게 씁니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tip">
+        <span class="label">📌 여행 조건은 4칸만 채워도 금액이 나옵니다</span>
+        <p>
+          <strong>목적지·인원·일수·출발일</strong> 넷이 필수입니다. 나머지는 기본값이 들어가 있으니
+          <strong>먼저 뽑아 보고, 조건이 다르면 그때 고치는</strong> 순서가 빠릅니다.
+        </p>
+      </div>
+
+      <h4>② 견적서에 찍히는 칸 — 금액은 안 바뀝니다</h4>
+      <p>
+        <strong>③ 견적서 내용</strong> 단계의 칸들입니다. 계산에는 전혀 안 쓰이고,
+        <strong>고객이 받는 문서에 글자로 그대로 나갑니다.</strong> 두 화면 모두 똑같이 있습니다.
+      </p>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>칸</th><th>어디에 나가나</th></tr></thead>
+          <tbody>
+            <tr><td class="field">거래처명</td><td><strong>견적서 제목</strong>에 들어갑니다.</td></tr>
+            <tr><td class="field">단체명 · 지역 표기 · 숙박지</td><td>견적서 머리의 여행 개요.</td></tr>
+            <tr><td class="field">담당자 이름 · 연락처 · E-mail</td><td>🔴 <strong>비우면 견적서에 「미입력」이 빨갛게 찍혀 나갑니다.</strong> 그대로 내보내지 마세요.</td></tr>
+            <tr><td class="field">작성일자 · 유효기간</td><td>결재 자료로 쓸 때 필요합니다. 유효기간을 비우면 <strong>14일</strong>이 붙습니다.</td></tr>
+            <tr><td class="field">성인 · 아동 · 유아 인원</td><td>견적서 표기용입니다. <strong>단가는 셋 다 같습니다.</strong></td></tr>
+            <tr><td class="field">조건 표기 · 유류할증료 기준 · 비고</td><td>견적서 아래 안내 문구.</td></tr>
+            <tr><td class="field">취소 규정</td><td><strong>비우면 견적서에 안 나갑니다.</strong></td></tr>
+            <tr><td class="field">고객 연락처</td><td><strong>대장에만</strong> 남습니다 — 견적서에는 안 나갑니다.</td></tr>
+            <tr><td class="field">내부 메모</td><td>🔴 <strong>고객에게 안 나갑니다.</strong> 우리끼리 보는 칸입니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>③ 일정 칸</h4>
+      <p>
+        산출하면 그 목적지의 <strong>추천 코스가 초안으로 깔립니다.</strong>
+        여기 남은 글이 <strong>고객 일정표에 그대로</strong> 나갑니다 — 반드시 읽어 보고 고쳐 주세요.
+        자세한 것은 <a href="#itinerary">6. 일정·방식 비교</a>에 있습니다.
+      </p>
 
       <h3>저장하면 어떻게 되나</h3>
       <p>
@@ -739,15 +866,17 @@
         이름이 비슷하지만 서로 다른 것이고, <strong>고객이 STEP1에서 고른 프로그램 유형에 따라
         짝이 바뀝니다.</strong>
       </p>
-      <table>
-        <thead><tr><th>고객이 고른 프로그램 유형</th><th>고객 화면의 “방식 A”</th><th>“방식 B”</th></tr></thead>
-        <tbody>
-          <tr><td class="field">언어 집중 연수</td><td><strong>코스 C</strong></td><td>코스 B</td></tr>
-          <tr><td class="field">리더십 / 조직문화</td><td><strong>코스 B</strong></td><td>코스 A</td></tr>
-          <tr><td class="field">산업체 실무 연수</td><td>코스 A</td><td>코스 B</td></tr>
-          <tr><td class="field">교육기관 / 연구 연수</td><td>코스 A</td><td>코스 B</td></tr>
-        </tbody>
-      </table>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>고객이 고른 프로그램 유형</th><th>고객 화면의 “방식 A”</th><th>“방식 B”</th></tr></thead>
+          <tbody>
+            <tr><td class="field">언어 집중 연수</td><td><strong>코스 C</strong></td><td>코스 B</td></tr>
+            <tr><td class="field">리더십 / 조직문화</td><td><strong>코스 B</strong></td><td>코스 A</td></tr>
+            <tr><td class="field">산업체 실무 연수</td><td>코스 A</td><td>코스 B</td></tr>
+            <tr><td class="field">교육기관 / 연구 연수</td><td>코스 A</td><td>코스 B</td></tr>
+          </tbody>
+        </table>
+      </div>
       <p>
         위 표는 <strong>도쿄 기준 예시</strong>이고, 짝은 목적지마다 다릅니다. 외울 필요는 없습니다 —
         <strong>📅 날짜별 일정의 코스 탭에 배지로 적혀 있습니다</strong>
@@ -856,21 +985,23 @@
           기본 화면은 <strong>고객이 보는 그대로</strong>여야 하기 때문입니다.
         </p>
       </div>
-      <table>
-        <thead><tr><th>고객이 보는 자리</th><th>어디를 고치면 바뀌나</th></tr></thead>
-        <tbody>
-          <tr><td class="field">“연수 일정 탐색”의 방식 카드<br>(배지 · 설명 · 포인트)</td>
-              <td><strong>코스가 있으면</strong> 📅 코스의 제목 · 한 줄 설명 · 핵심 하이라이트<br>
-                  <strong>코스가 없으면</strong> ✨ 방식 이름 · 한 줄 테마 설명 · 핵심 포인트</td></tr>
-          <tr><td class="field">견적서의 <strong>결재 보고서 기대 효과</strong> 검은 박스</td>
-              <td><strong>코스가 있으면</strong> 📅 코스의 한 줄 설명<br>
-                  <strong>코스가 없으면</strong> ✨ 기대 효과 문구</td></tr>
-          <tr><td class="field">연수 일수가 코스보다 길 때 <strong>남는 날</strong></td>
-              <td>✨ <strong>일별 주요 활동</strong> (코스 유무와 무관하게 늘 여기)</td></tr>
-          <tr><td class="field">견적서의 <strong>일정표</strong> (오전·오후·저녁)</td>
-              <td>📅 날짜별 일정의 각 DAY</td></tr>
-        </tbody>
-      </table>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>고객이 보는 자리</th><th>어디를 고치면 바뀌나</th></tr></thead>
+          <tbody>
+            <tr><td class="field">“연수 일정 탐색”의 방식 카드<br>(배지 · 설명 · 포인트)</td>
+                <td><strong>코스가 있으면</strong> 📅 코스의 제목 · 한 줄 설명 · 핵심 하이라이트<br>
+                    <strong>코스가 없으면</strong> ✨ 방식 이름 · 한 줄 테마 설명 · 핵심 포인트</td></tr>
+            <tr><td class="field">견적서의 <strong>결재 보고서 기대 효과</strong> 검은 박스</td>
+                <td><strong>코스가 있으면</strong> 📅 코스의 한 줄 설명<br>
+                    <strong>코스가 없으면</strong> ✨ 기대 효과 문구</td></tr>
+            <tr><td class="field">연수 일수가 코스보다 길 때 <strong>남는 날</strong></td>
+                <td>✨ <strong>일별 주요 활동</strong> (코스 유무와 무관하게 늘 여기)</td></tr>
+            <tr><td class="field">견적서의 <strong>일정표</strong> (오전·오후·저녁)</td>
+                <td>📅 날짜별 일정의 각 DAY</td></tr>
+          </tbody>
+        </table>
+      </div>
 
       <div class="note alarm">
         <span class="label">고객이 고른 일수에 따라 일정표가 달라집니다 — 미리보기에서 직접 바꿔 보세요</span>
@@ -1214,6 +1345,10 @@
           뜻이고, 그 확인 없이 링크가 나가지 않게 한 자리입니다.
         </p>
       </div>
+      <p>
+        ⚠ <strong>두 화면이 어떻게 다른지</strong>는
+        <a href="#which-screen">5장의 비교표</a>에 한눈에 정리돼 있습니다.
+      </p>
       <div class="warn">
         <span class="label">🔴 직접 견적 작성은 왜 「자동 견적 산출」로 뽑지 않나요</span>
         <p>
@@ -1449,17 +1584,19 @@
               그래서 식비는 <strong>「묶음」으로 고릅니다</strong>. 견적서에는 항목마다
               <strong>소계 줄</strong>이 있는데, 그 소계로 줄을 묶어 목록에 보여줍니다:
             </p>
-            <table>
-              <thead><tr><th>목록에 이렇게 보입니다</th><th>뜻</th></tr></thead>
-              <tbody>
-                <tr><td class="field">1인 50,350원 · 2줄 — 1인당 · 여러 회 — 식사일 가능성</td>
-                    <td>✅ 이게 식사입니다</td></tr>
-                <tr><td class="field">1인 940,500원 · 1줄 — 전체 단위 (차량·가이드 등)</td>
-                    <td>수량이 1이면 <strong>1인당 항목이 아닙니다</strong></td></tr>
-                <tr><td class="field">1인 152,000원 · 1줄 — 객실 단위</td>
-                    <td>호텔입니다</td></tr>
-              </tbody>
-            </table>
+            <div class="scroller">
+              <table>
+                <thead><tr><th>목록에 이렇게 보입니다</th><th>뜻</th></tr></thead>
+                <tbody>
+                  <tr><td class="field">1인 50,350원 · 2줄 — 1인당 · 여러 회 — 식사일 가능성</td>
+                      <td>✅ 이게 식사입니다</td></tr>
+                  <tr><td class="field">1인 940,500원 · 1줄 — 전체 단위 (차량·가이드 등)</td>
+                      <td>수량이 1이면 <strong>1인당 항목이 아닙니다</strong></td></tr>
+                  <tr><td class="field">1인 152,000원 · 1줄 — 객실 단위</td>
+                      <td>호텔입니다</td></tr>
+                </tbody>
+              </table>
+            </div>
             <p>
               고르면 <strong>“✅ 소계 1,510,500원과 일치”</strong>가 뜹니다 —
               <strong>빠진 줄이 없다는 뜻</strong>입니다. 눈대중이 아니라 산수로 확인된 것입니다.
@@ -1478,22 +1615,24 @@
         </li>
         <li>
           <h3>받는 항목 — 아는 것만 채우면 됩니다</h3>
-          <table>
-            <thead><tr><th>항목</th><th>기준</th><th>쓰이는 곳</th></tr></thead>
-            <tbody>
-              <tr><td class="field">항공료</td><td>1인당</td><td rowspan="7">요율 관리의 기준 단가와 비교돼 <strong>갱신 제안</strong>으로 올라갑니다</td></tr>
-              <tr><td class="field">유류할증료</td><td>1인당</td></tr>
-              <tr><td class="field">호텔단가</td><td>객실 1박</td></tr>
-              <tr><td class="field">식비</td><td><strong>1인 1일</strong></td></tr>
-              <tr><td class="field">차량비</td><td>대당 1일</td></tr>
-              <tr><td class="field">가이드비</td><td>1일</td></tr>
-              <tr><td class="field">관광·입장료</td><td>1인당</td></tr>
-              <tr><td class="field">최종 판매가</td><td>1인</td>
-                  <td>📏 <strong>정확도 기준선</strong> — 우리 견적이 실제 판매가와 얼마나 맞았는지 잽니다</td></tr>
-              <tr><td class="field">실제 이용 호텔명</td><td>—</td>
-                  <td>🏨 <strong>실제 이용 호텔</strong> 목록에 쌓입니다. 가격에 반영되지 않고 고객에게도 안 나갑니다</td></tr>
-            </tbody>
-          </table>
+          <div class="scroller">
+            <table>
+              <thead><tr><th>항목</th><th>기준</th><th>쓰이는 곳</th></tr></thead>
+              <tbody>
+                <tr><td class="field">항공료</td><td>1인당</td><td rowspan="7">요율 관리의 기준 단가와 비교돼 <strong>갱신 제안</strong>으로 올라갑니다</td></tr>
+                <tr><td class="field">유류할증료</td><td>1인당</td></tr>
+                <tr><td class="field">호텔단가</td><td>객실 1박</td></tr>
+                <tr><td class="field">식비</td><td><strong>1인 1일</strong></td></tr>
+                <tr><td class="field">차량비</td><td>대당 1일</td></tr>
+                <tr><td class="field">가이드비</td><td>1일</td></tr>
+                <tr><td class="field">관광·입장료</td><td>1인당</td></tr>
+                <tr><td class="field">최종 판매가</td><td>1인</td>
+                    <td>📏 <strong>정확도 기준선</strong> — 우리 견적이 실제 판매가와 얼마나 맞았는지 잽니다</td></tr>
+                <tr><td class="field">실제 이용 호텔명</td><td>—</td>
+                    <td>🏨 <strong>실제 이용 호텔</strong> 목록에 쌓입니다. 가격에 반영되지 않고 고객에게도 안 나갑니다</td></tr>
+              </tbody>
+            </table>
+          </div>
           <p>
             <strong>전부 채울 필요 없습니다.</strong> 견적서에 있는 것만 고르면 됩니다.
             항공료·호텔·식비는 자동으로 채워지고, 나머지는 <strong>칸 아래 후보 목록에서 고르시면</strong> 됩니다
@@ -2162,5 +2301,51 @@
 })();
 </script>
 
+<script>
+/* ══ 절만 뽑아 보기·내려받기 — `manual.html?only=<section id>` ══════════════
+   관리자 각 화면의 「📄 이 화면 매뉴얼」 버튼이 이 주소로 연다.
+   🔴 **문서를 쪼개 따로 만들지 않는다.** 절마다 파일을 두면 같은 내용이 두 벌이
+     되고 반드시 어긋난다(결함 생성기 ①). 원본 하나를 두고 **보여 줄 절만 고른다.**
+   ⚠ 감추는 것이지 지우는 것이 아니다 — 문서 안 링크(#itinerary 같은 것)를 누르면
+     전체 보기로 돌아가야 하므로, 「전체 매뉴얼 보기」를 항상 같이 띄운다.
+   ⚠ `?only=` 값이 실제로 없는 절이면 **조용히 전체를 보여 준다.** 빈 화면이 뜨면
+     사람은 고장으로 읽는다. */
+(function onlySection() {
+  var want = new URLSearchParams(location.search).get('only');
+  if (!want) return;
+  var target = document.getElementById(want);
+  if (!target || target.tagName !== 'SECTION') {
+    console.warn('[manual] 그런 절이 없어 전체를 보여 준다:', want);
+    return;
+  }
+  document.querySelectorAll('main > section').forEach(function (el) {
+    if (el !== target) el.hidden = true;
+  });
+  /* 목차·첫날 경로·머리글은 한 절만 볼 때 방해가 된다 */
+  ['.kickoff'].forEach(function (sel) {
+    var el = document.querySelector(sel);
+    if (el) el.hidden = true;
+  });
+  var nav = document.querySelector('nav');
+  if (nav) nav.hidden = true;
+  document.body.classList.add('manual-only');
+
+  /* 무엇을 보고 있는지 + 내려받기 + 돌아가는 길 */
+  var head = document.querySelector('.masthead');
+  if (head) {
+    var title = target.querySelector('h2');
+    head.innerHTML =
+      '<div class="eyebrow">비즈페이지 · 운영 매뉴얼</div>'
+      + '<h1>' + (title ? title.textContent : '매뉴얼') + '</h1>'
+      + '<p>이 화면에 해당하는 부분만 뽑았습니다. 인쇄하면 이 부분만 나옵니다.</p>'
+      + '<div class="meta">'
+      + '<button type="button" class="print-btn" onclick="window.print()">📄 PDF로 저장 / 인쇄</button>'
+      + '<a class="print-btn" style="text-decoration:none" href="manual.html">전체 매뉴얼 보기 ↗</a>'
+      + '</div>';
+  }
+  document.title = (target.querySelector('h2') ? target.querySelector('h2').textContent : '매뉴얼')
+    + ' — 비즈페이지 운영 매뉴얼';
+})();
+</script>
 </body>
 </html>

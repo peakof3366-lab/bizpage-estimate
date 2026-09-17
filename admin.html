@@ -2512,6 +2512,7 @@
 <script src="admin/pricereport.js"></script>
 <script src="admin/rates.js"></script>
 <script src="admin/estmgr.js"></script>
+<script src="admin/manual.js"></script>
 <script>
   /* ── 운영 상수를 화면 문구에 채워 넣는다 (QO) ──────────────────────────────
      `data-fact-ph="KEY[,KEY2]:템플릿"` 이 붙은 입력칸의 placeholder를 limits.js 값으로
@@ -3940,6 +3941,8 @@
     /* 모바일: 스크롤 상단 */
     document.querySelector('.dash-main')?.scrollTo({top: 0, behavior: 'smooth'});
   }
+
+
 
   function renderTab(name) {
     if (name==='dashboard') renderDashboard();

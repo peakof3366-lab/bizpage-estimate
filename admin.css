@@ -1338,7 +1338,20 @@
        도구 막대와 숫자 카드부터 마주쳤다. 팀원이 처음 여는 화면이 특히 그렇다.
      ⚠ 카드 제목(`.card-title`)은 화면 제목이 아니다 — 그걸 제목으로 세다가
        「제목이 있다」고 잘못 읽었다(`audit_ux.js`가 이제 `.page-title`만 본다). */
-    .page-head { margin: 0 0 1.1rem; padding-bottom: .85rem; border-bottom: 1px solid var(--line, #E5E2DC); }
+    /* ⚠ 매뉴얼 링크를 제목 줄 **오른쪽 끝**으로 보낸다 — 제목과 경쟁하면 안 된다.
+       `flex-wrap`이 있어야 좁은 화면에서 밑으로 내려간다(가로로 밀지 않는다).
+       제목과 설명을 한 덤어리로 묶지 않고 `margin-right:auto`로 민다 — HTML을 안 건드리려고. */
+    .page-head { margin: 0 0 1.1rem; padding-bottom: .85rem; border-bottom: 1px solid var(--line, #E5E2DC);
+                 display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem 1rem; }
+    .page-head .page-title { flex-basis: 100%; }
+    .page-head .page-sub   { margin-right: auto; }
+    /* 누르는 자리는 44px 이상 — 글자는 11px 이상(이 저장소 규칙). */
+    .page-manual-link {
+      display: inline-flex; align-items: center; min-height: 34px; padding: .4rem .7rem;
+      border: 1.5px solid var(--primary); color: var(--primary); background: var(--primary-lt);
+      font-size: .78rem; font-weight: 700; text-decoration: none; white-space: nowrap;
+    }
+    .page-manual-link:hover { background: var(--primary); color: #fff; }
     .page-title { font-size: 1.15rem; font-weight: 800; letter-spacing: -.01em; margin: 0 0 .3rem; }
     .page-sub { font-size: .84rem; color: var(--muted, #7A7A7A); line-height: 1.65; margin: 0; max-width: var(--measure); }  /* 62rem(=74자/줄)이었다 — 토큰으로 통일 (YB) */
 
