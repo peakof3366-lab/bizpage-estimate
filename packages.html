@@ -14,7 +14,18 @@
 <meta property="og:title" content="패키지 여행 · 비즈페이지" />
 <meta property="og:description" content="소규모 단체·친목 모임을 위한 패키지 여행. 일정과 금액을 견적서로 정리해 드립니다." />
 <meta property="og:url" content="https://bizpage-estimate.vercel.app/packages.html" />
-<meta name="twitter:card" content="summary" />
+<!-- 🔴 미리보기 카드 그림 (2026-09-17, 대기열 P-6 해소).
+ 🔴 **절대 주소여야 한다** — 카톡·페이스북 크롤러는 상대경로를 못 읽는다.
+ 🔴 파일 이름이 ASCII인 이유: 로고 원본은 `이미지/` 폴더에 있는데 한글 폴더명이
+주소에 실리면 인코딩이 한 겹 더 끼고 크롤러마다 다르게 다룬다.
+ ⚠ 그림을 바꾸려면 `python ai-loop/build_og_card.py` — 규격(1200×630)까지 재 준다.
+ ⚠ **목적지·금액은 카드에 안 넣는다.** 견적서 링크는 아는 사람 누구나 열기 때문에
+단톡방에 붙는 순간 그 방 전부가 금액을 보게 된다(P-6 미결 항목). -->
+<meta property="og:image" content="https://bizpage-estimate.vercel.app/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="비즈페이지 — 기업·공공기관 해외연수 전문" />
+<meta name="twitter:card" content="summary_large_image" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
 <!-- 디자인 토큰·기본 타이포를 본 사이트와 공유한다. 별도 스타일을 새로 쓰면

@@ -98,9 +98,20 @@ console.log('\n[4] 검색엔진 · 공유 미리보기 — 목록을 손으로 �
 
   /* ⚠ 견적서 미리보기에 **견적 내용이 들어가면 안 된다** — 링크를 받은 누구에게나 보인다.
      정적 문구뿐인지 실제 태그를 잘라서 본다(WC에서 연락처를 payload에 안 넣은 것과 같은 결). */
-  const og = (p2('estimate-view.html').match(/<meta property="og:[^>]*>/g) || []).join(' ');
+  /* ⚠ **글자를 담는 태그에만 건다** (2026-09-17). 예전에는 og 태그 **전부**를 이어 붙여
+     네 자리 숫자를 찾았는데, `og:image:width content="1200"`이 들어오자 **1200을 금액으로**
+     읽고 걸렸다. 그 칸은 문구가 아니라 **그림 규격**이다(크기를 알려 줘야 카톡이 자리를
+     먼저 잡는다). 잣대를 없애지 않고 **적용 범위만** 글자 태그로 좁힌다 —
+     `title`·`description`·`image:alt`가 고객 눈에 문장으로 보이는 전부다. */
+  const ogText = (p2('estimate-view.html')
+    .match(/<meta property="og:(?:title|description|image:alt|site_name)"[^>]*>/g) || []).join(' ');
   ok('④ 🔴 견적서 미리보기가 정적 문구뿐이다 (금액·고객사 안 들어간다)',
-    og.length > 0 && !/\$\{|payload|총액|원 |[0-9]{4,}/.test(og), og.slice(0, 140));
+    ogText.length > 0 && !/\$\{|payload|총액|원 |[0-9]{4,}/.test(ogText), ogText.slice(0, 140));
+  /* 🔴 **그림 주소도 견적마다 달라지면 안 된다** — 링크마다 다른 그림이면 그 자체가
+     내용을 흘리는 통로가 된다(예: 목적지별 사진). 한 장으로 못 박혔는지 함께 본다. */
+  const ogImg = (p2('estimate-view.html').match(/<meta property="og:image"[^>]*>/g) || []).join(' ');
+  ok('④ 🔴 미리보기 그림이 모든 견적서에 같은 한 장이다',
+    /og-card\.png/.test(ogImg) && !/\$\{|payload/.test(ogImg), ogImg.slice(0, 120));
 
   /* robots.txt가 관리자 주소를 알려주지 않는다 — 공개 문서에 숨길 곳을 적으면 알려주는 꼴 */
   const rb = fs.existsSync(path.join(ROOT, 'robots.txt')) ? p2('robots.txt') : '';
