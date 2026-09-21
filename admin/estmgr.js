@@ -908,9 +908,17 @@
     let safe;
     try {
       /* 🔴 고객이 받는 그대로를 본다 — 원가·마진·내부 메모를 지우고 그린다
-         (`estimate-view.html`과 같은 순서: normalize → stripInternal). */
-      safe = QuoteDoc.stripInternal(QuoteDoc.normalize(doc));
-      prev.innerHTML = QuoteDoc.renderQuote(safe) + QuoteDoc.renderItinerary(safe);
+         (`estimate-view.html`과 같은 순서: normalize → stripInternal).
+         🔴 **「고객에게 보낼 문서」 체크도 따른다** (2026-09-21). 안 따르면 체크를 꺼도
+           여기엔 그대로 보여서, 담당자가 **나가는 줄 알고 발급**한다 — 그 반대도 마찬가지다.
+           읽는 곳은 `emShareParts` 하나다(발급·👁 미리보기와 같은 값). */
+      const parts = (typeof emShareParts === 'function') ? emShareParts() : null;
+      safe = QuoteDoc.applyParts(QuoteDoc.stripInternal(QuoteDoc.normalize(doc)), parts);
+      /* 🔴 **세부견적서가 빠져 있었다** — 만들어 놓고 이 자리에 안 그리고 있었다.
+         순서는 고객 화면(롤링)과 같아야 한다: 견적서 → 세부견적서 → 일정표. */
+      prev.innerHTML = QuoteDoc.renderQuote(safe)
+        + (QuoteDoc.renderBreakdown ? QuoteDoc.renderBreakdown(safe) : '')
+        + QuoteDoc.renderItinerary(safe);
     } catch (err) {
       state.textContent = '⚠ 문서를 그리다 오류가 났습니다 — ' + (err && err.message || '');
       state.style.color = 'var(--warn)';
@@ -918,10 +926,30 @@
     }
     const days = emDocItiDays(safe).length;
     const items = (safe.details || []).length;
-    state.innerHTML = '상세 ' + items + '항목 · 일정 ' + days + '일'
-      + (days ? '' : '  ·  <strong>일정표가 비어 있습니다</strong>');
-    state.style.color = days ? '#15803D' : 'var(--warn)';
+    const bdRows = (safe.breakdown && safe.breakdown.rows || []).length;
+    /* 🔴 **나갈 것을 그대로 말한다** — 체크를 껐으면 「안 나감」이라고 적는다.
+       숫자만 적으면 담당자는 「0일」을 「일정이 없다」로 읽는다(일부러 뺀 것과 다른 말이다). */
+    const parts2 = (typeof emShareParts === 'function') ? emShareParts() : null;
+    const say = (on, n2, unit, what) => (on === false)
+      ? what + ' <strong>안 나감</strong>'
+      : (n2 ? what + ' ' + n2 + unit : what + ' <strong>비어 있습니다</strong>');
+    state.innerHTML = '상세 ' + items + '항목 · '
+      + say(parts2 && parts2.breakdown, bdRows, '줄', '세부견적서') + ' · '
+      + say(parts2 && parts2.iti, days, '일', '일정표');
+    /* 일부러 뺀 것은 경고가 아니다 — 비어 있는 것만 노랗게 */
+    const missing = (!parts2 || parts2.iti !== false) && !days;
+    state.style.color = missing ? 'var(--warn)' : '#15803D';
   }
+
+  /* 체크를 바꾸면 **그 자리에서** 미리보기가 따라온다 — 안 따라오면 담당자가
+     바꾼 뒤에도 옛 화면을 보고 판단한다(결함 생성기 ③의 반대편: 흔적 없는 조작). */
+  ['emPartBd', 'emPartIti'].forEach((id) => {
+    document.addEventListener('change', (e) => {
+      if (!e.target || e.target.id !== id) return;
+      const rec = getEstsFull().find((x) => x.id === emCurrentId);
+      if (rec) emRenderDocPreview(rec);
+    });
+  });
 
   function emRenderItiState() {
     const el = document.getElementById('em-iti-state');

@@ -103,6 +103,36 @@ async function 태우기(견적) {
     !/class="qd|<article class="qd/.test(EST), '문서 마크업이 여기에도 생겼다');
   ok('[1-e] 대신 공통 모듈을 부른다', /QuoteDoc\.renderQuote/.test(EST) && /QuoteDoc\.renderItinerary/.test(EST));
 
+  /* ═══ ②-2 🔴 세부견적서가 붙은 견적 — **화면으로** 확인한다 ═══════════════
+     [2-d2~d4]는 글자로 잰다. 글자만 재면 「부르긴 부르는데 안 그려진다」를 못 잡는다
+     (이 저장소가 여러 번 당한 자리다). 여기서는 **모달을 띄워 장수를 센다.** */
+  {
+    const 문서B = JSON.parse(JSON.stringify(문서));
+    문서B.breakdown = { rows: [
+      { name: '항공', amount: 30000000 }, { name: '호텔', amount: 16696074 },
+      { name: '식사', amount: 10000000 },
+    ] };
+    const { B } = await 태우기(Object.assign({}, 기본견적, { doc: 문서B }));
+    const D = B.doc;
+    const prev = D.getElementById('em-doc-prev');
+    ok('[2-f] 🔴 세부견적서까지 **세 장**이 그려진다',
+      prev.querySelectorAll('.qd').length === 3, String(prev.querySelectorAll('.qd').length) + '장');
+    ok('[2-g] 세부 견적 내역 표가 실제로 있다', /세부 견적 내역/.test(prev.textContent || ''));
+    /* 🔴 체크를 끄면 그 자리에서 사라져야 한다 — 안 사라지면 담당자가 나가는 줄 안다 */
+    const cb = D.getElementById('emPartBd');
+    ok('[2-h] 체크 칸이 모달에 있다', !!cb);
+    if (cb) {
+      cb.checked = false;
+      cb.dispatchEvent(new B.win.Event('change', { bubbles: true }));
+      await B.tick(120);
+      ok('[2-i] 🔴 체크를 끄면 두 장으로 준다',
+        prev.querySelectorAll('.qd').length === 2, String(prev.querySelectorAll('.qd').length) + '장');
+      ok('[2-j] 「안 나감」이라고 말한다',
+        /세부견적서 안 나감/.test(D.getElementById('em-doc-state').textContent || ''),
+        D.getElementById('em-doc-state').textContent);
+    }
+  }
+
   /* ═══ ② 문서가 붙은 견적 — 고객이 받는 그대로 보인다 ═══════════════════ */
   {
     const { B, 보낸것, 물은것 } = await 태우기(Object.assign({}, 기본견적, { doc: 문서 }));
@@ -112,9 +142,21 @@ async function 태우기(견적) {
     ok('[2] 문서 미리보기 자리가 있다', !!prev);
     ok('[2-b] 견적서와 일정표 두 장이 그려진다', prev.querySelectorAll('.qd').length === 2,
       String(prev.querySelectorAll('.qd').length) + '장');
-    ok('[2-c] 무엇이 들어 있는지 말한다', /상세 2항목/.test(state) && /일정 2일/.test(state), state);
+    /* 🔴 2026-09-21 — 문서가 셋이 됐으므로 **셋을 다 이름으로 말한다.**
+       예전엔 「일정 2일」이었는데, 세부견적서가 생긴 뒤로는 무엇이 몇 줄인지
+       가려지지 않으면 담당자가 나갈 것을 못 읽는다. */
+    ok('[2-c] 무엇이 들어 있는지 말한다',
+      /상세 2항목/.test(state) && /세부견적서/.test(state) && /일정표 2일/.test(state), state);
     const 글 = (prev.textContent || '').replace(/\s+/g, ' ');
     ok('[2-d] 담당자가 적은 내용이 실제로 보인다', /한국인 우수가이드/.test(글) && /산업 시찰/.test(글));
+    /* 🔴🔴 **세부견적서를 만들어 놓고 이 자리에 안 그리고 있었다** (2026-09-21).
+       담당자가 발급 전에 보는 유일한 자리인데, 여기 없으면 「안 나가는구나」로 읽는다.
+       순서는 고객 화면(롤링)과 같아야 한다 — 견적서 → 세부견적서 → 일정표. */
+    ok('[2-d2] 🔴 세부견적서도 함께 그린다', /renderBreakdown/.test(EST));
+    ok('[2-d3] 🔴 「고객에게 보낼 문서」 체크를 따른다',
+      /applyParts\([\s\S]{0,160}parts\)/.test(EST) && /emShareParts/.test(EST));
+    ok('[2-d4] 체크를 바꾸면 미리보기가 따라온다',
+      /\['emPartBd', 'emPartIti'\][\s\S]{0,300}emRenderDocPreview\(rec\)/.test(EST));
     /* 🔴 여기가 핵심 — 내부 값이 비치면 안 된다 */
     ok('[2-e] 🔴 원가·마진·내부 메모가 안 보인다',
       !/내부 메모/.test(글) && !/40,000,000/.test(글) && !/16,696,074/.test(글), 글.slice(0, 120));
@@ -155,7 +197,7 @@ async function 태우기(견적) {
     const { B, 물은것 } = await 태우기(Object.assign({}, 기본견적, { doc: 빈일정 }));
     const D = B.doc;
     ok('[6] 일정표가 비었다고 말한다',
-      /일정표가 비어 있습니다/.test(D.getElementById('em-doc-state').textContent || ''),
+      /일정표 비어 있습니다/.test(D.getElementById('em-doc-state').textContent || ''),
       D.getElementById('em-doc-state').textContent);
     const s2 = D.createElement('script'); s2.textContent = 'issueShareLink();'; D.body.appendChild(s2);
     await B.tick(700);
