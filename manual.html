@@ -674,7 +674,8 @@
         <li><b>①</b> 여행 조건을 넣고 <strong>「자동 산출하기」</strong>.</li>
         <li><b>②</b> 항목별 <strong>「적용값」</strong>을 고치면 <strong>「수정됨」</strong>과 자동값 대비 증감이 붙습니다
           (<strong>「되돌리기」</strong>로 언제든 원래대로).<br>
-          <strong>실무 변수</strong>(FOC·싱글 차지·항공 BD·지상비·인솔자)는 <strong>제안값</strong>이니 아는 값으로 고쳐 쓰세요.</li>
+          <strong>실무 변수</strong>(FOC·싱글 차지·항공 BD·지상비·인솔자)는 <strong>제안값</strong>이니 아는 값으로 고쳐 쓰세요.<br>
+          🔴 금액을 적으면 <strong>「어디서 나가나」</strong> 칸이 함께 뜹니다 — <strong>원가</strong>인지 <strong>마진</strong>인지 확인하세요.</li>
         <li><b>③</b> <strong>담당자 이름·연락처·메일</strong> — 🔴 비우면 견적서에 <strong>「미입력」이 빨갛게</strong> 찍힙니다.</li>
         <li><b>④</b> <strong>일정</strong>은 비어 있지 않습니다 — 산출하면 <strong>추천 코스가 초안으로</strong> 깔립니다.
           코스가 둘 이상이면 고른 뒤 <strong>「추천 일정으로 채우기」</strong>.
@@ -755,12 +756,54 @@
       </figure>
       <h3>금액이 어떻게 맞춰지나</h3>
       <ul class="plain">
-        <li><strong>조정액은 마진에서 나갑니다.</strong> 원가는 그대로입니다 — 공급사에 줄 돈은 안 변하니까요.</li>
-        <li><strong>마진율이 5% 아래로 내려가면 화면이 알려 줍니다.</strong> 마이너스가 되면 빨갛게 경고합니다.</li>
+        <li>🔴 <strong>어느 줄을 고치느냐로 나가는 주머니가 다릅니다.</strong>
+          <strong>원가 줄</strong>(항공·호텔·식사·차량·가이드·관광·부대비용)을 고치면 <strong>원가</strong>가 움직이고 —
+          공급사에게 받은 실제 금액을 아는 자리입니다.
+          <strong>「내부」 줄</strong>(본사 수익·현지 수익금)과 아래 <strong>실무 변수</strong>를 고치면
+          <strong>마진</strong>에서 나갑니다 — 깎아 주는 자리입니다.</li>
+        <li><strong>마진율이 5% 아래로 내려가면 화면이 알려 줍니다.</strong> 마이너스가 되면 빨갛게 경고합니다.
+          ⚠ <strong>부풀어 오르는 쪽은 경고가 없습니다</strong> — 그래서 아래 「어디서 나가나」를 직접 보셔야 합니다.</li>
         <li><strong>「계수 반올림 조정」</strong>이라는 줄이 보일 수 있습니다. 엔진이 마지막에 계수를 한 번 곱하면서
           생기는 몇 원짜리 차이입니다 — <strong>고칠 수 없고, 고칠 필요도 없습니다.</strong></li>
         <li><strong>10+1 조건은 표기 단가에 반영됩니다.</strong> 무료 인원을 넣으면 총액이 그만큼 줄고,
           단가는 <strong>전체 인원</strong>으로 나눈 값이 됩니다(총액 = 단가 × 전체 인원).</li>
+      </ul>
+
+      <h4>실무 변수의 「어디서 나가나」 — 원가인가, 마진인가</h4>
+      <p>
+        실무 변수에 <strong>금액을 적으면</strong> 그 줄에 <strong>「어디서 나가나」</strong> 칸이 뜹니다.
+        <strong>원가</strong>와 <strong>마진</strong> 둘 중 하나입니다.
+        🔴 <strong>총액은 어느 쪽을 골라도 똑같습니다</strong> — 고객이 받는 금액은 안 바뀝니다.
+        갈리는 것은 <strong>우리가 보는 마진율</strong>뿐입니다.
+      </p>
+      <div class="scroller">
+        <table>
+          <caption>같은 +300만원을 어느 쪽으로 적느냐 (기준: 총액 10,600만·원가 8,700만·마진 1,900만)</caption>
+          <thead><tr><th>&nbsp;</th><th>총액</th><th>원가</th><th>마진</th></tr></thead>
+          <tbody>
+            <tr><td class="field">원가로</td><td>10,900만</td><td><strong>9,000만</strong></td><td>1,900만 (17.4%)</td></tr>
+            <tr><td class="field">마진으로</td><td>10,900만</td><td>8,700만</td><td><strong>2,200만 (20.2%)</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tip">
+        <span class="label">📌 고르는 법은 한 가지만 물어보면 됩니다</span>
+        <p>
+          <strong>「이 돈을 우리가 남에게 주는가?」</strong><br>
+          준다면 <strong>원가</strong>입니다 — 인솔자에게, 호텔에, 항공사에, 랜드사에 나가는 돈입니다.
+          안 준다면 <strong>마진</strong>입니다 — 우리가 깎아 드리거나 더 받는 돈입니다.
+        </p>
+      </div>
+      <ul class="plain">
+        <li><strong>기본값이 이미 맞게 들어 있습니다</strong> —
+          싱글 차지·항공 BD·지상비 조정·인솔자 비용은 <strong>원가</strong>,
+          FOC는 <strong>마진</strong>입니다. 보통은 그대로 두시면 됩니다.</li>
+        <li>🔴 <strong>FOC만 건별로 다를 수 있습니다.</strong>
+          공급사가 <strong>무료 좌석을 준 것</strong>이면 우리 원가도 같이 줄어야 하니 <strong>원가</strong>로,
+          우리가 <strong>서비스로 얹어 드린 것</strong>이면 <strong>마진</strong>으로 두세요.</li>
+        <li>⚠ <strong>싱글 차지는 먼저 ①단계를 보세요.</strong>
+          <strong>「객실 구성 = 혼합」</strong>으로 1인 1실 인원을 넣으면 방 수를 실제로 세서 금액에 반영합니다 —
+          그게 정석입니다. 실무 변수의 싱글 차지는 <strong>공급사가 따로 청구할 때만</strong> 씁니다.</li>
       </ul>
 
 

@@ -317,7 +317,7 @@ ok('[16-b] 항목 이름을 담당자가 정한다', /data-nm="/.test(PRO));
 ok('[16-c] 자동 모드에서는 항목 이름을 못 고친다',
   /S\.adhoc[\s\S]{0,200}data-nm=[\s\S]{0,200}:\s*'<span class="nm">/.test(PRO));
 ok('[16-d] 원가를 입력받아 마진을 만든다',
-  /if \(S\.adhoc\) \{[\s\S]{0,400}const cost = Math\.max\(0, num\(\$\('adhocCost'\)\)\);[\s\S]{0,120}const margin = total - cost;/.test(PRO));
+  /if \(S\.adhoc\) \{[\s\S]{0,700}const cost = Math\.max\(0, num\(\$\('adhocCost'\)\)\) \+ adjCost;[\s\S]{0,200}const margin = total - cost;/.test(PRO));
 ok('[16-e] 두 모드의 원가·마진 계산을 한 식으로 뭉치지 않았다',
   /두 모드의 원가·마진이 다른 데서 온다/.test(PRO));
 
@@ -392,6 +392,81 @@ ok('[19-j] 접힌 칸 수를 세어서 적는다 — 모드마다 다르다',
 /* 🔴 `select`는 첫 보기가 그냥 골라진 값이다 — 안 건드리면 목록 첫 행으로 산출됐다 */
 ok('[19-k] 목적지는 「고르지 않음」으로 시작한다',
   /목적지를 고르세요/.test(PRO) && /sel\.value = '';/.test(PRO));
+
+/* ═══ ⑳ 🔴 실무 변수가 「어디서 나가나」 — 0-al (2026-09-21) ═══════════════
+   ■ 무엇이 틀렸었나
+   마진은 따로 구하는 값이 아니라 **총액 − 원가**로 남는 값인데, 원가가
+   「엔진이 낸 줄들의 합」으로만 정의돼 있어 **실무 변수는 원가로 갈 길이 없었다.**
+   그래서 인솔자 300만(=우리가 나가는 돈)을 적으면 **마진이 300만 늘었다**고 나왔다.
+   실측: 마진율 17.9% → 20.2%. 마진율 경고는 5% **미만**일 때만 떠서 아무도 못 봤다.
+
+   ⚠ **글자로만 재지 않는다.** 이 표는 산수가 본체라, 화면의 `totals()`를 **원문 그대로
+     떼어 내 돌려서** 잰다. 정규식만 걸어 두면 식을 잘못 고쳐도 통과한다.
+   🔴 **총액 불변이 가장 중요한 잠금이다** — `kind`는 원가·마진 두 지표만 가르고
+     고객이 받는 총액은 한 원도 건드리지 않는다. */
+const iT = PRO.indexOf('  function totals() {');
+const jT = PRO.indexOf('\n  function renderSum()', iT);
+const TSRC = (iT > 0 && jT > iT) ? PRO.slice(iT, jT).trim() : '';
+ok('[20] totals()를 떼어 낼 수 있다', !!TSRC);
+
+function runTotals(mut, adhoc) {
+  const S = {
+    adhoc: !!adhoc, residual: 0, bd: { total: 106000000 },
+    rows: [
+      { name: '항공', val: 50000000, auto: 50000000, margin: false },
+      { name: '호텔', val: 36000000, auto: 36000000, margin: false },
+      { name: '🛡️ 여행자보험', val: 1000000, auto: 1000000, margin: false },
+      { name: '💼 본사 수익', val: 10000000, auto: 10000000, margin: true },
+      { name: '🏷️ 현지 수익금', val: 9000000, auto: 9000000, margin: true },
+    ],
+    adj: [
+      { key: 'foc', amount: 0, kind: 'margin' }, { key: 'single', amount: 0, kind: 'cost' },
+      { key: 'bd', amount: 0, kind: 'cost' }, { key: 'ground', amount: 0, kind: 'cost' },
+      { key: 'tc', amount: 0, kind: 'cost' },
+    ],
+  };
+  mut(S);
+  const $ = (id) => ({ pPax: { value: '30' }, adhocCost: { value: adhoc ? '87000000' : '0' } }[id]);
+  const num = (el) => Number(String(el.value).replace(/[^0-9-]/g, '')) || 0;
+  /* eslint-disable no-eval */
+  return eval('(' + TSRC + ')')();
+}
+
+if (TSRC) {
+  const base = runTotals(() => {});
+  const tcCost = runTotals((S) => { S.adj[4].amount = 3000000; });
+  const tcMargin = runTotals((S) => { S.adj[4].amount = 3000000; S.adj[4].kind = 'margin'; });
+  const foc = runTotals((S) => { S.adj[0].amount = -5000000; });
+
+  /* 🔴 이 줄 하나가 0-al의 본체다 */
+  ok('[20-a] 실무 변수 「원가」는 원가로 간다',
+    tcCost.cost - base.cost === 3000000, '원가 변화: ' + (tcCost.cost - base.cost));
+  ok('[20-b] 그때 마진은 한 원도 안 움직인다',
+    tcCost.margin === base.margin, '마진 변화: ' + (tcCost.margin - base.margin));
+  ok('[20-c] 「마진」으로 바꾸면 마진으로 간다',
+    tcMargin.margin - base.margin === 3000000 && tcMargin.cost === base.cost);
+  /* 🔴 총액 불변 — 고객이 받는 금액은 `kind`와 무관하다 */
+  ok('[20-d] 🔴 어느 쪽을 골라도 총액이 같다',
+    tcCost.total === tcMargin.total && tcCost.total === base.total + 3000000,
+    tcCost.total + ' vs ' + tcMargin.total);
+  /* FOC는 우리가 포기하는 것 — 마진에서 나가는 게 맞다 */
+  ok('[20-e] FOC 기본값은 마진이다',
+    foc.margin - base.margin === -5000000 && foc.cost === base.cost);
+  /* 직접 모드도 같은 규칙 — 손으로 적은 원가에 더한다 */
+  const aBase = runTotals(() => {}, true);
+  const aTc = runTotals((S) => { S.adj[4].amount = 3000000; }, true);
+  ok('[20-f] 직접 모드도 같은 규칙이다',
+    aTc.cost - aBase.cost === 3000000 && aTc.margin === aBase.margin);
+  /* 회귀 방어: 예전처럼 adjSum을 통째로 마진에 더하면 [20-b]가 깨진다 */
+  ok('[20-g] adjSum을 마진에 통째로 더하지 않는다',
+    !/const margin = autoMargin \+ adjSum;/.test(PRO));
+}
+/* 화면에도 고를 자리가 있어야 한다 — 산수만 맞고 칸이 없으면 아무도 못 바꾼다 */
+ok('[20-h] 줄마다 고르는 칸이 있다', /data-ak="/.test(PRO) && /어디서 나가나/.test(PRO));
+ok('[20-i] 기본값이 코드에 박혀 있다',
+  /key: 'tc',[^\n]*kind: 'cost'/.test(PRO) && /key: 'foc',[^\n]*kind: 'margin'/.test(PRO));
+/* 저장 기록에 남아야 나중에 다시 셀 수 있다 */
+ok('[20-j] 저장 기록에 kind가 남는다', /adjust: S\.adj\.filter[\s\S]{0,200}kind:/.test(PRO));
 
 (async () => {
   try { await BOOT_CHECKS(); } catch (e) { fails.push('[12-c] 화면을 못 띄웠다 — ' + e.message); }
