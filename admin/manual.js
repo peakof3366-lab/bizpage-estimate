@@ -86,7 +86,7 @@
        숫자가 없으면 「안 읽는 것 같다」는 짐작에서 영원히 못 벗어난다.
      ⚠ 못 불러왔을 때 **빈칸으로 두지 않는다.** 0과 「못 셌다」는 다른 말이다. */
   const SCREEN_LABEL = {
-    inquiries: '문의 관리', estmgr: '견적 요청 관리', quotepro: '자동 견적 산출',
+    inquiries: '문의 관리', estmgr: '견적 관리', quotepro: '자동 견적 산출',
     itineraries: '일정·방식 비교', packages: '패키지 상품', adhoc: '직접 견적 작성',
     ledger: '견적서 대장', pricereport: '견적서 업데이트', rates: '요율 관리',
   };

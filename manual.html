@@ -288,7 +288,7 @@
         <li><a href="#start">시작하기 — 계정과 화면</a></li>
         <li><a href="#flow">하루 흐름 한눈에</a></li>
         <li><a href="#inquiries">문의 관리</a></li>
-        <li><a href="#estmgr">견적 요청 관리</a></li>
+        <li><a href="#estmgr">견적 관리</a></li>
         <li><a href="#quotepro">자동 견적 산출</a></li>
         <li><a href="#itinerary">일정·방식 비교</a></li>
         <li><a href="#packages">패키지 상품</a></li>
@@ -399,7 +399,7 @@
           <tbody>
             <tr><td class="field">대시보드</td><td>오늘 들어온 문의·견적 요약</td><td>들어올 때마다</td></tr>
             <tr><td class="field"><a href="#inquiries">문의 관리</a></td><td>홈페이지 문의 처리</td><td>매일</td></tr>
-            <tr><td class="field"><a href="#estmgr">견적 요청 관리</a></td><td>고객이 뽑은 견적 처리 · 링크 발급</td><td>매일</td></tr>
+            <tr><td class="field"><a href="#estmgr">견적 관리</a></td><td>고객이 뽑은 견적 처리 · 링크 발급</td><td>매일</td></tr>
             <tr><td class="field"><a href="#quotepro">자동 견적 산출</a></td><td>엔진이 금액을 뽑습니다</td><td>상담할 때</td></tr>
             <tr><td class="field"><a href="#adhoc">직접 견적 작성</a></td><td>담당자가 금액을 직접 적습니다 <span class="tag off">매니저 이상</span></td><td>엔진을 안 쓸 때</td></tr>
             <tr><td class="field"><a href="#ledger">견적서 대장</a></td><td>발급한 견적서 전부 — 번호·고객·담당자로 찾습니다</td><td>문의 올 때마다</td></tr>
@@ -426,10 +426,10 @@
       <h2>2. 하루 흐름 한눈에</h2>
       <p>대부분의 일은 아래 순서로 흘러갑니다. 각 단계의 자세한 방법은 해당 장에 있습니다.</p>
       <ol class="flow">
-        <li><b>들어온 것을 확인한다</b><span>대시보드 → 문의 관리 <span class="tag bad">신규</span> · 견적 요청 관리 <span class="tag bad">신규</span></span></li>
+        <li><b>들어온 것을 확인한다</b><span>대시보드 → 문의 관리 <span class="tag bad">신규</span> · 견적 관리 <span class="tag bad">신규</span></span></li>
         <li><b>내가 맡을 건에 담당자를 건다</b><span>상세를 열고 담당자를 나로 지정 — 안 걸면 아무도 자기 일로 보지 않습니다</span></li>
         <li><b>고객과 상담하고 기록을 남긴다</b><span>상태를 <strong>상담중</strong>으로, 오간 내용은 상담 메모와 진행 기록에</span></li>
-        <li><b>견적서를 만들어 보낸다</b><span>고객이 뽑은 건이면 견적 요청 관리에서 링크 발급 / 새로 뽑아야 하면 자동 견적 산출 (내부직원용)</span></li>
+        <li><b>견적서를 만들어 보낸다</b><span>고객이 뽑은 건이면 견적 관리에서 링크 발급 / 새로 뽑아야 하면 자동 견적 산출 (내부직원용)</span></li>
         <li><b>계약되면 결과를 남긴다</b><span>상태를 <strong>계약완료</strong>로, 실제 계약 금액을 입력 — 이게 다음 견적의 정확도가 됩니다</span></li>
       </ol>
       <div class="note">
@@ -438,7 +438,7 @@
           관리자 화면을 켜 두면 <strong>1분마다 스스로 확인</strong>해서 세 곳에 표시합니다.
         </p>
         <ul class="plain">
-          <li><strong>왼쪽 메뉴의 빨간 숫자</strong> — 문의 관리·견적 요청 관리 옆에 미처리 건수가 붙습니다.</li>
+          <li><strong>왼쪽 메뉴의 빨간 숫자</strong> — 문의 관리·견적 관리 옆에 미처리 건수가 붙습니다.</li>
           <li><strong>브라우저 탭 제목</strong> — <code>(3) 비즈페이지 Admin</code> 처럼 바뀝니다.
             다른 창을 보고 있어도 보이니, 이것만 봐도 새 건이 왔는지 알 수 있습니다.</li>
           <li><strong>알림 창</strong> — 대시보드 맨 위의 <span class="btn-demo">알림 켜기</span>를 한 번 누르고,
@@ -503,7 +503,7 @@
     </section>
 
     <section id="estmgr">
-      <h2>4. 견적 요청 관리</h2>
+      <h2>4. 견적 관리</h2>
       <div class="tldr">
         <span class="label">30초 요약</span>
         <p class="trap"><strong>고객이 뽑은 견적을 처리하고 견적서를 보냅니다</strong></p>
@@ -633,7 +633,7 @@
       </div>
       <h3>놓친 건 찾기 — <span class="btn-demo">💰 실적 미입력</span></h3>
       <p>
-        견적 요청 관리 위쪽 필터 줄 맨 오른쪽에 있습니다.
+        견적 관리 위쪽 필터 줄 맨 오른쪽에 있습니다.
         <strong>계약완료인데 ‘실제 총 계약가’가 비어 있는 건</strong>만 모아서 보여주고, 옆에 <strong>몇 건인지</strong> 적혀 있습니다.
         해당하는 건은 목록에서도 상태 옆에 <span class="tag warn">💰 실적</span> 표시가 붙습니다.
       </p>
@@ -880,7 +880,7 @@
       </p>
       <h3>저장하면 어떻게 되나</h3>
       <p>
-        <strong>「견적 저장하기」</strong>를 누르면 <strong>견적 요청 관리</strong> 목록에 올라갑니다.
+        <strong>「견적 저장하기」</strong>를 누르면 <strong>견적 관리</strong> 목록에 올라갑니다.
         거기서 이 건을 열어 <strong>견적서 링크를 발급</strong>하면 고객에게 보낼 수 있습니다.
         저장에 실패하면 <strong>그 자리에서 알려 드립니다</strong> — 조용히 넘어가지 않습니다.
       </p>
@@ -1371,7 +1371,7 @@
           <li>③ 견적서 내용 → ④ 일정 → ⑤ 미리보기, 저장</li>
         </ol>
         <p class="trap">⚠ <b>엔진을 안 탑니다</b> — 요율·마진이 하나도 안 붙으니 <b>포함한 금액</b>을 적으세요.</p>
-        <p class="trap">⚠ <b>매니저 이상만</b> 보입니다. 저장한 건은 <b>견적 요청 관리</b>에서 링크를 발급합니다.</p>
+        <p class="trap">⚠ <b>매니저 이상만</b> 보입니다. 저장한 건은 <b>견적 관리</b>에서 링크를 발급합니다.</p>
         <p class="more">자동 견적 산출과 무엇이 다른지는 아래 표에 있습니다.</p>
       </div>
       <p>
@@ -1397,7 +1397,7 @@
         <li><b>③</b> <strong>담당자 이름·연락처</strong>를 적습니다 —
           🔴 비우면 견적서에 <strong>「미입력」이 빨갛게</strong> 찍혀 나갑니다.</li>
         <li><b>④</b> 일정을 확인하고 <b>⑤</b> <strong>미리보기</strong>로 고객이 받는 모습을 봅니다.</li>
-        <li><strong>「견적 저장하기」</strong> → <a href="#estmgr">견적 요청 관리</a>에 올라갑니다.
+        <li><strong>「견적 저장하기」</strong> → <a href="#estmgr">견적 관리</a>에 올라갑니다.
           거기서 <strong>견적서 링크를 발급</strong>합니다.</li>
       </ol>
       <div class="warn">
@@ -1450,9 +1450,9 @@
         찾아서 바로 응대할 수 있게 만든 자리입니다.
       </p>
       <div class="note">
-        <span class="label">「견적 요청 관리」와 다릅니다</span>
+        <span class="label">「견적 관리」와 다릅니다</span>
         <p>
-          <strong>견적 요청 관리</strong>는 <strong>고객이 남긴 요청</strong>입니다.
+          <strong>견적 관리</strong>는 <strong>고객이 남긴 요청</strong>입니다.
           <strong>견적서 대장</strong>은 <strong>우리가 내보낸 문서</strong>입니다.
           고객이 "견적서 받았는데요" 하고 전화하면 <strong>대장</strong>에서 찾으십시오.
         </p>

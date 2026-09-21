@@ -62,7 +62,7 @@
           + '검색어를 지우고 <strong>새로고침</strong>을 누르면 전체 목록이 나옵니다.</div>'
         : '<div style="padding:16px;color:#888;font-size:.85rem;line-height:1.8">'
           + '아직 발급된 견적서가 없습니다.<br>'
-          + '견적서는 고객이 홈페이지에서 직접 받거나, <strong>「견적 요청 관리」</strong>에서 '
+          + '견적서는 고객이 홈페이지에서 직접 받거나, <strong>「견적 관리」</strong>에서 '
           + '담당자가 발급하면 여기에 기록됩니다.</div>';
       return;
     }
