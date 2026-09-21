@@ -223,13 +223,40 @@
          (바로 윗줄에서 만들었다). 만드는 쪽이 무엇에 맞췄든 여기서 다시 맞춘다.
        ⚠ **여러 번 불러도 같다** — 이미 합이 총액이면 배율이 1이라 그대로다.
        ⚠ `allocateBreakdown`은 **한 곳뿐**이다. 여기서 부르는 것이 그 한 곳이다. */
+    /* 🔴🔴 **1인당을 먼저 맞춘다 — 그래야 고객이 한 줄씩 곱해 볼 수 있다.**
+       총액에 맞춰 배분하고 1인당을 `금액 ÷ 인원`으로 보여줬더니, 고객이 한 줄을
+       곱하면 **5~9원씩 안 맞았다**(파리 20명 실측: 항공 −5 · 호텔 +7 · 차량 −9).
+       기업 담당자는 표를 더하기만 하는 것이 아니라 **한 줄을 곱해 본다.**
+       → **1인당 금액들이 「표기 단가」와 맞게** 배분하고, 금액 = 1인당 × 인원으로 만든다.
+         그러면 두 가지가 **동시에** 성립한다:
+           · 줄마다  1인당 × 인원 = 금액
+           · 다 더하면            = 총액   (총액 = 단가 × 인원이므로 저절로)
+       ⚠ 인원이 0이거나 단가가 줄마다 다르면 예전처럼 **총액 기준**으로 물러난다 —
+         그때는 1인당 곱셈이 안 맞을 수 있지만 **합은 여전히 맞는다.** */
     const bdIn = (d.breakdown && Array.isArray(d.breakdown.rows)) ? d.breakdown.rows : [];
+    const bdPax = d.price.lines.reduce((s2, l) => s2 + l.qty, 0);
+    const units = d.price.lines.map((l) => l.unit);
+    const oneUnit = units.length > 0 && units.every((u) => u === units[0]) ? units[0] : 0;
+    let bdRows;
+    if (bdPax > 0 && oneUnit > 0) {
+      bdRows = allocateBreakdown(bdIn, oneUnit)
+        .map((r) => ({ name: r.name, qty: r.qty, unit: r.amount, amount: r.amount * bdPax }));
+    } else {
+      bdRows = allocateBreakdown(bdIn, d.price.total)
+        .map((r) => ({ name: r.name, qty: r.qty,
+          unit: bdPax > 0 ? Math.round(r.amount / bdPax) : 0, amount: r.amount }));
+    }
     d.breakdown = {
-      rows: allocateBreakdown(bdIn, d.price.total),
+      rows: bdRows,
+      pax: bdPax,
       note: (d.breakdown && d.breakdown.note) || '',
     };
     d.breakdown.sum = d.breakdown.rows.reduce((s2, r) => s2 + r.amount, 0);
     d.breakdown.matchesTotal = d.breakdown.rows.length > 0 && d.breakdown.sum === d.price.total;
+    /* 줄마다 곱셈이 맞는가 — 화면이 아니라 **문서가 스스로** 말한다.
+       ⚠ 이 값이 false인 문서가 나가도 합은 맞는다(위 물러남 경로). 검사가 이것으로 가른다. */
+    d.breakdown.rowsMultiply = d.breakdown.rows.length > 0 && bdPax > 0
+      && d.breakdown.rows.every((r) => r.unit * bdPax === r.amount);
 
     d.options = d.options.map((o, i) => {
       const unit = Math.round(Number(o.unit) || 0);
@@ -277,9 +304,27 @@
      🔴 **반올림 잔차를 버리지 않는다.** 비례 배분은 반올림 때문에 합이 몇 원 어긋나는데,
        그대로 두면 「다 더해도 안 맞는다」가 **다시** 생긴다 — 가장 큰 항목이 흡수한다.
      ⚠ 금액이 0 이하인 줄은 뺀다(표에 「0원」 줄이 서면 고객이 묻는다). */
+  /* ═══ 🔴 고객이 읽을 항목 이름 ════════════════════════════════════════════
+     엔진의 행 이름은 **우리 내부 이름**이다. 그대로 찍었더니 고객 문서에
+     「차량 (소형 · 자동적용)」이 나갔다 — `자동적용`은 우리가 차량 크기를 자동으로
+     고른다는 **구현 이야기**이고, 게다가 20명짜리 파리 건에 「소형」이라고 찍혀
+     고객이 「20명인데 소형 버스?」로 읽는다(우리 분류에서 소형은 25인승이다).
+     🔴 **엔진의 이름은 안 건드린다.** 그 이름은 대장·추출 대조·역검증이 같이 쓴다
+       (이름을 바꾸면 그 줄이 어느 산출 항목이었는지 알 수 없게 된다).
+       → **보여줄 때만** 깎는다. 자리는 여기 하나다.
+     ⚠ 차량 크기·객실 등급 같은 조건은 **상세 내용**에 글로 적힌다 — 금액표에서
+       지워도 정보가 사라지지 않는다. */
+  function publicRowName(name) {
+    let s2 = String(name || '').trim();
+    s2 = s2.replace(/\s*·\s*자동적용/g, '');      /* 구현 이야기 */
+    s2 = s2.replace(/^차량\s*\((?:대형|소형)\)$/, '차량');
+    s2 = s2.replace(/^[^\w가-힣]+\s*/, '');       /* 머리의 그림문자 */
+    return s2.trim() || String(name || '').trim();
+  }
+
   function allocateBreakdown(rows, total) {
     const src = (rows || [])
-      .map((r) => ({ name: String(r.name || '').trim(), qty: r.qty || '', amount: Math.round(Number(r.amount) || 0) }))
+      .map((r) => ({ name: publicRowName(r.name), qty: r.qty || '', amount: Math.round(Number(r.amount) || 0) }))
       .filter((r) => r.name && r.amount > 0);
     const sum = src.reduce((s2, r) => s2 + r.amount, 0);
     const t = Math.round(Number(total) || 0);
@@ -564,12 +609,16 @@
     const d = normalize(docIn);
     const c = company(opts);
     if (!d.breakdown.rows.length) return '';
-    const pax = Math.max(1, Number(d.trip.pax) || 1);
+    /* 🔴 **수량 칸은 인원으로 통일한다.** 예전에는 엔진의 산출 단위가 그대로 나가
+       한 표 안에 「20명」·「10실×7박」·「8일」·「20명×8일」이 섞였다. 그러면
+       **1인당 × 수량 = 금액**이 읽히지 않아 고객이 표를 못 검산한다.
+       ⚠ 객실 수·일수 같은 조건은 **상세 내용**에 글로 적힌다 — 여기서 빼도 안 사라진다. */
+    const pax = d.breakdown.pax || Math.max(1, Number(d.trip.pax) || 1);
     const body = d.breakdown.rows.map((r) => `
       <tr>
         <td class="qd-td">${esc(r.name)}</td>
-        <td class="qd-td qd-num">${won(Math.round(r.amount / pax))}</td>
-        <td class="qd-td qd-ctr">${esc(r.qty || (pax + '명'))}</td>
+        <td class="qd-td qd-num">${won(r.unit)}</td>
+        <td class="qd-td qd-ctr">${won(pax)}명</td>
         <td class="qd-td qd-num">${won(r.amount)}</td>
       </tr>`).join('');
     return `<article class="qd">

@@ -109,6 +109,16 @@ function buildDoc(g, bd) {
     if (!doc.breakdown.matchesTotal) {
       problems.push(g.id + ': 🔴 항목합(' + won(doc.breakdown.sum) + ') ≠ 총액(' + won(doc.price.total) + ')');
     }
+    /* [검산] 🔴 **고객은 한 줄을 곱해 본다** — 더하기만 재면 5~9원짜리 어긋남을 놓친다
+       (2026-09-21에 실제로 그렇게 놓칠 뻔했다). */
+    if (!doc.breakdown.rowsMultiply) {
+      const badRow = doc.breakdown.rows.find((r) => r.unit * doc.breakdown.pax !== r.amount);
+      problems.push(g.id + ': 🔴 줄 곱셈이 안 맞는다 — ' + (badRow ? badRow.name + ' 1인당 '
+        + won(badRow.unit) + ' × ' + doc.breakdown.pax + ' ≠ ' + won(badRow.amount) : ''));
+    }
+    /* [검산] 🔴 **내부 용어가 고객 문서로 새지 않는가** — 「자동적용」이 실제로 나갔던 자리 */
+    const jargon = doc.breakdown.rows.filter((r) => /자동적용|muted|internal/i.test(r.name));
+    if (jargon.length) problems.push(g.id + ': 🔴 내부 용어가 항목 이름에 있다 — ' + jargon.map((r) => r.name).join(', '));
 
     const dir = path.join(OUT, g.id);
     fs.mkdirSync(dir, { recursive: true });
@@ -189,7 +199,7 @@ function buildDoc(g, bd) {
     + '\n<div class="note' + (problems.length ? ' bad' : '') + '"><b>자가 검산</b> — '
     + (problems.length ? '🔴 확인할 것 ' + problems.length + '건' : '✅ 이상 없음') + '<br>\n'
     + (problems.length ? problems.map(function (x) { return '· ' + x; }).join('<br>\n')
-      : '항목합 = 총액 · 체크한 것만 실림 · 내부 항목(원가·마진) 유출 0 · 콘솔 오류 0')
+      : '항목합 = 총액 · 줄마다 1인당 × 인원 = 금액 · 체크한 것만 실림 · 내부 항목 유출 0 · 콘솔 오류 0')
     + '</div>\n'
     + '<p class="sub">⚠ <b>로컬 샘플</b>입니다. 운영 DB에 아무것도 안 만들었고 견적번호도 안 썼습니다.</p>\n</html>';
   fs.writeFileSync(path.join(OUT, '_보기.html'), idx, 'utf8');
@@ -197,7 +207,7 @@ function buildDoc(g, bd) {
   console.log('');
   console.log('── 자가 검산 ──');
   if (problems.length) problems.forEach(function (x) { console.log('  🔴 ' + x); });
-  else console.log('  ✅ 항목합 = 총액 · 체크한 것만 실림 · 내부 항목 유출 0 · 콘솔 오류 0');
+  else console.log('  ✅ 항목합 = 총액 · 줄마다 1인당 × 인원 = 금액 · 체크한 것만 실림 · 내부 항목 유출 0 · 콘솔 오류 0');
   console.log('');
   console.log('열어 보실 곳: ' + path.join(OUT, '_보기.html'));
   process.exit(problems.length ? 1 : 0);

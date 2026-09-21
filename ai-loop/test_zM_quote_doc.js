@@ -307,6 +307,57 @@ ok('[11-f] address2에 하드코딩 폴백을 두지 않았다',
   const twice = Q.normalize(once);
   ok('[12-e3] 여러 번 불러도 같다',
     JSON.stringify(once.breakdown.rows) === JSON.stringify(twice.breakdown.rows));
+
+  /* 🔴🔴 **2026-09-21 — 문서를 뽑아 읽어 보고 찾은 둘.**
+     ① 고객은 표를 **더하기만 하지 않는다. 한 줄을 곱해 본다.**
+        총액에 맞춰 배분하고 1인당을 `금액 ÷ 인원`으로 보여줬더니 줄마다 5~9원씩
+        안 맞았다(파리 20명 실측: 항공 −5 · 호텔 +7 · 차량 −9).
+        → **1인당을 먼저 맞추고** 금액 = 1인당 × 인원으로 만든다. 그러면 둘 다 성립한다.
+     ② 내부 용어가 고객 문서로 나갔다 — 「차량 (소형 · 자동적용)」.
+        `자동적용`은 구현 이야기이고, 20명 건에 「소형」은 고객이 잘못 읽는다. */
+  const PAXES = [20, 30, 16, 7, 13, 47, 100];
+  const rowBad = PAXES.filter((px) => {
+    const u = Math.round(125344680 / px);
+    const d3 = Q.normalize({
+      trip: { pax: px }, price: { lines: [{ kind: 'adult', label: '성인', unit: u, qty: px }] },
+      breakdown: { rows: ROWS },
+    });
+    return !d3.breakdown.rowsMultiply || !d3.breakdown.matchesTotal;
+  });
+  ok('[12-e4] 🔴 줄마다 1인당 × 인원 = 금액, 그리고 합 = 총액',
+    rowBad.length === 0, '어긋난 인원: ' + rowBad.join(', '));
+
+  /* 인원이 여럿으로 갈려도(성인·아동·유아) 성립해야 한다 — 단가는 셋 다 같다 */
+  const mixed = Q.normalize({
+    trip: { pax: 30 },
+    price: { lines: [
+      { kind: 'adult', label: '성인', unit: 1581930, qty: 25 },
+      { kind: 'child', label: '아동', unit: 1581930, qty: 5 },
+    ] },
+    breakdown: { rows: ROWS },
+  });
+  ok('[12-e5] 성인·아동으로 갈려도 성립한다',
+    mixed.breakdown.rowsMultiply && mixed.breakdown.matchesTotal && mixed.breakdown.pax === 30);
+
+  /* 🔴 내부 용어가 고객 문서로 안 나간다 */
+  const named = Q.allocateBreakdown([
+    { name: '차량 (소형 · 자동적용)', amount: 100 }, { name: '차량 (대형 · 자동적용)', amount: 100 },
+    { name: '🏕 현장 부대비용', amount: 100 }, { name: '호텔 (5성급)', amount: 100 },
+  ], 400).map((r) => r.name);
+  ok('[12-e6] 🔴 「자동적용」이 고객 문서에 안 나간다', !named.some((x) => /자동적용/.test(x)), named.join(' / '));
+  ok('[12-e7] 차량 크기를 금액표에 안 쓴다 (상세 내용에 글로 있다)',
+    named.filter((x) => x === '차량').length === 2, named.join(' / '));
+  ok('[12-e8] 그림문자를 뗀다', named.indexOf('현장 부대비용') >= 0, named.join(' / '));
+  ok('[12-e9] 등급 같은 **조건**은 남긴다', named.indexOf('호텔 (5성급)') >= 0, named.join(' / '));
+
+  /* 수량 칸이 한 표 안에서 섞이지 않는다 — 섞이면 고객이 곱셈을 못 읽는다 */
+  const bdH = Q.renderBreakdown(Q.normalize({
+    trip: { pax: 20 }, price: { lines: [{ kind: 'adult', label: '성인', unit: 6267234, qty: 20 }] },
+    breakdown: { rows: [{ name: '항공', qty: '20명', amount: 1 },
+      { name: '호텔', qty: '10실×7박', amount: 1 }, { name: '가이드', qty: '8일', amount: 1 }] },
+  }), {});
+  ok('[12-e10] 🔴 수량 칸은 전부 인원이다',
+    !/10실×7박/.test(bdH) && !/8일/.test(bdH) && (bdH.match(/20명/g) || []).length >= 3);
   ok('[12-f] 줄이 없으면 아무것도 안 그린다', Q.renderBreakdown(Q.normalize(base), {}) === '');
   const bdHtml = Q.renderBreakdown(withBd, {});
   ok('[12-g] 표를 그리고 합계 줄이 있다',
