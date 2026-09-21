@@ -131,6 +131,13 @@ function bootPage(file, opts = {}) {
     virtualConsole: vc,
     beforeParse(win) {
       stubFetch(win, log, fx);
+      /* 🔴 화면이 **뜨기 전에** 넣어야 하는 것(미리보기 payload 등)을 여기서 넣는다.
+         옵트인이다 — 안 주면 지금까지와 똑같이 돈다.
+         ⚠ `stubFetch` **뒤**다: 부르는 쪽이 fetch 대역을 덮어쓸 수 있어야 한다. */
+      if (typeof opts.beforeBoot === 'function') {
+        try { opts.beforeBoot(win); }
+        catch (e) { log.errors.push({ where: 'beforeBoot', msg: String(e && e.message) }); }
+      }
       win.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
       win.scrollTo = () => {};
       win.Element.prototype.scrollTo = () => {};

@@ -279,6 +279,34 @@ ok('[11-f] address2에 하드코딩 폴백을 두지 않았다',
     { breakdown: { rows: Q.allocateBreakdown(ROWS, 30000000) } }));
   ok('[12-e] normalize가 합과 일치 여부를 알려준다',
     withBd.breakdown.sum === 30000000 && withBd.breakdown.matchesTotal === true);
+
+  /* 🔴🔴 **2026-09-21에 실제로 8원이 어긋났던 자리.**
+     만드는 쪽은 **엔진 총액**에 맞춰 배분하는데, 문서가 찍는 총액은
+     `단가 × 인원`이고 `단가 = round(총액 ÷ 인원)`이다. 총액이 인원으로 나누어
+     떨어지지 않으면 둘이 갈린다(다낭 30명 47,457,892 vs 47,457,900).
+     몇 원이지만 **「다 더하면 맞는다」는 약속은 몇 원에서 깨진다** —
+     기업 담당자는 계산기를 두드린다.
+     → `normalize`가 **문서 총액에 다시 맞춘다.** 그것이 안 돌면 아래가 빨개진다. */
+  const ENGINE_TOTALS = [47457892, 38589928, 125344680, 1000001, 999997];
+  const drift = ENGINE_TOTALS.filter((engineTotal) => {
+    const pax = 30;
+    const unit = Math.round(engineTotal / pax);          /* 화면이 만드는 단가 */
+    const d2 = Q.normalize({
+      trip: { pax }, price: { lines: [{ kind: 'adult', label: '성인', unit, qty: pax }] },
+      /* 🔴 일부러 **엔진 총액**에 맞춰 배분해 넘긴다 — 고치기 전의 그 상태다 */
+      breakdown: { rows: Q.allocateBreakdown(ROWS, engineTotal) },
+    });
+    return d2.breakdown.sum !== d2.price.total;
+  });
+  ok('[12-e2] 🔴 엔진 총액이 인원으로 안 나눠져도 항목합 = 문서 총액',
+    drift.length === 0, '어긋난 총액: ' + drift.join(', '));
+  /* 여러 번 normalize해도 금액이 흔들리지 않아야 한다 (서버·화면이 각자 부른다) */
+  const once = Q.normalize({ trip: { pax: 30 },
+    price: { lines: [{ kind: 'adult', label: '성인', unit: 1581930, qty: 30 }] },
+    breakdown: { rows: Q.allocateBreakdown(ROWS, 47457892) } });
+  const twice = Q.normalize(once);
+  ok('[12-e3] 여러 번 불러도 같다',
+    JSON.stringify(once.breakdown.rows) === JSON.stringify(twice.breakdown.rows));
   ok('[12-f] 줄이 없으면 아무것도 안 그린다', Q.renderBreakdown(Q.normalize(base), {}) === '');
   const bdHtml = Q.renderBreakdown(withBd, {});
   ok('[12-g] 표를 그리고 합계 줄이 있다',

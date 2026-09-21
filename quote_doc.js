@@ -213,15 +213,19 @@
     d.price.total = d.price.lines.reduce((s, l) => s + l.amount, 0);
     d.price.totalHangul = hangulAmount(d.price.total);
 
-    /* 세부견적서 — 🔴 **여기서 다시 배분하지 않는다.**
-       배분은 만들 때 한 번(`allocateBreakdown`)이고, 여기서 또 하면 두 벌이 된다.
-       ⚠ 다만 **합이 총액과 맞는지 되묻는 값**은 만들어 둔다 — 화면이 그것으로 말한다. */
+    /* ═══ 세부견적서 — 🔴 **문서가 보여줄 총액에 맞춘다** ═══════════════════
+       ⚠ **2026-09-21에 여기서 8원이 어긋났다.** 만드는 쪽이 엔진 총액(`bd.total`)에
+         맞춰 배분했는데, **문서가 찍는 총액은 그것이 아니다** — 견적가 줄이
+         `단가 × 인원`이고 `단가 = round(총액 ÷ 인원)`이라, 총액이 인원으로 나누어
+         떨어지지 않으면 둘이 갈린다(다낭 30명: 47,457,892 vs 47,457,900).
+         몇 원이지만 **「다 더하면 맞는다」는 약속은 몇 원에서 깨진다.**
+       🔴 **그래서 배분을 여기서 못 박는다.** 문서의 총액을 아는 곳은 여기뿐이다
+         (바로 윗줄에서 만들었다). 만드는 쪽이 무엇에 맞췄든 여기서 다시 맞춘다.
+       ⚠ **여러 번 불러도 같다** — 이미 합이 총액이면 배율이 1이라 그대로다.
+       ⚠ `allocateBreakdown`은 **한 곳뿐**이다. 여기서 부르는 것이 그 한 곳이다. */
     const bdIn = (d.breakdown && Array.isArray(d.breakdown.rows)) ? d.breakdown.rows : [];
     d.breakdown = {
-      rows: bdIn.map((r) => ({
-        name: r.name || '', qty: r.qty || '',
-        amount: Math.round(Number(r.amount) || 0),
-      })).filter((r) => r.name),
+      rows: allocateBreakdown(bdIn, d.price.total),
       note: (d.breakdown && d.breakdown.note) || '',
     };
     d.breakdown.sum = d.breakdown.rows.reduce((s2, r) => s2 + r.amount, 0);
@@ -746,6 +750,20 @@
     d.price.lines = (Number(s.n) > 0 && Number(s.pp) > 0)
       ? [{ kind: 'adult', label: '성인', unit: Number(s.pp), qty: Number(s.n) }] : [];
     d.price.total = Number(s.t) || 0;
+    /* 🔴 **고객이 직접 뽑은 건에도 세부견적서를 붙인다** (2026-09-21).
+       안 붙이면 견적 관리에서 「세부견적서」를 체크해도 **그 건만 아무것도 안 나간다** —
+       체크가 거짓말이 되는 자리다. 그리고 실사용 첫 건은 고객이 직접 뽑은 것일 확률이 높다.
+       🔴 payload의 `rows`는 **이미 감춘 줄이 빠진 것**이다(`items.filter(!isHidden)`).
+         여기서 다시 거르지 않는다 — 거르는 곳이 둘이 되면 어긋난다.
+       ⚠ 담당자가 만든 건과 **같은 자(`allocateBreakdown`)를 쓴다** — 두 경로에서 서로
+         다른 배분이 나오면 같은 회사가 두 종류의 세부견적서를 내보내게 된다. */
+    d.breakdown = {
+      rows: allocateBreakdown(
+        (s.rows || []).map((r) => (Array.isArray(r)
+          ? { name: r[0], amount: r[1] }
+          : { name: r && r.name, amount: r && r.amount })),
+        d.price.total),
+    };
     /* 유류할증료가 금액에 들어 있으면 그 사실을 적는다 — 옛 양식은 표에 줄로 보였다 */
     if (rowNames.some((n) => /유류/.test(String(n || '')))) d.price.fuelNote = '유류할증료 포함';
     d.details = standardDetails(rowNames, { nights: Number(s.ng) || 0, excluded: o.excluded });
