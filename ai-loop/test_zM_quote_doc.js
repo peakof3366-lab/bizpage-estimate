@@ -241,6 +241,82 @@ ok('[11-e] 팝업 견적서 바닥에 그 주소를 찍는다', /\$\{ciAddress2/
 ok('[11-f] address2에 하드코딩 폴백을 두지 않았다',
   /CI\.address2\s*\|\|\s*''/.test(SJS));
 
+/* ═══ ⑫ 🔴 세부견적서 — 항목을 다 더하면 TOTAL과 같아야 한다 (2026-09-21) ═════
+   대표 결정: 「총액에 맞춰 안분」.
+   ■ 왜 이 검사가 필요한가 (대기열 0-w)
+   엔진 항목을 그대로 찍으면 고객이 더했을 때 **중앙값 24.3%** 모자랐다. 이 문서는
+   결재에 올라가고 담당자는 표를 더한다. 안 맞으면 그 자리에서 협상력을 잃는다.
+   ⚠ **반올림 잔차를 버리면 그 자리에서 되살아난다** — 몇 원이라도 어긋나면 안 된다.
+     그래서 아래는 **여러 총액**으로 잰다(한 조합만 보면 우연히 맞을 수 있다). */
+{
+  const ROWS = [
+    { name: '항공', amount: 93460866 }, { name: '유류할증료', amount: 35047813 },
+    { name: '호텔', amount: 48617334 }, { name: '식사', amount: 17764222 },
+    { name: '차량', amount: 26545078 }, { name: '가이드', amount: 7963522 },
+    { name: '현장 부대비용', amount: 22303031 },
+  ];
+  /* 0-w가 실측으로 잡은 그 건 + 반올림이 어긋나기 쉬운 값들 */
+  const TOTALS = [366695117, 45738750, 1, 7, 99999999, 123456789, 251701866];
+  const bad = TOTALS.filter((t) => {
+    const out = Q.allocateBreakdown(ROWS, t);
+    return out.reduce((a, r) => a + r.amount, 0) !== t;
+  });
+  ok('[12] 🔴 어떤 총액이든 항목합 = TOTAL', bad.length === 0, '어긋난 총액: ' + bad.join(', '));
+
+  ok('[12-b] 금액이 0 이하인 줄은 안 싣는다',
+    Q.allocateBreakdown([{ name: '항공', amount: 100 }, { name: '빈줄', amount: 0 },
+      { name: '음수', amount: -50 }], 1000).length === 1);
+  ok('[12-c] 이름 없는 줄은 안 싣는다',
+    Q.allocateBreakdown([{ name: '', amount: 100 }, { name: '항공', amount: 100 }], 1000).length === 1);
+  ok('[12-d] 줄이 없거나 총액이 0이면 빈 배열',
+    Q.allocateBreakdown([], 1000).length === 0 && Q.allocateBreakdown(ROWS, 0).length === 0);
+
+  const base = {
+    meta: { client: 'ㄱ사' }, trip: { pax: 30, days: 5, nights: 4 },
+    price: { lines: [{ kind: 'adult', label: '성인', unit: 1000000, qty: 30 }] },
+  };
+  const withBd = Q.normalize(Object.assign({}, base,
+    { breakdown: { rows: Q.allocateBreakdown(ROWS, 30000000) } }));
+  ok('[12-e] normalize가 합과 일치 여부를 알려준다',
+    withBd.breakdown.sum === 30000000 && withBd.breakdown.matchesTotal === true);
+  ok('[12-f] 줄이 없으면 아무것도 안 그린다', Q.renderBreakdown(Q.normalize(base), {}) === '');
+  const bdHtml = Q.renderBreakdown(withBd, {});
+  ok('[12-g] 표를 그리고 합계 줄이 있다',
+    /qd-bd/.test(bdHtml) && /합계/.test(bdHtml) && /30,000,000/.test(bdHtml));
+  ok('[12-h] 배분액이라는 것을 문서가 말한다', /배분한 금액/.test(bdHtml));
+
+  /* ═══ 🔴 보낼 것 고르기 — 「감추기」가 아니라 「빼기」 ═══════════════════ */
+  const full = Q.normalize(Object.assign({}, base, {
+    breakdown: { rows: Q.allocateBreakdown(ROWS, 30000000) },
+    itinerary: [{ day: 1, title: '인천 출발' }],
+  }));
+  const only = (pp) => Q.normalize(Q.applyParts(full, pp));
+  ok('[12-i] 세부견적서를 빼면 줄이 0이 된다',
+    only({ breakdown: false, iti: true }).breakdown.rows.length === 0);
+  ok('[12-j] 일정표를 빼면 일정이 0이 된다',
+    only({ breakdown: true, iti: false }).itinerary.length === 0);
+  ok('[12-k] 둘 다 빼도 견적서(금액)는 남는다',
+    only({ breakdown: false, iti: false }).price.total === 30000000);
+  ok('[12-l] parts가 없으면 다 싣는다 (옛 발급 경로)',
+    Q.applyParts(full, null).breakdown.rows.length > 0);
+  ok('[12-m] 🔴 원본을 안 고친다',
+    full.breakdown.rows.length > 0 && full.itinerary.length === 1);
+
+  /* ═══ 🔴 강제는 서버에서 한다 — 화면이 감추는 방식이면 소스 보기로 다 보인다 ═══ */
+  const API = fs.readFileSync(path.join(ROOT, 'api', 'quote-shares.js'), 'utf8');
+  ok('[12-n] 🔴 서버가 parts를 읽는다', /body\.parts/.test(API));
+  ok('[12-o] 🔴 서버가 applyParts로 깎는다', /QDOC\.applyParts\(docForShare, parts\)/.test(API));
+  ok('[12-p] 🔴 일정을 빼면 옛 규격 코스(itiA/itiB)도 뺀다',
+    /parts\.iti === false \? \{ itiA: null, itiB: null \}/.test(API));
+  const ADM = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+  ok('[12-q] 체크 칸이 화면에 있다', /id="emPartBd"/.test(ADM) && /id="emPartIti"/.test(ADM));
+  ok('[12-r] 🔴 견적서는 못 끈다 (disabled)', /checked disabled> 견적서/.test(ADM));
+  ok('[12-s] 🔴 읽는 곳이 하나다 (미리보기와 발급이 같은 값을 본다)',
+    (ADM.match(/function emShareParts\(\)/g) || []).length === 1
+    && /applyParts\([\s\S]{0,140}emShareParts\(\)\)/.test(ADM)
+    && /\.\.\.\(parts \? \{ parts \} : \{\}\)/.test(ADM));
+}
+
 console.log('\n══════════════════════════════════════════════════════════════════');
 console.log(' 견적서 공통 모듈 — quote_doc.js / quote_doc.css');
 console.log('══════════════════════════════════════════════════════════════════');

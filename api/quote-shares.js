@@ -533,6 +533,14 @@ module.exports = async (req, res) => {
   const share = body.share || body;
   const quote = body.quote || null;
   const isStaffIssue = req.query && req.query.action === 'issue';
+  /* ═══ 🔴 보낼 것만 싣는다 (2026-09-21 대표 지시) ═══════════════════════════
+     담당자가 견적 관리에서 체크한 것만 payload에 들어간다.
+     🔴 **강제는 여기(서버)에서 한다.** 화면이 이미 걸러 보내지만 그건 방어선이 아니다 —
+       이 엔드포인트는 본문을 그대로 받는다. 그리고 `quote_shares.payload`는
+       **인증 없이** 링크를 아는 누구나 읽으므로, 「실어 보내고 감추기」는 안 보낸 것이 아니다.
+     ⚠ **없으면 다 싣는다** — 고객 자동 발급과 옛 클라이언트의 동작을 안 바꾼다. */
+  const partsIn = body.parts && typeof body.parts === 'object' ? body.parts : null;
+  const parts = partsIn ? { breakdown: partsIn.breakdown !== false, iti: partsIn.iti !== false } : null;
 
   if (payloadTooLarge(body)) return res.status(413).json({ error: 'payload_too_large' });
   if (!share || typeof share !== 'object' || !share.dk) {
@@ -628,6 +636,10 @@ module.exports = async (req, res) => {
   if (quote && quote.doc && typeof quote.doc === 'object') {
     docForShare = QDOC.stripInternal(quote.doc);
   }
+  /* 🔴 **고른 것만 남긴다 — 지우는 곳은 여기 하나다.**
+     ⚠ `stripInternal` **뒤**다. 순서를 바꾸면 안 되는 이유는 없지만, 「고객에게 나갈
+       문서」가 완성된 뒤에 깎아야 무엇이 나가는지 한 자리에서 읽힌다. */
+  if (docForShare && parts) docForShare = QDOC.applyParts(docForShare, parts);
   /* 🔴 **검문은 한 곳에서 한다.** 담당자가 만든 문서든 여기서 만든 문서든 같은 자를 지난다 —
      둘로 나누면 한쪽만 고쳐진 상태가 생긴다(2026-09-17에 실제로 그럴 뻔했다).
      지웠는데도 남아 있으면 **발급하지 않는다.** 「지웠겠지」로 넘어가면 그 한 건이
@@ -649,6 +661,9 @@ module.exports = async (req, res) => {
            없으면 서버가 KST로 채운다 — 없는 채로 두면 만료 계산이 조용히 무력해진다. */
         iso: share.iso || QNO.kstToday(),
         qno: quoteNo,
+        /* 🔴 일정을 안 보내기로 했으면 **옛 규격 코스도 뺀다.** `doc`만 깎고 여기를 두면
+           v1 경로(`d.itiA || d.itiB`)로 일정이 그대로 나간다 — 체크가 거짓말이 된다. */
+        ...(parts && parts.iti === false ? { itiA: null, itiB: null } : {}),
         /* 🔴 **새 규격 견적서 문서**(2026-09-15, 개편 요구 5).
            `quotes.payload.doc`에 저장된 문서를 고객 링크에 함께 싣는다.
            `estimate-view.html`이 이게 있으면 견적서·일정표 두 탭으로 그린다.

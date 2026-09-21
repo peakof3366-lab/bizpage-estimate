@@ -1561,6 +1561,22 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         region: $('dRegion').value, stayLabel: $('dStay').value, pax: num($('pPax')),
       },
       price: { lines, condition: $('dCondition').value, fuelNote: $('dFuel').value },
+      /* ═══ 세부견적서 (2026-09-21 대표 지시) ═══════════════════════════════
+         🔴 **감춘 줄을 빼고 넘긴다** — 무엇이 감춰지는가를 아는 곳은 여기 하나다
+           (`r.internal` = 엔진의 `muted`). 본사 수익·현지 수익금·여행자보험·
+           등급 역전 보정이 여기서 빠진다.
+         🔴 **배분은 `QuoteDoc.allocateBreakdown`이 한다** — 총액에 맞춰 비례 배분해서
+           고객이 항목을 다 더하면 TOTAL과 **정확히** 맞는다(대표 결정, 대기열 0-w).
+         ⚠ 실무 변수(FOC·싱글차지·인솔자…)는 **줄로 안 세운다.** FOC는 음수라
+           고객 표에 「−500만」 줄이 서고, 나머지도 건별 조건이라 항목 이름이 못 된다.
+           총액에는 이미 들어 있으므로 **배분으로 흡수**된다. */
+      breakdown: {
+        rows: (typeof QuoteDoc !== 'undefined' && QuoteDoc.allocateBreakdown)
+          ? QuoteDoc.allocateBreakdown(
+              S.rows.filter((r) => !r.internal).map((r) => ({ name: r.name, qty: r.qty, amount: r.val })),
+              t.total)
+          : [],
+      },
       options: S.options.filter((o) => o.name),
       details,
       itinerary: S.iti,

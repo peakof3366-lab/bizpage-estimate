@@ -75,17 +75,31 @@ ok('[2-c] decodeShareData를 되살리지 않았다', !/function decodeShareData
 });
 
 /* ═══ ③ 탭 둘 · 인쇄는 보고 있는 것만 ═══ */
-ok('[3] 견적서·일정표 탭을 만든다',
-  /id="qdvTabQuote"/.test(VIEW) && /id="qdvTabIti"/.test(VIEW));
-ok('[3-b] 고르는 버튼이라 aria-selected로 표시한다',
-  /role="tab" aria-selected/.test(VIEW));
-ok('[3-c] 일정이 없으면 일정표 탭을 안 만든다', /\$\{hasIti \?/.test(VIEW));
+/* 🔴 **2026-09-21 대표 지시로 탭 → 롤링 한 페이지가 됐다.**
+   「견적서 세부견적서 일정표를 하나의 롤링페이지로 볼 수 있게 구성」.
+   예전에는 탭이라 **고객이 일정표 탭을 안 누르면 못 봤다.** 이제 쌓아 둔다.
+   ⚠ 아래 [3-h]가 핵심이다 — **감추는 것이 아니라 처음부터 안 싣는다.**
+     공유 링크는 인증이 없어서, 보내 놓고 감추면 소스 보기로 다 보인다. */
+ok('[3] 세 구역을 한 페이지에 쌓는다',
+  /id="qdvQuote"/.test(VIEW) && /id="qdvBd"/.test(VIEW) && /id="qdvIti"/.test(VIEW));
+ok('[3-b] 탭이 아니라 바로가기(앵커)다',
+  /class="qdv-jump no-print"/.test(VIEW) && /qdv-jump-a" href="#/.test(VIEW)
+  && !/id="qdvTabQuote"/.test(VIEW));
+ok('[3-c] 일정이 없으면 그 구역을 안 만든다', /\$\{hasIti \?/.test(VIEW));
+ok('[3-c2] 세부견적서도 없으면 안 만든다', /\$\{hasBd \?/.test(VIEW));
 ok('[3-d] 일정이 없으면 그 사실과 다음 행동을 말한다',
   /일정표는 아직 준비 중입니다[\s\S]{0,40}담당자에게 문의/.test(VIEW));
-ok('[3-e] 🔴 인쇄는 보고 있는 탭만 나간다',
-  /@media print[\s\S]{0,400}\.qdv-panel\[hidden\] \{ display: none !important; \}/.test(VIEW));
-ok('[3-f] 탭 줄은 인쇄에 안 나간다', /class="qdv-tabs no-print"/.test(VIEW));
-ok('[3-g] 누를 것이 44px 이상', /\.qdv-tab \{[^}]*min-height:\s*4[6-9]px|\.qdv-tab \{[^}]*min-height:\s*[5-9]\dpx/.test(VIEW));
+ok('[3-e] 🔴 인쇄하면 실려 온 것이 다 나간다 (문서마다 새 장)',
+  /@media print[\s\S]{0,900}\.qdv-panel \+ \.qdv-panel \{ break-before: page/.test(VIEW));
+ok('[3-e2] 그래도 감춘 것은 인쇄가 되살리지 않는다',
+  /\.qdv-panel\[hidden\] \{ display: none !important; \}/.test(VIEW));
+ok('[3-f] 바로가기 줄은 인쇄에 안 나간다', /class="qdv-jump no-print"/.test(VIEW));
+ok('[3-g] 누를 것이 충분히 크다', /\.qdv-jump-a \{[\s\S]{0,160}padding: 7px 15px/.test(VIEW));
+/* 🔴 구역이 하나뿐이면 목차를 안 그린다 — 누를 곳이 하나인 목차는 잡음이다 */
+ok('[3-g2] 구역이 하나면 바로가기를 안 그린다', /jumps\.length > 1 \?/.test(VIEW));
+/* 🔴🔴 **이 검사가 이 기능의 방어선이다** — 화면이 감추는 것이 아니라 payload에 없다 */
+ok('[3-h] 🔴 세부견적서는 「있으면 그린다」 — 감추는 코드가 없다',
+  /renderBreakdown/.test(VIEW) && !/qdvBd[\s\S]{0,120}hidden = /.test(VIEW));
 
 /* ═══ ④ 엑셀 버튼 — v2에서는 안 보인다 ═══ */
 ok('[4] v2면 엑셀 버튼을 내린다', /if \(r\.data && r\.data\.doc\)[\s\S]{0,200}downloadExcelBtn[\s\S]{0,60}hidden = true/.test(VIEW));

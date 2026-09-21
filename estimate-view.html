@@ -385,6 +385,17 @@ a { color: inherit; text-decoration: none; }
 /* ══ 새 규격 견적서의 탭 (2026-09-15) ══
    대표 결정: 일정표를 **같은 링크의 다른 탭**으로 낸다.
    ⚠ 누를 것은 44px 이상(CLAUDE.md YA) · 인쇄에는 안 나간다(`no-print`). */
+/* 🔴 롤링 페이지의 **바로가기**(2026-09-21) — 탭이 아니다. 눌러도 감춰지지 않는다. */
+.qdv-jump { display: flex; gap: 8px; margin: 0 auto; max-width: 900px; padding: 10px 0 2px; flex-wrap: wrap; }
+.qdv-jump-a {
+  display: inline-block; padding: 7px 15px; font-size: 13px; font-weight: 700;
+  color: #444; background: #fff; border: 1px solid #DDD; border-radius: 999px;
+  text-decoration: none; line-height: 1.2;
+}
+.qdv-jump-a:hover { border-color: #111; color: #111; }
+/* 앵커로 뛰었을 때 제목이 화면 맨 위에 딱 붙지 않게 */
+.qdv-panel { scroll-margin-top: 16px; }
+
 .qdv-tabs { display: flex; gap: 0; margin: 0 auto 0; max-width: 900px; }
 .qdv-tab {
   min-height: 46px; padding: 0 22px; border: 1px solid #DCDCD8; border-bottom: none;
@@ -400,11 +411,15 @@ a { color: inherit; text-decoration: none; }
 .top-bar-btns [hidden] { display: none !important; }
 @media (max-width: 560px) { .qdv-tab { padding: 0 14px; font-size: 13px; } }
 @media print {
-  /* 🔴 **보고 있는 탭만 인쇄된다.** `[hidden]`은 브라우저 기본 스타일이 감추지만,
-     인쇄 시트에서 확실히 못 박는다 — 두 문서가 한 번에 나오면 고객은 무엇을 받은
-     건지 모른다(대표가 「각각」이라고 정한 이유다). */
+  /* 🔴 **한 페이지에 쌓인 것을 다 인쇄한다** (2026-09-21 롤링 전환).
+     예전에는 탭이라 「보고 있는 것만」 인쇄했는데, 그러면 고객이 인쇄 버튼을 누를 때
+     **일정표가 빠진 PDF**가 나왔다. 지금은 담당자가 고른 것만 실려 오므로
+     **실려 온 것 = 보내기로 한 것**이고, 그것을 전부 인쇄하는 게 맞다.
+     ⚠ 그래도 `[hidden]` 규칙은 남긴다 — 다른 코드가 감춘 것을 인쇄가 되살리면 안 된다. */
   .qdv-panel[hidden] { display: none !important; }
   .qdv-panel { border: none; }
+  /* 문서마다 새 장에서 시작한다 — 견적서와 일정표가 한 장에 섞이면 결재에서 못 쓴다 */
+  .qdv-panel + .qdv-panel { break-before: page; page-break-before: always; }
 }
 </style>
 </head>
@@ -661,38 +676,37 @@ function renderDocPage(d, validityBanner) {
      ⚠ `normalize`가 빈 `_internal`을 도로 채우므로 **그 뒤에 지운다.** */
   const doc = QuoteDoc.stripInternal(QuoteDoc.normalize(d.doc));
   const hasIti = Array.isArray(doc.itinerary) && doc.itinerary.length > 0;
+  /* 🔴 **세부견적서는 「있으면 그린다」**(2026-09-21 대표 지시).
+     담당자가 발급할 때 안 고르면 payload에 `breakdown.rows` 자체가 **안 실린다** —
+     화면이 감추는 것이 아니라 **처음부터 없다.** 공유 링크는 인증이 없어서,
+     보내고 감추는 방식이면 소스 보기로 다 보인다. */
+  const bdHtml = QuoteDoc.renderBreakdown ? QuoteDoc.renderBreakdown(doc, { company: window.COMPANY_INFO || {} }) : '';
+  const hasBd = !!bdHtml;
   const company = window.COMPANY_INFO || {};
+
+  /* ═══ 롤링 한 페이지 (2026-09-21 대표 지시) ═══════════════════════════════
+     「견적서 · 세부견적서 · 일정표를 하나의 롤링 페이지로 볼 수 있게」
+     예전에는 탭이라 **고객이 일정표 탭을 아예 안 누르는** 일이 있었다. 이제 쌓아 둔다.
+     ⚠ 위 바로가기는 **탭이 아니라 앵커**다 — 눌러도 아무것도 감춰지지 않는다.
+     ⚠ 구역이 하나뿐이면 바로가기를 안 그린다(누를 곳이 하나인 목차는 잡음이다). */
+  const jumps = [['qdvQuote', '견적서']]
+    .concat(hasBd ? [['qdvBd', '세부견적서']] : [])
+    .concat(hasIti ? [['qdvIti', '일정표']] : []);
 
   document.getElementById('main-content').innerHTML = `
     ${validityBanner}
-    <div class="qdv-tabs no-print" role="tablist" aria-label="문서 종류">
-      <button type="button" class="qdv-tab" id="qdvTabQuote" role="tab" aria-selected="true">견적서</button>
-      ${hasIti ? '<button type="button" class="qdv-tab" id="qdvTabIti" role="tab" aria-selected="false">일정표</button>' : ''}
-    </div>
+    ${jumps.length > 1 ? `<nav class="qdv-jump no-print" aria-label="문서 바로가기">
+      ${jumps.map(([id, label]) => `<a class="qdv-jump-a" href="#${id}">${label}</a>`).join('')}
+    </nav>` : ''}
     <div class="qdv-panel" id="qdvQuote">${QuoteDoc.renderQuote(doc, { company })}</div>
-    ${hasIti ? `<div class="qdv-panel" id="qdvIti" hidden>${QuoteDoc.renderItinerary(doc, { company })}</div>` : ''}
+    ${hasBd ? `<div class="qdv-panel" id="qdvBd">${bdHtml}</div>` : ''}
+    ${hasIti ? `<div class="qdv-panel" id="qdvIti">${QuoteDoc.renderItinerary(doc, { company })}</div>` : ''}
     ${hasIti ? '' : `<p class="qdv-note no-print">일정표는 아직 준비 중입니다. 담당자에게 문의해 주세요.</p>`}
   `;
 
-  const tq = document.getElementById('qdvTabQuote');
-  const ti = document.getElementById('qdvTabIti');
-  const pq = document.getElementById('qdvQuote');
-  const pi = document.getElementById('qdvIti');
-  function show(which) {
-    const q = which === 'quote';
-    /* ⚠ `hidden` 속성으로 가른다 — `display:none`을 인라인으로 박으면 인쇄 규칙이
-       그것을 못 이긴다. */
-    if (pq) pq.hidden = !q;
-    if (pi) pi.hidden = q;
-    if (tq) tq.setAttribute('aria-selected', q ? 'true' : 'false');
-    if (ti) ti.setAttribute('aria-selected', q ? 'false' : 'true');
-    /* 인쇄 제목도 함께 바뀐다 — 받은 PDF 파일 이름이 그 제목이 된다.
-       ⚠ **정하는 곳은 `setDocTitle` 하나다**(위 주석 참조). 여기서 다시 조립하지 않는다. */
-    setDocTitle(d, q ? 'quote' : 'iti');
-  }
-  if (tq) tq.addEventListener('click', () => show('quote'));
-  if (ti) ti.addEventListener('click', () => show('iti'));
-  show('quote');
+  /* 인쇄물·PDF 파일 이름. 이제 한 페이지에 다 있으므로 **견적서 제목 하나**다.
+     ⚠ **정하는 곳은 `setDocTitle` 하나다**. 여기서 다시 조립하지 않는다. */
+  setDocTitle(d, 'quote');
 }
 
 function renderPage(d) {

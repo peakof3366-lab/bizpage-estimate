@@ -144,6 +144,18 @@
         fuelNote: '',           /* 「#00월 기준 유류할증료 적용 기준」 */
         total: 0,
       },
+      /* ═══ 세부견적서 (2026-09-21 대표 지시) ═══════════════════════════════
+         🔴 **여기 금액은 「원가」가 아니라 「판매가 배분」이다.**
+         대표 결정(2026-09-21): 항목을 다 더하면 **TOTAL과 정확히 일치**해야 한다.
+         그래서 `allocateBreakdown()`이 감춘 수익·계수까지 항목에 비례 배분한다.
+         ⚠ 원가를 그대로 찍으면 대기열 0-w가 되살아난다 — 실측으로 고객이 표를 더하면
+           **중앙값 24.3%** 모자랐다(북유럽 70명 7일에서는 −45.7%). 이 문서는 결재에
+           올라가고, 담당자는 표를 더한다.
+         ⚠ `rows`가 비면 세부견적서는 **아예 안 나간다**(빈 표를 그리지 않는다). */
+      breakdown: {
+        rows: [],               /* {name, qty, amount} — 배분 뒤 금액 */
+        note: '',
+      },
       options: [],              /* 선택 옵션 — {name, unit, qty, amount, note} */
       details: [],              /* 상세 내용 — {label, rows:[{left,right,text,note,accent}], footnotes:[]} */
       itinerary: [],            /* 일정표 — {day, date, title, am, pm, eve, meals, stay, note} */
@@ -201,6 +213,20 @@
     d.price.total = d.price.lines.reduce((s, l) => s + l.amount, 0);
     d.price.totalHangul = hangulAmount(d.price.total);
 
+    /* 세부견적서 — 🔴 **여기서 다시 배분하지 않는다.**
+       배분은 만들 때 한 번(`allocateBreakdown`)이고, 여기서 또 하면 두 벌이 된다.
+       ⚠ 다만 **합이 총액과 맞는지 되묻는 값**은 만들어 둔다 — 화면이 그것으로 말한다. */
+    const bdIn = (d.breakdown && Array.isArray(d.breakdown.rows)) ? d.breakdown.rows : [];
+    d.breakdown = {
+      rows: bdIn.map((r) => ({
+        name: r.name || '', qty: r.qty || '',
+        amount: Math.round(Number(r.amount) || 0),
+      })).filter((r) => r.name),
+      note: (d.breakdown && d.breakdown.note) || '',
+    };
+    d.breakdown.sum = d.breakdown.rows.reduce((s2, r) => s2 + r.amount, 0);
+    d.breakdown.matchesTotal = d.breakdown.rows.length > 0 && d.breakdown.sum === d.price.total;
+
     d.options = d.options.map((o, i) => {
       const unit = Math.round(Number(o.unit) || 0);
       const qty = Math.max(0, Math.floor(Number(o.qty) || 0));
@@ -228,6 +254,60 @@
     d.trip.durationLabel = durationLabel(d.trip.nights, d.trip.days);
     d.meta.title = [d.meta.client, '해외연수 견적서', d.meta.regionLabel]
       .filter((x) => x && String(x).trim()).join('_');
+    return d;
+  }
+
+  /* ═══ 🔴 세부견적서 항목 금액 배분 — **한 곳에서만 한다** ═══════════════════
+     대표 결정(2026-09-21): 「총액에 맞춰 안분」.
+
+     ■ 왜 배분하나
+     엔진의 항목 금액을 그대로 찍으면 **고객이 더했을 때 총액과 안 맞는다.** 이유가 둘:
+       ① 감춘 수익·보험(본사 수익·현지 수익금·여행자보험) — 방침상 안 보여준다
+       ② 프로그램·기관 계수(예: 산업시찰 1.18 × 공공기관 1.06 = 1.2508) — 표에 흔적이 없다
+     실측(가상 고객 300명): 중앙값 **24.3%** 모자람. 이건 결재에 올라가는 문서다.
+     → 보이는 항목에 **비례 배분**해서 항목합 = 총액으로 만든다. 여행업 견적서의
+       항목가는 원래 원가가 아니라 판매가라, 관행과도 맞다.
+
+     🔴 **감춘 줄(muted)은 넣지 않는다.** 부르는 쪽이 걸러서 준다 — 여기서 거르면
+       「무엇이 muted인가」를 아는 곳이 두 군데가 된다(결함 생성기 ①).
+     🔴 **반올림 잔차를 버리지 않는다.** 비례 배분은 반올림 때문에 합이 몇 원 어긋나는데,
+       그대로 두면 「다 더해도 안 맞는다」가 **다시** 생긴다 — 가장 큰 항목이 흡수한다.
+     ⚠ 금액이 0 이하인 줄은 뺀다(표에 「0원」 줄이 서면 고객이 묻는다). */
+  function allocateBreakdown(rows, total) {
+    const src = (rows || [])
+      .map((r) => ({ name: String(r.name || '').trim(), qty: r.qty || '', amount: Math.round(Number(r.amount) || 0) }))
+      .filter((r) => r.name && r.amount > 0);
+    const sum = src.reduce((s2, r) => s2 + r.amount, 0);
+    const t = Math.round(Number(total) || 0);
+    if (!src.length || sum <= 0 || t <= 0) return [];
+    const out = src.map((r) => ({ name: r.name, qty: r.qty, amount: Math.round(r.amount * t / sum) }));
+    const diff = t - out.reduce((s2, r) => s2 + r.amount, 0);
+    if (diff !== 0) {
+      let big = 0;
+      out.forEach((r, i) => { if (r.amount > out[big].amount) big = i; });
+      out[big].amount += diff;
+    }
+    return out;
+  }
+
+  /* ═══ 🔴 보낼 것만 남긴다 — 「감추기」가 아니라 「빼기」다 ═══════════════════
+     대표 지시(2026-09-21): 「우리가 고객에게 보내는 내용은 직원이 체크해서
+     견적서+일정표 / 견적서+세부견적서+일정표 등을 선택해서 보낼 수 있게」.
+
+     🔴 **왜 화면에서 감추지 않고 여기서 빼는가**
+     `quote_shares`는 **인증이 없다** — 링크를 아는 사람은 payload를 전부 읽는다.
+     싣고 나서 화면이 감추는 방식이면 소스 보기 한 번에 다 보인다. 그건 「안 보낸 것」이
+     아니다. → **payload에 처음부터 안 넣는다.**
+
+     🔴 **견적서는 못 뺀다** (대표 결정 2026-09-21). 체크는 세부견적서·일정표 둘뿐이다 —
+       견적서 없는 견적 링크는 뜻이 없고, 빈 링크가 나가는 사고를 막는다.
+     ⚠ `parts`가 없으면 **다 싣는다** — 옛 발급 경로(고객 자동 발급)의 동작을 안 바꾼다.
+     ⚠ 원본을 고치지 않는다(얕은 복사) — 부르는 쪽이 같은 문서를 다시 쓸 수 있다. */
+  function applyParts(docIn, parts) {
+    if (!docIn || !parts) return docIn;
+    const d = Object.assign({}, docIn);
+    if (parts.breakdown === false) d.breakdown = { rows: [], note: '' };
+    if (parts.iti === false) d.itinerary = [];
     return d;
   }
 
@@ -471,6 +551,47 @@
     </article>`;
   }
 
+  /* ── 세부견적서 (2026-09-21 대표 지시) ──
+     「견적서 · 세부견적서 · 일정표를 하나의 롤링 페이지로 보고, 보낼 것만 고른다.」
+     🔴 **입력은 한 번이다** — `renderQuote`·`renderItinerary`와 **같은 `doc`**을 읽는다.
+     ⚠ 줄이 없으면 **빈 표를 그리지 않고 아무것도 안 낸다.** 부르는 쪽이 이 값을 보고
+       구역 자체를 뺀다(고객에게 「세부견적서」 제목만 덜렁 나가면 안 된다). */
+  function renderBreakdown(docIn, opts) {
+    const d = normalize(docIn);
+    const c = company(opts);
+    if (!d.breakdown.rows.length) return '';
+    const pax = Math.max(1, Number(d.trip.pax) || 1);
+    const body = d.breakdown.rows.map((r) => `
+      <tr>
+        <td class="qd-td">${esc(r.name)}</td>
+        <td class="qd-td qd-num">${won(Math.round(r.amount / pax))}</td>
+        <td class="qd-td qd-ctr">${esc(r.qty || (pax + '명'))}</td>
+        <td class="qd-td qd-num">${won(r.amount)}</td>
+      </tr>`).join('');
+    return `<article class="qd">
+      ${headHtml(d, opts)}
+      <h2 class="qd-h2">세부 견적 내역</h2>
+      <table class="qd-t qd-bd">
+        <colgroup><col style="width:40%"><col style="width:20%"><col style="width:15%"><col style="width:25%"></colgroup>
+        <thead><tr>
+          <th class="qd-th">항목</th><th class="qd-th">1인당</th>
+          <th class="qd-th">수량</th><th class="qd-th">금액</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr>
+          <td class="qd-td qd-bd-sum" colspan="3">합계</td>
+          <td class="qd-td qd-num qd-bd-sum">${won(d.breakdown.sum)}</td>
+        </tr></tfoot>
+      </table>
+      <p class="qd-bd-note">※ 항목별 금액은 총 견적가를 항목 기준으로 배분한 금액입니다.
+        ${d.breakdown.note ? escLines(d.breakdown.note) : ''}</p>
+      <footer class="qd-foot-bar">
+        <span class="qd-brand qd-brand-sm">${esc(c.brand || d.meta.vendor || '비즈페이지')}</span>
+        ${d.meta.quoteNo ? `<span class="qd-qno">견적번호 ${esc(d.meta.quoteNo)}</span>` : ''}
+      </footer>
+    </article>`;
+  }
+
   /* ── 일정표 ──
      대표 지시 2026-09-15: 「견적서 이외에 일정표가 마찬가지로 생성이 되어야 한다.」
      그리고 「같은 링크의 다른 탭」으로 낸다(대표 결정). **입력은 한 번**이다 —
@@ -644,7 +765,7 @@
   return {
     SPEC, esc, escLines, won, hangulAmount, durationLabel, dateLabel,
     blank, normalize, stripInternal, findInternalKeys,
-    renderQuote, renderItinerary,
+    renderQuote, renderBreakdown, renderItinerary, allocateBreakdown, applyParts,
     STD_TEXT, standardDetails, fromShare,
   };
 });
