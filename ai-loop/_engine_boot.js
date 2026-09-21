@@ -41,6 +41,36 @@ const SPEC_DEFAULTS = {
   incSightseeing: true,
 };
 
+/* ═══ 🔴 시계를 얼린다 — 「재는 자가 날짜에 흔들린다」를 막는 유일한 방법 ═══════
+   `script.js`의 `getLeadTimeFactor()`는 **오늘부터 출발일까지 남은 일수**로 항공·유류
+   계수를 고른다(`LEAD_TIME_BANDS`). 그래서 출발일을 고정해도 **오늘이 움직이면
+   금액이 움직인다.**
+   실제로 당했다: `test_zL`의 「시드니-남반구」(2027-01-15)가 2026-09-17에는 120일
+   남아 0.92였는데, **9/18에 119일이 되면서 0.95로 뛰었다.** 코드는 한 줄도 안 바뀌었는데
+   기준선 검사가 빨개졌다. 그대로 두면 2027이 다가오며 24건이 차례로 깨진다.
+   → 기준선을 다시 뜨는 것(`--update`)은 **진짜 표류까지 덮는다.** 시계를 얼려야 한다.
+
+   ⚠ **`new Date()`(인자 없음)와 `Date.now()`만** 바꾼다. 날짜 문자열 파싱은 그대로
+     둬야 출발일·귀국일 계산이 산다.
+   ⚠ `D.prototype = Real.prototype`이라 `instanceof`도 그대로 산다.
+   ⚠ 옵트인이다 — `now`를 안 주면 지금까지와 똑같이 실제 시계로 돈다. */
+function freezeClock(window, iso) {
+  if (!iso) return;
+  const Real = window.Date;
+  /* 정오(KST)로 못 박는다 — 자정에 걸치면 시간대 때문에 하루가 밀린다 */
+  const fixed = new Real(iso + 'T12:00:00+09:00').getTime();
+  if (isNaN(fixed)) throw new Error('freezeClock: 날짜를 못 읽었습니다 — ' + iso);
+  function D(...a) {
+    if (!(this instanceof D)) return new Real().toString();
+    return a.length === 0 ? new Real(fixed) : new Real(...a);
+  }
+  D.prototype = Real.prototype;
+  D.now = () => fixed;
+  D.parse = Real.parse.bind(Real);
+  D.UTC = Real.UTC.bind(Real);
+  window.Date = D;
+}
+
 async function bootEngine(opts) {
   const o = opts || {};
   const say = o.quiet ? () => {} : (m) => console.log(m);
@@ -68,6 +98,9 @@ async function bootEngine(opts) {
   const dom = new JSDOM(read('index.html'), {
     runScripts: 'dangerously', url: 'http://localhost/',
     beforeParse(window) {
+      /* 🔴 `o.now`를 주면 그 날짜로 얼린다 — 리드타임 계수가 오늘에 흔들리는 것을 막는다.
+         **다른 무엇보다 먼저** 걸어야 한다(뒤에 오는 코드가 `new Date()`를 쓸 수 있다). */
+      freezeClock(window, o.now);
       /* ⚠ 네트워크를 막는다 — 안 막으면 운영 DB의 site_events에 행이 쌓인다.
          ⚠ 막는 방식은 **영원히 안 오는 약속**이다(거절이 아니다). 거절로 바꾸면
            `.catch`가 도는 코드가 기본 동작이 되어, 지금까지 잰 표들과 달라진다. */
@@ -155,4 +188,4 @@ async function bootEngine(opts) {
   return { run, runWith, rowOf, window, SPEC_DEFAULTS };
 }
 
-module.exports = { bootEngine, APP_FILES, SPEC_DEFAULTS };
+module.exports = { bootEngine, freezeClock, APP_FILES, SPEC_DEFAULTS };

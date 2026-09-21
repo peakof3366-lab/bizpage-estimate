@@ -35,8 +35,22 @@ const BASE = process.argv.find((a) => !a.startsWith('-') && /^[0-9a-f]{7,40}$/.t
 const FILES = ['data.js', 'company-info.js', 'limits.js', 'rec_fallbacks.js', 'script.js', 'index.html'];
 
 /* 🔴 사례는 `test_zL`에서 읽는다 — 여기 다시 적지 않는다 */
+const ZL = () => fs.readFileSync(path.join(__dirname, 'test_zL_customer_amounts.js'), 'utf8');
+
+/* 🔴 **재는 날짜도 `test_zL`에서 읽는다.**
+   리드타임 계수는 「오늘부터 출발일까지」로 정해지므로, 얼리지 않으면 **같은 코드를
+   같은 코드와 견줘도 돌리는 날마다 다른 표**가 나온다. 양쪽을 같은 시계로 얼리면
+   여기 남는 차이는 **코드가 만든 차이뿐**이다.
+   ⚠ 값을 여기 적지 않는다 — 두 벌이 되면 반드시 어긋난다(결함 생성기 ①). */
+function loadAsOf() {
+  const m = ZL().match(/^const AS_OF = '(\d{4}-\d{2}-\d{2})';/m);
+  if (!m) throw new Error('test_zL에서 AS_OF를 못 읽었습니다 — 모양이 바뀌었는지 확인하세요.');
+  return m[1];
+}
+const AS_OF = loadAsOf();
+
 function loadCases() {
-  const src = fs.readFileSync(path.join(__dirname, 'test_zL_customer_amounts.js'), 'utf8');
+  const src = ZL();
   const i = src.indexOf('const CASES = [');
   const j = src.indexOf('\n];', i);
   if (i < 0 || j < 0) throw new Error('test_zL에서 사례 목록을 못 읽었습니다 — 모양이 바뀌었는지 확인하세요.');
@@ -44,11 +58,15 @@ function loadCases() {
   return new Function('return ' + src.slice(i + 'const CASES = '.length, j + 2))();
 }
 
+const { freezeClock } = require('./_engine_boot');
+
 function boot(dir) {
   const read = (f) => fs.readFileSync(path.join(dir, f), 'utf8');
   const dom = new JSDOM(read('index.html'), {
     runScripts: 'dangerously', url: 'http://localhost/', pretendToBeVisual: true,
     beforeParse(w) {
+      /* 🔴 **다른 무엇보다 먼저** — 뒤에 오는 코드가 `new Date()`를 쓸 수 있다 */
+      freezeClock(w, AS_OF);
       /* 요율을 못 받게 한다 — 양쪽 모두 data.js 기본값으로 잰다(위 머리말 참조) */
       w.fetch = (u) => (String(u).includes('/api/rates')
         ? Promise.reject(new Error('rates_unreachable')) : new Promise(() => {}));
@@ -122,7 +140,7 @@ try {
   console.log('\n══════════════════════════════════════════════════════════════════');
   console.log(' 고객 금액 표류 감사 — ' + BASE + ' 의 코드 vs 지금');
   console.log('══════════════════════════════════════════════════════════════════');
-  console.log(' 사례 ' + rows.length + '건 · 양쪽 모두 data.js 기본 요율\n');
+  console.log(' 사례 ' + rows.length + '건 · 양쪽 모두 data.js 기본 요율 · 시계는 ' + AS_OF + '로 얼림\n');
   console.log('   목적지·조건                    개편 전          지금');
   rows.forEach((r) => {
     console.log('   ' + r.id.padEnd(24)

@@ -18,6 +18,10 @@
    이 검사가 지키는 것은 「운영 요율이 맞는가」가 아니라 **「내가 고친 코드가 금액을
    움직였는가」**다. 요율 값 점검은 `audit_rates.js`가 따로 한다.
 
+   ■ 🔴 시계를 얼려서 잰다 (2026-09-21)
+   출발일을 고정하는 것만으로는 모자랐다 — 리드타임 계수는 **오늘**까지 본다.
+   `AS_OF` 주석에 무엇을 당했는지 적어 뒀다.
+
    ■ 스냅샷을 다시 뜨는 법 — **금액을 바꾼 것이 의도였을 때만**
        node ai-loop/test_zL_customer_amounts.js --update
    ⚠ 다시 뜨기 전에 **무엇이 몇 % 움직였는지** 이 검사가 찍어 주는 표를 커밋 메시지에
@@ -29,6 +33,27 @@ const { bootEngine } = require('./_engine_boot');
 
 const SNAP = path.join(__dirname, '_zL_snapshot.json');
 const UPDATE = process.argv.includes('--update');
+
+/* ═══ 🔴 스냅샷을 뜬 날 — **기준선의 일부다** ══════════════════════════════
+   출발일을 고정해도 그것만으로는 모자랐다. `getLeadTimeFactor()`가 **오늘부터
+   출발일까지 남은 일수**로 계수를 고르기 때문에 **오늘이 움직이면 금액이 움직인다.**
+
+   ■ 실제로 당한 자리 (2026-09-21에 발견)
+   「시드니-남반구」(2027-01-15 출발)가 **2026-09-17에는 120일 남아 leadFactor 0.92**였는데,
+   **9/18에 119일이 되면서 0.95로 뛰었다.** 코드는 한 줄도 안 바뀌었는데 총액이
+   78,014,064 → 79,037,580(+1.31%)이 됐고 이 검사가 빨개졌다.
+   그대로 뒀으면 2027이 다가오며 **24건이 차례로** 깨진다 — 그리고 그때쯤이면
+   아무도 안 본다(결함 생성기 ③: 늘 빨간 검사는 꺼진 검사다).
+
+   🔴 **`--update`로 넘기면 안 되는 종류였다.** 재기준선은 진짜 표류까지 덮는다.
+   → 그래서 `2026-09-17`로 **시계를 얼린다.** 이 날은 스냅샷을 마지막으로 뜬 날
+     (커밋 `f0561c1`)이라, 얼리기만 하면 **스냅샷을 한 글자도 안 고쳐도 다시 맞는다.**
+
+   ⚠ **이 값을 바꾸면 금액이 움직인다.** 바꿀 이유가 생기면 `--update` 전에 이 검사가
+     찍어 주는 표를 커밋에 남길 것 — 출발일을 고치는 것과 같은 무게의 변경이다.
+   ⚠ `audit_amount_drift.js`가 **이 줄을 읽어 간다**(사례 목록과 같은 이유로 여기가
+     단일 출처다). 이름·모양을 바꾸면 그쪽이 못 읽는다. */
+const AS_OF = '2026-09-17';
 
 /* 고객이 실제로 고르는 조합을 폭넓게 덮는다. **한 칸이라도 금액에 닿는 손잡이는
    적어도 한 줄에서 켜져 있어야** 그 손잡이를 건드렸을 때 여기서 걸린다.
@@ -89,7 +114,7 @@ function shape(d) {
 
 (async () => {
   /* 🔴 `ratesResponse:'fail'` — 운영 요율을 안 얹고 data.js 기본값으로 잰다(위 머리말 참조) */
-  const B = await bootEngine({ quiet: true, ratesResponse: 'fail' });
+  const B = await bootEngine({ quiet: true, ratesResponse: 'fail', now: AS_OF });
 
   const now = {};
   const missing = [];
@@ -149,8 +174,32 @@ function shape(d) {
   });
 
   console.log('\n══════════════════════════════════════════════════════════════════');
-  console.log(' 고객용 산출값 불변 — ' + keys.length + '건 대조 (data.js 기본 요율)');
+  /* 🔴 시계가 정말 얼어 있는가 — 이것부터 확인한다.
+     `now`를 안 넘기거나 `freezeClock`이 통째로 빠져도 **오늘이 마침 AS_OF 근처면
+     24건이 전부 통과한다.** 그러면 잠금이 있다고 착각한 채로 며칠 뒤 다시 깨진다.
+     → **하루 늦춘 시계로 한 번 더 돌려서** 리드타임 계수가 따라 움직이는지 본다.
+       움직이면 「시계가 먹힌다」는 증거다(시드니는 AS_OF+1에 120→119일이 되며 0.92→0.95). */
+  let clockOk = false;
+  const NEXT = new Date(AS_OF + 'T12:00:00+09:00');
+  NEXT.setDate(NEXT.getDate() + 1);
+  const nextIso = NEXT.toISOString().slice(0, 10);
+  const B2 = await bootEngine({ quiet: true, ratesResponse: 'fail', now: nextIso });
+  const probeCase = CASES.find((c) => c.id === '시드니-남반구');
+  const d2 = probeCase ? shape(B2.run(probeCase.t, probeCase.spec)) : null;
+  const d1 = now['시드니-남반구'];
+  if (!d2 || !d1) {
+    fails.push(['시계 잠금', '시드니-남반구를 못 돌렸습니다 — 사례 이름이 바뀌었는지 확인하세요']);
+  } else if (d2.leadFactor === d1.leadFactor) {
+    fails.push(['🔴 시계가 안 얼어 있다',
+      'AS_OF(' + AS_OF + ')와 하루 뒤(' + nextIso + ')의 leadFactor가 같습니다 ('
+      + d1.leadFactor + ') — bootEngine에 now가 안 넘어갔거나 freezeClock이 빠졌습니다.'
+      + ' 이대로 두면 날짜가 지날 때 스냅샷이 저절로 깨집니다.']);
+  } else clockOk = true;
+
+  console.log(' 고객용 산출값 불변 — ' + keys.length + '건 대조 (data.js 기본 요율 · 시계 ' + AS_OF + ')');
   console.log('══════════════════════════════════════════════════════════════════');
+  console.log(' ' + (clockOk ? '✓' : '✗') + ' 시계가 ' + AS_OF + '로 얼어 있다'
+    + (clockOk ? ' (하루 늦추면 리드타임 계수가 따라 움직였다)' : ''));
   if (!fails.length) {
     console.log(' ✓ ' + pass + '건 전부 스냅샷과 **같은 금액**입니다.');
   } else {
