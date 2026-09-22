@@ -919,6 +919,10 @@
       prev.innerHTML = QuoteDoc.renderQuote(safe)
         + (QuoteDoc.renderBreakdown ? QuoteDoc.renderBreakdown(safe) : '')
         + QuoteDoc.renderItinerary(safe);
+      /* 🔴 **A4 한 장에 맞춘다** (2026-09-22). 이 자리는 담당자가 발급 전에 보는
+         유일한 화면이라, 여기서 한 장으로 보여야 고객이 받는 것과 같다.
+         ⚠ 모달이 아직 안 열렸으면 높이가 0이라 못 잰다 — 여는 쪽에서 한 번 더 부른다. */
+      if (QuoteDoc.fitPages) QuoteDoc.fitPages(prev);
     } catch (err) {
       state.textContent = '⚠ 문서를 그리다 오류가 났습니다 — ' + (err && err.message || '');
       state.style.color = 'var(--warn)';

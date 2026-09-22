@@ -188,6 +188,49 @@ ok('[8-d] 머리 띠는 인쇄에 안 나간다', /class="qdv-tag no-print"/.tes
 ok('[8-e] 🔴 띠가 바로가기 목록에서 이름을 끌어온다',
   /jumps\.findIndex/.test(VIEW) && /\$\{jumps\[i\]\[1\]\}/.test(VIEW));
 
+/* ═══ ⑨ 🔴 **A4 한 장** (2026-09-22 대표 지시) ═══════════════════════════════
+   「3가지 장표가 각각 내용이 부족하더라도 하나로 A4 사이즈로 노출되게」
+
+   ■ 이 검사가 지키는 것
+   ① 종이 규격이 **CSS 한 곳**에 있고, 짧은 문서도 A4 한 장을 채운다.
+   ② 🔴 **줄이는 방식이 `zoom`이다.** `transform: scale()`은 보이는 크기만 줄이고
+      크롬의 쪽 나눔은 줄이기 전 상자로 계산한다 — **화면은 한 장, 인쇄는 두 장**이
+      되는 자리다(2026-09-22 실측). 되돌아가면 여기서 걸린다.
+   ③ 🔴 **폰에는 안 씌운다**(대표 결정). 견적서 링크는 카톡으로 가고, 거기서 A4를
+      통째로 축소하면 글자가 절반이 된다.
+   ④ 🔴 **바닥 아래로는 안 줄인다.** 안 읽히는 문서를 조용히 내보내지 않고,
+      `data-qd-overflow`로 스스로 말한다(결함 생성기 ②).
+   ═══════════════════════════════════════════════════════════════════════════ */
+{
+  const CSS = read('quote_doc.css');
+  ok('[9] 종이 규격이 A4다', /--qd-page-w:\s*210mm/.test(CSS) && /--qd-page-h:\s*297mm/.test(CSS));
+  /* 🔴 297mm를 그대로 쓰면 반올림으로 0.5px 넘쳐 **빈 둘째 장**이 따라 나온다 */
+  ok('[9-b] 🔴 반올림을 흡수하는 자리가 있다', /--qd-page-h-fit:\s*calc\(297mm - 1mm\)/.test(CSS));
+  ok('[9-c] 인쇄 종이도 A4이고 여백은 문서가 갖는다',
+    /@page \{ size: A4; margin: 0; \}/.test(CSS) && /padding: var\(--qd-page-pad\)/.test(CSS));
+  /* 🔴 화면과 인쇄가 **같은 자**를 써야 화면에서 잰 배율이 인쇄에서 맞는다.
+     ⚠ **주석을 먼저 걷는다.** 이 파일 머리말에 「`@media print`가 장식이 아니라…」라는
+       설명이 있어서, 안 걷으면 자가 **주석에서 시작해** 엉뚱한 규칙을 읽는다
+       (2026-09-22에 실제로 걸렸다 — CLAUDE.md의 「재는 자부터 의심한다」). */
+  const CSSN = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const printCss = (CSSN.match(/@media print\s*\{[\s\S]*\}/) || [''])[0];
+  ok('[9-d0] 인쇄 규칙을 찾았다', printCss.length > 60, String(printCss.length));
+  ok('[9-d] 🔴 인쇄에서 글자 크기를 따로 줄이지 않는다',
+    !/\.qd \{[^}]*font-size:/.test(printCss),
+    (printCss.match(/\.qd \{[^}]*\}/) || [''])[0].slice(0, 90));
+  ok('[9-e] 🔴 폰에는 A4 틀을 안 씌운다 (카톡으로 열린다)',
+    /@media screen and \(min-width: 880px\)[\s\S]{0,200}--qd-sheet: 1/.test(CSS)
+    && /\.qd \{[\s\S]{0,400}--qd-sheet: 0/.test(CSS));
+  const JS = read('quote_doc.js');
+  ok('[9-f] 🔴 줄이는 방식이 zoom이다 (transform은 쪽 나눔에 안 먹는다)',
+    /inner\.style\.zoom = String\(k\)/.test(JS) && !/inner\.style\.transform = 'scale/.test(JS));
+  ok('[9-g] 🔴 줄인 뒤 다시 잰다 (글이 다시 접혀 비례로 안 줄어든다)',
+    /for \(let i = 0; i < 5; i \+= 1\)[\s\S]{0,260}need = measure\(\)/.test(JS));
+  ok('[9-h] 🔴 바닥에 걸리면 스스로 말한다', /data-qd-overflow/.test(JS));
+  ok('[9-i] 판단하는 곳은 CSS 한 곳이다 (--qd-sheet)',
+    /getPropertyValue\('--qd-sheet'\)/.test(JS));
+}
+
 (async () => {
   const { bootPage } = require('./_page_boot');
   /* 실제로 올 법한 모양 하나 — 금액은 이 검사의 관심이 아니라 딱 떨어지는 값으로 둔다 */
@@ -247,6 +290,97 @@ ok('[8-e] 🔴 띠가 바로가기 목록에서 이름을 끌어온다',
     ok('[8-k ' + nm + '] 콘솔 오류 없이 그려졌다', B.log.errors.length === 0,
       B.log.errors.map((e) => e.msg).join(' | '));
   }
+
+  const mk = (days) => {
+    const d = QD.blank();
+    d.meta.client = '굿리치'; d.meta.quoteNo = 'BZ-검사-2'; d.meta.validUntil = '2099-01-01';
+    d.trip.orgName = '굿리치 연수단'; d.trip.region = '다낭';
+    d.trip.days = days; d.trip.nights = days - 1; d.trip.pax = 10;
+    d.price.lines = [{ kind: 'adult', label: '성인', unit: 1000000, qty: 10 }];
+    d.breakdown = { rows: QD.allocateBreakdown(
+      [{ name: '항공', qty: 10, amount: 6000000 }, { name: '호텔', qty: 10, amount: 4000000 }], 10000000) };
+    d.itinerary = Array.from({ length: days }, (_, i) => ({
+      day: i + 1, title: '다낭 일정 ' + (i + 1), am: '오전 일정', pm: '오후 일정',
+      meals: { b: '호텔식', l: '현지식', d: '현지식' }, stay: '다낭 호텔' }));
+    return QD.normalize(d);
+  };
+  const open = async (doc, width) => {
+    const safe = QD.applyParts(QD.stripInternal(doc), { breakdown: true, iti: true });
+    const payload = { v: 1, dk: '다낭', dt: '다낭', org: '굿리치 연수단', n: 10, d: doc.trip.days,
+      ng: doc.trip.nights, t: 10000000, pp: 1000000, sd: '2026-11-10', iso: '2026-09-22',
+      qno: 'BZ-검사-2', id: 'x', doc: safe };
+    const B = bootPage('estimate-view.html', {
+      query: '?preview=1',
+      beforeBoot(w) {
+        w.sessionStorage.setItem('bizpage_preview_share', JSON.stringify(payload));
+        /* jsdom은 레이아웃을 계산하지 않아 높이가 전부 0이다 — 높이를 **우리가 준다**.
+           그래야 `fitPages`의 산수(바닥·되재기·표시)를 실제로 돌려 볼 수 있다. */
+        w.__TEST_W__ = width;
+      },
+    });
+    await B.ready; await B.tick(200);
+    return B;
+  };
+
+  /* 🔴 jsdom은 `getBoundingClientRect`가 0을 준다. 그래서 **산수만** 따로 돌린다 —
+     그 산수가 이 기능의 전부이고, 화면 쪽(구역·띠)은 위 ⑧이 이미 본다. */
+  const fake = (availH, needH, baseFont, sheet) => {
+    const el = {
+      style: {}, _h: needH,
+      getBoundingClientRect() { return { height: this.style.zoom ? this._h * Number(this.style.zoom) : this._h }; },
+    };
+    const attrs = {};
+    const qd = {
+      querySelector: () => el,
+      removeAttribute: (k) => { delete attrs[k]; },
+      setAttribute: (k, v) => { attrs[k] = v; },
+      getAttribute: (k) => (k in attrs ? attrs[k] : null),
+    };
+    const g = global.getComputedStyle;
+    global.getComputedStyle = () => ({
+      getPropertyValue: () => sheet, minHeight: (availH + 100) + 'px',
+      paddingTop: '50px', paddingBottom: '50px', fontSize: baseFont + 'px',
+    });
+    const rep = QD.fitPages({ querySelectorAll: () => [qd] });
+    global.getComputedStyle = g;
+    return { rep, attrs, zoom: el.style.zoom };
+  };
+
+  const 짧음 = fake(1000, 600, 13, '1');
+  ok('[9-j] 짧은 문서는 안 줄인다 (종이는 그대로 A4 한 장)',
+    짧음.rep.length === 0 && !짧음.zoom, JSON.stringify(짧음.attrs));
+  const 조금넘침 = fake(1000, 1100, 13, '1');
+  ok('[9-k] 조금 넘치면 줄여서 한 장에 넣는다',
+    조금넘침.rep.length === 1 && !조금넘침.rep[0].overflow
+    && Number(조금넘침.zoom) > 0.84 && Number(조금넘침.zoom) < 1,
+    JSON.stringify(조금넘침.rep));
+  const 많이넘침 = fake(1000, 2000, 13, '1');
+  ok('[9-l] 🔴 바닥 아래로는 안 줄이고 **스스로 말한다**',
+    많이넘침.rep.length === 1 && 많이넘침.rep[0].overflow === true
+    && 많이넘침.attrs['data-qd-overflow'] === '1'
+    && Math.abs(Number(많이넘침.zoom) - 11 / 13) < 0.002,
+    JSON.stringify(많이넘침.rep) + ' zoom=' + 많이넘침.zoom);
+  const 폰 = fake(1000, 2000, 13, '0');
+  ok('[9-m] 🔴 폰(A4 틀 아님)에서는 아무것도 안 줄인다',
+    폰.rep.length === 0 && !폰.zoom, JSON.stringify(폰.attrs));
+  /* 두 번 불러도 같은 값이어야 한다 — 이전 배율을 안 지우면 갈수록 작아진다 */
+  const 두번 = (() => { const a = fake(1000, 1100, 13, '1'); return a; })();
+  ok('[9-n] 🔴 두 번 불러도 배율이 더 작아지지 않는다',
+    Math.abs(Number(두번.zoom) - Number(조금넘침.zoom)) < 0.002,
+    두번.zoom + ' vs ' + 조금넘침.zoom);
+
+  /* 실제 화면에도 종이가 서는가 — 구역마다 `.qd-in`이 있어야 줄일 수 있다 */
+  const B = await open(mk(4));
+  ok('[9-o] 구역마다 줄일 안쪽 상자가 있다',
+    B.doc.querySelectorAll('.qd').length === 3
+    && B.doc.querySelectorAll('.qd > .qd-in').length === 3,
+    B.doc.querySelectorAll('.qd-in').length + '개');
+  ok('[9-p] 🔴 인쇄는 문서만 나간다 (히어로가 종이를 밀고 있었다)',
+    /\bqdv-v2\b/.test(B.doc.body.className), B.doc.body.className);
+  ok('[9-q] 그리고 나서 맞춘다', /QuoteDoc\.fitPages\(/.test(VIEW));
+  ok('[9-r] 창 폭이 바뀌면·인쇄 직전에 다시 맞춘다',
+    /addEventListener\('resize'[\s\S]{0,200}fitPages/.test(VIEW)
+    && /addEventListener\('beforeprint'[\s\S]{0,80}fitPages/.test(VIEW));
 
   console.log('\n══════════════════════════════════════════════════════════════════');
   console.log(' 견적서 링크 — 새 규격(v2) 문서 · 롤링 한 페이지');

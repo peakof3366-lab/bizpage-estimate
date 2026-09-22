@@ -581,10 +581,88 @@
   }
 
   /* ── 견적서 ── */
+  /* ═══ A4 한 장 틀 (2026-09-22 대표 지시) ═════════════════════════════════
+     「3가지 장표가 각각 내용이 부족하더라도 **하나로 A4 사이즈로** 노출되게」
+
+     🔴 **세 렌더러가 같은 틀을 쓴다.** 각자 `<article>`을 짓던 것을 여기 하나로 모은다 —
+       틀이 세 벌이면 한 장표만 다른 크기로 나오는 날이 오고, 그게 정확히 지금 고치는
+       그 현상이다(세부견적서 0.7장 · 견적서 1.6장).
+     ⚠ 종이(`.qd`)와 내용(`.qd-in`)을 **가른다.** 줄일 때 안쪽만 줄인다 — 종이까지
+       줄이면 A4가 아니게 되고 인쇄 쪽 나눔도 줄어든 크기로 계산된다. */
+  function sheet(kind, inner) {
+    return `<article class="qd" data-qd-kind="${esc(kind)}"><div class="qd-in">${inner}</div></article>`;
+  }
+
+  /* 한 장에 안 들어가면 **안쪽만 줄여** 맞춘다.
+     🔴 **읽을 수 있는 바닥이 있다** (2026-09-22 대표 결정: 「줄여서 한 장에」).
+       그 아래로 내려가야 하는 문서는 **줄이지 않고 두 장으로 내보내고**, 대신
+       `data-qd-overflow`로 표시해 도구가 보고한다. 조용히 안 읽히는 문서를 내보내는
+       것이 제일 나쁘다(결함 생성기 ②).
+     ⚠ 재기 전에 **이전 배율을 먼저 지운다.** 안 지우면 줄어든 높이를 다시 재서
+       배율이 갈수록 작아진다(두 번 부르면 드러나는 자리라 검사로 잠갔다).
+     ⚠ `--qd-sheet`가 1이 아니면(폰) 아무것도 안 한다 — 판단하는 곳은 CSS 한 곳이다. */
+  /* 🔴 **바닥은 저장소가 이미 쓰는 자를 그대로 쓴다** — `CLAUDE.md`의 「글자는 11px 이상」.
+     본문 13px이 11px까지(배율 0.846) 내려가는 것이 한계고, 종이에서는 약 8.3pt다.
+     ⚠ 여기 숫자를 바꾸면 **어떤 문서가 한 장이 되는지가 바뀐다.** 실측(2026-09-22):
+       세부견적서 614px·일정표 5일 842px은 **줄이지 않아도** 한 장이고,
+       일정표 8일(1,163px)은 0.877로 들어가며, **다 채운 견적서(1,430px)는 0.713이
+       필요해 이 바닥 아래다** — 그래서 두 장으로 나가고 `data-qd-overflow`가 붙는다. */
+  const FIT_MIN_PX = 11;
+
+  function fitPages(root) {
+    const scope = root || (typeof document !== 'undefined' ? document : null);
+    if (!scope || !scope.querySelectorAll || typeof getComputedStyle !== 'function') return [];
+    const report = [];
+    Array.prototype.forEach.call(scope.querySelectorAll('.qd'), (qd) => {
+      const inner = qd.querySelector('.qd-in');
+      if (!inner) return;
+      inner.style.zoom = '';
+      qd.removeAttribute('data-qd-fit');
+      qd.removeAttribute('data-qd-overflow');
+
+      const cs = getComputedStyle(qd);
+      if (String(cs.getPropertyValue('--qd-sheet')).trim() !== '1') return;
+      const pageH = parseFloat(cs.minHeight) || 0;
+      const avail = pageH - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+      const measure = () => inner.getBoundingClientRect().height;
+      let need = measure();
+      if (!(avail > 0) || !(need > 0) || need <= avail) return;
+
+      const baseFont = parseFloat(cs.fontSize) || 13;
+      const floor = Math.min(1, FIT_MIN_PX / baseFont);
+      /* 🔴 **`zoom`이다, `transform`이 아니다.** `transform: scale()`은 **보이는 크기만**
+         줄이고, 크롬의 **쪽 나눔은 줄이기 전 상자로** 계산한다 — 화면에서는 한 장으로
+         보이는데 **인쇄만 두 장**이 되는 자리다(2026-09-22에 실제로 그렇게 나왔다).
+         `zoom`은 레이아웃을 진짜로 바꾸므로 종이도 같이 줄어든다.
+       ⚠ 대신 **글이 다시 접힌다** — 줄이면 칸도 좁아져 줄바꿈이 바뀌고, 그래서 높이가
+         딱 비례로 줄지 않는다. 한 번 계산하고 끝내지 말고 **다시 재서** 좁혀 간다.
+         다섯 번이면 수렴한다(실측: 2회). */
+      let k = 1;
+      for (let i = 0; i < 5; i += 1) {
+        const next = Math.max(floor, k * (avail / need));
+        if (next >= k - 0.0005) { k = next; break; }
+        k = next;
+        inner.style.zoom = String(k);
+        need = measure();
+        if (need <= avail) break;
+      }
+      inner.style.zoom = String(k);
+      need = measure();
+      const over = need > avail + 0.5;
+      qd.setAttribute('data-qd-fit', k.toFixed(3));
+      /* 🔴 조용한 폴백을 남기지 않는다(결함 생성기 ②) — 바닥에 걸려 끝내 한 장에 못 넣은
+         문서는 **스스로 말한다.** 도구가 이 표시를 읽어 보고한다. */
+      if (over) qd.setAttribute('data-qd-overflow', '1');
+      report.push({ kind: qd.getAttribute('data-qd-kind') || '', fit: k, overflow: over,
+        need: Math.round(need), avail: Math.round(avail) });
+    });
+    return report;
+  }
+
   function renderQuote(docIn, opts) {
     const d = normalize(docIn);
     const c = company(opts);
-    return `<article class="qd">
+    return sheet('quote', `
       ${headHtml(d, opts)}
       <h2 class="qd-h2">개요</h2>
       ${overviewHtml(d, opts)}
@@ -597,7 +675,7 @@
         ${d.meta.quoteNo ? `<span class="qd-qno">견적번호 ${esc(d.meta.quoteNo)}</span>` : ''}
         ${d.meta.validUntil ? `<span class="qd-qno">유효기간 ${esc(d.meta.validUntil)}</span>` : ''}
       </footer>
-    </article>`;
+    `);
   }
 
   /* ── 세부견적서 (2026-09-21 대표 지시) ──
@@ -621,7 +699,7 @@
         <td class="qd-td qd-ctr">${won(pax)}명</td>
         <td class="qd-td qd-num">${won(r.amount)}</td>
       </tr>`).join('');
-    return `<article class="qd">
+    return sheet('breakdown', `
       ${headHtml(d, opts)}
       <h2 class="qd-h2">세부 견적 내역</h2>
       <table class="qd-t qd-bd">
@@ -642,7 +720,7 @@
         <span class="qd-brand qd-brand-sm">${esc(c.brand || d.meta.vendor || '비즈페이지')}</span>
         ${d.meta.quoteNo ? `<span class="qd-qno">견적번호 ${esc(d.meta.quoteNo)}</span>` : ''}
       </footer>
-    </article>`;
+    `);
   }
 
   /* ── 일정표 ──
@@ -653,10 +731,10 @@
     const d = normalize(docIn);
     const c = company(opts);
     if (!d.itinerary.length) {
-      return `<article class="qd"><div class="qd-empty">
+      return sheet('itinerary', `<div class="qd-empty">
         <b>아직 일정이 없습니다.</b>
         <span>견적 작성 화면의 「일정」 칸에 일자별 내용을 적으면 여기에 함께 나옵니다.</span>
-      </div></article>`;
+      </div>`);
     }
     /* 🔴 식사는 **끼니마다 한 줄**로 쪼갠다 (2026-09-17).
        예전엔 「조식 기내식 · 중식 기내식 · 석식 현지식」을 한 줄로 이어 붙였는데, 칸이
@@ -665,7 +743,7 @@
     const mealRows = (m) => [['조식', m.b], ['중식', m.l], ['석식', m.d]]
       .filter((x) => String(x[1] || '').trim())
       .map((x) => `<div class="qd-meal"><b>${x[0]}</b><span>${esc(x[1])}</span></div>`).join('');
-    return `<article class="qd">
+    return sheet('itinerary', `
       ${headHtml(d, opts)}
       <h2 class="qd-h2">일정표</h2>
       <table class="qd-t qd-iti">
@@ -693,7 +771,7 @@
         <span class="qd-brand qd-brand-sm">${esc(c.brand || d.meta.vendor || '비즈페이지')}</span>
         ${d.meta.quoteNo ? `<span class="qd-qno">견적번호 ${esc(d.meta.quoteNo)}</span>` : ''}
       </footer>
-    </article>`;
+    `);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -832,7 +910,7 @@
   return {
     SPEC, esc, escLines, won, hangulAmount, durationLabel, dateLabel,
     blank, normalize, stripInternal, findInternalKeys,
-    renderQuote, renderBreakdown, renderItinerary, allocateBreakdown, applyParts,
+    renderQuote, renderBreakdown, renderItinerary, fitPages, allocateBreakdown, applyParts,
     STD_TEXT, standardDetails, fromShare,
   };
 });

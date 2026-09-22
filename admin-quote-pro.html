@@ -479,6 +479,9 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         <button type="button" class="tab" id="tabQuote" aria-pressed="true">견적서</button>
         <button type="button" class="tab" id="tabIti" aria-pressed="false">일정표</button>
       </div>
+      <!-- 🔴 A4 한 장을 넘겼는지 **적는 동안** 말한다 (2026-09-22). 다 적고 발급한 뒤에
+           알면 고칠 곳이 이미 고객 손에 있다. 글은 `renderPreview`가 넣는다. -->
+      <p class="note hidden" id="prevFit"></p>
       <div class="prev" id="prevBox"></div>
       <div class="bar">
         <button type="button" class="btn" data-goto="4">← 이전: 일정</button>
@@ -1605,6 +1608,26 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     $('prevBox').innerHTML = S.prevTab === 'quote'
       ? QuoteDoc.renderQuote(pub, { company: window.COMPANY_INFO })
       : QuoteDoc.renderItinerary(pub, { company: window.COMPANY_INFO });
+    /* 🔴 **A4 한 장에 맞춘다** (2026-09-22). 담당자가 적는 동안 **넘치는 순간**을
+       바로 보게 하는 자리다 — 다 적고 발급한 뒤에 알면 고칠 곳이 이미 고객 손에 있다.
+       ⚠ 「줄였다」와 「줄여도 안 됐다」는 **다른 말**이다. 전자는 그냥 알려 주는 것이고,
+         후자는 **두 장으로 나간다**는 뜻이라 담당자가 뭘 덜어낼지 정해야 한다. */
+    const fit = QuoteDoc.fitPages ? QuoteDoc.fitPages($('prevBox')) : [];
+    const fitNote = $('prevFit');
+    if (fitNote) {
+      const over = fit.filter((f) => f.overflow);
+      const shrunk = fit.filter((f) => !f.overflow);
+      if (over.length) {
+        fitNote.textContent = '🔴 A4 한 장을 넘습니다 — 이대로 인쇄하면 두 장으로 나갑니다. '
+          + '글자를 더 줄이면 안 읽혀서 여기까지만 줄였습니다. '
+          + '취소 규정·비고처럼 긴 칸을 줄이거나 비우면 한 장에 들어갑니다.';
+      } else if (shrunk.length) {
+        fitNote.textContent = '한 장에 넣으려고 글자를 '
+          + Math.round((1 - shrunk[0].fit) * 100) + '% 줄였습니다.';
+      }
+      fitNote.classList.toggle('hidden', !fit.length);
+      fitNote.classList.toggle('note-err', !!over.length);
+    }
 
     const t = totals();
     const sum = num($('dAdult')) + num($('dChild')) + num($('dInfant'));

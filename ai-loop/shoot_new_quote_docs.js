@@ -244,6 +244,7 @@ function buildDoc(g, bd) {
   const made = [];
   const problems = [];
   const css = fs.readFileSync(path.join(ROOT, 'quote_doc.css'), 'utf8');
+  const qdocSrc = fs.readFileSync(path.join(ROOT, 'quote_doc.js'), 'utf8');
 
   for (const g of GUESTS) {
     const bd = E.run(g.t, g.spec);
@@ -324,12 +325,47 @@ function buildDoc(g, bd) {
       if (has('qdvIti') !== !!c.parts.iti) problems.push(g.id + '/' + c.key + ': 🔴 일정표가 체크와 다르다');
       if (b.log.errors.length) problems.push(g.id + '/' + c.key + ': 콘솔 오류 — ' + b.log.errors[0].msg);
 
-      /* 파일로 남길 때 바깥 자원을 끊는다 — 인터넷 없이 더블클릭해도 그대로 보여야 한다.
-         CSS는 파일에 박아 넣는다(상대경로가 안 먹는 폴더에 두기 때문이다). */
+      /* 파일로 남길 때 바깥 자원을 끊는다 — 인터넷 없이 더블클릭해도 그대로 보여야 한다. */
+      /* 🔴🔴 **글자로 태그를 지우지 않는다 — DOM에서 지운다** (2026-09-22).
+         정규식으로 `<script…>…</script>`를 지웠더니, **주석 안에 적힌 `<script src>`**
+         (50번째 줄 설명문)이 여는 태그로 잡혀 거기서부터 진짜 `</script>`까지를
+         통째로 먹었다. 그 사이에 주석을 닫는 `-->`가 있었다.
+         → 주석이 안 닫힌 채로 남아 **페이지 스타일 전체와 `<body>`의 class까지
+           삼켰다.** 화면은 멀쩡해 보이는데 **인쇄 CSS가 한 줄도 안 먹는** 파일이 됐고,
+           「A4 한 장이 왜 두 장이지」로 한참을 헤맸다.
+         ⚠ 이 저장소는 주석이 많다. **주석에 태그 문자열이 나오는 것이 정상**이므로
+           HTML을 글자로 자르는 방식은 여기서 쓰면 안 된다. */
+      Array.prototype.forEach.call(D.querySelectorAll('script'), (el) => el.remove());
+      /* 🔴 **「👁 미리보기」 띠는 여기서만 뗀다.** 그 띠는 화면에서도 인쇄에서도
+         **일부러 남기는 것**이다(발급 전 PDF를 고객에게 보내는 일을 막는 마지막 자리).
+         다만 이 도구가 그 경로를 쓰는 이유는 **운영 DB를 안 건드리려고**일 뿐이고,
+         파일로 남기는 것은 「고객이 받는 화면」이다 — 띠를 남기면 대표가 보는 것이
+         고객 문서가 아니게 되고, 인쇄하면 그 43px 때문에 A4 한 장이 두 장이 된다.
+         ⚠ 이 띠가 고객 링크(`?id=`)에 뜨면 결함이다. 그건 `test_zX`가 잡는다. */
+      const pvBar = D.getElementById('preview-bar');
+      if (pvBar) pvBar.remove();
+      Array.prototype.forEach.call(D.querySelectorAll('link'), (el) => {
+        const href = el.getAttribute('href') || '';
+        if (/fonts\.googleapis/.test(href)) { el.remove(); return; }
+        /* CSS는 파일에 박아 넣는다(상대경로가 안 먹는 폴더에 두기 때문이다) */
+        if (/quote_doc\.css/.test(href)) {
+          const st = D.createElement('style');
+          st.textContent = css;
+          el.replaceWith(st);
+        }
+      });
       let html = D.documentElement.outerHTML;
-      html = html.replace(/<link[^>]+fonts\.googleapis[^>]*>/g, '');
-      html = html.replace(/<script[^>]*(cdn\.jsdelivr|quote_doc\.js|company-info\.js)[^>]*><\/script>/g, '');
-      html = html.replace(/<link[^>]+quote_doc\.css[^>]*>/, '<style>' + css + '</style>');
+      /* 🔴 **A4 맞춤은 브라우저만 할 수 있다** (2026-09-22).
+         `jsdom`은 레이아웃을 계산하지 않아 높이가 전부 0이다 — 그래서 이 자리에서
+         `fitPages`를 불러도 아무 일도 안 일어난다(실제로 그래서 배율이 안 걸린
+         파일을 한 번 뽑았다). 대신 **`quote_doc.js` 원문과 부르는 한 줄을 파일에 넣어**
+         대표가 파일을 여는 순간 그 브라우저가 맞추게 한다.
+         ⚠ 여기서 배율을 따로 계산하지 않는다 — 규칙은 `fitPages` 하나다. */
+      html = html.replace('</body>', '<script>' + qdocSrc + '</script>\n'
+        + '<script>(function(){var f=function(){try{QuoteDoc.fitPages(document);}catch(e){}};'
+        + 'if(document.readyState!=="loading")f();else document.addEventListener("DOMContentLoaded",f);'
+        + 'window.addEventListener("resize",f);window.addEventListener("beforeprint",f);})();</script>'
+        + '</body>');
       fs.writeFileSync(path.join(dir, c.key + '.html'), html, 'utf8');
     }
     made.push({ g, bd, doc });
@@ -359,7 +395,18 @@ function buildDoc(g, bd) {
     + ' ② 문서마다 <b>머리에 이름과 「문서 2 / 3」</b>이 붙고 사이가 벌어집니다 — 어디서 문서가'
     + ' 바뀌는지 보이게 했습니다(2026-09-22 지시).<br>\n'
     + ' ③ <b>세부견적서</b>가 새로 생겼습니다 — 항목별 금액표입니다. <b>다 더하면 총액과 1원까지 맞습니다.</b><br>\n'
-    + ' ④ 담당자가 <b>체크해서 고른 것만</b> 나갑니다. 아래 네 가지가 그 조합입니다.</div>\n'
+    + ' ④ 담당자가 <b>체크해서 고른 것만</b> 나갑니다. 아래 네 가지가 그 조합입니다.<br>\n'
+    + ' ⑤ <b>장표마다 A4 한 장</b>입니다(2026-09-22 지시) — 내용이 짧아도 A4 한 장을'
+    + ' 채우고, 길면 <b>줄여서 한 장에</b> 넣습니다. <b>Ctrl+P</b>로 확인해 보세요.</div>\n'
+    /* 🔴 **안 되는 경우를 먼저 적는다.** 되는 것만 적으면 대표가 인쇄해 보고 나서야
+       두 장인 것을 안다 — 그때는 이미 「말한 것과 다르다」가 된다. */
+    + '<div class="note"><b>A4 한 장 — 어디까지 되는가</b> (실측 2026-09-22)<br>\n'
+    + ' ✅ <b>세부견적서</b>·<b>일정표</b>는 그대로 한 장입니다(일정 8일짜리도 줄여서 한 장).<br>\n'
+    + ' 🔴 <b>견적서에 「취소 규정」까지 적으면 두 장</b>이 됩니다. 글자를 더 줄이면 안 읽혀서'
+    + ' 거기까지만 줄입니다(본문 11px = 약 8.3pt가 바닥).<br>\n'
+    + ' → 실제 발급 화면에서 취소 규정 칸은 <b>기본이 공란</b>이라 보통은 한 장입니다.'
+    + ' 채워서 넘치면 <b>담당자 화면이 그 자리에서 알려 줍니다.</b><br>\n'
+    + ' ⚠ 아래 샘플은 <b>취소 규정을 채운 상태</b>라 견적서가 두 장으로 나옵니다 — 일부러 그렇게 뒀습니다.</div>\n'
     /* 🔴 **무엇이 실제 값이고 무엇이 임의인지 가른다.** 안 가르면 대표가 이 문서의
        숫자를 실제 조건으로 읽는다 — 추정치가 사실로 굳는 자리다. */
     + '<div class="note"><b>어디까지가 실제 값인가</b> — 섞어 보시면 안 됩니다<br>\n'

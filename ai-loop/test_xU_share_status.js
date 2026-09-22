@@ -125,14 +125,60 @@ const 문서 = (st) => {
     /* 유효기간 배너를 인쇄에서 숨기면 **취소 안내도 함께 사라진다**(같은 배너를 쓴다).
        WQ가 정확히 그 자리에서 「인쇄물에 유효기간이 없다」를 겪었다.
      ⚠ 주석을 걷어내고 **숨기는 규칙의 선택자만** 본다(WQ가 자기 주석을 읽고 없는
-       결함을 만든 적이 있다). */
+       결함을 만든 적이 있다).
+     🔴 **2026-09-22: 「A4 한 장」 때문에 이 배너를 인쇄에서 빼는 길이 생겼다.**
+       그래서 규칙을 좁혔다 — **무조건 숨기는 것은 여전히 금지**이고, 조건부로
+       숨기려면 **그 조건이 실제로 갈리는지 화면으로 증명**해야 한다(아래 ④-b).
+       글자만 재면 「조건을 달아 놨으니 괜찮겠지」로 넘어간다. */
     const src = fs.readFileSync(path.join(ROOT, 'estimate-view.html'), 'utf8');
     const printBlk = (src.match(/@media print\s*\{[\s\S]*?\n\s*\}/) || [''])[0]
       .replace(/\/\*[\s\S]*?\*\//g, '');
     ok('④ 인쇄 규칙을 찾았다', printBlk.length > 40, String(printBlk.length));
-    const hides = printBlk.split('\n').filter((l) => /display\s*:\s*none/.test(l)).join(' ');
-    ok('🔴 ④ 인쇄에서 유효기간·취소 배너를 숨기지 않는다',
-      !/\.validity-banner\b/.test(hides), hides.slice(0, 90));
+    const hides = printBlk.split('\n').filter((l) => /display\s*:\s*none/.test(l));
+    /* 선택자에 `.validity-banner`만 덩그러니 있으면 **모든 견적서에서** 사라진다 */
+    const 무조건 = hides.filter((l) => {
+      const sel = l.split('{')[0];
+      return /\.validity-banner\b/.test(sel)
+        && !/\.qdv-v2-validity\s+\.validity-banner/.test(sel);
+    });
+    ok('🔴 ④ 인쇄에서 유효기간·취소 배너를 **무조건** 숨기지 않는다',
+      무조건.length === 0, 무조건.join(' | ').slice(0, 120));
+  }
+
+  console.log('\n[4-b] 🔴 그 조건이 실제로 갈리는가 — 새 규격(v2)을 띄워 본다');
+  {
+    /* 문서(`doc`)가 붙은 v2 견적서만 배너를 인쇄에서 뺄 수 있다. 뺄 수 있는 것은
+       **아무 경고도 없는 정상 건**뿐이다 — 취소·만료·발행일 없음은 배너가 유일한
+       전달 수단이라 인쇄물에 반드시 남아야 한다. */
+    const v2 = (st, tweak) => {
+      const d = 문서(st);
+      d.doc = {
+        meta: { client: '점검기관', quoteNo: 'Q-260827-01', issueDate: d.iso,
+          validUntil: ymd(30), staffName: '점검담당', staffTel: '02-0000-0000',
+          staffEmail: 'a@b.c' },
+        trip: { orgName: '점검기관', startDate: d.sd, days: 4, nights: 3,
+          region: '다낭', pax: 30 },
+        price: { lines: [{ kind: 'adult', label: '성인', unit: 1889869, qty: 30 }] },
+      };
+      if (tweak) tweak(d);
+      return d;
+    };
+    const 경우 = [
+      ['정상', v2('issued'), true],
+      ['취소', v2('void'), false],
+      ['만료', v2('issued', (d) => { d.iso = ymd(-400); d.doc.meta.issueDate = d.iso; }), false],
+      ['발행일 없음', v2('issued', (d) => { delete d.iso; }), false],
+      ['문서에 유효기간이 없음', v2('issued', (d) => { d.doc.meta.validUntil = ''; }), false],
+    ];
+    for (const [이름, fx, 뺄수있나] of 경우) {
+      const V = bootPage('estimate-view.html', { query: '?id=x', fixtures: { shareDoc: fx } });
+      await V.ready; await V.tick(320);
+      const cls = V.doc.body.className;
+      ok('④-b ' + 이름 + ' — v2 문서로 그려졌다', /\bqdv-v2\b/.test(cls), cls);
+      ok('🔴 ④-b ' + 이름 + (뺄수있나 ? ' — 배너를 인쇄에서 뺀다' : ' — 배너가 인쇄에 남는다'),
+        /\bqdv-v2-validity\b/.test(cls) === 뺄수있나, cls);
+      V.win.close();
+    }
   }
 
   console.log('\n[5] 상태 목록이 한 곳에서 온다 — 두 벌이 되면 반드시 어긋난다');
