@@ -160,10 +160,99 @@ ok('[6-c] .js를 통째로 빼는 규칙이 없다', !rules.some((r) => r === '*
   ok('[7-g] 그 줄이 라벨·값으로 잠겨 있다', /\.qd-meal\s*\{[^}]*display:\s*flex/.test(CSS));
 }
 
-console.log('\n══════════════════════════════════════════════════════════════════');
-console.log(' 견적서 링크 — 새 규격(v2) 문서 · 일정표 탭');
-console.log('══════════════════════════════════════════════════════════════════');
-fails.forEach((f) => console.log(' ✗ ' + f));
-if (!fails.length) console.log(' ✓ 전부 통과');
-console.log(`결과: ${pass} pass / ${fails.length} fail`);
-process.exit(fails.length ? 1 : 0);
+/* ═══ ⑧ 🔴 문서 셋이 **갈라져 보이는가** (2026-09-22 대표 지시) ═══════════════
+   「견적서 세부견적서 일정표가 각각 제대로 분리가 되어 보이면 좋겠다 — 지금은
+   다닥다닥 붙어 있는 느낌이라서.」
+
+   롤링으로 바꾸면서 탭이 사라졌고, **탭이 하던 「경계」 일까지 같이 사라졌다.**
+   세 문서가 테두리만 맞닿은 채 이어져, 고객은 한 장짜리 긴 문서로 읽는다 —
+   그러면 **세부견적서를 받았다는 사실 자체를 모른다.**
+
+   🔴 **글자로만 재면 이 자리를 못 잡는다.** CSS 규칙이 파일에 있는지 보는 것과,
+     화면에 띠가 실제로 그려지는지는 다른 이야기다(9/21에 「만들어 놓고 안 그리고
+     있었다」로 한 번 당했다). 그래서 **페이지를 띄워 센다.**
+   ═══════════════════════════════════════════════════════════════════════════ */
+ok('[8] 문서 사이가 벌어져 있다 (바탕색이 드러난다)',
+  /\.qdv-panel \+ \.qdv-panel \{ margin-top: \d+px; \}/.test(VIEW));
+ok('[8-b] 종이처럼 그림자가 있다', /\.qdv-panel \{ box-shadow:/.test(VIEW));
+/* 🔴 상단 바가 sticky라 앵커로 뛴 자리가 바 뒤로 들어갔다 — 바 높이보다 커야 한다 */
+ok('[8-c] 🔴 바로가기로 뛴 자리가 상단 바에 안 가린다',
+  (() => {
+    const m = VIEW.match(/\.qdv-panel \{ scroll-margin-top: (\d+)px; \}/);
+    return !!m && Number(m[1]) >= 60;
+  })(), '상단 바(sticky) 높이보다 작으면 문서 머리가 가려진다');
+/* 머리 띠는 **화면용**이다 — 인쇄는 문서마다 새 장이라 경계가 이미 분명하고,
+   결재에 올라가는 종이에 「문서 2 / 3」이 찍히면 안 된다. */
+ok('[8-d] 머리 띠는 인쇄에 안 나간다', /class="qdv-tag no-print"/.test(VIEW));
+/* 🔴 이름·순서·장수를 두 벌로 적지 않는다 — 바로가기와 띠가 어긋나는 날이 온다 */
+ok('[8-e] 🔴 띠가 바로가기 목록에서 이름을 끌어온다',
+  /jumps\.findIndex/.test(VIEW) && /\$\{jumps\[i\]\[1\]\}/.test(VIEW));
+
+(async () => {
+  const { bootPage } = require('./_page_boot');
+  /* 실제로 올 법한 모양 하나 — 금액은 이 검사의 관심이 아니라 딱 떨어지는 값으로 둔다 */
+  const base = QD.blank();
+  base.meta.client = '굿리치'; base.meta.quoteNo = 'BZ-검사-1';
+  base.trip.orgName = '굿리치 연수단'; base.trip.region = '다낭';
+  base.trip.days = 2; base.trip.nights = 1; base.trip.pax = 10;
+  base.price.lines = [{ kind: 'adult', label: '성인', unit: 1000000, qty: 10 }];
+  base.breakdown = { rows: QD.allocateBreakdown(
+    [{ name: '항공', qty: 10, amount: 6000000 }, { name: '호텔', qty: 10, amount: 4000000 }], 10000000) };
+  base.itinerary = [
+    { day: 1, title: '인천 → 다낭', am: '출국', pm: '시내', meals: { b: '', l: '기내식', d: '현지식' }, stay: '다낭 호텔' },
+    { day: 2, title: '다낭 → 인천', am: '자유', pm: '귀국', meals: { b: '호텔식', l: '현지식', d: '' }, stay: '' },
+  ];
+  const doc = QD.normalize(base);
+
+  /* 담당자가 고르는 조합 그대로 — 셋 다 / 견적서만. 기대 장수를 **조합에서** 만든다. */
+  const CASES = [
+    { parts: { breakdown: true, iti: true }, want: ['견적서', '세부견적서', '일정표'] },
+    { parts: { breakdown: true, iti: false }, want: ['견적서', '세부견적서'] },
+    { parts: { breakdown: false, iti: false }, want: ['견적서'] },
+  ];
+  for (const c of CASES) {
+    const safe = QD.applyParts(QD.stripInternal(doc), c.parts);
+    const payload = { v: 1, dk: '다낭', dt: '다낭', org: '굿리치 연수단', n: 10, d: 2, ng: 1,
+      t: 10000000, pp: 1000000, sd: '2026-11-10', iso: '2026-09-22', qno: 'BZ-검사-1', id: 'x', doc: safe };
+    const B = bootPage('estimate-view.html', {
+      query: '?preview=1',
+      beforeBoot(w) { w.sessionStorage.setItem('bizpage_preview_share', JSON.stringify(payload)); },
+    });
+    await B.ready; await B.tick(200);
+    const D = B.doc;
+    const nm = c.want.join('+');
+    ok('[8-f ' + nm + '] 구역 수가 고른 것과 같다',
+      D.querySelectorAll('.qdv-panel').length === c.want.length,
+      '실제 ' + D.querySelectorAll('.qdv-panel').length);
+    const tags = Array.from(D.querySelectorAll('.qdv-tag')).map((e) => e.textContent.replace(/\s+/g, ' ').trim());
+    if (c.want.length < 2) {
+      /* 🔴 하나뿐일 때 「문서 1 / 1」은 잡음이다 — 바로가기를 안 그리는 조건과 같아야 한다 */
+      ok('[8-g] 문서가 하나면 머리 띠를 안 붙인다', tags.length === 0, tags.join(' | '));
+      ok('[8-g2] 그때는 바로가기도 없다', !D.querySelector('.qdv-jump'));
+    } else {
+      const want = c.want.map((t, i) => '문서 ' + (i + 1) + ' / ' + c.want.length + t);
+      ok('[8-h ' + nm + '] 🔴 문서마다 이름과 몇 번째인지가 그려진다',
+        tags.length === c.want.length && tags.every((t, i) => t === want[i]),
+        '실제 [' + tags.join(' | ') + ']');
+      /* 띠가 **그 문서 안에** 있어야 한다 — 밖에 있으면 스크롤할 때 짝이 어긋난다 */
+      ok('[8-i ' + nm + '] 띠가 그 문서 구역 안에 있다',
+        Array.from(D.querySelectorAll('.qdv-tag')).every((e) => e.parentElement
+          && e.parentElement.classList.contains('qdv-panel')));
+      /* 바로가기와 띠가 **같은 이름·같은 순서**인가 (두 벌이 어긋나는 것을 직접 본다) */
+      const jumpTexts = Array.from(D.querySelectorAll('.qdv-jump-a')).map((a) => a.textContent.trim());
+      ok('[8-j ' + nm + '] 🔴 바로가기와 띠가 같은 이름·같은 순서다',
+        JSON.stringify(jumpTexts) === JSON.stringify(c.want),
+        '바로가기 [' + jumpTexts.join(' | ') + ']');
+    }
+    ok('[8-k ' + nm + '] 콘솔 오류 없이 그려졌다', B.log.errors.length === 0,
+      B.log.errors.map((e) => e.msg).join(' | '));
+  }
+
+  console.log('\n══════════════════════════════════════════════════════════════════');
+  console.log(' 견적서 링크 — 새 규격(v2) 문서 · 롤링 한 페이지');
+  console.log('══════════════════════════════════════════════════════════════════');
+  fails.forEach((f) => console.log(' ✗ ' + f));
+  if (!fails.length) console.log(' ✓ 전부 통과');
+  console.log(`결과: ${pass} pass / ${fails.length} fail`);
+  process.exit(fails.length ? 1 : 0);
+})().catch((e) => { console.log('🔴 터짐: ' + e.message); console.log(e.stack); process.exit(1); });

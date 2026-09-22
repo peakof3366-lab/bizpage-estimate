@@ -386,15 +386,18 @@ a { color: inherit; text-decoration: none; }
    대표 결정: 일정표를 **같은 링크의 다른 탭**으로 낸다.
    ⚠ 누를 것은 44px 이상(CLAUDE.md YA) · 인쇄에는 안 나간다(`no-print`). */
 /* 🔴 롤링 페이지의 **바로가기**(2026-09-21) — 탭이 아니다. 눌러도 감춰지지 않는다. */
-.qdv-jump { display: flex; gap: 8px; margin: 0 auto; max-width: 900px; padding: 10px 0 2px; flex-wrap: wrap; }
+.qdv-jump { display: flex; gap: 8px; margin: 0 auto; max-width: 900px; padding: 10px 0 18px; flex-wrap: wrap; }
 .qdv-jump-a {
   display: inline-block; padding: 7px 15px; font-size: 13px; font-weight: 700;
   color: #444; background: #fff; border: 1px solid #DDD; border-radius: 999px;
   text-decoration: none; line-height: 1.2;
 }
 .qdv-jump-a:hover { border-color: #111; color: #111; }
-/* 앵커로 뛰었을 때 제목이 화면 맨 위에 딱 붙지 않게 */
-.qdv-panel { scroll-margin-top: 16px; }
+/* 앵커로 뛰었을 때 제목이 화면 맨 위에 딱 붙지 않게.
+   🔴 **상단 바가 `position: sticky`다**(위 `.top-bar`). 16px으로는 뛴 자리가 검은 바
+     **뒤로 들어가** 문서 머리가 가려졌다 — 「눌렀는데 엉뚱한 데로 갔다」로 읽힌다.
+     바 높이(세로 패딩 14+14 + 글자 줄)보다 넉넉히 준다. */
+.qdv-panel { scroll-margin-top: 82px; }
 
 .qdv-tabs { display: flex; gap: 0; margin: 0 auto 0; max-width: 900px; }
 .qdv-tab {
@@ -404,6 +407,29 @@ a { color: inherit; text-decoration: none; }
 }
 .qdv-tab[aria-selected="true"] { background: #111111; color: #FFFFFF; border-color: #111111; }
 .qdv-panel { background: #FFFFFF; border: 1px solid #DCDCD8; }
+
+/* 🔴 **문서 사이를 벌린다** (2026-09-22 대표 지시: 「다닥다닥 붙어 있는 느낌」).
+   롤링으로 바꾸면서 세 문서가 테두리만 맞닿은 채 이어졌고, **어디서 문서가 바뀌는지**가
+   화면에서 사라졌다 — 탭일 때는 탭 자체가 경계였는데, 탭을 없애면서 경계도 같이 없앤 것이다.
+   고객은 한 장짜리 긴 문서로 읽고, 「세부견적서를 받았다」는 사실 자체를 못 알아챈다.
+   → ① 사이를 띄워 바탕색(#F4F4F2)이 드러나게 하고 ② 종이처럼 그림자를 주고
+     ③ 문서마다 **이름과 몇 번째인지**를 머리에 붙인다(아래 `.qdv-tag`). */
+.qdv-panel + .qdv-panel { margin-top: 34px; }
+.qdv-panel { box-shadow: 0 2px 6px rgba(16, 18, 29, .07); }
+
+/* 문서 머리 띠 — 「문서 2 / 3 · 세부견적서」.
+   ⚠ **인쇄에는 안 나간다**(`no-print`). 인쇄는 문서마다 새 장에서 시작하므로 이 띠가
+     없어도 경계가 분명하고, 결재에 올라가는 종이에 화면용 표시가 찍히면 안 된다.
+   ⚠ 보라(#514dc2)는 BI 가이드 색이다 — 흰 바탕에서 쓰는 쪽(민트는 어두운 면 전용). */
+.qdv-tag {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px; background: #FAF9F7; border-bottom: 1px solid #E6E4E0;
+  font-size: 13px; font-weight: 800; letter-spacing: -.01em; color: #16181D;
+}
+.qdv-tag span {
+  font-size: 11px; font-weight: 700; color: #514dc2;
+  background: #EDECFA; border-radius: 999px; padding: 3px 10px; line-height: 1.35;
+}
 .qdv-note { max-width: 900px; margin: 10px auto 0; font-size: 12.5px; color: #5B5B5B; }
 /* 🔴 **`hidden` 속성만으로는 안 감춰진다.** `.btn-print`가 `display`를 지정하고
    있어서 브라우저 기본 `[hidden]{display:none}`을 **이긴다** — 엑셀 버튼을
@@ -417,9 +443,9 @@ a { color: inherit; text-decoration: none; }
      **실려 온 것 = 보내기로 한 것**이고, 그것을 전부 인쇄하는 게 맞다.
      ⚠ 그래도 `[hidden]` 규칙은 남긴다 — 다른 코드가 감춘 것을 인쇄가 되살리면 안 된다. */
   .qdv-panel[hidden] { display: none !important; }
-  .qdv-panel { border: none; }
+  .qdv-panel { border: none; box-shadow: none; }
   /* 문서마다 새 장에서 시작한다 — 견적서와 일정표가 한 장에 섞이면 결재에서 못 쓴다 */
-  .qdv-panel + .qdv-panel { break-before: page; page-break-before: always; }
+  .qdv-panel + .qdv-panel { break-before: page; page-break-before: always; margin-top: 0; }
 }
 </style>
 </head>
@@ -693,14 +719,29 @@ function renderDocPage(d, validityBanner) {
     .concat(hasBd ? [['qdvBd', '세부견적서']] : [])
     .concat(hasIti ? [['qdvIti', '일정표']] : []);
 
+  /* 🔴 **문서마다 머리에 이름을 붙인다** (2026-09-22 대표 지시: 「각각 제대로 분리가
+     되어 보이면 좋겠다」). 띄우는 것만으로는 「긴 문서가 몇 덩이로 나뉘었나」로 읽힐 뿐,
+     **그 덩이가 각각 무슨 문서인지**는 여전히 안 보인다. 이름과 장수를 같이 적는다 —
+     「문서 2 / 3」이 있어야 고객이 **뒤에 더 있다**는 것을 안다.
+     🔴 **이름·순서·장수를 여기 다시 적지 않는다** — 전부 위 `jumps`에서 끌어온다.
+       두 벌로 적으면 바로가기와 띠가 어긋나는 날이 온다(결함 생성기 ①).
+     ⚠ 문서가 하나뿐이면 안 붙인다 — 「문서 1 / 1」은 잡음이고, 바로가기를 안 그리는
+       조건과 **같은 조건**이어야 둘이 따로 놀지 않는다. */
+  const docTag = (id) => {
+    if (jumps.length < 2) return '';
+    const i = jumps.findIndex((j) => j[0] === id);
+    if (i < 0) return '';
+    return `<div class="qdv-tag no-print"><span>문서 ${i + 1} / ${jumps.length}</span>${jumps[i][1]}</div>`;
+  };
+
   document.getElementById('main-content').innerHTML = `
     ${validityBanner}
     ${jumps.length > 1 ? `<nav class="qdv-jump no-print" aria-label="문서 바로가기">
       ${jumps.map(([id, label]) => `<a class="qdv-jump-a" href="#${id}">${label}</a>`).join('')}
     </nav>` : ''}
-    <div class="qdv-panel" id="qdvQuote">${QuoteDoc.renderQuote(doc, { company })}</div>
-    ${hasBd ? `<div class="qdv-panel" id="qdvBd">${bdHtml}</div>` : ''}
-    ${hasIti ? `<div class="qdv-panel" id="qdvIti">${QuoteDoc.renderItinerary(doc, { company })}</div>` : ''}
+    <div class="qdv-panel" id="qdvQuote">${docTag('qdvQuote')}${QuoteDoc.renderQuote(doc, { company })}</div>
+    ${hasBd ? `<div class="qdv-panel" id="qdvBd">${docTag('qdvBd')}${bdHtml}</div>` : ''}
+    ${hasIti ? `<div class="qdv-panel" id="qdvIti">${docTag('qdvIti')}${QuoteDoc.renderItinerary(doc, { company })}</div>` : ''}
     ${hasIti ? '' : `<p class="qdv-note no-print">일정표는 아직 준비 중입니다. 담당자에게 문의해 주세요.</p>`}
   `;
 
