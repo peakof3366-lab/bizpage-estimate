@@ -339,7 +339,11 @@ ok('[17-a] 그 분기가 엔진 폼 제출보다 먼저다',
    그 안에는 실패 처리(`if (!res.ok) { … return; }`)의 return이 이미 있어서 **성공 경로의
    return을 지워도 통과했다**(고장을 넣어 보고 알았다 — 자가 틀린 것이다).
    창을 성공 안내 줄 뒤로 좁힌다. */
-const iSaved = PRO.indexOf("out.id || body.id", iAdhocSave > 0 ? iAdhocSave : 0);
+/* ⚠ 2026-09-23: 예전 표시는 `out.id || body.id`(견적번호를 안내에 적었다)를 붙잡았는데,
+     대표 지시로 안내가 「✅ 견적 관리 업로드 완료」로 짧아지면서 그 표시가 사라졌다.
+     🔴 **같은 글이 두 번 나온다**(직접 입력 분기 · 엔진 분기). `iAdhocSave` 뒤에서 찾으므로
+       먼저 걸리는 것이 직접 입력 분기의 안내다 — 창을 좁히는 이 순서가 이 검사의 전부다. */
+const iSaved = PRO.indexOf("show('✅ 견적 관리 업로드 완료'", iAdhocSave > 0 ? iAdhocSave : 0);
 const tailAfterSave = (iSaved > 0 && iFormSubmit > iSaved) ? PRO.slice(iSaved, iFormSubmit) : '';
 /* ⚠ 정규식으로 괄호를 세다 또 빗나갔다 — **대조군까지 빨개졌다**(`')');`는 `))`가
      아니라 `')`다). **순서로 잰다**: 성공 안내와 엔진 경로 사이에 `return;`이 있어야 한다.
