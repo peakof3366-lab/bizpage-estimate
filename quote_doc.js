@@ -51,6 +51,25 @@
      그린다. 옛 링크가 이미 고객 손에 나가 있으므로 v1을 없앨 수 없다. */
   const SPEC = 2;
 
+  /* ═══ 🔴 문서에 **직접 입력하는 자리** (2026-09-24 대표 지시) ═══════════════
+     「견적서 틀이 그대로 오고 거기에 내용을 입력할 수 있게」 — 담당자가 칸 스무 개짜리
+     폼을 채우는 대신 **나갈 문서를 보면서** 고친다.
+
+     🔴 **고객이 받는 문서와 같은 함수가 그린다.** `opts.edit`가 있을 때만 입력 자리가
+       생기고, 없으면 예전과 **한 글자도 다르지 않다**(그냥 이스케이프한 글자다).
+       틀을 두 벌로 그리면 「보이는 대로 나간다」가 그 순간 거짓이 된다.
+     ⚠ `data-qd-f`는 **어디에 되돌려 적을지**를 말한다. 편집 화면이 그 이름으로
+       원래 칸을 찾아 넣는다 — 저장 경로(`buildDoc`)는 한 글자도 안 바뀐다.
+     ⚠ 고객에게 나가는 문서에는 이 속성이 **아예 없다**(edit를 안 주므로). */
+  function slot(o, field, value, ph, multi) {
+    const raw = value == null ? '' : String(value);
+    const txt = multi ? escLines(raw) : esc(raw);
+    if (!(o && o.edit)) return txt;
+    return '<span class="qd-ed' + (multi ? ' qd-ed-m' : '') + '" contenteditable="true"'
+      + ' role="textbox" data-qd-f="' + esc(field) + '"'
+      + ' data-ph="' + esc(ph || '') + '">' + txt + '</span>';
+  }
+
   /* ── 글자 안전 ── 공개 입력이 그대로 렌더되던 사고가 이 저장소에 있었다
      (`CLAUDE.md` 결함 생성기 ④). 문자열은 **예외 없이** 이걸 거친다. */
   function esc(s) {
@@ -418,6 +437,7 @@
   }
 
   function overviewHtml(d, opts) {
+    const o = opts || null;
     const c = company(opts);
     const money = (n) => '<span class="qd-w">₩</span> ' + won(n) + ' 원';
     const lines = d.price.lines.length
@@ -431,9 +451,11 @@
         ${i === 0 ? `<th class="qd-th" rowspan="${lines.length}">견적가</th>` : ''}
         <th class="qd-th qd-sub">${esc(l.label)}</th>
         <td class="qd-num">${l._empty ? '<span class="qd-todo">미입력</span>' : money(l.unit)}</td>
-        <td class="qd-mid">${won(l.qty)}명</td>
+        <td class="qd-mid">${(o && o.edit)
+          ? slot(o, 'price.qty.' + (l.kind || 'adult'), l.qty, '0') + '명'
+          : won(l.qty) + '명'}</td>
         <td class="qd-num">${l._empty ? '<span class="qd-todo">미입력</span>' : money(l.amount)}</td>
-        ${i === 0 ? `<td class="qd-mid" rowspan="${lines.length}">${esc(d.price.condition)}</td>` : ''}
+        ${i === 0 ? `<td class="qd-mid" rowspan="${lines.length}">${slot(o, 'price.condition', d.price.condition, '10+1조건')}</td>` : ''}
       </tr>`).join('');
 
     return `
@@ -442,7 +464,7 @@
       <tbody>
         <tr>
           <th class="qd-th">단체명</th>
-          <td class="qd-mid" colspan="2">${esc(d.trip.orgName)}</td>
+          <td class="qd-mid" colspan="2">${slot(o, 'trip.orgName', d.trip.orgName, '○○기업 해외연수단')}</td>
           <th class="qd-th" colspan="2">견적서 작성일자</th>
           <td class="qd-mid">${esc(d.meta.issueDate)}</td>
         </tr>
@@ -451,13 +473,13 @@
           <td class="qd-mid">${dateLabel(d.trip.startDate)}</td>
           <td class="qd-mid" rowspan="2">${esc(d.trip.durationLabel)}</td>
           <th class="qd-th">지역</th>
-          <td class="qd-mid" colspan="2">${esc(d.trip.region)}</td>
+          <td class="qd-mid" colspan="2">${slot(o, 'trip.region', d.trip.region, '국가명_지역명')}</td>
         </tr>
         <tr>
           <th class="qd-th">도착일</th>
           <td class="qd-mid">${dateLabel(d.trip.endDate)}</td>
           <th class="qd-th">숙박지</th>
-          <td class="qd-mid" colspan="2">${esc(d.trip.stayLabel)}</td>
+          <td class="qd-mid" colspan="2">${slot(o, 'trip.stayLabel', d.trip.stayLabel, '다낭(3)')}</td>
         </tr>
         <tr>
           <th class="qd-th" colspan="2">여행인원</th>
@@ -474,10 +496,12 @@
         </tr>
       </tbody>
     </table>
-    ${d.price.fuelNote ? `<p class="qd-fuel">${esc(d.price.fuelNote)}</p>` : ''}`;
+    ${(d.price.fuelNote || (o && o.edit))
+      ? `<p class="qd-fuel">${slot(o, 'price.fuelNote', d.price.fuelNote, '#0월 기준 유류할증료 적용 기준')}</p>` : ''}`;
   }
 
-  function optionsHtml(d) {
+  function optionsHtml(d, opts) {
+    const o = opts || null;
     if (!d.options.length) return '';
     const money = (n) => '<span class="qd-w">₩</span> ' + won(n) + ' 원';
     return `
@@ -485,14 +509,17 @@
     <table class="qd-t qd-opt">
       ${colgroup(COLS_OPT)}
       <tbody>
-        ${d.options.map((o) => `
+        ${d.options.map((x, i) => `
         <tr>
-          <th class="qd-oth">${esc(o.label)}</th>
-          <td class="qd-mid">${esc(o.name)}</td>
-          <td class="qd-num">${money(o.unit)}</td>
-          <td class="qd-mid">${won(o.qty)}명</td>
-          <td class="qd-num">${o.qty ? money(o.amount) : '<span class="qd-w">₩</span> 원'}</td>
-          <td class="qd-mid">${esc(o.note)}</td>
+          <th class="qd-oth">${esc(x.label)}</th>
+          <td class="qd-mid">${slot(o, 'options.' + i + '.name', x.name, '옵션 이름')}</td>
+          <td class="qd-num">${(o && o.edit)
+            ? '<span class="qd-w">₩</span> ' + slot(o, 'options.' + i + '.unit', x.unit, '0') + ' 원'
+            : money(x.unit)}</td>
+          <td class="qd-mid">${(o && o.edit)
+            ? slot(o, 'options.' + i + '.qty', x.qty, '0') + '명' : won(x.qty) + '명'}</td>
+          <td class="qd-num">${x.qty ? money(x.amount) : '<span class="qd-w">₩</span> 원'}</td>
+          <td class="qd-mid">${slot(o, 'options.' + i + '.note', x.note, '비고')}</td>
         </tr>`).join('')}
       </tbody>
     </table>`;
@@ -502,14 +529,16 @@
      기준 이미지에서 「전 일정 포함」 하나가 기사/차량·가이드·인솔자·식사·입장료·
      여행자보험 **여섯 항목에 걸쳐** 한 칸으로 묶여 있다. 항목 안에서만 묶으면 그 모양이
      안 나온다 — 그래서 **표 전체를 한 줄로 펴서** 이웃한 같은 비고를 묶는다. */
-  function detailsHtml(d) {
+  function detailsHtml(d, opts) {
     if (!d.details.length) return '';
     /* ① 물리적인 줄로 편다 */
     const phys = [];
     d.details.forEach((s, si) => {
       const n = s.rows.length + (s.footnotes.length ? 1 : 0);
       s.rows.forEach((r, ri) => {
-        phys.push({ si, label: s.label, first: ri === 0, span: n, row: r, note: r.note });
+        /* ⚠ `ri`를 함께 남긴다 — 편집에서 **어느 줄에 되돌려 적을지**를 알아야 한다.
+           물리 줄 번호(`phys`의 순서)는 각주 때문에 원래 줄 번호와 다르다. */
+        phys.push({ si, ri, label: s.label, first: ri === 0, span: n, row: r, note: r.note });
       });
       if (s.footnotes.length) {
         phys.push({
@@ -529,23 +558,28 @@
       i = j + 1;
     }
 
+    const o = opts || null;
     const body = phys.map((p) => {
       const item = p.first ? `<th class="qd-th qd-dl" rowspan="${p.span}">${esc(p.label)}</th>` : '';
       let content;
       if (p.foot) {
-        content = `<td class="qd-foot" colspan="2">${p.foot.map((f) => escLines(f)).join('<br>')}</td>`;
+        content = `<td class="qd-foot" colspan="2">${(o && o.edit)
+          ? slot(o, 'details.' + p.si + '.foot', p.foot.join('\n'), '각주', true)
+          : p.foot.map((f) => escLines(f)).join('<br>')}</td>`;
       } else if (p.row.left) {
-        content = `<td class="qd-mid">${escLines(p.row.left)}</td>`
-                + `<td class="qd-mid qd-flt">${escLines(p.row.right)}</td>`;
+        content = `<td class="qd-mid">${slot(o, 'details.' + p.si + '.rows.' + p.ri + '.left', p.row.left, '에어서울', true)}</td>`
+                + `<td class="qd-mid qd-flt">${slot(o, 'details.' + p.si + '.rows.' + p.ri + '.text', p.row.right, '편명·시간', true)}</td>`;
       } else {
         const cls = p.row.accent === 'red' ? ' qd-red' : (p.row.accent === 'blue' ? ' qd-blue' : '');
-        content = `<td class="qd-mid${cls}" colspan="2">${escLines(p.row.text || p.row.right)}</td>`;
+        content = `<td class="qd-mid${cls}" colspan="2">${slot(o, 'details.' + p.si + '.rows.' + p.ri + '.text', (p.row.text || p.row.right), '내용', true)}</td>`;
       }
       const noteCls = (p.note || '').indexOf('사후정산') >= 0 ? ' qd-red' : '';
       /* ⚠ 같은 비고가 여러 줄에 걸치면 그 칸이 **허공에 뜬 것처럼** 보인다(실측: 「전 일정
          포함」이 여섯 줄에 걸쳐 가운데). 묶였다는 것을 색으로 말해 준다 — `qd-note`. */
       const note = p.noteFirst
-        ? `<td class="qd-mid qd-note${p.noteSpan > 1 ? ' qd-note-m' : ''}${noteCls}" rowspan="${p.noteSpan}">${escLines(p.note)}</td>` : '';
+        ? `<td class="qd-mid qd-note${p.noteSpan > 1 ? ' qd-note-m' : ''}${noteCls}" rowspan="${p.noteSpan}">${(o && o.edit)
+            ? slot(o, 'details.' + p.si + '.note', p.note, '비고', true)
+            : escLines(p.note)}</td>` : '';
       return `<tr>${item}${content}${note}</tr>`;
     }).join('');
 
@@ -587,9 +621,15 @@
     <div class="qd-staff">
       ${/* 🔴 **받으시는 분이 먼저다** — 공문이라 수신이 발신보다 위에 온다.
              없으면 줄을 안 그린다(담당자 칸과 달리 「미입력」이 아니다). */''}
-      ${d.meta.clientContact ? `<div><span>받는 분 :</span> ${esc(d.meta.clientContact)} 님</div>` : ''}
-      <div><span>담당자 (연락처) :</span> ${todo(d.meta.staffName)}${d.meta.staffTel ? ' (' + esc(d.meta.staffTel) + ')' : ''}</div>
-      <div><span>E-mail :</span> ${todo(d.meta.staffEmail)}</div>
+      ${(d.meta.clientContact || (opts && opts.edit))
+        ? `<div><span>받는 분 :</span> ${slot(opts, 'meta.clientContact', d.meta.clientContact, '고객 담당자 이름')} 님</div>` : ''}
+      <div><span>담당자 (연락처) :</span> ${(opts && opts.edit)
+        ? slot(opts, 'meta.staffName', d.meta.staffName, '내 이름')
+          + ' (' + slot(opts, 'meta.staffTel', d.meta.staffTel, '02-0000-0000') + ')'
+        : todo(d.meta.staffName) + (d.meta.staffTel ? ' (' + esc(d.meta.staffTel) + ')' : '')}</div>
+      <div><span>E-mail :</span> ${(opts && opts.edit)
+        ? slot(opts, 'meta.staffEmail', d.meta.staffEmail, 'name@hanatrabiz.com')
+        : todo(d.meta.staffEmail)}</div>
     </div>`;
   }
 
@@ -679,10 +719,12 @@
       ${headHtml(d, opts)}
       <h2 class="qd-h2">개요</h2>
       ${overviewHtml(d, opts)}
-      ${optionsHtml(d)}
-      ${detailsHtml(d)}
-      ${d.remarks ? `<h2 class="qd-h2">비고</h2><div class="qd-free">${escLines(d.remarks)}</div>` : ''}
-      ${d.cancelPolicy ? `<h2 class="qd-h2">취소 규정</h2><div class="qd-free">${escLines(d.cancelPolicy)}</div>` : ''}
+      ${optionsHtml(d, opts)}
+      ${detailsHtml(d, opts)}
+      ${(d.remarks || (opts && opts.edit))
+        ? `<h2 class="qd-h2">비고</h2><div class="qd-free">${slot(opts, 'remarks', d.remarks, '비고를 적으세요', true)}</div>` : ''}
+      ${(d.cancelPolicy || (opts && opts.edit))
+        ? `<h2 class="qd-h2">취소 규정</h2><div class="qd-free">${slot(opts, 'cancelPolicy', d.cancelPolicy, '비우면 견적서에 안 나갑니다', true)}</div>` : ''}
       <footer class="qd-foot-bar">
         <span class="qd-brand qd-brand-sm">${esc(c.brand || d.meta.vendor || '비즈페이지')}</span>
         ${d.meta.quoteNo ? `<span class="qd-qno">견적번호 ${esc(d.meta.quoteNo)}</span>` : ''}

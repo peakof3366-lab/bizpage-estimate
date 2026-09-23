@@ -405,10 +405,35 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
   <!-- ══ ③ 견적서 내용 ══ -->
   <section class="sec hidden" id="secDoc">
     <div class="sec-h"><span class="sec-n">3</span><span class="sec-t">견적서 내용</span>
-      <span class="sec-d">담당자 연락처는 <b>비어 있습니다</b> — 직접 적으세요</span></div>
+      <span class="sec-d">아래 견적서에서 <b>고칠 자리를 눌러</b> 바로 적으세요</span></div>
     <div class="sec-b">
+      <!-- ═══ 🔴 **나갈 문서를 보면서 고친다** (2026-09-24 대표 지시) ═══════════
+           「견적서 틀이 그대로 오고 거기에 내용을 입력할 수 있게. 메모 남기고 글쓰고
+             하려니 처음 보는 사람은 너무 복잡해 보여서.」
+           예전에는 이 자리가 **칸 스무 개짜리 폼**이었다. 무엇을 적으면 문서 어디가
+           바뀌는지 보이지 않아, 처음 보는 사람은 순서를 못 잡았다.
+         🔴 **고객이 받는 문서와 같은 함수가 그린다**(`renderQuote(..., {edit:true})`).
+           틀을 따로 만들면 「보이는 대로 나간다」가 그 순간 거짓이 된다.
+         ⚠ 아래 「칸으로 보기」에 **예전 폼을 그대로 남겼다.** 문서에 자리가 없는 값
+           (인원 구성·상세 내용 줄 추가 등)은 거기서 손본다. -->
+      <p class="note-i" style="margin-bottom:10px">
+        <b>노란 밑줄이 그어진 자리를 누르면 바로 고쳐집니다.</b>
+        빈 칸으로 두면 <b>견적서에서 그 항목이 통째로 빠집니다</b> — 회색 글씨는 무엇을 적는 자리인지 알려 주는 예시입니다.
+      </p>
+      <div id="docEdit" class="doc-edit"></div>
+
+      <div class="grid" style="margin-top:16px">
+        <label class="f"><span>거래처명 <em>(문서 제목에 들어갑니다)</em></span><input type="text" id="dClient" placeholder="○○기업" /></label>
+        <label class="f"><span>견적서 작성일자</span><input type="date" id="dIssue2" /></label>
+        <label class="f"><span>유효기간</span><input type="date" id="dValid2" /></label>
+        <label class="f"><span>고객 연락처 <em>(대장용 · 견적서엔 안 나감)</em></span><input type="text" id="dCustTel2" /></label>
+        <label class="f" style="grid-column:1/-1"><span>내부 메모 <em>(🔴 고객에게 안 나갑니다)</em></span><textarea id="dMemo2"></textarea></label>
+      </div>
+
+      <details class="fold-note" id="docFormFold">
+        <summary class="fold-note" style="margin-top:14px">칸으로 보기 — 전체 목록 (인원 구성 · 상세 내용 줄 추가 · 선택 옵션)</summary>
       <div class="grid">
-        <label class="f"><span>거래처명 <em>(제목에 들어갑니다)</em></span><input type="text" id="dClient" placeholder="○○기업" /></label>
+        <label class="f"><span>받는 분 <em>(고객 담당자)</em></span><input type="text" id="dClientContact" placeholder="홍길동" /></label>
         <label class="f"><span>단체명</span><input type="text" id="dOrgName" placeholder="○○기업 해외연수단" /></label>
         <label class="f"><span>지역 표기 <em>(국가명_지역명)</em></span><input type="text" id="dRegion" /></label>
         <label class="f"><span>숙박지</span><input type="text" id="dStay" placeholder="다낭(3)" /></label>
@@ -445,6 +470,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         <label class="f" style="grid-column:1/-1"><span>취소 규정 <em>(비우면 견적서에 안 나갑니다)</em></span><textarea id="dCancel"></textarea></label>
         <label class="f" style="grid-column:1/-1"><span>내부 메모 <em>(🔴 고객에게 안 나갑니다)</em></span><textarea id="dMemo"></textarea></label>
       </div>
+      </details>
       <div class="navbar">
         <button type="button" class="btn" data-goto="2">← 이전: 금액 조정</button>
         <span class="bar-sp"></span>
@@ -1627,6 +1653,9 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         /* 작성일자는 **입력칸**이다 — 며칠 전에 뽑아 둔 견적을 오늘 날짜로 찍으면 안 된다 */
         issueDate: $('dIssue').value || ymd(new Date()), validUntil: $('dValid').value,
         staffName: $('dStaffName').value, staffTel: $('dStaffTel').value, staffEmail: $('dStaffEmail').value,
+        /* 🔴 **받는 분**(공문이다). 고객이 직접 뽑은 건은 서버가 payload에서 채우는데,
+           담당자가 만든 건에는 적을 자리가 아예 없었다 — 이름 없는 견적서가 나갔다. */
+        clientContact: $('dClientContact').value,
       },
       trip: {
         orgName: $('dOrgName').value, startDate: $('pStart').value, endDate: $('pEnd').value,
@@ -1712,10 +1741,115 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     } else w.classList.add('hidden');
   }
 
-  function renderAll() { renderMoney(); renderPreview(); }
+  /* ══ ③단계 — 문서를 그리고, 문서에 적은 것을 **원래 칸으로 되돌린다** ═══════
+     🔴 **저장 경로는 한 글자도 안 바뀐다.** 여기서 하는 일은 「문서의 그 자리」와
+       「원래 입력칸/상태」를 잇는 것뿐이고, 저장은 예전처럼 `buildDoc()`이 원래 칸을
+       읽어서 만든다. 그래서 문서 편집이 고장 나도 **저장된 값이 틀어지지는 않는다.**
+     ⚠ 글자를 칠 때마다 다시 그리면 **커서가 날아간다.** 되돌려 적기만 하고 다시
+       그리지 않는다 — 화면에는 이미 친 글자가 그대로 있다. 숫자처럼 **다른 칸을
+       바꾸는 값**만 칸을 떠날 때 다시 그린다. */
+  function renderDocEdit() {
+    const host = $('docEdit');
+    if (!host || typeof QuoteDoc === 'undefined') return;
+    host.innerHTML = QuoteDoc.renderQuote(QuoteDoc.stripInternal(buildDoc()),
+      { company: window.COMPANY_INFO, edit: true });
+  }
+
+  /* 문서의 한 자리 → 원래 칸. **이 표가 유일한 연결점이다.** */
+  function writeDocField(field, v) {
+    const byId = {
+      'meta.clientContact': 'dClientContact', 'meta.staffName': 'dStaffName',
+      'meta.staffTel': 'dStaffTel', 'meta.staffEmail': 'dStaffEmail',
+      'trip.orgName': 'dOrgName', 'trip.region': 'dRegion', 'trip.stayLabel': 'dStay',
+      'price.condition': 'dCondition', 'price.fuelNote': 'dFuel',
+      'price.qty.adult': 'dAdult', 'price.qty.child': 'dChild', 'price.qty.infant': 'dInfant',
+      remarks: 'dRemarks', cancelPolicy: 'dCancel',
+    };
+    if (byId[field]) {
+      const el = $(byId[field]);
+      if (!el) return false;
+      el.value = /^price\.qty\./.test(field) ? String(Math.max(0, Math.round(Number(v.replace(/[^0-9-]/g, '')) || 0))) : v;
+      return /^price\.qty\./.test(field);
+    }
+    let m = field.match(/^details\.(\d+)\.rows\.(\d+)\.(text|left)$/);
+    if (m) {
+      const d = S.details[Number(m[1])], r = d && d.rows[Number(m[2])];
+      if (r) r[m[3]] = v;
+      return false;
+    }
+    m = field.match(/^details\.(\d+)\.note$/);
+    if (m) {
+      /* ⚠ 비고는 **구역 단위**다 — `buildDoc`이 `rows[0].note`를 구역 비고로 쓴다.
+         한 줄만 고치면 저장된 값과 화면이 갈린다. 그 구역 줄 전부에 같이 적는다. */
+      const d = S.details[Number(m[1])];
+      if (d) d.rows.forEach((r) => { r.note = v; });
+      return false;
+    }
+    m = field.match(/^details\.(\d+)\.foot$/);
+    if (m) {
+      const d = S.details[Number(m[1])];
+      if (d) d.foot = v;
+      return false;
+    }
+    m = field.match(/^options\.(\d+)\.(name|note|unit|qty)$/);
+    if (m) {
+      const o = S.options[Number(m[1])];
+      if (!o) return false;
+      if (m[2] === 'unit' || m[2] === 'qty') {
+        o[m[2]] = Math.max(0, Math.round(Number(String(v).replace(/[^0-9-]/g, '')) || 0));
+        return true;   /* 금액이 따라 바뀐다 — 칸을 떠날 때 다시 그린다 */
+      }
+      o[m[2]] = v;
+      return false;
+    }
+    return false;
+  }
+
+  (function wireDocEdit() {
+    const host = $('docEdit');
+    if (!host) return;
+    const textOf = (el) => (el.innerText || '').replace(/\u00a0/g, ' ')
+      .replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
+    let needRedraw = false;
+    host.addEventListener('input', (e) => {
+      const el = e.target.closest && e.target.closest('[data-qd-f]');
+      if (!el) return;
+      if (writeDocField(el.dataset.qdF, textOf(el))) needRedraw = true;
+      renderSum();
+    });
+    /* 🔴 **붙여넣기는 글자만 받는다.** 그냥 두면 남의 문서 서식(색·표)이 통째로 들어와
+       견적서가 고객에게 그 모양으로 나간다. */
+    host.addEventListener('paste', (e) => {
+      if (!(e.target.closest && e.target.closest('[data-qd-f]'))) return;
+      e.preventDefault();
+      const t = (e.clipboardData || window.clipboardData).getData('text');
+      document.execCommand('insertText', false, t);
+    });
+    host.addEventListener('blur', () => {
+      if (!needRedraw) return;
+      needRedraw = false;
+      renderDocEdit();
+      renderAll();
+    }, true);
+  })();
+
+  function renderAll() { renderMoney(); renderPreview(); renderDocEdit(); }
+
+  /* 🔴 **같은 값을 두 칸에 적지 않는다.** 위(문서 옆)로 뺀 네 칸은 접이식 안의
+     원래 칸을 **그대로 비추는 거울**이다 — 어느 쪽에 적어도 원래 칸 하나에만 저장된다.
+     ⚠ 거울을 따로 저장하면 두 값이 갈리고, 저장되는 것은 늘 한쪽뿐이다(결함 생성기 ①). */
+  [['dIssue2', 'dIssue'], ['dValid2', 'dValid'], ['dCustTel2', 'dCustTel'], ['dMemo2', 'dMemo']]
+    .forEach(([mirror, real]) => {
+      const a = $(mirror), b = $(real);
+      if (!a || !b) return;
+      const push = (from, to) => { if (to.value !== from.value) { to.value = from.value; } };
+      a.addEventListener('input', () => { push(a, b); renderAll(); });
+      b.addEventListener('input', () => push(b, a));
+      push(b, a);
+    });
 
   ['dClient', 'dOrgName', 'dRegion', 'dStay', 'dStaffName', 'dStaffTel', 'dStaffEmail', 'dIssue', 'dValid',
-    'dAdult', 'dChild', 'dInfant', 'dCondition', 'dFuel', 'dRemarks', 'dCancel', 'dMemo']
+    'dAdult', 'dChild', 'dInfant', 'dCondition', 'dFuel', 'dRemarks', 'dCancel', 'dMemo', 'dClientContact']
     .forEach((id) => $(id).addEventListener('input', renderPreview));
 
   /* ═══ 저장 ═══════════════════════════════════════════════════════════════
@@ -1926,7 +2060,12 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
       foot: (d.footnotes || []).join('\n'),
       red: (d.rows || []).some((r) => r.accent === 'red'),
       rows: (d.rows || []).map((r) => ({
-        left: r.left || '', text: r.right !== undefined ? r.right : (r.text || ''),
+        left: r.left || '',
+        /* 🔴 **`right`가 있다고 그걸 쓰면 안 된다.** `normalize`가 모든 줄에 `right: ''`를
+           채워 두기 때문에 「있으면 쓴다」로 읽으면 **진짜 내용(`text`)이 통째로 날아간다.**
+           실제로 그렇게 날아갔고, 상세 내용이 빈 줄이 되어 `buildDoc`이 그 항목을
+           통째로 걸러 버렸다(항목 7개 중 1개만 남았다). 값이 **들어 있는 쪽**을 고른다. */
+        text: (r.text != null && String(r.text) !== '') ? r.text : (r.right || ''),
         note: r.note || '', accent: r.accent || '',
       })),
     }));

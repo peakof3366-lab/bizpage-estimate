@@ -348,3 +348,23 @@
   /* 문서마다 새 장에서 시작한다 — 견적서와 일정표가 한 장에 섞이면 결재에서 못 쓴다 */
   .qdv-panel + .qdv-panel { break-before: page; page-break-before: always; margin-top: 0; }
 }
+
+/* ═══ 문서에 직접 입력하는 자리 (2026-09-24 대표 지시) ═══════════════════════
+   🔴 **고객 문서에는 이 규칙이 닿을 일이 없다** — `qd-ed`는 편집 모드에서만 생긴다.
+   ⚠ 종이 모양을 흔들지 않는다: 테두리를 **안쪽 그림자**로 그려 글자 위치가 안 밀린다.
+     칸마다 테두리를 두르면 「고칠 수 있다」는 표시가 문서를 서류처럼 안 보이게 만든다. */
+.qd-ed {
+  display: inline-block; min-width: 2.2em; min-height: 1.3em;
+  padding: 1px 3px; margin: -1px -3px; border-radius: 2px;
+  box-shadow: inset 0 -1px 0 #E3DFD2; cursor: text; white-space: pre-wrap;
+}
+.qd-ed:hover { background: #FFFDF2; box-shadow: inset 0 0 0 1px #E0D9BE; }
+.qd-ed:focus {
+  outline: none; background: #FFFFFF;
+  box-shadow: inset 0 0 0 2px #514dc2; /* BI 보라 — 흰 바탕에서 쓰는 쪽 */
+}
+/* 🔴 빈 칸은 **무엇을 적는 자리인지** 말한다. 빈 칸이 그냥 비어 있으면 담당자는
+   그 자리가 있는 줄도 모르고 지나가고, 그 항목은 견적서에서 통째로 빠진다. */
+.qd-ed:empty::before { content: attr(data-ph); color: #B5B1A6; }
+.qd-ed-m { display: block; }
+@media print { .qd-ed { box-shadow: none; background: none; } }

@@ -268,8 +268,12 @@ const EDIT_CHECKS = async () => {
   const boot = bootPage('admin-quote-pro.html', {
     query: '?quote=qEDIT1',
     /* ⚠ `/api/quotes`로 시작하는 주소는 전부 이 값을 받는다 — 단건 조회도 여기로 온다 */
+    /* 🔴 **저장된 문서는 `normalize`를 지난 모양이다.** 손으로 지은 픽스처를 그대로
+       쓰면 실제보다 「깨끗」해서(예: 모든 줄의 `right: ''`가 없다) 진짜 결함을 못 잡는다 —
+       2026-09-24에 상세 내용이 통째로 날아가는 결함을 **고장을 넣어도 통과**시켰다. */
     fixtures: { quotes: { id: 'qEDIT1', quoteNo: 'BP-2609-0042', destKey: '다낭',
-      participants: 20, days: 5, total: 30000000, perPerson: 1500000, doc: EDIT_DOC } },
+      participants: 20, days: 5, total: 30000000, perPerson: 1500000,
+      doc: require(path.join(ROOT, 'quote_doc.js')).normalize(EDIT_DOC) } },
   });
   await boot.ready;
   await boot.tick(400);
@@ -304,6 +308,26 @@ const EDIT_CHECKS = async () => {
   ok('[18-g] 🔴 감춘 수익 줄도 돌아왔다', /ENBT 수익/.test(vals()), vals().slice(0, 100));
   ok('[18-h] 원가가 돌아왔다', val('adhocCost') === '21000000', val('adhocCost'));
   ok('[18-i] 실무 변수(FOC)가 돌아왔다', /FOC/.test(txt()));
+  /* 🔴🔴 **상세 내용이 통째로 날아가던 자리** (2026-09-24에 실제로 겪었다).
+     `normalize`가 모든 줄에 `right: ''`를 채워 두는데, 되돌려 읽을 때 「right가 있으면
+     쓴다」로 읽어 **진짜 내용(`text`)을 빈 값으로 덮었다.** 그러면 `buildDoc`이 빈 줄을
+     걸러서 **항목 7개 중 1개만 남았다** — 화면은 조용했고 검사도 통과했다.
+   ⚠ 그래서 **항목 수와 글자를 둘 다** 센다. 수만 세면 빈 항목도 통과한다. */
+  await goStep(3);
+  /* ⚠ **jsdom에는 `innerText`가 없다**(undefined). `textContent`로 읽는다 —
+     이걸로 한 번 헛돌았다. 브라우저 쪽 점검 도구는 innerText를 써도 된다. */
+  const docTxt = () => ((D.getElementById('docEdit') || {}).textContent || '').replace(/\s+/g, ' ');
+  const secNames = () => Array.from(D.querySelectorAll('#docEdit table.qd-det th.qd-dl')).map((e) => e.textContent);
+  ok('[18-h2] 🔴 상세 내용 항목이 다 돌아왔다', secNames().length === 2, secNames().join(' · '));
+  ok('[18-h3] 🔴 그 안의 글자도 남아 있다 (빈 항목이 아니다)',
+    /RS0527/.test(docTxt()) && /개인 경비/.test(docTxt()), docTxt().slice(0, 120));
+  ok('[18-h4] 문서에 직접 입력하는 자리가 있다',
+    D.querySelectorAll('#docEdit [data-qd-f]').length >= 10,
+    String(D.querySelectorAll('#docEdit [data-qd-f]').length) + '개');
+  ok('[18-h5] 🔴 고객 문서에는 그 자리가 없다',
+    !/data-qd-f/.test(require('fs').readFileSync(path.join(ROOT, 'quote_doc.js'), 'utf8')
+      .match(/function slot[\s\S]{0,400}/)[0].split('if (!(o && o.edit)) return txt;')[0]));
+
   await goStep(4);
   ok('[18-j] 일정 2일치가 돌아왔다', /기관 방문/.test(vals()), vals().slice(0, 100));
   await goStep(5);
