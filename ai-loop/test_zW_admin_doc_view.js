@@ -38,7 +38,13 @@ const 기본견적 = {
   participants: 30, days: 4, nights: 3, total: 56696074, perPerson: 1889869,
   orgName: '[가상] 새롬물산', contact: '[가상] 김담당', contactTel: '010-1234-5678',
   status: 'new', basis: 'engine', startDate: '2027-05-10',
+  /* 🔴 **원가와 판매가를 다르게 둔다.** 예전엔 `visibleTotal`이 없어 원가 = 판매가였고,
+     그 상태에서는 「판매가 배분을 원가에 맞추는」 고장을 넣어도 검사가 **그대로 통과했다**
+     (실측: 고장 주입 → 53 pass). 자가 아무것도 증명하지 못하는 상태였다.
+     ⚠ 합(35,000,000)과 `visibleTotal`을 맞춰 둔다 — 둘이 어긋나면 검사가 무엇을 재는지
+       사람이 못 읽는다. */
   items: [{ name: '항공', amount: 20000000 }, { name: '호텔', amount: 15000000 }],
+  visibleTotal: 35000000,
 };
 
 /* 내부직원용이 저장하는 모양 그대로 — `_internal`에 원가·마진이 들어 있다.
@@ -160,8 +166,78 @@ async function 태우기(견적) {
     /* 🔴 여기가 핵심 — 내부 값이 비치면 안 된다 */
     ok('[2-e] 🔴 원가·마진·내부 메모가 안 보인다',
       !/내부 메모/.test(글) && !/40,000,000/.test(글) && !/16,696,074/.test(글), 글.slice(0, 120));
-    /* 접어 둔 채로 연다 — 모달이 이미 길다 */
-    ok('[2-f] 처음엔 접혀 있다', D.getElementById('em-doc-box').open === false);
+    /* ⚠ 2026-09-23 대표 지시 2-1로 **접이식이 사라졌다** — 이 문서가 곧 「고객용 탭」이고,
+       상세를 열면 그 탭이 기본이다. 그래서 재는 것이 「접혀 있나」에서
+       「**열자마자 고객용이 보이나**」로 바뀐다. */
+    ok('[2-f] 열면 고객용 탭이다', D.getElementById('emModalBody').dataset.emtab === 'cust',
+      D.getElementById('emModalBody').dataset.emtab);
+    ok('[2-f2] 🔴 「수정하기」는 문서를 그리는 곳에 없다 (인쇄·PDF·공유 링크로 샐 수 없다)',
+      !/수정하기/.test(read('quote_doc.js')));
+    ok('[2-f3] 세 단락이 각각 「수정하기」를 갖는다',
+      (D.querySelectorAll('#em-doc-prev .em-cust-edit button') || []).length >= 2,
+      String((D.querySelectorAll('#em-doc-prev .em-cust-edit button') || []).length) + '개');
+    /* 🔴 **탭이 진짜로 가리는가** — 규칙을 적어 둔 것과 실제로 덮이는 것은 다른 말이다.
+       고객용일 때 원가 표(직원용)가 계산상 `display:none`이어야 한다. */
+    const disp = (id) => {
+      const el = D.getElementById(id);
+      return el ? (B.win.getComputedStyle(el).display || '') : '(없음)';
+    };
+    ok('[2-f5] 🔴 고객용일 때 원가 표가 덮인다', disp('em-sec-items') === 'none', disp('em-sec-items'));
+    ok('[2-f6] 고객용 칸은 보인다', disp('emTabCust') !== 'none', disp('emTabCust'));
+    /* 직원용으로 넘기면 반대가 된다 */
+    const s3 = D.createElement('script');
+    s3.textContent = "emGotoEdit('breakdown');";
+    D.body.appendChild(s3);
+    await B.tick(60);
+    ok('[2-f7] 🔴 수정하기가 직원용으로 데려간다',
+      D.getElementById('emModalBody').dataset.emtab === 'staff');
+    ok('[2-f8] 그때 원가 표가 보인다', disp('em-sec-items') !== 'none', disp('em-sec-items'));
+    ok('[2-f9] 어디로 왔는지 표시한다', D.getElementById('em-sec-items').classList.contains('em-flash'));
+    ok('[2-f10] 그때 고객용 칸은 덮인다', disp('emTabCust') === 'none', disp('emTabCust'));
+    /* 다시 고객용으로 — 되돌아갈 수 있어야 한다 */
+    const s4 = D.createElement('script');
+    s4.textContent = "emSetTab('cust');";
+    D.body.appendChild(s4);
+    await B.tick(60);
+    ok('[2-f11] 고객용으로 돌아온다', disp('em-sec-items') === 'none');
+
+    /* ⚠ **규칙은 `admin.css`에 있다.** 처음에 admin.html의 `<style>`에 넣었는데,
+       그건 **인쇄 팝업 템플릿** 안이라 모달에는 한 줄도 안 닿았다(실측: 덮이지 않았다).
+       화면 규칙을 어디에 적는지도 「한 곳」이 있다. */
+    ok('[2-f4] 수정하기가 인쇄에서 빠진다',
+      /\.em-tabbar, \.em-cust-edit \{ display:none/.test(read('admin.css')));
+    /* ═══ 💰 수익 요약 (대표 지시 2-5) ═════════════════════════════════════
+       🔴 대표 확인 사항: 「수익 요약 수치가 세부견적 원가·판매가 합계와 일치하는지」.
+         화면에 그려진 **글자에서 숫자를 다시 읽어** 맞춰 본다 — 계산식을 여기 다시 적으면
+         같은 실수를 두 번 하게 된다(자가 코드를 베끼면 아무것도 증명하지 못한다). */
+    const PS = D.getElementById('em-profit-summary');
+    ok('[2-g] 수익 요약 칸이 그려졌다', !!PS && !PS.classList.contains('hidden'));
+    const num = (t) => Number(String(t || '').replace(/[^0-9-]/g, '')) || 0;
+    const cardOf = (k) => (PS && PS.querySelector('[data-v="' + k + '"]')
+      ? PS.querySelector('[data-v="' + k + '"]').textContent : '');
+    ok('[2-g2] 다섯 칸이다(판매가·원가·이익·이익률·1인당)',
+      ['sell', 'cost', 'profit', 'rate', 'per'].every((k) => cardOf(k) !== ''),
+      ['sell', 'cost', 'profit', 'rate', 'per'].map((k) => k + '=' + cardOf(k)).join(' '));
+    const sell = num(cardOf('sell')), cost = num(cardOf('cost')), profit = num(cardOf('profit'));
+    ok('[2-g3] 🔴 이익 = 판매가 − 원가', profit === sell - cost, sell + ' - ' + cost + ' vs ' + profit);
+    const sold = PS ? Array.from(PS.querySelectorAll('tbody tr')).map((tr) => num(tr.children[2].textContent)) : [];
+    const soldSum = sold.reduce((x, y) => x + y, 0);
+    ok('[2-g4] 🔴 항목 판매가 합계 = 총 판매가', sold.length > 0 && soldSum === sell,
+      soldSum + ' vs ' + sell);
+    const costs = PS ? Array.from(PS.querySelectorAll('tbody tr')).map((tr) => num(tr.children[1].textContent)) : [];
+    ok('[2-g5] 항목 원가가 비어 있지 않다', costs.length > 0 && costs.some((x) => x > 0));
+    /* 🔴 **고객용에는 한 글자도 안 나간다** */
+    const custText = (D.getElementById('emTabCust') || {}).textContent || '';
+    ok('[2-g6] 🔴 고객용 칸에 「마진」·「원가」가 없다',
+      !/마진|원가/.test(custText), custText.slice(0, 80));
+    ok('[2-g7] 수익 요약은 직원용 쪽이다 (고객용 칸 밖)',
+      !!PS && !(D.getElementById('emTabCust') || { contains: () => false }).contains(PS));
+    /* 경고선은 한 곳에만 적혀 있어야 나중에 대표가 정할 때 한 번만 고친다 */
+    ok('[2-g8] 이익률 경고선이 한 곳에 있다',
+      (read(path.join('admin', 'estmgr.js')).split('EM_MARGIN_WARN =').length - 1) === 1);
+
+    ok('[2-f12] 탭 가르기 규칙이 admin.css에 있다',
+      /#emModalBody\[data-emtab="cust"\] > \*:not/.test(read('admin.css')));
 
     /* ═══ ③ 안내줄과 확인창이 **실제로 나가는 것**을 말한다 ═══════════════ */
     ok('[3] 안내줄이 문서 일정을 가리킨다',

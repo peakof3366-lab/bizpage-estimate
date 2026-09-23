@@ -405,6 +405,10 @@
     const e   = all.find(x => x.id === id);
     if (!e) return;
     emCurrentId = id;
+    /* 🔴 **열 때마다 고객용으로 되돌린다** (대표 지시 2-1: 「기본으로 열리는 탭은 고객용」).
+       앞 견적에서 직원용을 보고 닫았으면 다음 건이 원가 화면으로 열린다 — 상태가
+       건을 넘어 새는 자리다(일정 편집기에서 이미 한 번 겪었다). */
+    emSetTab('cust');
     /* UI: 일정 편집기를 접어 둔 상태로 되돌린다. 안 지우면 **앞 견적의 일정이
        다음 견적 화면에 그대로 남고**, 그 상태로 저장하면 남의 일정이 이 고객에게 간다.
        ⚠ UM: 편집기가 모달로 나갔으므로 **열려 있으면 닫는 것까지** 해야 한다.
@@ -512,6 +516,10 @@
     /* 수익금 박스가 있으면 업데이트 */
     const profitEl = document.getElementById('em-profit');
     if (profitEl) profitEl.textContent = fmt(profit2);
+
+    /* 💰 수익 요약 (대표 지시 2-5) — 금액을 채운 **직후**에 그린다.
+       ⚠ 여기서 그려야 항목 표·금액 칸과 같은 값을 본다(따로 불러오면 한 박자 어긋난다). */
+    emRenderProfit(e);
 
     /* P5: 실측 기준 신뢰구간 (내부 전용 · 순수 표시) */
     const confEl = document.getElementById('em-confidence');
@@ -900,12 +908,11 @@
      되고 있었다. 없던 것은 **담당자가 발급 전에 확인할 자리**다.
      🔴 **여기서 문서를 다시 그리지 않는다.** 그리는 곳은 `quote_doc.js` 하나다. */
   function emRenderDocPreview(rec) {
-    const box = document.getElementById('em-doc-box');
     const prev = document.getElementById('em-doc-prev');
     const state = document.getElementById('em-doc-state');
-    if (!box || !prev || !state) return;
-    /* 앞 견적에서 펼쳐 둔 상태를 물려받지 않는다 — 남의 문서를 편 채로 열리면 안 된다 */
-    box.open = false;
+    if (!prev || !state) return;
+    /* ⚠ 2026-09-23: 접이식 상자가 없어졌다(고객용 탭이 곧 이 자리다).
+       앞 견적의 내용을 물려받지 않게 비우는 일은 그대로 한다. */
     prev.innerHTML = '';
 
     const doc = emDocOf(rec);
@@ -931,9 +938,26 @@
       safe = QuoteDoc.applyParts(QuoteDoc.stripInternal(QuoteDoc.normalize(doc)), parts);
       /* 🔴 **세부견적서가 빠져 있었다** — 만들어 놓고 이 자리에 안 그리고 있었다.
          순서는 고객 화면(롤링)과 같아야 한다: 견적서 → 세부견적서 → 일정표. */
-      prev.innerHTML = QuoteDoc.renderQuote(safe)
-        + (QuoteDoc.renderBreakdown ? QuoteDoc.renderBreakdown(safe) : '')
-        + QuoteDoc.renderItinerary(safe);
+      /* 🔴 **세 단락을 갈라서 보여준다** (2026-09-23 대표 지시 2-2). 붙여 놓으면
+         고객이 한 장짜리 긴 문서로 읽는다 — 9/22에 고객 화면에서 고친 것과 같은 이유다.
+       🔴 **「수정하기」는 여기서만 붙인다.** `quote_doc.js`(문서를 그리는 곳)에는 한 글자도
+         넣지 않는다. 그래서 인쇄·PDF·고객 공유 링크에는 **나갈 수가 없다** —
+         「빼는 것을 잊었다」가 성립하지 않는 구조로 둔다(대표 지시 2-2).
+       ⚠ 세부견적서는 줄이 없으면 아예 안 나간다 — 그때는 단락 자체를 만들지 않는다
+         (제목만 덜렁 남으면 고객에게 빈 문서를 보낸 것처럼 보인다). */
+      const sect = (key, title, note, html) => html ? (
+        '<section class="em-cust-sect" data-cust="' + key + '">'
+        + '<div class="em-cust-tag"><b>' + title + '</b><span>' + note + '</span></div>'
+        + html
+        + '<div class="em-cust-edit no-print">'
+        + '<button type="button" onclick="emGotoEdit(\'' + key + '\')">'
+        + title + ' 수정하기 →</button></div>'
+        + '</section>') : '';
+      const bdHtml = QuoteDoc.renderBreakdown ? QuoteDoc.renderBreakdown(safe) : '';
+      prev.innerHTML =
+        sect('quote', '종합견적서', '고객이 결재에 올리는 문서입니다', QuoteDoc.renderQuote(safe))
+        + sect('breakdown', '세부견적서', '항목을 다 더하면 총액과 맞습니다', bdHtml)
+        + sect('iti', '일정표', '여기 적힌 글이 그대로 고객에게 갑니다', QuoteDoc.renderItinerary(safe));
       /* 🔴 **A4 한 장에 맞춘다** (2026-09-22). 이 자리는 담당자가 발급 전에 보는
          유일한 화면이라, 여기서 한 장으로 보여야 고객이 받는 것과 같다.
          ⚠ 모달이 아직 안 열렸으면 높이가 0이라 못 잰다 — 여는 쪽에서 한 번 더 부른다. */
@@ -958,6 +982,155 @@
     /* 일부러 뺀 것은 경고가 아니다 — 비어 있는 것만 노랗게 */
     const missing = (!parts2 || parts2.iti !== false) && !days;
     state.style.color = missing ? 'var(--warn)' : '#15803D';
+  }
+
+
+  /* ══ 💰 수익 요약 (2026-09-23 대표 지시 2-5) ═══════════════════════════════
+     🔴 **판매가 배분을 여기서 새로 계산하지 않는다.** 고객이 받는 세부견적서와 같은 자
+       (`QuoteDoc.allocateBreakdown`)를 부른다 — 두 벌이면 담당자가 보는 마진과 고객이
+       받는 표가 어긋나고, 그 어긋남은 아무도 못 찾는다(결함 생성기 ①).
+     🔴 **못 맞춘 줄은 「—」로 둔다.** 이름이 안 맞으면 판매가를 짐작해 채우지 않는다.
+       틀린 마진율은 없는 것보다 나쁘다(결함 생성기 ②).
+     ⚠ 이익률 경고선 10%는 **대표 임시값**이다(2026-09-07 기록). 실측 마진은 ×1.141이라
+       이 선이 실제 방침이 되려면 대표가 정해야 한다 — 그래서 값을 한 곳에만 둔다. */
+  const EM_MARGIN_WARN = 0.10;
+
+  function emRenderProfit(e) {
+    const box = document.getElementById('em-profit-summary');
+    if (!box) return;
+    const won = (n) => '₩' + Math.round(Number(n) || 0).toLocaleString('ko-KR');
+    const pct = (n) => (Number(n) * 100).toFixed(1) + '%';
+    const sell = Number(e.total) || 0;
+    const cost = e.visibleTotal !== undefined && e.visibleTotal !== null
+      ? Number(e.visibleTotal) : sell;
+    const pax = Math.max(1, Number(e.participants) || 1);
+    const profit = sell - cost;
+    const rate = sell > 0 ? profit / sell : 0;
+    const low = sell > 0 && rate < EM_MARGIN_WARN;
+
+    /* 항목별 — 원가는 견적 기록의 항목 금액, 판매가는 고객 세부견적서와 같은 배분 */
+    const visible = (e.items || []).filter((it) => !it.isHidden)
+      .map((it) => ({ name: it.adminLabel || it.name || '', amount: Number(it.amount) || 0 }));
+    let sold = null;
+    try {
+      if (typeof QuoteDoc !== 'undefined' && QuoteDoc.allocateBreakdown && visible.length && sell > 0) {
+        sold = QuoteDoc.allocateBreakdown(visible, sell);
+      }
+    } catch (err) { sold = null; }
+    const soldOf = (i) => (sold && sold[i] && typeof sold[i].amount === 'number') ? sold[i].amount : null;
+
+    const rows = visible.map((r, i) => {
+      const sv = soldOf(i);
+      const mg = sv === null ? null : sv - r.amount;
+      const mr = (sv === null || sv <= 0) ? null : mg / sv;
+      const warn = mr !== null && mr < EM_MARGIN_WARN;
+      return '<tr>'
+        + '<td style="padding:.32rem .5rem">' + esc(r.name) + '</td>'
+        + '<td style="padding:.32rem .5rem;text-align:right;color:var(--muted)">' + won(r.amount) + '</td>'
+        + '<td style="padding:.32rem .5rem;text-align:right">' + (sv === null ? '—' : won(sv)) + '</td>'
+        + '<td style="padding:.32rem .5rem;text-align:right">' + (mg === null ? '—' : won(mg)) + '</td>'
+        + '<td style="padding:.32rem .5rem;text-align:right;font-weight:700;color:'
+        + (mr === null ? 'var(--muted)' : (warn ? 'var(--danger)' : 'var(--success)')) + '">'
+        + (mr === null ? '—' : pct(mr)) + '</td>'
+        + '</tr>';
+    }).join('');
+
+    /* 🔴 환율은 **이 건에 실제로 적용된 조정 계수**다. 항목별 환율은 기록에 없으므로
+       있는 척하지 않는다 — 없는 값을 그리면 담당자가 그것을 근거로 판단한다. */
+    const fx = Number(e.fxAdjust);
+    const fxLine = Number.isFinite(fx) && Math.abs(fx - 1) > 1e-6
+      ? '적용 환율 계수 <b>×' + fx.toFixed(3) + '</b>'
+        + (e.rateDate ? ' · 기준 ' + esc(String(e.rateDate)) : '')
+        + (e.rateVer ? ' · Ver.' + esc(String(e.rateVer)) : '')
+      : (e.rateDate
+        ? '환율 조정 없음(계수 1.000) · 요율 기준 ' + esc(String(e.rateDate))
+        : '환율·요율 기준이 이 기록에 없습니다');
+
+    /* ⚠ `data-k`를 단다 — 검사가 「몇 번째 칸」으로 읽으면 칸 순서를 바꾸는 날 조용히
+       엉뚱한 값을 재게 된다(실제로 그렇게 짰다가 숫자가 이어 붙어 나왔다). */
+    const card = (k, label, value, color) =>
+      '<div data-k="' + k + '" style="padding:.55rem .7rem;background:#fff;border:1px solid var(--border)">'
+      + '<div style="font-size:.72rem;color:var(--muted)">' + label + '</div>'
+      + '<div data-v="' + k + '" style="font-size:1.05rem;font-weight:800;color:' + color + '">' + value + '</div></div>';
+
+    box.innerHTML =
+      '<div class="detail-label" style="margin-bottom:.6rem">💰 수익 요약'
+      + '<span style="font-size:.72rem;font-weight:400;color:var(--warn);margin-left:.5rem;'
+      + 'background:#fffbeb;border:1px solid #fde68a;padding:.1rem .4rem">🔒 고객에게 안 나갑니다</span>'
+      + '<span style="font-size:.72rem;font-weight:400;color:var(--muted);margin-left:.4rem">읽기 전용</span>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.7rem">'
+      + card('sell', '총 판매가', won(sell), '#1d4ed8')
+      + card('cost', '총 원가', won(cost), 'var(--muted)')
+      + card('profit', '예상 이익', won(profit), profit >= 0 ? 'var(--success)' : 'var(--danger)')
+      + card('rate', '이익률', sell > 0 ? pct(rate) : '—', low ? 'var(--danger)' : 'var(--success)')
+      + card('per', '1인당 이익', won(profit / pax), profit >= 0 ? 'var(--success)' : 'var(--danger)')
+      + '</div>'
+      + (low
+        ? '<div style="padding:.5rem .7rem;background:#FFF4F5;border-left:3px solid var(--danger);'
+          + 'color:var(--danger);font-size:.8rem;font-weight:700;margin-bottom:.6rem">'
+          + '🔴 이익률이 기준(' + pct(EM_MARGIN_WARN) + ') 아래입니다 — ' + pct(rate)
+          + '<span style="font-weight:400;color:var(--muted);margin-left:.4rem">기준값은 임시입니다(대표 확인 전)</span>'
+          + '</div>'
+        : '')
+      + (rows
+        ? '<table style="width:100%;border-collapse:collapse;font-size:.8rem;background:#fff">'
+          + '<thead><tr style="background:var(--bg)">'
+          + '<th style="padding:.32rem .5rem;text-align:left">항목</th>'
+          + '<th style="padding:.32rem .5rem;text-align:right">원가</th>'
+          + '<th style="padding:.32rem .5rem;text-align:right">판매가</th>'
+          + '<th style="padding:.32rem .5rem;text-align:right">마진</th>'
+          + '<th style="padding:.32rem .5rem;text-align:right">마진율</th>'
+          + '</tr></thead><tbody>' + rows + '</tbody></table>'
+        : '<div style="font-size:.8rem;color:var(--muted)">항목 내역이 없어 항목별 마진을 낼 수 없습니다.</div>')
+      + '<div style="font-size:.74rem;color:var(--muted);margin-top:.5rem">' + fxLine + '</div>';
+    box.classList.remove('hidden');
+  }
+
+  /* ══ 고객용 / 직원용 (2026-09-23 대표 지시 2-1·2-3) ═══════════════════════
+     🔴 **기본은 고객용이다.** 담당자가 상세를 여는 이유는 대개 「고객이 뭘 받나」이고,
+       그걸 먼저 보여 주면 원가 화면을 지나칠 일이 없다.
+     ⚠ 탭 상태는 **본문 상자의 `data-emtab`** 하나가 진실이다. 자바스크립트가 요소를
+       하나씩 감추면 구역이 늘 때마다 빠뜨린다(결함 생성기 ①) — CSS 규칙 한 줄이 한다. */
+  function emSetTab(which) {
+    const body = document.getElementById('emModalBody');
+    if (!body) return;
+    const tab = which === 'staff' ? 'staff' : 'cust';
+    body.dataset.emtab = tab;
+    const c = document.getElementById('emTabBtnCust');
+    const t = document.getElementById('emTabBtnStaff');
+    if (c) c.setAttribute('aria-pressed', tab === 'cust' ? 'true' : 'false');
+    if (t) t.setAttribute('aria-pressed', tab === 'staff' ? 'true' : 'false');
+    const note = document.getElementById('emTabNote');
+    if (note) {
+      note.textContent = tab === 'cust'
+        ? '고객이 받는 그대로입니다 — 원가·마진은 들어 있지 않습니다'
+        : '🔒 원가·마진이 보입니다 — 이 화면은 고객에게 나가지 않습니다';
+    }
+    /* 문서는 탭을 열 때 크기를 다시 잰다 — 감춰져 있는 동안은 높이가 0이라 못 맞춘다 */
+    if (tab === 'cust' && typeof QuoteDoc !== 'undefined' && QuoteDoc.fitPages) {
+      const prev = document.getElementById('em-doc-prev');
+      if (prev) QuoteDoc.fitPages(prev);
+    }
+    /* 모달 안에서 탭을 바꿨으면 맨 위부터 본다 — 앞 탭에서 내려간 자리에 떨어지면
+       무엇이 바뀐 건지 모른다 */
+    if (body.scrollTop > 0) body.scrollTop = 0;
+  }
+
+  /* 「수정하기」 — 누른 단락에 해당하는 **직원용 자리로 데려간다** (대표 지시 2-3).
+     ⚠ 탭만 바꾸고 말면 담당자는 긴 화면에서 다시 그 자리를 찾아야 한다. 옮기고,
+       **어디로 왔는지 잠깐 표시**한다(1.6초 배경). 조용히 옮기면 이동한 줄도 모른다. */
+  function emGotoEdit(which) {
+    emSetTab('staff');
+    const id = which === 'iti' ? 'em-sec-iti' : 'em-sec-items';
+    const el = document.getElementById(id);
+    if (!el) return;
+    /* 되풀이해 눌러도 매번 보이게 — 클래스를 뗐다가 다시 붙인다 */
+    el.classList.remove('em-flash');
+    /* eslint-disable-next-line no-unused-expressions */
+    el.offsetWidth;
+    el.classList.add('em-flash');
+    if (el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   /* 체크를 바꾸면 **그 자리에서** 미리보기가 따라온다 — 안 따라오면 담당자가

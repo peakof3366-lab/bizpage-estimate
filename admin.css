@@ -1379,3 +1379,40 @@
     /* ⚠ 문의 표는 다르다 — 「문의 내용」이 길어 **줄바꿈이 필요하다.**
        그래서 nowrap을 걸지 않고, 최소 폭만 준다. */
     #inqTable { min-width: 760px; }
+
+/* ═══ 견적 상세 — 고객용 / 직원용 탭 (2026-09-23 대표 지시 2-1) ═══════════════
+   🔴 **고객용일 때 형제 구역을 덮는다.** 직원용 내용을 옮겨 담지 않았기 때문에
+     (옮기다 하나 빠지는 것이 이 저장소가 여러 번 겪은 사고다) 가르는 일은 여기서 한다.
+   ⚠ `.hidden`을 쓰지 않는다 — 이 저장소는 「hidden이 display 규칙에 진다」로 세 번 밟았다.
+     여기서는 **처음부터 display로** 가른다. */
+.em-tabbar { display:flex; align-items:center; gap:.4rem; padding:.7rem 1.25rem 0; }
+.em-tab {
+  appearance:none; border:1.5px solid var(--border); border-bottom:none; background:var(--bg);
+  color:var(--muted); font-weight:700; font-size:.86rem; padding:.55rem 1.1rem; cursor:pointer;
+  min-height:44px;   /* 누를 것은 44px 이상 (CLAUDE.md 화면 규칙) */
+}
+.em-tab[aria-pressed="true"] { background:#fff; color:var(--text); border-color:var(--ink);
+  box-shadow:inset 0 3px 0 var(--ink); }
+.em-tab-note { font-size:.74rem; color:var(--muted); margin-left:auto; }
+#emModalBody[data-emtab="cust"] > *:not(.em-tabbar):not(#emTabCust) { display:none; }
+#emModalBody[data-emtab="staff"] > #emTabCust { display:none; }
+
+/* 고객용 칸 — 문서 사이를 갈라 「세 장」임이 보이게 한다(고객 화면과 같은 언어) */
+.em-cust-head { display:flex; align-items:center; padding:.9rem 1.25rem .2rem; }
+#emTabCust .em-doc-prev { background:#F4F4F2; padding:1rem 1.25rem 1.4rem; }
+.em-cust-sect { margin-bottom:1.1rem; }
+.em-cust-sect:last-child { margin-bottom:0; }
+.em-cust-tag { display:flex; align-items:center; gap:.5rem; margin:0 0 .4rem; }
+.em-cust-tag b { font-size:.78rem; color:var(--text); }
+.em-cust-tag span { font-size:.72rem; color:var(--muted); }
+/* 🔴 「수정하기」는 **고객에게 안 나간다** — 이 화면에만 있는 버튼이고 인쇄에서도 뺀다 */
+.em-cust-edit { margin-top:.5rem; }
+.em-cust-edit button {
+  appearance:none; background:#fff; border:1.5px solid var(--ink); color:var(--ink);
+  font-weight:700; font-size:.8rem; padding:.5rem .9rem; cursor:pointer; min-height:44px;
+}
+.em-cust-edit button:hover { background:var(--ink); color:#fff; }
+/* 수정하기로 옮겨 왔을 때 **어디로 왔는지** 잠깐 말해 준다 */
+@keyframes emFlash { 0% { background:#FEF3C7; } 100% { background:transparent; } }
+.em-flash { animation: emFlash 1.6s ease-out 1; }
+@media print { .em-tabbar, .em-cust-edit { display:none !important; } }
