@@ -1101,6 +1101,8 @@
        같은 질문을 두 번 받는다. */
   let emEditDirty = false;
   let emEditLoadedFor = null;
+  /* 「수정하기」가 정한 영역 — 탭을 여는 쪽에 한 번만 전달하고 비운다 */
+  let emPendingFocus = null;
 
   function emEditFrame() { return document.getElementById('em-edit-frame'); }
 
@@ -1113,15 +1115,26 @@
   }
 
   /* 직원용 탭을 처음 열 때 불러온다 — 상세를 열 때마다 엔진 화면을 싣지 않는다 */
-  function emEditEnsure() {
+  function emEditEnsure(focus) {
     const f = emEditFrame();
     if (!f || !emCurrentId) return;
-    if (emEditLoadedFor === emCurrentId) return;
+    if (emEditLoadedFor === emCurrentId) {
+      /* 이미 떠 있으면 **다시 불러오지 않는다** — 고치던 내용이 날아간다.
+         어느 영역을 볼지만 알려 준다(`null`이면 좁히기를 푼다). */
+      if (f.contentWindow) {
+        try { f.contentWindow.postMessage({ __aqpGoto: focus || null }, '*'); }
+        catch (e) { /* 아직 안 떴으면 아래 불러오기가 처리한다 */ }
+      }
+      return;
+    }
     emEditLoadedFor = emCurrentId;
     emEditDirty = false;
     const st = document.getElementById('em-edit-state');
     if (st) { st.textContent = '불러오는 중…'; st.style.color = 'var(--muted)'; }
-    f.src = 'admin-quote-pro.html?quote=' + encodeURIComponent(emCurrentId);
+    /* 🔴 처음 부를 때는 **주소에 실어 보낸다.** 띄우자마자 보내는 메시지는 아직
+       듣는 사람이 없어 그대로 사라진다(실제로 그렇게 조용히 안 먹었다). */
+    f.src = 'admin-quote-pro.html?quote=' + encodeURIComponent(emCurrentId)
+      + (focus ? '&focus=' + encodeURIComponent(focus) : '');
   }
 
   /* 견적을 바꿔 열면 **앞 건의 편집기를 버린다** — 안 버리면 다음 건 화면에 앞 건이
@@ -1189,7 +1202,9 @@
     const tab = which === 'staff' ? 'staff' : 'cust';
     /* 🔴 직원용 → 고객용으로 나갈 때만 묻는다. 들어올 때는 잃을 것이 없다. */
     if (tab === 'cust' && body.dataset.emtab === 'staff' && !emEditGuard('고객용 탭으로 이동')) return;
-    if (tab === 'staff') emEditEnsure();
+    /* ⚠ 직원용 탭을 **그냥** 열면 다섯 단계가 다 보인다. 좁히는 것은 「수정하기」뿐이다. */
+    if (tab === 'staff') emEditEnsure(emPendingFocus);
+    emPendingFocus = null;
     body.dataset.emtab = tab;
     const c = document.getElementById('emTabBtnCust');
     const t = document.getElementById('emTabBtnStaff');
@@ -1215,14 +1230,13 @@
      ⚠ 탭만 바꾸고 말면 담당자는 긴 화면에서 다시 그 자리를 찾아야 한다. 옮기고,
        **어디로 왔는지 잠깐 표시**한다(1.6초 배경). 조용히 옮기면 이동한 줄도 모른다. */
   function emGotoEdit(which) {
+    /* 🔴 **그 영역만 연다** (2026-09-24 대표 지시). 예전에는 편집기를 통째로 열고
+       단계만 옮겼는데, 다섯 단계가 다 보여서 「어디를 고치라는 건지」가 흐려졌다.
+       ⚠ 탭을 여는 쪽(`emSetTab`)이 불러오기를 하므로 **먼저 넘겨 둔다.** */
+    emPendingFocus = which;
     emSetTab('staff');
     /* 🔴 **고칠 수 있는 자리로 데려간다** — 읽기 전용 표로 보내면 「수정하기」가
-       거짓말이 된다. 편집기에게 어느 단계를 열지도 함께 알린다(대표 지시 2-3). */
-    const f = emEditFrame();
-    if (f && f.contentWindow) {
-      try { f.contentWindow.postMessage({ __aqpGoto: which === 'iti' ? 'iti' : 'sum' }, '*'); }
-      catch (e) { /* 아직 안 떴으면 불러온 뒤 2단계로 열린다 */ }
-    }
+       거짓말이 된다(CLAUDE.md 화면 규칙 ③). */
     const id = 'em-sec-edit';
     const el = document.getElementById(id);
     if (!el) return;

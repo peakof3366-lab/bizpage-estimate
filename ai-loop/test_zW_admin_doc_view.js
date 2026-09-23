@@ -203,6 +203,17 @@ async function 태우기(견적) {
     ok('[2-f9] 어디로 왔는지 표시한다', D.getElementById('em-sec-edit').classList.contains('em-flash'));
     ok('[2-f9b] 🔴 고칠 수 있는 자리로 데려간다(읽기 전용 표가 아니다)',
       !D.getElementById('em-sec-items').classList.contains('em-flash'));
+    /* 🔴 **그 영역만 연다** (2026-09-24 대표 지시). 예전에는 편집기를 통째로 열고
+       단계만 옮겨서, 다섯 단계가 다 보였다 — 「어디를 고치라는 건지」가 흐려졌다.
+     ⚠ 처음 부를 때는 **주소에 실어 보낸다.** 띄우자마자 보내는 메시지는 아직 듣는
+       사람이 없어 그대로 사라진다. */
+    ok('[2-f9d] 🔴 수정하기가 그 영역을 주소에 실어 보낸다',
+      (D.getElementById('em-edit-frame').getAttribute('src') || '').indexOf('focus=breakdown') >= 0,
+      String(D.getElementById('em-edit-frame').getAttribute('src')));
+    ok('[2-f9e] 🔴 이미 떠 있으면 다시 불러오지 않는다 (고치던 내용이 날아간다)',
+      /emEditLoadedFor === emCurrentId[\s\S]{0,260}postMessage/.test(read(path.join('admin', 'estmgr.js'))));
+    ok('[2-f9f] 직원용 탭을 그냥 열면 좁히지 않는다',
+      /emEditEnsure\(emPendingFocus\)[\s\S]{0,60}emPendingFocus = null/.test(read(path.join('admin', 'estmgr.js'))));
     ok('[2-f9c] 편집기는 직원용 탭을 열 때 불러온다(상세를 열 때마다가 아니다)',
       !D.getElementById('em-edit-frame').getAttribute('src')
       || D.getElementById('em-edit-frame').getAttribute('src').indexOf('quote=') >= 0,

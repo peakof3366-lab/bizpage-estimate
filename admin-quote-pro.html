@@ -231,6 +231,15 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
   .prev { border: none; background: #fff; padding: 0; overflow: visible; }
   .prev .qd { box-shadow: none; }
 }
+
+/* ══ 한 영역만 보기 (2026-09-24 대표 지시) ═══════════════════════════════════
+   「수정하기」로 들어오면 단계 막대와 단계 이동 버튼을 감춘다 — 고칠 곳 하나와
+   저장만 남는다. 🔴 **감추는 것이지 없애는 것이 아니다**(저장은 여전히 전부를 보낸다). */
+.aqp-focus .steps { display: none; }
+.aqp-focus #btnNext1,
+.aqp-focus [data-goto] { display: none; }
+.aqp-focus .sec { margin-top: 0; }
+#focusBar { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px; }
 </style>
 </head>
 <body>
@@ -496,6 +505,9 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         <button type="button" class="btn btn-r" id="btnSave">견적 저장하기</button>
       </div>
       <p class="note hidden" id="saveMsg"></p>
+      <!-- 🔴 「수정하기」로 들어왔을 때 **그 영역 아래**로 옮겨 가는 저장 줄.
+           ⚠ 버튼을 여기 새로 만들지 않는다 — ⑤단계의 그 버튼을 **옮겨 담는다.** -->
+      <div class="bar hidden" id="focusBar"></div>
       <!-- 🔴 `script.js`가 저장 실패를 적는 자리(`showInternalSaveWarning`). 이 칸이 없으면
            그 함수는 `alert`로 떨어진다 — 알리긴 하지만 닫고 나면 사라진다.
            ⚠ 2026-09-17: 이 칸은 원래 「자동 견적 산출 (고객용)」에 있었다. 그 화면을
@@ -560,6 +572,15 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
        것이 지시의 핵심이고, 그 동작은 이미 `adhoc`가 갖고 있다. 엔진을 다시 돌리지
        않는 것도 맞다(이미 산출된 건이고, 다시 돌리면 금액이 조용히 바뀐다). */
   const EDIT_ID = Q.get('quote') || '';
+  /* ══ 한 영역만 보기 (2026-09-24 대표 지시) ═══════════════════════════════════
+     「수정하기를 눌렀을 때 기존 모든 탭이 보여지는 게 아니라 **해당 영역만** 연결이
+       되고, 거기서 저장하면 자동으로 저장이 되게끔」
+     🔴 **단계를 지우는 것이 아니라 감추는 것이다.** 고칠 값은 여러 단계에 흩어져 있고
+       (금액은 ②, 견적서 칸은 ③, 일정은 ④), 저장은 그 전부를 한 번에 보낸다.
+       단계를 없애면 저장이 반쪽이 된다 — 보이는 것만 줄인다.
+     ⚠ 직원용 탭을 그냥 열면 **예전처럼 다섯 단계가 다 보인다.** 좁히는 것은
+       「수정하기」로 들어왔을 때뿐이다. */
+  const FOCUS_SEC = { quote: 'secDoc', breakdown: 'secMoney', iti: 'secIti' };
   const ADHOC = Q.get('mode') === 'adhoc' || !!EDIT_ID;
   const PKG_ID = Q.get('pkg') || '';
   if (ADHOC) document.documentElement.classList.add('aqp-adhoc');
@@ -810,6 +831,38 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     /* 5단계는 들어올 때 **다시 그린다** — 앞 단계에서 고친 것이 안 비치면
        옛 내용 그대로 발급된다고 믿게 된다. */
     if (n === 5) renderPreview();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* 🔴 **저장 버튼을 복제하지 않는다.** 있는 것을 그 자리로 **옮긴다** —
+     복제하면 처리기가 두 벌이 되고, 한쪽만 고쳐지는 날이 온다(결함 생성기 ①).
+     ⚠ 원래 자리를 기억해 뒀다가 좁히기를 풀 때 되돌린다. */
+  let focusHome = null;
+  function applyFocus(which) {
+    const secId = FOCUS_SEC[which];
+    const bar = $('focusBar');
+    const root = document.documentElement;
+    if (!bar) return;
+    if (!focusHome) focusHome = { parent: $('btnSave').parentNode, next: $('btnSave').nextSibling };
+
+    if (!secId) {
+      root.classList.remove('aqp-focus');
+      /* 저장 버튼을 원래 자리(⑤단계)로 돌려놓는다 */
+      focusHome.parent.insertBefore($('btnSave'), focusHome.next);
+      focusHome.parent.appendChild($('saveMsg'));
+      bar.classList.add('hidden');
+      showStep(curStep > 1 ? curStep : 2);
+      return;
+    }
+    root.classList.add('aqp-focus');
+    STEPS.forEach((s) => $(s.sec).classList.toggle('hidden', s.sec !== secId));
+    curStep = (STEPS.find((s) => s.sec === secId) || { n: 2 }).n;
+    /* 저장 버튼과 안내를 그 영역 아래로 옮긴다 — 「거기서 저장」이 되게 */
+    bar.insertBefore($('btnSave'), bar.firstChild);
+    bar.appendChild($('saveMsg'));
+    bar.classList.remove('hidden');
+    const host = $(secId).querySelector('.sec-b') || $(secId);
+    host.appendChild(bar);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -1919,7 +1972,9 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
        담당자는 「일정이 날아갔다」로 읽는다. 불러온 자리에서 한 번 그려 둔다. */
     stampDates();
     renderIti();
-    showStep(2);
+    /* 주소에 `focus=`가 실려 왔으면 **그 영역만** 연다(수정하기로 들어온 경우) */
+    const wantFocus = Q.get('focus') || '';
+    if (FOCUS_SEC[wantFocus]) applyFocus(wantFocus); else showStep(2);
     emitEdit('loaded', { quoteNo: rec.quoteNo || '' });
   }
 
@@ -1985,12 +2040,13 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     e.preventDefault(); e.returnValue = '';
   });
 
-  /* 「수정하기」가 가리킨 자리로 간다 — 종합견적 ②, 세부견적 ②, 일정 ④ */
+  /* 「수정하기」가 가리킨 **그 영역만** 연다 (2026-09-24 대표 지시).
+     종합견적서 → 견적서 내용 · 세부견적서 → 금액 · 일정표 → 일정.
+     ⚠ 값이 `null`이면 좁히기를 푼다(직원용 탭을 그냥 열었을 때). */
   window.addEventListener('message', (e) => {
     const d = e && e.data;
     if (!d || d.__aqpGoto === undefined) return;
-    const step = d.__aqpGoto === 'iti' ? 4 : 2;
-    showStep(step);
+    applyFocus(d.__aqpGoto);
   });
 
   /* ═══ 인증 ═══ admin-quote.html (⚠ admin-quote.html은 2026-09-17에 지워졌다)과 같은 방식이다 ═══ */
