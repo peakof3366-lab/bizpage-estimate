@@ -41,6 +41,11 @@ const { bootPage, visibleText, ROOT } = require('./_page_boot');
 const { shownText } = require('./_journey_probe');
 const { makeAll, makeEdges, makeSweep, MARK } = require('./_virtual_personas');
 const { verifyQuote } = require(path.join(ROOT, 'api', '_lib', 'quote_verify.js'));
+/* 🔴 **서버가 붙이는 견적서 문서를 여기서도 붙인다.** 실제 발급은 이 함수를 지나고,
+   그래야 이 도구가 만든 payload가 `quote_shares.payload`와 같은 모양이 된다.
+   예전엔 안 불렀고, 그래서 이 payload를 픽스처로 쓰는 브라우저 검사가 **v1 화면만**
+   재고 있었다(결함 생성기 ③). */
+const { buildShareDoc } = require(path.join(ROOT, 'api', '_lib', 'share_doc.js'));
 const COMBINED_FACTOR = require(path.join(ROOT, 'data.js')).estimateCombinedFactor;
 
 const arg = (k, d) => {
@@ -485,11 +490,20 @@ async function runOne(p, rates, ctx) {
   (log.opened || []).forEach((wOpened) => { try { wOpened.close(); } catch (e) { /* 이미 닫혔다 */ } });
 
   const qno = 'V' + ymd(new Date()).slice(2).replace(/-/g, '') + '-' + String(p.no).padStart(4, '0');
+  /* 🔴 **서버가 만들어 붙이는 v2 문서를 여기서도 붙인다** (2026-09-17 양식 통일).
+     고객이 직접 뽑은 건에는 `doc`이 없어서 서버가 `QDOC.fromShare`로 만들어 싣는다.
+     ⚠ 만드는 순서를 베껴 쓰지 않는다 — `api/_lib/share_doc.js`를 그대로 부른다. */
+  const built = buildShareDoc(share, {});
   const payload = Object.assign({}, share, {
     iso: share.iso || ymd(new Date()),
     qno,
+    ...(built.doc ? { doc: built.doc } : {}),
     _verify: { verdict: v.verdict, failedSteps: v.failedSteps || [], at: new Date().toISOString(), issuedBy: 'auto' },
   });
+  /* 🔴 **내부 필드가 남으면 서버는 발급을 막는다**(500). 여기서도 같은 자로 잰다 —
+     이 도구가 통과시킨 payload가 실제로는 발급조차 안 되는 것이면 안 된다. */
+  if (built.leaks.length) 문제(t, 'DOC_INTERNAL_LEAK', '🔴 견적서 문서에 내부 필드가 남았다', built.leaks.join(', '));
+  if (built.buildError) 문제(t, 'DOC_BUILD_FAIL', '표준 양식 문서를 만들지 못했다(옛 양식으로 나간다)', built.buildError);
   out.qno = qno;
   if (SHARE_JSON && !shareJsonWritten) {
     shareJsonWritten = true;
@@ -515,7 +529,23 @@ async function runOne(p, rates, ctx) {
 
   if (V.log.errors.length) 문제(t, 'DOC_ERROR', '견적서 화면이 오류를 냈다', V.log.errors.map((e) => e.msg).join(' | '));
   if (docText.length < 200) 문제(t, 'DOC_EMPTY', '🔴 견적서가 사실상 비어 있다', String(docText.length) + '자');
-  if (!docText.includes(won(share.t))) 문제(t, 'DOC_NO_TOTAL', '🔴 견적서에 총액이 없다', won(share.t));
+  /* 🔴 **고객이 읽는 총액은 문서가 찍는 값이다** — payload의 `t`가 아니다.
+     v2 문서의 총액은 **단가 × 인원**이고(대표 결정 2026-09-15 방식 A + 2026-09-21
+     「고객은 곱해 본다」), 단가가 `round(총액 ÷ 인원)`이라 **총액이 인원으로 나누어
+     떨어지지 않으면 엔진 총액과 몇 원 갈린다**(가고시마 15명: 32,160,671 vs 32,160,675).
+     ⚠ 예전엔 여기서 `share.t`를 찾다가 「견적서에 총액이 없다」고 **거짓으로** 빨개졌다.
+       문서는 총액을 멀쩡히 찍고 있었다 — 자가 틀린 것이다.
+     🔴 대신 **두 값이 갈린다는 사실 자체**는 아래에서 따로 센다. 감추지 않는다. */
+  const docTotal = (built.doc && built.doc.price && built.doc.price.total) || share.t;
+  if (!docText.includes(won(docTotal))) 문제(t, 'DOC_NO_TOTAL', '🔴 견적서에 총액이 없다', won(docTotal));
+  /* 🔴 **고객이 여는 문서 두 벌이 총액을 다르게 말한다**(인쇄용 팝업 = 엔진 총액,
+     링크 견적서 = 단가 × 인원). 금액은 최대 `인원 ÷ 2`원 차이지만, 「어느 쪽이
+     우리 견적인가」는 대표가 정할 일이라 **대기열(0-am)에 올렸다.**
+     ⚠ 정해지기 전까지 이 줄은 **사실을 그대로 센다** — 조용히 넘기면 정해질 일이 안 정해진다. */
+  if (docTotal !== rec.total) {
+    문제(t, 'TOTAL_ROUNDING_GAP', '문서 총액과 엔진 총액이 갈린다(단가 × 인원 vs 엔진 합계)',
+      won(rec.total) + ' → ' + won(docTotal) + ' (' + (docTotal - rec.total > 0 ? '+' : '') + (docTotal - rec.total) + '원)');
+  }
   if (!docText.includes(qno)) 문제(t, 'DOC_NO_QNO', '견적서에 견적번호가 없다', qno);
   if (!docText.includes(p.destKey) && !docText.includes(String(share.dt || ''))) {
     문제(t, 'DOC_NO_DEST', '견적서에 목적지가 없다', p.destKey + ' / ' + share.dt);
@@ -554,8 +584,10 @@ async function runOne(p, rates, ctx) {
      그래서 「무엇이 빠졌나」를 사람이 매번 세지 말고, **두 문서가 같은 사실을 말하는지**를
      기계가 대조한다. 한쪽에만 있으면 그게 다음 XP다.
    ⚠ 팝업에 **항목별 금액이 없는 것은 일부러다.** 그건 대조 목록에 넣지 않는다. */
+  /* ⚠ **총액은 여기서 대조하지 않는다** — 바로 위 `TOTAL_ROUNDING_GAP`이 몇 원 차이까지
+     정확히 센다. 여기 두면 「한쪽에만 있다」로 뭉개져 **원인을 못 읽는다**(자가 이름을
+     잘못 붙이면 사람은 그 줄을 안 믿게 된다). 1인 금액은 두 문서가 같은 값을 쓴다. */
   const FACTS = [
-    ['총액', won(rec.total)],
     ['1인 금액', won(rec.perPerson)],
     ['목적지', p.destKey],
     ['인원', String(p.participants)],

@@ -382,9 +382,12 @@ ok('[11-f] address2에 하드코딩 폴백을 두지 않았다',
     full.breakdown.rows.length > 0 && full.itinerary.length === 1);
 
   /* ═══ 🔴 강제는 서버에서 한다 — 화면이 감추는 방식이면 소스 보기로 다 보인다 ═══ */
-  const API = fs.readFileSync(path.join(ROOT, 'api', 'quote-shares.js'), 'utf8');
+  /* ⚠ 깎는 일(`applyParts`)은 `api/_lib/share_doc.js`로 옮겼다 — 서버와 검사 도구가
+     **같은 순서**를 쓰게 하려고 뗐다. 두 파일을 같이 읽는다(한쪽만 읽으면 조용해진다). */
+  const API = fs.readFileSync(path.join(ROOT, 'api', 'quote-shares.js'), 'utf8')
+    + '\n' + fs.readFileSync(path.join(ROOT, 'api', '_lib', 'share_doc.js'), 'utf8');
   ok('[12-n] 🔴 서버가 parts를 읽는다', /body\.parts/.test(API));
-  ok('[12-o] 🔴 서버가 applyParts로 깎는다', /QDOC\.applyParts\(docForShare, parts\)/.test(API));
+  ok('[12-o] 🔴 서버가 applyParts로 깎는다', /QDOC\.applyParts\(docForShare, o\.parts\)/.test(API));
   ok('[12-p] 🔴 일정을 빼면 옛 규격 코스(itiA/itiB)도 뺀다',
     /parts\.iti === false \? \{ itiA: null, itiB: null \}/.test(API));
   const ADM = fs.readFileSync(path.join(ROOT, 'admin.html'), 'utf8');

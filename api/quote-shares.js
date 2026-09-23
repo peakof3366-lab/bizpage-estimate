@@ -10,6 +10,8 @@ const QNO = require('./_lib/quote_no');
    여기에 「`_`로 시작하면 지운다」를 다시 적으면 두 벌이 되고, 한쪽만 고쳐지는
    순간 원가·마진이 고객에게 나간다(결함 생성기 ①). 같은 함수를 부른다. */
 const QDOC = require('../quote_doc.js');
+/* 🔴 고객 링크에 실을 문서를 만드는 순서는 여기 하나다(검사 도구도 같은 것을 부른다) */
+const SHAREDOC = require('./_lib/share_doc.js');
 
 /* 고객용 견적서 공유 링크(estimate-view.html?id=) 저장소.
 
@@ -609,47 +611,29 @@ module.exports = async (req, res) => {
   try { quoteNo = await QNO.nextQuoteNo(sql); }
   catch (err) { console.error('[quote-shares] 견적번호 발급 실패:', err); return res.status(503).json({ error: 'quote_no_failed' }); }
 
-  /* 문서를 고객용으로 깎는다. 🔴 **받은 것을 그대로 싣지 않는다.** */
-  let docForShare = null;
-  /* ═══ 양식 통일 (2026-09-17 대표 결정) ═══════════════════════════════════
-     고객이 직접 뽑은 견적에는 `doc`이 없어서 **옛 양식(v1)**으로 나갔다.
-     즉 우리가 한 회사에서 **두 종류의 견적서**를 내보내고 있었다 — 담당자가 만든 건은
-     표준 양식, 고객이 뽑은 건은 항목·금액 표.
-     → 문서가 없으면 **여기서 만들어 붙인다.**
-     🔴 **서버에서 만드는 이유**: 발급 경로가 여럿이다(관리자 화면·고객 자동 발급).
-       화면마다 만들면 경로에 따라 다른 견적서가 나간다(결함 생성기 ①).
+  /* 문서를 고객용으로 깎는다. 🔴 **받은 것을 그대로 싣지 않는다.**
+     ═══ 양식 통일 (2026-09-17 대표 결정) ═══════════════════════════════════
+     고객이 직접 뽑은 견적에는 `doc`이 없어서 **옛 양식(v1)**으로 나갔다 — 한 회사가
+     **두 종류의 견적서**를 내보내고 있었다. 그래서 문서가 없으면 만들어 붙인다.
+     🔴 **만드는 순서는 `api/_lib/share_doc.js` 한 곳이다** — 서버도, 서버를 안 타는
+       검사 도구도 같은 것을 부른다. 예전엔 이 함수 안에만 있어서 `virtual_journey`가
+       만든 payload에 `doc`이 없었고, 그걸 픽스처로 쓰는 브라우저 검사가 v2 견적서를
+       **한 번도 잰 적이 없었다**(결함 생성기 ①·③).
      🔴 **금액은 다시 계산하지 않는다** — payload의 값을 그대로 옮긴다.
      ⚠ 이미 나간 옛 링크는 그대로다. 이 코드는 **새로 발급하는 건**에만 닿는다. */
-  if (!(quote && quote.doc && typeof quote.doc === 'object')) {
-    try {
-      const { QUOTE_EXCLUDED, COMPANY_INFO } = require('../company-info.js');
-      const built = QDOC.fromShare(share, { excluded: QUOTE_EXCLUDED, company: COMPANY_INFO });
-      /* 문서로 그릴 만한 알맹이가 있을 때만 붙인다 — 빈 껍데기를 붙이면 옛 경로가
-         멀쩡히 그리던 것까지 빈 문서로 덮는다. */
-      if (built && built.price && built.price.total > 0) docForShare = QDOC.stripInternal(built);
-    } catch (err) {
-      /* 🔴 조용히 넘어가도 **고객은 옛 양식을 받는다**(견적서는 나간다). 그래서 발급을
-         막지 않고 기록만 남긴다 — 여기서 막으면 못 받는 편이 더 나쁘다. */
-      console.error('[quote-shares] 표준 양식 문서를 만들지 못했다(옛 양식으로 발급):', err && err.message);
-    }
+  const shareDoc = SHAREDOC.buildShareDoc(share, { doc: quote && quote.doc, parts });
+  if (shareDoc.buildError) {
+    /* 🔴 조용히 넘어가도 **고객은 옛 양식을 받는다**(견적서는 나간다). 그래서 발급을
+       막지 않고 기록만 남긴다 — 여기서 막으면 못 받는 편이 더 나쁘다. */
+    console.error('[quote-shares] 표준 양식 문서를 만들지 못했다(옛 양식으로 발급):', shareDoc.buildError);
   }
-  if (quote && quote.doc && typeof quote.doc === 'object') {
-    docForShare = QDOC.stripInternal(quote.doc);
-  }
-  /* 🔴 **고른 것만 남긴다 — 지우는 곳은 여기 하나다.**
-     ⚠ `stripInternal` **뒤**다. 순서를 바꾸면 안 되는 이유는 없지만, 「고객에게 나갈
-       문서」가 완성된 뒤에 깎아야 무엇이 나가는지 한 자리에서 읽힌다. */
-  if (docForShare && parts) docForShare = QDOC.applyParts(docForShare, parts);
-  /* 🔴 **검문은 한 곳에서 한다.** 담당자가 만든 문서든 여기서 만든 문서든 같은 자를 지난다 —
-     둘로 나누면 한쪽만 고쳐진 상태가 생긴다(2026-09-17에 실제로 그럴 뻔했다).
+  const docForShare = shareDoc.doc;
+  /* 🔴 **검문은 한 곳에서 한다.** 담당자가 만든 문서든 서버가 만든 문서든 같은 자를 지난다.
      지웠는데도 남아 있으면 **발급하지 않는다.** 「지웠겠지」로 넘어가면 그 한 건이
      고객에게 원가를 보여 준다. */
-  if (docForShare) {
-    const leaks = QDOC.findInternalKeys(docForShare);
-    if (leaks.length) {
-      console.error('[quote-shares] 내부 필드가 남았다 — 발급 중단:', leaks.join(', '));
-      return res.status(500).json({ error: 'internal_field_leak' });
-    }
+  if (shareDoc.leaks.length) {
+    console.error('[quote-shares] 내부 필드가 남았다 — 발급 중단:', shareDoc.leaks.join(', '));
+    return res.status(500).json({ error: 'internal_field_leak' });
   }
 
   try {

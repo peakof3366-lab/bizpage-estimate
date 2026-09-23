@@ -119,6 +119,16 @@
       meta: {
         vendor: '비즈페이지',   /* 대표 확인 2026-09-15 — 이미지의 TRIP PAGE 자리 */
         client: '',             /* 거래처명 — 제목 줄에 들어간다 */
+        /* 🔴 **받으시는 분**(공문이다). 옛 양식(v1)은 「수신처 정보」에 이 이름을 찍었는데,
+           2026-09-17 양식 통일로 v2로 갈아탄 뒤 **문서에서 통째로 사라져 있었다** —
+           고객이 자기 이름이 없는 견적서를 받았다(XD에서 이미 한 번 고친 자리다).
+           ⚠ 비어 있으면 줄 자체를 안 그린다. 「미입력」을 찍을 자리가 아니다 —
+             담당자가 적는 칸이 아니라 고객이 준 값이다. */
+        clientContact: '',
+        /* 🔴 **요율 기준**(우리 요율표 버전). 이것도 v1에는 있었고 v2에서 빠져 있었다.
+           금액이 언제 값인지 안 적힌 견적서는 나중에 「그때 얼마였냐」를 못 가린다.
+           ⚠ 패키지는 요율을 안 타므로 **빈 값이 정상**이다(없는 칸에 줄표를 안 찍는다, WP). */
+        rateBasis: '',
         regionLabel: '',        /* 「국가명_지역명」 */
         quoteNo: '',
         issueDate: '',
@@ -575,6 +585,9 @@
     </header>
     <h1 class="qd-title">${esc(d.meta.title || '해외연수 견적서')}</h1>
     <div class="qd-staff">
+      ${/* 🔴 **받으시는 분이 먼저다** — 공문이라 수신이 발신보다 위에 온다.
+             없으면 줄을 안 그린다(담당자 칸과 달리 「미입력」이 아니다). */''}
+      ${d.meta.clientContact ? `<div><span>받는 분 :</span> ${esc(d.meta.clientContact)} 님</div>` : ''}
       <div><span>담당자 (연락처) :</span> ${todo(d.meta.staffName)}${d.meta.staffTel ? ' (' + esc(d.meta.staffTel) + ')' : ''}</div>
       <div><span>E-mail :</span> ${todo(d.meta.staffEmail)}</div>
     </div>`;
@@ -674,6 +687,9 @@
         <span class="qd-brand qd-brand-sm">${esc(c.brand || d.meta.vendor || '비즈페이지')}</span>
         ${d.meta.quoteNo ? `<span class="qd-qno">견적번호 ${esc(d.meta.quoteNo)}</span>` : ''}
         ${d.meta.validUntil ? `<span class="qd-qno">유효기간 ${esc(d.meta.validUntil)}</span>` : ''}
+        ${/* 🔴 **금액이 언제 값인지** — 인쇄용 팝업에는 있고 이 문서에는 없었다.
+               견적서(금액 문서)에만 붙인다. 일정표·세부견적서 바닥에는 안 붙인다. */''}
+        ${d.meta.rateBasis ? `<span class="qd-qno">요율 기준 ${esc(d.meta.rateBasis)}</span>` : ''}
       </footer>
     `);
   }
@@ -847,6 +863,11 @@
     const c = (o.company || (typeof window !== 'undefined' && window.COMPANY_INFO) || {});
     const d = blank();
     d.meta.client = s.org || '';
+    /* 🔴 payload의 `cn`(고객 담당자)·`rd`/`rv`(요율 기준)는 **옛 화면이 그리던 값**이다.
+       여기서 안 옮기면 v2로 갈아탄 견적서에서 둘 다 사라진다 — 실제로 사라져 있었다.
+       ⚠ 패키지(`pkg`)는 요율을 안 타므로 `rd`가 없다. 없으면 빈 값 그대로 둔다. */
+    d.meta.clientContact = s.cn || '';
+    d.meta.rateBasis = s.rd ? (String(s.rd) + (s.rv ? ' · Ver.' + String(s.rv) : '')) : '';
     d.meta.quoteNo = s.qno || '';
     d.meta.issueDate = s.iso || '';
     /* 🔴 **담당자 칸을 비워 두면 고객이 빨간 「미입력」을 받는다.**

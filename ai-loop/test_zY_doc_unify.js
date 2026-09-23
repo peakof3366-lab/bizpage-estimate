@@ -125,10 +125,18 @@ ok('[5-b] 화면이 그것을 가져다 쓴다', /QuoteDoc\.STD_TEXT/.test(PRO))
 const guide = QDOC.STD_TEXT['가이드'];
 ok('[5-c] 🔴 화면에 같은 문구를 다시 적지 않았다', PRO.indexOf(guide) < 0,
   '화면에 표준 문구가 그대로 박혀 있다');
-const SRV = read(path.join('api', 'quote-shares.js'));
+/* 🔴 **서버가 하는 일은 이제 두 파일에 걸쳐 있다.** 문서를 만들고·깎고·검문하는
+   순서는 `api/_lib/share_doc.js`에 있고, 발급 엔드포인트는 그것을 부른다.
+   뗀 이유: 그 순서가 서버 함수 안에만 있어서 **서버를 안 타는 검사**(브라우저 픽스처)가
+   v2 견적서를 한 번도 못 보고 있었다.
+   ⚠ 그래서 여기도 **두 파일을 같이** 읽는다. 한쪽만 읽으면 규칙이 옮겨간 날
+     조용히 빨개지거나(규칙은 사는데 빨강) 조용히 통과한다(규칙이 죽었는데 초록). */
+const SRV_API = read(path.join('api', 'quote-shares.js'));
+const SRV = SRV_API + '\n' + read(path.join('api', '_lib', 'share_doc.js'));
 ok('[5-d] 서버도 모듈을 쓴다(직접 적지 않는다)', /QDOC\.fromShare/.test(SRV) && SRV.indexOf(guide) < 0);
+ok('[5-d2] 🔴 발급 경로가 그 모듈을 실제로 부른다', /SHAREDOC\.buildShareDoc\(/.test(SRV_API));
 ok('[5-e] 불포함내역은 company-info가 진실이다',
-  /require\('\.\.\/company-info\.js'\)/.test(SRV) && QUOTE_EXCLUDED.length > 0);
+  /require\('[^']*company-info\.js'\)/.test(SRV) && QUOTE_EXCLUDED.length > 0);
 
 /* ═══ ④ 내부 값이 새지 않는다 ═══════════════════════════════════════════ */
 console.log('\n[6] 🔴 내부 값이 안 샌다 · 검문은 한 곳');
@@ -137,7 +145,9 @@ ok('[6] 만든 문서에 내부 필드가 없다', QDOC.findInternalKeys(QDOC.st
 const guard = SRV.indexOf('findInternalKeys');
 ok('[6-b] 검문이 한 곳이다', (SRV.match(/findInternalKeys/g) || []).length === 1,
   String((SRV.match(/findInternalKeys/g) || []).length) + '곳');
-ok('[6-c] 그 검문이 만든 문서에도 걸린다', /if \(docForShare\) \{[\s\S]{0,200}findInternalKeys/.test(SRV));
+ok('[6-c] 그 검문이 만든 문서에도 걸린다',
+  /docForShare \? QDOC\.findInternalKeys\(docForShare\) : \[\]/.test(SRV)
+  && /shareDoc\.leaks\.length/.test(SRV_API));
 
 /* ═══ ⑤ 옛 링크는 그대로 ═══════════════════════════════════════════════ */
 console.log('\n[7] 옛 링크와 옛 경로를 안 건드린다');

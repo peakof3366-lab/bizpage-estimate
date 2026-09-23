@@ -28,15 +28,27 @@ let pass = 0; const fails = [];
 const ok = (n, c, x) => { if (c) pass++; else fails.push(n + (x ? ' — ' + x : '')); };
 
 const VIEW = read('estimate-view.html');
-const SHARE = read(path.join('api', 'quote-shares.js'));
+/* 🔴 **서버가 하는 일은 이제 두 파일에 걸쳐 있다.** 문서를 만들고·깎고·검문하는
+   순서는 `api/_lib/share_doc.js`에 있고, 발급 엔드포인트는 그것을 부른다.
+   뗀 이유: 그 순서가 서버 함수 안에만 있어서 **서버를 안 타는 검사**(브라우저 픽스처)가
+   v2 견적서를 한 번도 못 보고 있었다.
+   ⚠ 그래서 여기도 **두 파일을 같이** 읽는다. 한쪽만 읽으면 규칙이 옮겨간 날
+     조용히 빨개지거나(규칙은 사는데 빨강) 조용히 통과한다(규칙이 죽었는데 초록). */
+const SHARE_API = read(path.join('api', 'quote-shares.js'));
+const SHARE_LIB = read(path.join('api', '_lib', 'share_doc.js'));
+const SHARE = SHARE_API + '\n' + SHARE_LIB;
 const IGNORE = read('.vercelignore');
 
 /* ═══ ① 🔴 서버가 지운다 ═══ */
 ok('[1] 발급 코드가 quote_doc.js를 불러온다', /require\('\.\.\/quote_doc\.js'\)/.test(SHARE));
 ok('[1-b] 지우는 규칙을 다시 적지 않았다 (한 곳이 진실)',
   !/charAt\(0\)\s*===\s*['"]_['"]/.test(SHARE) && !/startsWith\('_'\)/.test(SHARE));
+/* 🔴 **떼어 낸 모듈을 실제로 부르는가.** 이 줄이 없으면 위 합쳐 읽기가 「아무도 안 부르는
+   규칙」을 있다고 말하게 된다 — 파일만 남고 발급은 그냥 지나가는 상태가 제일 나쁘다. */
+ok('[1-b2] 🔴 발급이 그 모듈을 실제로 부른다',
+  /SHAREDOC\.buildShareDoc\(share, \{ doc: quote && quote\.doc, parts \}\)/.test(SHARE_API));
 ok('[1-c] 발급 payload에 stripInternal을 통과한 문서만 싣는다',
-  /docForShare = QDOC\.stripInternal\(quote\.doc\)/.test(SHARE));
+  /docForShare = QDOC\.stripInternal\(given\)/.test(SHARE));
 /* 받은 것을 그대로 싣지 않는다 — 이게 진짜 방어선이다 */
 ok('[1-d] 🔴 body의 doc을 그대로 싣지 않는다',
   !/doc:\s*(body|share)\.doc/.test(SHARE) && /\.\.\.\(docForShare \? \{ doc: docForShare \} : \{\}\)/.test(SHARE));
