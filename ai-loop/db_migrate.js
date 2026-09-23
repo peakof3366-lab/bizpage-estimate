@@ -164,6 +164,25 @@ async function main() {
   `;
   await sql`create index if not exists quote_no_log_quote_idx on quote_no_log (quote_id)`;
 
+  /* ── 견적 수정 이력 (2026-09-23 대표 지시 2-4: 「수정자, 수정일시, 변경 항목을 남긴다」)
+     🔴 **이전 문서를 통째로 보관한다.** 「무엇이 바뀌었나」만 적으면 되돌릴 수가 없고,
+       고객이 옛 견적서를 들고 전화했을 때 그때 무엇을 보냈는지 댈 근거가 없다.
+     ⚠ 대표 지시: 「이미 발송된 견적을 수정해 저장하면 차수를 올리고 **이전 버전은
+       이력으로 보관**한다. 발송 전이면 차수 없이 덮어쓴다.」 → 발송 여부와 무관하게
+       이력은 남기되, **차수는 발급이 센다**(`revision_of`) — 두 곳에서 세지 않는다. */
+  await sql`
+    create table if not exists quote_edit_log (
+      id bigserial primary key,
+      at timestamptz not null default now(),
+      quote_id text not null,
+      by_user text,
+      changed text,
+      issued_before boolean not null default false,
+      prev_doc jsonb
+    )
+  `;
+  await sql`create index if not exists quote_edit_log_quote_idx on quote_edit_log (quote_id, at desc)`;
+
   await sql`
     create table if not exists admin_auth (
       id int primary key default 1,

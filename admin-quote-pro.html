@@ -552,7 +552,15 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
      금액을 직접 적는다. **견적서·일정표를 만드는 부분은 자동 모드와 같은 코드다**
      (대표 지시 요구 4: 「결과 데이터 규격은 완전히 동일」). */
   const Q = new URLSearchParams(location.search);
-  const ADHOC = Q.get('mode') === 'adhoc';
+  /* ══ 이 견적 고치기 (2026-09-23 대표 지시 2-4, 대표가 A안으로 결정) ══════════
+     `?quote=<id>` — 견적 상세의 직원용 탭이 **이 화면을 그대로 끼워** 연다.
+     🔴 **편집기를 두 벌 만들지 않는다.** 상세 모달 안에 표를 새로 만들면 견적서를
+       고치는 코드가 둘이 되고, 이 저장소는 그 유형으로 네 번 당했다(XC·XD·XP·WQ).
+     ⚠ 고치기는 **직접 입력 모드로 연다** — 담당자가 항목·금액을 칸에서 바로 고치는
+       것이 지시의 핵심이고, 그 동작은 이미 `adhoc`가 갖고 있다. 엔진을 다시 돌리지
+       않는 것도 맞다(이미 산출된 건이고, 다시 돌리면 금액이 조용히 바뀐다). */
+  const EDIT_ID = Q.get('quote') || '';
+  const ADHOC = Q.get('mode') === 'adhoc' || !!EDIT_ID;
   const PKG_ID = Q.get('pkg') || '';
   if (ADHOC) document.documentElement.classList.add('aqp-adhoc');
 
@@ -1081,7 +1089,11 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     const adjSum = adjCost + adjMargin;
     if (S.adhoc) {
       const sum = S.rows.reduce((s, r) => s + r.val, 0);
-      const total = sum + adjSum;
+      /* 🔴 **잔차를 더한다** (2026-09-23). 저장된 견적을 고치러 열면(`?quote=`) 줄 합이
+         저장된 총액과 몇 원 다를 수 있다 — 엔진은 `round(합 × 계수)`로 마지막에 한 번
+         곱하기 때문이다. 안 더하면 **아무것도 안 고치고 저장만 해도 총액이 움직인다.**
+       ⚠ 그냥 직접 입력(`?mode=adhoc`)에서는 `S.residual`이 0이라 아무 일도 안 일어난다. */
+      const total = sum + adjSum + (S.residual || 0);
       /* 직접 모드의 원가는 담당자가 적은 값이다. 실무 변수의 「원가」 줄은 **거기 더한다** —
          자동 모드와 같은 규칙이라야 두 화면의 마진율을 나란히 볼 수 있다. */
       const cost = Math.max(0, num($('adhocCost'))) + adjCost;
@@ -1678,6 +1690,36 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     $('btnSave').disabled = true;
     show('저장 중…');
     try {
+      /* ══ 🔴 고치기 — **새 건을 만들지 않는다** (대표 지시 2-4) ═══════════════
+         여기서 `/api/quotes`로 보내면 같은 내용의 견적이 하나 더 생기고, 원본은 옛
+         금액으로 남는다. 고치는 것은 **그 건**이다.
+       🔴 금액도 함께 보낸다 — 문서만 고치면 목록·수익 요약이 옛 금액으로 남는다
+         (2026-09-17 「대장이 고객이 못 본 금액을 적고 있었다」와 같은 자리다).
+       ⚠ 차수는 여기서 세지 않는다. 이미 발급된 건이면 **다음 발급이 R1을 받는다**
+         (`revision_of`가 센다). 서버가 그 사실을 돌려주므로 사람에게 말만 해 준다. */
+      if (EDIT_ID) {
+        const t2 = totals();
+        const r2 = await fetch('/api/quotes/' + encodeURIComponent(EDIT_ID), {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            doc: buildDoc(),
+            totals: { total: t2.total, participants: t2.pax, perPerson: t2.unit, visibleTotal: t2.cost },
+          }),
+        });
+        if (!r2.ok) {
+          const j2 = await r2.json().catch(() => null);
+          show('저장하지 못했습니다 (오류 ' + r2.status + ')'
+            + (j2 && j2.message ? ' — ' + j2.message : '') + '.', true);
+          return;
+        }
+        const out2 = await r2.json().catch(() => ({}));
+        setDirty(false);
+        show(out2.issuedBefore
+          ? '✅ 저장했습니다 — 이미 발급된 건이라 다음 발급부터 차수(R1…)가 붙습니다'
+          : '✅ 저장했습니다', false, true);
+        emitEdit('saved', { issuedBefore: !!out2.issuedBefore, changed: out2.changed || '' });
+        return;
+      }
       /* ══ 직접 입력 모드 ══════════════════════════════════════════════════
          🔴 **엔진 폼 제출을 태우지 않는다.** 그 경로는 `getBreakdownData()`가 만든
            58개 키를 담는데, 이 모드에는 산출값이 아예 없다 — 태우면 **0원짜리 엔진
@@ -1753,6 +1795,140 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
        알 방법이 없다.
    ⚠ 못 불러와도 **화면은 열린다.** 담당자가 처음부터 적으면 되기 때문이다. 다만
      **왜 못 불러왔는지 말한다** — 조용히 빈 화면을 주면 고장으로 읽는다(결함 생성기 ②). */
+  /* ══ 저장된 견적을 이 화면으로 끌어온다 (대표 지시 2-4) ═══════════════════
+     🔴 **되돌려 읽는 곳은 여기 하나다.** `buildDoc()`이 내보낸 모양을 그대로 뒤집는다 —
+       두 함수가 짝이라, 한쪽을 고치면 다른 쪽도 같이 고쳐야 한다(바로 아래에 둔 이유).
+     ⚠ 못 불러오면 **화면을 열지 않는다.** 빈 화면에서 저장하면 저장된 견적이 빈 문서로
+       덮인다 — 조용한 폴백이 여기서는 자료 손실이다(결함 생성기 ②). */
+  async function loadQuoteForEdit() {
+    if (!EDIT_ID) return;
+    const fail = (why) => {
+      $('calcErr').textContent = '이 견적을 불러오지 못했습니다 — ' + why
+        + ' 고치기를 계속하면 저장된 내용이 지워질 수 있어 여기서 멈춥니다.';
+      $('calcErr').classList.remove('hidden');
+      $('calcErr').classList.add('note-err');
+      const b = document.getElementById('btnSave');
+      if (b) b.disabled = true;
+    };
+    let rec;
+    try {
+      const r = await fetch('/api/quotes/' + encodeURIComponent(EDIT_ID));
+      if (!r.ok) return fail('서버가 ' + r.status + '로 답했습니다.');
+      rec = await r.json();
+    } catch (e) { return fail('네트워크 오류입니다.'); }
+    const doc = rec && rec.doc;
+    if (!doc) return fail('이 건에는 아직 견적서 문서가 없습니다.');
+
+    /* 여행 조건 — 금액을 다시 산출하지 않지만, 문서가 읽는 값이라 채운다 */
+    const setv = (id, v) => { const e = $(id); if (e && v !== undefined && v !== null && v !== '') e.value = String(v); };
+    if (rec.destKey || rec.destination) {
+      const sel = $('pDest');
+      const want = String(rec.destKey || rec.destination);
+      if (sel && Array.from(sel.options).some((o) => o.value === want)) sel.value = want;
+    }
+    setv('pPax', (doc.trip && doc.trip.pax) || rec.participants);
+    setv('pDays', (doc.trip && doc.trip.days) || rec.days);
+    if (doc.trip && doc.trip.nights !== undefined) { setv('pNights', doc.trip.nights); $('pNights').dataset.touched = '1'; }
+    setv('pStart', (doc.trip && doc.trip.startDate) || rec.startDate);
+    setv('pEnd', (doc.trip && doc.trip.endDate) || rec.endDate);
+
+    /* 견적서 칸 */
+    const m = doc.meta || {}, tr = doc.trip || {}, pr = doc.price || {};
+    setv('dClient', m.client); setv('dRegion', m.regionLabel || tr.region);
+    setv('dIssue', m.issueDate); setv('dValid', m.validUntil);
+    setv('dStaffName', m.staffName); setv('dStaffTel', m.staffTel); setv('dStaffEmail', m.staffEmail);
+    setv('dOrgName', tr.orgName); setv('dStay', tr.stayLabel);
+    setv('dCondition', pr.condition); setv('dFuel', pr.fuelNote);
+    setv('dRemarks', doc.remarks); setv('dCancel', doc.cancelPolicy);
+    /* 🔴 인원 칸은 **0으로 덮지 않는다** — 안 적힌 줄은 비워 두는 것이 맞다 */
+    const qtyOf = (kind) => ((pr.lines || []).find((l) => l.kind === kind) || {}).qty;
+    ['adult', 'child', 'infant'].forEach((k) => {
+      const q = qtyOf(k);
+      if (q) setv('d' + k.charAt(0).toUpperCase() + k.slice(1), q);
+    });
+
+    const inn = doc._internal || {};
+    setv('dMemo', inn.memo);
+    if (Number.isFinite(Number(inn.cost))) setv('adhocCost', Math.round(Number(inn.cost)));
+
+    /* 항목 줄 — 원래 엔진이 낸 줄을 그대로 되살린다(감춘 줄 포함).
+       ⚠ 수량은 `engineRows`에 없다. 고객 세부견적서(`breakdown`)에서 **이름으로** 찾아
+         채우고, 못 찾으면 **비워 둔다**(지어내지 않는다). */
+    const bdRows = (doc.breakdown && doc.breakdown.rows) || [];
+    const qtyByName = {};
+    bdRows.forEach((r) => { if (r && r.name) qtyByName[r.name] = r.qty; });
+    const er = Array.isArray(inn.engineRows) ? inn.engineRows : null;
+    S.rows = (er && er.length ? er : bdRows).map((r, i) => ({
+      key: 'e' + i,
+      name: r.name || '',
+      qty: qtyByName[r.name] !== undefined && qtyByName[r.name] !== null ? qtyByName[r.name] : '',
+      unit: 0,
+      auto: Number(r.auto !== undefined ? r.auto : r.amount) || 0,
+      val: Number(r.val !== undefined ? r.val : r.amount) || 0,
+      internal: !!r.internal,
+      margin: !!r.margin,
+    }));
+    S.adj = (Array.isArray(inn.adjust) ? inn.adjust : []).map((a) => ({
+      key: a.key || ('adj' + Math.random().toString(36).slice(2, 6)),
+      label: a.label || '', qty: a.qty || '', amount: Number(a.amount) || 0,
+      kind: a.kind === 'cost' ? 'cost' : 'margin',
+    }));
+    /* 상세 내용 — `buildDoc`이 내보낸 모양을 뒤집는다(항공만 left/right를 쓴다) */
+    S.details = (doc.details || []).map((d) => ({
+      label: d.label,
+      foot: (d.footnotes || []).join('\n'),
+      red: (d.rows || []).some((r) => r.accent === 'red'),
+      rows: (d.rows || []).map((r) => ({
+        left: r.left || '', text: r.right !== undefined ? r.right : (r.text || ''),
+        note: r.note || '', accent: r.accent || '',
+      })),
+    }));
+    S.options = (doc.options || []).slice();
+    /* 🔴 **편집기가 쓰는 모양으로 맞춰 준다.** 문서의 일정에는 `meals`가 없을 수 있는데
+       (옛 문서·다른 경로가 만든 문서), 그대로 넣으면 일정 칸을 그리다 그 자리에서
+       터진다 — 실제로 터졌고, 그러면 화면이 통째로 안 뜬다. */
+    S.iti = (doc.itinerary || []).map((it, i) => ({
+      day: Number(it.day) || (i + 1), date: it.date || '', title: it.title || '',
+      am: it.am || '', pm: it.pm || '', eve: it.eve || '',
+      meals: Object.assign({ b: '', l: '', d: '' }, it.meals || {}),
+      stay: it.stay || '', note: it.note || '',
+    }));
+
+    /* 엔진 결과는 없지만 **「있다」는 표시**는 세운다 — 아래 코드가 이 값으로 갈린다 */
+    S.bd = { total: 0, perPerson: 0, combinedFactor: 1, rows: [], hotelGrade: { label: '' } };
+
+    /* ═══ 🔴 저장된 총액을 그대로 되살린다 ═══════════════════════════════════
+       줄 합 + 실무 변수가 저장된 총액과 딱 맞지 않을 수 있다(엔진이 계수를 마지막에
+       한 번 곱하고 반올림하기 때문이다). 그 차이를 **잔차로 되살리지 않으면**,
+       담당자가 아무것도 안 고치고 저장만 해도 **총액이 움직인다** — 고객이 이미 받은
+       금액이 바뀌는 자리다.
+     ⚠ 차이가 크면 반올림이 아니다. 그때는 **조용히 흡수하지 않고 말한다**(결함 생성기 ②). */
+    const savedTotal = Number((doc.price && doc.price.total) || rec.total) || 0;
+    const rowSum = S.rows.reduce((a, r) => a + (Number(r.val) || 0), 0);
+    const adjSum2 = S.adj.reduce((a, x) => a + (Number(x.amount) || 0), 0);
+    S.residual = savedTotal ? savedTotal - (rowSum + adjSum2) : 0;
+    const bigGap = Math.abs(S.residual) >= 1000;
+
+    unlockSteps();
+    $('calcState').textContent = '저장된 견적을 불러왔습니다 — 고칠 곳만 손보시면 됩니다'
+      + (rec.quoteNo ? ' (' + rec.quoteNo + ')' : '');
+    if (bigGap) {
+      /* 🔴 반올림으로 설명되지 않는 차이다. 흡수는 하되(총액을 지키려고) **말은 한다.** */
+      $('calcErr').textContent = '⚠ 저장된 총액과 항목 합이 '
+        + Math.abs(S.residual).toLocaleString('ko-KR') + '원 다릅니다. 총액은 저장된 값을 그대로 씁니다 — '
+        + '항목을 고치시면 그 차이도 함께 반영됩니다.';
+      $('calcErr').classList.remove('hidden');
+      $('calcErr').classList.remove('note-err');
+    }
+    renderAll();
+    /* 🔴 일정은 **그 단계를 열 때** 그린다 — 안 그려 두면 4단계로 갔을 때 빈 표가 뜨고,
+       담당자는 「일정이 날아갔다」로 읽는다. 불러온 자리에서 한 번 그려 둔다. */
+    stampDates();
+    renderIti();
+    showStep(2);
+    emitEdit('loaded', { quoteNo: rec.quoteNo || '' });
+  }
+
   async function loadPkg() {
     if (!ADHOC || !PKG_ID) return;
     try {
@@ -1788,6 +1964,41 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     }
   }
 
+  /* ══ 바깥(견적 상세)과 주고받기 — 끼워 넣어 쓰기 때문이다 (대표 지시 2-4) ══
+     ⚠ `postMessage`의 대상은 **부모 창**이다. 끼워 넣지 않고 그냥 열면 `parent`가
+       자기 자신이라 아무 일도 안 일어난다 — 그래서 단독으로 열어도 안 깨진다. */
+  function emitEdit(type, extra) {
+    if (window.parent === window) return;
+    try { window.parent.postMessage(Object.assign({ __aqp: type, id: EDIT_ID }, extra || {}), '*'); }
+    catch (e) { /* 다른 출처면 조용히 넘어간다 — 알림이 안 갈 뿐 편집은 된다 */ }
+  }
+
+  /* 🔴 **저장하지 않은 것이 있는지**를 바깥이 알아야 한다 (대표 지시 2-4:
+     「저장하지 않고 탭을 이동하거나 창을 닫으면 안내를 띄운다」).
+     ⚠ 여기서 확인창을 띄우지 않는다 — 띄우는 자리는 **바깥**이다. 안쪽에서도 띄우면
+       담당자가 같은 질문을 두 번 받는다. */
+  let aqpDirty = false;
+  function setDirty(v) {
+    if (aqpDirty === !!v) return;
+    aqpDirty = !!v;
+    emitEdit('dirty', { dirty: aqpDirty });
+  }
+  /* 칸을 건드리면 「고친 것이 있다」로 본다. 저장이 풀어 준다. */
+  document.addEventListener('input', (e) => { if (EDIT_ID && e.target && e.target.id !== 'saveMsg') setDirty(true); });
+  document.addEventListener('change', () => { if (EDIT_ID) setDirty(true); });
+  window.addEventListener('beforeunload', (e) => {
+    if (!EDIT_ID || !aqpDirty) return;
+    e.preventDefault(); e.returnValue = '';
+  });
+
+  /* 「수정하기」가 가리킨 자리로 간다 — 종합견적 ②, 세부견적 ②, 일정 ④ */
+  window.addEventListener('message', (e) => {
+    const d = e && e.data;
+    if (!d || d.__aqpGoto === undefined) return;
+    const step = d.__aqpGoto === 'iti' ? 4 : 2;
+    showStep(step);
+  });
+
   /* ═══ 인증 ═══ admin-quote.html (⚠ admin-quote.html은 2026-09-17에 지워졌다)과 같은 방식이다 ═══ */
   (function authGate() {
     fetch('/api/admin/account?action=me').then((r) => {
@@ -1803,6 +2014,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
       if (!$('dStaffName').value) $('dStaffName').value = me.displayName || '';
       /* ⚠ **로그인 뒤에** 부른다 — 그 API도 인증이 필요하다 */
       loadPkg();
+      loadQuoteForEdit();
     }).catch(() => { (window.top || window).location.href = 'admin.html'; });
   })();
 })();

@@ -229,6 +229,102 @@ const BOOT_CHECKS = async () => {
   ok('[12-c3] 화면이 오류 없이 뜬다', boot.log.errors.length === 0,
     boot.log.errors.map((e) => e.msg).slice(0, 2).join(' · '));
 };
+
+/* ═══ 편집 모드 (2026-09-23 대표 지시 2-4 · A안) ═══════════════════════════════
+   🔴 **화면을 띄워 글자를 읽는다.** 소스만 보면 「불러오는 코드가 있다」까지만 알 수 있고,
+     정작 값이 칸에 들어갔는지는 모른다 — 이 파일이 이미 한 번 당한 자리다. */
+const EDIT_DOC = {
+  v: 2,
+  meta: { client: '너울대학교', regionLabel: '다낭', issueDate: '2026-09-20', validUntil: '2026-10-20',
+    staffName: '점검담당', staffTel: '02-0000-0000', staffEmail: 'a@b.c' },
+  trip: { orgName: '너울대학교 교무처', startDate: '2026-11-03', endDate: '2026-11-07',
+    days: 5, nights: 4, region: '다낭', stayLabel: '다낭(4)', pax: 20 },
+  price: { lines: [{ kind: 'adult', label: '성인', unit: 1500000, qty: 20 }], condition: '10+1',
+    fuelNote: '#11월 기준 유류할증료 적용 기준', total: 30000000 },
+  breakdown: { rows: [{ name: '항공', qty: 20, amount: 12000000 }, { name: '호텔', qty: 20, amount: 18000000 }] },
+  details: [{ label: '항공', rows: [{ left: '에어서울', right: 'RS0527', note: 'LCC' }], footnotes: ['비고1'] },
+    { label: '불포함내역', rows: [{ text: '개인 경비', accent: 'red' }], footnotes: [] }],
+  options: [{ name: '골프 1회', amount: 300000, note: '' }],
+  itinerary: [{ day: 1, title: '출발', am: '인천 출발', pm: '호텔', eve: '', note: '' },
+    { day: 2, title: '연수', am: '기관 방문', pm: '시내', eve: '', note: '' }],
+  remarks: '내부 품의용', cancelPolicy: '출발 30일 전 무료',
+  _internal: { source: 'engine', cost: 21000000, margin: 9000000, memo: '내부 메모입니다',
+    engineRows: [{ name: '항공', auto: 12000000, val: 12000000, internal: false },
+      { name: '호텔', auto: 18000000, val: 18000000, internal: false },
+      { name: 'ENBT 수익', auto: 3000000, val: 3000000, internal: true }],
+    adjust: [{ key: 'foc', label: 'FOC', qty: 1, amount: -500000, kind: 'margin' }] },
+};
+
+const EDIT_CHECKS = async () => {
+  const boot = bootPage('admin-quote-pro.html', {
+    query: '?quote=qEDIT1',
+    /* ⚠ `/api/quotes`로 시작하는 주소는 전부 이 값을 받는다 — 단건 조회도 여기로 온다 */
+    fixtures: { quotes: { id: 'qEDIT1', quoteNo: 'BP-2609-0042', destKey: '다낭',
+      participants: 20, days: 5, total: 30000000, perPerson: 1500000, doc: EDIT_DOC } },
+  });
+  await boot.ready;
+  await boot.tick(400);
+  const D = boot.doc;
+  const val = (id) => (D.getElementById(id) || {}).value || '';
+  const txt = () => (D.body.textContent || '').replace(/\s+/g, ' ');
+
+  ok('[18] 편집 모드가 화면을 열었다 (오류 없음)', boot.log.errors.length === 0,
+    boot.log.errors.map((e) => e.msg).slice(0, 2).join(' · '));
+  ok('[18-a] 거래처명이 돌아왔다', val('dClient') === '너울대학교', val('dClient'));
+  ok('[18-b] 단체명이 돌아왔다', val('dOrgName') === '너울대학교 교무처', val('dOrgName'));
+  ok('[18-c] 인원·일수가 돌아왔다', val('pPax') === '20' && val('pDays') === '5',
+    val('pPax') + ' / ' + val('pDays'));
+  ok('[18-d] 출발일이 돌아왔다', val('pStart') === '2026-11-03', val('pStart'));
+  ok('[18-e] 작성일자·유효기간이 돌아왔다',
+    val('dIssue') === '2026-09-20' && val('dValid') === '2026-10-20', val('dIssue') + ' / ' + val('dValid'));
+  ok('[18-f] 비고·취소 규정이 돌아왔다',
+    val('dRemarks') === '내부 품의용' && val('dCancel') === '출발 30일 전 무료');
+  /* 🔴 **감춘 줄까지 되살아나야 한다** — 안 되살리면 저장하는 순간 마진 줄이 사라진다 */
+  /* ⚠ 단계마다 **그 단계를 열 때** 그린다 — 안 열고 글자를 찾으면 늘 빈손이다.
+     (처음에 그렇게 짰다가 「안 돌아왔다」로 빨개졌다. 화면은 멀쩡했다.) */
+  const goStep = async (n) => {
+    const b2 = D.querySelector('[data-step="' + n + '"]');
+    if (b2) b2.click();
+    await boot.tick(120);
+  };
+  /* 🔴 **칸에 들어간 값은 글자가 아니다.** 항목명·일정은 `<input>`이라 `textContent`로는
+     절대 안 잡힌다 — 처음에 그렇게 쟀다가 「안 돌아왔다」로 빨개졌고, 화면은 멀쩡했다. */
+  const vals = () => Array.from(D.querySelectorAll('input, textarea'))
+    .map((i) => i.value || '').join(' | ');
+  await goStep(2);
+  ok('[18-g] 🔴 감춘 수익 줄도 돌아왔다', /ENBT 수익/.test(vals()), vals().slice(0, 100));
+  ok('[18-h] 원가가 돌아왔다', val('adhocCost') === '21000000', val('adhocCost'));
+  ok('[18-i] 실무 변수(FOC)가 돌아왔다', /FOC/.test(txt()));
+  await goStep(4);
+  ok('[18-j] 일정 2일치가 돌아왔다', /기관 방문/.test(vals()), vals().slice(0, 100));
+  await goStep(5);
+  const prevTxt = ((D.getElementById('prevBox') || {}).textContent || '').replace(/\s+/g, ' ');
+  ok('[18-j2] 미리보기에 총액이 뜬다', /30,000,000/.test(prevTxt), prevTxt.slice(0, 100));
+  ok('[18-j3] 🔴 미리보기에 원가·내부 메모가 없다',
+    !/내부 메모입니다/.test(prevTxt) && !/ENBT 수익/.test(prevTxt), prevTxt.slice(0, 80));
+  ok('[18-k] 내부 메모가 돌아왔다', val('dMemo') === '내부 메모입니다', val('dMemo'));
+  ok('[18-l] 불러왔다고 말한다', /저장된 견적을 불러왔습니다/.test(txt()));
+  ok('[18-m] 번호를 함께 말한다', /BP-2609-0042/.test(txt()));
+  /* 단계가 풀려야 고칠 수 있다 */
+  ok('[18-n] 단계가 잠겨 있지 않다',
+    !(D.getElementById('btnNext1') || { className: '' }).className.includes('hidden'));
+};
+
+
+/* 🔴 **고치기 저장이 새 건을 만들면 안 된다** — 같은 내용의 견적이 하나 더 생기고
+   원본은 옛 금액으로 남는다. PATCH로 그 건을 갱신하는지 소스에서도 잠근다. */
+ok('[18-o] 고치기는 PATCH로 그 건을 갱신한다',
+  /if \(EDIT_ID\)[\s\S]{0,600}api\/quotes\/'[\s\S]{0,200}method: 'PATCH'/.test(PRO));
+ok('[18-p] 🔴 금액도 함께 보낸다 (목록·수익 요약이 따라온다)',
+  /totals: \{ total: t2\.total, participants: t2\.pax, perPerson: t2\.unit, visibleTotal: t2\.cost \}/.test(PRO));
+ok('[18-q] 고치기 저장 뒤에는 엔진 저장 경로로 안 흘러간다',
+  PRO.indexOf("if (EDIT_ID) {") > 0
+  && PRO.indexOf('return;', PRO.indexOf("emitEdit('saved'")) > PRO.indexOf("emitEdit('saved'"));
+/* 🔴 저장 안 한 채 나가려 할 때 **바깥이** 묻는다 — 양쪽에서 물으면 두 번 묻는다 */
+ok('[18-r] 편집기는 「고친 것이 있다」만 알린다(확인창을 띄우지 않는다)',
+  /emitEdit\('dirty'/.test(PRO) && !/confirm\(/.test(PRO.slice(PRO.indexOf('function setDirty'), PRO.indexOf('function setDirty') + 600)));
+ok('[18-s] 창을 닫을 때도 막는다', /beforeunload/.test(PRO));
+
 ok('[12-d] 이름표를 화면에 다시 적지 않았다',
   !/언어 집중 연수/.test(PRO) && !/공공기관/.test(PRO));
 
@@ -474,6 +570,7 @@ ok('[20-j] 저장 기록에 kind가 남는다', /adjust: S\.adj\.filter[\s\S]{0,
 
 (async () => {
   try { await BOOT_CHECKS(); } catch (e) { fails.push('[12-c] 화면을 못 띄웠다 — ' + e.message); }
+  try { await EDIT_CHECKS(); } catch (e) { fails.push('[18] 고치기 화면을 못 띄웠다 — ' + e.message); }
   console.log('\n══════════════════════════════════════════════════════════════════');
   console.log(' 자동 견적 산출 (내부직원용) — 메뉴 3분류 · admin-quote-pro.html');
   console.log('══════════════════════════════════════════════════════════════════');

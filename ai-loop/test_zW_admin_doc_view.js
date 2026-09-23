@@ -192,7 +192,16 @@ async function 태우기(견적) {
     ok('[2-f7] 🔴 수정하기가 직원용으로 데려간다',
       D.getElementById('emModalBody').dataset.emtab === 'staff');
     ok('[2-f8] 그때 원가 표가 보인다', disp('em-sec-items') !== 'none', disp('em-sec-items'));
-    ok('[2-f9] 어디로 왔는지 표시한다', D.getElementById('em-sec-items').classList.contains('em-flash'));
+    /* ⚠ 2026-09-23(A안): 「수정하기」는 읽기 전용 원가 표가 아니라 **고칠 수 있는
+       자리**(끼워 넣은 편집기)로 데려간다 — 읽기만 되는 곳으로 보내면 버튼 이름이
+       거짓말이 된다(CLAUDE.md 화면 규칙 ③). */
+    ok('[2-f9] 어디로 왔는지 표시한다', D.getElementById('em-sec-edit').classList.contains('em-flash'));
+    ok('[2-f9b] 🔴 고칠 수 있는 자리로 데려간다(읽기 전용 표가 아니다)',
+      !D.getElementById('em-sec-items').classList.contains('em-flash'));
+    ok('[2-f9c] 편집기는 직원용 탭을 열 때 불러온다(상세를 열 때마다가 아니다)',
+      !D.getElementById('em-edit-frame').getAttribute('src')
+      || D.getElementById('em-edit-frame').getAttribute('src').indexOf('quote=') >= 0,
+      String(D.getElementById('em-edit-frame').getAttribute('src')));
     ok('[2-f10] 그때 고객용 칸은 덮인다', disp('emTabCust') === 'none', disp('emTabCust'));
     /* 다시 고객용으로 — 되돌아갈 수 있어야 한다 */
     const s4 = D.createElement('script');

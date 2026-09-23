@@ -408,6 +408,7 @@
     /* 🔴 **열 때마다 고객용으로 되돌린다** (대표 지시 2-1: 「기본으로 열리는 탭은 고객용」).
        앞 견적에서 직원용을 보고 닫았으면 다음 건이 원가 화면으로 열린다 — 상태가
        건을 넘어 새는 자리다(일정 편집기에서 이미 한 번 겪었다). */
+    emEditReset();
     emSetTab('cust');
     /* UI: 일정 편집기를 접어 둔 상태로 되돌린다. 안 지우면 **앞 견적의 일정이
        다음 견적 화면에 그대로 남고**, 그 상태로 저장하면 남의 일정이 이 고객에게 간다.
@@ -1087,6 +1088,90 @@
     box.classList.remove('hidden');
   }
 
+
+  /* ══ ✏️ 끼워 넣은 편집기와 주고받기 (2026-09-23 대표 지시 2-4) ═══════════════
+     🔴 **저장하지 않은 것이 있으면 못 나가게 한다.** 탭을 옮기거나 창을 닫을 때
+       확인한다 — 안쪽(편집기)이 아니라 **여기서** 묻는다. 양쪽에서 물으면 담당자가
+       같은 질문을 두 번 받는다. */
+  let emEditDirty = false;
+  let emEditLoadedFor = null;
+
+  function emEditFrame() { return document.getElementById('em-edit-frame'); }
+
+  /* 상세를 닫는 자리는 **하나**다 — 머리의 ✕와 아래 「닫기」가 같은 것을 부른다.
+     두 곳에 각각 적으면 한쪽만 지킴이를 지나간다(결함 생성기 ①). */
+  function emCloseDetail() {
+    if (!emEditGuard('창을 닫기')) return;
+    emEditReset();
+    document.getElementById('emModal').classList.add('hidden');
+  }
+
+  /* 직원용 탭을 처음 열 때 불러온다 — 상세를 열 때마다 엔진 화면을 싣지 않는다 */
+  function emEditEnsure() {
+    const f = emEditFrame();
+    if (!f || !emCurrentId) return;
+    if (emEditLoadedFor === emCurrentId) return;
+    emEditLoadedFor = emCurrentId;
+    emEditDirty = false;
+    const st = document.getElementById('em-edit-state');
+    if (st) { st.textContent = '불러오는 중…'; st.style.color = 'var(--muted)'; }
+    f.src = 'admin-quote-pro.html?quote=' + encodeURIComponent(emCurrentId);
+  }
+
+  /* 견적을 바꿔 열면 **앞 건의 편집기를 버린다** — 안 버리면 다음 건 화면에 앞 건이
+     남고, 그 상태로 저장하면 남의 견적을 덮는다(일정 편집기에서 이미 겪은 자리다). */
+  function emEditReset() {
+    const f = emEditFrame();
+    emEditLoadedFor = null;
+    emEditDirty = false;
+    if (f) f.removeAttribute('src');
+    const st = document.getElementById('em-edit-state');
+    if (st) { st.textContent = '직원용 탭을 열면 불러옵니다'; st.style.color = 'var(--muted)'; }
+  }
+
+  window.addEventListener('message', (ev) => {
+    const d = ev && ev.data;
+    if (!d || !d.__aqp) return;
+    const st = document.getElementById('em-edit-state');
+    if (d.__aqp === 'loaded') {
+      if (st) { st.textContent = '불러왔습니다' + (d.quoteNo ? ' · ' + d.quoteNo : ''); st.style.color = '#15803D'; }
+    } else if (d.__aqp === 'dirty') {
+      emEditDirty = !!d.dirty;
+      if (st && emEditDirty) { st.textContent = '저장하지 않은 변경사항이 있습니다'; st.style.color = 'var(--warn)'; }
+    } else if (d.__aqp === 'saved') {
+      emEditDirty = false;
+      if (st) {
+        st.textContent = '저장했습니다' + (d.issuedBefore ? ' · 다음 발급부터 차수(R1…)가 붙습니다' : '');
+        st.style.color = '#15803D';
+      }
+      /* 🔴 **고객용 탭이 곧바로 새 내용을 보여줘야 한다** (대표 지시 2-4:
+         「저장하면 고객용 탭에 즉시 반영된 뒤 고객용 탭으로 돌아가 결과를 확인」).
+         ⚠ 서버에서 다시 읽는다 — 화면이 들고 있던 값으로 그리면 「저장됐다고 믿었는데
+           실제로는 안 들어간」 경우를 못 본다. */
+      emEditAfterSave();
+    }
+  });
+
+  async function emEditAfterSave() {
+    try { await loadRemoteData(); } catch (e) { /* 아래에서 옛 값으로라도 그린다 */ }
+    renderEstMgr();
+    const rec = getEstsFull().find((x) => x.id === emCurrentId);
+    if (rec) {
+      emRenderDocPreview(rec);
+      emRenderProfit(rec);
+      emRenderItiState();
+    }
+    emSetTab('cust');
+  }
+
+  /* 🔴 저장 안 한 채로 나가려 할 때 — 한 곳에서 묻는다 */
+  function emEditGuard(what) {
+    if (!emEditDirty) return true;
+    const okGo = confirm('저장하지 않은 변경사항이 있습니다.\n\n' + what + '하면 고친 내용이 사라집니다. 계속할까요?');
+    if (okGo) emEditDirty = false;
+    return okGo;
+  }
+
   /* ══ 고객용 / 직원용 (2026-09-23 대표 지시 2-1·2-3) ═══════════════════════
      🔴 **기본은 고객용이다.** 담당자가 상세를 여는 이유는 대개 「고객이 뭘 받나」이고,
        그걸 먼저 보여 주면 원가 화면을 지나칠 일이 없다.
@@ -1096,6 +1181,9 @@
     const body = document.getElementById('emModalBody');
     if (!body) return;
     const tab = which === 'staff' ? 'staff' : 'cust';
+    /* 🔴 직원용 → 고객용으로 나갈 때만 묻는다. 들어올 때는 잃을 것이 없다. */
+    if (tab === 'cust' && body.dataset.emtab === 'staff' && !emEditGuard('고객용 탭으로 이동')) return;
+    if (tab === 'staff') emEditEnsure();
     body.dataset.emtab = tab;
     const c = document.getElementById('emTabBtnCust');
     const t = document.getElementById('emTabBtnStaff');
@@ -1122,7 +1210,14 @@
        **어디로 왔는지 잠깐 표시**한다(1.6초 배경). 조용히 옮기면 이동한 줄도 모른다. */
   function emGotoEdit(which) {
     emSetTab('staff');
-    const id = which === 'iti' ? 'em-sec-iti' : 'em-sec-items';
+    /* 🔴 **고칠 수 있는 자리로 데려간다** — 읽기 전용 표로 보내면 「수정하기」가
+       거짓말이 된다. 편집기에게 어느 단계를 열지도 함께 알린다(대표 지시 2-3). */
+    const f = emEditFrame();
+    if (f && f.contentWindow) {
+      try { f.contentWindow.postMessage({ __aqpGoto: which === 'iti' ? 'iti' : 'sum' }, '*'); }
+      catch (e) { /* 아직 안 떴으면 불러온 뒤 2단계로 열린다 */ }
+    }
+    const id = 'em-sec-edit';
     const el = document.getElementById(id);
     if (!el) return;
     /* 되풀이해 눌러도 매번 보이게 — 클래스를 뗐다가 다시 붙인다 */

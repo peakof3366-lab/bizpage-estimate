@@ -9,6 +9,29 @@ module.exports = async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   const { id } = req.query;
 
+  /* ── 한 건만 읽는다 (2026-09-23) ───────────────────────────────────────────
+     편집 화면이 iframe으로 열릴 때 **그 건 하나**가 필요하다. 목록(`/api/quotes`)은
+     1,000건을 통째로 실어 보내므로 창 하나 여는 데 쓸 것이 아니다.
+     ⚠ 새 파일을 만들지 않는다 — Vercel 함수 12개 제한에 이미 닿아 있다(CLAUDE.md).
+       이 파일은 이미 있으므로 **메서드 분기**는 공짜다. */
+  if (req.method === 'GET') {
+    try {
+      const rows = await sql`select * from quotes where id = ${id}`;
+      if (!rows.length) return res.status(404).json({ error: 'quote_not_found' });
+      const r = rows[0];
+      /* 🔴 컬럼을 payload **뒤에** 둔다 — 화면이 보낸 같은 이름을 덮는다(목록과 같은 규칙) */
+      return res.status(200).json({
+        ...r.payload, id: r.id, status: r.status, note: r.note,
+        quoteNo: r.quote_no || null, sourceQuoteNo: r.source_quote_no || null,
+        assignee: r.assignee || '', activityLog: r.activity_log || [],
+        itinerary: r.itinerary || null,
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'query_failed' });
+    }
+  }
+
   if (req.method === 'PATCH') {
     const body = req.body || {};
     try {
@@ -84,14 +107,66 @@ module.exports = async (req, res) => {
         if (size > 400000) {
           return res.status(413).json({ error: 'doc_too_large', message: '견적서 문서가 너무 큽니다 (' + size + '바이트). 일정·상세 내용을 줄여 주세요.' });
         }
-        const hit = await sql`select 1 from quotes where id = ${id}`;
+        const hit = await sql`select payload from quotes where id = ${id}`;
         if (!hit.length) return res.status(404).json({ error: 'quote_not_found' });
+
+        /* ═══ 🔴 금액까지 함께 갱신한다 (2026-09-23 대표 지시 2-4) ═══════════════
+           담당자가 세부견적 표에서 금액을 고치면 **문서만 바뀌고 목록·수익 요약은 옛
+           금액**으로 남는다. 그 어긋남이 정확히 2026-09-17에 겪은 「대장이 고객이 못 본
+           금액을 적고 있었다」이다.
+         🔴 **여기서 다시 계산하지 않는다** — 화면이 보낸 값을 그대로 옮긴다. 서버가
+           재계산하면 화면이 보여 준 금액과 저장된 금액이 갈릴 수 있다.
+         ⚠ 숫자가 아니면 **건드리지 않는다**(지우지 않는다). 빈 값으로 덮으면 목록의
+           금액 열이 통째로 비고, 그건 조용한 손실이다. */
+        const t = body.totals && typeof body.totals === 'object' ? body.totals : null;
+        const numOr = (v, cur) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : cur);
+        const prev = hit[0].payload || {};
+        const nextTotal = t ? numOr(t.total, prev.total) : prev.total;
+        const nextPax = t ? numOr(t.participants, prev.participants) : prev.participants;
+        const nextPer = t ? numOr(t.perPerson, prev.perPerson) : prev.perPerson;
+        const nextVis = t ? numOr(t.visibleTotal, prev.visibleTotal) : prev.visibleTotal;
+
+        /* ── 수정 이력 — **고치기 전에** 남긴다 (대표 지시 2-4) ────────────────
+           🔴 이미 발급된 건인지 함께 적는다. 발급 뒤 수정은 **다음 발급이 차수(R1)를
+             받는다**는 뜻이라, 나중에 「왜 R1이 생겼나」의 답이 이 줄이다. */
+        let issuedBefore = false;
+        try {
+          const sh = await sql`select 1 from quote_shares where quote_id = ${id} limit 1`;
+          issuedBefore = sh.length > 0;
+        } catch (err) { console.error('[quotes/:id] 발급 이력 조회 실패:', err && err.message); }
+        const changed = [];
+        if (prev.doc && JSON.stringify(prev.doc) !== JSON.stringify(doc)) changed.push('견적서 문서');
+        if (t && Number(nextTotal) !== Number(prev.total)) {
+          changed.push('총액 ' + Math.round(Number(prev.total) || 0).toLocaleString('ko-KR')
+            + ' → ' + Math.round(Number(nextTotal) || 0).toLocaleString('ko-KR'));
+        }
+        try {
+          await sql`
+            insert into quote_edit_log (quote_id, by_user, changed, issued_before, prev_doc)
+            values (${id}, ${(req.user && (req.user.displayName || req.user.username)) || 'staff'},
+                    ${changed.join(' · ') || '변경 없음'}, ${issuedBefore},
+                    ${prev.doc ? JSON.stringify(prev.doc) : null}::jsonb)`;
+        } catch (err) {
+          /* 🔴 이력을 못 남겼다고 저장을 막지 않는다 — 담당자가 고친 내용을 잃는 편이 더 나쁘다.
+             대신 조용히 넘어가지 않고 기록한다. */
+          console.error('[quotes/:id] 수정 이력을 남기지 못했다:', err && err.message);
+        }
+
         await sql`
           update quotes
-             set payload = payload || ${JSON.stringify({ doc, docAt: new Date().toISOString() })}::jsonb
+             set payload = payload || ${JSON.stringify({
+               doc, docAt: new Date().toISOString(),
+               ...(t ? { total: nextTotal, participants: nextPax, perPerson: nextPer,
+                 ...(nextVis !== undefined ? { visibleTotal: nextVis } : {}) } : {}),
+             })}::jsonb
            where id = ${id}
         `;
-        return res.status(200).json({ ok: true, bytes: size });
+        /* ⚠ 컬럼(total·participants)은 목록 정렬·통계가 읽는다 — payload만 고치면
+           목록의 금액이 안 따라온다. 값이 있을 때만 따로 갱신한다. */
+        if (t) {
+          await sql`update quotes set total = ${nextTotal}, participants = ${nextPax} where id = ${id}`;
+        }
+        return res.status(200).json({ ok: true, bytes: size, issuedBefore, changed: changed.join(' · ') });
       }
 
       /* UI: 이 견적서 전용 일정 저장 — 작성자가 마지막에 확인·수정한 그 일정.
