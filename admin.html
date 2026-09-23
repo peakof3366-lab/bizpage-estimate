@@ -1891,6 +1891,12 @@
         <div id="em-doc-prev" class="em-doc-prev"></div>
       </div>
 
+      <!-- ═══ 🔴 **기본 화면은 넷만** (2026-09-24 대표 지시: 「더할 나위 없이 간결하게」)
+           담당자가 이 창을 여는 이유는 거의 늘 ① 뭔 건인지 보고 ② 고치고 ③ 보내고
+           ④ 상태를 적는 것이다. 나머지(원가표·수익·요율·신뢰구간·실적 입력·일정·
+           진행 기록)는 **가끔** 쓰는 것이라 한 곳에 접는다.
+         ⚠ **지우지 않았다.** 「자세히」를 누르면 예전 그대로 전부 있다. -->
+      <div id="em-head-sum"></div>
       <div id="em-linked-inquiry" class="hidden"></div>
       <div id="em-verify-block" style="padding:0 1.25rem"></div>
 
@@ -1943,8 +1949,11 @@
         </table>
       </div>
 
-      <!-- 총액 비교 박스 (4개) -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--border)">
+      <!-- 총액 비교 박스 (4개)
+           ⚠ `id`는 「자세히」로 접기 위한 손잡이다(2026-09-24). 자리는 그대로 두고
+             모달을 열 때 자바스크립트가 옮겨 담는다 — HTML을 크게 들어내면 옮기다
+             하나가 조용히 빠진다(이 저장소가 여러 번 겪은 유형). -->
+      <div id="em-sec-money" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--border)">
         <!-- ① 청구 금액 = 수익 포함 = 홈페이지 고객 표시와 동일 -->
         <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center">
           <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:.25rem">① 고객 청구 금액</div>
@@ -2018,7 +2027,7 @@
              네 칸 모두에 해당하는 말이라 각자 적을 이유가 없었다.
            ⚠ 「실제 총 계약가」의 설명은 **남긴다.** 그건 요율 갱신이 아니라 「견적 정확도
              종합 오차」에 쓰인다는 **다른 이야기**다(RG가 지키는 값이기도 하다). -->
-        <div class="em-actual-wrap">
+        <div class="em-actual-wrap" id="em-sec-actual">
         <p class="em-actual-lead">계약이 완료된 건이면 실제 최종 단가를 남겨 주세요 — 요율 관리 탭이 목적지별로 모아 기준 요율과 비교해 갱신을 제안합니다.</p>
         <div class="em-actual-grid">
         <div style="padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
@@ -2149,8 +2158,14 @@
           <button class="btn-act" onclick="emCloseDetail()" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
         </div>
 
+        <!-- 접어 둔 것들이 여기로 옮겨 온다(자바스크립트가 옮긴다) -->
+        <details class="em-more" id="em-more">
+          <summary class="fold-note" id="em-more-sum">자세히 — 원가·수익·요율·실적·일정·진행 기록</summary>
+          <div id="em-more-box"></div>
+        </details>
+
         <!-- 진행 기록 (신규) -->
-        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <div id="em-sec-log" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
           <div class="detail-label">진행 기록</div>
           <div id="em-log-list" style="margin:.5rem 0"></div>
           <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center;flex-wrap:wrap">

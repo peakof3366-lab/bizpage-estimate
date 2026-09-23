@@ -409,6 +409,10 @@
        앞 견적에서 직원용을 보고 닫았으면 다음 건이 원가 화면으로 열린다 — 상태가
        건을 넘어 새는 자리다(일정 편집기에서 이미 한 번 겪었다). */
     emEditReset();
+    /* 🔴 **열 때 정리한다** — 접을 것을 접고, 무슨 건인지 한 줄로 말한다 */
+    emCollapseExtras();
+    emRenderHeadSum(e);
+    emSyncActualVisibility(e);
     emSetTab('cust');
     /* UI: 일정 편집기를 접어 둔 상태로 되돌린다. 안 지우면 **앞 견적의 일정이
        다음 견적 화면에 그대로 남고**, 그 상태로 저장하면 남의 일정이 이 고객에게 간다.
@@ -1189,6 +1193,66 @@
     const okGo = confirm('저장하지 않은 변경사항이 있습니다.\n\n' + what + '하면 고친 내용이 사라집니다. 계속할까요?');
     if (okGo) emEditDirty = false;
     return okGo;
+  }
+
+
+  /* ══ 🔴 기본은 넷만 보이게 (2026-09-24 대표 지시: 「더할 나위 없이 간결하게」) ══
+     담당자가 이 창을 여는 이유는 거의 늘 넷이다 — **뭔 건인지 보고 · 고치고 · 보내고 ·
+     상태를 적는다.** 나머지는 가끔 쓰는 것이라 「자세히」 한 곳에 접는다.
+
+     🔴 **HTML을 들어내지 않고 옮겨 담는다.** 구역이 여덟이라 마크업을 잘라 옮기면
+       그 과정에서 하나가 조용히 빠진다(이 저장소가 거듭 겪은 유형). 자리는 그대로 두고
+       **열 때 옮긴다** — 되돌리기도 한 줄이다.
+     ⚠ 한 번만 옮긴다. 열 때마다 옮기면 이미 옮긴 것을 또 찾다가 순서가 뒤집힌다.
+     ⚠ **지운 것이 아니다.** 「자세히」를 누르면 예전 그대로 전부 있다. */
+  const EM_MORE_IDS = ['em-sec-items', 'em-sec-money', 'em-confidence', 'em-profit-summary',
+    'em-coef-contrib', 'em-sec-actual', 'em-sec-iti', 'em-sec-log'];
+  let emMoved = false;
+  function emCollapseExtras() {
+    if (emMoved) return;
+    const box = document.getElementById('em-more-box');
+    if (!box) return;
+    EM_MORE_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) box.appendChild(el);
+    });
+    emMoved = true;
+  }
+
+  /* 한 줄 요약 — 창을 열자마자 **무슨 건인지**가 보여야 한다.
+     ⚠ 금액은 목록과 **같은 값**을 쓴다(청구 금액). 여기서 다시 계산하지 않는다. */
+  function emRenderHeadSum(e) {
+    const el = document.getElementById('em-head-sum');
+    if (!el) return;
+    const won = (n) => '₩' + Math.round(Number(n) || 0).toLocaleString('ko-KR');
+    const sell = Number(e.total) || 0;
+    const cost = (e.visibleTotal !== undefined && e.visibleTotal !== null) ? Number(e.visibleTotal) : sell;
+    const rate = sell > 0 ? (sell - cost) / sell : 0;
+    const low = sell > 0 && rate < EM_MARGIN_WARN;
+    el.innerHTML = '<div class="em-sum-row">'
+      + '<b>' + esc(e.orgName || '(기관명 없음)') + '</b>'
+      + '<span>' + esc(e.destLabel || e.destKey || '-') + ' · '
+      + (Number(e.participants) || 0) + '명 · ' + (Number(e.days) || 0) + '일</span>'
+      + '<span class="em-sum-money">' + won(sell) + '</span>'
+      + (sell > 0 ? '<span class="em-sum-rate" style="color:'
+        + (low ? 'var(--danger)' : 'var(--success)') + '">이익률 '
+        + (rate * 100).toFixed(1) + '%</span>' : '')
+      + '</div>';
+  }
+
+  /* 🔴 **실적 입력은 계약완료 건에만 쓴다.** 신규 건에서도 늘 보여서, 처음 보는 사람이
+     화면의 3분의 1을 「내가 지금 적어야 하나」로 읽었다(저장 버튼도 넷이나 붙어 있다). */
+  function emSyncActualVisibility(e) {
+    const wrap = document.getElementById('em-sec-actual');
+    if (!wrap) return;
+    const done = (e && e.status) === 'contracted';
+    wrap.classList.toggle('hidden', !done);
+    const sum = document.getElementById('em-more-sum');
+    if (sum) {
+      sum.textContent = done
+        ? '자세히 — 원가·수익·요율·실적·일정·진행 기록'
+        : '자세히 — 원가·수익·요율·일정·진행 기록';
+    }
   }
 
   /* ══ 고객용 / 직원용 (2026-09-23 대표 지시 2-1·2-3) ═══════════════════════

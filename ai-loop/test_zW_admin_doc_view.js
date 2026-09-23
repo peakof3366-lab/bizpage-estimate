@@ -183,10 +183,19 @@ async function 태우기(견적) {
       String((D.querySelectorAll('#em-doc-prev .em-cust-edit button') || []).length) + '개');
     /* 🔴 **탭이 진짜로 가리는가** — 규칙을 적어 둔 것과 실제로 덮이는 것은 다른 말이다.
        고객용일 때 원가 표(직원용)가 계산상 `display:none`이어야 한다. */
-    const disp = (id) => {
-      const el = D.getElementById(id);
-      return el ? (B.win.getComputedStyle(el).display || '') : '(없음)';
+    /* 🔴 **제 display만 보면 안 된다.** 2026-09-24에 여덟 구역을 「자세히」 안으로
+       옮기면서 이 칸들이 **감춰진 조상 밑**으로 들어갔다 — 자기 자신은 여전히 `block`이라
+       「안 덮였다」로 읽혔다(서버·화면은 멀쩡했고 자가 틀린 것이다).
+       조상까지 걸어 올라가며 본다. */
+    const hiddenBy = (id) => {
+      let el = D.getElementById(id);
+      while (el && el.id !== 'emModalBody') {
+        if ((B.win.getComputedStyle(el).display || '') === 'none') return true;
+        el = el.parentElement;
+      }
+      return false;
     };
+    const disp = (id) => (hiddenBy(id) ? 'none' : 'block');
     ok('[2-f5] 🔴 고객용일 때 원가 표가 덮인다', disp('em-sec-items') === 'none', disp('em-sec-items'));
     ok('[2-f6] 고객용 칸은 보인다', disp('emTabCust') !== 'none', disp('emTabCust'));
     /* 직원용으로 넘기면 반대가 된다 */
@@ -231,6 +240,36 @@ async function 태우기(견적) {
        화면 규칙을 어디에 적는지도 「한 곳」이 있다. */
     ok('[2-f4] 수정하기가 인쇄에서 빠진다',
       /\.em-tabbar, \.em-cust-edit \{ display:none/.test(read('admin.css')));
+    /* ═══ 🔴 간결한 기본 화면 (2026-09-24 대표 지시: 「더할 나위 없이 간결하게」) ═══
+       담당자가 이 창을 여는 이유는 거의 늘 넷이다 — 뭔 건인지 보고 · 고치고 · 보내고 ·
+       상태를 적는다. 나머지 여덟 구역은 「자세히」 한 곳에 접는다.
+     🔴 **지운 것이 아니다.** 접힌 상자 안에 전부 있는지까지 센다 — 접는 김에 하나가
+       사라지면 담당자는 그 기능이 없어진 줄 안다. */
+    const MORE = D.getElementById('em-more-box');
+    const moreIds = MORE ? Array.from(MORE.children).map((x) => x.id) : [];
+    ok('[2-s] 「자세히」 상자가 있다', !!MORE);
+    ok('[2-s2] 🔴 접은 여덟 구역이 **사라지지 않고** 그 안에 있다',
+      ['em-sec-items', 'em-sec-money', 'em-confidence', 'em-profit-summary',
+        'em-coef-contrib', 'em-sec-actual', 'em-sec-iti', 'em-sec-log']
+        .every((id) => moreIds.indexOf(id) >= 0), moreIds.join(' · '));
+    ok('[2-s3] 기본은 접혀 있다', !D.getElementById('em-more').open);
+    /* 🔴 「저장」이라는 이름의 버튼이 다섯이었다 — 귀로도 눈으로도 구별이 안 된다
+       (CLAUDE.md 화면 규칙 ④). 기본 화면에는 하나만 남는다. */
+    const baseBtns = Array.from(D.querySelectorAll('#emModalBody button'))
+      .filter((x) => !MORE.contains(x) && !x.closest('#emTabCust'));
+    const saveCount = baseBtns.filter((x) => (x.textContent || '').trim() === '저장').length;
+    ok('[2-s4] 🔴 기본 화면의 「저장」 버튼이 하나다', saveCount === 1, saveCount + '개');
+    ok('[2-s5] 기본 화면 버튼이 열 개를 넘지 않는다', baseBtns.length <= 10,
+      baseBtns.length + '개 — ' + baseBtns.map((x) => (x.textContent || '').trim()).join(','));
+    /* 🔴 실적 4칸은 **계약완료 건에만** 쓴다. 신규 건에서 늘 보이면 처음 보는 사람이
+       화면의 3분의 1을 「내가 지금 적어야 하나」로 읽는다. */
+    ok('[2-s6] 🔴 신규 건에는 실적 입력이 안 보인다',
+      D.getElementById('em-sec-actual').classList.contains('hidden'));
+    /* 한 줄 요약 — 열자마자 무슨 건인지 */
+    const sum = (D.getElementById('em-head-sum') || {}).textContent || '';
+    ok('[2-s7] 한 줄 요약에 기관·인원·금액이 있다',
+      /새롬물산/.test(sum) && /30명/.test(sum) && /56,696,074/.test(sum), sum.slice(0, 60));
+
     /* ═══ 💰 수익 요약 (대표 지시 2-5) ═════════════════════════════════════
        🔴 대표 확인 사항: 「수익 요약 수치가 세부견적 원가·판매가 합계와 일치하는지」.
          화면에 그려진 **글자에서 숫자를 다시 읽어** 맞춰 본다 — 계산식을 여기 다시 적으면
