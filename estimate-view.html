@@ -415,38 +415,10 @@ a { color: inherit; text-decoration: none; }
   font-weight: 700; cursor: pointer; border-radius: 0;
 }
 .qdv-tab[aria-selected="true"] { background: #111111; color: #FFFFFF; border-color: #111111; }
-.qdv-panel { background: #FFFFFF; border: 1px solid #DCDCD8; }
-
-/* 🔴 **문서 사이를 벌린다** (2026-09-22 대표 지시: 「다닥다닥 붙어 있는 느낌」).
-   롤링으로 바꾸면서 세 문서가 테두리만 맞닿은 채 이어졌고, **어디서 문서가 바뀌는지**가
-   화면에서 사라졌다 — 탭일 때는 탭 자체가 경계였는데, 탭을 없애면서 경계도 같이 없앤 것이다.
-   고객은 한 장짜리 긴 문서로 읽고, 「세부견적서를 받았다」는 사실 자체를 못 알아챈다.
-   → ① 사이를 띄워 바탕색(#F4F4F2)이 드러나게 하고 ② 종이처럼 그림자를 주고
-     ③ 문서마다 **이름과 몇 번째인지**를 머리에 붙인다(아래 `.qdv-tag`). */
-.qdv-panel + .qdv-panel { margin-top: 34px; }
-.qdv-panel { box-shadow: 0 2px 6px rgba(16, 18, 29, .07); }
-/* 🔴 A4 틀이 서는 폭에서는 **구역이 종이를 감싼다** (2026-09-22).
-   안 맞추면 932px짜리 흰 상자 안에 794px 종이가 들어앉아, 종이 양옆으로 흰 띠가
-   26px씩 남는다 — 테두리가 종이 가장자리인 줄 알고 보다가 인쇄하면 달라진다.
-   ⚠ 폭 조건을 `quote_doc.css`의 A4 조건과 **같은 값(880px)**으로 둔다. 어긋나면
-     구역만 좁아지고 종이는 안 서는 폭 구간이 생긴다. */
-@media screen and (min-width: 880px) {
-  .qdv-panel { width: -moz-fit-content; width: fit-content; margin-left: auto; margin-right: auto; }
-}
-
-/* 문서 머리 띠 — 「문서 2 / 3 · 세부견적서」.
-   ⚠ **인쇄에는 안 나간다**(`no-print`). 인쇄는 문서마다 새 장에서 시작하므로 이 띠가
-     없어도 경계가 분명하고, 결재에 올라가는 종이에 화면용 표시가 찍히면 안 된다.
-   ⚠ 보라(#514dc2)는 BI 가이드 색이다 — 흰 바탕에서 쓰는 쪽(민트는 어두운 면 전용). */
-.qdv-tag {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 18px; background: #FAF9F7; border-bottom: 1px solid #E6E4E0;
-  font-size: 13px; font-weight: 800; letter-spacing: -.01em; color: #16181D;
-}
-.qdv-tag span {
-  font-size: 11px; font-weight: 700; color: #514dc2;
-  background: #EDECFA; border-radius: 999px; padding: 3px 10px; line-height: 1.35;
-}
+/* ⚠ 2026-09-23(대표 지시 3): 구역(`.qdv-panel`)과 머리 띠(`.qdv-tag`)의 모양은
+   **`quote_doc.css`로 옮겼다.** 같은 묶음을 세 화면이 그리는데 모양 규칙이 이 파일에만
+   있으면, 담당자 화면에서는 띠가 **스타일 없이** 나온다 — 「고객이 받는 그대로」가
+   화면마다 다른 뜻이 된다. 여기 남는 것은 이 페이지만의 것(바로가기·스크롤 여백)뿐이다. */
 .qdv-note { max-width: 900px; margin: 10px auto 0; font-size: 12.5px; color: #5B5B5B; }
 /* 🔴 **`hidden` 속성만으로는 안 감춰진다.** `.btn-print`가 `display`를 지정하고
    있어서 브라우저 기본 `[hidden]{display:none}`을 **이긴다** — 엑셀 버튼을
@@ -459,10 +431,7 @@ a { color: inherit; text-decoration: none; }
      **일정표가 빠진 PDF**가 나왔다. 지금은 담당자가 고른 것만 실려 오므로
      **실려 온 것 = 보내기로 한 것**이고, 그것을 전부 인쇄하는 게 맞다.
      ⚠ 그래도 `[hidden]` 규칙은 남긴다 — 다른 코드가 감춘 것을 인쇄가 되살리면 안 된다. */
-  .qdv-panel[hidden] { display: none !important; }
-  .qdv-panel { border: none; box-shadow: none; }
-  /* 문서마다 새 장에서 시작한다 — 견적서와 일정표가 한 장에 섞이면 결재에서 못 쓴다 */
-  .qdv-panel + .qdv-panel { break-before: page; page-break-before: always; margin-top: 0; }
+  /* ⚠ 쪽 나눔·인쇄용 구역 규칙도 `quote_doc.css`로 옮겼다(위 주석 참조). */
 }
 </style>
 </head>
@@ -717,48 +686,29 @@ function renderDocPage(d, validityBanner, bannerIsPlain) {
      거기서 만들어지기 때문이다. 처음엔 `stripInternal`만 걸었더니 브라우저 탭 이름이
      그냥 「견적서」로 나왔다(거래처·지역이 빠졌다).
      ⚠ `normalize`가 빈 `_internal`을 도로 채우므로 **그 뒤에 지운다.** */
-  const doc = QuoteDoc.stripInternal(QuoteDoc.normalize(d.doc));
-  const hasIti = Array.isArray(doc.itinerary) && doc.itinerary.length > 0;
-  /* 🔴 **세부견적서는 「있으면 그린다」**(2026-09-21 대표 지시).
-     담당자가 발급할 때 안 고르면 payload에 `breakdown.rows` 자체가 **안 실린다** —
-     화면이 감추는 것이 아니라 **처음부터 없다.** 공유 링크는 인증이 없어서,
-     보내고 감추는 방식이면 소스 보기로 다 보인다. */
-  const bdHtml = QuoteDoc.renderBreakdown ? QuoteDoc.renderBreakdown(doc, { company: window.COMPANY_INFO || {} }) : '';
-  const hasBd = !!bdHtml;
+  /* ═══ 🔴 **묶음을 만드는 곳은 `quote_doc.js` 하나다** (2026-09-23 대표 지시 3)
+     예전에는 이 화면이 무엇을 몇 개 그릴지 **직접** 정했다. 담당자 화면도 각자 정했고,
+     그래서 ⑤단계 미리보기에는 세부견적서가 아예 없었다 — 담당자가 **고객이 받는 것과
+     다른 것을 보고** 발급했다. 이제 셋 다 `renderBundle` 하나를 부른다.
+   ⚠ 여기서 `stripInternal`을 또 걸지 않는다 — 묶음이 이미 그 순서를 지난다.
+     두 곳에서 깎으면 어느 쪽이 진짜 방어선인지 흐려진다. */
   const company = window.COMPANY_INFO || {};
+  const bundle = QuoteDoc.renderBundle(d.doc, { company });
+  const doc = bundle.doc;
+  const hasIti = bundle.hasItinerary;
 
   /* ═══ 롤링 한 페이지 (2026-09-21 대표 지시) ═══════════════════════════════
      「견적서 · 세부견적서 · 일정표를 하나의 롤링 페이지로 볼 수 있게」
      예전에는 탭이라 **고객이 일정표 탭을 아예 안 누르는** 일이 있었다. 이제 쌓아 둔다.
-     ⚠ 위 바로가기는 **탭이 아니라 앵커**다 — 눌러도 아무것도 감춰지지 않는다.
-     ⚠ 구역이 하나뿐이면 바로가기를 안 그린다(누를 곳이 하나인 목차는 잡음이다). */
-  const jumps = [['qdvQuote', '견적서']]
-    .concat(hasBd ? [['qdvBd', '세부견적서']] : [])
-    .concat(hasIti ? [['qdvIti', '일정표']] : []);
-
-  /* 🔴 **문서마다 머리에 이름을 붙인다** (2026-09-22 대표 지시: 「각각 제대로 분리가
-     되어 보이면 좋겠다」). 띄우는 것만으로는 「긴 문서가 몇 덩이로 나뉘었나」로 읽힐 뿐,
-     **그 덩이가 각각 무슨 문서인지**는 여전히 안 보인다. 이름과 장수를 같이 적는다 —
-     「문서 2 / 3」이 있어야 고객이 **뒤에 더 있다**는 것을 안다.
-     🔴 **이름·순서·장수를 여기 다시 적지 않는다** — 전부 위 `jumps`에서 끌어온다.
-       두 벌로 적으면 바로가기와 띠가 어긋나는 날이 온다(결함 생성기 ①).
-     ⚠ 문서가 하나뿐이면 안 붙인다 — 「문서 1 / 1」은 잡음이고, 바로가기를 안 그리는
-       조건과 **같은 조건**이어야 둘이 따로 놀지 않는다. */
-  const docTag = (id) => {
-    if (jumps.length < 2) return '';
-    const i = jumps.findIndex((j) => j[0] === id);
-    if (i < 0) return '';
-    return `<div class="qdv-tag no-print"><span>문서 ${i + 1} / ${jumps.length}</span>${jumps[i][1]}</div>`;
-  };
-
+     ⚠ 바로가기는 **탭이 아니라 앵커**다 — 눌러도 아무것도 감춰지지 않는다.
+     ⚠ 구역이 하나뿐이면 바로가기를 안 그린다(누를 곳이 하나인 목차는 잡음이다).
+     🔴 이름·순서·장수는 **묶음이 정한다** — 여기서 다시 적지 않는다. */
   document.getElementById('main-content').innerHTML = `
     ${validityBanner}
-    ${jumps.length > 1 ? `<nav class="qdv-jump no-print" aria-label="문서 바로가기">
-      ${jumps.map(([id, label]) => `<a class="qdv-jump-a" href="#${id}">${label}</a>`).join('')}
+    ${bundle.count > 1 ? `<nav class="qdv-jump no-print" aria-label="문서 바로가기">
+      ${bundle.sections.map((s) => `<a class="qdv-jump-a" href="#${s.id}">${s.label}</a>`).join('')}
     </nav>` : ''}
-    <div class="qdv-panel" id="qdvQuote">${docTag('qdvQuote')}${QuoteDoc.renderQuote(doc, { company })}</div>
-    ${hasBd ? `<div class="qdv-panel" id="qdvBd">${docTag('qdvBd')}${bdHtml}</div>` : ''}
-    ${hasIti ? `<div class="qdv-panel" id="qdvIti">${docTag('qdvIti')}${QuoteDoc.renderItinerary(doc, { company })}</div>` : ''}
+    ${bundle.sections.map((s) => `<div class="qdv-panel" id="${s.id}">${s.tag}${s.html}</div>`).join('')}
     ${hasIti ? '' : `<p class="qdv-note no-print">일정표는 아직 준비 중입니다. 담당자에게 문의해 주세요.</p>`}
   `;
 

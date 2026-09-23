@@ -928,7 +928,7 @@
       state.style.color = 'var(--warn)';
       return;
     }
-    let safe;
+    let safe, bundle;
     try {
       /* 🔴 고객이 받는 그대로를 본다 — 원가·마진·내부 메모를 지우고 그린다
          (`estimate-view.html`과 같은 순서: normalize → stripInternal).
@@ -936,7 +936,10 @@
            여기엔 그대로 보여서, 담당자가 **나가는 줄 알고 발급**한다 — 그 반대도 마찬가지다.
            읽는 곳은 `emShareParts` 하나다(발급·👁 미리보기와 같은 값). */
       const parts = (typeof emShareParts === 'function') ? emShareParts() : null;
-      safe = QuoteDoc.applyParts(QuoteDoc.stripInternal(QuoteDoc.normalize(doc)), parts);
+      /* 🔴 **깎는 순서도 묶음이 한다** (2026-09-23 대표 지시 3) — 화면마다 제 순서로
+         깎으면 「고객이 받는 그대로」라는 말이 화면마다 다른 뜻이 된다. */
+      bundle = QuoteDoc.renderBundle(doc, { company: window.COMPANY_INFO || {}, parts });
+      safe = bundle.doc;
       /* 🔴 **세부견적서가 빠져 있었다** — 만들어 놓고 이 자리에 안 그리고 있었다.
          순서는 고객 화면(롤링)과 같아야 한다: 견적서 → 세부견적서 → 일정표. */
       /* 🔴 **세 단락을 갈라서 보여준다** (2026-09-23 대표 지시 2-2). 붙여 놓으면
@@ -946,19 +949,22 @@
          「빼는 것을 잊었다」가 성립하지 않는 구조로 둔다(대표 지시 2-2).
        ⚠ 세부견적서는 줄이 없으면 아예 안 나간다 — 그때는 단락 자체를 만들지 않는다
          (제목만 덜렁 남으면 고객에게 빈 문서를 보낸 것처럼 보인다). */
-      const sect = (key, title, note, html) => html ? (
-        '<section class="em-cust-sect" data-cust="' + key + '">'
-        + '<div class="em-cust-tag"><b>' + title + '</b><span>' + note + '</span></div>'
-        + html
+      /* 🔴 **무엇을 몇 개 그릴지 여기서 정하지 않는다.** 묶음이 준 것을 그대로 쓴다 —
+         고객 링크와 **같은 조각·같은 순서·같은 띠**가 나온다(대표 지시 3).
+       ⚠ 「수정하기」만 여기서 덧붙인다. 그건 이 화면에만 있는 것이고, 그래서
+         인쇄·PDF·공유 링크로는 샐 수가 없다. */
+      const NOTE = { quote: '고객이 결재에 올리는 문서입니다',
+        breakdown: '항목을 다 더하면 총액과 맞습니다',
+        iti: '여기 적힌 글이 그대로 고객에게 갑니다' };
+      prev.innerHTML = bundle.sections.map((s) =>
+        '<section class="em-cust-sect" data-cust="' + s.key + '">'
+        + s.tag
+        + '<div class="em-cust-tag"><b>' + s.label + '</b><span>' + (NOTE[s.key] || '') + '</span></div>'
+        + s.html
         + '<div class="em-cust-edit no-print">'
-        + '<button type="button" onclick="emGotoEdit(\'' + key + '\')">'
-        + title + ' 수정하기 →</button></div>'
-        + '</section>') : '';
-      const bdHtml = QuoteDoc.renderBreakdown ? QuoteDoc.renderBreakdown(safe) : '';
-      prev.innerHTML =
-        sect('quote', '종합견적서', '고객이 결재에 올리는 문서입니다', QuoteDoc.renderQuote(safe))
-        + sect('breakdown', '세부견적서', '항목을 다 더하면 총액과 맞습니다', bdHtml)
-        + sect('iti', '일정표', '여기 적힌 글이 그대로 고객에게 갑니다', QuoteDoc.renderItinerary(safe));
+        + '<button type="button" onclick="emGotoEdit(\'' + s.key + '\')">'
+        + s.label + ' 수정하기 →</button></div>'
+        + '</section>').join('');
       /* 🔴 **A4 한 장에 맞춘다** (2026-09-22). 이 자리는 담당자가 발급 전에 보는
          유일한 화면이라, 여기서 한 장으로 보여야 고객이 받는 것과 같다.
          ⚠ 모달이 아직 안 열렸으면 높이가 0이라 못 잰다 — 여는 쪽에서 한 번 더 부른다. */

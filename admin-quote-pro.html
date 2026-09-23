@@ -478,10 +478,10 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     <div class="sec-h"><span class="sec-n">5</span><span class="sec-t">미리보기 · 발급</span>
       <span class="sec-d">고객이 받는 그대로입니다</span></div>
     <div class="sec-b">
-      <div class="tabs">
-        <button type="button" class="tab" id="tabQuote" aria-pressed="true">견적서</button>
-        <button type="button" class="tab" id="tabIti" aria-pressed="false">일정표</button>
-      </div>
+      <!-- ⚠ 2026-09-23(대표 지시 3): 「견적서 / 일정표」 탭을 **걷어냈다.**
+           고객은 셋을 쌓아서 한 번에 받는데 여기만 탭이라, ① 세부견적서가 아예 없었고
+           ② 담당자가 일정표를 안 눌러 본 채 내보낼 수 있었다. 고객 화면에서 2026-09-21에
+           같은 이유로 탭을 걷어낸 것과 같은 판단이다. -->
       <!-- 🔴 A4 한 장을 넘겼는지 **적는 동안** 말한다 (2026-09-22). 다 적고 발급한 뒤에
            알면 고칠 곳이 이미 고객 손에 있다. 글은 `renderPreview`가 넣는다. -->
       <p class="note hidden" id="prevFit"></p>
@@ -574,7 +574,6 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     details: [],
     options: [],
     iti: [],
-    prevTab: 'quote',
   };
 
   /* ── 보기 목록을 고객 화면과 같은 값으로 채운다 ── */
@@ -1619,13 +1618,16 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
   function renderPreview() {
     if (!S.bd) return;
     renderSum();
-    const doc = buildDoc();
-    /* 🔴 **고객이 보는 것을 그대로 보여준다** — 내부 필드를 지운 뒤 그린다.
-       내부본을 그려서 보여주면 「고객도 이게 보이겠지」라는 확인이 거짓이 된다. */
-    const pub = QuoteDoc.stripInternal(doc);
-    $('prevBox').innerHTML = S.prevTab === 'quote'
-      ? QuoteDoc.renderQuote(pub, { company: window.COMPANY_INFO })
-      : QuoteDoc.renderItinerary(pub, { company: window.COMPANY_INFO });
+    /* ═══ 🔴 **고객이 받는 그대로** (2026-09-23 대표 지시 3) ═══════════════════
+       예전에는 이 자리가 탭이었고 **견적서와 일정표 둘만** 그렸다 — 세부견적서는
+       아예 없었다. 담당자는 **고객이 받는 것과 다른 것을 보고** 발급하고 있었다.
+       ⚠ 고객 화면은 셋을 **쌓아서** 보여준다(롤링 한 페이지). 그래서 여기도 쌓는다 —
+         탭으로 두면 담당자가 일정표를 아예 안 눌러 본 채 내보낸다(고객 화면에서
+         2026-09-21에 이미 같은 이유로 탭을 걷어냈다).
+       🔴 깎는 순서·무엇을 몇 개 그릴지는 전부 `renderBundle` 한 곳이 정한다. */
+    const bundle = QuoteDoc.renderBundle(buildDoc(), { company: window.COMPANY_INFO });
+    $('prevBox').innerHTML = bundle.sections
+      .map((s) => '<div class="qdv-panel">' + s.tag + s.html + '</div>').join('');
     /* 🔴 **A4 한 장에 맞춘다** (2026-09-22). 담당자가 적는 동안 **넘치는 순간**을
        바로 보게 하는 자리다 — 다 적고 발급한 뒤에 알면 고칠 곳이 이미 고객 손에 있다.
        ⚠ 「줄였다」와 「줄여도 안 됐다」는 **다른 말**이다. 전자는 그냥 알려 주는 것이고,
@@ -1658,14 +1660,6 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
   }
 
   function renderAll() { renderMoney(); renderPreview(); }
-
-  $('tabQuote').addEventListener('click', () => { S.prevTab = 'quote'; syncTabs(); });
-  $('tabIti').addEventListener('click', () => { S.prevTab = 'iti'; syncTabs(); });
-  function syncTabs() {
-    $('tabQuote').setAttribute('aria-pressed', S.prevTab === 'quote' ? 'true' : 'false');
-    $('tabIti').setAttribute('aria-pressed', S.prevTab === 'iti' ? 'true' : 'false');
-    renderPreview();
-  }
 
   ['dClient', 'dOrgName', 'dRegion', 'dStay', 'dStaffName', 'dStaffTel', 'dStaffEmail', 'dIssue', 'dValid',
     'dAdult', 'dChild', 'dInfant', 'dCondition', 'dFuel', 'dRemarks', 'dCancel', 'dMemo']

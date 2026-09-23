@@ -92,26 +92,39 @@ ok('[2-c] decodeShareData를 되살리지 않았다', !/function decodeShareData
    예전에는 탭이라 **고객이 일정표 탭을 안 누르면 못 봤다.** 이제 쌓아 둔다.
    ⚠ 아래 [3-h]가 핵심이다 — **감추는 것이 아니라 처음부터 안 싣는다.**
      공유 링크는 인증이 없어서, 보내 놓고 감추면 소스 보기로 다 보인다. */
+/* 🔴 **2026-09-23(대표 지시 3): 묶음을 만드는 일이 `quote_doc.js`로 옮겼다.**
+   화면 셋(고객 링크·견적 상세 고객용 탭·담당자 ⑤단계)이 각자 「무엇을 몇 개 그릴지」를
+   정하고 있었고, 그래서 ⑤단계에는 세부견적서가 **아예 없었다.**
+   ⚠ 그래서 이 검사도 **두 파일을 같이** 읽는다. 화면만 읽으면 옮겨간 규칙을 「사라졌다」로
+     읽고, 모듈만 읽으면 **아무도 안 부르는 규칙**을 「있다」고 읽는다.
+   ⚠ 그래서 **부르는 줄이 살아 있는지**를 따로 잠근다(아래 [3-z]). */
+const QDOCSRC = read('quote_doc.js');
+const VQ = VIEW + '\n' + QDOCSRC;
+ok('[3-z] 🔴 화면이 묶음을 실제로 부른다', /QuoteDoc\.renderBundle\(d\.doc/.test(VIEW));
 ok('[3] 세 구역을 한 페이지에 쌓는다',
-  /id="qdvQuote"/.test(VIEW) && /id="qdvBd"/.test(VIEW) && /id="qdvIti"/.test(VIEW));
+  /'qdvQuote'/.test(VQ) && /'qdvBd'/.test(VQ) && /'qdvIti'/.test(VQ));
 ok('[3-b] 탭이 아니라 바로가기(앵커)다',
   /class="qdv-jump no-print"/.test(VIEW) && /qdv-jump-a" href="#/.test(VIEW)
   && !/id="qdvTabQuote"/.test(VIEW));
 ok('[3-c] 일정이 없으면 그 구역을 안 만든다', /\$\{hasIti \?/.test(VIEW));
-ok('[3-c2] 세부견적서도 없으면 안 만든다', /\$\{hasBd \?/.test(VIEW));
+/* 🔴 줄이 없으면 **구역 자체를 안 만든다** — 제목만 덜렁 나가면 빈 문서를 보낸 셈이다 */
+ok('[3-c2] 세부견적서도 없으면 안 만든다', /if \(bdHtml\) sections\.push/.test(VQ));
 ok('[3-d] 일정이 없으면 그 사실과 다음 행동을 말한다',
   /일정표는 아직 준비 중입니다[\s\S]{0,40}담당자에게 문의/.test(VIEW));
+/* ⚠ 2026-09-23: 구역·띠·쪽 나눔의 **모양 규칙은 `quote_doc.css`로 옮겼다**(대표 지시 3).
+   세 화면이 같은 묶음을 그리는데 모양이 한 화면에만 있으면 나머지는 민얼굴로 나온다. */
+const QDOCCSS = read('quote_doc.css');
 ok('[3-e] 🔴 인쇄하면 실려 온 것이 다 나간다 (문서마다 새 장)',
-  /@media print[\s\S]{0,900}\.qdv-panel \+ \.qdv-panel \{ break-before: page/.test(VIEW));
+  /@media print[\s\S]{0,900}\.qdv-panel \+ \.qdv-panel \{ break-before: page/.test(QDOCCSS));
 ok('[3-e2] 그래도 감춘 것은 인쇄가 되살리지 않는다',
-  /\.qdv-panel\[hidden\] \{ display: none !important; \}/.test(VIEW));
+  /\.qdv-panel\[hidden\] \{ display: none !important; \}/.test(QDOCCSS));
 ok('[3-f] 바로가기 줄은 인쇄에 안 나간다', /class="qdv-jump no-print"/.test(VIEW));
 ok('[3-g] 누를 것이 충분히 크다', /\.qdv-jump-a \{[\s\S]{0,160}padding: 7px 15px/.test(VIEW));
 /* 🔴 구역이 하나뿐이면 목차를 안 그린다 — 누를 곳이 하나인 목차는 잡음이다 */
-ok('[3-g2] 구역이 하나면 바로가기를 안 그린다', /jumps\.length > 1 \?/.test(VIEW));
+ok('[3-g2] 구역이 하나면 바로가기를 안 그린다', /bundle\.count > 1 \?/.test(VIEW));
 /* 🔴🔴 **이 검사가 이 기능의 방어선이다** — 화면이 감추는 것이 아니라 payload에 없다 */
 ok('[3-h] 🔴 세부견적서는 「있으면 그린다」 — 감추는 코드가 없다',
-  /renderBreakdown/.test(VIEW) && !/qdvBd[\s\S]{0,120}hidden = /.test(VIEW));
+  /renderBreakdown/.test(VQ) && !/qdvBd[\s\S]{0,120}hidden = /.test(VQ));
 
 /* ═══ ④ 엑셀 버튼 — v2에서는 안 보인다 ═══ */
 ok('[4] v2면 엑셀 버튼을 내린다', /if \(r\.data && r\.data\.doc\)[\s\S]{0,200}downloadExcelBtn[\s\S]{0,60}hidden = true/.test(VIEW));
@@ -123,14 +136,19 @@ ok('[4-c] 인쇄 버튼은 그대로 둔다 (v2도 인쇄는 된다)',
 /* ═══ ⑤ 여기서 견적서를 다시 그리지 않는다 ═══ */
 ok('[5] 공통 모듈을 싣는다', /<script src="quote_doc\.js">/.test(VIEW) && /quote_doc\.css/.test(VIEW));
 ok('[5-b] 그리는 일은 모듈이 한다',
-  /QuoteDoc\.renderQuote\(doc/.test(VIEW) && /QuoteDoc\.renderItinerary\(doc/.test(VIEW));
+  /renderQuote\(d, \{ company \}\)/.test(QDOCSRC) && /renderItinerary\(d, \{ company \}\)/.test(QDOCSRC));
 /* v2 분기 안에서 표를 직접 짓지 않는다 */
 const i0 = VIEW.indexOf('function renderDocPage');
 const i1 = VIEW.indexOf('function renderPage(d)');
 const docFn = VIEW.slice(i0, i1);
 ok('[5-c] v2 분기가 표를 직접 짓지 않는다', docFn.indexOf('<table') < 0 && docFn.indexOf('<thead') < 0);
+/* ⚠ 깎는 순서도 묶음 안으로 옮겼다 — **한 곳**이라야 세 화면이 같은 것을 본다 */
 ok('[5-d] 🔴 normalize를 먼저 하고 지운다 (제목·합계가 거기서 만들어진다)',
-  /stripInternal\(QuoteDoc\.normalize\(d\.doc\)\)/.test(VIEW));
+  /stripInternal\(normalize\(docIn\)\)/.test(QDOCSRC));
+ok('[5-d2] 🔴 「보낼 것만」은 **마지막에** 깎는다',
+  QDOCSRC.indexOf('applyParts(d, o.parts)') > QDOCSRC.indexOf('stripInternal(normalize(docIn))'));
+ok('[5-d3] 화면이 또 깎지 않는다 (방어선이 흐려진다)',
+  !/stripInternal\(QuoteDoc\.normalize/.test(VIEW));
 /* 히어로가 v2에 없는 칸을 읽어 undefined를 찍지 않는다 */
 ok('[5-e] v2 히어로가 undefined를 안 찍는다',
   /function heroSub\(\)[\s\S]{0,400}d\.doc && typeof QuoteDoc/.test(VIEW));
@@ -185,8 +203,8 @@ ok('[6-c] .js를 통째로 빼는 규칙이 없다', !rules.some((r) => r === '*
      있었다」로 한 번 당했다). 그래서 **페이지를 띄워 센다.**
    ═══════════════════════════════════════════════════════════════════════════ */
 ok('[8] 문서 사이가 벌어져 있다 (바탕색이 드러난다)',
-  /\.qdv-panel \+ \.qdv-panel \{ margin-top: \d+px; \}/.test(VIEW));
-ok('[8-b] 종이처럼 그림자가 있다', /\.qdv-panel \{ box-shadow:/.test(VIEW));
+  /\.qdv-panel \+ \.qdv-panel \{ margin-top: \d+px; \}/.test(QDOCCSS));
+ok('[8-b] 종이처럼 그림자가 있다', /\.qdv-panel \{ box-shadow:/.test(QDOCCSS));
 /* 🔴 상단 바가 sticky라 앵커로 뛴 자리가 바 뒤로 들어갔다 — 바 높이보다 커야 한다 */
 ok('[8-c] 🔴 바로가기로 뛴 자리가 상단 바에 안 가린다',
   (() => {
@@ -195,10 +213,13 @@ ok('[8-c] 🔴 바로가기로 뛴 자리가 상단 바에 안 가린다',
   })(), '상단 바(sticky) 높이보다 작으면 문서 머리가 가려진다');
 /* 머리 띠는 **화면용**이다 — 인쇄는 문서마다 새 장이라 경계가 이미 분명하고,
    결재에 올라가는 종이에 「문서 2 / 3」이 찍히면 안 된다. */
-ok('[8-d] 머리 띠는 인쇄에 안 나간다', /class="qdv-tag no-print"/.test(VIEW));
+ok('[8-d] 머리 띠는 인쇄에 안 나간다', /qdv-tag no-print/.test(VQ));
 /* 🔴 이름·순서·장수를 두 벌로 적지 않는다 — 바로가기와 띠가 어긋나는 날이 온다 */
-ok('[8-e] 🔴 띠가 바로가기 목록에서 이름을 끌어온다',
-  /jumps\.findIndex/.test(VIEW) && /\$\{jumps\[i\]\[1\]\}/.test(VIEW));
+/* 🔴 이름·순서·장수는 **묶음이 만든 목록 하나**에서 나온다. 화면은 받아 쓰기만 한다 —
+   두 벌로 적으면 바로가기와 띠가 어긋나는 날이 온다(2026-09-22에 한 번 고친 자리). */
+ok('[8-e] 🔴 띠와 바로가기가 같은 목록에서 나온다',
+  /sections\.forEach\(\(sec, i\)/.test(QDOCSRC) && /esc\(sec\.label\)/.test(QDOCSRC)
+  && /bundle\.sections\.map/.test(VIEW));
 
 /* ═══ ⑨ 🔴 **A4 한 장** (2026-09-22 대표 지시) ═══════════════════════════════
    「3가지 장표가 각각 내용이 부족하더라도 하나로 A4 사이즈로 노출되게」

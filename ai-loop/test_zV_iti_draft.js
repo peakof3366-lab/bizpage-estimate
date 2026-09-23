@@ -142,7 +142,9 @@ async function run() {
     ok('[3-c] 바꾸는 방법도 말한다 (막다른 안내가 아니다)', /비우고 다시/.test(B.상태()));
 
     /* ═══ ④ 일정표 문서에 실린다 ═══════════════════════════════════════════ */
-    B.fire('tabIti', 'click');
+    /* ⚠ 2026-09-23: 미리보기 탭이 없어졌다 — 셋을 **쌓아서** 그리므로 누를 것이 없다.
+       그냥 ⑤단계를 열면 일정표까지 한 번에 들어 있다. */
+    B.D.querySelector('[data-goto="5"]').dispatchEvent(new B.W.Event('click', { bubbles: true }));
     await sleep(250);
     const prev = (B.$('prevBox').textContent || '').replace(/\s+/g, ' ');
     ok('[4] 미리보기 일정표에 그 내용이 나간다', prev.includes(기본.days[1].title), prev.slice(0, 120));

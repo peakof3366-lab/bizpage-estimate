@@ -107,7 +107,9 @@ async function 태우기(견적) {
   const EST = read('admin/estmgr.js');
   ok('[1-d] 🔴 estmgr.js가 견적서를 다시 그리지 않는다',
     !/class="qd|<article class="qd/.test(EST), '문서 마크업이 여기에도 생겼다');
-  ok('[1-e] 대신 공통 모듈을 부른다', /QuoteDoc\.renderQuote/.test(EST) && /QuoteDoc\.renderItinerary/.test(EST));
+  /* ⚠ 2026-09-23: 화면은 개별 렌더러가 아니라 **묶음**을 부른다(대표 지시 3).
+     재는 성질은 그대로다 — 「여기서 문서를 만들지 않는다」. */
+  ok('[1-e] 대신 공통 모듈을 부른다', /QuoteDoc\.renderBundle/.test(EST));
 
   /* ═══ ②-2 🔴 세부견적서가 붙은 견적 — **화면으로** 확인한다 ═══════════════
      [2-d2~d4]는 글자로 잰다. 글자만 재면 「부르긴 부르는데 안 그려진다」를 못 잡는다
@@ -158,9 +160,12 @@ async function 태우기(견적) {
     /* 🔴🔴 **세부견적서를 만들어 놓고 이 자리에 안 그리고 있었다** (2026-09-21).
        담당자가 발급 전에 보는 유일한 자리인데, 여기 없으면 「안 나가는구나」로 읽는다.
        순서는 고객 화면(롤링)과 같아야 한다 — 견적서 → 세부견적서 → 일정표. */
-    ok('[2-d2] 🔴 세부견적서도 함께 그린다', /renderBreakdown/.test(EST));
+    /* ⚠ 2026-09-23(대표 지시 3): 무엇을 몇 개 그릴지는 `quote_doc.js`의 묶음이 정한다.
+       화면은 **받아 쓰기만** 한다 — 그래서 여기서는 「묶음을 부르는가」를 잠근다. */
+    ok('[2-d2] 🔴 세부견적서도 함께 그린다',
+      /QuoteDoc\.renderBundle/.test(EST) && /if \(bdHtml\) sections\.push/.test(read('quote_doc.js')));
     ok('[2-d3] 🔴 「고객에게 보낼 문서」 체크를 따른다',
-      /applyParts\([\s\S]{0,160}parts\)/.test(EST) && /emShareParts/.test(EST));
+      /renderBundle\(doc, \{[\s\S]{0,80}parts \}\)/.test(EST) && /emShareParts/.test(EST));
     ok('[2-d4] 체크를 바꾸면 미리보기가 따라온다',
       /\['emPartBd', 'emPartIti'\][\s\S]{0,300}emRenderDocPreview\(rec\)/.test(EST));
     /* 🔴 여기가 핵심 — 내부 값이 비치면 안 된다 */

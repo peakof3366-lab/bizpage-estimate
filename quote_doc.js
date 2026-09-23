@@ -928,10 +928,65 @@
     return normalize(d);
   }
 
+
+  /* ═══ 🔴 고객이 받는 문서 묶음 — **만드는 곳은 여기 하나다** (2026-09-23 대표 지시 3)
+     ───────────────────────────────────────────────────────────────────────────
+     「미리보기, 고객용 탭, PDF, 고객 공유 링크가 모두 **같은 컴포넌트와 같은 데이터**로
+       그려지게 통일한다. 따로 만든 화면이 있다면 하나로 합친다.」
+
+     ■ 어긋나 있던 이유
+     세 화면이 각자 `renderQuote`/`renderBreakdown`/`renderItinerary`를 **자기 순서대로**
+     불렀다. 그리는 부품은 같았지만 **무엇을 몇 개 부르는지**가 화면마다 달랐다:
+       · 담당자 ⑤단계 미리보기 — `견적서`와 `일정표` **둘만**(세부견적서가 아예 없었다)
+       · 견적 상세 고객용 탭   — 셋 다, 다만 「문서 n / N」 띠가 없었다
+       · 고객 공유 링크        — 셋 다 + 띠 + 바로가기
+     그래서 담당자는 **고객이 받는 것과 다른 것을 보고** 발급했다.
+
+     ■ 그래서 여기서 하는 일
+     ① 고객용으로 깎는 순서(`normalize → stripInternal → applyParts`)를 **한 벌**로 둔다.
+     ② 무엇이 들어가는지(있는 것만)와 **이름·순서·장수**를 한 곳에서 정한다.
+     ③ 부르는 쪽은 받은 조각을 **자기 화면에 맞게 감싸기만** 한다.
+     🔴 이름·순서·장수를 부르는 쪽에서 다시 적지 않는다 — 두 벌이면 바로가기와 띠가
+       어긋나는 날이 온다(결함 생성기 ①). 2026-09-22에 이미 그 자리를 한 번 고쳤다.
+     ⚠ 띠는 **화면용**이다(`no-print`). 인쇄는 문서마다 새 장이라 경계가 이미 분명하고,
+       결재에 올라가는 종이에 「문서 2 / 3」이 찍히면 안 된다. */
+  function renderBundle(docIn, opts) {
+    const o = opts || {};
+    const company = o.company || (typeof window !== 'undefined' ? window.COMPANY_INFO : null) || {};
+    /* 🔴 **순서가 중요하다.** `normalize`가 먼저다 — 제목·합계·한글 금액이 거기서
+       만들어진다. 그리고 `normalize`가 빈 `_internal`을 도로 채우므로 **그 뒤에 지운다.**
+       마지막이 「보낼 것만 고르기」다(고객에게 나갈 문서가 완성된 뒤에 깎는다). */
+    let d = stripInternal(normalize(docIn));
+    if (o.parts) d = applyParts(d, o.parts);
+
+    const bdHtml = d.breakdown && d.breakdown.rows && d.breakdown.rows.length
+      ? renderBreakdown(d, { company }) : '';
+    const hasIti = Array.isArray(d.itinerary) && d.itinerary.length > 0;
+
+    /* 있는 것만 넣는다 — 빈 문서를 보내면 고객은 우리가 빠뜨린 줄 안다 */
+    const sections = [{ key: 'quote', id: 'qdvQuote', label: '견적서',
+      html: renderQuote(d, { company }) }];
+    if (bdHtml) sections.push({ key: 'breakdown', id: 'qdvBd', label: '세부견적서', html: bdHtml });
+    if (hasIti) sections.push({ key: 'iti', id: 'qdvIti', label: '일정표',
+      html: renderItinerary(d, { company }) });
+
+    /* 「문서 2 / 3」이 있어야 고객이 **뒤에 더 있다**는 것을 안다.
+       ⚠ 하나뿐이면 안 붙인다 — 「문서 1 / 1」은 잡음이다. */
+    sections.forEach((sec, i) => {
+      sec.tag = sections.length < 2 ? ''
+        : '<div class="qdv-tag no-print"><span>문서 ' + (i + 1) + ' / ' + sections.length + '</span>'
+          + esc(sec.label) + '</div>';
+      sec.index = i + 1;
+    });
+
+    return { doc: d, sections, count: sections.length, hasItinerary: hasIti };
+  }
+
   return {
     SPEC, esc, escLines, won, hangulAmount, durationLabel, dateLabel,
     blank, normalize, stripInternal, findInternalKeys,
-    renderQuote, renderBreakdown, renderItinerary, fitPages, allocateBreakdown, applyParts,
+    renderQuote, renderBreakdown, renderItinerary, renderBundle,
+    fitPages, allocateBreakdown, applyParts,
     STD_TEXT, standardDetails, fromShare,
   };
 });

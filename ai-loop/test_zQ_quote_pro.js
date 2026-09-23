@@ -160,9 +160,12 @@ ok('[8-b] 한 문장 설명이 있다', !!P.querySelector('.page-sub'));
 ok('[8-c] 버튼 이름이 무슨 일이 날지 말한다',
   Array.from(P.querySelectorAll('button')).every((b) => !/^(확인|적용|저장|편집)$/.test((b.textContent || '').trim())),
   Array.from(P.querySelectorAll('button')).map((b) => (b.textContent || '').trim()).filter((t) => /^(확인|적용|저장|편집)$/.test(t)).join(','));
-/* 고르는 버튼은 `aria-pressed`로 표시한다 — 행동 이름을 붙이면 눌러 놓고 한 줄 안다 */
-ok('[8-d] 미리보기 탭이 aria-pressed를 쓴다',
-  !!P.getElementById('tabQuote') && P.getElementById('tabQuote').hasAttribute('aria-pressed'));
+/* ⚠ 2026-09-23(대표 지시 3): ⑤단계의 「견적서 / 일정표」 탭을 **걷어냈다** —
+   고객은 셋을 쌓아서 받는데 여기만 탭이라 세부견적서가 아예 없었고, 담당자가 일정표를
+   안 눌러 본 채 내보낼 수 있었다. 그래서 재는 것이 「탭이 aria-pressed를 쓰는가」에서
+   **「탭이 없고 셋이 다 보이는가」**로 바뀐다. */
+ok('[8-d] 🔴 미리보기에 탭이 없다 (고객처럼 쌓아서 본다)',
+  !P.getElementById('tabQuote') && !P.getElementById('tabIti'));
 /* 영문·기술 용어를 화면에 내보내지 않는다 */
 const vis = (P.body.textContent || '').replace(/\s+/g, ' ');
 ok('[8-e] 화면에 코드 이름이 안 나온다',
@@ -176,8 +179,14 @@ ok('[8-h] opacity로 흐리게 만들지 않는다', !/opacity:\s*0?\.\d/.test(P
 ok('[8-i] 줄글에 최대 폭을 준다', /--measure:/.test(PRO) && /max-width:\s*var\(--measure\)/.test(PRO));
 
 /* ═══ ⑨ 🔴 원가·마진이 고객 쪽으로 새지 않는다 ═══ */
+/* ⚠ 2026-09-23(대표 지시 3): 깎는 순서가 `quote_doc.js`의 묶음 안으로 옮겼다.
+   ⑤단계는 **묶음을 부르기만** 한다 — 그래서 여기서는 두 가지를 잠근다:
+   ① 화면이 묶음을 부르는가 ② 그 묶음이 실제로 내부 필드를 지우는가. */
 ok('[9] 미리보기를 stripInternal 뒤에 그린다',
-  /stripInternal\(doc\)[\s\S]{0,400}renderQuote\(pub/.test(PRO));
+  /QuoteDoc\.renderBundle\(buildDoc\(\)/.test(PRO)
+  && /stripInternal\(normalize\(docIn\)\)/.test(read('quote_doc.js')));
+ok('[9-a2] 🔴 ⑤단계가 셋을 다 보여준다 (고객이 받는 것과 같다)',
+  /bundle\.sections[\s\S]{0,120}map/.test(PRO) && !/S\.prevTab === 'quote'[\s\S]{0,80}renderQuote/.test(PRO));
 ok('[9-b] 내부 필드를 밑줄 키에 담는다', /_internal:\s*\{/.test(PRO));
 ok('[9-c] 원가·마진이 _internal 안에 있다',
   /_internal:\s*\{[\s\S]{0,300}cost:[\s\S]{0,60}margin:/.test(PRO));

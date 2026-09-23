@@ -299,3 +299,52 @@
   .qd-head, .qd-title { break-after: avoid; }
   .qd-foot-bar { break-before: avoid; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   문서 묶음의 모양 — **세 화면이 같은 것을 본다** (2026-09-23 대표 지시 3)
+   ───────────────────────────────────────────────────────────────────────────
+   고객 공유 링크 · 견적 상세의 고객용 탭 · 담당자 ⑤단계 미리보기가 모두
+   `QuoteDoc.renderBundle`이 만든 같은 조각을 그린다. 모양 규칙이 한 화면에만 있으면
+   나머지 둘은 **띠가 스타일 없이** 나오고, 「고객이 받는 그대로」라는 말이 화면마다
+   다른 뜻이 된다. 그래서 여기(공용)로 옮겼다.
+   ⚠ 이 파일은 고객 화면·관리자 화면·담당자 편집 화면이 **전부** 싣는다.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.qdv-panel { background: #FFFFFF; border: 1px solid #DCDCD8; }
+
+/* 🔴 **문서 사이를 벌린다** (2026-09-22 대표 지시: 「다닥다닥 붙어 있는 느낌」).
+   롤링으로 바꾸면서 세 문서가 테두리만 맞닿은 채 이어졌고, **어디서 문서가 바뀌는지**가
+   화면에서 사라졌다 — 탭일 때는 탭 자체가 경계였는데, 탭을 없애면서 경계도 같이 없앤 것이다.
+   고객은 한 장짜리 긴 문서로 읽고, 「세부견적서를 받았다」는 사실 자체를 못 알아챈다.
+   → ① 사이를 띄워 바탕색(#F4F4F2)이 드러나게 하고 ② 종이처럼 그림자를 주고
+     ③ 문서마다 **이름과 몇 번째인지**를 머리에 붙인다(아래 `.qdv-tag`). */
+.qdv-panel + .qdv-panel { margin-top: 34px; }
+.qdv-panel { box-shadow: 0 2px 6px rgba(16, 18, 29, .07); }
+/* 🔴 A4 틀이 서는 폭에서는 **구역이 종이를 감싼다** (2026-09-22).
+   안 맞추면 932px짜리 흰 상자 안에 794px 종이가 들어앉아, 종이 양옆으로 흰 띠가
+   26px씩 남는다 — 테두리가 종이 가장자리인 줄 알고 보다가 인쇄하면 달라진다.
+   ⚠ 폭 조건을 `quote_doc.css`의 A4 조건과 **같은 값(880px)**으로 둔다. 어긋나면
+     구역만 좁아지고 종이는 안 서는 폭 구간이 생긴다. */
+@media screen and (min-width: 880px) {
+  .qdv-panel { width: -moz-fit-content; width: fit-content; margin-left: auto; margin-right: auto; }
+}
+
+/* 문서 머리 띠 — 「문서 2 / 3 · 세부견적서」.
+   ⚠ **인쇄에는 안 나간다**(`no-print`). 인쇄는 문서마다 새 장에서 시작하므로 이 띠가
+     없어도 경계가 분명하고, 결재에 올라가는 종이에 화면용 표시가 찍히면 안 된다.
+   ⚠ 보라(#514dc2)는 BI 가이드 색이다 — 흰 바탕에서 쓰는 쪽(민트는 어두운 면 전용). */
+.qdv-tag {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px; background: #FAF9F7; border-bottom: 1px solid #E6E4E0;
+  font-size: 13px; font-weight: 800; letter-spacing: -.01em; color: #16181D;
+}
+.qdv-tag span {
+  font-size: 11px; font-weight: 700; color: #514dc2;
+  background: #EDECFA; border-radius: 999px; padding: 3px 10px; line-height: 1.35;
+}
+
+@media print {
+  .qdv-panel[hidden] { display: none !important; }
+  .qdv-panel { border: none; box-shadow: none; }
+  /* 문서마다 새 장에서 시작한다 — 견적서와 일정표가 한 장에 섞이면 결재에서 못 쓴다 */
+  .qdv-panel + .qdv-panel { break-before: page; page-break-before: always; margin-top: 0; }
+}
