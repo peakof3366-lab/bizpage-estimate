@@ -606,9 +606,15 @@ module.exports = async (req, res) => {
     }
   }
   /* 견적번호 (WB) — **고객이 직접 뽑은 것도 번호를 받는다.** 그 건도 나중에 전화가 오고,
-     그때 담당자가 휴가일 수 있다. 번호를 못 따면 발급하지 않는다. */
+     그때 담당자가 휴가일 수 있다. 번호를 못 따면 발급하지 않는다.
+   🔴 **2026-09-23부터 새로 따지 않고 견적의 번호를 물려받는다**(대표 지시 1-2).
+     예전에는 발급할 때마다 새 번호가 나서, 같은 건을 두 번 내면 **고객과 담당자가 서로
+     다른 번호로 같은 건**을 불렀다. 차수(`-R1`)는 그 건의 발급 횟수로 센다 —
+     1차는 차수 없이, 2차부터 붙는다. 셈은 `quote_no.js`의 `shareQuoteNo` 한 곳이 한다.
+   ⚠ 여기서 나온 문자열은 **그대로 저장한다.** 이미 고객 손에 나간 문서에 적힌 번호라,
+     나중에 다시 계산해 값이 바뀌면 안 된다(관계는 관계대로 `revision_of`에 남는다). */
   let quoteNo;
-  try { quoteNo = await QNO.nextQuoteNo(sql); }
+  try { quoteNo = (await QNO.shareQuoteNo(sql, parentQid)).no; }
   catch (err) { console.error('[quote-shares] 견적번호 발급 실패:', err); return res.status(503).json({ error: 'quote_no_failed' }); }
 
   /* 문서를 고객용으로 깎는다. 🔴 **받은 것을 그대로 싣지 않는다.**
@@ -628,6 +634,17 @@ module.exports = async (req, res) => {
     console.error('[quote-shares] 표준 양식 문서를 만들지 못했다(옛 양식으로 발급):', shareDoc.buildError);
   }
   const docForShare = shareDoc.doc;
+  /* 🔴 **문서에 번호를 찍는 곳은 여기 하나다** (2026-09-23 대표 지시 1-5:
+     「견적서·세부견적서·일정표·PDF·고객 공유 링크에 **같은 번호**가 표시」).
+     담당자가 만든 문서(`quotes.payload.doc`)에는 번호 칸이 비어 있을 수 있다 —
+     만들 때는 아직 발급 전이라 그 건의 발급 번호를 모르기 때문이다. 그대로 내보내면
+     **고객이 받은 견적서에만 번호가 없다.**
+   ⚠ 세 장표는 같은 `doc` 하나를 읽으므로, 여기서 한 번 찍으면 셋이 같이 맞는다.
+   ⚠ 발행일도 같은 이유로 맞춘다 — 문서의 발행일과 대장의 발행일이 갈리면 안 된다. */
+  if (docForShare && docForShare.meta) {
+    docForShare.meta.quoteNo = quoteNo;
+    if (!docForShare.meta.issueDate) docForShare.meta.issueDate = share.iso || QNO.kstToday();
+  }
   /* 🔴 **검문은 한 곳에서 한다.** 담당자가 만든 문서든 서버가 만든 문서든 같은 자를 지난다.
      지웠는데도 남아 있으면 **발급하지 않는다.** 「지웠겠지」로 넘어가면 그 한 건이
      고객에게 원가를 보여 준다. */

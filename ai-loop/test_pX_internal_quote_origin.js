@@ -149,7 +149,21 @@ const FORGED = {
   participants: 20, total: 1000000,
   channel: 'internal', createdBy: '송주연 팀장',
 };
-const storedPayload = () => (inserted ? JSON.parse(inserted[inserted.length - 1]) : null);
+/* 🔴 **자리로 찾지 않는다.** 예전엔 `inserted[마지막]`이 payload라고 가정했는데,
+   2026-09-23에 insert 끝에 `quote_no`·`source_quote_no`가 붙으면서 그 가정이 깨졌고
+   **여섯 줄이 한꺼번에 빨개졌다** — 서버는 멀쩡한데 자가 틀린 것이다.
+   → 바인딩 값 중 **payload처럼 생긴 JSON**을 찾는다. 칸이 늘어도 안 흔들린다. */
+const storedPayload = () => {
+  if (!inserted) return null;
+  for (const v of inserted) {
+    if (typeof v !== 'string' || v[0] !== '{') continue;
+    try {
+      const o = JSON.parse(v);
+      if (o && typeof o === 'object' && 'channel' in o) return o;
+    } catch (e) { /* payload가 아니다 */ }
+  }
+  return null;
+};
 
 (async () => {
   console.log('\n[7] 실동작 — 공개 POST가 내부 산출을 자칭할 수 있는가');

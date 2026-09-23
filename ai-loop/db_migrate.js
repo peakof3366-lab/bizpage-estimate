@@ -122,6 +122,48 @@ async function main() {
     )
   `;
 
+  /* ═══ 🔴 견적번호를 「견적 저장 시점」에 붙인다 (2026-09-23 대표 지시 1-1) ═══
+     예전에는 **견적서 링크를 발급할 때만** 번호가 났다. 그래서 견적 관리에 저장만 된
+     건은 번호가 없었고, 담당자끼리 「그 대만 건」으로 부를 수밖에 없었다 —
+     이어받는 사람이 못 찾는 자리이고, 대표가 지적한 그 구멍이다.
+     🔴 **발급은 서버가, 저장과 같은 요청 안에서 한다**(`api/quotes.js`의 saveQuote).
+       화면이 만들어 보내면 두 명이 같은 번호를 보낼 수 있다.
+     🔴 **유일 제약은 DB가 건다.** 화면·서버 쪽 검사는 동시 저장에서 진다. */
+  await sql`alter table quotes add column if not exists quote_no text`;
+  await sql`create unique index if not exists quotes_no_idx
+              on quotes (quote_no) where quote_no is not null`;
+  /* 🔴 **업로드한 문서에 원래 적혀 있던 번호**(대표 지시 1-3). 시스템 번호와 **섞지 않는다** —
+     남의 번호를 우리 대장의 열쇠로 쓰면 그쪽이 번호를 다시 쓰는 날 우리 대장이 무너진다.
+     ⚠ 유일 제약을 걸지 않는다. 같은 원본 번호가 두 번 오는 것은 **그쪽 사정**이고,
+       그걸 우리가 막으면 담당자가 적기를 포기한다(`vendor_quote_no`에서 배운 것과 같다). */
+  await sql`alter table quotes add column if not exists source_quote_no text`;
+
+  /* 순번 — **한 달 한 행** (일 단위 `quote_seq`에서 옮겼다).
+     ⚠ 달은 **한국 시간**이다. GMT로 재면 매달 1일 오전 9시 이전 발급이 전달 번호를 받는다.
+     ⚠ 옛 표(`quote_seq`)는 위에 그대로 둔다 — 어디까지 땄는지가 거기에만 있다. */
+  await sql`
+    create table if not exists quote_seq_m (
+      ym text primary key,
+      n int not null
+    )
+  `;
+
+  /* 번호 수정 이력 (대표 지시 1-3: 「관리자만 예외적으로 수정, 수정 시 이력 기록」).
+     🔴 번호는 원래 **안 바뀌는 값**이라, 바뀌었다는 사실 자체가 기록될 일이다.
+     ⚠ 덮어쓰지 않고 **쌓는다** — 무엇이 무엇으로 바뀌었는지가 사고 때 유일한 단서다. */
+  await sql`
+    create table if not exists quote_no_log (
+      id bigserial primary key,
+      at timestamptz not null default now(),
+      quote_id text not null,
+      old_no text,
+      new_no text,
+      by_user text,
+      reason text
+    )
+  `;
+  await sql`create index if not exists quote_no_log_quote_idx on quote_no_log (quote_id)`;
+
   await sql`
     create table if not exists admin_auth (
       id int primary key default 1,

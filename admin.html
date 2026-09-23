@@ -542,7 +542,11 @@
           <thead>
             <tr>
               <th style="width:32px"><input type="checkbox" id="emSelectAll" onchange="toggleEmSelectAll(this.checked)" aria-label="전체 선택" /></th>
-              <th style="width:36px">#</th>
+              <!-- 🔴 예전엔 이 자리가 그냥 줄 번호(`#`)였다. 화면을 새로 고치면 뜻이 바뀌는
+                   값이라 담당자끼리 그 번호로 건을 부를 수 없었다 — 2026-09-23 대표 지시로
+                   **견적번호**로 바꿨다. 열을 늘리지 않고 **바꾼** 이유는, 이 표가 이미
+                   13열이라 하나 더 붙이면 금액 열이 접히기 때문이다. -->
+              <th style="width:126px">견적번호</th>
               <th>접수일시</th>
               <th>목적지</th>
               <th>기관명</th>
@@ -2094,6 +2098,10 @@
                  문서다. 둘 다 「출력」이면 담당자가 어느 것이 고객에게 가는지 헷갈린다. -->
           <button class="btn-act btn-outline-p" onclick="previewShareLink()">👁 고객 화면 미리보기</button>
           <button class="btn-act btn-outline-p" onclick="issueShareLink()">🔗 견적서 링크 발급</button>
+          <!-- 🔴 **복사는 새 번호를 받는다** (2026-09-23 대표 지시 1-3: 「원본 번호를
+               이어받지 않음」). 같은 조건으로 다시 내는 일이 잦은데, 지금까지는 담당자가
+               처음부터 다시 적고 있었다. -->
+          <button class="btn-act btn-outline-p" onclick="copyEstimate()">📄 이 견적 복사</button>
           <button class="btn-act btn-danger-sm" id="btnDeleteQuote" onclick="deleteEstimate()">삭제</button>
           <button class="btn-act" onclick="document.getElementById('emModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
         </div>
@@ -5554,6 +5562,50 @@
     localStorage.setItem(EM_KEY, JSON.stringify(getEstsFull().filter(x=>x.id!==emCurrentId)));
     document.getElementById('emModal').classList.add('hidden');
     renderEstMgr();
+  }
+
+  /* ══ 📄 이 견적 복사 (2026-09-23 대표 지시 1-1·1-3) ═══════════════════════
+     같은 조건으로 다시 내는 일이 잦다(인원만 바뀌거나, 다른 부서가 같은 코스를 본다).
+     지금까지는 담당자가 **처음부터 다시 적었다.**
+
+     🔴 **새 번호를 받는다 — 원본 번호를 이어받지 않는다**(대표 지시). 그래서 여기서
+       번호를 만들지 않고, `id`만 새로 지어 **저장 경로를 그대로 탄다.** 번호는 서버가
+       저장하면서 딴다(경로가 하나라 복사에만 번호가 빠지는 일이 생기지 않는다).
+     🔴 **차수가 아니다.** 복사는 「닮은 새 건」이고, 차수는 「같은 건을 다시 낸 것」이다.
+       둘을 섞으면 대장에서 이력이 엉킨다 — 차수는 발급(`revision_of`)이 센다.
+     ⚠ 원본의 상태·검증 기록·발급 이력은 **안 가져온다.** 서버가 새 건으로 다시 판정한다
+       (복사본이 원본의 「계약완료」를 물려받으면 실적이 두 배로 잡힌다). */
+  async function copyEstimate() {
+    const e = getEstsFull().find(x => x.id === emCurrentId);
+    if (!e) return;
+    if (!confirm('이 견적을 복사해 새 건으로 만듭니다.\n\n새 견적번호가 발급되고, 상태는 「신규」로 시작합니다.\n계속할까요?')) return;
+    const body = { ...e };
+    /* 🔴 물려주면 안 되는 것들 — 하나라도 남으면 복사본이 원본 행세를 한다 */
+    ['id', 'quoteNo', 'sourceQuoteNo', 'status', 'note', 'assignee', 'activityLog',
+      '_verify', 'actualAirfareUnit', 'actualHotelUnit', 'actualMealUnit', 'actualTotal']
+      .forEach((k) => { delete body[k]; });
+    body.id = 'cp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    body.ts = Date.now();
+    try {
+      const r = await fetch('/api/quotes?action=internal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const out = await r.json().catch(() => null);
+      if (!r.ok || !out || !out.ok) {
+        /* 🔴 무엇이 안 됐는지 말한다 — 「실패했습니다」만으로는 다시 눌러야 할지 모른다 */
+        alert('복사하지 못했습니다 (오류 ' + r.status + ').'
+          + (r.status === 403 ? '\n직접 견적(엔진을 안 탄 건)은 매니저 이상만 만들 수 있습니다.' : ''));
+        return;
+      }
+      document.getElementById('emModal').classList.add('hidden');
+      await loadRemoteData();
+      renderEstMgr();
+      alert('복사했습니다.\n\n새 견적번호 · ' + (out.quoteNo || '(번호 없음)')
+        + '\n목록 맨 위에서 열어 내용을 고치시면 됩니다.');
+    } catch (err) {
+      alert('복사 요청을 보내지 못했습니다. 네트워크를 확인해 주세요.');
+    }
   }
 
   /* 관리자용 출력 */

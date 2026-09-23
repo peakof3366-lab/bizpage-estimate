@@ -100,7 +100,15 @@
     if (emFilter === 'needs-actual') list = list.filter(emNeedsActual);
     else if (emFilter !== 'all') list = list.filter(e => e.status === emFilter);
     if (emSearch) list = list.filter(e => {
-      return (e.destLabel+e.orgName+e.contact+e.programLabel).toLowerCase().includes(emSearch);
+      /* 🔴 **번호로도 찾는다** (2026-09-23 대표 지시 1-5). 고객이 전화로 대는 것은
+         목적지가 아니라 번호다. 차수(`-R1`)까지 적힌 번호를 그대로 붙여 넣어도
+         찾히게 기본 번호도 함께 본다 — 그러지 않으면 「BP-2609-0001-R1」로 검색했을 때
+         정작 그 견적 기록(차수가 없는 쪽)이 안 나온다. */
+      const no = String(e.quoteNo || '');
+      const hay = (e.destLabel+e.orgName+e.contact+e.programLabel+no+(e.sourceQuoteNo||'')).toLowerCase();
+      if (hay.includes(emSearch)) return true;
+      const q = emSearch.replace(/-r\d+$/i, '');
+      return !!no && q !== emSearch && no.toLowerCase().includes(q);
     });
 
     const total = list.length;
@@ -133,7 +141,11 @@
       const st         = e.status || 'new';
       return `<tr>
         <td><input type="checkbox" class="em-row-check" data-id="${safeId(e.id)}" ${emSelectedIds.has(e.id) ? 'checked' : ''} onchange="toggleEmRowSelect('${safeId(e.id)}', this.checked)" /></td>
-        <td>${(emPage-1)*EM_PAGE+i+1}</td>
+        ${/* 🔴 번호가 없으면 **없다고 말한다.** 빈 칸으로 두면 담당자는 화면이 안 그린
+             줄 알고, 그 건은 영영 번호 없이 남는다(결함 생성기 ②). */''}
+        <td class="em-qno">${e.quoteNo
+          ? `<strong>${esc(e.quoteNo)}</strong>`
+          : '<span title="번호가 없는 건입니다 — ai-loop/backfill_quote_no.js로 붙입니다" style="color:var(--warn)">번호 없음</span>'}</td>
         <td class="date-col">${fmtDate(e.ts)}</td>
         <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong>${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}${emShareBadge(e.id)}</td>
         <td>${esc(e.orgName||'-')}</td>
@@ -403,7 +415,10 @@
     emRenderItiState();
     emRenderDocPreview(e);
 
-    document.getElementById('emModalTitle').textContent = `견적 상세 — ${e.destLabel||e.destKey}`;
+    /* 🔴 **번호를 제목에 띄운다** (대표 지시 1-5). 상세를 열어 놓고 전화하는 자리라,
+       여기 없으면 담당자가 목록으로 되돌아가야 한다. */
+    document.getElementById('emModalTitle').textContent =
+      (e.quoteNo ? e.quoteNo + ' · ' : '') + `견적 상세 — ${e.destLabel||e.destKey}`;
 
     /* 이 견적으로 상담 신청이 들어왔는지 (신규) */
     const linkedInq = get(KEYS.contacts).find(c => c.linkedQuoteId === id);

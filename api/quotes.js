@@ -8,6 +8,8 @@ const destinationRates = require('../data');
 const BUILTIN_DEST_KEYS = new Set(destinationRates.map((d) => d.destination_key));
 const { safeId, payloadTooLarge, toNumberOrNull, trimText } = require('./_lib/public_input');
 const { verifyQuote } = require('./_lib/quote_verify');
+/* 견적번호 — 형식과 발급은 `api/_lib/quote_no.js` 한 곳이 정한다(WB) */
+const QNO = require('./_lib/quote_no');
 const ITEM_KEYS = require('./_lib/item_keys');
 /* 견적서 PDF 층 구조 추출 (RZ) — 왜 이렇게 나눴는지는 그 파일 머리말에 있다 */
 const pdfExtract = require('./_lib/pdf_extract');
@@ -1136,6 +1138,10 @@ module.exports = async (req, res) => {
       const rows = await sql`select * from quotes order by created_at desc limit 1000`;
       res.status(200).json(rows.map((r) => ({
         ...r.payload, id: r.id, status: r.status, note: r.note,
+        /* 🔴 **번호는 컬럼이 진실이다** — payload 뒤에 둬서 클라이언트가 보낸 같은 이름을
+           덮는다(channel·createdBy와 같은 이유). 화면이 만든 번호가 목록에 뜨면
+           그건 대장의 번호가 아니다. */
+        quoteNo: r.quote_no || null, sourceQuoteNo: r.source_quote_no || null,
         assignee: r.assignee || '', activityLog: r.activity_log || [],
         actualAirfareUnit: r.actual_airfare_unit !== null && r.actual_airfare_unit !== undefined ? Number(r.actual_airfare_unit) : null,
         actualHotelUnit: r.actual_hotel_unit !== null && r.actual_hotel_unit !== undefined ? Number(r.actual_hotel_unit) : null,
@@ -1203,13 +1209,38 @@ async function saveQuote(req, res, origin) {
         steps: verified.steps,
         at: new Date().toISOString(),
       } };
-    await sql`
-      insert into quotes (id, status, note, dest_label, org_name, participants, total, payload)
+    /* ═══ 🔴 견적번호는 **여기서** 난다 (2026-09-23 대표 지시 1-1) ═════════════
+       「견적서가 새로 생기는 모든 경로에서 번호가 자동 부여되어야 한다」 —
+       공개 제출·내부 산출·직접 견적·복사가 **전부 이 함수 하나를 지난다.** 그래서
+       여기 한 곳에 두면 새 경로가 생겨도 번호 없는 견적이 안 생긴다.
+     🔴 **화면이 만들어 보내지 않는다** — 두 명이 같은 번호를 보낼 수 있다.
+       DB 시퀀스 한 문장(`on conflict do update`)이 락을 잡고 따므로 겹치지 않는다.
+     ⚠ **번호를 못 따도 견적은 저장한다.** 여기서 막으면 고객 리드를 통째로 버린다
+       (검증을 통과 못 해도 저장하는 것과 같은 이유). 다만 조용히 넘어가지 않는다 —
+       기록을 남기고, 번호 없는 줄은 목록에서 눈에 띄게 표시되며,
+       `ai-loop/backfill_quote_no.js`가 나중에 채운다. */
+    let quoteNo = null;
+    try { quoteNo = await QNO.nextQuoteNo(sql); }
+    catch (err) { console.error('[quotes] 견적번호를 못 땄다(번호 없이 저장):', err && err.message); }
+
+    /* ⚠ `on conflict (id) do nothing`이라 **이미 있는 건이면 아무 일도 안 일어난다**(멱등).
+       그때 방금 딴 번호는 버려진다 — 결번은 정상이다(재사용이 훨씬 나쁘다).
+       🔴 대신 **그 건의 원래 번호를 돌려준다.** 저장한 화면이 「내 번호」를 물어보는데
+         멱등 재시도에서 빈 값을 주면 화면이 번호를 못 띄운다. */
+    const ins = await sql`
+      insert into quotes (id, status, note, dest_label, org_name, participants, total, payload, quote_no, source_quote_no)
       values (${id}, 'new', '', ${trimText(payload.destLabel, 100)}, ${trimText(payload.orgName, 100)},
-              ${participants}, ${total}, ${JSON.stringify(stored)}::jsonb)
+              ${participants}, ${total}, ${JSON.stringify(stored)}::jsonb, ${quoteNo},
+              ${QNO.normalizeVendorNo(payload.sourceQuoteNo)})
       on conflict (id) do nothing
+      returning quote_no
     `;
-    res.status(200).json({ ok: true, id, verdict: stored._verify.verdict });
+    let outNo = ins.length ? ins[0].quote_no : null;
+    if (!ins.length) {
+      const cur = await sql`select quote_no from quotes where id = ${id}`;
+      outNo = cur.length ? cur[0].quote_no : null;
+    }
+    res.status(200).json({ ok: true, id, quoteNo: outNo, verdict: stored._verify.verdict });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'insert_failed' });
