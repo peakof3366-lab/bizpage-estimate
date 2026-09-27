@@ -4197,7 +4197,16 @@
     const body  = document.getElementById('inqBody');
     const pager = document.getElementById('inqPager');
 
-    if (total === 0) { empty.classList.remove('hidden'); tbl.classList.add('hidden'); pager.innerHTML=''; return; }
+    /* 🔴 2026-09-27 걸러서 0건이면 「아직 들어온 문의가 없습니다」가 아니다 — 문의는 있는데 없다고 말해
+       담당자가 데이터가 사라진 줄 알았다(화면 규칙 ②: 「검색 결과 없음」과 「아직 한 건도 없음」은 할 일이 반대). */
+    if (total === 0) {
+      const filtered = currentFilter !== 'all' || !!searchQuery;
+      const p = empty.querySelector('p');
+      if (p) p.textContent = filtered && get(KEYS.contacts).length
+        ? '조건에 맞는 문의가 없습니다 — 필터를 「전체」로 바꾸거나 검색어를 지워 보세요.'
+        : '아직 들어온 문의가 없습니다.';
+      empty.classList.remove('hidden'); tbl.classList.add('hidden'); pager.innerHTML=''; return;
+    }
     empty.classList.add('hidden'); tbl.classList.remove('hidden');
 
     body.innerHTML = slice.map((c,i) => {

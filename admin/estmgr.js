@@ -118,7 +118,14 @@
     const emBody  = document.getElementById('emBody');
     const emPager = document.getElementById('emPager');
 
-    if (!total) { emEmpty.classList.remove('hidden'); emTable.classList.add('hidden'); emPager.innerHTML=''; return; }
+    if (!total) {
+      /* 🔴 2026-09-27 걸러서 0건이면 「아직 산출된 견적이 없습니다」가 아니다 — 견적은 있는데 없다고 말했다 */
+      const p = emEmpty.querySelector('p');
+      if (p) p.textContent = (emFilter !== 'all' || emSearch) && all.length
+        ? '조건에 맞는 견적이 없습니다 — 필터를 「전체」로 바꾸거나 검색어를 지워 보세요.'
+        : '아직 산출된 견적이 없습니다.';
+      emEmpty.classList.remove('hidden'); emTable.classList.add('hidden'); emPager.innerHTML=''; return;
+    }
     emEmpty.classList.add('hidden'); emTable.classList.remove('hidden');
 
     const statusMap = { new:'신규', consulting:'상담중', contracted:'계약완료', closed:'종료' };
