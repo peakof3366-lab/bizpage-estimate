@@ -3739,8 +3739,8 @@
      ⚠ 배지가 없는(0건) 항목은 **줄을 아예 안 만든다.** 「0건」 줄이 늘어서 있으면
        할 일이 있는 줄이 그 안에 묻힌다. */
   const DASH_TODO = [
-    { badge: 'sb-unread',         tab: 'inquiries', icon: 'inbox',          what: '미확인 문의' },
-    { badge: 'sb-new-quotes',     tab: 'estmgr',    icon: 'clipboard-list', what: '미처리 견적' },
+    { badge: 'sb-unread',         tab: 'inquiries', icon: 'inbox',          what: '미확인 문의', pick: '#tab-inquiries .filter-btn[data-filter="unread"]' },
+    { badge: 'sb-new-quotes',     tab: 'estmgr',    icon: 'clipboard-list', what: '미처리 견적', pick: '#tab-estmgr .filter-btn[data-emfilter="new"]' },
     { badge: 'sb-pending-signup', tab: 'settings',  icon: 'user-plus',      what: '승인 대기 중인 가입 신청' },
     { badge: 'sb-pkg-stale',      tab: 'packages',  icon: 'package',        what: '금액 확인이 오래된 패키지' },
   ];
@@ -3764,6 +3764,7 @@
        탭 이름은 `data-go`로 넘기고 **아래 위임 리스너**가 받는다. */
     list.innerHTML = rows.map((r) => '<li><button type="button" class="dt-go" '
       + 'data-go="' + esc(r.tab) + '" '
+      + (r.pick ? 'data-pick="' + esc(r.pick) + '" ' : '')
       + 'aria-label="' + esc(r.what) + ' ' + r.n + '건 — 그 화면으로 갑니다">'
       + '<span class="dt-ico"><i data-lucide="' + esc(r.icon) + '"></i></span>'
       + '<span class="dt-what">' + esc(r.what) + ' <span class="dt-n">' + r.n + '건</span></span>'
@@ -3801,6 +3802,11 @@
     const btn = e.target && e.target.closest && e.target.closest('.dt-go[data-go]');
     if (!btn) return;
     switchTab(btn.dataset.go);
+    /* 🔴 그 건들만 걸러서 보여준다 (2026-09-27) — 예전엔 탭만 바꿔 「전체」 목록이 떠서,
+       「미확인 문의 1건」을 누르고도 그 한 건을 다시 찾아야 했다.
+       서버 집계와 같은 기준이다: 문의 read=false = 「미확인」, 견적 status='new' = 「신규」. */
+    const pick = btn.dataset.pick && document.querySelector(btn.dataset.pick);
+    if (pick) pick.click();
   });
 
   function setTabTitleCount(n) {
