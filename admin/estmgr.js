@@ -1022,7 +1022,9 @@
       + say(parts2 && parts2.breakdown, bdRows, '줄', '세부견적서') + ' · '
       + say(parts2 && parts2.iti, days, '일', '일정표');
     /* 일부러 뺀 것은 경고가 아니다 — 비어 있는 것만 노랗게 */
-    const missing = (!parts2 || parts2.iti !== false) && !days;
+    /* 🔴 세부견적서도 센다 (2026-09-27) — 「세부견적서 비어 있습니다」가 초록 글자로 떠 있었다(일정표만 봤다). */
+    const missing = ((!parts2 || parts2.iti !== false) && !days)
+      || ((!parts2 || parts2.breakdown !== false) && !bdRows);
     state.style.color = missing ? 'var(--warn)' : '#15803D';
   }
 
