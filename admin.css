@@ -925,6 +925,8 @@
     /* 두 구역의 의존관계를 숫자로 보여주는 자리 — 이 화면을 합친 이유다. */
     .sec-link { margin: .9rem 1.15rem 0; padding: .6rem .85rem; font-size: .8rem; line-height: 1.6;
       background: #F8FAFC; border-left: 3px solid #94A3B8; color: var(--heading); }
+    /* 비어 있으면 테두리만 남은 빈 막대가 떠 있었다 (2026-09-27) */
+    .sec-link:empty { display: none; }
     .sec-link.warn { background: #FFFBEB; border-left-color: #B45309; }
     .sec-link strong { font-weight: 800; }
     .sec-link .sl-go { background: none; border: 0; padding: 0; font: inherit; font-weight: 800;

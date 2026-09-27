@@ -681,7 +681,9 @@
       el.className = 'rec-fld' + (used ? '' : ' rec-fld-idle');
       return el;
     };
-    const onlyWhenNoCourse = ' — 이 목적지에 코스가 없을 때만 고객에게 나갑니다';
+    /* ⚠ 2026-09-27 비웠다 — 같은 꼬리가 A·B 각 세 칸, **여섯 번** 붙었다. 코스가 있을 때는 바로 위
+       노란 상자가 「아래 네 칸은 고객에게 나가지 않습니다」라고 한 번 말하고, 칸도 흐리게 보인다. */
+    const onlyWhenNoCourse = '';
 
     box.appendChild(fld(itiField('방식 이름 (예: 역량강화형)' + (live ? ' — 일정 탐색 카드의 배지' : onlyWhenNoCourse),
       p.tag, false, (v) => { p.tag = v; }, null, D, G), live));
@@ -1161,6 +1163,19 @@
     return bar;
   }
 
+  /* ⚠ 2026-09-27 목적지를 고르기 전에는 두 구역의 버튼을 **누를 수 없게** 한다 — 예전엔 전부 눌렸고,
+     누르면 「목적지를 먼저 고르세요」류의 말만 돌아왔다. 누를 수 없는 이유는 버튼 풍선말이 말한다. */
+  const ITI_DEST_BTNS = ['rec-preview', 'rec-revert', 'rec-save', 'iti-preview', 'iti-add-course', 'iti-copy-course', 'iti-revert', 'iti-save'];
+  function itiSyncDestButtons() {
+    const has = !!(itiState && itiState.destKey);
+    ITI_DEST_BTNS.forEach((id) => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      b.disabled = !has;
+      if (!has) b.title = '위에서 목적지를 먼저 고르세요'; else if (b.title === '위에서 목적지를 먼저 고르세요') b.title = '';
+    });
+  }
+
   function itiSelectDest(destKey) {
     /* 두 구역 중 **어느 쪽이라도** 저장 안 한 게 있으면 묻는다 — 방식 A·B만 고쳐 놓고
        목적지를 바꾸면 그것도 그대로 날아간다. */
@@ -1170,6 +1185,7 @@
       return;
     }
     itiState.destKey = destKey;
+    itiSyncDestButtons();
     itiState.dirty = false;
     itiView.courseIdx = 0;   /* 목적지를 바꾸면 코스 A부터 본다 (RF) */
     itiSetMsg('');
@@ -1290,6 +1306,7 @@
       itiSetMsg(msg, 'err'); recSetMsg(msg, 'err');
     } else { itiSetMsg(''); recSetMsg(''); }
     itiFillDestSelect();
+    itiSyncDestButtons();
     if (itiState.destKey) {
       /* 편집 중이던 목적지가 있으면 화면은 유지하되, 서버 상태 표시는 갱신한다 */
       itiRenderState();

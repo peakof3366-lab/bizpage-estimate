@@ -74,9 +74,12 @@ const EMPTY = {
   w.__select('');
   btn.click();
   ok('목적지 없이 누르면 열리지 않는다', !open());
+  /* ⚠ 2026-09-27 목적지를 고르기 전에는 버튼이 **눌리지 않는다**(비활성) — 이유는 풍선말이 말한다.
+     예전엔 눌리고 나서 안내 줄이 말했다. 재는 뜻은 같다: 조용히 아무 일도 안 일어나면 안 된다. */
   ok('왜 안 열리는지 말해 준다',
-    /목적지를 먼저/.test(d.getElementById('rec-msg').textContent),
-    d.getElementById('rec-msg').textContent);
+    /목적지를 먼저/.test(d.getElementById('rec-msg').textContent)
+    || (btn.disabled && /목적지를 먼저/.test(btn.title || '')),
+    d.getElementById('rec-msg').textContent + ' / title=' + btn.title);
 
   w.__select('도쿄');
   w.__setCourses([]);          /* 코스 없는 상태 = ✨ 방식 A·B가 출처 (RK) */
