@@ -1545,3 +1545,7 @@
 .file-pick:focus-within .fp-btn { outline: 2px solid var(--primary); outline-offset: 2px; }
 .file-pick .fp-name { font-size: .78rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .file-pick.has-file .fp-name { color: var(--heading); font-weight: 600; }
+
+/* 패키지 편집 카드 — card-body 없이 칸들이 바로 들어 있어 **카드 테두리에 글자가 붙어** 있었다 (2026-09-27) */
+#pkgEditCard { padding-bottom: 1.25rem; }
+#pkgEditCard > :not(.card-header) { margin-left: 1.25rem; margin-right: 1.25rem; }

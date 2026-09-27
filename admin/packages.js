@@ -967,7 +967,13 @@
 
   async function pkgDelete() {
     if (!pkgEditing) { document.getElementById('pkgEditCard').style.display = 'none'; return; }
-    if (!confirm('이 상품을 지우시겠습니까? 되돌릴 수 없습니다.')) return;
+    /* 판매중·마감 건은 고객에게 나갔을 수 있다 — 그 사실을 확인창에서 말한다 (2026-09-27) */
+    const cur = (typeof pkgAll !== 'undefined' ? pkgAll : []).find((x) => x.id === pkgEditing);
+    const risky = cur && cur.status && cur.status !== 'draft';
+    if (!confirm(risky
+      ? '이 건은 「' + (cur.status === 'open' ? '판매중·확정' : '마감') + '」입니다 — 고객에게 나갔을 수 있습니다.\n'
+        + '기록을 남기려면 지우지 말고 상태를 「마감」으로 바꾸세요.\n\n그래도 지우시겠습니까? 되돌릴 수 없습니다.'
+      : '이 상품을 지우시겠습니까? 되돌릴 수 없습니다.')) return;
     const msg = document.getElementById('pkgMsg');
     try {
       const r = await fetch('/api/content?action=packages&id=' + encodeURIComponent(pkgEditing), { method: 'DELETE' });
