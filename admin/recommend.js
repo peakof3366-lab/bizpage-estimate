@@ -805,7 +805,7 @@
     if (!itiState.destKey) { recSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
     recPvFillTypes();
     recPvFillDays();
-    document.getElementById('recPvDest').textContent = itiState.destKey;
+    document.getElementById('recPvDest').textContent = itiState.destKey ? '— ' + itiState.destKey : '';
     /* 저장 전 내용을 보고 있다는 것을 분명히 한다 — 미리보기를 보고 "반영됐다"고
        읽으면 저장을 건너뛴다. ⚠ 두 구역 중 **어느 쪽이라도** 저장 전이면 말해야 한다.
        미리보기가 이제 코스(📅)도 함께 보여주기 때문이다. */

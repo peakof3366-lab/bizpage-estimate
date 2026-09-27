@@ -87,7 +87,8 @@ const EMPTY = {
   btn.click();
   ok('목적지를 고르면 열린다', open());
   ok('어느 목적지인지 제목에 적는다',
-    d.getElementById('recPvDest').textContent === '도쿄',
+    /* 2026-09-27 「미리보기 도쿄」로 붙어 읽혀 「— 도쿄」로 */
+    d.getElementById('recPvDest').textContent === '— 도쿄',
     d.getElementById('recPvDest').textContent);
   d.getElementById('recPvClose').click();
   ok('✕로 닫힌다', !open());
