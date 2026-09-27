@@ -258,7 +258,9 @@ async function 태우기(견적) {
     const baseBtns = Array.from(D.querySelectorAll('#emModalBody button'))
       .filter((x) => !MORE.contains(x) && !x.closest('#emTabCust'));
     const saveCount = baseBtns.filter((x) => (x.textContent || '').trim() === '저장').length;
-    ok('[2-s4] 🔴 기본 화면의 「저장」 버튼이 하나다', saveCount === 1, saveCount + '개');
+    /* ⚠ 2026-09-27 하나 → **0개**: 상태·담당자·메모가 고르면 바로 저장된다(test_aE [5-h]~[5-k]).
+       재는 뜻은 같다 — 「저장」이 여럿이면 무엇이 무엇을 저장하는지 모른다. */
+    ok('[2-s4] 🔴 기본 화면의 「저장」 버튼이 하나 이하다', saveCount <= 1, saveCount + '개');
     ok('[2-s5] 기본 화면 버튼이 열 개를 넘지 않는다', baseBtns.length <= 10,
       baseBtns.length + '개 — ' + baseBtns.map((x) => (x.textContent || '').trim()).join(','));
     /* 🔴 실적 4칸은 **계약완료 건에만** 쓴다. 신규 건에서 늘 보이면 처음 보는 사람이

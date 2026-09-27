@@ -126,7 +126,15 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/
   ok('[5-c] 본문의 맨 끝이다', !!bar && body.lastElementChild === bar);
   ok('[5-d] 발급 버튼과 「보낼 문서」 체크가 같은 줄에 있다',
     !!bar && !!bar.querySelector('#emPartBd') && !!bar.querySelector('#emPartIti')
-    && /issueShareLink\(\)/.test(bar.innerHTML) && /saveEstimateDetail\(\)/.test(bar.innerHTML));
+    && /issueShareLink\(\)/.test(bar.innerHTML));
+  /* 🔴 2026-09-27 바깥 「저장」을 없앴다 — 상태·담당자는 고르면, 메모는 칸을 떠나면 저장된다.
+     부르는 자리가 없어지면 **아무것도 저장 안 되는 화면**이 되므로 그 자리를 잠근다. */
+  ok('[5-h] 🔴 상태를 고르면 저장된다', /saveEstimateDetail\(\)/.test(D.getElementById('em-status-sel').getAttribute('onchange') || ''));
+  ok('[5-i] 🔴 담당자를 고르면 (확인 뒤) 저장된다', /confirmAssigneeSelect\(this\)\) saveEstimateDetail\(\)/.test(D.getElementById('em-assignee-sel').getAttribute('onchange') || ''));
+  ok('[5-j] 🔴 메모는 칸을 떠나면 저장된다', /saveEstimateDetail\(\)/.test(D.getElementById('em-note-area').getAttribute('onchange') || ''));
+  ok('[5-k] 아래 줄에 「저장」 버튼이 없다 (고치기 안의 「견적 저장하기」와 겹쳤다)',
+    !Array.from(bar.querySelectorAll('button')).some((x) => (x.textContent || '').trim() === '저장'));
+  ok('[5-l] 강조 버튼은 발급 하나다', Array.from(bar.querySelectorAll('.btn-primary')).map((x) => (x.textContent || '').trim()).join() === '🔗 견적서 링크 발급');
   ok('[5-e] 🔴 CSS가 창 아래에 붙인다',
     /#emModal \.em-actbar\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0/.test(CSS));
   ok('[5-f] 🔴 고객용 탭에서는 덮인다 (고객용엔 원가 칸이 없다 — 저장할 것도 없다)',

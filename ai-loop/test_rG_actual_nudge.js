@@ -101,11 +101,17 @@ const quote = (id, over) => Object.assign({
   ok('확인을 누르면 비워 둔 채로도 저장된다',
     w.__quotes().find((x) => x.id === 'q6').status === 'contracted',
     w.__quotes().find((x) => x.id === 'q6').status);
-  ok('저장되면 모달이 닫힌다', d.getElementById('emModal').classList.contains('hidden'));
+  /* ⚠ 2026-09-27 「저장」 버튼을 없애고 **고르면 바로 저장**으로 바꿨다 — 그래서 창을 닫지 않는다
+     (예전 줄: 「저장되면 모달이 닫힌다」). 상태 하나 바꿨다고 닫히면 다음 일을 못 한다. */
+  ok('저장돼도 창은 그대로다 (자동 저장)', !d.getElementById('emModal').classList.contains('hidden'));
+  ok('계약완료가 되면 실적 칸이 나온다', !d.getElementById('em-sec-actual').classList.contains('hidden'));
+  ok('저장됐다고 말한다', /저장됨/.test((d.getElementById('em-autosave-state') || {}).textContent || ''));
 
   /* ③ 취소하면 저장하지 않고 그 칸으로 데려간다 */
   w.confirm = () => false;
   await saveWith([quote('q7')], 'q7', 'contracted');
+  ok('🔴 취소하면 고른 값을 되돌린다 (화면은 계약완료인데 저장은 신규인 채로 남지 않게)',
+    d.getElementById('em-status-sel').value === 'new', d.getElementById('em-status-sel').value);
   ok('취소하면 저장하지 않는다',
     w.__quotes().find((x) => x.id === 'q7').status === 'new',
     w.__quotes().find((x) => x.id === 'q7').status);

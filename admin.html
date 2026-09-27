@@ -1996,8 +1996,11 @@
       <div style="padding:1.1rem 1.25rem">
         <div style="display:grid;grid-template-columns:auto auto 1fr;gap:1rem;align-items:start">
           <div>
-            <div class="detail-label" style="margin-bottom:.4rem">상태 변경</div>
-            <select id="em-status-sel" class="status-select" aria-label="견적 상태">
+            <!-- 🔴 2026-09-27 「저장」 버튼을 없앴다 — **고르면 바로 저장**된다(담당자도, 메모는 칸을
+                 떠날 때). 직원용 탭에 「저장」이 둘(이것 + 고치기 안의 「견적 저장하기」)이라 무엇이
+                 무엇을 저장하는지 헷갈렸다. 저장됐는지는 옆 글자가 말한다. -->
+            <div class="detail-label" style="margin-bottom:.4rem">상태 변경 <span id="em-autosave-state" style="font-weight:400;font-size:.74rem;margin-left:.3rem"></span></div>
+            <select id="em-status-sel" class="status-select" aria-label="견적 상태" onchange="saveEstimateDetail()">
               <option value="new">신규</option>
               <option value="consulting">상담중</option>
               <option value="contracted">계약완료</option>
@@ -2006,13 +2009,13 @@
           </div>
           <div>
             <div class="detail-label" style="margin-bottom:.4rem">담당자</div>
-            <select id="em-assignee-sel" class="status-select" onchange="confirmAssigneeSelect(this)" aria-label="담당자">
+            <select id="em-assignee-sel" class="status-select" onchange="if (confirmAssigneeSelect(this)) saveEstimateDetail()" aria-label="담당자">
               <option value="">미배정</option>
             </select>
           </div>
           <div style="flex:1">
             <div class="detail-label" style="margin-bottom:.4rem">상담 메모</div>
-            <textarea id="em-note-area" class="note-area" placeholder="상담 내용, 고객 요구사항, 특이사항 등을 기록하세요..." style="min-height:80px" aria-label="상담 메모"></textarea>
+            <textarea id="em-note-area" class="note-area" placeholder="상담 내용, 고객 요구사항, 특이사항 등을 기록하세요... (칸을 떠나면 저장됩니다)" style="min-height:80px" aria-label="상담 메모" onchange="saveEstimateDetail()"></textarea>
           </div>
         </div>
 
@@ -2167,8 +2170,7 @@
         </div>
 
         <div class="modal-actions">
-          <button class="btn-act btn-primary" onclick="saveEstimateDetail()">저장</button>
-          <button class="btn-act btn-outline-p" onclick="issueShareLink()">🔗 견적서 링크 발급</button>
+          <button class="btn-act btn-primary" onclick="issueShareLink()">🔗 견적서 링크 발급</button>
           <!-- ═══ 🔴 가끔 쓰는 것은 「⋯ 더보기」 한 곳에 (2026-09-27 대표 지시:
                「버튼마다 기능이 겹치는 부분 정리 · 화면이 너무 복잡하다」)
                아래 줄이 7개였다. 넷을 이렇게 정리했다:

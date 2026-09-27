@@ -569,6 +569,7 @@
     document.getElementById('em-status-sel').value = e.status || 'new';
     document.getElementById('em-note-area').value   = e.note   || '';
     fillAssigneeSelect(document.getElementById('em-assignee-sel'), e.assignee);
+    emAutoSaveState('고르면 바로 저장됩니다', 'var(--muted)');
     document.getElementById('em-log-author-tag').textContent = `작성자: ${currentUser.displayName}`;
     document.getElementById('em-log-list').innerHTML = activityLogHtml(e.activityLog);
 
@@ -736,22 +737,42 @@
         + '계약할 때만 알 수 있는 값이라, 지금 넣지 않으면 나중에 채우기 어렵습니다.'
         + (alsoEmpty.length ? NL + NL + '함께 비어 있는 칸: ' + alsoEmpty.join(', ') : '')
         + NL + NL
-        + '[취소] 를 누르면 그 칸으로 데려다 드립니다.' + NL
+        + '[취소] 를 누르면 상태는 그대로 두고 그 칸으로 데려다 드립니다 — 넣은 뒤 다시 계약완료로 바꿔 주세요.' + NL
         + '[확인] 을 누르면 비워 둔 채로 계약완료 저장합니다.');
-      if (!proceed) { emFocusActualTotal(); return; }
+      /* 🔴 자동 저장이라 **고른 값을 되돌린다** — 안 되돌리면 화면은 「계약완료」인데
+         저장된 것은 「신규」인 채로 남는다(예전엔 「저장」을 누르기 전이라 괜찮았다). */
+      if (!proceed) {
+        document.getElementById('em-status-sel').value = all[idx].status || 'new';
+        emFocusActualTotal(); return;
+      }
     }
     all[idx].status = newStatus;
     all[idx].note   = document.getElementById('em-note-area').value;
     all[idx].assignee = document.getElementById('em-assignee-sel').value;
-    /* 서버에 먼저 보내고 성공한 뒤에 캐시 반영·모달 닫기 (PV). 실패하면 모달을 열어둔다
-       — 방금 쓴 메모를 잃지 않고 그대로 다시 저장할 수 있다. */
+    emAutoSaveState('저장 중…', 'var(--muted)');
+    /* 서버에 먼저 보내고 성공한 뒤에 캐시 반영 (PV).
+       🔴 2026-09-27 「저장」 버튼을 없앴다 — 상태·담당자는 **고르는 즉시**, 메모는 **칸을 떠날 때**
+       이 함수를 부른다(대표 지시: 「기능이 겹치는 버튼 정리」 — 직원용 탭에 「저장」이 둘이었다).
+       그래서 **창을 닫지 않는다.** 상태 하나 바꿨다고 창이 닫히면 다음 일을 못 한다. */
     const r = await patchQuote(emCurrentId, {
       status: all[idx].status, note: all[idx].note, assignee: all[idx].assignee,
     }, { desc: '견적 상태·메모·담당자 저장' });
-    if (!r.ok) return;
+    if (!r.ok) {
+      emAutoSaveState('⚠ 저장하지 못했습니다 — 다시 골라 주세요', 'var(--danger)');
+      return;
+    }
     localStorage.setItem(EM_KEY, JSON.stringify(all));
-    document.getElementById('emModal').classList.add('hidden');
     renderEstMgr();
+    /* 계약완료가 되면 실적 칸이 나와야 한다(계약완료 건에만 보인다) */
+    emSyncActualVisibility(all[idx]);
+    emAutoSaveState('✓ 저장됨', '#15803D');
+  }
+
+  function emAutoSaveState(text, color) {
+    const el = document.getElementById('em-autosave-state');
+    if (!el) return;
+    el.textContent = text || '';
+    el.style.color = color || 'var(--muted)';
   }
 
   /* ══════════════════════════════════════════════════════════════════
