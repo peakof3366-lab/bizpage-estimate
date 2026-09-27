@@ -40,7 +40,7 @@
   /* ── 목차 ── 문서가 길어서 어디서든 원하는 장으로 갈 수 있어야 한다 */
   nav.toc { position: sticky; top: 1.5rem; background: var(--white); border: 1px solid var(--border); padding: 1.1rem 1.2rem; }
   @media (max-width: 900px) { nav.toc { position: static; } }
-  nav.toc h2 { font-size: .68rem; letter-spacing: .14em; color: var(--muted); font-weight: 700; margin: 0 0 .8rem; text-transform: uppercase; }
+  nav.toc h2 { font-size: .74rem; letter-spacing: 0; color: var(--muted); font-weight: 700; margin: 0 0 .8rem; text-transform: uppercase; }
   nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: t; display: grid; gap: .3rem; }
   @media (max-width: 900px) { nav.toc ol { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); } }
   nav.toc li { counter-increment: t; position: relative; padding-left: 1.35rem; font-size: .84rem; }
@@ -51,7 +51,7 @@
      목차가 있어도 길을 잃는다. JS가 붙이는 클래스이고, JS가 없어도 문서는 멀쩡하다. */
   nav.toc a.here { color: var(--primary); font-weight: 800; }
   nav.toc li:has(a.here)::before { color: var(--primary); font-weight: 800; }
-  nav.toc .who { font-size: .68rem; color: var(--muted); margin-left: .3rem; white-space: nowrap; }
+  nav.toc .who { font-size: .72rem; color: var(--muted); margin-left: .3rem; white-space: nowrap; }
 
   /* 모바일에서는 목차 12줄이 본문을 밀어낸다 — 접어 둔다.
      넓은 화면에서는 <summary>를 숨기고 항상 펼친 상태로 둔다(details[open]). */
@@ -112,7 +112,7 @@
   main { display: flex; flex-direction: column; gap: 2.75rem; min-width: 0; }
 
   header.masthead { display: flex; flex-direction: column; gap: .6rem; }
-  header.masthead .eyebrow { font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--primary); font-weight: 800; }
+  header.masthead .eyebrow { font-size: .74rem; letter-spacing: 0; text-transform: uppercase; color: var(--primary); font-weight: 800; }
   header.masthead h1 { font-size: clamp(1.7rem, 1.2rem + 1.8vw, 2.4rem); line-height: 1.2; letter-spacing: -.02em; margin: 0; color: var(--heading); font-weight: 800; text-wrap: balance; }
   header.masthead p { margin: 0; color: var(--muted); max-width: 40rem; }
   header.masthead .meta { font-size: .76rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: .8rem; margin-top: .3rem; display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; }
@@ -132,7 +132,7 @@
   strong { font-weight: 800; color: var(--heading); }
   code { background: var(--rule-soft); border: 1px solid var(--border); padding: .08em .35em; font-family: Consolas,'D2Coding',ui-monospace,monospace; font-size: .88em; }
 
-  .role-flag { font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--warn); border: 1px solid currentColor; padding: .08rem .4rem; margin-left: .45rem; vertical-align: .16em; white-space: nowrap; font-weight: 800; }
+  .role-flag { font-size: .74rem; letter-spacing: 0; text-transform: uppercase; color: var(--warn); border: 1px solid currentColor; padding: .08rem .4rem; margin-left: .45rem; vertical-align: .16em; white-space: nowrap; font-weight: 800; }
 
   /* ═══ 번호 매긴 목록들 ═══
      ⚠ **번호를 격자(grid)의 한 칸으로 만들지 말 것.** 예전에는 li를 2열 격자로 두고
@@ -183,14 +183,14 @@
 
   .note { border-left: 3px solid var(--primary); background: var(--white); padding: .9rem 1.05rem; display: flex; flex-direction: column; gap: .4rem; }
   .note.alarm { border-left-color: var(--danger); background: var(--primary-lt); }
-  .note .label { font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+  .note .label { font-size: .74rem; letter-spacing: 0; text-transform: uppercase; color: var(--muted); font-weight: 800; }
   .note p { max-width: none; }
 
   .scroller { overflow-x: auto; border: 1px solid var(--border); background: var(--white); }
   table { border-collapse: collapse; width: 100%; font-size: .86rem; }
   caption { text-align: left; font-size: .8rem; color: var(--muted); padding: 0 0 .45rem; }
   th, td { text-align: left; padding: .6rem .8rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
-  thead th { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  thead th { font-size: .74rem; letter-spacing: 0; text-transform: uppercase; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--border); white-space: nowrap; }
   tbody tr:last-child td { border-bottom: 0; }
   td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   td.field { font-weight: 800; white-space: nowrap; color: var(--heading); }
@@ -199,7 +199,7 @@
   .tag { display: inline-block; font-size: .7rem; font-weight: 700; padding: .08rem .4rem; border: 1px solid currentColor; white-space: nowrap; }
   .tag.ok { color: var(--success); } .tag.warn { color: var(--warn); }
   .tag.bad { color: var(--danger); } .tag.off { color: var(--muted); }
-  .badge-demo { display: inline-block; background: var(--danger); color: #fff; font-size: .68rem; font-weight: 800; padding: .05rem .35rem; vertical-align: .08em; }
+  .badge-demo { display: inline-block; background: var(--danger); color: #fff; font-size: .72rem; font-weight: 800; padding: .05rem .35rem; vertical-align: .08em; }
   .btn-demo { display: inline-block; border: 1.5px solid var(--border); background: var(--white); color: var(--muted); font-size: .72rem; font-weight: 800; padding: .04rem .4rem; white-space: nowrap; }
 
   .yes { color: var(--success); font-weight: 800; } .no { color: var(--muted); }
@@ -245,7 +245,7 @@
      ⚠ 절 맨 위(<h2> 바로 뒤)에만 둔다. 중간에 또 나오면 요약이 아니다. */
   .tldr { border: 2px solid var(--heading); background: var(--white); padding: 1rem 1.15rem;
           display: flex; flex-direction: column; gap: .5rem; }
-  .tldr .label { font-size: .68rem; letter-spacing: .12em; text-transform: uppercase;
+  .tldr .label { font-size: .74rem; letter-spacing: 0; text-transform: uppercase;
                  color: var(--heading); font-weight: 800; }
   .tldr ol { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: .3rem; }
   .tldr ol li { font-weight: 700; }
@@ -330,13 +330,13 @@
         <li><strong><a href="#start">1장 시작하기</a></strong> — 계정 만들고 로그인하기. 여기부터 안 되면 나머지는 볼 수 없습니다.</li>
         <li><strong><a href="#flow">2장 하루 흐름</a></strong> — 일이 어떤 순서로 흘러가는지 다섯 줄로 봅니다.</li>
         <li><strong>내가 맡은 일 한 장만</strong> — 문의·견적 담당이면 <a href="#inquiries">3장</a>·<a href="#estmgr">4장</a>,
-          일정 담당이면 <a href="#itinerary">6장</a>, 단가 담당이면 <a href="#rates">7장</a>.</li>
+          일정 담당이면 <a href="#itinerary">6장</a>, 단가 담당이면 <a href="#rates">11장</a>.</li>
       </ol>
       <p class="rest">
         나머지 장은 <strong>지금 읽는 것이 아니라 막혔을 때 찾는 것</strong>입니다.
-        화면에 낯선 문구가 떠서 “고장인가?” 싶으면 <a href="#errors">10장 막혔을 때 나오는 메시지</a>를 먼저 보세요.
+        화면에 낯선 문구가 떠서 “고장인가?” 싶으면 <a href="#errors">14장 막혔을 때 나오는 메시지</a>를 먼저 보세요.
         찾는 단어가 있으면 왼쪽 <strong>문서에서 찾기</strong> 칸에 넣으면 됩니다.
-        관리자는 <a href="#owner">12장</a>부터 보시면 됩니다.
+        관리자는 <a href="#owner">16장</a>부터 보시면 됩니다.
       </p>
     </div>
 
@@ -358,7 +358,7 @@
         <span class="label">이 문서에서 “관리자”라고 하면</span>
         <p>
           <strong>사람</strong>을 가리킵니다 — 계정을 승인하고 권한을 정하는 최고 권한 계정입니다.
-          권한은 <strong>직원 · 매니저 · 관리자</strong> 세 단계이고, 누가 무엇을 할 수 있는지는 <a href="#roles">9장</a>에 있습니다.
+          권한은 <strong>직원 · 매니저 · 관리자</strong> 세 단계이고, 누가 무엇을 할 수 있는지는 <a href="#roles">13장</a>에 있습니다.
           우리가 지금 보고 있는 <strong>“관리자 화면”</strong>(이 문서가 열려 있는 이 사이트)과는 다른 말이니 헷갈리지 마세요.
         </p>
       </div>
@@ -1257,7 +1257,7 @@
     </section>
 
     <section id="packages">
-      <h2>6-2. 패키지 상품</h2>
+      <h2>7. 패키지 상품</h2>
       <div class="tldr">
         <span class="label">30초 요약</span>
         <p class="trap"><strong>값이 정해진 상품을 올려 고객 화면에 띄웁니다</strong></p>
@@ -1417,7 +1417,7 @@
     </section>
 
     <section id="adhoc">
-      <h2>6-3. 직접 견적 작성</h2>
+      <h2>8. 직접 견적 작성</h2>
       <div class="tldr">
         <span class="label">30초 요약</span>
         <p class="trap"><strong>담당자가 금액을 직접 적어 내는 견적입니다</strong></p>
@@ -1488,7 +1488,7 @@
     </section>
 
     <section id="ledger">
-      <h2>6-4. 견적서 대장</h2>
+      <h2>9. 견적서 대장</h2>
       <div class="tldr">
         <span class="label">30초 요약</span>
         <p class="trap"><strong>발급한 견적서를 찾고 상태를 남깁니다</strong></p>
@@ -1601,7 +1601,7 @@
     </section>
 
     <section id="pricereport">
-      <h2>7. 견적서 업데이트 — 실제 단가 남기기</h2>
+      <h2>10. 견적서 업데이트 — 실제 단가 남기기</h2>
       <div class="tldr">
         <span class="label">30초 요약</span>
         <p class="trap"><strong>실제 견적서의 단가를 읽어 근거로 쌓습니다</strong></p>
@@ -1924,7 +1924,7 @@
     </section>
 
     <section id="rates">
-      <h2>8. 요율 관리 — 단가 갱신</h2>
+      <h2>11. 요율 관리 — 단가 갱신</h2>
       <div class="tldr">
         <span class="label">30초 요약</span>
         <p class="trap"><strong>목적지별 단가를 갱신합니다</strong></p>
@@ -2031,7 +2031,7 @@
     </section>
 
     <section id="newdest">
-      <h2>9. 새 목적지 추가하기<span class="role-flag">매니저 · 관리자</span></h2>
+      <h2>12. 새 목적지 추가하기<span class="role-flag">매니저 · 관리자</span></h2>
       <div class="tldr">
         <span class="label">30초 요약</span>
         <p class="trap"><strong>새 목적지를 추가합니다</strong></p>
@@ -2130,7 +2130,7 @@
     </section>
 
     <section id="roles">
-      <h2>10. 권한별로 할 수 있는 일</h2>
+      <h2>13. 권한별로 할 수 있는 일</h2>
       <div class="scroller">
         <table>
           <thead><tr><th>작업</th><th>직원</th><th>매니저</th><th>관리자</th></tr></thead>
@@ -2153,7 +2153,7 @@
     </section>
 
     <section id="errors">
-      <h2>11. 막혔을 때 나오는 메시지</h2>
+      <h2>14. 막혔을 때 나오는 메시지</h2>
       <div class="scroller">
         <table>
           <thead><tr><th>화면에 뜨는 말</th><th>뜻</th><th>할 일</th></tr></thead>
@@ -2174,7 +2174,7 @@
     </section>
 
     <section id="dont">
-      <h2>12. 하면 안 되는 것</h2>
+      <h2>15. 하면 안 되는 것</h2>
       <ul class="dont">
         <li><div><strong>계정 공유.</strong> 모든 변경이 로그인한 사람 이름으로 남습니다. 계정을 빌려주면 “누가 이 가격을 넣었는지, 누가 이 고객을 맡았는지” 추적이 끊깁니다.</div></li>
         <li><div><strong>확인창을 습관적으로 넘기기.</strong> “현재 기준가의 약 8배입니다”, “담당자를 ○○에서 △△로 바꿉니다” 같은 창은 대부분 실수를 잡으려고 뜬 것입니다. 읽고 판단해 주세요.</div></li>
@@ -2185,7 +2185,7 @@
     </section>
 
     <section id="owner">
-      <h2>13. 관리자 — 가입 열고 승인하기</h2>
+      <h2>16. 관리자 — 가입 열고 승인하기</h2>
       <ol class="steps">
         <li>
           <h3>가입코드를 정합니다</h3>

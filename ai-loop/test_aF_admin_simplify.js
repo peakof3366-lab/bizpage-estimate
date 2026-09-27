@@ -120,6 +120,27 @@ ok('[X-d] 🔴 요율 CSV에 단가가 실리고, 운영 값(effectiveRate)을 �
   ok('[J-e] 🔴 관리 화면 스크립트에 「을(를)」 꼴이 남아 있지 않다', leftovers.length === 0, leftovers.join(','));
 }
 
+/* ═══ 매뉴얼 장 번호 — 목차·본문·「N장」 링크가 셋 다 달랐다 (2026-09-27) ═══════════
+   목차는 CSS 카운터로 1~16을 세는데 본문 제목은 6-2·6-3…으로 따로 적혀 있었고,
+   「권한은 9장」(실제 13장)·「막혔을 때 10장」(실제 14장)처럼 링크 글자가 한 칸씩 밀려 있었다.
+   → 본문 제목 번호가 1부터 빠짐없이 이어지고, 「N장」 링크가 가리키는 절의 제목이 N으로 시작하는지 잰다. */
+{
+  const man = read('manual.html');
+  const nums = [...man.matchAll(/<h2>(\d+(?:-\d+)?)\.\s/g)].map((m) => m[1]);
+  ok('[M] 매뉴얼 본문 장 번호가 1부터 빠짐없이 이어진다 (목차 카운터와 같은 번호)',
+    nums.length > 10 && nums.every((n, i) => n === String(i + 1)), nums.join(','));
+  const bad = [];
+  for (const m of man.matchAll(/<a href="#([\w-]+)">(\d+)장/g)) {
+    const at = man.indexOf('id="' + m[1] + '"');
+    /* h3 앵커(which-screen)는 그 앞의 가장 가까운 장 제목을 본다 */
+    const before = man.slice(0, at + 400);
+    const h2s = [...before.matchAll(/<h2>(\d+)\.\s/g)];
+    const ch = h2s.length ? h2s[h2s.length - 1][1] : '?';
+    if (ch !== m[2]) bad.push('#' + m[1] + ' ' + m[2] + '장→실제 ' + ch + '장');
+  }
+  ok('[M-b] 🔴 「N장」 링크가 실제 그 장을 가리킨다', bad.length === 0, bad.join(' / '));
+}
+
 console.log('\n' + '─'.repeat(64));
 fails.forEach((f) => console.log('  ✗ ' + f));
 console.log('결과: ' + pass + ' pass / ' + fails.length + ' fail  — aF 관리자 화면 간소화');

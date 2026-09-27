@@ -888,6 +888,8 @@
        관리자 화면 곳곳에서 쓰이므로 건드리지 않는다. */
     .iti-bar .btn-act { height: 34px; padding: 0 1rem; }
     .iti-state { font-size: .8rem; font-weight: 600; color: var(--muted); }
+    .sec-title .iti-state { display: block; margin-top: .25rem; }
+    .sec-title .iti-state:empty { display: none; }
     .iti-state.is-edited { color: #b45309; }
     .iti-dirty {
       font-size: .78rem; font-weight: 800; color: #b45309; background: #fef3c7;

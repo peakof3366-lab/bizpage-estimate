@@ -199,7 +199,10 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'iti-pick-btn';
-      btn.textContent = '고르기';
+      /* 「고르기」만으로는 **무엇을** 고르는지 몰랐다 (2026-09-27) — 한 화면에 수십 개가
+         같은 이름이라 낭독기로는 구별도 안 됐다. 칸 이름을 aria-label에 싣는다. */
+      btn.textContent = '목록에서 고르기';
+      btn.setAttribute('aria-label', (lbl.textContent || '').trim() + ' — 이미 쓰인 문구 목록에서 고르기');
       btn.addEventListener('click', function () {
         itiOpenPicker(pickKind, function () { return inp.value; }, function (next) {
           /* 고르기로 넣은 값은 input 이벤트를 내지 않는다 — 여기서 직접 맞춰 주지 않으면
