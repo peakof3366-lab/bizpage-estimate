@@ -164,6 +164,18 @@ ok('[T] 🔴 미확인 문의 → 「미확인」 필터, 미처리 견적 → �
   && /what: '미처리 견적', pick: '#tab-estmgr \.filter-btn\[data-emfilter="new"\]'/.test(ADMIN)
   && /switchTab\(btn\.dataset\.go\);\s*const pick = btn\.dataset\.pick[^\n]*\n\s*if \(pick\) pick\.click\(\);/.test(ADMIN));
 
+/* ═══ 문의 창 상태칸 = 목록 배지 (2026-09-27) ═══════════════════════════════════════
+   열면 read만 true가 되고 status는 unread로 남아, 창에선 「신규」·목록에선 「확인」이었다.
+   게다가 메모·담당자 자동 저장이 그 「신규」를 같이 보내 **방금 읽은 문의가 다시 안 읽음이 됐다.** */
+{
+  const m = read('admin.html').match(/document\.getElementById\('d-status'\)\.value =\s*\n?\s*([^;]+);/);
+  let f = null;
+  try { f = m && new Function('c', 'return ' + m[1] + ';'); } catch (e) { f = null; }
+  ok('[S] 🔴 열어서 읽은 문의(status=unread, read=true)는 창에서도 「확인」', !!f && f({ status: 'unread', read: true }) === 'read');
+  ok('[S-b] 처리중·완료는 그대로, 안 읽은 건 「신규」',
+    !!f && f({ status: 'pending', read: true }) === 'pending' && f({ status: 'done' }) === 'done' && f({ status: 'unread', read: false }) === 'unread');
+}
+
 /* ═══ Esc — 창 하나만 닫히던 것 (2026-09-27) ═══════════════════════════════════════ */
 ok('[K] 🔴 Esc는 맨 위 창의 ✕를 누른다 (창마다의 닫기 처리를 거친다) · 칸에 쓰는 중이면 안 닫는다',
   /if \(e\.key !== 'Escape'\) return;/.test(ADMIN) && /top\.querySelector\('\.modal-close'\)/.test(ADMIN)

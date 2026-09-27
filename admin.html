@@ -1839,12 +1839,15 @@
         <textarea class="note-area" id="d-note" placeholder="메모를 입력하세요... (칸을 떠나면 저장됩니다)" aria-label="내부 메모" onchange="saveDetail()"></textarea>
       </div>
       <div class="modal-actions">
+        <!-- 고르는 칸에 보이는 이름이 없어 「확인」 하나만 덩그러니 보였다 (2026-09-27) -->
+        <label for="d-status" class="inq-sel-lbl">상태</label>
         <select class="status-select" id="d-status" aria-label="문의 처리 상태" onchange="saveDetail()">
           <option value="unread">신규</option>
           <option value="read">확인</option>
           <option value="pending">처리중</option>
           <option value="done">완료</option>
         </select>
+        <label for="d-assignee" class="inq-sel-lbl">담당자</label>
         <select class="status-select" id="d-assignee" onchange="if (confirmAssigneeSelect(this)) saveDetail()" aria-label="담당자">
           <option value="">담당자 미배정</option>
         </select>
@@ -4351,7 +4354,11 @@
 
     document.getElementById('d-msg').textContent  = msgText;
     document.getElementById('d-note').value = c.note||'';
-    document.getElementById('d-status').value = c.status||'read';
+    /* 🔴 목록과 **같은 규칙**으로 보여준다 (2026-09-27). 목록 배지는 처리중·완료가 아니면
+       읽음 여부(read)로 「확인/신규」를 가르는데, 여기는 저장된 status를 그대로 써서 방금 연 문의가
+       목록에선 「확인」, 창에선 「신규」로 서로 다르게 보였다(열 때 read만 true가 되고 status는 unread로 남는다). */
+    document.getElementById('d-status').value =
+      (c.status === 'pending' || c.status === 'done') ? c.status : (c.read ? 'read' : 'unread');
     fillAssigneeSelect(document.getElementById('d-assignee'), c.assignee);
     document.getElementById('d-log-list').innerHTML = activityLogHtml(c.activityLog);
     /* 답변/진행기록 작성자는 항상 로그인한 나 자신 — 실계정 도입 전엔 담당자
