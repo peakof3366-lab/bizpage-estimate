@@ -502,13 +502,10 @@
         <!-- ⚠ 설명 줄을 뺐다 (2026-09-08 대표 지시) — 화면 제목이 이미 말한다. -->
       </div>
 
-      <!-- 통계 카드 -->
-      <div class="stat-grid" style="margin-bottom:1.25rem">
-        <div class="stat-card"><div id="em-total" class="stat-num">0</div><div class="stat-lbl">총 견적 건수</div></div>
-        <div class="stat-card success"><div id="em-today" class="stat-num">0</div><div class="stat-lbl">오늘 견적</div></div>
-        <div class="stat-card warn"><div id="em-revenue" class="stat-num">0</div><div class="stat-lbl">예상 총 매출(만원)</div></div>
-        <div class="stat-card"><div id="em-avgdeal" class="stat-num">0</div><div class="stat-lbl">평균 견적(만원)</div></div>
-      </div>
+      <!-- 🔴 숫자 카드 넷을 **「견적 분석」으로 옮겼다** (2026-09-27 대표 지시: 「기능이 겹치는 것 정리」).
+           「총 견적 건수」·「오늘 견적」은 견적 분석 탭이 **같은 `getEstsFull()`로 똑같이** 세고 있었다.
+           나머지 둘(예상 총 매출 · 평균 견적)은 그쪽에 없어 옮겨 붙였다 — 지운 숫자는 없다.
+           이 화면은 「건을 찾아 처리하는 곳」이라 목록이 맨 위에 오는 것이 맞다. -->
 
       <!-- 필터 + 액션 -->
       <div class="toolbar" style="margin-bottom:1rem">
@@ -676,11 +673,14 @@
         <h1 class="page-title">견적 분석</h1>
         <p class="page-sub">어떤 목적지·연수 유형·기관이 많은지 봅니다. 상품과 광고 문구를 정할 때 씁니다.</p>
       </div>
-      <div class="stat-grid">
+      <!-- ⚠ 여섯 칸 — 「예상 총 매출」·「평균 견적」은 2026-09-27 견적 관리에서 옮겨 왔다 -->
+      <div class="stat-grid stat-grid-3">
         <div class="stat-card"><div id="e-total" class="stat-num">0</div><div class="stat-lbl">총 견적 건수</div></div>
         <div class="stat-card success"><div id="e-avg-p" class="stat-num">0</div><div class="stat-lbl">평균 참가 인원</div></div>
         <div class="stat-card warn"><div id="e-avg-d" class="stat-num">0</div><div class="stat-lbl">평균 연수 기간</div></div>
         <div class="stat-card"><div id="e-today" class="stat-num">0</div><div class="stat-lbl">오늘 견적</div></div>
+        <div class="stat-card warn"><div id="e-revenue" class="stat-num">0</div><div class="stat-lbl">예상 총 매출(만원)</div></div>
+        <div class="stat-card"><div id="e-avgdeal" class="stat-num">0</div><div class="stat-lbl">평균 견적(만원)</div></div>
       </div>
       <div class="grid-2">
         <div class="card">
@@ -2187,7 +2187,7 @@
                ⚠ 삭제 버튼의 `id`(`btnDeleteQuote`)는 그대로다 — 권한 코드가 그 id로 감춘다.
                ⚠ 메뉴 안 버튼에 display를 주지 않는다 — `.hidden`이 display 규칙에 진다(세 번 밟았다). -->
           <details class="em-moremenu" id="em-moremenu">
-            <summary class="btn-act btn-outline-p" aria-label="더보기 — 관리자용 출력·복사·삭제">⋯ 더보기</summary>
+            <summary class="btn-act btn-outline-p em-moremenu-sum" aria-label="더보기 — 관리자용 출력·복사·삭제">⋯ 더보기</summary>
             <div class="em-moremenu-list" role="menu">
               <button type="button" role="menuitem" onclick="emMoreDo(printEstimateAdmin)">🖨 관리자용 출력 <small>원가 포함 · 내부용</small></button>
               <!-- 🔴 **발급 전에 나갈 문서를 본다** (2026-09-17). 서버에 아무것도 안 만든다. -->
@@ -4538,6 +4538,10 @@
     document.getElementById('e-avg-p').textContent  = avgP + '명';
     document.getElementById('e-avg-d').textContent  = avgD + '일';
     document.getElementById('e-today').textContent  = todayC;
+    /* 예상 총 매출·평균 견적 — 2026-09-27 견적 관리에서 옮겨 왔다(셈은 그대로: 청구 금액 합 / 건수) */
+    const totalRev = ests.reduce((s,e)=>s+(e.total||0),0);
+    document.getElementById('e-revenue').textContent = Math.round(totalRev/10000).toLocaleString('ko-KR');
+    document.getElementById('e-avgdeal').textContent = Math.round((total ? totalRev/total : 0)/10000).toLocaleString('ko-KR');
 
     /* Dest */
     const destMap = {};

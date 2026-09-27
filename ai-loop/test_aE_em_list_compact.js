@@ -90,6 +90,16 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/
   run("localStorage.setItem('linkedt_estimates_full', JSON.stringify(" + JSON.stringify(목록.slice().reverse()) + ")); switchTab('estmgr'); renderEstMgr();");
   await B.tick(300);
 
+  /* ═══ ⑨ 숫자 카드는 「견적 분석」으로 (2026-09-27) — 총 건수·오늘 견적은 그쪽이 같은 값을 셌다 ═══ */
+  ok('[9] 견적 관리에 숫자 카드가 없다 (목록이 맨 위)', !D.querySelector('#tab-estmgr .stat-grid'));
+  run("renderEstimates();");
+  await B.tick(50);
+  const num9 = (id) => ((D.getElementById(id) || {}).textContent || '').trim();
+  /* 청구 합 = 56,696,074 × 4 = 226,784,296 → 22,678만 · 평균 5,670만 */
+  ok('[9-b] 🔴 옮긴 두 숫자가 견적 분석에서 같은 셈으로 나온다',
+    num9('e-revenue') === '22,678' && num9('e-avgdeal') === '5,670', num9('e-revenue') + ' / ' + num9('e-avgdeal'));
+  ok('[9-c] 겹치던 둘은 견적 분석에 그대로 있다', num9('e-total') === '4');
+
   const rows = Array.from(D.querySelectorAll('#emBody tr'));
   ok('[4] 줄이 넷이다', rows.length === 4, String(rows.length));
   const rowOf = (org) => rows.find((r) => (r.textContent || '').includes(org));

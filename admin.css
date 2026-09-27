@@ -229,6 +229,8 @@
 
     /* ── STAT CARDS ───────────────── */
     .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    /* 여섯 칸짜리(견적 분석) — 4열이면 4+2로 한 줄이 비어 보인다 */
+    .stat-grid.stat-grid-3 { grid-template-columns: repeat(3, 1fr); }
     .stat-card { background: var(--white); border: 1px solid var(--border); padding: 1.25rem 1.5rem; border-left: 3px solid var(--primary); }
     .stat-card.warn { border-left-color: var(--warn); }
     .stat-card.success { border-left-color: var(--success); }
@@ -816,7 +818,7 @@
       .dash-body { width: 100%; margin-left: 0; padding-left: 1.5rem; padding-right: 1.5rem; }
     }
     @media (max-width: 900px) {
-      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .stat-grid, .stat-grid.stat-grid-3 { grid-template-columns: repeat(2, 1fr); }
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .rate-meta-banner { grid-template-columns: repeat(2, 1fr); }
     }
@@ -1454,8 +1456,10 @@
 #emModal .em-actbar .modal-actions { margin: 0 0 0 auto; padding: 0; border-top: 0; }
 /* 「⋯ 더보기」 — 창 아래 띠에 붙어 있으므로 **위로** 펼친다 (2026-09-27) */
 #emModal .em-moremenu { position: relative; }
-#emModal .em-moremenu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; }
-#emModal .em-moremenu > summary::-webkit-details-marker { display: none; }
+/* ⚠ `> summary`로 적지 않는다 — 그 꼴은 **접는 카드(.fold-card) 한 곳**에만 두기로 했다(test_tA·sZ).
+     카드가 아닌 접는 줄은 `.fold-note`처럼 **자기 클래스**로 화살표를 감춘다. */
+#emModal .em-moremenu-sum { list-style: none; cursor: pointer; display: inline-flex; align-items: center; }
+#emModal .em-moremenu-sum::-webkit-details-marker { display: none; }
 #emModal .em-moremenu-list {
   position: absolute; right: 0; bottom: calc(100% + 6px); min-width: 15rem; z-index: 5;
   background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-lg); padding: .3rem 0;
@@ -1467,7 +1471,7 @@
 }
 #emModal .em-moremenu-list button:hover { background: var(--bg); }
 #emModal .em-moremenu-list small { margin-left: auto; font-size: .74rem; color: var(--muted); }
-#emModal .em-moremenu-list .em-moremenu-danger { color: var(--danger); border-top: 1px solid var(--border); }
+#emModal .em-moremenu-list button.em-moremenu-danger { color: var(--danger); border-top: 1px solid var(--border); }
 .em-more { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: .6rem; }
 /* 🔴 **접는 줄 규칙을 여기서 새로 쓰지 않는다.** `.fold-note`가 이미 정하고 있고,
    `test_tA_fold_cards`가 「접는 규칙은 한 클래스에만」으로 막는다 — 실제로 여기서 한 번

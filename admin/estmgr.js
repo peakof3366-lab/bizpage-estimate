@@ -69,15 +69,8 @@
   function renderEstMgr() {
     loadShareLinks(true);
     const all = getEstsFull();
-    const today = new Date().toDateString();
 
-    /* 통계 */
-    document.getElementById('em-total').textContent   = all.length;
-    document.getElementById('em-today').textContent   = all.filter(e => new Date(e.ts).toDateString()===today).length;
-    const totalRev = all.reduce((s,e) => s+(e.total||0), 0);
-    const avgDeal  = all.length ? Math.round(totalRev/all.length) : 0;
-    document.getElementById('em-revenue').textContent  = Math.round(totalRev/10000).toLocaleString('ko-KR');
-    document.getElementById('em-avgdeal').textContent  = Math.round(avgDeal/10000).toLocaleString('ko-KR');
+    /* ⚠ 숫자 카드는 2026-09-27 「견적 분석」(renderEstimates)으로 옮겼다 — 여기서 세지 않는다 */
 
     /* RG: 실적 미입력 — 계약은 됐는데 '실제 총 계약가'가 비어 있는 건.
        ⚠ 이 화면에서 이 숫자만 별도로 세는 이유: 견적 정확도를 높이는 남은 작업
