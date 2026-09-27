@@ -205,6 +205,14 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .doc-step-h { margin: 4px 0 8px; font-size: 14px; color: var(--ink); }
 .note-i { margin: 0 0 12px; padding: 9px 12px; background: #F3F4F6; border-left: 3px solid var(--ink);
   font-size: 12px; color: var(--t-sub); line-height: 1.75; max-width: var(--measure); }
+.note-i p { margin: 0; }
+.note-i { word-break: keep-all; }  /* 한글 단어 중간에서 접히지 않게 (폰 폭 「방식/은」) */
+.note-i .ni-lead { color: var(--ink); }
+.note-i .ni-h { margin-top: 8px; font-weight: 700; color: var(--ink); }
+.note-i .ni-list { margin: 4px 0 0; padding-left: 18px; }
+.note-i .ni-list li { margin: 2px 0; }
+.note-i .ni-when { display: block; color: var(--t-sub); }
+.note-i .ni-when::before { content: '└ '; }
 .note-err { background: #FFF4F5; border-color: var(--red); color: var(--red-dk); }
 /* 🔴 **끝난 일을 경고색으로 말하지 않는다** (2026-09-23 대표 지시). `.note`는 노란
    경고 칸이라, 저장이 잘된 건까지 「무슨 문제가 있나」로 읽혔다. 성공은 초록으로 가른다. */
@@ -362,13 +370,18 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       <!-- ⚠ 2026-09-27 직접 입력(·고치기)에는 자동값이 없다 — 위 문구가 없는 기능을 말하고 있었다 -->
       <span class="sec-d adhoc-only">항목과 금액을 직접 적습니다 · 원가 합계를 적으면 마진이 계산됩니다</span></div>
     <div class="sec-b">
-      <p class="note-i eng-only">
-        <b>자동값</b>은 고객이 받는 금액과 <b>같습니다.</b> 여기서 고치는 것은 그 위에 얹는 조정이고,
-        고객용 산출 로직은 바뀌지 않습니다.
-        🔴 <b>어느 줄을 고치느냐로 나가는 주머니가 다릅니다</b> — 원가 줄(항공·호텔·식사…)을 고치면
-        <b>원가</b>가 따라 움직이고, <span class="badge badge-in">내부</span> 줄과 아래 <b>실무 변수</b>를
-        고치면 <b>마진</b>에서 나갑니다.
-      </p>
+      <!-- 2026-09-28 대표 요청 「알아듣기 쉽게」 — 한 문단에 세 가지가 섞여 있던 것을 결론 한 줄 + 줄 종류별 두 줄로 -->
+      <div class="note-i eng-only">
+        <p class="ni-lead"><b>자동값 = 고객이 받는 금액</b>입니다. 여기서 고쳐도 자동 계산 방식은 그대로이고, 그 위에 조정만 얹힙니다.</p>
+        <p class="ni-h">🔴 어느 줄을 고치느냐에 따라 바뀌는 돈이 다릅니다</p>
+        <ul class="ni-list">
+          <!-- ⚠ 여행자보험은 「내부」 표시가 붙지만 원가다(buildRows의 margin 판정) — 예전 문구는 내부 줄 전부를 마진이라 했다 -->
+          <li><b>원가 줄</b> (항공·호텔·식사·차량·가이드·관광·부대비용·여행자보험) → <b>원가</b>가 바뀝니다
+            <span class="ni-when">공급사에게 받은 실제 금액을 넣을 때</span></li>
+          <li><span class="badge badge-in">내부</span> 줄 (본사 수익·현지 수익금 등, 여행자보험 제외) · 아래 <b>실무 변수</b> → <b>마진</b>이 바뀝니다
+            <span class="ni-when">깎아 줄 때</span></li>
+        </ul>
+      </div>
       <p class="note-i adhoc-only">
         🔴 이 화면은 <b>엔진을 타지 않습니다.</b> 요율·계수·마진이 하나도 안 붙으니
         <b>그것까지 포함한 금액</b>을 적어 주세요. 아래 <b>원가</b>를 적으면 마진이 자동으로 계산됩니다.
