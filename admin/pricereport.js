@@ -1720,7 +1720,7 @@
     };
     /* SY: 이미 들어간 것들 중 서로 중복인 것 — **넣을 때 놓쳤어도 여기서 보인다** */
     const dupIds = duplicateIdSet();
-    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:1.5rem">제보가 없습니다.</td></tr>`; return; }
+    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:1.5rem">${filterKey ? "이 목적지로 넣은 제보가 없습니다 — 필터를 「전체」로 바꿔 보세요." : "아직 넣은 제보가 없습니다 — 화면 위 「실제 계약가 업데이트」에서 견적서 값을 넣으면 여기 쌓입니다."}</td></tr>`; return; }
     tbody.innerHTML = rows.map(r => `
       <tr>
         <td style="white-space:nowrap">${r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 10) : '—'}</td>
