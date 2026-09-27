@@ -148,6 +148,20 @@ ok('[X-d] 🔴 요율 CSV에 단가가 실리고, 운영 값(effectiveRate)을 �
   ok('[J-e] 🔴 관리 화면 스크립트에 「을(를)」 꼴이 남아 있지 않다', leftovers.length === 0, leftovers.join(','));
 }
 
+/* ═══ 방문 통계 시간대 — 홀수 시 방문이 버려졌다 (2026-09-27) ═══════════════════════
+   짝수 시만 골라 그려서(filter i%2===0) 1·3·…·15시 방문이 그래프에서 통째로 사라졌다. */
+{
+  const m = read('admin.html').match(/function buildHourData\(visits\) \{[\s\S]*?\n  \}/);
+  let fn = null;
+  try { fn = m && new Function(m[0] + '; return buildHourData;')(); } catch (e) { fn = null; }
+  const at = (h) => ({ ts: new Date(2026, 8, 27, h, 10).getTime() });
+  const vs = [at(0), at(1), at(15), at(15), at(23)];
+  const r = fn ? fn(vs) : [];
+  const sum = r.reduce((a, x) => a + x.value, 0);
+  ok('[H] 🔴 시간대 그래프가 방문을 하나도 버리지 않는다 (홀수 시 포함)', !!fn && sum === vs.length, 'sum=' + sum);
+  ok('[H-b] 14시 칸에 15시 방문 둘이 들어간다', !!fn && (r.find((x) => x.label === '14시') || {}).value === 2);
+}
+
 /* ═══ 매뉴얼 장 번호 — 목차·본문·「N장」 링크가 셋 다 달랐다 (2026-09-27) ═══════════
    목차는 CSS 카운터로 1~16을 세는데 본문 제목은 6-2·6-3…으로 따로 적혀 있었고,
    「권한은 9장」(실제 13장)·「막혔을 때 10장」(실제 14장)처럼 링크 글자가 한 칸씩 밀려 있었다.

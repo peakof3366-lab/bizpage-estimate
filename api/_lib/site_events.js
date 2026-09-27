@@ -17,7 +17,7 @@ const destinationRates = require('../../data');
    pageview·dest_select는 클릭이 아니라 각각 방문 추이·연수지 TOP N으로 따로 쓴다. */
 const EVENT_DEFS = [
   { name: 'pageview',          label: '페이지 방문',               click: false },
-  { name: 'header_cta',        label: '상단 "1분 견적 받기" 버튼', click: true },
+  { name: 'header_cta',        label: '상단 「무료 견적 받기」 버튼', click: true },
   { name: 'estimate_step2',    label: '견적 계산기 → 2단계 이동',  click: true },
   { name: 'estimate_complete', label: '견적 확인 완료',            click: true },
   { name: 'kakao',             label: '카카오톡 상담 버튼',        click: true },
