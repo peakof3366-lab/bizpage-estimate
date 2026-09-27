@@ -86,6 +86,9 @@ const inqCsv = (ADMIN.match(/function exportCsv\(\)[\s\S]*?\n  \}/) || [''])[0];
 ok('[X-b] 🔴 문의 CSV에 연락처가 있다', /'연락처'/.test(inqCsv) && /c\.tel/.test(inqCsv));
 const expAll = (ADMIN.match(/function exportAll\(\)[\s\S]*?\n  \}/) || [''])[0];
 ok('[X-c] 🔴 전체 백업이 실제 견적 목록을 담는다 (옛 브라우저 키가 아니라)', /estimates: getEstsFull\(\)/.test(expAll));
+const rateCsv = (ADMIN.match(/function exportRatesCsv\(\)[\s\S]*?\n  \}/) || [''])[0];
+ok('[X-d] 🔴 요율 CSV에 단가가 실리고, 운영 값(effectiveRate)을 쓴다',
+  /RATE_FIELD_ORDER/.test(rateCsv) && /effectiveRate\(d0\)/.test(rateCsv));
 
 /* ═══ 조사 — 「을(를)」·「이(가)」가 화면에 그대로 찍혔다 (2026-09-27) ═══════════════ */
 {

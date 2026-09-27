@@ -4871,17 +4871,23 @@
   /* CSV 내보내기 */
   function exportRatesCsv() {
     if (typeof destinationRates === 'undefined') return;
-    const rows = [['지역','목적지','요율기준월','경과(개월)','상태','비고']];
-    destinationRates.forEach(d => {
+    /* 🔴 2026-09-27 「요율 CSV」에 **요율(가격)이 한 칸도 없었다**(지역·목적지·기준월·경과·상태·비고뿐).
+       게다가 기준월·비고를 **data.js 기본값**에서 읽었다 — 요율의 진실은 운영 DB(오버라이드)다(CLAUDE.md).
+       → 요율표와 같은 값(`effectiveRate`)으로, 단가 칸(`RATE_FIELD_LABELS` 순서)을 모두 싣는다. */
+    const fields = (typeof RATE_FIELD_ORDER !== 'undefined') ? RATE_FIELD_ORDER : [];
+    const rows = [['지역','목적지'].concat(fields.map(k => RATE_FIELD_LABELS[k] + '(원)'), ['요율기준월','경과(개월)','상태','비고'])];
+    destinationRates.forEach(d0 => {
+      const d = (typeof effectiveRate === 'function') ? effectiveRate(d0) : d0;
       const region = REGION_MAP[d.label] || '기타';
       const rs     = adminGetCombinedStatus(d.destination_key, d.rateDate);
-      rows.push([region, d.label, d.rateDate||'—', rs.months<=999?rs.months:'—', rs.label + (rs.fxPct != null ? ` (환율 ${rs.fxPct.toFixed(1)}%)` : ''), d.notes||'']);
+      rows.push([region, d.label].concat(fields.map(k => (d[k] == null ? '' : d[k])),
+        [d.rateDate||'—', rs.months<=999?rs.months:'—', rs.label + (rs.fxPct != null ? ` (환율 ${rs.fxPct.toFixed(1)}%)` : ''), d.notes||'']));
     });
     const csv  = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
     const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' });
     const a    = document.createElement('a');
     a.href     = URL.createObjectURL(blob);
-    a.download = `rate_status_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `bizpage_rates_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
   }
 
