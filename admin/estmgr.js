@@ -859,7 +859,13 @@
           + NL + '일정을 넣으려면 자동 견적 산출(내부직원용) ④단계에 적고 다시 저장하세요.'
           + NL + NL + '이대로 발급할까요?');
       }
+      /* 🔴 여행 일수와 일정표 일수가 다르면 **여기서 말한다** (2026-09-27) — 5일 여행에 2일짜리
+         일정표가 「(2일)」이라고만 적혀 그대로 발급되던 자리다. 막지는 않는다(반나절 귀국 등 일부러 줄인 경우가 있다). */
+      const tripDays = Number((doc.trip && doc.trip.days) || rec.days) || 0;
+      const dayGap = tripDays && tripDays !== days.length
+        ? NL + '⚠ 여행은 ' + tripDays + '일인데 일정표는 ' + days.length + '일입니다 — 빠진 날이 없는지 보세요.' : '';
       return confirm('이 견적서와 함께 아래 일정이 고객에게 나갑니다. 확인해 주세요.'
+        + dayGap
         + NL + NL + '출처 · 🧾 내부직원용에서 작성한 견적서 문서 (' + days.length + '일)'
         + NL + lines + (days.length > 12 ? NL + '   …' : '')
         + NL + NL + '고칠 것이 있으면 [취소]를 누르고, 고객용 탭 일정표의 「수정하기」로 바로 고치세요.'
