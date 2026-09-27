@@ -84,7 +84,7 @@ const META = { updatedAt: WHEN, updatedBy: '홍길동' };
   ok('코스만 저장된 목적지: 일정 구역이 누가 고쳤는지 말한다',
     itiText().includes('홍길동'), itiText());
   ok('코스만 저장된 목적지: 방식 구역은 기본값이라 말한다',
-    recText() === '기본값', recText());
+    recText() === '기본 소개글 (아직 수정한 적 없음)', recText());
 
   w.__select('싱가포르');
   ok('둘 다 저장된 목적지: 양쪽 다 수정됨이다',
@@ -94,7 +94,7 @@ const META = { updatedAt: WHEN, updatedBy: '홍길동' };
   w.__select('오사카');          /* 아무것도 저장 안 된 목적지 */
   ok('저장본이 없는 목적지: 일정 구역은 기본 일정이다',
     itiText().startsWith('기본 일정'), itiText());
-  ok('저장본이 없는 목적지: 방식 구역은 기본값이다', recText() === '기본값', recText());
+  ok('저장본이 없는 목적지: 방식 구역은 기본값이다', recText() === '기본 소개글 (아직 수정한 적 없음)', recText());
 
   /* ── [2] 드롭다운 ✏️와 구역 상태줄이 어긋나지 않는가 (②) ──────────────
      이 어긋남이 결함을 드러낸 신호였다 — 한쪽만 고치면 다시 어긋난다.
@@ -119,7 +119,7 @@ const META = { updatedAt: WHEN, updatedBy: '홍길동' };
   w.__seed({}, {}, {});
   w.__select('도쿄');
   ok('저장 전: 양쪽 다 기본값이다',
-    itiText().startsWith('기본 일정') && recText() === '기본값',
+    itiText().startsWith('기본 일정') && recText() === '기본 소개글 (아직 수정한 적 없음)',
     itiText() + ' / ' + recText());
   w.__markRecDirty();
   ok('고치는 중에는 저장하지 않음이라 말한다 (⑤)',
@@ -152,7 +152,7 @@ const META = { updatedAt: WHEN, updatedBy: '홍길동' };
   w.__select('도쿄');
   await w.__recRevert();
   ok('방식 되돌리기가 나갔다', net.del && net.del.includes('part=rec'), String(net.del));
-  ok('방식을 되돌린 뒤: 방식 구역은 기본값이다', recText() === '기본값', recText());
+  ok('방식을 되돌린 뒤: 방식 구역은 기본값이다', recText() === '기본 소개글 (아직 수정한 적 없음)', recText());
   ok('방식을 되돌린 뒤에도 일정 구역은 수정됨 그대로다',
     itiText().startsWith('수정됨'), itiText());
 

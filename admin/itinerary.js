@@ -1459,7 +1459,7 @@
        이 구역에서 무엇이 바뀐 건지 알 수 없다(구역이 둘이라 특히). */
     const saved = itiState.recOverrides[itiState.destKey];
     const meta = itiState.meta[itiState.destKey];
-    if (!saved) { el.textContent = '기본값'; return; }
+    if (!saved) { el.textContent = '기본 소개글 (아직 수정한 적 없음)'; return; }
     const when = meta && meta.updatedAt ? new Date(meta.updatedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
     el.textContent = '수정됨' + (meta && meta.updatedBy ? ' · ' + meta.updatedBy : '') + (when ? ' · ' + when : '');
   }
