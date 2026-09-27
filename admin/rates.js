@@ -91,8 +91,9 @@
          표시한다. */
       const severity = { stale: 2, check: 1, ok: 0 };
       const sorted = [...searched].sort((a, b) => {
-        const sa = adminGetCombinedStatus(a.destination_key, a.rateDate);
-        const sb = adminGetCombinedStatus(b.destination_key, b.rateDate);
+        /* ⚠ 2026-09-27 운영 값의 기준월로 줄 세운다 — 줄 배지와 같은 날짜(effDate) */
+        const sa = adminGetCombinedStatus(a.destination_key, effDate(a));
+        const sb = adminGetCombinedStatus(b.destination_key, effDate(b));
         if (severity[sb.status] !== severity[sa.status]) return severity[sb.status] - severity[sa.status];
         return (sb.months <= 999 ? sb.months : 999) - (sa.months <= 999 ? sa.months : 999);
       });
