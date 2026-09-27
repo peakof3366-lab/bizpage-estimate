@@ -1565,4 +1565,7 @@
   /* 설정 계정 표 — 좁히지 말고 옆으로 밀어 보게 한다(이름이 「최/대/표」로 세로가 됐다) */
   #staffAdminSection .rate-table { min-width: 560px; }
   #staffAdminSection .rate-table td { white-space: nowrap; }
+  /* 문의 목록 — 이름이 「[가/상]/박/담/당」으로 두 글자씩 접혔다. 표는 이미 옆으로 밀리니 이름 칸은 한 줄로. */
+  #tab-inquiries table { min-width: 640px; }
+  #tab-inquiries td:first-child { white-space: nowrap; }
 }
