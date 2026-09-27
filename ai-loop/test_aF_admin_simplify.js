@@ -77,6 +77,16 @@ ok('[D] 🔴 새 견적 저장 뒤 다시 누르면 묻는다 (두 경로 모두
 ok('[D-b] 🔴 새 견적 저장이 바깥에 알린다 (두 경로)', (PRO.match(/emitEdit\('created'\)/g) || []).length === 2);
 ok('[D-c] 🔴 바깥은 알림을 받으면 목록을 다시 읽는다', /d\.__aqp === 'created'[\s\S]{0,200}loadRemoteData\(\)/.test(EST));
 
+/* ═══ 내보내기 (2026-09-27) ═══════════════════════════════════════════════════
+   견적 CSV의 「고객총액」·「내부총액」이 뒤바뀌었고, 문의 CSV엔 연락처가 없었고, 전체 백업엔 견적이 0건이었다. */
+const estCsv = (ADMIN.match(/function exportEstimatesCsv\(\)[\s\S]*?\n  \}/) || [''])[0];
+ok('[X] 🔴 견적 CSV: 청구 금액 칸에 청구액, 원가 칸에 원가 (뒤바뀌지 않는다)',
+  /'청구 금액','원가'/.test(estCsv) && /M\.sell, M\.known \? M\.cost : ''/.test(estCsv) && !/내부총액/.test(estCsv));
+const inqCsv = (ADMIN.match(/function exportCsv\(\)[\s\S]*?\n  \}/) || [''])[0];
+ok('[X-b] 🔴 문의 CSV에 연락처가 있다', /'연락처'/.test(inqCsv) && /c\.tel/.test(inqCsv));
+const expAll = (ADMIN.match(/function exportAll\(\)[\s\S]*?\n  \}/) || [''])[0];
+ok('[X-c] 🔴 전체 백업이 실제 견적 목록을 담는다 (옛 브라우저 키가 아니라)', /estimates: getEstsFull\(\)/.test(expAll));
+
 /* ═══ 조사 — 「을(를)」·「이(가)」가 화면에 그대로 찍혔다 (2026-09-27) ═══════════════ */
 {
   const src = read(path.join('admin', 'common.js'));

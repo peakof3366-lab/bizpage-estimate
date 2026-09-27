@@ -4709,8 +4709,12 @@
   function exportCsv() {
     const contacts = get(KEYS.contacts);
     if (!contacts.length) { alert('내보낼 문의 내역이 없습니다.'); return; }
-    const rows = [['번호','이름','소속','문의 내용','접수 일시','상태','메모']];
-    contacts.forEach((c,i)=>rows.push([i+1, c.name, c.org||'', c.message.replace(/\n/g,' '), fmtDate(c.timestamp), c.status||'read', c.note||'']));
+    /* 🔴 2026-09-27 **연락처 칸이 아예 없었다** — 문의를 엑셀로 뽑는 가장 큰 이유가 연락처다. 상태도 영어(new·pending)로
+       나갔고 담당자·이메일이 빠졌다. 「번호」는 줄 번호(새로 고치면 바뀐다)라 뺐다. 화면과 같은 상태 이름을 쓴다.
+       ⚠ 문의 내용이 없는 기록(견적 연계 등)에서 `.replace`가 터지지 않게 한다. */
+    const stName = (c) => c.status==='pending' ? '처리중' : c.status==='done' ? '완료' : c.read ? '확인' : '신규';
+    const rows = [['이름','소속','연락처','이메일','문의 내용','접수 일시','상태','담당자','메모']];
+    contacts.forEach((c)=>rows.push([c.name||'', c.org||'', c.tel||'', c.email||'', String(c.message||'').replace(/\n/g,' '), fmtDate(c.timestamp), stName(c), c.assignee||'', c.note||'']));
     const csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
     const bom = '﻿'; // UTF-8 BOM for Excel
     const blob = new Blob([bom+csv],{type:'text/csv;charset=utf-8'});
@@ -4720,10 +4724,14 @@
 
   /* ════ EXPORT ALL ════ */
   function exportAll() {
-    const data = { contacts: get(KEYS.contacts), visits: get(KEYS.visits), events: getO(KEYS.events), dest: getO(KEYS.dest), estimates: get(KEYS.est), exported: new Date().toISOString() };
+    /* 🔴 2026-09-27 `estimates`가 옛 브라우저 키(`linkedt_estimates` — 담당자 브라우저에선 늘 빈 배열)를 담아,
+       **실제 견적(견적 관리의 기록)이 백업 파일에 한 건도 안 들어갔다.** 설명은 「견적 데이터를 다운로드」라고 했다.
+       → 서버에서 받아 둔 견적 목록(`getEstsFull`)을 담는다. */
+    const data = { contacts: get(KEYS.contacts), visits: get(KEYS.visits), events: getO(KEYS.events), dest: getO(KEYS.dest), estimates: getEstsFull(), exported: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download=`bizpage_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+    /* ⚠ 이름을 DB 자동 백업(`bizpage_backup_…`)과 가른다 — 같은 폴더에 두면 백업 점검 도구가 DB 백업으로 셌다 */
+    a.download=`bizpage_admin_export_${new Date().toISOString().slice(0,10)}.json`; a.click();
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -5815,13 +5823,20 @@
   function exportEstimatesCsv() {
     const all = getEstsFull();
     if (!all.length) { alert('내보낼 견적이 없습니다.'); return; }
-    const rows = [['#','날짜','목적지','기관명','담당자','인원','기간','고객총액','내부총액','1인당','상태']];
-    all.forEach((e,i) => rows.push([
-      i+1, fmtDate(e.ts), e.destLabel||e.destKey, e.orgName||'', e.contact||'',
-      e.participants, e.days,
-      e.visibleTotal||e.total, e.total, e.perPerson,
-      e.status||'new'
-    ]));
+    /* 🔴 2026-09-27 「고객총액」 칸에 **원가(visibleTotal)**, 「내부총액」 칸에 **고객 청구액(total)**이 들어가
+       **뒤바뀌어** 있었다 — 엑셀로 열면 원가를 고객 금액으로 읽는다. 상태도 영어(new·contracted)로 나갔다.
+       → 화면 목록과 같은 이름·같은 셈(`emMoney`)으로. 원가를 모르면 비워 둔다(0으로 지어내지 않는다). */
+    const ST = { new:'신규', consulting:'상담중', contracted:'계약완료', closed:'종료' };
+    const rows = [['견적번호','접수일시','목적지','기관명','고객 담당자','인원','기간(일)','청구 금액','원가','이익률(%)','1인당','상태','담당자']];
+    all.forEach((e) => {
+      const M = (typeof emMoney === 'function') ? emMoney(e) : { sell: e.total || 0, known: false };
+      rows.push([
+        e.quoteNo || '', fmtDate(e.ts), e.destLabel||e.destKey||'', e.orgName||'', e.contact||'',
+        e.participants, e.days,
+        M.sell, M.known ? M.cost : '', M.rate != null ? (M.rate * 100).toFixed(1) : '', e.perPerson || '',
+        ST[e.status || 'new'] || e.status, e.assignee || ''
+      ]);
+    });
     const csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
     const blob = new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
