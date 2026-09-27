@@ -392,7 +392,7 @@
       const blocking = gaps.filter((g) => g.key !== 'img');
       gapNote.classList.toggle('hidden', !blocking.length);
       gapNote.innerHTML = !blocking.length ? '' :
-        '⚠ <b>' + blocking.map((g) => g.label).join(' · ') + '</b>이(가) 비어 있습니다. '
+        '⚠ <b>' + blocking.map((g) => g.label).join(' · ') + '</b>' + josa(blocking.length ? blocking[blocking.length - 1].label : '', '이', '가') + ' 비어 있습니다. '
         + '이대로 「판매중」으로 두면 고객 화면에 <b>그 칸이 아예 안 나오고</b>, '
         + '받아 가는 견적서에도 안 실립니다. '
         + '<b>📄 PDF에서 불러오기</b>로 채우실 수 있습니다.';
@@ -907,7 +907,7 @@
       alert('「' + (isAdhoc ? '확정' : '판매중') + '」인 건만 ' + verb + '할 수 있습니다.');
       return;
     }
-    if (!confirm('「' + (p.title || p.id) + '」을(를) 「' + stateName + '」으로 바꿉니다.\n'
+    if (!confirm('「' + (p.title || p.id) + '」' + josa(p.title || p.id, '을', '를') + ' 「' + stateName + '」으로 바꿉니다.\n'
       + (isAdhoc ? '새 견적서를 발급할 수 없게 됩니다.' : '고객 목록에서 사라집니다.') + '\n\n'
       /* ⚠ 확인 창은 **글자 그대로** 보인다 — `**강조**` 같은 표기를 쓰면 별표가 그대로 뜬다. */
       + '지우는 것이 아니라 상태만 바뀌므로 되돌릴 수 있습니다 (편집 → 상태 → 저장).')) return;
@@ -941,7 +941,7 @@
         + '고객에게 나갔을 수 있습니다 — 열어서 확인한 뒤 지워 주세요.');
       return;
     }
-    if (!confirm('「' + (p.title || p.id) + '」을(를) 지우시겠습니까?\n'
+    if (!confirm('「' + (p.title || p.id) + '」' + josa(p.title || p.id, '을', '를') + ' 지우시겠습니까?\n'
       + '작성중이라 고객에게 나간 적은 없습니다. 되돌릴 수 없습니다.')) return;
     try {
       const r = await fetch('/api/content?action=packages&id=' + encodeURIComponent(p.id), { method: 'DELETE' });

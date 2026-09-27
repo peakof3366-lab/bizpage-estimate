@@ -632,9 +632,9 @@
     itiRenderBody();
 
     const mentions = itiCountMentions(copy, cand.from);
-    itiSetMsg('“' + cand.course.title + '”을(를) ' + cand.from + '에서 가져왔습니다. 코스 '
+    itiSetMsg('“' + cand.course.title + '”' + josa(cand.course.title, '을', '를') + ' ' + cand.from + '에서 가져왔습니다. 코스 '
       + String.fromCharCode(65 + itiState.courses.length - 1) + '로 추가됐습니다.'
-      + (mentions ? ' ⚠ “' + cand.from + '”이(가) ' + mentions + '곳에 남아 있으니 고쳐 주세요.' : '')
+      + (mentions ? ' ⚠ “' + cand.from + '”' + josa(cand.from, '이', '가') + ' ' + mentions + '곳에 남아 있으니 고쳐 주세요.' : '')
       + ' 저장해야 반영됩니다.', mentions ? 'err' : 'ok');
   }
 
@@ -1110,7 +1110,7 @@
       const mine = roles.filter((r) => r.plan === plan);
       if (!mine.length) return null;
       return { plan, text: '방식 ' + plan.toUpperCase() + ' ← ' + mine.map((r) => r.short).join('·'),
-               title: mine.map((r) => r.label).join(', ') + '을(를) 고른 고객에게는 이 코스가 방식 '
+               title: mine.map((r) => r.label).join(', ') + josa(mine.length ? mine[mine.length - 1].label : '', '을', '를') + ' 고른 고객에게는 이 코스가 방식 '
                       + plan.toUpperCase() + '로 나갑니다' };
     }).filter(Boolean);
   }

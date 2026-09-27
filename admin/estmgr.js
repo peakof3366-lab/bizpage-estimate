@@ -882,7 +882,7 @@
           + NL + dayLines(snap.a) + NL + NL
         : '［코스 A］ ' + (snap.a.t || '(제목 없음)') + NL + dayLines(snap.a) + NL + NL
           + '［코스 B］ ' + (snap.b.t || '(제목 없음)') + NL + dayLines(snap.b) + NL + NL)
-      + '고칠 것이 있으면 관리자 → 일정 관리에서 "' + (rec.destLabel || dk) + '"을(를) 수정한 뒤'
+      + '고칠 것이 있으면 관리자 → 일정 관리에서 "' + (rec.destLabel || dk) + '"' + josa(rec.destLabel || dk, '을', '를') + ' 수정한 뒤'
       + NL + '다시 발급하세요.' + NL + NL
       + '이대로 발급할까요?');
   }

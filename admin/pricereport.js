@@ -1422,7 +1422,7 @@
       msg.style.color = skipped.length ? 'var(--danger)' : 'var(--success)';
       msg.textContent = skipped.length
         ? '제출되었습니다 — 다만 ' + skipped.map(labelOf).join('·')
-          + '은(는) 정확한 값을 못 찾아 실측 평균에서 뺐습니다. '
+          + josa(labelOf(skipped[skipped.length - 1]), '은', '는') + ' 정확한 값을 못 찾아 실측 평균에서 뺐습니다. '
           + '「확인 필요」 목록에서 견적서를 보고 확정하면 그때 반영됩니다.'
         : '제출되었습니다 — 갱신 제안에 반영됩니다.';
       PR_FIELD_IDS.forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -1757,9 +1757,9 @@
     const label = PR_EXCLUDE_LABEL[fieldKey] || fieldKey;
     let reason = '';
     if (on) {
-      if (!confirm(`이 제보의 ${label}을(를) 다시 평균에 넣을까요?\n(지금 사유: ${row.excludedFields[fieldKey]})`)) return;
+      if (!confirm(`이 제보의 ${label}${josa(label, "을", "를")} 다시 평균에 넣을까요?\n(지금 사유: ${row.excludedFields[fieldKey]})`)) return;
     } else {
-      reason = (prompt(`이 제보의 ${label}을(를) 평균에서 뺍니다.\n왜 빼는지 적어 주세요 (예: 심천 호텔 — 홍콩과 다른 도시).`,
+      reason = (prompt(`이 제보의 ${label}${josa(label, "을", "를")} 평균에서 뺍니다.\n왜 빼는지 적어 주세요 (예: 심천 호텔 — 홍콩과 다른 도시).`,
         '') || '').trim();
       if (!reason) { if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = '사유를 적어야 뺄 수 있습니다 — 나중에 이유를 알 수 없으면 누군가 되돌려 놓습니다.'; } return; }
     }
@@ -1774,8 +1774,8 @@
       renderRates();
       if (msg) {
         msg.style.color = 'var(--success)';
-        msg.textContent = on ? `${label}을(를) 다시 평균에 넣었습니다.`
-          : `${label}을(를) 평균에서 뺐습니다 — 값은 그대로 남아 참고자료로 보입니다.`;
+        msg.textContent = on ? `${label}${josa(label, "을", "를")} 다시 평균에 넣었습니다.`
+          : `${label}${josa(label, "을", "를")} 평균에서 뺐습니다 — 값은 그대로 남아 참고자료로 보입니다.`;
       }
     } catch (err) {
       if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = '요청에 실패했습니다. 네트워크를 확인해 주세요.'; }

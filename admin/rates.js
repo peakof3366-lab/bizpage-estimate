@@ -315,7 +315,7 @@
     const seasonLine = seasonProfile
       ? `시즌: ${document.getElementById('new-dest-season-profile').selectedOptions[0].textContent}`
       : '시즌: 공용표(7·8·12·1월 성수기) — 권역 프로파일 없음';
-    if (!confirm(`"${label}"을(를) 새 목적지로 추가하시겠습니까?\n${seasonLine}\n저장 즉시 공개 견적 계산기에서 선택 가능해집니다.`)) return;
+    if (!confirm(`"${label}"${josa(label, "을", "를")} 새 목적지로 추가하시겠습니까?\n${seasonLine}\n저장 즉시 공개 견적 계산기에서 선택 가능해집니다.`)) return;
 
     try {
       const res = await fetch('/api/rates?action=createDestination', {
@@ -1092,7 +1092,7 @@
     const ratio = value / base;
     if (ratio > PLAUSIBLE_HIGH || ratio < PLAUSIBLE_LOW) {
       const desc = ratio >= 1 ? `약 ${ratio.toFixed(1)}배` : `약 1/${(1 / ratio).toFixed(1)}`;
-      return confirm(`입력하신 ${fieldLabel} ${fmtWon(value)}은(는) 현재 기준가 ${fmtWon(base)}의 ${desc}입니다.\n오타가 아닌지 확인해 주세요. 이대로 진행할까요?`);
+      return confirm(`입력하신 ${fieldLabel} ${fmtWon(value)}은 현재 기준가 ${fmtWon(base)}의 ${desc}입니다.\n오타가 아닌지 확인해 주세요. 이대로 진행할까요?`);
     }
     return true;
   }
@@ -1629,7 +1629,7 @@
         const drift = base / med - 1;
         if (Math.abs(drift) >= RATE_BASE_DRIFT_WARN) {
           const pct = Math.round(drift * 100);
-          return `<div style="${style};color:var(--danger)" title="현재 기준가 ${fmtWon(base)}이(가) 최근 실측 중앙값 ${fmtWon(med)}과(와) ${pct > 0 ? '+' : ''}${pct}% 차이 — 기준가가 실제와 어긋났을 수 있어 확인 권장">❗ 실측대비 ${pct > 0 ? '+' : ''}${pct}%</div>`;
+          return `<div style="${style};color:var(--danger)" title="현재 기준가 ${fmtWon(base)}이 최근 실측 중앙값 ${fmtWon(med)}과(와) ${pct > 0 ? '+' : ''}${pct}% 차이 — 기준가가 실제와 어긋났을 수 있어 확인 권장">❗ 실측대비 ${pct > 0 ? '+' : ''}${pct}%</div>`;
         }
       }
     }

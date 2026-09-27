@@ -67,6 +67,23 @@ ok('[1-h] 🔴 저장 상자가 sticky가 아니다 (.dash-main 안에서 sticky
   /\.cms-savebar \{ position: fixed;/.test(read('admin.css')));
 ok('[1-i] 구역이 접히는 카드다', /<details class="card fold-card" data-cms-sec=/.test(ADMIN));
 
+/* ═══ 조사 — 「을(를)」·「이(가)」가 화면에 그대로 찍혔다 (2026-09-27) ═══════════════ */
+{
+  const src = read(path.join('admin', 'common.js'));
+  const m = src.match(/const josa = [\s\S]*?\n  \};/);
+  let josa = null;
+  try { josa = m && new Function(m[0].replace('const josa =', 'return') )(); } catch (e) { josa = null; }
+  ok('[J] josa 함수가 있다', typeof josa === 'function');
+  if (josa) {
+    ok('[J-b] 받침 있으면 을/이/은', josa('다낭', '을', '를') === '을' && josa('호텔', '이', '가') === '이');
+    ok('[J-c] 받침 없으면 를/가/는', josa('코스', '을', '를') === '를' && josa('항공료', '은', '는') === '는');
+    ok('[J-d] 한글이 아니면 둘 다 적는다 (틀린 조사보다 낫다)', josa('ABC', '을', '를') === '을(를)');
+  }
+  const leftovers = ['estmgr.js', 'itinerary.js', 'packages.js', 'pricereport.js', 'rates.js']
+    .filter((f) => /[을이은]\((를|가|는)\)/.test(noComments(read(path.join('admin', f)))));
+  ok('[J-e] 🔴 관리 화면 스크립트에 「을(를)」 꼴이 남아 있지 않다', leftovers.length === 0, leftovers.join(','));
+}
+
 console.log('\n' + '─'.repeat(64));
 fails.forEach((f) => console.log('  ✗ ' + f));
 console.log('결과: ' + pass + ' pass / ' + fails.length + ' fail  — aF 관리자 화면 간소화');

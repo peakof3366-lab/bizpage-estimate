@@ -77,6 +77,14 @@
   const isThisWeek = (ts) => { const d=new Date(ts); const now=new Date(); const weekAgo=new Date(now-7*864e5); return d>=weekAgo; };
   /* ⚠ 날짜가 없거나 못 읽으면 **「—」**라고 말한다 (2026-09-27). 예전엔 브라우저가 만든
      영어 「Invalid Date」가 그대로 화면에 찍혔다(문의 기록에 `timestamp`가 빠진 경우). */
+  /* 받침을 보고 조사를 고른다 (2026-09-27) — 「을(를)」·「이(가)」가 화면에 그대로 찍혔다.
+     마지막 글자가 한글이 아니면(숫자·영문) 예전처럼 둘 다 적는다 — 틀린 조사보다 낫다. */
+  const josa = (word, withBatchim, without) => {
+    const ch = String(word == null ? '' : word).trim().slice(-1);
+    const c = ch.charCodeAt(0);
+    if (!(c >= 0xAC00 && c <= 0xD7A3)) return withBatchim + '(' + without + ')';
+    return (c - 0xAC00) % 28 ? withBatchim : without;
+  };
   const fmtBadTs = (ts) => ts == null || ts === '' || isNaN(new Date(ts).getTime());
   const fmtDate  = (ts) => fmtBadTs(ts) ? '—' : new Date(ts).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'})+' '+new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});
   const fmtDateS = (ts) => fmtBadTs(ts) ? '—' : new Date(ts).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'});
