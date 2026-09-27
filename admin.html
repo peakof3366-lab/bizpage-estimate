@@ -3127,7 +3127,11 @@
     const btn = document.getElementById('signupToggle');
     const opening = form.classList.contains('hidden');
     form.classList.toggle('hidden', !opening);
-    btn.textContent = opening ? '가입 신청 닫기' : '직원 가입 신청';
+    /* ⚠ 2026-09-27 가입 칸을 펼치면 로그인 칸을 접는다 — 한 상자에 두 양식·강조 버튼 둘(「로그인」·「가입 신청」)이
+       같이 떠서 무엇부터 할지 흐렸다(화면 규칙 ⑥). 닫으면 로그인이 돌아온다. */
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) loginForm.classList.toggle('hidden', opening);
+    btn.textContent = opening ? '← 로그인으로 돌아가기' : '직원 가입 신청';
     if (opening) document.getElementById('signupCode').focus();
   }
 
