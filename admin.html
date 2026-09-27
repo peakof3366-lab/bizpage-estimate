@@ -1702,7 +1702,9 @@
               <tbody id="staff-admin-tbody"></tbody>
             </table>
           </div>
-          <div class="setting-row" style="margin-top:1rem;align-items:flex-start;flex-wrap:wrap;gap:.6rem">
+          <!-- ⚠ 2026-09-27 제목을 달았다 — 입력칸 넷이 계정 목록 바로 밑에 제목 없이 붙어 무엇을 하는 칸인지 몰랐다 -->
+          <div class="setting-info" style="margin-top:1.1rem"><p>새 계정 만들기</p><span>가입코드 없이 바로 만듭니다 — 초기 비밀번호를 본인에게 전해 주세요.</span></div>
+          <div class="setting-row" style="margin-top:.5rem;align-items:flex-start;flex-wrap:wrap;gap:.6rem">
             <input type="text" id="new-staff-username" class="pw-input" placeholder="아이디 (영문/숫자)" style="width:160px" aria-label="새 팀원 아이디" />
             <input type="text" id="new-staff-name" class="pw-input" placeholder="표시 이름" style="width:140px" aria-label="새 팀원 표시 이름" />
             <input type="password" id="new-staff-password" class="pw-input" data-fact-ph="PASSWORD_MIN_LENGTH:초기 비밀번호 ({}자 이상)" placeholder="초기 비밀번호 (8자 이상)" style="width:180px" aria-label="새 팀원 초기 비밀번호" />
@@ -1716,28 +1718,9 @@
           <p id="staff-admin-msg" style="font-size:.78rem;margin-top:.5rem"></p>
         </div>
 
-        <div class="setting-section">
-          <div class="setting-title">요율 데이터 정보 <span class="info-tag">Level 2</span></div>
-          <div class="setting-row">
-            <div class="setting-info" id="rate-settings-info">
-              <p>요율 버전 / 최종 갱신</p>
-              <span id="rate-settings-version">data.js 로드 중...</span>
-            </div>
-            <button class="btn-act btn-outline-p" onclick="switchTab('rates')">요율 관리 보기</button>
-          </div>
-          <div class="setting-row">
-            <div class="setting-info"><p>요율 CSV 내보내기</p><span>전체 도시 요율·기준일·비고를 CSV로 다운로드합니다.</span></div>
-            <button class="btn-act btn-outline-p" onclick="exportRatesCsv()">CSV 내보내기</button>
-          </div>
-        </div>
-
-        <div class="setting-section">
-          <div class="setting-title">사이트 정보</div>
-          <div class="setting-row">
-            <div class="setting-info"><p>홈페이지 바로가기</p><span>비즈페이지 메인 홈페이지를 새 탭으로 엽니다.</span></div>
-            <a href="index.html" target="_blank" class="btn-act btn-outline-p">홈페이지 열기</a>
-          </div>
-        </div>
+        <!-- ⚠ 2026-09-27 「요율 데이터 정보 (Level 2)」·「사이트 정보」 두 구역을 걷었다 — 전부 다른 자리와 겹쳤다:
+             요율 버전·최종 갱신 = 요율 관리 맨 위 카드 · 「요율 관리 보기」 = 왼쪽 메뉴 ·
+             「요율 CSV 내보내기」 = 요율 관리의 같은 버튼(같은 `exportRatesCsv`) · 「홈페이지 열기」 = 왼쪽 메뉴 아래 「↗ 홈페이지」. -->
       </div>
     </div>
 
@@ -2777,10 +2760,13 @@
         <td>${s.self_signup ? '<span class="rate-badge check">⏳ 승인 대기</span>'
               : s.active ? '<span class="rate-badge ok">✅ 활성</span>'
               : '<span class="rate-badge stale">🔴 비활성</span>'}</td>
-        <td style="display:flex;gap:.3rem;flex-wrap:wrap">
+        <td style="white-space:nowrap">
           ${s.self_signup
             ? `<button class="btn-detail" style="border-color:var(--success);color:var(--success)" onclick="approveStaff('${esc(s.id)}', '${esc(s.display_name)}')">승인</button>
                <button class="btn-detail" onclick="rejectStaff('${esc(s.id)}', '${esc(s.display_name)}')">거절</button>`
+            : isMe(s)
+            /* ⚠ 2026-09-27 내 계정에는 「비번 재설정」을 안 낸다 — 위 「비밀번호 변경」과 겹치고, 그쪽은 현재 비밀번호를 확인한다 */
+            ? '<span style="font-size:.76rem;color:var(--muted)">내 계정 — 비밀번호는 위에서 변경</span>'
             : `<button class="btn-detail" onclick="resetStaffPasswordPrompt('${esc(s.id)}', '${esc(s.display_name)}')">비번 재설정</button>
                ${isMe(s) ? '' : `<button class="btn-detail" onclick="toggleStaffActive('${esc(s.id)}', ${!s.active})">${s.active ? '비활성화' : '활성화'}</button>`}`}
         </td>
@@ -3612,11 +3598,6 @@
        ② `aqHandleItiHash()` **뒤**여야 한다 — 일정 딥링크(`#quote-iti=`)로 들어온
           경우 그쪽이 먼저 자기 자리를 잡는다(해시 모양이 달라 서로 안 먹는다). */
     restoreTabFromHash();
-    /* 설정 탭 요율 정보 초기화 */
-    const rvEl = document.getElementById('rate-settings-version');
-    if (rvEl && typeof RATE_META !== 'undefined') {
-      rvEl.textContent = `v${RATE_META.version} · 갱신: ${RATE_META.updated} · 다음검토: ${RATE_META.nextReview}`;
-    }
   }
 
   /* ════ CLOCK ════ */
@@ -5852,7 +5833,13 @@
 
   /* 설정 탭에도 견적 삭제 추가 */
   async function clearData(key, label) {
-    if (!confirm(`${label}을(를) 삭제하시겠습니까?`)) return;
+    /* ⚠ 2026-09-27 「문의 내역을(를) 삭제하시겠습니까?」 — 몇 건인지·되돌릴 수 없다는 말이 없었다.
+       목록의 「전체 삭제」를 걷어 이제 이것이 **유일한** 전체 삭제 길이다. */
+    const nAll = key === KEYS.contacts ? get(KEYS.contacts).length : null;
+    const NL = String.fromCharCode(10);
+    if (!confirm(nAll != null
+      ? '문의 ' + nAll + '건을 전부 서버에서 영구 삭제합니다.' + NL + '되돌릴 수 없습니다. 계속할까요?'
+      : label + ' — 삭제할까요?')) return;
     if (key === KEYS.contacts) {
       const ids = get(KEYS.contacts).map(c => c.id);
       localStorage.removeItem(key);
