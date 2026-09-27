@@ -134,6 +134,10 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
   height: 40px; padding: 0 10px; border: 1.5px solid var(--line); background: #fff;
   font-family: inherit; font-size: 13.5px; color: var(--t); border-radius: 0;
 }
+/* 🔴 체크박스는 위 칸 규칙(높이 40px·좌우 여백 10px)에서 뺀다 (2026-09-27) — 「포함 항목」·「골프 포함」의
+   네모가 40px 높이 칸이 되어 글자가 한 줄 아래로 밀려 떨어져 있었다. */
+.f input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; border: 0; flex: none; accent-color: var(--ink); }
+.f label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
 .f textarea { height: auto; min-height: 66px; padding: 8px 10px; line-height: 1.6; resize: vertical; }
 .f input:focus, .f select:focus, .f textarea:focus { outline: 2px solid var(--ink); outline-offset: -2px; }
 
