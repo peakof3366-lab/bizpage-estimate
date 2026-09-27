@@ -1558,4 +1558,11 @@
   .dash-right .btn-sm, .current-staff-widget, .csw-label, .csw-role { white-space: nowrap; }
   .sb-group-head { white-space: nowrap; }
   .em-tab { white-space: nowrap; flex: none; }
+  /* 패키지 목록 — 여섯 칸 격자가 390px에 들어가며 상품명·칩이 한 글자씩 접혔다. 사진은 빼고 이름을 한 줄 전체로. */
+  .pkg-row, .pkg-row--nothumb { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; }
+  .pkg-row > .pkg-thumb, .pkg-row > .pkg-thumb-none { display: none; }
+  .pkg-row > div:not([class]) { flex: 1 0 100%; }
+  /* 설정 계정 표 — 좁히지 말고 옆으로 밀어 보게 한다(이름이 「최/대/표」로 세로가 됐다) */
+  #staffAdminSection .rate-table { min-width: 560px; }
+  #staffAdminSection .rate-table td { white-space: nowrap; }
 }
