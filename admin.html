@@ -1715,7 +1715,9 @@
              왼쪽 배지(가입 승인 대기)를 보고 들어온 사람이 삭제 구역을 지나 내려가야 했다. -->
         <div class="setting-section">
           <div class="setting-title">데이터 관리</div>
-          <div class="setting-row">
+          <!-- 🔐 매니저 이상 (2026-09-28 대표 결정 R-1) — 파일에 모든 문의의 연락처와 견적의 원가·이익이 들어 있다.
+               ⚠ 파일을 만드는 곳이 브라우저라 서버로 막을 길은 없다 — 감추는 것 + exportAll 안의 검사가 전부다. -->
+          <div class="setting-row" id="exportAllRow">
             <div class="setting-info"><p>전체 데이터 내보내기</p><span>문의, 방문, 이벤트, 견적 데이터를 JSON으로 다운로드합니다.</span></div>
             <button class="btn-act btn-outline-p" onclick="exportAll()">전체 내보내기</button>
           </div>
@@ -2745,8 +2747,9 @@
        삭제·견적 선택 삭제·견적 전체 삭제는 직원 화면에도 그대로 보였다. 서버가 403으로
        막으니 데이터는 안전했지만, 예전 코드는 응답을 보지 않아 **화면에서만 리드가 전부
        사라졌다.** 지우는 범위가 개별 삭제보다 넓은 버튼들이 정작 빠져 있었던 것이다. */
+    /* 「전체 데이터 내보내기」도 매니저 이상 (2026-09-28 대표 결정 R-1 — 「선택 삭제」와 같은 선) */
     for (const id of ['btnDeleteInquiry', 'btnDeleteQuote',
-                      'emDeleteSelectedBtn']) {
+                      'emDeleteSelectedBtn', 'exportAllRow']) {
       const btn = document.getElementById(id);
       if (btn) btn.classList.toggle('hidden', !isManagerUp);
     }
@@ -4796,6 +4799,7 @@
 
   /* ════ EXPORT ALL ════ */
   function exportAll() {
+    if (!isManagerUpRole()) { alert('전체 데이터 내보내기는 매니저 이상만 할 수 있습니다.\n필요하면 매니저·관리자에게 요청해 주세요.'); return; }
     /* 🔴 2026-09-27 `estimates`가 옛 브라우저 키(`linkedt_estimates` — 담당자 브라우저에선 늘 빈 배열)를 담아,
        **실제 견적(견적 관리의 기록)이 백업 파일에 한 건도 안 들어갔다.** 설명은 「견적 데이터를 다운로드」라고 했다.
        → 서버에서 받아 둔 견적 목록(`getEstsFull`)을 담는다. */
