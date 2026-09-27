@@ -199,6 +199,32 @@ ok('[K-b] 창마다 ✕가 있다 (Esc가 누를 자리)',
   ok('[Q] 🔴 확인창·알림 글에 ** 가 없다', bad.length === 0, [...new Set(bad)].join(','));
 }
 
+/* ═══ 자동 견적 산출 — 다시 산출하면 앞뒤가 어긋나던 것 (2026-09-27) ═══════════════════════
+   다낭 23명으로 산출한 뒤 방콕 30명으로 바꿔 다시 산출하면 견적서가 「다낭 · 성인 23명 · 3월 일정」으로 남아
+   총액이 엔진보다 1,343만원 적게 찍혔다. 반대로 담당자가 적은 상세 칸·실무 변수는 말없이 지워졌다. */
+{
+  const seed = (PRO.match(/function seedDoc\(bd, v\) \{[\s\S]*?\n  \}/) || [''])[0];
+  ok('[P] 🔴 견적서 머리 칸은 「자동값 그대로면」 새 조건을 따른다 (비었을 때만 채우지 않는다)',
+    /const follow = \(id, val\)/.test(seed) && /follow\('dRegion', dest\)/.test(seed) && /follow\('dStay'/.test(seed)
+    && /follow\('dFuel'/.test(seed) && !/if \(!\$\('dRegion'\)\.value\) \$\('dRegion'\)\.value = dest/.test(seed));
+  ok('[P-b] 🔴 성인 수도 자동값이면 새 인원을 따른다 (나눠 적었으면 안 건드린다)',
+    /AUTO\.dAdult !== undefined && \$\('dAdult'\)\.value === AUTO\.dAdult/.test(seed));
+  ok('[P-c] 🔴 상세 내용은 다시 산출해도 사람이 고친 줄·더한 줄을 남긴다',
+    /S\.autoDetails = autoCopy/.test(seed) && /!same\(oc\.rows\[j\], oa\.rows\[j\]\)/.test(seed));
+  ok('[P-d] 🔴 골프 줄은 엔진과 같은 규칙(요금 있음 · 총원 상한 · 0명이면 안 씀)',
+    /getGolfFee\(dest\)/.test(seed) && /Math\.min\(Number\(v\.golfCount\) \|\| 0, Number\(v\.pax\) \|\| 0\)/.test(seed) && /v\.incGolf && gCount > 0/.test(seed));
+  const itiFn = (PRO.match(/function seedItinerary\(v\) \{[\s\S]*?\n  \}/) || [''])[0];
+  ok('[P-e] 🔴 일정: 손대지 않은 초안은 새 조건으로 다시 깔고, 고친 일정은 남기되 날짜를 맞추고 말한다',
+    /const untouched = S\.itiAuto !== undefined/.test(itiFn) && /S\.iti = \[\];/.test(itiFn) && /stampDates\(\); renderIti\(\);\s*itiState\(/.test(itiFn));
+  ok('[P-f] 🔴 다시 산출: ②단계에서 고친 금액이 있으면 먼저 묻고, 실무 변수는 남긴다',
+    /editedRows && !confirm\(/.test(PRO) && /keepAdj\.forEach/.test(PRO));
+  ok('[P-h] 🔴 산출 뒤 ①단계를 바꾸면 ②~⑤를 다시 잠근다 (옛 총액 ÷ 새 인원이 경고 없이 발급되던 자리)',
+    /\$\('sec1'\)\.addEventListener\('input', markCalcStale\)/.test(PRO) && /staleCalc = true;\s*unlocked = false;/.test(PRO)
+    && /function unlockSteps\(\) \{\s*unlocked = true;\s*staleCalc = false;/.test(PRO));
+  ok('[P-g] 🔴 골프 요금이 없는 목적지는 골프를 잠근다 (고객 화면과 같은 규칙)',
+    /function syncGolfLock\(\)/.test(PRO) && /box\.disabled = lock/.test(PRO) && /rateOverridesReady\)\.then\(syncGolfLock\)/.test(PRO));
+}
+
 /* ═══ 방문 통계 시간대 — 홀수 시 방문이 버려졌다 (2026-09-27) ═══════════════════════
    짝수 시만 골라 그려서(filter i%2===0) 1·3·…·15시 방문이 그래프에서 통째로 사라졌다. */
 {

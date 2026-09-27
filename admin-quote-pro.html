@@ -922,7 +922,26 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 
   function unlockSteps() {
     unlocked = true;
+    staleCalc = false;
     $('btnNext1').classList.remove('hidden');
+    paintSteps();
+  }
+
+  /* 🔴 **산출한 뒤 ①단계를 바꾸면 ②~⑤를 다시 잠근다** (2026-09-27). 예전엔 인원·목적지를 바꾸고
+     「자동 산출하기」를 안 누른 채 ⑤로 가면, 견적서가 **옛 총액 ÷ 새 인원 × 옛 성인 수**라는 아무것도
+     아닌 금액(다낭 23명 37,540,959원 → 방콕 40명으로 바꾸자 「지역 다낭 · 40명 · 21,586,052원」)을
+     경고 없이 보여 주고 그대로 발급할 수 있었다. ①단계에는 여전히 「산출 완료」가 떠 있었다.
+     ⚠ 자동 모드만 — 직접 입력·고치기는 금액을 사람이 적으므로 조건을 바꿔도 다시 셀 것이 없다. */
+  let staleCalc = false;
+  $('sec1').addEventListener('input', markCalcStale);
+  $('sec1').addEventListener('change', markCalcStale);
+  function markCalcStale(e) {
+    if (ADHOC || !unlocked || staleCalc) return;
+    if (e && e.target && !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+    staleCalc = true;
+    unlocked = false;
+    $('btnNext1').classList.add('hidden');
+    $('calcState').textContent = '⚠ 여행 조건을 바꾸셨습니다 — 「자동 산출하기」를 다시 눌러야 금액·견적서·일정에 반영됩니다. 그 전까지 ②~⑤단계는 잠깁니다.';
     paintSteps();
   }
 
@@ -970,6 +989,14 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     }
     $('calcErr').classList.add('hidden');
 
+    /* 🔴 **다시 산출하면 ②단계에서 고친 금액은 자동값으로 돌아간다** (2026-09-27) — 조건이 바뀌면
+       옛 금액을 새 항목에 얹을 수 없어서다. 예전엔 그걸 말없이 했다. 고친 줄이 있으면 먼저 묻는다. */
+    const editedRows = S.bd ? (S.rows || []).filter((r) => r.val !== r.auto).length : 0;
+    if (editedRows && !confirm('②단계에서 고치신 금액 ' + editedRows + '줄이 새로 계산한 자동값으로 돌아갑니다.\n\n계속할까요?')) return;
+    /* 실무 변수(FOC·인솔자 비용 …)는 사람이 적은 값이다 — 다시 산출해도 **남긴다**(예전엔 말없이 0이 됐다) */
+    const keepAdj = (S.adj || []).filter((a) => Number(a.qty) || Number(a.amount))
+      .map((a) => ({ key: a.key, qty: a.qty, amount: a.amount, kind: a.kind }));
+
     let bd = null;
     try { bd = QuoteEngineHost.compute(v); } catch (e) {
       $('calcErr').textContent = '산출에 실패했습니다: ' + e.message;
@@ -984,10 +1011,15 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     S.bd = bd;
     buildRows(bd);
     buildAdjust(bd);
+    keepAdj.forEach((p) => {
+      const t = S.adj.find((a) => a.key === p.key);
+      if (t) Object.assign(t, { qty: p.qty, amount: p.amount, kind: p.kind || t.kind });
+    });
     seedDoc(bd, v);
     seedItinerary(v);
     unlockSteps();
-    $('calcState').textContent = '산출 완료 — 총액 ' + won(bd.total) + '원 · 1인 ' + won(bd.perPerson) + '원';
+    $('calcState').textContent = '산출 완료 — 총액 ' + won(bd.total) + '원 · 1인 ' + won(bd.perPerson) + '원'
+      + (keepAdj.length ? ' · 실무 변수 ' + keepAdj.length + '줄은 적으신 그대로 뒀습니다(새 금액에 맞는지 확인하세요)' : '');
     renderAll();
     showStep(2);
   });
@@ -1275,8 +1307,18 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 
   function seedDoc(bd, v) {
     const dest = v.dest;
-    if (!$('dRegion').value) $('dRegion').value = dest;
-    if (!$('dStay').value) $('dStay').value = dest + '(' + Math.max(0, num($('pNights'))) + ')';
+    /* 🔴 **자동으로 넣은 값은 조건을 따라가고, 사람이 고친 값은 지킨다** (2026-09-27).
+       예전엔 「비어 있을 때만」 채워서, 다낭 23명으로 한 번 산출한 뒤 방콕 30명으로 바꿔 다시
+       산출해도 견적서는 **지역 다낭 · 숙박지 다낭(4) · 성인 23명**으로 남았다. 총액이 1인 단가 × 23으로
+       찍혀 **엔진 총액보다 1,343만원 적은 견적서**가 만들어졌다(실측). 자동값을 기억해 두고,
+       칸이 그 값 그대로면(=사람이 안 고쳤으면) 새 값으로 바꾼다. */
+    const AUTO = S.autoDoc || (S.autoDoc = {});
+    const follow = (id, val) => {
+      const el = $(id), cur = el.value;
+      if (!cur || (AUTO[id] !== undefined && cur === AUTO[id])) { el.value = val; AUTO[id] = val; }
+    };
+    follow('dRegion', dest);
+    follow('dStay', dest + '(' + Math.max(0, num($('pNights'))) + ')');
     if (!$('dIssue').value) $('dIssue').value = ymd(new Date());
     if (!$('dValid').value) {
       /* ⚠ +30일은 `estimate-view.html`이 이미 쓰는 값이다. 며칠이 맞는지는 대표 확인
@@ -1284,10 +1326,14 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       const d = new Date(); d.setDate(d.getDate() + 30);
       $('dValid').value = ymd(d);
     }
-    if (num($('dAdult')) === 0 && num($('dChild')) === 0 && num($('dInfant')) === 0) $('dAdult').value = String(v.pax);
-    if (!$('dFuel').value) {
+    /* 인원 — 성인·아동·유아를 사람이 나눠 적었으면 건드리지 않는다(합이 안 맞으면 paxWarn이 말한다) */
+    const noKids = num($('dChild')) === 0 && num($('dInfant')) === 0;
+    if (noKids && (num($('dAdult')) === 0 || (AUTO.dAdult !== undefined && $('dAdult').value === AUTO.dAdult))) {
+      $('dAdult').value = String(v.pax); AUTO.dAdult = String(v.pax);
+    }
+    {
       const m = (v.startDate || '').slice(5, 7);
-      $('dFuel').value = '#' + (m ? String(Number(m)) : '00') + '월 기준 유류할증료 적용 기준';
+      follow('dFuel', '#' + (m ? String(Number(m)) : '00') + '월 기준 유류할증료 적용 기준');
     }
 
     const has = (re) => (bd.rows || []).some((r) => re.test(r.name));
@@ -1309,7 +1355,15 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     if (v.incMeal) sec('식사', [{ text: '', note: '전 일정 포함', ph: PH['식사'] }], { foot: '', footPh: PH_FOOT_DEAL });
     if (v.incSightseeing) sec('입장료', [{ text: '일정표에 기재된 모든 관광지', note: '전 일정 포함', ph: PH['입장료'] }]);
     if (has(/여행자보험/)) sec('여행자보험', [{ text: '', note: '전 일정 포함', ph: PH['여행자보험'] }], { foot: '', footPh: PH_FOOT_DEAL });
-    if (v.incGolf) sec('골프', [{ text: (v.golfCount || 0) + '명 · ' + (v.golfRounds || 1) + '라운드', note: '전 일정 포함' }]);
+    /* 🔴 골프 줄은 **실제로 값을 매긴 만큼만** 적는다 (2026-09-27). 예전엔 입력칸을 그대로 옮겨서
+       ① 골프 요금이 없는 목적지(다낭 등)도 「골프 10명 · 2라운드 · 포함」이 0원으로 나갔고
+       ② 체크만 하고 인원 0이면 「골프 0명」이 찍혔고 ③ 총원보다 많이 적으면 엔진은 총원으로 자르는데
+       견적서엔 적은 숫자가 나갔다. 엔진과 같은 규칙(getGolfFee · 총원 상한)으로 센다. */
+    {
+      const gFee = ADHOC ? 1 : ((typeof getGolfFee === 'function') ? getGolfFee(dest) : 0);
+      const gCount = gFee ? Math.min(Number(v.golfCount) || 0, Number(v.pax) || 0) : 0;
+      if (v.incGolf && gCount > 0) sec('골프', [{ text: gCount + '명 · ' + Math.max(1, Number(v.golfRounds) || 1) + '라운드', note: '전 일정 포함' }]);
+    }
     /* 🔴 **기타사항은 두 줄**이다(쇼핑센터 방문 · 선택관광 제안). 한 줄짜리 칸만 있던
        탓에 두 번째 줄을 만들 방법 자체가 없었다. 노쇼핑·노옵션은 **건별 약속**이라
        기본값으로 박지 않는다 — 박아 두면 아무도 안 고치고 그대로 나간다. */
@@ -1320,6 +1374,23 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     /* 🔴 불포함내역은 `company-info.js`가 진실이다 — 여기 다시 적으면 두 벌이 된다 */
     const EX = (window.QUOTE_EXCLUDED || []).join(', ');
     sec('불포함내역', [{ text: EX, note: '', accent: 'red', phNote: '요청 시 사후정산 가능' }], { red: true });
+    /* 🔴 **다시 산출해도 담당자가 적은 줄은 지운다 말고 남긴다** (2026-09-27). 예전엔 매번
+       `S.details = D`로 통째로 갈아서, 노란 칸에 적어 둔 항공사·기타사항 같은 글이 **말없이 사라졌다.**
+       지난번 자동값과 지금 칸을 줄마다 비교해, 사람이 고친 줄과 더한 줄만 옮겨 온다.
+       (조건이 바뀌어 자동으로 달라지는 줄 — 호텔 등급 등 — 은 고치지 않았으면 새 값을 따른다.) */
+    const autoCopy = JSON.parse(JSON.stringify(D));
+    const prevAuto = S.autoDetails, prevCur = S.details;
+    if (prevAuto && prevCur && prevCur.length) {
+      const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+      D.forEach((d) => {
+        const oc = prevCur.find((x) => x.label === d.label), oa = prevAuto.find((x) => x.label === d.label);
+        if (!oc || !oa) return;
+        d.rows = d.rows.map((r, j) => (oc.rows[j] && oa.rows[j] && !same(oc.rows[j], oa.rows[j])) ? oc.rows[j] : r);
+        if (oc.rows.length > oa.rows.length) d.rows = d.rows.concat(oc.rows.slice(oa.rows.length));
+        if ((oc.foot || '') !== (oa.foot || '')) d.foot = oc.foot;
+      });
+    }
+    S.autoDetails = autoCopy;
     S.details = D;
     renderDetails();
     if (!S.options.length) { S.options = []; renderOptions(); }
@@ -1458,8 +1529,26 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 
   /* ═══ ④ 일정 ═══════════════════════════════════════════════════════════ */
   function seedItinerary(v) {
-    if (S.iti.length) return;
+    /* 🔴 **다시 산출하면 일정도 조건을 따라간다** (2026-09-27). 예전엔 일정이 한 줄이라도 있으면
+       그대로 돌아가서, 다낭 5일(3/10)로 깔린 일정이 방콕 6일(7/1)로 바꾼 뒤에도 그대로 남았다 —
+       견적서 머리는 방콕 7/1인데 일정표는 다낭 3/10이었다.
+       · 손대지 않은 초안이면 → 새 조건으로 다시 깐다
+       · 담당자가 고친 일정이면 → 지우지 않는다. 날짜만 새 출발일로 맞추고, 무엇이 어긋나는지 말한다 */
+    if (S.iti.length) {
+      const untouched = S.itiAuto !== undefined && JSON.stringify(S.iti) === S.itiAuto;
+      const changed = S.itiDest !== v.dest || S.iti.length !== Number(v.days);
+      if (!changed) { stampDates(); renderIti(); return; }
+      if (!untouched) {
+        stampDates(); renderIti();
+        itiState('⚠ 이 일정은 「' + (S.itiDest || '이전 조건') + ' ' + (S.itiDays || S.iti.length) + '일」 기준으로 적으신 것입니다 — 여행 조건이 「'
+          + v.dest + ' ' + v.days + '일」로 바뀌었습니다. 날짜만 새 출발일로 맞췄습니다. 내용은 직접 고치시거나, 칸을 비우고 「추천 일정으로 채우기」를 누르세요.', true);
+        return;
+      }
+      S.iti = [];
+    }
+    S.itiDest = v.dest; S.itiDays = Number(v.days);
     fitDays(v.days);
+    S.itiAuto = JSON.stringify(S.iti);
     /* 🔴 빈 칸만 만들어 두고 끝내지 않는다 — 담당자가 전화를 받으면서 5일치를 처음부터
        적어야 했다(0-ah). 추천 코스를 **초안으로** 깔고, 무엇을 깔았는지 말한다. */
     fillCourseSelect();
@@ -1641,11 +1730,38 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     say.push('🔴 여기 남은 글이 고객 일정표에 그대로 나갑니다 — 읽어 보고 고쳐 주세요.');
     if (ITI_SRC === 'failed') say.push('⚠ 관리자 화면에서 고친 일정은 못 불러왔습니다(기본 일정입니다).');
     itiState(say, ITI_SRC === 'failed');
+    /* 자동으로 깐 초안을 기억한다 — 다시 산출할 때 「손대지 않은 초안」인지 가르는 기준 */
+    if (auto) S.itiAuto = JSON.stringify(S.iti);
   }
 
   $('btnItiDraft').addEventListener('click', () => applyItiDraft(false));
   $('pDest').addEventListener('change', fillCourseSelect);
   fillCourseSelect();
+
+  /* 🔴 골프 요금이 없는 목적지는 골프를 **잠근다** (2026-09-27) — 고객 화면(syncGolfAvailability)과 같은 규칙.
+     예전엔 이 화면만 안 잠가서, 다낭에서 골프를 켜면 엔진은 0원을 매기고 견적서엔 「골프 포함」이 나갔다.
+     요금은 관리자 → 요율 관리의 「골프(1인 1회)」에 넣으면 그때부터 켜진다. 직접 입력 모드는 금액을 사람이 적으니 안 잠근다. */
+  function syncGolfLock() {
+    if (ADHOC) return;
+    const box = $('pIncGolf'); if (!box) return;
+    const dest = $('pDest').value;
+    const fee = (typeof getGolfFee === 'function' && dest) ? getGolfFee(dest) : 0;
+    const lock = !!dest && !fee;
+    if (lock && box.checked) box.checked = false;
+    box.disabled = lock;
+    const lbl = box.closest('label');
+    if (lbl) lbl.title = lock ? '이 목적지는 골프 요금이 없습니다 — 요율 관리의 「골프(1인 1회)」에 넣으면 켤 수 있습니다' : '';
+    let note = $('golfLockNote');
+    if (!note) {
+      note = document.createElement('span'); note.id = 'golfLockNote';
+      note.style.cssText = 'font-size:12px;color:var(--t-dim)';
+      box.closest('span').appendChild(note);
+    }
+    note.textContent = lock ? '이 목적지는 골프 요금이 없어 잠겨 있습니다' : '';
+  }
+  $('pDest').addEventListener('change', syncGolfLock);
+  syncGolfLock();
+  if (typeof rateOverridesReady !== 'undefined') Promise.resolve(rateOverridesReady).then(syncGolfLock).catch(() => {});
 
   if (typeof itineraryOverridesReady !== 'undefined') {
     itineraryOverridesReady.then((st) => {
