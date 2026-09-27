@@ -4489,17 +4489,19 @@
     const done   = events['estimate_complete']||0;
     const kakao  = events['kakao']||0;
     const inqSubmitted = inquiries.length;
+    /* ⚠ 2026-09-27 막대 길이가 **비율을 말하게** 했다. 예전엔 단계마다 색만 다른 **가로 끝까지 찬 띠**라
+       0%인 단계도 꽉 찬 진한 빨강(브랜드 교체 전의 옛 색 — 지금 빨강은 「위험」 신호 전용)으로 보였다. */
     document.getElementById('ev-funnel').innerHTML = [
-      { lbl:'홈페이지 방문', val: vTotal, color: '#4A4A4A' },
-      { lbl:'견적 계산 시작', val: step2,  color: '#8A0B20' },
-      { lbl:'견적 완료', val: done,   color: '#514dc2' },
-      { lbl:'카카오톡 문의', val: kakao,  color: '#FEE500', tc:'#333' },
-      { lbl:'문의 접수(실제 리드)', val: inqSubmitted, color: '#0D0D0D' },
-    ].map(({lbl,val,color,tc})=>{
+      { lbl:'홈페이지 방문', val: vTotal },
+      { lbl:'견적 계산 시작', val: step2 },
+      { lbl:'견적 완료', val: done },
+      { lbl:'카카오톡 문의', val: kakao },
+      { lbl:'문의 접수(실제 리드)', val: inqSubmitted },
+    ].map(({lbl,val})=>{
       const pct = vTotal>0 ? Math.round(val/vTotal*100) : 0;
-      return `<div style="background:${color};color:${tc||'#fff'};padding:.6rem 1rem;font-size:.82rem;font-weight:600;display:flex;justify-content:space-between">
-        <span>${lbl}</span><span>${val.toLocaleString()}회 (${pct}%)</span>
-      </div>`;
+      return `<div class="fn-row"><span class="fn-lbl">${lbl}</span>
+        <div class="fn-track"><div class="fn-fill" style="width:${Math.min(100, pct)}%"></div></div>
+        <span class="fn-val">${val.toLocaleString()}회 (${pct}%)</span></div>`;
     }).join('');
 
     /* 목적지별 전환율 = 목적지 선택 수 대비 실제 견적 완료 수 (신규) */
@@ -4558,17 +4560,20 @@
       '아직 산출된 견적이 없습니다. 견적이 쌓이면 어느 목적지를 많이 찾는지 여기 나옵니다.');
 
     /* Program */
-    const pgLabels = { language:'언어 집중', leadership:'리더십', industry:'산업체 실무', academic:'교육기관 연구' };
+    /* ⚠ 2026-09-27 이름은 **기록에 저장된 선택지 글자(programLabel)**를 먼저 쓴다. 예전 이름표에는
+       휴양(leisure)이 빠져 영어 키가 찍혔고, 값이 없는 견적(직접 작성 등)은 「undefined」가 찍혔다. */
+    const pgLabels = { language:'언어 집중', leadership:'리더십', industry:'산업체 실무', academic:'교육기관 연구', leisure:'휴양 / 자유여행' };
+    const labelOf = (lbl, key, table) => String(lbl || '').trim() || table[key] || (key ? String(key) : '(미기재)');
     const pgMap={};
-    ests.forEach(e=>{ pgMap[e.program]=(pgMap[e.program]||0)+1; });
-    renderHBar('e-program', Object.entries(pgMap).map(([k,v])=>[pgLabels[k]||k,v]).sort((a,b)=>b[1]-a[1]),
+    ests.forEach(e=>{ const k = labelOf(e.programLabel, e.program, pgLabels); pgMap[k]=(pgMap[k]||0)+1; });
+    renderHBar('e-program', Object.entries(pgMap).sort((a,b)=>b[1]-a[1]),
       '아직 산출된 견적이 없습니다. 견적이 쌓이면 어떤 연수 유형이 많은지 여기 나옵니다.');
 
     /* OrgType */
-    const ogLabels = { company:'기업', public:'공공기관', education:'교육기관' };
+    const ogLabels = { company:'기업', public:'공공기관', education:'교육기관', individual:'일반 고객' };
     const ogMap={};
-    ests.forEach(e=>{ ogMap[e.orgType]=(ogMap[e.orgType]||0)+1; });
-    renderHBar('e-orgtype', Object.entries(ogMap).map(([k,v])=>[ogLabels[k]||k,v]).sort((a,b)=>b[1]-a[1]),
+    ests.forEach(e=>{ const k = labelOf(e.orgTypeLabel, e.orgType, ogLabels); ogMap[k]=(ogMap[k]||0)+1; });
+    renderHBar('e-orgtype', Object.entries(ogMap).sort((a,b)=>b[1]-a[1]),
       '아직 산출된 견적이 없습니다. 견적이 쌓이면 기업·공공·학교 중 어디가 많은지 여기 나옵니다.');
   }
 

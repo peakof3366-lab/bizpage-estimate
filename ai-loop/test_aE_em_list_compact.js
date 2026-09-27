@@ -99,6 +99,9 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/
   ok('[9-b] 🔴 옮긴 두 숫자가 견적 분석에서 같은 셈으로 나온다',
     num9('e-revenue') === '22,678' && num9('e-avgdeal') === '5,670', num9('e-revenue') + ' / ' + num9('e-avgdeal'));
   ok('[9-c] 겹치던 둘은 견적 분석에 그대로 있다', num9('e-total') === '4');
+  /* 🔴 (2026-09-27) 프로그램·기관 유형이 없는 견적이 막대 이름 「undefined」로 찍혔다 */
+  ok('[9-d] 🔴 견적 분석 분포에 「undefined」가 안 찍힌다',
+    !/undefined/.test(num9('e-program') + num9('e-orgtype')), num9('e-program').slice(0, 60));
 
   const rows = Array.from(D.querySelectorAll('#emBody tr'));
   ok('[4] 줄이 넷이다', rows.length === 4, String(rows.length));
