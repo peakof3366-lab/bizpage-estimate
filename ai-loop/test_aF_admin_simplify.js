@@ -232,6 +232,12 @@ ok('[K-b] 창마다 ✕가 있다 (Esc가 누를 자리)',
     /function syncGolfLock\(\)/.test(PRO) && /box\.disabled = lock/.test(PRO) && /rateOverridesReady\)\.then\(syncGolfLock\)/.test(PRO));
 }
 
+/* ═══ 저장 안 한 수정이 있는데 발급하면 고치기 전 견적서가 나가던 것 (2026-09-27) ═══════════ */
+ok('[U] 🔴 발급·미리보기 전에 저장 안 한 수정을 묻는다 (마지막 저장본이 나간다고 말한다)',
+  /function emUnsavedOk\(what\)/.test(ADMIN)
+  && /async function issueShareLink\(\) \{[\s\S]{0,200}if \(!emUnsavedOk\('발급'\)\) return;/.test(ADMIN)
+  && /async function previewShareLink\(\) \{[\s\S]{0,200}if \(!emUnsavedOk\('미리보기'\)\) return;/.test(ADMIN));
+
 /* ═══ 방문 통계 시간대 — 홀수 시 방문이 버려졌다 (2026-09-27) ═══════════════════════
    짝수 시만 골라 그려서(filter i%2===0) 1·3·…·15시 방문이 그래프에서 통째로 사라졌다. */
 {
