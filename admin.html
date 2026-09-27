@@ -526,7 +526,9 @@
         <div style="display:flex;gap:.5rem">
           <button class="btn-act btn-danger-sm" id="emDeleteSelectedBtn" onclick="deleteSelectedEstimates()" disabled>🗑️ 선택 삭제 (0)</button>
           <button class="btn-act btn-outline-p" onclick="exportEstimatesCsv()">CSV 내보내기</button>
-          <button class="btn-act btn-danger-sm" id="emClearAllBtn" onclick="clearEstimatesFull()">전체 삭제</button>
+          <!-- 🔴 「전체 삭제」를 없앴다 (2026-09-27 대표 승인). 확인창 **한 번**이면 운영 견적 **전부**가
+               서버에서 지워지는 버튼이 「CSV 내보내기」 바로 옆에 있었다. 지울 것은 체크해서
+               「선택 삭제」로 지운다(매니저 이상 · 서버가 403으로도 막는다). -->
         </div>
       </div>
 
@@ -2713,7 +2715,7 @@
        막으니 데이터는 안전했지만, 예전 코드는 응답을 보지 않아 **화면에서만 리드가 전부
        사라졌다.** 지우는 범위가 개별 삭제보다 넓은 버튼들이 정작 빠져 있었던 것이다. */
     for (const id of ['btnDeleteInquiry', 'btnDeleteQuote',
-                      'clearAllBtn', 'emDeleteSelectedBtn', 'emClearAllBtn']) {
+                      'clearAllBtn', 'emDeleteSelectedBtn']) {
       const btn = document.getElementById(id);
       if (btn) btn.classList.toggle('hidden', !isManagerUp);
     }
@@ -5764,15 +5766,8 @@
     a.download=`bizpage_estimates_${new Date().toISOString().slice(0,10)}.csv`; a.click();
   }
 
-  /* 전체 삭제 */
-  async function clearEstimatesFull() {
-    if (!confirm('모든 견적 데이터를 삭제하시겠습니까?')) return;
-    const ids = getEstsFull().map(e => e.id);
-    localStorage.removeItem(EM_KEY);
-    renderEstMgr();
-    if (!ids.length) return;
-    await leadWriteBatch('견적 전체 삭제', ids.map(id => () => deleteQuote(id, { defer: true })));
-  }
+  /* ⚠ 「견적 전체 삭제」(clearEstimatesFull)는 2026-09-27에 버튼과 함께 걷었다 — 확인창 한 번에
+     운영 견적 전부가 지워지는 길이었다. 되살리려면 git 이력(`617c600` 이전)에 있다. */
 
   /* 모달 닫기 */
   document.getElementById('emModal')?.addEventListener('click', e => {

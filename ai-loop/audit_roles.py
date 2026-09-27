@@ -63,7 +63,7 @@ GATED = [
     ("btnDeleteQuote",        "견적 삭제",               "manager"),
     ("clearAllBtn",           "문의 전체 삭제",          "manager"),
     ("emDeleteSelectedBtn",   "견적 선택 삭제",          "manager"),
-    ("emClearAllBtn",         "견적 전체 삭제",          "manager"),
+    # ⚠ 「견적 전체 삭제」(emClearAllBtn)는 2026-09-27 버튼째 걷었다 — 목록에서도 뺐다
 ]
 
 # 감췄을 때 「왜 없는지」를 말해 주는 자리가 있으면 여기 적는다.
