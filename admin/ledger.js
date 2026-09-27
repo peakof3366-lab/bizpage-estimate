@@ -213,12 +213,14 @@
           + '</div>'
           + '</td>'
           /* ── ⑧ 조작 ── */
-          + '<td style="white-space:nowrap"><button class="btn-act btn-outline-p led-open" data-i="' + i + '">열기</button>'
-          +   ' <button class="btn-act btn-outline-p led-copy" data-i="' + i + '">링크</button>'
+          /* ⚠ 2026-09-27 이름을 하는 일대로: 「열기」→「고객 화면」(고객이 받는 페이지를 새 창으로) ·
+               「링크」→「링크 복사」 · 「문의」→「견적 상세」(견적 관리의 그 건을 연다 — 「문의 관리」의 문의가 아니다) */
+          + '<td style="white-space:nowrap"><button class="btn-act btn-outline-p led-open" data-i="' + i + '" title="고객이 받는 견적서 페이지를 새 창으로 엽니다">고객 화면</button>'
+          +   ' <button class="btn-act btn-outline-p led-copy" data-i="' + i + '">링크 복사</button>'
           /* 🔴 **어느 문의에 대한 견적서인가** (ZB). 없으면 버튼을 안 낸다 —
              고객이 홈페이지에서 직접 뽑은 건은 문의가 아예 없고, 그때 눌리는 버튼을
              내주면 「못 열었다」로 끝난다(YN에서 겪은 그 자리다). */
-          +   (r.quote_id ? ' <button class="btn-act btn-outline-p led-req" data-i="' + i + '" title="이 견적서를 만든 고객 문의를 엽니다">문의</button>' : '')
+          +   (r.quote_id ? ' <button class="btn-act btn-outline-p led-req" data-i="' + i + '" title="이 견적서를 만든 견적 기록을 견적 관리에서 엽니다">견적 상세</button>' : '')
           /* 개정 관계를 사람이 고치는 자리 (ZE). **끊기와 잇기가 같은 버튼**이다 —
              끊는 문만 내면 잘못 끊었을 때 화면에서 되돌릴 길이 없다.
              ⚠ 이을 후보(같은 문의의 직전 견적서)가 있을 때만 잇기 버튼을 낸다.
@@ -247,7 +249,7 @@
       if (!row || !row.quote_id) return;
       const has = (typeof getEstsFull === 'function') && getEstsFull().some(x => x.id === row.quote_id);
       if (!has) {
-        alert('이 견적서를 만든 문의를 견적 관리 목록에서 찾지 못했습니다.\n(문의가 삭제됐거나 목록을 아직 불러오지 못했습니다)\n문의 번호: ' + row.quote_id);
+        alert('이 견적서를 만든 견적 기록을 견적 관리 목록에서 찾지 못했습니다.\n(삭제됐거나 목록을 아직 불러오지 못했습니다)\n기록 번호: ' + row.quote_id);
         return;
       }
       switchTab('estmgr');
@@ -256,7 +258,7 @@
     box.querySelectorAll('.led-copy').forEach(b => b.addEventListener('click', () => {
       navigator.clipboard?.writeText(urlOf(ledRows[Number(b.dataset.i)])).catch(() => {});
       b.textContent = '복사됨';
-      setTimeout(() => { b.textContent = '링크'; }, 1500);
+      setTimeout(() => { b.textContent = '링크 복사'; }, 1500);
     }));
     /* 개정 관계 고치기 (ZE). ⚠ 고치고 나면 **목록을 다시 그린다** — 차수와 「최신본」
        표시는 이 줄 하나가 아니라 **같은 갈래의 다른 줄까지** 바뀐다. 누른 줄만 고치면

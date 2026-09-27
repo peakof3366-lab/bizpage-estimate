@@ -938,6 +938,8 @@
     prev.innerHTML = '';
 
     const doc = emDocOf(rec);
+    const nodocBtn = document.getElementById('em-nodoc-preview');
+    if (nodocBtn) nodocBtn.classList.toggle('hidden', !!doc);
     if (!doc) {
       state.textContent = '문서 없음 — 옛 방식(항목·금액 표)으로 발급됩니다';
       state.style.color = 'var(--muted)';

@@ -1418,6 +1418,8 @@
      인라인 display를 찾아 지울 수는 없다 — 덮는 쪽이 이기게 한다. */
 #emModalBody[data-emtab="cust"] > *:not(.em-tabbar):not(#emTabCust) { display:none !important; }
 #emModalBody[data-emtab="staff"] > #emTabCust { display:none !important; }
+/* 문서가 없으면 빈 회색 상자를 그리지 않는다 (2026-09-27) */
+#emModal .em-doc-prev:empty { display: none; }
 #emModal .em-sec-info { display:grid; grid-template-columns:1fr 1fr; gap:0; border-bottom:1px solid var(--border); }
 
 /* 고객용 칸 — 문서 사이를 갈라 「세 장」임이 보이게 한다(고객 화면과 같은 언어) */

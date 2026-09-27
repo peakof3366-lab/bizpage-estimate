@@ -187,6 +187,8 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/
   ok('[7-d] 삭제 버튼 id가 그대로다 (권한 코드가 그 id로 감춘다)',
     !!menu && !!menu.querySelector('#btnDeleteQuote'));
   const pv = D.getElementById('emMorePreview');
+  ok('[11] 문서 없는 옛 견적은 고객용 탭에서 바로 「고객 화면 미리보기」를 누를 수 있다 (빈 상자가 아니다)',
+    !D.getElementById('em-nodoc-preview').classList.contains('hidden'));
   ok('[8] 문서 없는 옛 견적에는 「일정 확인·수정」이 있다 (그 건은 여기 일정이 나간다)',
     !D.getElementById('emItiEditBtn').classList.contains('hidden'));
   ok('[7-e] 문서 없는 옛 견적에서는 미리보기가 메뉴에 있다 (고객용 탭이 비므로)',
@@ -212,6 +214,8 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/
     D.getElementById('emMorePreview').classList.contains('hidden'));
   /* 🔴 문서가 있는 건은 문서의 일정이 나간다 — 여기 버튼으로 고친 일정은 **안 나가는데**
      버튼은 떠 있었다(누르면 헛일). 진짜 자리를 글로 가리킨다. */
+  ok('[11-b] 문서가 있는 건에서는 그 버튼이 없다 (고객용 탭이 문서를 보여 준다)',
+    D.getElementById('em-nodoc-preview').classList.contains('hidden'));
   ok('[8-b] 🔴 문서가 있는 건에서는 「일정 확인·수정」이 감춰진다',
     D.getElementById('emItiEditBtn').classList.contains('hidden'));
   ok('[8-c] 대신 고칠 자리를 말한다', /수정하기/.test(txt(D.getElementById('em-iti-state'))), txt(D.getElementById('em-iti-state')));

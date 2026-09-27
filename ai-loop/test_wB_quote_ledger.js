@@ -206,7 +206,8 @@ console.log('\n[6] 🔴 FAQ가 없는 기능을 있다고 말하지 않는다');
   const OLD = '발행일, 견적 번호, 포함 항목 내역이 공문 수준으로 정리되어';
   ok('⑥ 옛 문구가 index.html에서 사라졌다', !INDEX.includes(OLD));
   ok('⑥ 옛 문구가 admin.html에서 사라졌다', !ADMIN.includes(OLD));
-  ok('⑥ 실제 번호 예시를 든다', /Q260824-03/.test(INDEX));
+  /* ⚠ 2026-09-27 예시를 지금 형식(BP-연월-순번)으로 — 고객이 받는 번호가 9/23부터 이 꼴이다 */
+  ok('⑥ 실제 번호 예시를 든다', /BP-2609-0001/.test(INDEX) && !/Q260824-03/.test(INDEX));
 }
 
 console.log('\n[7] 대장 — 담당자가 휴가여도 찾을 수 있다');
