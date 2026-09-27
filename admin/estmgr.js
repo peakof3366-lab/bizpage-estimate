@@ -158,8 +158,11 @@
           ? `<strong>${esc(e.quoteNo)}</strong>`
           : '<span title="번호가 없는 옛 건입니다 — 번호 붙이기는 개발 담당에게 요청하세요" style="color:var(--warn)">번호 없음</span>'}<span class="em-sub date-col">${fmtDate(e.ts)}</span></td>
         <td class="em-who"><strong>${esc(e.orgName||'(기관명 없음)')}</strong><span class="em-sub">${esc(e.destLabel||e.destKey||'-')}${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}${emShareBadge(e.id, e.quoteNo)}</span></td>
-        <td style="white-space:nowrap">${e.participants}명 / ${e.days}일</td>
-        <td class="em-num"><b style="color:var(--primary)">${man(M.sell)}</b><span class="em-sub">1인당 ${man(per)}</span></td>
+        <td style="white-space:nowrap">${e.participants ? e.participants + '명' : '—'} / ${e.days ? e.days + '일' : '—'}</td>
+        ${/* 금액이 0이면 「₩0만」이 아니라 **적지 않았다**고 말한다 (2026-09-27) — 직접 작성 초안이 그렇게 저장된다 */''}
+        <td class="em-num">${M.sell > 0
+          ? `<b style="color:var(--primary)">${man(M.sell)}</b><span class="em-sub">1인당 ${man(per)}</span>`
+          : '<b style="color:var(--muted);font-weight:600">금액 미입력</b>'}</td>
         <td class="em-num" title="${M.known ? '원가 ' + man(M.cost) + ' · 이익 = 청구 금액 − 원가' : '이 견적 기록에 원가가 없습니다'}">${rateCell}</td>
         <td><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span>${verifyBadgeHtml(e)}${emNeedsActual(e)?' <span class="badge-need-actual" title="실제 총 계약가가 비어 있습니다 — 상세에서 넣어 주세요">💰 실적</span>':''}</td>
         <td>${assigneeSelectHtml(e.assignee, `data-id="${safeId(e.id)}" onchange="updateAssignee(this,'quote')"`)}</td>
