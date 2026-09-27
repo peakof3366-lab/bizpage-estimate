@@ -52,16 +52,18 @@
 <!-- ══ LOGIN ════════════════════════════════════ -->
 <div id="loginPage">
   <div class="login-box">
-    <div class="login-logo">비즈페이지</div>
+    <!-- ⚠ 2026-09-27 글자 대신 다른 화면과 같은 로고(흰 상자 위라 컬러판) -->
+    <div class="login-logo"><img src="이미지/biz-logo.svg" alt="비즈페이지" style="height:34px;display:block;margin:0 auto"></div>
     <div class="login-sub">관리자 로그인</div>
     <form id="loginForm">
       <div class="field">
-        <label>아이디</label>
-        <input type="text" id="adminId" placeholder="admin" autocomplete="username" required />
+        <!-- ⚠ 2026-09-27 예시 글씨 「admin」·「••••••••」가 **이미 입력된 값처럼** 보였다(관리자 아이디도 드러냈다) -->
+        <label for="adminId">아이디</label>
+        <input type="text" id="adminId" placeholder="아이디" autocomplete="username" required />
       </div>
       <div class="field">
-        <label>비밀번호</label>
-        <input type="password" id="adminPw" placeholder="••••••••" autocomplete="current-password" required />
+        <label for="adminPw">비밀번호</label>
+        <input type="password" id="adminPw" placeholder="비밀번호" autocomplete="current-password" required />
       </div>
       <p id="loginErr" class="err-msg hidden">아이디 또는 비밀번호가 올바르지 않습니다.</p>
       <button type="submit" class="btn-login">로그인</button>

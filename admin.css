@@ -51,10 +51,11 @@
       letter-spacing: .06em; text-transform: uppercase; margin-bottom: .6rem;
       padding-bottom: .6rem; border-bottom: 2px solid var(--primary); display: inline-block; width: 100%;
     }
-    .login-sub  { text-align: center; color: var(--muted); font-size: .68rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; margin: 1.1rem 0 2rem; }
+    /* ⚠ 한글에 영문용 자간·대문자 변환을 걷었다 (2026-09-27, CLAUDE.md 화면 규칙) */
+    .login-sub  { text-align: center; color: var(--muted); font-size: .8rem; font-weight: 700; margin: 1.1rem 0 2rem; }
     .field { margin-bottom: 1.1rem; }
-    .field label { display: block; font-weight: 700; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--heading); margin-bottom: .5rem; }
-    .field input { width: 100%; padding: .75rem 1rem; border: 1.5px solid var(--border); background: var(--white); color: var(--text); font-size: .9rem; border-radius: var(--r); transition: border-color .2s; }
+    .field label { display: block; font-weight: 700; font-size: .78rem; color: var(--heading); margin-bottom: .5rem; }
+    .field input { width: 100%; padding: .75rem 1rem; border: 1.5px solid var(--border); background: var(--white); color: var(--text); font-family: inherit; font-size: .9rem; border-radius: var(--r); transition: border-color .2s; }
     .field input:focus { outline: none; border-color: var(--primary); }
     .err-msg { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: .65rem 1rem; font-size: .82rem; margin-bottom: .75rem; border-radius: var(--r); }
     .btn-login { width: 100%; padding: .85rem; background: var(--primary); color: #fff; border: none; font-size: .95rem; font-weight: 700; border-radius: var(--r); transition: background .2s; margin-top: .25rem; }
