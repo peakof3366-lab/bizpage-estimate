@@ -145,7 +145,7 @@
              줄 알고, 그 건은 영영 번호 없이 남는다(결함 생성기 ②). */''}
         <td class="em-qno">${e.quoteNo
           ? `<strong>${esc(e.quoteNo)}</strong>`
-          : '<span title="번호가 없는 건입니다 — ai-loop/backfill_quote_no.js로 붙입니다" style="color:var(--warn)">번호 없음</span>'}<span class="em-sub date-col">${fmtDate(e.ts)}</span></td>
+          : '<span title="번호가 없는 옛 건입니다 — 번호 붙이기는 개발 담당에게 요청하세요" style="color:var(--warn)">번호 없음</span>'}<span class="em-sub date-col">${fmtDate(e.ts)}</span></td>
         <td class="em-who"><strong>${esc(e.orgName||'(기관명 없음)')}</strong><span class="em-sub">${esc(e.destLabel||e.destKey||'-')}${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}${emShareBadge(e.id)}</span></td>
         <td style="white-space:nowrap">${e.participants}명 / ${e.days}일</td>
         <td class="em-num"><b style="color:var(--primary)">${man(M.sell)}</b><span class="em-sub">1인당 ${man(per)}</span></td>
@@ -286,7 +286,7 @@
       chip('비즈', biz),
       chip('리드', lead),
       chip('피크', peak, peakNote),
-      (volScale < 1 ? chip('변동상한', volScale, `P11 ${COEF_VOL_CAP} 초과 축소`) : ''),
+      (volScale < 1 ? chip('변동상한', volScale, `변동 폭이 ${COEF_VOL_CAP}배를 넘어 줄임`) : ''),
     ].join('');
     const fuelChips = [
       chip('시즌', season, seasonNote),
