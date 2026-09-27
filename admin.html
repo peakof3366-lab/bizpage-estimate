@@ -1902,7 +1902,8 @@
       <div id="em-verify-block" style="padding:0 1.25rem"></div>
 
       <!-- 상단: 기본 정보 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+      <!-- ⚠ display는 클래스로 준다 — 인라인으로 두면 고객용 탭을 덮는 규칙을 이긴다(2026-09-27 실제로 샜다) -->
+      <div class="em-sec-info">
         <div style="padding:1.1rem 1.25rem;border-right:1px solid var(--border)">
           <div class="detail-label">기관 정보</div>
           <div id="em-orginfo" style="font-size:.88rem;margin-top:.4rem;line-height:1.8"></div>

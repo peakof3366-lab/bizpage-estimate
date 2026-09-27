@@ -1400,8 +1400,12 @@
 .em-tab[aria-pressed="true"] { background:#fff; color:var(--text); border-color:var(--ink);
   box-shadow:inset 0 3px 0 var(--ink); }
 .em-tab-note { font-size:.74rem; color:var(--muted); margin-left:auto; }
-#emModalBody[data-emtab="cust"] > *:not(.em-tabbar):not(#emTabCust) { display:none; }
-#emModalBody[data-emtab="staff"] > #emTabCust { display:none; }
+/* 🔴 `!important` (2026-09-27) — 없을 때 **인라인 `display:grid`가 이 규칙을 이겨서** 「기관 정보·
+     연수 조건」 칸(내부 산출·계수)이 **고객용 탭에 그대로 떠 있었다**(2026-09-23부터). 칸이 늘 때마다
+     인라인 display를 찾아 지울 수는 없다 — 덮는 쪽이 이기게 한다. */
+#emModalBody[data-emtab="cust"] > *:not(.em-tabbar):not(#emTabCust) { display:none !important; }
+#emModalBody[data-emtab="staff"] > #emTabCust { display:none !important; }
+#emModal .em-sec-info { display:grid; grid-template-columns:1fr 1fr; gap:0; border-bottom:1px solid var(--border); }
 
 /* 고객용 칸 — 문서 사이를 갈라 「세 장」임이 보이게 한다(고객 화면과 같은 언어) */
 .em-cust-head { display:flex; align-items:center; padding:.9rem 1.25rem .2rem; }

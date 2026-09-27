@@ -147,6 +147,18 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/
   ok('[5-l] 강조 버튼은 발급 하나다', Array.from(bar.querySelectorAll('.btn-primary')).map((x) => (x.textContent || '').trim()).join() === '🔗 견적서 링크 발급');
   ok('[5-e] 🔴 CSS가 창 아래에 붙인다',
     /#emModal \.em-actbar\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0/.test(CSS));
+  /* 🔴 (2026-09-27) 「기관 정보·연수 조건」 칸이 **인라인 display:grid로 덮는 규칙을 이겨**
+     고객용 탭에 떠 있었다(9/23부터). jsdom이 인라인·!important 우열을 믿을 만큼 계산하는지
+     모르므로 **소스로도** 잠근다: 덮는 규칙이 !important이고, 직계 칸에 인라인 display가 없다. */
+  const custLeak = Array.from(body.children).filter((c) => !c.classList.contains('em-tabbar')
+    && c.id !== 'emTabCust' && B.win.getComputedStyle(c).display !== 'none');
+  ok('[5-m] 🔴 고객용 탭에 직원용 칸이 하나도 안 보인다', custLeak.length === 0,
+    custLeak.map((c) => c.id || c.className || c.tagName).join(','));
+  ok('[5-n] 🔴 덮는 규칙이 !important다 (인라인 display에 지지 않게)',
+    /#emModalBody\[data-emtab="cust"\] > \*:not\(\.em-tabbar\):not\(#emTabCust\) \{ display:none !important; \}/.test(CSS));
+  const inlineDisp = Array.from(body.children).filter((c) => /display\s*:/.test(c.getAttribute('style') || ''));
+  ok('[5-o] 본문 직계 칸에 인라인 display가 없다', inlineDisp.length === 0,
+    inlineDisp.map((c) => c.id || c.className || c.tagName).join(','));
   ok('[5-f] 🔴 고객용 탭에서는 덮인다 (고객용엔 원가 칸이 없다 — 저장할 것도 없다)',
     B.win.getComputedStyle(bar).display === 'none', B.win.getComputedStyle(bar).display);
   run("emSetTab('staff');");
