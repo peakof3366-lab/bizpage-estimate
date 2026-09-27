@@ -76,6 +76,15 @@
       return adminGetCombinedStatus(d.destination_key, effDate(d)).status === rateFilter;
     };
     const searched = destinationRates.filter(d => matchesSearch(d) && matchesFilter(d));
+    /* 0건일 때 **무엇 때문에 0건인지** 말한다 (2026-09-27). 「갱신 필요」가 0건인 것은 좋은 소식인데
+       「조건에 맞는 목적지가 없습니다」라고만 해서 검색이 잘못된 것처럼 읽혔다. */
+    const rateEmptyMsg = (qq) => qq
+      ? '「' + esc(qq) + '」' + josa(qq, '과', '와') + ' 맞는 목적지가 없습니다 — 검색어를 지우거나 필터를 「전체」로 바꿔 보세요.'
+      : ({ stale: '✓ 갱신이 필요한 목적지가 없습니다.',
+           check: '✓ 확인을 권하는 목적지가 없습니다.',
+           ok: '최신으로 확인된 목적지가 아직 없습니다 — 표에서 「확인함」을 누르면 여기로 옵니다.',
+           measured: '실측이 붙은 목적지가 아직 없습니다 — 「견적서 업데이트」에 실제 견적서를 넣으면 생깁니다.',
+           estimated: '✓ 모든 목적지에 실측이 있습니다.' }[rateFilter] || '조건에 맞는 목적지가 없습니다.');
 
     const sortMode = document.getElementById('rateSortMode')?.value || 'region';
     const tbody = document.getElementById('rate-tbody');
@@ -101,7 +110,7 @@
         const region = REGION_MAP[d.label] || '기타';
         html += renderRateRow(d, region);
       });
-      if (!sorted.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">검색/필터 조건에 맞는 목적지가 없습니다.</td></tr>`;
+      if (!sorted.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">${rateEmptyMsg(q)}</td></tr>`;
     } else {
       /* 지역순 (기존 방식) */
       const grouped = {};
@@ -122,7 +131,7 @@
         html += `<tr class="rate-region-row"><td colspan="11">${esc(region)}</td></tr>`;
         grouped[region].forEach(d => { html += renderRateRow(d, ''); });
       });
-      if (!searched.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">검색/필터 조건에 맞는 목적지가 없습니다.</td></tr>`;
+      if (!searched.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">${rateEmptyMsg(q)}</td></tr>`;
     }
     tbody.innerHTML = html;
   }
