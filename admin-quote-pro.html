@@ -2090,11 +2090,23 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       internal: !!r.internal,
       margin: !!r.margin,
     }));
-    S.adj = (Array.isArray(inn.adjust) ? inn.adjust : []).map((a) => ({
+    const savedAdj = (Array.isArray(inn.adjust) ? inn.adjust : []).map((a) => ({
       key: a.key || ('adj' + Math.random().toString(36).slice(2, 6)),
       label: a.label || '', qty: a.qty || '', amount: Number(a.amount) || 0,
       kind: a.kind === 'cost' ? 'cost' : 'margin',
     }));
+    /* 🔴 **표준 줄 위에 저장값을 얹는다** (2026-09-27). 예전엔 저장된 줄만 되살려서
+       ① 실무 변수를 저장하지 않은 견적은 고치기 화면에 **머리줄만 있고 줄이 0개**라
+          FOC·인솔자 비용을 적을 자리가 없었고,
+       ② 저장된 줄도 단위(명·건)와 FOC 제안값이 빠져 돌아왔다.
+       덧붙는 줄은 전부 0원이라 총액은 안 움직인다. 저장된 줄의 `kind`는 **그대로** 둔다
+       (옛 저장분을 새 규칙으로 다시 해석하면 원가·마진이 조용히 바뀐다). */
+    buildAdjust({ perPerson: 0 });
+    const adjTmpl = S.adj;
+    S.adj = savedAdj.map((a) => {
+      const t = adjTmpl.find((x) => x.key === a.key);
+      return t ? Object.assign({}, a, { qtyLabel: t.qtyLabel, auto: t.auto, label: a.label || t.label }) : a;
+    }).concat(adjTmpl.filter((t) => !savedAdj.some((a) => a.key === t.key)));
     /* 상세 내용 — `buildDoc`이 내보낸 모양을 뒤집는다(항공만 left/right를 쓴다) */
     S.details = (doc.details || []).map((d) => ({
       label: d.label,

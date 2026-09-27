@@ -148,6 +148,16 @@ ok('[X-d] 🔴 요율 CSV에 단가가 실리고, 운영 값(effectiveRate)을 �
   ok('[J-e] 🔴 관리 화면 스크립트에 「을(를)」 꼴이 남아 있지 않다', leftovers.length === 0, leftovers.join(','));
 }
 
+/* ═══ 고치기 — 실무 변수 줄이 0개로 열리던 것 (2026-09-27) ═══════════════════════════
+   저장된 줄만 되살려서, 실무 변수를 저장하지 않은 견적은 머리줄만 있고 FOC·인솔자 칸이 없었다. */
+{
+  const rs = (PRO.match(/const savedAdj = [\s\S]*?\.concat\(adjTmpl\.filter[^;]*/) || [''])[0];
+  ok('[E] 🔴 고치기에서 표준 실무 변수 줄(FOC 등)이 늘 있다 — 저장값은 그 위에 얹는다',
+    /buildAdjust\(\{ perPerson: 0 \}\)/.test(rs) && /adjTmpl\.filter\(\(t\) => !savedAdj\.some/.test(rs));
+  ok('[E-b] 저장된 줄의 kind를 새 규칙으로 바꾸지 않는다 (원가·마진이 조용히 바뀐다)',
+    /Object\.assign\(\{\}, a, \{ qtyLabel: t\.qtyLabel, auto: t\.auto/.test(rs) && !/kind: t\.kind/.test(rs));
+}
+
 /* ═══ 방문 통계 시간대 — 홀수 시 방문이 버려졌다 (2026-09-27) ═══════════════════════
    짝수 시만 골라 그려서(filter i%2===0) 1·3·…·15시 방문이 그래프에서 통째로 사라졌다. */
 {
