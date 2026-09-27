@@ -134,6 +134,13 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/
   ok('[5-b] 🔴 본문의 **직계 자식**이다 (아니면 sticky가 안 붙는다)', !!bar && bar.parentElement === body,
     bar && bar.parentElement ? bar.parentElement.id || bar.parentElement.className : '');
   ok('[5-c] 본문의 맨 끝이다', !!bar && body.lastElementChild === bar);
+  /* S-1 ④ (2026-09-27): 「기관 정보·연수 조건」은 한 줄 요약·고치기 ①과 겹쳐 「자세히」로 접었다.
+     🔴 접는 김에 **고객 담당자 이름**이 숨으면 안 된다 — 한 줄 요약으로 올렸다. */
+  const info = D.getElementById('em-sec-info');
+  ok('[10] 기관 정보 칸이 「자세히」 안에 있다 (지운 것이 아니다)',
+    !!info && D.getElementById('em-more-box').contains(info));
+  ok('[10-b] 🔴 고객 담당자 이름이 한 줄 요약에 있다',
+    /담당 \[가상\] 김담당/.test(txt(D.getElementById('em-head-sum'))), txt(D.getElementById('em-head-sum')));
   ok('[5-d] 발급 버튼과 「보낼 문서」 체크가 같은 줄에 있다',
     !!bar && !!bar.querySelector('#emPartBd') && !!bar.querySelector('#emPartIti')
     && /issueShareLink\(\)/.test(bar.innerHTML));

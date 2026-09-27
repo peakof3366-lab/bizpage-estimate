@@ -1242,7 +1242,9 @@
        **열 때 옮긴다** — 되돌리기도 한 줄이다.
      ⚠ 한 번만 옮긴다. 열 때마다 옮기면 이미 옮긴 것을 또 찾다가 순서가 뒤집힌다.
      ⚠ **지운 것이 아니다.** 「자세히」를 누르면 예전 그대로 전부 있다. */
-  const EM_MORE_IDS = ['em-sec-items', 'em-sec-money', 'em-confidence', 'em-profit-summary',
+  /* ⚠ 2026-09-27 `em-sec-info`(기관 정보·연수 조건)를 맨 앞에 더했다(S-1 ④) — 한 줄 요약과
+     고치기 ①여행정보가 같은 말을 한다. 고객 담당자 이름은 한 줄 요약으로 올렸다. */
+  const EM_MORE_IDS = ['em-sec-info', 'em-sec-items', 'em-sec-money', 'em-confidence', 'em-profit-summary',
     'em-coef-contrib', 'em-sec-actual', 'em-sec-iti', 'em-sec-log'];
   let emMoved = false;
   function emCollapseExtras() {
@@ -1267,7 +1269,8 @@
     el.innerHTML = '<div class="em-sum-row">'
       + '<b>' + esc(e.orgName || '(기관명 없음)') + '</b>'
       + '<span>' + esc(e.destLabel || e.destKey || '-') + ' · '
-      + (Number(e.participants) || 0) + '명 · ' + (Number(e.days) || 0) + '일</span>'
+      + (Number(e.participants) || 0) + '명 · ' + (Number(e.days) || 0) + '일'
+      + (e.contact ? ' · 담당 ' + esc(e.contact) : '') + '</span>'
       + '<span class="em-sum-money">' + won(sell) + '</span>'
       + (rate !== null ? '<span class="em-sum-rate" style="color:'
         + (low ? 'var(--danger)' : 'var(--success)') + '">이익률 '
@@ -1286,8 +1289,8 @@
     const sum = document.getElementById('em-more-sum');
     if (sum) {
       sum.textContent = done
-        ? '자세히 — 원가·수익·요율·실적·일정·진행 기록'
-        : '자세히 — 원가·수익·요율·일정·진행 기록';
+        ? '자세히 — 기관 정보·원가·수익·요율·실적·일정·진행 기록'
+        : '자세히 — 기관 정보·원가·수익·요율·일정·진행 기록';
     }
   }
 

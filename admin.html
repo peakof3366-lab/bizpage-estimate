@@ -1897,7 +1897,9 @@
 
       <!-- 상단: 기본 정보 -->
       <!-- ⚠ display는 클래스로 준다 — 인라인으로 두면 고객용 탭을 덮는 규칙을 이긴다(2026-09-27 실제로 샜다) -->
-      <div class="em-sec-info">
+      <!-- ⚠ 2026-09-27 「자세히」로 접는다(S-1 ④) — 한 줄 요약·고치기 ①여행정보와 겹친다.
+           고객 담당자 이름만 한 줄 요약으로 올렸다(자주 보는 값이라). -->
+      <div class="em-sec-info" id="em-sec-info">
         <div style="padding:1.1rem 1.25rem;border-right:1px solid var(--border)">
           <div class="detail-label">기관 정보</div>
           <div id="em-orginfo" style="font-size:.88rem;margin-top:.4rem;line-height:1.8"></div>
@@ -2128,7 +2130,7 @@
 
         <!-- 접어 둔 것들이 여기로 옮겨 온다(자바스크립트가 옮긴다) -->
         <details class="em-more" id="em-more">
-          <summary class="fold-note" id="em-more-sum">자세히 — 원가·수익·요율·실적·일정·진행 기록</summary>
+          <summary class="fold-note" id="em-more-sum">자세히 — 기관 정보·원가·수익·요율·실적·일정·진행 기록</summary>
           <div id="em-more-box"></div>
         </details>
 
