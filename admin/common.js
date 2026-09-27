@@ -88,7 +88,10 @@
     const ch = core.slice(-1);
     const c = ch.charCodeAt(0);
     if (!(c >= 0xAC00 && c <= 0xD7A3)) return withBatchim + '(' + without + ')';
-    return (c - 0xAC00) % 28 ? withBatchim : without;
+    const jong = (c - 0xAC00) % 28;
+    /* 「으로/로」만 ㄹ 받침(8)이 예외다 — 「철로」·「서울로」. */
+    if (withBatchim === '으로' && jong === 8) return without;
+    return jong ? withBatchim : without;
   };
   const fmtBadTs = (ts) => ts == null || ts === '' || isNaN(new Date(ts).getTime());
   const fmtDate  = (ts) => fmtBadTs(ts) ? '—' : new Date(ts).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'})+' '+new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});

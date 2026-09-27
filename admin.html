@@ -3048,7 +3048,7 @@
     const prev = selectEl.dataset.prev !== undefined ? selectEl.dataset.prev : '';
     const next = selectEl.value;
     if (next === prev) return true;
-    const ok = confirm(`담당자를 "${prev || '미배정'}"에서 "${next || '미배정'}"(으)로 변경하시겠습니까?`);
+    const ok = confirm(`담당자를 "${prev || '미배정'}"에서 "${next || '미배정'}"${josa(next || '미배정', '으로', '로')} 바꾸시겠습니까?`);
     if (!ok) { selectEl.value = prev; return false; }
     selectEl.dataset.prev = next;
     return true;
