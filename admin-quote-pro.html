@@ -1965,6 +1965,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
                어느 건을 다시 열어야 하는지가 유일한 단서다. */
         show('✅ 견적 관리 업로드 완료', false, true);
         savedNewOnce = true;
+        emitEdit('created');
         return;
       }
 
@@ -1994,6 +1995,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       }
       show('✅ 견적 관리 업로드 완료', false, true);
       savedNewOnce = true;
+      emitEdit('created');
     } catch (e) {
       show('저장에 실패했습니다: ' + e.message, true);
     } finally {

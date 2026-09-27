@@ -73,6 +73,10 @@ ok('[D] 🔴 새 견적 저장 뒤 다시 누르면 묻는다 (두 경로 모두
   /if \(savedNewOnce && !EDIT_ID[\s\S]{0,40}!confirm\(/.test(PRO)
   && (PRO.match(/savedNewOnce = true;/g) || []).length === 2);
 
+/* 저장하면 견적 관리 목록이 바로 다시 읽힌다 — 「업로드 완료」인데 목록에 없으면 다시 만든다 */
+ok('[D-b] 🔴 새 견적 저장이 바깥에 알린다 (두 경로)', (PRO.match(/emitEdit\('created'\)/g) || []).length === 2);
+ok('[D-c] 🔴 바깥은 알림을 받으면 목록을 다시 읽는다', /d\.__aqp === 'created'[\s\S]{0,200}loadRemoteData\(\)/.test(EST));
+
 /* ═══ 조사 — 「을(를)」·「이(가)」가 화면에 그대로 찍혔다 (2026-09-27) ═══════════════ */
 {
   const src = read(path.join('admin', 'common.js'));

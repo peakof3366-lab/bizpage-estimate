@@ -1195,6 +1195,15 @@
   window.addEventListener('message', (ev) => {
     const d = ev && ev.data;
     if (!d || !d.__aqp) return;
+    /* 🔴 2026-09-27 새 견적이 저장됐다(자동 견적 산출·직접 견적 작성 어느 틀이든) — **목록을 바로 다시 읽는다.**
+       예전엔 「견적 관리 업로드 완료」라고 해 놓고 견적 관리로 가면 그 건이 **안 보였다**(다음 동기화 전까지).
+       담당자는 실패한 줄 알고 다시 만든다. 어느 틀에서 왔든 받는다(목록 갱신은 해가 없다). */
+    if (d.__aqp === 'created') {
+      Promise.resolve(typeof loadRemoteData === 'function' ? loadRemoteData() : null)
+        .catch(() => {})
+        .then(() => { if (typeof currentTab !== 'undefined' && currentTab === 'estmgr') renderEstMgr(); });
+      return;
+    }
     const st = document.getElementById('em-edit-state');
     /* 🔴 **보낸 창이 이 틀인지 본다.** 「자동 견적 산출」 탭도 같은 편집 화면을 틀에 넣어 쓰므로,
        안 보면 그쪽의 키 알림에 견적 상세 틀이 늘었다 줄었다 한다. */
