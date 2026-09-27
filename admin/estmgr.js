@@ -123,7 +123,7 @@
       const p = emEmpty.querySelector('p');
       if (p) p.textContent = (emFilter !== 'all' || emSearch) && all.length
         ? '조건에 맞는 견적이 없습니다 — 필터를 「전체」로 바꾸거나 검색어를 지워 보세요.'
-        : '아직 산출된 견적이 없습니다.';
+        : '아직 산출된 견적이 없습니다 — 고객이 홈페이지에서 견적을 내거나, 왼쪽 「견적 산출」에서 만들면 여기에 쌓입니다.';
       emEmpty.classList.remove('hidden'); emTable.classList.add('hidden'); emPager.innerHTML=''; return;
     }
     emEmpty.classList.add('hidden'); emTable.classList.remove('hidden');

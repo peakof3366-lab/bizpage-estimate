@@ -470,7 +470,7 @@
       </div>
       <div class="card">
         <div id="inqEmpty" class="empty-state"><div class="empty-icon">📭</div>
-          <p>아직 들어온 문의가 없습니다.</p></div>
+          <p>아직 들어온 문의가 없습니다 — 홈페이지 문의·상담 신청이 들어오면 여기에 쌓이고, 이 메뉴에 배지가 붙습니다.</p></div>
         <!-- 🔴 표가 눌리지 않게 — 좁은 화면에서는 옆으로 민다 (2026-09-14).
              감싼 카드가 overflow:hidden이라 그냥 두면 칸이 **짓눌려 글자가 두 줄로 꺾인다.**
              요율 표가 이미 쓰는 방식과 같다(그쪽도 안쪽에 이 감싸개가 있다). -->
@@ -533,7 +533,7 @@
       <!-- 테이블 -->
       <div class="card" style="overflow:hidden">
         <div id="emEmpty" class="empty-state"><div class="empty-icon">📋</div>
-          <p>아직 산출된 견적이 없습니다.</p></div>
+          <p>아직 산출된 견적이 없습니다 — 고객이 홈페이지에서 견적을 내거나, 왼쪽 「견적 산출」에서 만들면 여기에 쌓입니다.</p></div>
         <!-- 🔴 표가 눌리지 않게 — 좁은 화면에서는 옆으로 민다 (2026-09-14).
              감싼 카드가 overflow:hidden이라 그냥 두면 칸이 **짓눌려 글자가 두 줄로 꺾인다.**
              요율 표가 이미 쓰는 방식과 같다(그쪽도 안쪽에 이 감싸개가 있다). -->
@@ -1631,13 +1631,14 @@
     <div class="tab-panel" id="tab-settings">
       <div class="page-head">
         <h1 class="page-title">설정</h1>
-        <p class="page-sub">내 계정과 팀원 계정을 관리합니다. 팀원 가입코드도 여기서 만듭니다.</p>
+        <p class="page-sub">내 비밀번호를 바꿉니다. 관리자는 팀원 계정과 가입코드도 여기서 관리합니다.</p>
       </div>
       <div style="max-width:680px">
         <div class="setting-section">
           <div class="setting-title">계정 정보</div>
           <div class="setting-row">
-            <div class="setting-info"><p>관리자 아이디 <span class="info-tag">고정</span></p><span>admin</span></div>
+            <!-- 🔴 2026-09-27 「admin」이 **HTML에 박혀** 있었다 — 직원(lee)이 열어도 남의 아이디가 보였다. 로그인한 사람으로 채운다 -->
+            <div class="setting-info"><p>내 아이디 <span class="info-tag">고정</span></p><span id="myAccountId">—</span></div>
           </div>
           <div class="setting-row">
             <div class="setting-info"><p>비밀번호 변경</p><span>현재 비밀번호 입력 후 새 비밀번호를 설정합니다.</span></div>
@@ -2662,6 +2663,8 @@
       if (!res.ok) return false;
       currentUser = await res.json();
       document.getElementById('currentUserName').textContent = currentUser.displayName;
+      { const mine = document.getElementById('myAccountId');
+        if (mine) mine.textContent = (currentUser.username || '—') + (currentUser.displayName ? ' (' + currentUser.displayName + ')' : ''); }
       document.getElementById('currentUserRole').textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
       return true;
     } catch { return false; }
@@ -4130,7 +4133,9 @@
         <span class="recent-org">${esc(c.org||'—')}</span>
         <span class="recent-msg">${esc(c.message)}</span>
         <span class="recent-time">${fmtDateS(c.timestamp)}</span>
-      </div>`).join('') : '';
+      </div>`).join('')
+      /* ⚠ 2026-09-27 비어 있으면 **말한다** — 빈 카드만 남아 고장인지 없는 건지 몰랐다(화면 규칙 ②) */
+      : '<p style="font-size:.84rem;color:var(--muted);margin:0;line-height:1.7">아직 들어온 문의가 없습니다 — 홈페이지 문의·상담 신청이 들어오면 여기에 뜨고, 왼쪽 「문의 관리」에 배지가 붙습니다.</p>';
 
     /* Visit chart (7 days) */
     renderBarChart('visit-chart', buildDailyData(visits, 7), 100);
@@ -4204,7 +4209,7 @@
       const p = empty.querySelector('p');
       if (p) p.textContent = filtered && get(KEYS.contacts).length
         ? '조건에 맞는 문의가 없습니다 — 필터를 「전체」로 바꾸거나 검색어를 지워 보세요.'
-        : '아직 들어온 문의가 없습니다.';
+        : '아직 들어온 문의가 없습니다 — 홈페이지 문의·상담 신청이 들어오면 여기에 쌓이고, 이 메뉴에 배지가 붙습니다.';
       empty.classList.remove('hidden'); tbl.classList.add('hidden'); pager.innerHTML=''; return;
     }
     empty.classList.add('hidden'); tbl.classList.remove('hidden');
