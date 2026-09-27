@@ -90,6 +90,15 @@ const rateCsv = (ADMIN.match(/function exportRatesCsv\(\)[\s\S]*?\n  \}/) || [''
 ok('[X-d] 🔴 요율 CSV에 단가가 실리고, 운영 값(effectiveRate)을 쓴다',
   /RATE_FIELD_ORDER/.test(rateCsv) && /effectiveRate\(d0\)/.test(rateCsv));
 
+/* ═══ 사이드바 배지는 setSideBadge 한 곳으로 (2026-09-27) ═══════════════════════════
+   대시보드가 배지 글자를 직접 덮어써서, 배지는 「1」인데 「지금 할 일」엔 미확인 문의가 빠져 있었다. */
+{
+  const srcs = [ADMIN, noComments(read(path.join('admin', 'packages.js')))].join('\n');
+  const direct = srcs.match(/(badge|el|b)\.textContent\s*=\s*[^;]*;[^\n]*\n?[^\n]*\.style\.display\s*=/g) || [];
+  /* setSideBadge 본문 하나만 허용한다 */
+  ok('[B] 🔴 배지를 직접 쓰는 곳이 setSideBadge 하나뿐이다', direct.length <= 1, direct.length + '곳');
+}
+
 /* ═══ 조사 — 「을(를)」·「이(가)」가 화면에 그대로 찍혔다 (2026-09-27) ═══════════════ */
 {
   const src = read(path.join('admin', 'common.js'));

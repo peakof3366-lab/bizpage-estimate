@@ -104,10 +104,9 @@
        이미 하고 있어서, 여기까지 세면 배지가 늘 켜져 있고 그러면 아무도 안 본다. */
     const stale = pkgAll.filter(p => p.status === 'open' && (p.kind || 'catalog') === 'catalog'
       && (pkgDaysSince(p.priceAsOf) ?? 0) > PKG_STALE_DAYS);
-    const badge = document.getElementById('sb-pkg-stale');
-    if (badge) {
-      badge.textContent = stale.length || '';
-      badge.style.display = stale.length ? '' : 'none';
+    /* ⚠ 2026-09-27 `setSideBadge`를 지난다 — 직접 쓰면 「지금 할 일」 카드가 따라오지 않았다 */
+    if (typeof setSideBadge === 'function') {
+      setSideBadge('sb-pkg-stale', stale.length ? String(stale.length) : '', stale.length ? `금액 확인이 오래된 패키지 ${stale.length}건` : '');
     }
     const note = document.getElementById('pkgStaleNote');
     if (note) {

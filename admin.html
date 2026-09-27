@@ -2798,11 +2798,8 @@
   function updatePendingSignupBadge() {
     const badge = document.getElementById('sb-pending-signup');
     if (!badge) return;
-    const show = (text, title) => {
-      badge.textContent = text;
-      badge.title = title;
-      badge.style.display = text ? '' : 'none';
-    };
+    /* ⚠ 2026-09-27 `setSideBadge`를 지난다 — 직접 쓰면 「지금 할 일」 카드가 다른 배지가 바뀔 때에야 따라왔다 */
+    const show = (text, title) => setSideBadge('sb-pending-signup', text, title);
     /* 승인은 관리자만 할 수 있다(account.js updateStaff = requireRole owner).
        매니저·직원에게 띄우면 아무도 처리할 수 없는 알림이 된다. */
     if (!currentUser || currentUser.role !== 'owner') { show('', ''); return; }
@@ -4119,9 +4116,10 @@
     document.getElementById('d-kakao').textContent        = kakao;
     document.getElementById('d-est-count').textContent    = events['estimate_complete']||0;
 
-    /* 사이드바 미확인 배지 업데이트 */
-    const badge = document.getElementById('sb-unread');
-    if (badge) { badge.textContent = unread > 0 ? unread : ''; badge.style.display = unread > 0 ? '' : 'none'; }
+    /* 사이드바 미확인 배지 업데이트
+       🔴 2026-09-27 배지 글자를 **직접 덮어쓰지 않는다** — `setSideBadge` 한 곳을 지나야 「지금 할 일」 카드와
+       접힌 묶음 합계가 같이 바뀐다. 직접 쓰면 배지는 「1」인데 할 일 카드엔 미확인 문의가 **빠져** 있었다(실측). */
+    setSideBadge('sb-unread', unread > 0 ? String(unread) : '', unread > 0 ? `미확인 문의 ${unread}건` : '');
 
     /* Recent 5 */
     const rl = document.getElementById('recent-list');
