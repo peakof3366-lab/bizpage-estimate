@@ -59,7 +59,35 @@ ok('[1] 🔴 칸마다 「저장」 버튼이 없다 (110개였다)', fieldFn &&
 ok('[1-b] 결과 표시(저장됨·실패)는 칸 옆에 남아 있다', /class="cms-field-msg"/.test(fieldFn));
 ok('[1-c] 저장 버튼은 하나다', (ADMIN.match(/onclick="saveAllContent\(\)"/g) || []).length === 1);
 ok('[1-d] 🔴 고친 칸은 **캐시와 값 비교**로 센다 (건드린 것으로 세면 되돌린 칸까지 간다)',
-  /function cmsDirtyFields\(\)[\s\S]{0,300}el\.value !== \(contentOverridesCache\[f\.key\] \|\| ''\)/.test(ADMIN));
+  /function cmsDirtyFields\(\)[\s\S]{0,300}cmsStoreValue\(f\.key, el\.value\) !== \(contentOverridesCache\[f\.key\] \|\| ''\)/.test(ADMIN));
+/* 🔴 칸에 지금 나가는 글을 넣는다 (2026-09-27) — 비어 있고 회색 placeholder뿐이라 긴 FAQ 답변의 오타 하나에
+   답변 전체를 다시 쳐야 했다. 대신 기본 문구와 같은 값은 빈 값으로 저장해 기본값을 덮어쓴 칸으로 굳지 않게 한다. */
+{
+  const m = ADMIN.match(/function cmsStoreValue\(key, raw\) \{[\s\S]*?\n  \}/);
+  let fn = null;
+  try { fn = m && new Function('CMS_FIELDS', m[0] + '; return cmsStoreValue;')([{ key: 'faq.1.a', def: '기본 답변' }]); } catch (e) { fn = null; }
+  ok('[1-j] 기본 문구 그대로면 빈 값으로 저장한다(기본값을 덮어쓰지 않는다)', !!fn && fn('faq.1.a', '기본 답변') === '');
+  ok('[1-k] 고친 글은 그대로 저장한다', !!fn && fn('faq.1.a', '기본 답변!') === '기본 답변!');
+  ok('[1-l] 🔴 칸에는 지금 나가는 글이 들어 있다 (placeholder만이 아니다)',
+    /const shown\s*= val \|\| f\.def/.test(ADMIN) && /value="\$\{esc\(shown\)\}"/.test(ADMIN) && />\$\{esc\(shown\)\}<\/textarea>/.test(ADMIN));
+}
+/* 🔴 칸에 넣는 기본 문구가 **지금 홈페이지 글과 같아야** 한다 — 이제 그 글을 「지금 나가는 글」로 보여준다.
+   index.html만 고치고 여기를 안 고치면 담당자는 틀린 글을 현재 글로 믿고 고친다(결함 생성기 ①). */
+{
+  const RAW = read('admin.html');
+  const a = RAW.indexOf('  const CMS_FIELDS = ['), b = RAW.indexOf('  let contentOverridesCache');
+  let F = null;
+  try { F = new Function(RAW.slice(a, b) + '; return CMS_FIELDS;')(); } catch (e) { F = null; }
+  const { JSDOM } = require('jsdom');
+  const home = new JSDOM(read('index.html')).window.document;
+  const n = (s) => String(s || '').replace(/\s+/g, '');
+  const diff = (F || []).filter((f) => {
+    const el = home.querySelector('[data-cms-key="' + f.key + '"]');
+    return !el || n(f.type === 'img' ? el.getAttribute('src') : el.textContent) !== n(f.def);
+  }).map((f) => f.key);
+  ok('[1-m] 🔴 콘텐츠 칸 기본 문구 110개가 홈페이지 글과 같다', !!F && F.length >= 100 && diff.length === 0,
+    (F ? F.length + '칸 · 다름 ' : '못 읽음 ') + diff.slice(0, 5).join(','));
+}
 ok('[1-e] 🔴 저장은 예전 경로(saveContentField)를 그대로 탄다', /await saveContentField\(f\.key,/.test(ADMIN));
 ok('[1-f] 🔴 저장 안 한 채 다른 탭으로 가면 묻는다', /function switchTab\(name\) \{\s*\n[^\n]*\n?\s*if \(name !== currentTab && typeof cmsLeaveGuard === 'function' && !cmsLeaveGuard\(\)\) return;/.test(read('admin.html')));
 ok('[1-g] 창을 닫을 때도 묻는다', /beforeunload[\s\S]{0,120}cmsDirtyFields\(\)\.length/.test(ADMIN));
