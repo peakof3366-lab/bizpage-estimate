@@ -1498,7 +1498,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       const row = document.createElement('div');
       row.className = 'day';
       row.innerHTML = '<div class="day-h">DAY ' + it.day + ' <span style="font-weight:500;color:var(--t-dim)">' + esc(it.date) + '</span>'
-        + '<span style="flex:1"></span><button type="button" class="btn btn-sm" data-irm="' + i + '" aria-label="DAY ' + it.day + ' 삭제">이 날 삭제</button></div>'
+        + '<span style="flex:1"></span><button type="button" class="btn btn-sm btn-rm" data-irm="' + i + '" aria-label="DAY ' + it.day + ' 삭제">이 날 삭제</button></div>'
         + '<div class="day-b">'
         + '<label class="f"><span>지역</span><input type="text" data-it="' + i + '" data-k="title" value="' + esc(it.title) + '" placeholder="인천 → 다낭" /></label>'
         + '<label class="f"><span>숙박</span><input type="text" data-it="' + i + '" data-k="stay" value="' + esc(it.stay) + '" /></label>'
