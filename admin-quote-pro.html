@@ -950,7 +950,8 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       (el) => !(ADHOC && el.classList.contains('eng-only'))
     ).length;
     const box = $('moreCondSum');
-    if (box && n) box.innerHTML = '세부 조건 ' + n + '칸 <em>그대로 두면 기본값으로 계산합니다</em>';
+    /* 직접 입력은 계산을 안 한다 — 「기본값으로 계산」은 이 모드에선 틀린 말이다 (2026-09-27) */
+    if (box && n) box.innerHTML = '세부 조건 ' + n + '칸 <em>' + (ADHOC ? '견적서 문구(박수·호텔·객실 등)에 쓰입니다 · 그대로 둬도 됩니다' : '그대로 두면 기본값으로 계산합니다') + '</em>';
   })();
 
   $('btnCalc').addEventListener('click', () => {
