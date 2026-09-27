@@ -190,6 +190,8 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
 
 .note { margin: 10px 0 0; padding: 9px 12px; background: var(--warn-bg); border: 1px solid var(--warn-line);
   font-size: 12px; color: var(--warn); line-height: 1.75; max-width: var(--measure); }
+/* ③단계 소제목 — ①먼저 적을 것 · ②노란 칸 · ③더 넣기 (2026-09-27) */
+.doc-step-h { margin: 4px 0 8px; font-size: 14px; color: var(--ink); }
 .note-i { margin: 0 0 12px; padding: 9px 12px; background: #F3F4F6; border-left: 3px solid var(--ink);
   font-size: 12px; color: var(--t-sub); line-height: 1.75; max-width: var(--measure); }
 .note-err { background: #FFF4F5; border-color: var(--red); color: var(--red-dk); }
@@ -416,13 +418,10 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
            틀을 따로 만들면 「보이는 대로 나간다」가 그 순간 거짓이 된다.
          ⚠ 아래 「칸으로 보기」에 **예전 폼을 그대로 남겼다.** 문서에 자리가 없는 값
            (인원 구성·상세 내용 줄 추가 등)은 거기서 손본다. -->
-      <p class="note-i" style="margin-bottom:10px">
-        <b>노란 밑줄이 그어진 자리를 누르면 바로 고쳐집니다.</b>
-        빈 칸으로 두면 <b>견적서에서 그 항목이 통째로 빠집니다</b> — 회색 글씨는 무엇을 적는 자리인지 알려 주는 예시입니다.
-      </p>
-      <div id="docEdit" class="doc-edit"></div>
-
-      <div class="grid" style="margin-top:16px">
+      <!-- 🔴 2026-09-27 이 다섯 칸을 **문서 위로** 올렸다 — 1,119px 문서 **아래**에 있어서
+           「거래처명·유효기간·내부 메모는 어디서 적나」를 못 찾았다(대표). 문서 안에 자리가 없는 값이다. -->
+      <p class="doc-step-h"><b>① 먼저 적을 것</b> — 문서 제목·유효기간·대장에 들어갑니다</p>
+      <div class="grid" style="margin-bottom:18px">
         <label class="f"><span>거래처명 <em>(문서 제목에 들어갑니다)</em></span><input type="text" id="dClient" placeholder="○○기업" /></label>
         <label class="f"><span>견적서 작성일자</span><input type="date" id="dIssue2" /></label>
         <label class="f"><span>유효기간</span><input type="date" id="dValid2" /></label>
@@ -430,8 +429,15 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
         <label class="f" style="grid-column:1/-1"><span>내부 메모 <em>(🔴 고객에게 안 나갑니다)</em></span><textarea id="dMemo2"></textarea></label>
       </div>
 
+      <p class="doc-step-h"><b>② 견적서에서 노란 칸을 눌러 적기</b></p>
+      <p class="note-i" style="margin-bottom:10px">
+        <b>노란 칸을 누르면 바로 고쳐집니다.</b> 점선 칸은 아직 <b>비어 있는</b> 자리입니다 —
+        비워 두면 <b>견적서에서 그 항목이 통째로 빠집니다</b>(흐린 글씨는 무엇을 적는 자리인지 알려 주는 예시).
+      </p>
+      <div id="docEdit" class="doc-edit"></div>
+
       <details class="fold-note" id="docFormFold">
-        <summary class="fold-note" style="margin-top:14px">칸으로 보기 — 전체 목록 (인원 구성 · 상세 내용 줄 추가 · 선택 옵션)</summary>
+        <summary class="fold-note" style="margin-top:14px">③ 견적서에 없는 것 더 넣기 — 상세 내용 <b>줄 추가</b> · 인원 구성(아동·유아) · 선택 옵션 · 전체 칸 목록</summary>
       <div class="grid">
         <label class="f"><span>받는 분 <em>(고객 담당자)</em></span><input type="text" id="dClientContact" placeholder="홍길동" /></label>
         <label class="f"><span>단체명</span><input type="text" id="dOrgName" placeholder="○○기업 해외연수단" /></label>
