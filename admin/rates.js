@@ -26,19 +26,24 @@
     const measured = countMeasuredCells();
 
     /* 메타 배너 */
-    const allStatus   = destinationRates.map(d => adminGetCombinedStatus(d.destination_key, d.rateDate));
+    /* 🔴 2026-09-27 **운영 값(effectiveRate)의 기준월**로 센다 — 줄마다 붙는 배지는 운영 값인데 이 요약·필터는
+       data.js 기본 기준월로 세어, 「🔴 갱신 필요」로 거른 줄과 줄의 배지가 어긋날 수 있었다. */
+    const effDate     = (d) => (typeof effectiveRate === 'function' ? effectiveRate(d) : d).rateDate;
+    const allStatus   = destinationRates.map(d => adminGetCombinedStatus(d.destination_key, effDate(d)));
     const cntOk       = allStatus.filter(s => s.status === 'ok').length;
     const cntCheck    = allStatus.filter(s => s.status === 'check').length;
     const cntStale    = allStatus.filter(s => s.status === 'stale').length;
+    const dates       = destinationRates.map(effDate).filter(Boolean).map(String).sort();
+    const rateNewest  = dates.length ? dates[dates.length - 1] : '';
+    const rateOldest  = dates.length ? dates[0] : '';
     const bannerEl    = document.getElementById('rate-meta-banner');
     if (bannerEl) {
       bannerEl.innerHTML = `
-        <div class="rate-meta-box"><div class="rate-meta-label">요율 버전</div><div class="rate-meta-value">${esc(RATE_META.version)}</div></div>
-        <div class="rate-meta-box"><div class="rate-meta-label">최종 갱신</div><div class="rate-meta-value">${esc(RATE_META.updated)} · ${esc(RATE_META.updatedBy)}</div></div>
-        <div class="rate-meta-box ${cntCheck+cntStale > 0 ? 'warn' : ''}">
-          <div class="rate-meta-label">다음 검토 예정</div>
-          <div class="rate-meta-value">${esc(RATE_META.nextReview)}</div>
-        </div>
+        <!-- ⚠ 2026-09-27 「요율 버전 · 최종 갱신 · 다음 검토 예정」 세 칸을 걷었다 — data.js에 박힌 **고정값**
+             (2026.06.1 · 2026-06 · 2026-09)이라 운영 DB에서 요율을 고쳐도 안 바뀌었고, 「다음 검토 2026-09」는
+             지난 날짜였다. 대신 **운영 값에서 계산한** 가장 최근·가장 오래된 기준월을 보인다. -->
+        <div class="rate-meta-box"><div class="rate-meta-label">가장 최근에 손본 요율</div><div class="rate-meta-value">${esc(rateNewest || '—')}</div></div>
+        <div class="rate-meta-box ${cntCheck+cntStale > 0 ? 'warn' : ''}"><div class="rate-meta-label">가장 오래된 요율</div><div class="rate-meta-value">${esc(rateOldest || '—')}</div></div>
         <div class="rate-meta-box ${cntStale > 0 ? 'danger' : cntCheck > 0 ? 'warn' : ''}">
           <div class="rate-meta-label">상태 요약</div>
           <div class="rate-meta-value">✅ ${cntOk} · ⚠️ ${cntCheck} · 🔴 ${cntStale}</div>
@@ -52,8 +57,9 @@
     }
 
     /* 갱신 안내 — 담당자는 바로 위 메타 배너 "최종 갱신" 박스에 이미 표시되므로 중복 생략 */
+    /* ⚠ 2026-09-27 📌 줄(RATE_META.note — 「초기 버전 관리 체계 구축…」)은 옛 변경 기록이라 걷었다. 비면 감춘다. */
     const infoEl = document.getElementById('rate-update-info');
-    if (infoEl) infoEl.textContent = `📌 ${RATE_META.note}`;
+    if (infoEl) { infoEl.textContent = ''; infoEl.classList.add('hidden'); }
 
     /* 검색어 + 상태 필터를 목적지/지역 구분 없이 먼저 공통 적용 (신규) */
     const q = rateSearchQuery.toLowerCase();
@@ -67,7 +73,7 @@
       if (rateFilter === 'all') return true;
       if (rateFilter === 'estimated') return measuredCount(d) === 0;
       if (rateFilter === 'measured') return measuredCount(d) > 0;
-      return adminGetCombinedStatus(d.destination_key, d.rateDate).status === rateFilter;
+      return adminGetCombinedStatus(d.destination_key, effDate(d)).status === rateFilter;
     };
     const searched = destinationRates.filter(d => matchesSearch(d) && matchesFilter(d));
 
