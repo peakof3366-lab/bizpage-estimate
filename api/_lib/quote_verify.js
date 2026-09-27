@@ -184,8 +184,11 @@ function verifyQuote(payload, ctx = {}) {
     }
     const expected = Math.round(sum * cf);
     /* 반올림이 항목마다 한 번씩 일어나므로 항목 수만큼은 어긋날 수 있다 */
+    /* 🔴 2026-09-28(대기열 0-am (a)): 총액을 「1인 단가 × 인원」으로 맞추므로 엔진 합계와
+       최대 「인원 ÷ 2」원 갈린다. 그 폭을 허용치에 더한다 — 안 더하면 큰 단체 견적이 여기서 떨어져
+       자동 발급이 막힌다. 여전히 좁은 폭이라 위조 총액은 통과하지 못한다. */
     step('sum', '항목 합계 × 계수 = 총액',
-      total !== null && Math.abs(expected - total) <= Math.max(2, items.length),
+      total !== null && Math.abs(expected - total) <= Math.max(2, items.length) + (pax ? Math.ceil(pax / 2) : 0),
       total === null ? '총액 없음'
         : `합계 ${sum.toLocaleString()} × ${cf} = ${expected.toLocaleString()} vs 총액 ${total.toLocaleString()}`);
   }

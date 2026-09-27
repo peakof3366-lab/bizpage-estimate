@@ -1276,6 +1276,14 @@ function getBreakdownData(opts) {
     }
   }
   const perPerson      = participants > 0 ? Math.round(total / participants) : 0;
+  /* 🔴 **총액 = 1인 단가 × 인원** (2026-09-28 대표 결정, 대기열 0-am (a)).
+     예전엔 총액을 엔진 합계로 두고 1인 단가만 반올림해서, 인원으로 나누어떨어지지 않으면
+     화면·인쇄 견적서(엔진 합계)와 링크 견적서(단가 × 인원)가 몇 원씩 달랐다
+     (가상 고객 40명 중 36명, −42 ~ +11원). 고객은 단가에 인원을 **곱해 검산한다** —
+     그래서 총액을 곱한 값으로 맞춘다. 차이는 최대 「인원 ÷ 2」원이다.
+     ⚠ 이 뒤에 계산되는 visibleTotal(우리 몫)이 그 몇 원을 흡수한다. 원가는 안 움직인다.
+     ⚠ 서버 검증(`api/_lib/quote_verify.js` 'sum')의 허용치가 이 폭을 알아야 한다 — 함께 고쳤다. */
+  if (participants > 0) total = perPerson * participants;
 
   /* 관리자용: 비공개 항목만의 합계 */
   const hiddenTotal  = rows.filter(r => r.muted).reduce((s, r) => s + r.amount, 0);

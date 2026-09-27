@@ -84,9 +84,13 @@ const DATE = '2027-05-20';
         /* ④ 🔴 안 걸린 자리는 손대지 않는다 */
         ok(`[4] ${where} ${label} — 보정이 없으면 줄도 없다`, !line);
         const base = (r.rows || []).reduce((s, x) => s + x.amount, 0);
-        ok(`[4-b] ${where} ${label} — 총액이 합계×계수 그대로다`,
-          r.total === Math.round(base * r.combinedFactor),
-          `${r.total} vs ${Math.round(base * r.combinedFactor)}`);
+        /* 2026-09-28(대기열 0-am (a)): 총액 = 1인 단가 × 인원. 합계×계수를 단가로 반올림한 값이다 */
+        const raw = Math.round(base * r.combinedFactor);
+        const pax = r.participants || 0;
+        const want = pax > 0 ? Math.round(raw / pax) * pax : raw;
+        ok(`[4-b] ${where} ${label} — 총액이 합계×계수를 1인 단가로 맞춘 값 그대로다(보정 없음)`,
+          r.total === want && r.total === r.perPerson * (pax || 1) || (pax === 0 && r.total === raw),
+          `${r.total} vs ${want}`);
       }
     });
   });

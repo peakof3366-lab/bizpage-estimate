@@ -84,7 +84,12 @@ const note = (kind, ctx, detail) => problems.push({ kind, ctx, detail });
           }
 
           const rowSum = (bd.rows || []).reduce((a, r) => a + (Number(r.amount) || 0), 0);
-          if (Number.isFinite(bd.total) && Math.abs(rowSum - bd.total) > 2) {
+          /* 2026-09-28(대기열 0-am (a)): 총액 = 1인 단가 × 인원 — 항목 합계와 최대 「인원 ÷ 2」원 갈린다.
+             대신 **총액 = 단가 × 인원은 한 푼도 어긋나면 안 된다**(아래 줄). */
+          if (Number.isFinite(bd.total) && pax > 0 && bd.total !== bd.perPerson * pax) {
+            note('단가곱불일치', ctx, `총액 ${bd.total} vs 1인 ${bd.perPerson} × ${pax}명 = ${bd.perPerson * pax}`);
+          }
+          if (Number.isFinite(bd.total) && Math.abs(rowSum - bd.total) > 2 + Math.ceil(pax / 2)) {
             note('총액불일치', ctx, `행 합계 ${rowSum} vs 총액 ${bd.total} (차이 ${bd.total - rowSum})`);
           }
 

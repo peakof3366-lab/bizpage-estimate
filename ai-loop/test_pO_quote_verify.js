@@ -160,5 +160,25 @@ ok('검증 중 UI가 있다', /id="share-verifying"/.test(scriptSrc));
 ok('검토 필요 UI가 있다', /id="share-review"/.test(scriptSrc));
 ok('검증 애니메이션에 reduced-motion 대응', /prefers-reduced-motion:reduce\)\{[\s\S]{0,160}bp-verify-orb/.test(scriptSrc));
 
+/* ═══ 2026-09-28 대기열 0-am (a): 총액 = 1인 단가 × 인원 ═══════════════════════════════
+   큰 단체는 항목 합계와 총액이 「인원 ÷ 2」원까지 갈린다. 서버 검증이 그 폭을 몰랐다면
+   150명 견적이 'sum'에서 떨어져 **고객 자동 발급이 막혔을 것이다.** 위조는 여전히 막혀야 한다. */
+{
+  const sumStep = (r) => (r.steps || []).find((s) => s.id === 'sum') || {};
+  const S = 300000070, pax = 150;
+  const per = Math.round(S / pax), total = per * pax;   /* 300,000,000 — 합계와 70원 차이 */
+  const big = goodQuote({
+    participants: pax, items: [
+      { name: '항공료', amount: 200000070, unit: 1333334, qty: pax + '명', isHidden: false },
+      { name: '호텔', amount: 70000000, unit: 466667, qty: '75실×4박', isHidden: false },
+      { name: '마진', amount: 30000000, unit: 200000, qty: pax + '명', isHidden: true },
+    ], total, perPerson: per, visibleTotal: total - 30000000, hiddenTotal: 30000000,
+  });
+  const rb = verifyQuote(big, CTX);
+  ok('[0-am] 150명 · 총액 = 단가 × 인원(합계와 70원 차이) — 합계 검사를 통과한다', sumStep(rb).ok === true, sumStep(rb).detail);
+  const forged = verifyQuote(Object.assign({}, big, { total: total + 10000, perPerson: Math.round((total + 10000) / pax) }), CTX);
+  ok('[0-am] 총액을 1만원 부풀리면 여전히 떨어진다', sumStep(forged).ok === false, sumStep(forged).detail);
+}
+
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);
