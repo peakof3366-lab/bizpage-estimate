@@ -23,7 +23,8 @@ if not exist %NODE% set NODE=node
 pushd "%HERE%.."
 echo. >> "%HERE%logs\backup.log"
 echo ==== %date% %time% ==== >> "%HERE%logs\backup.log"
-%NODE% "ai-loop\db_backup.js" >> "%HERE%logs\backup.log" 2>&1
+rem  %* : the logon task passes --skip-if-fresh 20 (fills a day the laptop was off at 18:00)
+%NODE% "ai-loop\db_backup.js" %* >> "%HERE%logs\backup.log" 2>&1
 set CODE=%ERRORLEVEL%
 echo exit=%CODE% >> "%HERE%logs\backup.log"
 popd

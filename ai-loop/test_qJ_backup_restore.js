@@ -151,6 +151,53 @@ const SAMPLE = {
   ok('남긴 개수가 맞다', backupTool.listBackups(dir).length === 2);
   ok('이름 규칙이 다른 파일은 그대로 둔다', fs.existsSync(decoy));
 
+  console.log('\n[4-1] 실패한 날이 멀쩡한 백업을 밀어내지 않는다 (2026-09-26 사고)');
+
+  /* 22개 표를 전부 못 읽은 2 KB짜리 PARTIAL이 14개 안에 들어가 9/3 백업을 밀어냈다. */
+  const d2 = fs.mkdtempSync(path.join(os.tmpdir(), 'bizpage-prune-test-'));
+  const mk = (n) => fs.writeFileSync(path.join(d2, n), '{}', 'utf8');
+  ['2026-09-01', '2026-09-02', '2026-09-03'].forEach((d) => mk(`bizpage_backup_${d}T09-00-00-000Z.json`));
+  mk('bizpage_backup_2026-08-30T09-00-00-000Z_PARTIAL.json');      // 가장 오래된 온전한 것보다 옛것
+  mk('bizpage_backup_2026-09-04T09-00-00-000Z_PARTIAL.json');      // 최근 실패
+  const pr2 = backupTool.pruneOld(d2, 3);
+  ok('PARTIAL은 개수에 안 센다 — 온전한 3개가 그대로 남는다',
+    backupTool.listBackups(d2).filter((f) => !/_PARTIAL/.test(f)).length === 3, JSON.stringify(pr2));
+  ok('온전한 것보다 옛 PARTIAL은 치운다', pr2.length === 1 && /08-30/.test(pr2[0]), JSON.stringify(pr2));
+  ok('최근 PARTIAL은 흔적으로 남긴다', fs.existsSync(path.join(d2, 'bizpage_backup_2026-09-04T09-00-00-000Z_PARTIAL.json')));
+  /* 대조군 — 예전 규칙이었다면 여기서 온전한 백업이 지워졌다 */
+  mk('bizpage_backup_2026-09-05T09-00-00-000Z.json');
+  const pr3 = backupTool.pruneOld(d2, 3);
+  ok('대조군: 온전한 것이 4개가 되면 가장 옛것 하나만 지운다', pr3.length === 1 && /09-01T/.test(pr3[0]), JSON.stringify(pr3));
+  const src = fs.readFileSync(path.join(__dirname, 'db_backup.js'), 'utf8');
+  ok('부분 백업인 날은 정리 자체를 안 한다', /\(check\.ok && !backup\.meta\.partial\) \? pruneOld\(dir, keep\) : \[\]/.test(src));
+
+  console.log('\n[4-1b] 깨어난 직후 인터넷이 없으면 기다렸다 다시 읽는다');
+
+  let calls = 0;
+  const flaky = async (q) => {                    // 첫 회차는 전부 실패(깨어난 직후), 다시 읽으면 성공
+    calls++;
+    if (calls <= Object.keys(SAMPLE).length) throw new Error('Error connecting to database: fetch failed');
+    return dbAll.sql(q);
+  };
+  const slept = [];
+  const rd = await backupTool.dumpWithRetry(flaky, Object.keys(SAMPLE), { waits: [5, 10], sleep: async (ms) => { slept.push(ms); } });
+  ok('한 번 쉬고 다시 읽어 전부 받는다', Object.keys(rd.failed).length === 0 && rd.counts.quotes === 2,
+    JSON.stringify(rd.failed));
+  ok('필요한 만큼만 쉰다', slept.length === 1 && slept[0] === 5, JSON.stringify(slept));
+  const rd2 = await backupTool.dumpWithRetry(fakeDb(SAMPLE, { failOn: ['inquiries'] }).sql, Object.keys(SAMPLE),
+    { waits: [1, 2], sleep: async () => {} });
+  ok('끝까지 못 읽으면 여전히 failed — PARTIAL로 남는다', !!rd2.failed.inquiries && rd2.counts.quotes === 2);
+
+  console.log('\n[4-1c] 로그온 몫은 이미 받은 날엔 안 받는다');
+
+  const nowH = new Date('2026-09-28T00:00:00.000Z');
+  ok('9시간 전 온전한 백업 → 9시간',
+    Math.round(backupTool.hoursSinceLastFull(['bizpage_backup_2026-09-27T15-00-00-000Z.json'], nowH)) === 9);
+  ok('가장 최근이 PARTIAL이면 그 앞의 온전한 것을 본다',
+    Math.round(backupTool.hoursSinceLastFull(['bizpage_backup_2026-09-26T00-00-00-000Z.json',
+      'bizpage_backup_2026-09-27T23-00-00-000Z_PARTIAL.json'], nowH)) === 48);
+  ok('백업이 없으면 무한대(=받는다)', backupTool.hoursSinceLastFull([], nowH) === Infinity);
+
   console.log('\n[4-2] 자동 백업이 멈춘 것을 알아채는가');
 
   /* 스케줄러가 조용히 죽는 것이 이 구조의 가장 큰 위험이다. 아무도 로그를 안 보므로,

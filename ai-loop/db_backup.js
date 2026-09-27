@@ -71,6 +71,28 @@ async function dumpTables(sql, tables) {
   return { data, counts, failed };
 }
 
+/* 🔴 2026-09-26 19:12 — 노트북이 깨어난 직후(18:00을 놓친 몫을 스케줄러가 뒤늦게 돌림)
+   인터넷이 붙기 전에 돌아 **22개 표를 전부 `fetch failed`로 못 읽었다.** 몇십 초만 기다렸으면
+   됐다. 못 읽은 표만 골라 간격을 늘려 가며 다시 읽는다. 끝까지 못 읽으면 예전처럼 PARTIAL이다. */
+const RETRY_WAITS_MS = [20000, 40000, 60000];
+async function dumpWithRetry(sql, tables, { waits = RETRY_WAITS_MS, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), log = () => {} } = {}) {
+  const out = await dumpTables(sql, tables);
+  for (const ms of waits) {
+    const left = tables.filter((t) => out.failed[t]);
+    if (!left.length) break;
+    log(`  … ${left.length}개 표를 못 읽었습니다 — ${Math.round(ms / 1000)}초 뒤 다시 읽습니다 (${out.failed[left[0]]})`);
+    await sleep(ms);
+    const again = await dumpTables(sql, left);
+    for (const t of left) {
+      if (again.failed[t]) { out.failed[t] = again.failed[t]; continue; }
+      delete out.failed[t];
+      out.data[t] = again.data[t];
+      out.counts[t] = again.counts[t];
+    }
+  }
+  return out;
+}
+
 function buildBackup({ data, counts, failed }, tables) {
   return {
     meta: {
@@ -125,7 +147,8 @@ function stalenessNote(files, now = new Date()) {
   if (partial) return { days, stale: true, text: `⚠ 가장 최근 백업이 부분 백업입니다(${days}일 전). 다시 받아 주세요.` };
   return days >= 2
     ? { days, stale: true, text: `⚠ 마지막 백업이 ${days}일 전입니다 — 자동 백업이 멈춰 있는지 확인해 주세요.` }
-    : { days, stale: false, text: `마지막 백업: ${days === 0 ? '오늘' : days + '일 전'}` };
+    /* ⚠ 2026-09-28 — 어젯밤 18:00 백업을 다음 날 아침에 「오늘」이라고 불렀다(24시간이 안 지났을 뿐이다). 시간으로 말한다. */
+    : { days, stale: false, text: `마지막 백업: ${days === 0 ? Math.floor((now.getTime() - t) / 3600000) + '시간 전' : days + '일 전'}` };
 }
 
 function defaultDir() {
@@ -203,12 +226,29 @@ function listBackups(dir) {
 
 /* 오래된 백업 정리 — 이름 규칙에 맞는 것만 지운다. 폴더 안의 다른 파일은 건드리지
    않는다(사용자가 같은 폴더에 다른 것을 둘 수 있다). */
+/* 🔴 2026-09-26 — 22개 표를 전부 못 읽은 **2 KB짜리 PARTIAL 파일이 14개 안에 들어가면서
+   멀쩡한 9/3 백업을 밀어냈다.** 반쪽 파일은 개수에 안 센다: 온전한 백업만 `keep`개 남기고,
+   PARTIAL은 남은 온전한 백업 중 가장 오래된 것보다 옛것만 지운다(최근 실패는 흔적으로 남긴다). */
 function pruneOld(dir, keep) {
   const files = listBackups(dir);
-  if (files.length <= keep) return [];
-  const doomed = files.slice(0, files.length - keep);
+  const isPartial = (f) => /_PARTIAL\.json$/.test(f);
+  const full = files.filter((f) => !isPartial(f));
+  const doomed = full.length > keep ? full.slice(0, full.length - keep) : [];
+  const oldestKept = full.length > keep ? full[full.length - keep] : full[0];
+  if (oldestKept) doomed.push(...files.filter((f) => isPartial(f) && f < oldestKept));
+  doomed.sort();
   for (const f of doomed) fs.unlinkSync(path.join(dir, f));
   return doomed;
+}
+
+/* 가장 최근 **온전한** 백업이 몇 시간 전인가 (없으면 Infinity) — `--skip-if-fresh`가 쓴다. */
+function hoursSinceLastFull(files, now = new Date()) {
+  const full = files.filter((f) => !/_PARTIAL\.json$/.test(f));
+  if (!full.length) return Infinity;
+  const m = full[full.length - 1].match(/^bizpage_backup_(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/);
+  if (!m) return Infinity;
+  const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6], +m[7]);
+  return (now.getTime() - t) / 3600000;
 }
 
 function argValue(argv, name, fallback) {
@@ -292,6 +332,17 @@ async function main() {
     process.exit(1);
   }
 
+  /* 로그온 때 도는 몫(작업 스케줄러 「bizpage-db-backup-logon」)이 쓴다 — 18:00에 노트북이 꺼져 있던 날을
+     켜자마자 메운다. 이미 온전한 백업이 N시간 안에 있으면 받지 않는다(로그온마다 쌓이지 않게). */
+  const freshH = Number(argValue(argv, '--skip-if-fresh', NaN));
+  if (Number.isFinite(freshH)) {
+    const h = hoursSinceLastFull(listBackups(dir));
+    if (h < freshH) {
+      console.log(`최근 온전한 백업이 ${h.toFixed(1)}시간 전이라 건너뜁니다 (--skip-if-fresh ${freshH}).`);
+      return;
+    }
+  }
+
   if (!process.env.DATABASE_URL) {
     console.error('DATABASE_URL이 없습니다(.env.local을 확인해 주세요).');
     process.exit(1);
@@ -302,7 +353,7 @@ async function main() {
   const tables = loadTableNames();
   console.log(`운영 DB 백업 — 테이블 ${tables.length}개`);
 
-  const dumped = await dumpTables(sql, tables);
+  const dumped = await dumpWithRetry(sql, tables, { log: (m) => console.log(m) });
   const backup = buildBackup(dumped, tables);
 
   fs.mkdirSync(dir, { recursive: true });
@@ -321,7 +372,8 @@ async function main() {
   console.log(`\n저장: ${file}  (${sizeKb} KB)`);
 
   const keep = Number(argValue(argv, '--keep', 14));
-  const pruned = pruneOld(dir, keep);
+  /* 🔴 온전한 백업을 받은 날만 옛것을 정리한다 — 실패한 날 지우면 실패할수록 백업이 줄어든다(2026-09-26). */
+  const pruned = (check.ok && !backup.meta.partial) ? pruneOld(dir, keep) : [];
   if (pruned.length) console.log(`오래된 백업 ${pruned.length}개 정리: ${pruned.join(', ')}`);
 
   /* 클라우드 사본 — 노트북 백업이 온전한 것을 확인한 **뒤에** 올린다. */
@@ -355,7 +407,7 @@ async function main() {
   console.log(`✓ 총 ${backup.meta.totalRows}행 백업 완료 — 다시 읽어 행 수까지 대조했습니다.`);
 }
 
-module.exports = { readTableNames, loadTableNames, dumpTables, buildBackup, verifyFile, listBackups, pruneOld, stalenessNote, taggedLiteral, FILE_RE, defaultDir, resolveBackupDir, backupDirProblem, resolveMirrorDir, mirrorBackup };
+module.exports = { readTableNames, loadTableNames, dumpTables, dumpWithRetry, hoursSinceLastFull, buildBackup, verifyFile, listBackups, pruneOld, stalenessNote, taggedLiteral, FILE_RE, defaultDir, resolveBackupDir, backupDirProblem, resolveMirrorDir, mirrorBackup };
 
 if (require.main === module) {
   main().catch((err) => { console.error(err); process.exit(1); });
