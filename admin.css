@@ -1550,3 +1550,12 @@
 #pkgEditCard { padding-bottom: 1.25rem; }
 #pkgEditCard > :not(.card-header) { margin-left: 1.25rem !important; margin-right: 1.25rem !important; } /* 칸마다 인라인 margin 줄임말이 있어 important */
 .inq-sel-lbl { font-size: .76rem; font-weight: 700; color: var(--muted); margin-right: -.2rem; }
+
+/* ── 폰 폭 (2026-09-27) — 머리줄의 시각이 세 줄로, 「로그아웃」·계정 배지가 두 줄로 접히고,
+   아래 메뉴 묶음 이름이 한 글자씩 세로로(견/적/산/출), 견적 상세의 「고객용·직원용」이 글자마다 접혔다. */
+@media (max-width: 600px) {
+  #dashTime { display: none; }
+  .dash-right .btn-sm, .current-staff-widget, .csw-label, .csw-role { white-space: nowrap; }
+  .sb-group-head { white-space: nowrap; }
+  .em-tab { white-space: nowrap; flex: none; }
+}
