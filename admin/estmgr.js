@@ -416,6 +416,7 @@
     emCollapseExtras();
     emRenderHeadSum(e);
     emSyncActualVisibility(e);
+    emSyncMoreMenu(e);
     emSetTab('cust');
     /* UI: 일정 편집기를 접어 둔 상태로 되돌린다. 안 지우면 **앞 견적의 일정이
        다음 견적 화면에 그대로 남고**, 그 상태로 저장하면 남의 일정이 이 고객에게 간다.
@@ -1274,6 +1275,35 @@
         ? '자세히 — 원가·수익·요율·실적·일정·진행 기록'
         : '자세히 — 원가·수익·요율·일정·진행 기록';
     }
+  }
+
+  /* ══ 「⋯ 더보기」 (2026-09-27 대표 지시: 「기능이 겹치는 버튼 정리」) ══════════
+     🔴 「👁 고객 화면 미리보기」는 **「고객용」 탭과 같은 일**을 한다(같은 renderBundle ·
+       보낼 문서 체크도 따른다). 겹치는 건 감춘다. **문서가 없는 옛 견적**만 고객용 탭이
+       비므로 그때만 메뉴에 둔다 — 없애면 그 건들은 발급 전에 볼 길이 사라진다.
+     ⚠ 열 때마다 메뉴를 접는다 — 앞 건에서 펼쳐 둔 채 닫으면 다음 건에서 펼쳐진 채 뜬다. */
+  let emMoreOutsideArmed = false;
+  function emSyncMoreMenu(e) {
+    const menu = document.getElementById('em-moremenu');
+    if (menu) menu.open = false;
+    /* 메뉴 밖을 누르면 접는다 — `<details>`는 스스로 안 접힌다.
+       ⚠ 이 파일은 「선언만 둔다」(머리 주석) — 불러올 때가 아니라 **처음 열 때 한 번** 건다. */
+    if (!emMoreOutsideArmed) {
+      emMoreOutsideArmed = true;
+      document.addEventListener('click', (ev) => {
+        const m = document.getElementById('em-moremenu');
+        if (m && m.open && !m.contains(ev.target)) m.open = false;
+      });
+    }
+    const pv = document.getElementById('emMorePreview');
+    if (pv) pv.classList.toggle('hidden', !!emDocOf(e));
+  }
+  /* 메뉴 항목을 누르면 **먼저 접고** 부른다 — 확인창이 뜬 뒤에도 메뉴가 펼쳐져 있으면
+     무엇을 누른 건지 헷갈린다. */
+  function emMoreDo(fn) {
+    const menu = document.getElementById('em-moremenu');
+    if (menu) menu.open = false;
+    if (typeof fn === 'function') fn();
   }
 
   /* ══ 고객용 / 직원용 (2026-09-23 대표 지시 2-1·2-3) ═══════════════════════

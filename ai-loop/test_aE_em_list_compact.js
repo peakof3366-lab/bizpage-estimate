@@ -39,6 +39,12 @@ const 목록 = [
   견적('q-aE-01'),
   견적('q-aE-02', { visibleTotal: null, orgName: '[가상] 원가없음상사' }),   /* 🔴 ② 의 그 건 */
   견적('q-aE-03', { visibleTotal: undefined, orgName: '[가상] 옛기록' }),
+  견적('q-aE-04', { orgName: '[가상] 문서있음', doc: {
+    meta: { client: '[가상] 문서있음', staffName: '[가상] 김담당', title: '견적서' },
+    trip: { pax: 30, days: 4, nights: 3 },
+    price: { lines: [{ kind: 'adult', label: '성인', unit: 1889869, qty: 30 }], total: 56696074 },
+    details: [], itinerary: [{ day: 1, title: '인천 → 다낭', am: '출발', pm: '도착', eve: '', meals: {}, stay: '', note: '' }],
+  } }),
 ];
 
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
@@ -85,7 +91,7 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/
   await B.tick(300);
 
   const rows = Array.from(D.querySelectorAll('#emBody tr'));
-  ok('[4] 줄이 셋이다', rows.length === 3, String(rows.length));
+  ok('[4] 줄이 넷이다', rows.length === 4, String(rows.length));
   const rowOf = (org) => rows.find((r) => (r.textContent || '').includes(org));
   const cells = (r) => r ? Array.from(r.children) : [];
   ok('[4-b] 🔴 줄마다 칸이 머리줄과 같은 9개다', rows.every((r) => r.children.length === 9),
@@ -129,6 +135,27 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/
   await B.tick(120);
   ok('[5-g] 직원용 탭에서는 보인다', B.win.getComputedStyle(bar).display !== 'none');
 
+  /* ═══ ⑦ 겹치는 버튼 정리 (2026-09-27 대표: 「기능이 겹치는 버튼 정리」) ═════════
+     아래 줄이 7개였다 → 「닫기」(✕와 같은 함수)는 지우고, 가끔 쓰는 셋은 「⋯ 더보기」로.
+     「고객 화면 미리보기」는 고객용 탭과 겹쳐 **문서 없는 옛 견적에서만** 메뉴에 뜬다. */
+  const menu = D.getElementById('em-moremenu');
+  const barBtns = Array.from(bar.querySelectorAll('button, summary'))
+    .filter((x) => !(menu && menu.contains(x) && x.tagName !== 'SUMMARY'));
+  ok('[7] 🔴 아래 줄에 바로 보이는 버튼이 넷 이하다 (예전 7)', barBtns.length <= 4,
+    barBtns.length + '개 — ' + barBtns.map((x) => txt(x)).join(','));
+  ok('[7-b] 🔴 「닫기」가 없다 (머리의 ✕와 같은 일)', !barBtns.some((x) => txt(x) === '닫기'));
+  const inMenu = menu ? txt(menu) : '';
+  ok('[7-c] 🔴 지운 것이 아니다 — 출력·복사·삭제가 메뉴 안에 있다',
+    /관리자용 출력/.test(inMenu) && /이 견적 복사/.test(inMenu) && /삭제/.test(inMenu), inMenu.slice(0, 80));
+  ok('[7-d] 삭제 버튼 id가 그대로다 (권한 코드가 그 id로 감춘다)',
+    !!menu && !!menu.querySelector('#btnDeleteQuote'));
+  const pv = D.getElementById('emMorePreview');
+  ok('[7-e] 문서 없는 옛 견적에서는 미리보기가 메뉴에 있다 (고객용 탭이 비므로)',
+    !!pv && !pv.classList.contains('hidden'));
+  ok('[7-f] 🔴 메뉴 안 버튼 CSS가 `.hidden`을 이기지 않는다',
+    /#emModal \.em-moremenu-list button:not\(\.hidden\)/.test(CSS)
+    && !/#emModal \.em-moremenu-list button\s*\{[^}]*display/.test(CSS));
+
   /* 한 줄 요약·금액 4칸·수익 요약도 같은 셈 — 원가 없는 건에서 지어내지 않는다 */
   const sum = txt(D.getElementById('em-head-sum'));
   ok('[6] 🔴 한 줄 요약이 원가 없는 건에 이익률을 지어내지 않는다', /이익률 —/.test(sum) && !/이익률 \d/.test(sum), sum);
@@ -138,6 +165,12 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/
   const rateCard = ps && ps.querySelector('[data-v="rate"]');
   ok('[6-d] 수익 요약 이익률도 「—」다', !!rateCard && txt(rateCard) === '—', rateCard ? txt(rateCard) : '없음');
   ok('[6-e] 수익 요약이 왜 비었는지 말한다', /원가가 없어 이익을 셀 수 없습니다/.test(txt(ps)));
+
+  /* 문서가 붙은 건 — 미리보기는 고객용 탭이 한다(겹치는 버튼은 감춘다) */
+  run("emSetTab('cust'); openEstDetail('q-aE-04');");
+  await B.tick(300);
+  ok('[7-g] 🔴 문서가 있는 건에서는 미리보기 메뉴가 감춰진다 (고객용 탭과 같은 일)',
+    D.getElementById('emMorePreview').classList.contains('hidden'));
   B.win.close();
 
   console.log('\n' + '─'.repeat(64));

@@ -1251,7 +1251,7 @@ function renderPage(d) {
     if (r.why === 'previewempty') {
       document.getElementById('error-wrap').innerHTML = `
         <h2>미리보기를 열 수 없습니다</h2>
-        <p style="margin-top:10px">관리자 화면에서 <strong>「👁 고객 화면 미리보기」</strong>를 눌러 주세요.<br>
+        <p style="margin-top:10px">관리자 화면 견적 상세의 <strong>「고객용」 탭</strong>에서 보시거나, 문서가 없는 옛 견적은 <strong>「⋯ 더보기 → 👁 고객 화면 미리보기」</strong>를 눌러 주세요.<br>
         미리보기 내용은 그 탭에서만 살아 있어, 주소만 따로 열면 비어 있습니다.</p>`;
       const vb0 = document.getElementById('validity-bar');
       if (vb0) vb0.textContent = '';

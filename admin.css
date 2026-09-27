@@ -1452,6 +1452,22 @@
 #emModal .em-actbar .em-parts label { cursor: pointer; }
 #emModal .em-actbar .em-parts em { font-style: normal; font-size: .8rem; color: var(--muted); }
 #emModal .em-actbar .modal-actions { margin: 0 0 0 auto; padding: 0; border-top: 0; }
+/* 「⋯ 더보기」 — 창 아래 띠에 붙어 있으므로 **위로** 펼친다 (2026-09-27) */
+#emModal .em-moremenu { position: relative; }
+#emModal .em-moremenu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; }
+#emModal .em-moremenu > summary::-webkit-details-marker { display: none; }
+#emModal .em-moremenu-list {
+  position: absolute; right: 0; bottom: calc(100% + 6px); min-width: 15rem; z-index: 5;
+  background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-lg); padding: .3rem 0;
+}
+/* ⚠ `:not(.hidden)` — 여기서 display를 주면 `.hidden`이 진다(권한으로 감춘 삭제가 다시 보인다) */
+#emModal .em-moremenu-list button:not(.hidden) {
+  display: flex; width: 100%; align-items: baseline; gap: .5rem; min-height: 40px;
+  padding: .5rem .9rem; border: 0; background: none; text-align: left; font: inherit; font-size: .86rem; color: var(--text); cursor: pointer;
+}
+#emModal .em-moremenu-list button:hover { background: var(--bg); }
+#emModal .em-moremenu-list small { margin-left: auto; font-size: .74rem; color: var(--muted); }
+#emModal .em-moremenu-list .em-moremenu-danger { color: var(--danger); border-top: 1px solid var(--border); }
 .em-more { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: .6rem; }
 /* 🔴 **접는 줄 규칙을 여기서 새로 쓰지 않는다.** `.fold-note`가 이미 정하고 있고,
    `test_tA_fold_cards`가 「접는 규칙은 한 클래스에만」으로 막는다 — 실제로 여기서 한 번

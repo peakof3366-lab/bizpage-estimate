@@ -199,7 +199,9 @@ async function 띄우기(payload, url) {
   }
 
   /* ═══ ⑧ 버튼이 「관리자용 출력」과 구별되는가 ═══════════════════════════ */
-  ok('[8] 미리보기 버튼이 있다', /onclick="previewShareLink\(\)"/.test(ADMIN));
+  /* ⚠ 2026-09-27 「⋯ 더보기」 안으로 옮겼다(고객용 탭과 겹쳐 문서 없는 옛 견적에서만 뜬다) —
+     부르는 꼴이 `emMoreDo(previewShareLink)`로 바뀌었다. 재는 것은 「누를 자리가 있는가」다. */
+  ok('[8] 미리보기 버튼이 있다', /onclick="emMoreDo\(previewShareLink\)"|onclick="previewShareLink\(\)"/.test(ADMIN));
   ok('[8-b] 이름이 고객 화면임을 말한다', /👁 고객 화면 미리보기/.test(ADMIN));
   ok('[8-c] 내부 문서 버튼은 그대로다', /관리자용 출력/.test(ADMIN));
 

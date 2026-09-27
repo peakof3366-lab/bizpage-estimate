@@ -146,7 +146,8 @@ console.log('\n[4-b] 저장 시점 발급 · 화면 표시 · 복사');
   ok('④b 상세 제목에 번호가 뜬다', ESTMGR.indexOf("e.quoteNo + ' · '") >= 0);
 
   /* 🔴 복사는 **새 번호**를 받는다 — 원본 번호를 물려받으면 대장에 같은 번호가 둘이 된다 */
-  ok('④b 복사 버튼이 있다', ADMIN.indexOf('onclick="copyEstimate()"') >= 0);
+  /* ⚠ 2026-09-27 「⋯ 더보기」 안으로 옮기며 `emMoreDo(copyEstimate)`가 됐다 */
+  ok('④b 복사 버튼이 있다', /onclick="(emMoreDo\(copyEstimate\)|copyEstimate\(\))"/.test(ADMIN));
   ok('④b 복사가 저장 경로를 그대로 탄다',
     /copyEstimate[\s\S]{0,2000}\/api\/quotes\?action=internal/.test(ADMIN));
   ok('④b 복사가 원본 번호를 지운다', ADMIN.indexOf("'id', 'quoteNo', 'sourceQuoteNo'") >= 0);
