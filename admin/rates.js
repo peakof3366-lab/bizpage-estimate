@@ -131,7 +131,11 @@
           <!-- 🔴 표의 버튼은 **눈으로는 줄이 말해 주지만 귀로는 아니다** (XT).
                낭독기에는 「시즌 확인하기」가 60번, 「편집」이 60번 똑같이 들려 어느
                목적지의 것인지 알 방법이 없었다. 줄의 목적지를 버튼 이름에 넣는다. -->
-          <td>${eff.season_note ? `<button type="button" class="btn-detail" aria-label="${esc(d.label || d.destination_key)} 시즌 안내 보기" title="${esc(eff.season_note)}" style="font-size:.68rem;padding:.2rem .5rem;width:100%">🌤️ 시즌 확인하기</button>` : ''}</td>
+          <!-- 🔴 2026-09-27 「🌤️ 시즌 확인하기」 **버튼**을 걷었다(대표 승인 S-1 ③) — onclick이 없어
+               **눌러도 아무 일도 안 했다**(마우스를 올리면 풍선말만). 버튼 60개가 누르라고 하는데
+               누르면 헛일이니 화면이 거짓말을 한 셈이다. 이제 **표시**다: 올리면 풍선말, 낭독기는
+               전문을 읽는다. 전문 편집은 원래대로 「편집」 창의 시즌 칸. -->
+          <td>${eff.season_note ? `<span class="rate-season" tabindex="0" title="${esc(eff.season_note)}" aria-label="${esc(d.label || d.destination_key)} 시즌: ${esc(eff.season_note)}">🌤️ 시즌</span>` : ''}</td>
           <td style="text-align:right">${fmtWon(eff.airfare)}${rateValidationBadge(d.destination_key, 'airfare', eff.airfare)}</td>
           <td style="text-align:right">${fmtWon(eff.hotel_per_room)}${rateValidationBadge(d.destination_key, 'hotel_per_room', eff.hotel_per_room)}</td>
           <td style="text-align:right">${fmtWon(eff.meal_per_person)}${rateValidationBadge(d.destination_key, 'meal_per_person', eff.meal_per_person)}</td>

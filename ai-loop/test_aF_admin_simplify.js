@@ -30,6 +30,16 @@ ok('[2-c] 견적 기록 초기화가 없다', !/clearData\('linkedt_estimates'/.
 ok('[2-d] 진짜로 서버를 지우는 「문의 전체 삭제」는 남아 있다',
   /clearData\('linkedt_contacts'/.test(ADMIN));
 
+/* ═══ ③ 요율표 시즌 — 누르면 헛일인 버튼 ═══════════════════════════════════ */
+const RATES = noComments(read(path.join('admin', 'rates.js')));
+const seasonCell = (RATES.match(/eff\.season_note \? `[^`]*`/) || [''])[0];
+ok('[3] 🔴 시즌 칸이 버튼이 아니다 (onclick이 없어 눌러도 헛일이었다)',
+  seasonCell && !/<button/.test(seasonCell), seasonCell.slice(0, 80));
+ok('[3-b] 시즌 안내 전문은 풍선말·낭독기로 남아 있다 (지운 것이 아니다)',
+  /title="\$\{esc\(eff\.season_note\)\}"/.test(seasonCell) && /aria-label=/.test(seasonCell));
+ok('[3-c] 🔴 표 안의 버튼은 전부 무슨 일을 한다 (onclick 없는 btn-detail이 없다)',
+  !/<button[^>]*class="btn-detail"(?![^>]*onclick)[^>]*>/.test(RATES));
+
 console.log('\n' + '─'.repeat(64));
 fails.forEach((f) => console.log('  ✗ ' + f));
 console.log('결과: ' + pass + ' pass / ' + fails.length + ' fail  — aF 관리자 화면 간소화');
