@@ -1193,6 +1193,28 @@
     const d = ev && ev.data;
     if (!d || !d.__aqp) return;
     const st = document.getElementById('em-edit-state');
+    /* 🔴 **보낸 창이 이 틀인지 본다.** 「자동 견적 산출」 탭도 같은 편집 화면을 틀에 넣어 쓰므로,
+       안 보면 그쪽의 키 알림에 견적 상세 틀이 늘었다 줄었다 한다. */
+    const fromMine = !!emEditFrame() && ev.source === emEditFrame().contentWindow;
+    if ((d.__aqp === 'height' || d.__aqp === 'top') && !fromMine) return;
+    if (d.__aqp === 'height') {
+      /* S-1 ⑤ (2026-09-27): 틀을 편집 화면 키에 맞춘다 — 스크롤은 창 하나만 */
+      const f = emEditFrame();
+      const h = Number(d.h);
+      if (f && Number.isFinite(h) && h > 0) f.style.height = Math.max(400, Math.min(h, 20000)) + 'px';
+      return;
+    }
+    if (d.__aqp === 'top') {
+      /* 단계를 넘겼다 — 편집 화면 머리가 창 위로 지나가 있으면 **그때만** 데려온다.
+         ⚠ 늘 옮기면 직원용 탭을 처음 열 때도 한 줄 요약을 건너뛰어 내려가 버린다. */
+      const f = emEditFrame();
+      const sec = document.getElementById('em-sec-edit');
+      const box = f && f.closest('.modal-box');
+      if (f && sec && box && f.getBoundingClientRect().top < box.getBoundingClientRect().top) {
+        sec.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
+      return;
+    }
     if (d.__aqp === 'loaded') {
       if (st) { st.textContent = '불러왔습니다' + (d.quoteNo ? ' · ' + d.quoteNo : ''); st.style.color = '#15803D'; }
     } else if (d.__aqp === 'dirty') {

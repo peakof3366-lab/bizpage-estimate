@@ -1923,7 +1923,9 @@
           <span style="font-size:.72rem;font-weight:400;color:var(--muted);margin-left:.5rem"
                 id="em-edit-state">직원용 탭을 열면 불러옵니다</span>
         </div>
-        <iframe id="em-edit-frame" title="이 견적 고치기" style="width:100%;height:760px;border:1px solid var(--border);background:#fff"></iframe>
+        <!-- ⚠ 높이 760px은 **처음 값**일 뿐이다 — 편집 화면이 자기 키를 알려 오면 거기에 맞춘다
+             (2026-09-27 S-1 ⑤, 「스크롤 속 스크롤」 없애기). 틀 안에서 따로 스크롤하지 않는다. -->
+        <iframe id="em-edit-frame" title="이 견적 고치기" scrolling="no" style="width:100%;height:760px;border:1px solid var(--border);background:#fff"></iframe>
       </div>
 
       <!-- 견적 내역 (관리자 전용: 비공개 항목 포함)

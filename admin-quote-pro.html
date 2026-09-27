@@ -862,6 +862,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
        옛 내용 그대로 발급된다고 믿게 된다. */
     if (n === 5) renderPreview();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    emitEdit('top');
   }
 
   /* 🔴 **저장 버튼을 복제하지 않는다.** 있는 것을 그 자리로 **옮긴다** —
@@ -894,6 +895,7 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     const host = $(secId).querySelector('.sec-b') || $(secId);
     host.appendChild(bar);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    emitEdit('top');
   }
 
   function unlockSteps() {
@@ -2163,6 +2165,27 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     if (window.parent === window) return;
     try { window.parent.postMessage(Object.assign({ __aqp: type, id: EDIT_ID }, extra || {}), '*'); }
     catch (e) { /* 다른 출처면 조용히 넘어간다 — 알림이 안 갈 뿐 편집은 된다 */ }
+  }
+
+  /* 🔴 **내 키를 바깥에 알린다** (2026-09-27 대표 승인 S-1 ⑤ — 「스크롤 속 스크롤」 없애기).
+     견적 상세에 끼워 넣으면 틀이 760px 고정이라 이 화면이 **그 안에서 따로 스크롤**됐다 —
+     창도 스크롤, 틀도 스크롤이라 어디를 굴려야 하는지 헷갈렸다. 바깥이 틀을 내 키에 맞춘다.
+     ⚠ `documentElement.scrollHeight`로 재지 않는다 — 틀보다 작아져도 **틀 높이 아래로
+       안 내려가** 한 번 늘어난 틀이 영영 안 줄어든다. 내용(`#app`)의 바닥을 잰다.
+     ⚠ 단계를 넘기면 `top`을 보낸다 — 틀 안 스크롤이 없어졌으니 `window.scrollTo`로는
+       새 단계의 머리로 못 간다. 바깥이 옮겨 준다. */
+  if (window.parent !== window && typeof ResizeObserver !== 'undefined') {
+    let lastH = 0;
+    const tell = () => {
+      const app = $('app');
+      if (!app || app.classList.contains('hidden')) return;
+      const h = Math.ceil(app.getBoundingClientRect().bottom + window.scrollY) + 24;
+      if (Math.abs(h - lastH) < 2) return;
+      lastH = h;
+      emitEdit('height', { h });
+    };
+    new ResizeObserver(tell).observe(document.body);
+    window.addEventListener('load', tell);
   }
 
   /* 🔴 **저장하지 않은 것이 있는지**를 바깥이 알아야 한다 (대표 지시 2-4:
