@@ -164,6 +164,14 @@ ok('[T] 🔴 미확인 문의 → 「미확인」 필터, 미처리 견적 → �
   && /what: '미처리 견적', pick: '#tab-estmgr \.filter-btn\[data-emfilter="new"\]'/.test(ADMIN)
   && /switchTab\(btn\.dataset\.go\);\s*const pick = btn\.dataset\.pick[^\n]*\n\s*if \(pick\) pick\.click\(\);/.test(ADMIN));
 
+/* ═══ Esc — 창 하나만 닫히던 것 (2026-09-27) ═══════════════════════════════════════ */
+ok('[K] 🔴 Esc는 맨 위 창의 ✕를 누른다 (창마다의 닫기 처리를 거친다) · 칸에 쓰는 중이면 안 닫는다',
+  /if \(e\.key !== 'Escape'\) return;/.test(ADMIN) && /top\.querySelector\('\.modal-close'\)/.test(ADMIN)
+  && /ae\.closest\('\.modal-overlay'\)\) return;/.test(ADMIN)
+  && !/if\(e\.key==='Escape'\) document\.getElementById\('modal'\)/.test(ADMIN));
+ok('[K-b] 창마다 ✕가 있다 (Esc가 누를 자리)',
+  (ADMIN.match(/class="modal-overlay/g) || []).length === (ADMIN.match(/class="modal-close/g) || []).length);
+
 /* ═══ 방문 통계 시간대 — 홀수 시 방문이 버려졌다 (2026-09-27) ═══════════════════════
    짝수 시만 골라 그려서(filter i%2===0) 1·3·…·15시 방문이 그래프에서 통째로 사라졌다. */
 {

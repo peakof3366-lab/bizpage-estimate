@@ -4414,7 +4414,23 @@
 
   document.getElementById('modalClose').addEventListener('click', ()=>document.getElementById('modal').classList.add('hidden'));
   document.getElementById('modal').addEventListener('click', e=>{ if(e.target===document.getElementById('modal')) document.getElementById('modal').classList.add('hidden'); });
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.getElementById('modal').classList.add('hidden'); });
+  /* Esc — **맨 위에 열린 창의 ✕를 대신 누른다** (2026-09-27). 예전엔 문의 창 하나만 닫혀
+     나머지 창 여섯(견적 상세·단가 편집·일괄 조정·새 목적지·제보 내역·확인 필요)은 Esc가 안 먹었다.
+     ⚠ 창을 직접 감추지 않는다 — ✕를 거쳐야 창마다의 닫기 처리(저장 안 한 것 묻기 등)가 돈다. */
+  document.addEventListener('keydown', e=>{
+    if (e.key !== 'Escape') return;
+    /* 🔴 칸에 글을 쓰는 중이면 닫지 않는다 — 단가 편집처럼 ✕가 묻지 않고 닫는 창에서
+       Esc 한 번에 적던 값이 사라진다(실측). 칸 밖을 누른 뒤 Esc면 닫힌다. */
+    const ae = document.activeElement;
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.closest('.modal-overlay')) return;
+    const open = [...document.querySelectorAll('.modal-overlay:not(.hidden)')]
+      .filter((m) => m.offsetParent !== null || getComputedStyle(m).position === 'fixed');
+    if (!open.length) return;
+    const z = (m) => Number(getComputedStyle(m).zIndex) || 0;
+    const top = open.reduce((a, m) => (z(m) >= z(a) ? m : a), open[0]);
+    const x = top.querySelector('.modal-close');
+    if (x) x.click(); else top.classList.add('hidden');
+  });
   /* 파일칸 옆에 고른 파일 이름을 적는다 — 브라우저가 그리던 영어 문구 대신 (2026-09-27).
      ⚠ 코드가 value=''로 비울 때는 change가 안 나므로 그쪽에서 직접 이 이벤트를 낸다. */
   document.addEventListener('change', e=>{
