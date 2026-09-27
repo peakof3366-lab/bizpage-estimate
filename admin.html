@@ -3142,6 +3142,9 @@
     const loginForm = document.getElementById('loginForm');
     if (loginForm) loginForm.classList.toggle('hidden', opening);
     btn.textContent = opening ? '← 로그인으로 돌아가기' : '직원 가입 신청';
+    /* 가입 칸인데 머리에 「관리자 로그인」이 그대로 남아 있었다 (2026-09-27) */
+    const sub = document.querySelector('#loginPage .login-sub');
+    if (sub) sub.textContent = opening ? '직원 가입 신청' : '관리자 로그인';
     if (opening) document.getElementById('signupCode').focus();
   }
 
