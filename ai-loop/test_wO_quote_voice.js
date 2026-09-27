@@ -28,6 +28,13 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
+const { freezeClock } = require('./_engine_boot.js');
+
+/* 🔴 **시계를 얼린다** (2026-09-27). 픽스처 견적서는 2026-08-26 발급이라 유효기간이
+   9월 하순에 끝났고, 그날부터 「N일 남음」·발급일 줄이 사라져 **코드는 그대로인데**
+   ⑧·⑨ 세 줄이 빨개졌다(만료된 견적서는 다르게 그리는 것이 맞다 — 제품이 아니라
+   시계가 움직인 것이다). 이 검사가 말하는 「오늘」은 픽스처의 발급일이다(아래 231줄 주석). */
+const AS_OF = '2026-08-26';
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -81,6 +88,7 @@ function render(payload) {
       runScripts: 'dangerously', virtualConsole: vc,
       url: 'https://bizpage-estimate.vercel.app/estimate-view.html?id=test1',
       beforeParse(w) {
+        freezeClock(w, AS_OF);
         w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
         w.scrollTo = () => {}; w.Element.prototype.scrollTo = () => {};
         w.HTMLElement.prototype.scrollIntoView = () => {};

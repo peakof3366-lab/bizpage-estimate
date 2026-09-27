@@ -1373,8 +1373,12 @@
     /* 🔴 견적 요청 표(14열) — 칸을 짓눌러 두 줄로 꺾느니 옆으로 미는 쪽이 낫다.
        ⚠ 셀에 nowrap을 건다. 여기 들어가는 값은 날짜·금액·인원처럼 **꺾이면 안 되는
          짧은 값**뿐이다(목적지 이름과 견적번호 배지도 한 줄이어야 짝이 보인다). */
-    #emTable { min-width: 1080px; }
+    /* ⚠ 1080 → 960px (2026-09-27): 14열 → 9열로 묶었다. 1080이 남아 있으면 1280 노트북
+       (보이는 폭 1,016px)에서 여전히 「상세」 열이 화면 밖으로 밀린다(실측). */
+    #emTable { min-width: 960px; }
     #emTable td { white-space: nowrap; }
+    /* 기관명은 길다(「… 상해 법인 워크숍」) — 이 칸만 꺾는다. 짝 줄이라 꺾여도 읽힌다. */
+    #emTable td.em-who { white-space: normal; }
 
     /* ⚠ 문의 표는 다르다 — 「문의 내용」이 길어 **줄바꿈이 필요하다.**
        그래서 nowrap을 걸지 않고, 최소 폭만 준다. */
@@ -1426,6 +1430,28 @@
 .em-sum-row span { font-size: .84rem; color: var(--muted); }
 .em-sum-row .em-sum-money { font-size: 1.02rem; font-weight: 800; color: #1d4ed8; }
 .em-sum-row .em-sum-rate { font-size: .84rem; font-weight: 700; }
+/* 견적 관리 목록 — 짝 칸의 둘째 줄 (2026-09-27, 13열 → 9열)
+   ⚠ `#emTable` 안으로 좁힌다. `.inq-table`은 문의 표도 쓴다. */
+#emTable .em-sub { display: block; margin-top: .15rem; font-size: .76rem; font-weight: 400; color: var(--muted); }
+#emTable .em-num { text-align: right; white-space: nowrap; }
+#emTable .em-qno { white-space: nowrap; }
+#emTable .em-who { min-width: 12em; }
+/* 1280 노트북(보이는 폭 1,016px)에서도 「상세」까지 들어오게 칸 안쪽 여백만 줄인다 */
+#emTable th, #emTable td { padding-left: .55rem; padding-right: .55rem; }
+/* 견적 상세 — 발급 버튼 줄을 창 아래에 붙인다 (2026-09-27)
+   ⚠ 스크롤하는 것은 `.modal-box`다. sticky는 **부모 상자 밖으로 못 나가므로**
+     이 줄은 `#emModalBody`의 직계 자식이어야 한다(HTML 주석 참고).
+   ⚠ `.modal-actions`는 여섯 곳 공용 → `#emModal .em-actbar` 안으로 좁힌다. */
+#emModal .em-actbar {
+  position: sticky; bottom: 0; z-index: 3;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.25rem;
+  padding: .7rem 1.25rem; background: var(--white);
+  border-top: 1px solid var(--border); box-shadow: 0 -4px 12px rgba(0,0,0,.06);
+}
+#emModal .em-actbar .em-parts { font-size: .84rem; display: flex; flex-wrap: wrap; align-items: center; gap: .3rem 1rem; }
+#emModal .em-actbar .em-parts label { cursor: pointer; }
+#emModal .em-actbar .em-parts em { font-style: normal; font-size: .8rem; color: var(--muted); }
+#emModal .em-actbar .modal-actions { margin: 0 0 0 auto; padding: 0; border-top: 0; }
 .em-more { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: .6rem; }
 /* 🔴 **접는 줄 규칙을 여기서 새로 쓰지 않는다.** `.fold-note`가 이미 정하고 있고,
    `test_tA_fold_cards`가 「접는 규칙은 한 클래스에만」으로 막는다 — 실제로 여기서 한 번

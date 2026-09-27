@@ -130,30 +130,33 @@
     /* 상담 신청으로 연결된 견적 id 집합 (신규) — 목록에서 바로 표시 */
     const linkedQuoteIds = new Set(get(KEYS.contacts).map(c => c.linkedQuoteId).filter(Boolean));
 
+    /* 🔴 **13열 → 9열** (2026-09-27). 실측(1440 모니터): 표 1,431px · 보이는 폭 1,169px —
+       맨 오른쪽 **담당자·「상세」 열이 화면 밖**이라 옆으로 밀어야 상세를 열 수 있었다.
+       열을 지우지 않고 **짝지어 두 줄로** 묶었다(견적서 대장과 같은 방식):
+         견적번호+접수일시 · 기관명+목적지 · 청구 금액+1인당 · 이익률+이익(원가는 풍선말)
+       ⚠ 열을 다시 늘리면 이 표는 또 잘린다 — 붙일 것은 짝 칸의 둘째 줄에 붙인다. */
+    const man = (n) => '₩' + Math.round((Number(n) || 0) / 10000).toLocaleString() + '만';
     emBody.innerHTML = slice.map((e, i) => {
-      /* ① 청구 금액 = data.total = 수익금 포함, 홈페이지 고객 표시와 동일 */
-      const chargeTot  = e.total || 0;
-      /* ② 원가 합계 = visibleTotal = 수익금 제외 순수 운영비 */
-      const costTot    = e.visibleTotal !== undefined ? e.visibleTotal : e.total;
-      /* 예상 수익 = 청구 - 원가 */
-      const profit     = chargeTot - costTot;
+      /* ① 청구 금액 = data.total = 수익금 포함, 홈페이지 고객 표시와 동일
+         ② 원가 = visibleTotal = 수익금 제외 순수 운영비 · 이익 = ① − ② (셈은 emMoney 한 곳) */
+      const M          = emMoney(e);
       const per        = e.perPerson || 0;
       const st         = e.status || 'new';
+      const rateCell = M.rate !== null
+        ? `<b style="color:${M.low ? 'var(--danger)' : 'var(--success)'}">${(M.rate * 100).toFixed(1)}%</b>`
+          + `<span class="em-sub">이익 ${man(M.profit)}</span>`
+        : '<b style="color:var(--muted)">—</b><span class="em-sub">원가 기록 없음</span>';
       return `<tr>
-        <td><input type="checkbox" class="em-row-check" data-id="${safeId(e.id)}" ${emSelectedIds.has(e.id) ? 'checked' : ''} onchange="toggleEmRowSelect('${safeId(e.id)}', this.checked)" /></td>
+        <td><input type="checkbox" class="em-row-check" data-id="${safeId(e.id)}" ${emSelectedIds.has(e.id) ? 'checked' : ''} onchange="toggleEmRowSelect('${safeId(e.id)}', this.checked)" aria-label="${esc((e.quoteNo || '번호 없음') + ' 선택')}" /></td>
         ${/* 🔴 번호가 없으면 **없다고 말한다.** 빈 칸으로 두면 담당자는 화면이 안 그린
              줄 알고, 그 건은 영영 번호 없이 남는다(결함 생성기 ②). */''}
         <td class="em-qno">${e.quoteNo
           ? `<strong>${esc(e.quoteNo)}</strong>`
-          : '<span title="번호가 없는 건입니다 — ai-loop/backfill_quote_no.js로 붙입니다" style="color:var(--warn)">번호 없음</span>'}</td>
-        <td class="date-col">${fmtDate(e.ts)}</td>
-        <td><strong>${esc(e.destLabel||e.destKey||'-')}</strong>${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}${emShareBadge(e.id)}</td>
-        <td>${esc(e.orgName||'-')}</td>
-        <td>${e.participants}명 / ${e.days}일</td>
-        <td style="text-align:right;color:var(--primary);font-weight:700">₩${Math.round(chargeTot/10000).toLocaleString()}만</td>
-        <td style="text-align:right;color:var(--muted)">₩${Math.round(costTot/10000).toLocaleString()}만</td>
-        <td style="text-align:right;color:var(--success);font-weight:700">₩${Math.round(profit/10000).toLocaleString()}만</td>
-        <td style="text-align:right">₩${Math.round(per/10000).toLocaleString()}만</td>
+          : '<span title="번호가 없는 건입니다 — ai-loop/backfill_quote_no.js로 붙입니다" style="color:var(--warn)">번호 없음</span>'}<span class="em-sub date-col">${fmtDate(e.ts)}</span></td>
+        <td class="em-who"><strong>${esc(e.orgName||'(기관명 없음)')}</strong><span class="em-sub">${esc(e.destLabel||e.destKey||'-')}${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}${emShareBadge(e.id)}</span></td>
+        <td style="white-space:nowrap">${e.participants}명 / ${e.days}일</td>
+        <td class="em-num"><b style="color:var(--primary)">${man(M.sell)}</b><span class="em-sub">1인당 ${man(per)}</span></td>
+        <td class="em-num" title="${M.known ? '원가 ' + man(M.cost) + ' · 이익 = 청구 금액 − 원가' : '이 견적 기록에 원가가 없습니다'}">${rateCell}</td>
         <td><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span>${verifyBadgeHtml(e)}${emNeedsActual(e)?' <span class="badge-need-actual" title="실제 총 계약가가 비어 있습니다 — 상세에서 넣어 주세요">💰 실적</span>':''}</td>
         <td>${assigneeSelectHtml(e.assignee, `data-id="${safeId(e.id)}" onchange="updateAssignee(this,'quote')"`)}</td>
         <td><button class="btn-detail" onclick="openEstDetail('${safeId(e.id)}')">상세</button></td>
@@ -512,15 +515,14 @@
        ① 청구 금액 = e.total  = 수익 포함 = 홈페이지 고객 표시 금액과 동일
        ② 원가 합계 = e.visibleTotal = 수익 제외 운영비
        ③ 예상 수익 = ① - ②                                              */
-    const chargeTot2 = e.total || 0;
-    const costTot2   = e.visibleTotal !== undefined ? e.visibleTotal : e.total;
-    const profit2    = chargeTot2 - costTot2;
-    document.getElementById('em-custotal').textContent  = fmt(chargeTot2);
-    document.getElementById('em-fulltotal').textContent = fmt(costTot2);
+    /* ⚠ 셈은 `emMoney` 한 곳 — 예전엔 여기서 `null` 원가를 못 걸러 ₩0으로 찍었다 */
+    const M2 = emMoney(e);
+    document.getElementById('em-custotal').textContent  = fmt(M2.sell);
+    document.getElementById('em-fulltotal').textContent = M2.known ? fmt(M2.cost) : '— (기록 없음)';
     document.getElementById('em-perperson').textContent = fmt(e.perPerson||0);
     /* 수익금 박스가 있으면 업데이트 */
     const profitEl = document.getElementById('em-profit');
-    if (profitEl) profitEl.textContent = fmt(profit2);
+    if (profitEl) profitEl.textContent = M2.known ? fmt(M2.profit) : '—';
 
     /* 💰 수익 요약 (대표 지시 2-5) — 금액을 채운 **직후**에 그린다.
        ⚠ 여기서 그려야 항목 표·금액 칸과 같은 값을 본다(따로 불러오면 한 박자 어긋난다). */
@@ -1006,18 +1008,35 @@
        이 선이 실제 방침이 되려면 대표가 정해야 한다 — 그래서 값을 한 곳에만 둔다. */
   const EM_MARGIN_WARN = 0.10;
 
+  /* 🔴 **판매가·원가·이익을 세는 곳은 여기 하나다** (2026-09-27).
+     목록·한 줄 요약·금액 4칸·수익 요약이 각자 `visibleTotal !== undefined ? … : total`을
+     적고 있었는데, 목록과 금액 4칸은 **`null`을 못 걸렀다** — 원가 기록이 `null`인 건이
+     「원가 ₩0 · 수익금 = 청구액 전액」으로 찍혔다(실측: 5,670만 전부가 수익으로 보였다).
+     ⚠ 원가를 모르면 `known:false`다. 화면은 이익을 **「—」로 말한다** — 0%도 100%도
+       지어낸 숫자다(결함 생성기 ②). */
+  function emMoney(e) {
+    const sell = Number(e && e.total) || 0;
+    const v = e ? e.visibleTotal : null;
+    const known = v !== undefined && v !== null && v !== '' && Number.isFinite(Number(v));
+    const cost = known ? Number(v) : null;
+    const profit = known ? sell - cost : null;
+    const rate = known && sell > 0 ? profit / sell : null;
+    return { sell, cost, known, profit, rate, low: rate !== null && rate < EM_MARGIN_WARN };
+  }
+
   function emRenderProfit(e) {
     const box = document.getElementById('em-profit-summary');
     if (!box) return;
     const won = (n) => '₩' + Math.round(Number(n) || 0).toLocaleString('ko-KR');
     const pct = (n) => (Number(n) * 100).toFixed(1) + '%';
-    const sell = Number(e.total) || 0;
-    const cost = e.visibleTotal !== undefined && e.visibleTotal !== null
-      ? Number(e.visibleTotal) : sell;
+    const M = emMoney(e);
+    const sell = M.sell;
+    /* 원가를 모르면 원가 = 판매가로 놓고 항목표만 그린다(예전 동작). 카드는 아래에서 「—」 */
+    const cost = M.known ? M.cost : sell;
     const pax = Math.max(1, Number(e.participants) || 1);
     const profit = sell - cost;
-    const rate = sell > 0 ? profit / sell : 0;
-    const low = sell > 0 && rate < EM_MARGIN_WARN;
+    const rate = M.rate === null ? 0 : M.rate;
+    const low = M.low;
 
     /* 항목별 — 원가는 견적 기록의 항목 금액, 판매가는 고객 세부견적서와 같은 배분 */
     const visible = (e.items || []).filter((it) => !it.isHidden)
@@ -1072,11 +1091,14 @@
       + '</div>'
       + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.7rem">'
       + card('sell', '총 판매가', won(sell), '#1d4ed8')
-      + card('cost', '총 원가', won(cost), 'var(--muted)')
-      + card('profit', '예상 이익', won(profit), profit >= 0 ? 'var(--success)' : 'var(--danger)')
-      + card('rate', '이익률', sell > 0 ? pct(rate) : '—', low ? 'var(--danger)' : 'var(--success)')
-      + card('per', '1인당 이익', won(profit / pax), profit >= 0 ? 'var(--success)' : 'var(--danger)')
+      + card('cost', '총 원가', M.known ? won(cost) : '—', 'var(--muted)')
+      + card('profit', '예상 이익', M.known ? won(profit) : '—', profit >= 0 ? 'var(--success)' : 'var(--danger)')
+      + card('rate', '이익률', M.rate !== null ? pct(rate) : '—', low ? 'var(--danger)' : 'var(--success)')
+      + card('per', '1인당 이익', M.known ? won(profit / pax) : '—', profit >= 0 ? 'var(--success)' : 'var(--danger)')
       + '</div>'
+      + (!M.known
+        ? '<div style="font-size:.8rem;color:var(--warn);margin-bottom:.6rem">⚠ 이 견적 기록에 원가가 없어 이익을 셀 수 없습니다.</div>'
+        : '')
       + (low
         ? '<div style="padding:.5rem .7rem;background:#FFF4F5;border-left:3px solid var(--danger);'
           + 'color:var(--danger);font-size:.8rem;font-weight:700;margin-bottom:.6rem">'
@@ -1225,18 +1247,17 @@
     const el = document.getElementById('em-head-sum');
     if (!el) return;
     const won = (n) => '₩' + Math.round(Number(n) || 0).toLocaleString('ko-KR');
-    const sell = Number(e.total) || 0;
-    const cost = (e.visibleTotal !== undefined && e.visibleTotal !== null) ? Number(e.visibleTotal) : sell;
-    const rate = sell > 0 ? (sell - cost) / sell : 0;
-    const low = sell > 0 && rate < EM_MARGIN_WARN;
+    const M = emMoney(e);
+    const sell = M.sell, rate = M.rate, low = M.low;
     el.innerHTML = '<div class="em-sum-row">'
       + '<b>' + esc(e.orgName || '(기관명 없음)') + '</b>'
       + '<span>' + esc(e.destLabel || e.destKey || '-') + ' · '
       + (Number(e.participants) || 0) + '명 · ' + (Number(e.days) || 0) + '일</span>'
       + '<span class="em-sum-money">' + won(sell) + '</span>'
-      + (sell > 0 ? '<span class="em-sum-rate" style="color:'
+      + (rate !== null ? '<span class="em-sum-rate" style="color:'
         + (low ? 'var(--danger)' : 'var(--success)') + '">이익률 '
-        + (rate * 100).toFixed(1) + '%</span>' : '')
+        + (rate * 100).toFixed(1) + '%</span>'
+        : (sell > 0 ? '<span class="em-sum-rate" style="color:var(--muted)">이익률 —</span>' : ''))
       + '</div>';
   }
 

@@ -134,7 +134,12 @@ console.log('\n[4-b] 저장 시점 발급 · 화면 표시 · 복사');
   ok('④b 번호는 payload 전개보다 뒤에 온다',
     QUOTES.indexOf('quoteNo: r.quote_no') > QUOTES.indexOf('...r.payload, id: r.id'));
 
-  ok('④b 목록 열이 번호다(줄 번호가 아니다)', ADMIN.indexOf('>견적번호</th>') >= 0);
+  /* ⚠ 2026-09-27 열을 짝지으며 머리글이 「견적번호 · 접수」가 됐다 — 글자 그대로
+     찾으면 빨개진다. 재는 것은 **체크박스 다음 첫 열이 견적번호인가**다. */
+  const emHead = (ADMIN.match(/<table id="emTable"[\s\S]*?<\/thead>/) || [''])[0];
+  const emThs = (emHead.match(/<th\b[^>]*>[\s\S]*?<\/th>/g) || [])
+    .map((t) => t.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, '').trim());
+  ok('④b 목록 열이 번호다(줄 번호가 아니다)', /^견적번호/.test(emThs[1] || ''), emThs[1]);
   ok('④b 번호가 없으면 없다고 말한다', ESTMGR.indexOf('번호 없음') >= 0);
   ok('④b 번호로 검색된다', ESTMGR.indexOf("e.quoteNo || ''") >= 0);
   ok('④b 차수를 붙여 검색해도 찾힌다', ESTMGR.indexOf('replace(/-r') >= 0);
