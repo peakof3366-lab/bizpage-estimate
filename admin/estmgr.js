@@ -1107,8 +1107,11 @@
       + 'background:#fffbeb;border:1px solid #fde68a;padding:.1rem .4rem">🔒 고객에게 안 나갑니다</span>'
       + '<span style="font-size:.72rem;font-weight:400;color:var(--muted);margin-left:.4rem">읽기 전용</span>'
       + '</div>'
-      + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.7rem">'
+      + '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.5rem;margin-bottom:.7rem">'
       + card('sell', '총 판매가', won(sell), '#1d4ed8')
+      /* ⚠ 2026-09-27 「1인당 판매가」를 여기로 — 바로 위 금액 4칸(총액·원가·수익·1인당)이 이 요약과 **세 숫자가 겹쳐**
+           그 칸을 감췄다(`#em-sec-money`). 거기에만 있던 1인당 금액을 잃지 않게 옮겼다. */
+      + card('unit', '1인당 판매가', won(e.perPerson || 0), '#1d4ed8')
       + card('cost', '총 원가', M.known ? won(cost) : '—', 'var(--muted)')
       + card('profit', '예상 이익', M.known ? won(profit) : '—', profit >= 0 ? 'var(--success)' : 'var(--danger)')
       + card('rate', '이익률', M.rate !== null ? pct(rate) : '—', low ? 'var(--danger)' : 'var(--success)')

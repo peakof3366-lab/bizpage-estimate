@@ -1434,6 +1434,9 @@
 #emModalBody[data-emtab="staff"] > #emTabCust { display:none !important; }
 /* 문서가 없으면 빈 회색 상자를 그리지 않는다 (2026-09-27) */
 #emModal .em-doc-prev:empty { display: none; }
+/* 금액 4칸(청구·원가·수익·1인당)은 바로 아래 「💰 수익 요약」과 같은 숫자라 감춘다 (2026-09-27).
+   ⚠ 요소는 남긴다 — 값을 채우는 코드·검사가 붙어 있다. 1인당 금액은 수익 요약에 한 칸 더했다. */
+#emModal #em-sec-money { display: none; }
 /* 새 목적지 추가 — 칸이 창 밖으로 삐져나갔다(긴 선택지 글자가 열 폭을 밀었다) · 2026-09-27 */
 #newDestModal .nd-grid .pw-input, #newDestModal .nd-grid .status-select { width: 100%; max-width: 100%; box-sizing: border-box; }
 #emModal .em-sec-info { display:grid; grid-template-columns:1fr 1fr; gap:0; border-bottom:1px solid var(--border); }

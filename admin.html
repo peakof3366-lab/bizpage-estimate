@@ -4272,7 +4272,7 @@
           <div style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:.6rem">📋 견적 연계 상담 — 고객 선택 내역</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem .8rem;font-size:.82rem">
             <div><span style="color:#64748b;font-weight:600">목적지</span><br>${esc(est.destLabel||'—')}</div>
-            <div><span style="color:#64748b;font-weight:600">참가 인원</span><br>${Number(est.participants)||0}명 / ${Number(est.days)||0}일 (${Number(est.nights)||0}박)</div>
+            <div><span style="color:#64748b;font-weight:600">참가 인원</span><br>${Number(est.participants)||0}명 / ${Number(est.days)||0}일${est.nights != null && est.nights !== '' ? ' (' + (Number(est.nights)||0) + '박)' : ''}</div>
             <div><span style="color:#64748b;font-weight:600">프로그램</span><br>${esc(est.programLabel||'—')}</div>
             <div><span style="color:#64748b;font-weight:600">기관 유형</span><br>${esc(est.orgTypeLabel||'—')}</div>
           </div>
