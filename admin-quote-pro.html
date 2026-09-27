@@ -145,6 +145,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .btn-r { background: var(--red); border-color: var(--red); color: #fff; }
 .btn-r:hover { background: var(--red-dk); border-color: var(--red-dk); }
 .btn-sm { min-height: 32px; padding: 0 10px; font-size: 12px; font-weight: 600; }
+/* 줄 지우기 — 줄마다 붙어 화면에서 가장 진한 버튼이 돼 있었다 (2026-09-27). 옅게 두고 올리면 빨강. */
+.btn-rm { border-color: var(--line, #ddd); color: #777; background: #fff; }
+.btn-rm:hover, .btn-rm:focus-visible { border-color: #c0392b; color: #c0392b; }
 .btn:disabled { opacity: 1; background: #EDEDEA; color: #8A8A8A; border-color: #D5D5D0; cursor: not-allowed; }
 .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
 .bar-sp { flex: 1 1 auto; }
@@ -836,6 +839,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
   if (ADHOC) {
     STEPS[0].name = '여행 정보';
     STEPS[1].name = '금액 입력';
+    /* 단계 머리 제목도 — 탭은 「금액 입력」인데 본문 제목이 「항목별 조정」이었다 (2026-09-27) */
+    const s2t = document.querySelector('#sec2 .sec-t') || [...document.querySelectorAll('.sec-t')].find((x) => x.textContent.trim() === '금액 — 항목별 조정');
+    if (s2t) s2t.textContent = '금액 — 항목별 입력';
     const 다시적기 = { '다음: 금액 조정 →': '다음: 금액 입력 →',
                        '← 이전: 금액 조정': '← 이전: 금액 입력',
                        '← 이전: 여행 조건': '← 이전: 여행 정보' };
@@ -1089,7 +1095,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         + '<td class="n">' + (d === 0 ? '<span style="color:var(--t-dim)">—</span>'
           : '<span class="delta ' + (d > 0 ? 'up' : 'dn') + '">' + (d > 0 ? '+' : '') + won(d) + '</span>') + '</td>'
         + '<td class="n">' + (S.adhoc
-          ? '<button type="button" class="btn btn-sm" data-rm="' + r.key + '" aria-label="' + esc(r.name) + ' 줄 지우기">삭제</button>'
+          ? '<button type="button" class="btn btn-sm btn-rm" data-rm="' + r.key + '" aria-label="' + esc(r.name) + ' 줄 지우기">삭제</button>'
           : (d === 0 ? '' : '<button type="button" class="btn btn-sm" data-undo="' + r.key
             + '" aria-label="' + esc(r.name) + ' 자동값으로 되돌리기">되돌리기</button>')) + '</td>';
       tb.appendChild(tr);
@@ -1418,7 +1424,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       const row = document.createElement('div');
       row.className = 'day';
       row.innerHTML = '<div class="day-h">선택' + (i + 1)
-        + '<span style="flex:1"></span><button type="button" class="btn btn-sm" data-orm="' + i + '">삭제</button></div>'
+        + '<span style="flex:1"></span><button type="button" class="btn btn-sm btn-rm" data-orm="' + i + '" aria-label="선택' + (i + 1) + ' 지우기">삭제</button></div>'
         + '<div class="day-b">'
         + '<label class="f"><span>항목명</span><input type="text" data-on="' + i + '" value="' + esc(o.name) + '" placeholder="호텔 1인실 사용(유료)" /></label>'
         + '<label class="f"><span>단가</span><input type="text" inputmode="numeric" data-ou="' + i + '" value="' + won(o.unit) + '" /></label>'
