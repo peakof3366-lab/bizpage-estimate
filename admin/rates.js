@@ -458,7 +458,7 @@
 
     const fieldLabel = RATE_FIELD_LABELS[field] || field;
     const regionLabel = region === '__all__' ? '전체 지역' : region;
-    if (!confirm(`${regionLabel}의 목적지 ${targets.length}곳 "${fieldLabel}"를 ${pct}% 조정하시겠습니까?\n(적용 직후 화면에서 바로 되돌릴 수 있습니다)`)) return;
+    if (!confirm(`${regionLabel}의 목적지 ${targets.length}곳 "${fieldLabel}"${josa(fieldLabel, '을', '를')} ${pct}% 조정하시겠습니까?\n(적용 직후 화면에서 바로 되돌릴 수 있습니다)`)) return;
 
     if (btn) { btn.disabled = true; btn.textContent = '적용 중...'; }
     /* 실제로 값을 쓰기 직전에 서버 최신값으로 한 번 더 맞춘다 — 모달을 열어둔 사이
@@ -513,7 +513,7 @@
       + (failures.length ? `\n\n적용되지 않은 ${failures.length}곳:\n${failures.join('\n')}` : ''));
     document.getElementById('rateBulkModal').classList.add('hidden');
     if (succeededEntries.length) {
-      setLastRateAction({ label: `방금 ${regionLabel} ${succeededEntries.length}곳 "${fieldLabel}"를 ${pct}% 일괄 조정했습니다.`, entries: succeededEntries });
+      setLastRateAction({ label: `방금 ${regionLabel} ${succeededEntries.length}곳 "${fieldLabel}"${josa(fieldLabel, '을', '를')} ${pct}% 일괄 조정했습니다.`, entries: succeededEntries });
     }
     renderRates();
   }
@@ -1535,7 +1535,7 @@
        자체가 기본값 위에서 계산된 것이라 적용해서는 안 된다. */
     if (!(await ensureFreshRates('제안 적용'))) return;
     const eff = effectiveRate(dest);
-    if (!confirm(`"${dest.label}" ${fieldLabel}를 실제 데이터 ${count}건 평균 기준 ${fmtWon(suggestedBase)}(으)로 바로 적용할까요?\n(현재: ${fmtWon(eff[field] || 0)})`)) return;
+    if (!confirm(`"${dest.label}" ${fieldLabel}${josa(fieldLabel, '을', '를')} 실제 데이터 ${count}건 평균 기준 ${fmtWon(suggestedBase)}으로 바로 적용할까요?\n(현재: ${fmtWon(eff[field] || 0)})`)) return;
 
     const today = new Date();
     const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -1552,7 +1552,7 @@
       if (!res.ok) { alert(rateSaveErrorMessage(data, res.status)); return; }
       rateOverridesCache[destKey] = data.overrides;
       rateHistoryLoaded = false;   /* SZ: 이력이 바뀌었다 — 다음에 펼칠 때 새로 받는다 */
-      setLastRateAction({ label: `방금 "${dest.label}" ${fieldLabel}를 실제 계약 데이터 기준(${fmtWon(suggestedBase)})으로 적용했습니다.`, entries: [{ destinationKey: destKey, changes }] });
+      setLastRateAction({ label: `방금 "${dest.label}" ${fieldLabel}${josa(fieldLabel, '을', '를')} 실제 계약 데이터 기준(${fmtWon(suggestedBase)})으로 적용했습니다.`, entries: [{ destinationKey: destKey, changes }] });
       renderRates();
     } catch (err) {
       alert('적용 요청에 실패했습니다. 네트워크를 확인해 주세요.');
@@ -1636,7 +1636,7 @@
         const drift = base / med - 1;
         if (Math.abs(drift) >= RATE_BASE_DRIFT_WARN) {
           const pct = Math.round(drift * 100);
-          return `<div style="${style};color:var(--danger)" title="현재 기준가 ${fmtWon(base)}이 최근 실측 중앙값 ${fmtWon(med)}과(와) ${pct > 0 ? '+' : ''}${pct}% 차이 — 기준가가 실제와 어긋났을 수 있어 확인 권장">❗ 실측대비 ${pct > 0 ? '+' : ''}${pct}%</div>`;
+          return `<div style="${style};color:var(--danger)" title="현재 기준가 ${fmtWon(base)}이 최근 실측 중앙값 ${fmtWon(med)}과 ${pct > 0 ? '+' : ''}${pct}% 차이 — 기준가가 실제와 어긋났을 수 있어 확인 권장">❗ 실측대비 ${pct > 0 ? '+' : ''}${pct}%</div>`;
         }
       }
     }

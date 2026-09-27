@@ -80,7 +80,12 @@
   /* 받침을 보고 조사를 고른다 (2026-09-27) — 「을(를)」·「이(가)」가 화면에 그대로 찍혔다.
      마지막 글자가 한글이 아니면(숫자·영문) 예전처럼 둘 다 적는다 — 틀린 조사보다 낫다. */
   const josa = (word, withBatchim, without) => {
-    const ch = String(word == null ? '' : word).trim().slice(-1);
+    /* 끝의 괄호 덧말·따옴표는 건너뛴다 — 「호텔(1박)」은 「호텔」로, 「"다낭"」은 「다낭」으로 판단한다 */
+    const core = String(word == null ? '' : word).trim()
+      .replace(/[\s"'”’」』\]]+$/, '')      /* 끝 따옴표·꺾쇠 */
+      .replace(/\s*\([^()]*\)$/, '')         /* 끝 괄호 덧말 — 닫는 괄호를 먼저 지우면 이게 안 먹는다 */
+      .replace(/[\s"'”’」』\]]+$/, '').trim();
+    const ch = core.slice(-1);
     const c = ch.charCodeAt(0);
     if (!(c >= 0xAC00 && c <= 0xD7A3)) return withBatchim + '(' + without + ')';
     return (c - 0xAC00) % 28 ? withBatchim : without;
