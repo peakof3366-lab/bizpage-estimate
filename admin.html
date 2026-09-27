@@ -4609,7 +4609,7 @@
 
     /* Dest */
     const destMap = {};
-    ests.forEach(e=>{ const lbl = e.destLabel || e.destKey; destMap[lbl]=(destMap[lbl]||0)+1; });
+    ests.forEach(e=>{ const lbl = e.destLabel || e.destKey || '(목적지 미기재)'; destMap[lbl]=(destMap[lbl]||0)+1; });
     renderHBar('e-dest', Object.entries(destMap).sort((a,b)=>b[1]-a[1]).slice(0,8),
       '아직 산출된 견적이 없습니다. 견적이 쌓이면 어느 목적지를 많이 찾는지 여기 나옵니다.');
 

@@ -438,7 +438,7 @@
     /* 🔴 **번호를 제목에 띄운다** (대표 지시 1-5). 상세를 열어 놓고 전화하는 자리라,
        여기 없으면 담당자가 목록으로 되돌아가야 한다. */
     document.getElementById('emModalTitle').textContent =
-      (e.quoteNo ? e.quoteNo + ' · ' : '') + `견적 상세 — ${e.destLabel||e.destKey}`;
+      (e.quoteNo ? e.quoteNo + ' · ' : '') + (e.destLabel || e.destKey ? `견적 상세 — ${e.destLabel || e.destKey}` : '견적 상세 — 목적지 미기재');
 
     /* 이 견적으로 상담 신청이 들어왔는지 (신규) */
     const linkedInq = get(KEYS.contacts).find(c => c.linkedQuoteId === id);
