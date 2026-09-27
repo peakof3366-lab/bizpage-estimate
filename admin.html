@@ -1022,8 +1022,11 @@
            비중을 배포 없이 전역 조정. 기본값(강도 1.0, 호텔비중 0.8)이면 현재 계산과 동일.
            전 목적지·전 견적에 즉시 영향을 준다. 서버가 진짜 방어선(매니저+ 권한·범위 검증),
            여기 숨김은 혼동 방지용. -->
-      <div class="card hidden" id="coef-tuning-card" style="margin-bottom:1.25rem">
-        <div class="card-header"><span class="card-title">⚙️ 견적 계수 조정</span></div>
+      <!-- ⚠ 2026-09-27 **접어 둔다** — 전 목적지 금액을 한 번에 바꾸는 강한 도구인데 드물게 쓴다.
+           요율 관리 화면의 **맨 위를 300px** 차지해, 매일 보는 요율표가 그 아래로 밀렸다.
+           권한 숨김(`hidden`)은 그대로 작동한다(매니저 이상만 보인다). -->
+      <details class="card fold-card hidden" id="coef-tuning-card" style="margin-bottom:1.25rem">
+        <summary class="card-header"><span class="card-title">⚙️ 견적 계수 조정</span><span class="fold-count">드물게 · 전 목적지에 즉시 반영</span></summary>
         <div class="card-body">
           <!-- 🔴 154자였다 (YQ). 여기서 잘라내면 안 되는 것은 **위험 경고 한 줄**이고,
                나머지(1.0의 뜻·조정 방향·언제 하는가)는 실제로 손댈 때 펴 보면 된다. -->
@@ -1041,12 +1044,13 @@
           </details>
           <div id="coef-fields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:.9rem"></div>
           <div style="display:flex;align-items:center;gap:.6rem;margin-top:1rem;flex-wrap:wrap">
-            <button class="btn-primary" onclick="saveCoefficients()">계수 저장</button>
-            <button class="btn-detail" onclick="resetCoefficientsToDefault()">기본값으로</button>
+            <!-- ⚠ `btn-act`가 빠져 있어 「계수 저장」이 버튼 모양 없이 작은 글씨로 그려졌다 (2026-09-27) -->
+            <button class="btn-act btn-primary" onclick="saveCoefficients()">계수 저장</button>
+            <button class="btn-act btn-outline-p" onclick="resetCoefficientsToDefault()">기본값으로</button>
             <span id="coef-save-msg" style="font-size:.8rem"></span>
           </div>
         </div>
-      </div>
+      </details>
 
       <!-- 요율 현황 패널: 메타 배너(버전/최종갱신/다음검토/상태요약) + 갱신 안내를
            하나로 묶어 "지금 이 탭 전체가 어떤 상태인지"를 한 덩어리로 보여준다
@@ -2345,7 +2349,7 @@
       <button onclick="document.getElementById('newDestModal').classList.add('hidden')" class="modal-close">✕</button>
     </div>
     <div class="modal-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem">
+      <div class="nd-grid" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.9rem">
         <div>
           <div class="detail-label" style="margin-bottom:.3rem">목적지 키(내부용, 견적서에 그대로 표시됨)</div>
           <input type="text" id="new-dest-key" class="pw-input" maxlength="40" placeholder="예: 교토" aria-label="새 목적지 키" />

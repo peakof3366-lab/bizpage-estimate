@@ -143,7 +143,8 @@
           <td>${fmtRateDate(eff.rateDate)}</td>
           <td style="color:var(--muted)">${rs.months <= 999 ? rs.months + '개월' : '—'}</td>
           <td><span class="rate-badge ${rs.fxClamped ? 'stale' : rs.status}"${rs.fxPct != null ? ` title="환율 ${rs.fxPct.toFixed(1)}% 변동${rs.fxClamped ? ' — ±30% 상한에 걸려 견적에 다 반영되지 않습니다. 요율을 다시 잡아 주세요.' : ''}"` : ''}>${rs.icon} ${rs.label}${rs.fxClamped ? ' 🚨환율상한' : (rs.fxPct != null ? ' 💱' : '')}</span></td>
-          <td style="display:flex;gap:.3rem">
+          <!-- ⚠ 2026-09-27 칸에 display:flex를 걸지 않는다 — 표 칸 성질을 잃어 이 칸만 줄 구분선이 어긋났다 -->
+          <td style="white-space:nowrap">
             <button class="btn-detail" aria-label="${esc(d.label || d.destination_key)} 요율 편집" onclick="openRateEditModal('${d.destination_key}')">편집</button>
             <button class="btn-detail" aria-label="${esc(d.label || d.destination_key)} 요율을 오늘 확인함으로 기록" title="가격은 그대로, 오늘 확인했다는 것만 기록" onclick="confirmRateNoChange('${d.destination_key}')">✓ 확인함</button>
             ${(isManagerUpRole() && customDestinationKeys.has(d.destination_key)) ? `<button class="btn-detail" onclick="deleteCustomDestination('${esc(d.destination_key)}')">🗑 삭제</button>` : ''}

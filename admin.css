@@ -712,7 +712,8 @@
 
     /* ── RATE TABLE ─────────────────────── */
     .rate-status-panel { margin-bottom:1.25rem; }
-    .rate-meta-banner { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:0; }
+    /* ⚠ 2026-09-27 4 → 5열 — 카드가 다섯이라 「실측 전환」만 혼자 둘째 줄로 떨어졌다 */
+    .rate-meta-banner { display:grid; grid-template-columns:repeat(5,1fr); gap:.75rem; margin-bottom:0; }
     .rate-meta-box { background:var(--white); border:1px solid var(--border); padding:.9rem 1.1rem; border-left:3px solid var(--primary); }
     .rate-meta-box.warn   { border-left-color:var(--warn);    background:#fffbeb; }
     .rate-meta-box.danger { border-left-color:var(--danger);  background:#fef2f2; }
@@ -737,7 +738,8 @@
     .rate-table th { padding:.6rem .85rem; text-align:left; font-weight:700; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--border); white-space:nowrap; }
     .rate-table td { padding:.65rem .85rem; border-bottom:1px solid rgba(0,0,0,.05); vertical-align:middle; }
     .rate-table tbody tr:hover { background:rgba(0,0,0,.02); }
-    .rate-badge { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .6rem; border-radius:0; font-size:.72rem; font-weight:700; }
+    /* ⚠ nowrap (2026-09-27) — 「⚠ 확인 권장 💱」가 좁은 칸에서 「확인 권 / 장」으로 쪼개졌다 */
+    .rate-badge { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .6rem; border-radius:0; font-size:.72rem; font-weight:700; white-space:nowrap; }
     .rate-badge.ok    { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
     .rate-badge.check { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
     .rate-badge.stale { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
@@ -1420,6 +1422,8 @@
 #emModalBody[data-emtab="staff"] > #emTabCust { display:none !important; }
 /* 문서가 없으면 빈 회색 상자를 그리지 않는다 (2026-09-27) */
 #emModal .em-doc-prev:empty { display: none; }
+/* 새 목적지 추가 — 칸이 창 밖으로 삐져나갔다(긴 선택지 글자가 열 폭을 밀었다) · 2026-09-27 */
+#newDestModal .nd-grid .pw-input, #newDestModal .nd-grid .status-select { width: 100%; max-width: 100%; box-sizing: border-box; }
 #emModal .em-sec-info { display:grid; grid-template-columns:1fr 1fr; gap:0; border-bottom:1px solid var(--border); }
 
 /* 고객용 칸 — 문서 사이를 갈라 「세 장」임이 보이게 한다(고객 화면과 같은 언어) */
