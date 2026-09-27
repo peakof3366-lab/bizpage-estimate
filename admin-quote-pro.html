@@ -62,6 +62,10 @@ body { margin: 0; background: var(--bg); color: var(--t);
    ⚠ 목적지·인원·일수·날짜는 **남긴다.** 견적서 개요표가 그 값을 쓴다. */
 html.aqp-adhoc .eng-only { display: none !important; }
 html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
+/* ⚠ 2026-09-27 직접 입력(·고치기)에서는 「자동값」·「증감」 열을 감춘다 — 자동값이 늘 0이라
+     자동값 열은 전부 「—」였고, 증감 열은 **적은 금액을 한 번 더** 보여 주는 셈이었다. */
+html.aqp-adhoc #moneyTable th:nth-child(2), html.aqp-adhoc #moneyTable td:nth-child(2),
+html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-child(4) { display: none; }
 /* ⚠ **이 자리에 `hidden` 클래스를 같이 쓰지 말 것.** `.hidden{display:none!important}`이
    위 규칙을 이겨서, 직접 입력 모드인데도 원가 칸이 안 보였다(브라우저로 재고 알았다).
    보임/숨김은 **`<html>`의 모드 클래스 하나**가 정한다. */
@@ -347,7 +351,9 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
   <!-- ══ ② 금액 ══ -->
   <section class="sec hidden" id="secMoney">
     <div class="sec-h"><span class="sec-n">2</span><span class="sec-t">금액 — 항목별 조정</span>
-      <span class="sec-d">자동값을 고치면 「수정됨」과 증감이 붙습니다</span></div>
+      <span class="sec-d eng-only">자동값을 고치면 「수정됨」과 증감이 붙습니다</span>
+      <!-- ⚠ 2026-09-27 직접 입력(·고치기)에는 자동값이 없다 — 위 문구가 없는 기능을 말하고 있었다 -->
+      <span class="sec-d adhoc-only">항목과 금액을 직접 적습니다 · 원가 합계를 적으면 마진이 계산됩니다</span></div>
     <div class="sec-b">
       <p class="note-i eng-only">
         <b>자동값</b>은 고객이 받는 금액과 <b>같습니다.</b> 여기서 고치는 것은 그 위에 얹는 조정이고,
@@ -369,9 +375,9 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
             style="width:140px;height:34px;text-align:right;border:1.5px solid var(--line);font-family:inherit;padding:0 8px" />
         </label>
       </div>
-      <table class="mt">
+      <table class="mt" id="moneyTable">
         <thead><tr>
-          <th>항목</th><th class="n">자동값</th><th class="n">적용값</th><th class="n">증감</th><th class="n"></th>
+          <th>항목</th><th class="n">자동값</th><th class="n"><span class="eng-only">적용값</span><span class="adhoc-only">금액</span></th><th class="n">증감</th><th class="n"></th>
         </tr></thead>
         <tbody id="moneyRows"></tbody>
       </table>
@@ -1486,16 +1492,19 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
       const row = document.createElement('div');
       row.className = 'day';
       row.innerHTML = '<div class="day-h">DAY ' + it.day + ' <span style="font-weight:500;color:var(--t-dim)">' + esc(it.date) + '</span>'
-        + '<span style="flex:1"></span><button type="button" class="btn btn-sm" data-irm="' + i + '" aria-label="DAY ' + it.day + ' 삭제">삭제</button></div>'
+        + '<span style="flex:1"></span><button type="button" class="btn btn-sm" data-irm="' + i + '" aria-label="DAY ' + it.day + ' 삭제">이 날 삭제</button></div>'
         + '<div class="day-b">'
         + '<label class="f"><span>지역</span><input type="text" data-it="' + i + '" data-k="title" value="' + esc(it.title) + '" placeholder="인천 → 다낭" /></label>'
         + '<label class="f"><span>숙박</span><input type="text" data-it="' + i + '" data-k="stay" value="' + esc(it.stay) + '" /></label>'
-        + '<label class="f" style="grid-column:1/-1"><span>오전</span><input type="text" data-it="' + i + '" data-k="am" value="' + esc(it.am) + '" /></label>'
-        + '<label class="f" style="grid-column:1/-1"><span>오후</span><input type="text" data-it="' + i + '" data-k="pm" value="' + esc(it.pm) + '" /></label>'
-        + '<label class="f" style="grid-column:1/-1"><span>저녁</span><input type="text" data-it="' + i + '" data-k="eve" value="' + esc(it.eve) + '" /></label>'
+        /* ⚠ 2026-09-27 짧은 칸 다섯(지역·숙박·조식·중식·석식)을 **먼저** 둔다 — 넓은 화면에서 한 줄에
+             들어가 하루 카드가 한 줄씩 준다. 예전엔 지역·숙박 / 오전 / 오후 / 저녁 / 식사 셋 순이라
+             짧은 칸이 두 줄로 흩어졌다. 칸·저장 이름은 그대로(순서만). */
         + '<label class="f"><span>조식</span><input type="text" data-im="' + i + '" data-k="b" value="' + esc(it.meals.b) + '" /></label>'
         + '<label class="f"><span>중식</span><input type="text" data-im="' + i + '" data-k="l" value="' + esc(it.meals.l) + '" /></label>'
         + '<label class="f"><span>석식</span><input type="text" data-im="' + i + '" data-k="d" value="' + esc(it.meals.d) + '" /></label>'
+        + '<label class="f" style="grid-column:1/-1"><span>오전</span><input type="text" data-it="' + i + '" data-k="am" value="' + esc(it.am) + '" /></label>'
+        + '<label class="f" style="grid-column:1/-1"><span>오후</span><input type="text" data-it="' + i + '" data-k="pm" value="' + esc(it.pm) + '" /></label>'
+        + '<label class="f" style="grid-column:1/-1"><span>저녁</span><input type="text" data-it="' + i + '" data-k="eve" value="' + esc(it.eve) + '" /></label>'
         + '<label class="f" style="grid-column:1/-1"><span>참고</span><input type="text" data-it="' + i + '" data-k="note" value="' + esc(it.note) + '" /></label>'
         + '</div>';
       box.appendChild(row);

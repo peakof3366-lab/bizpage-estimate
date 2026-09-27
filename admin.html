@@ -905,9 +905,8 @@
 
           <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
             <button type="button" class="btn-act btn-primary" onclick="submitPriceReport()">제출</button>
-            <button type="button" class="btn-act btn-outline-p" onclick="openPriceReportsModal()">제보 내역·삭제</button>
-            <!-- SX: 확정 안 하고 넘어간 칸을 한 곳에 모은다. 건수가 곧 할 일의 양이다. -->
-            <button type="button" class="btn-act btn-outline-p" onclick="openNeedCheckModal()">확인 필요 <span id="pr-need-count"></span></button>
+            <!-- ⚠ 2026-09-27 「제보 내역·삭제」·「확인 필요」는 아래 「지금까지 넣은 견적서」 머리로 옮겼다 —
+                 둘 다 **이미 넣은 것**을 다루는데 「제출」 옆에 있어 제출 단계의 버튼처럼 보였다. -->
           </div>
           <p id="pr-msg" style="font-size:.78rem;font-weight:700;margin-top:.6rem"></p>
         </div>
@@ -937,9 +936,15 @@
 
       <!-- 지금까지 넣은 것 (RM) — 수십·수백 건을 넣을 화면이라 "어디까지 넣었나"가
            안 보이면 같은 견적서를 두 번 넣거나 빠뜨린다. 목적지별로 몇 건인지만
-           보여주고, 자세히·삭제는 위의 '제보 내역' 창에서 한다. -->
+           보여주고, 자세히·삭제는 이 구역 머리의 '제보 내역' 창에서 한다. -->
       <div class="card" id="pr-progress-card">
-        <div class="card-header"><span class="card-title">📥 지금까지 넣은 견적서</span></div>
+        <div class="card-header" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          <span class="card-title">📥 지금까지 넣은 견적서</span>
+          <span style="margin-left:auto"></span>
+          <button type="button" class="btn-act btn-outline-p" onclick="openPriceReportsModal()">제보 내역·삭제</button>
+          <!-- SX: 확정 안 하고 넘어간 칸을 한 곳에 모은다. 건수가 곧 할 일의 양이다. -->
+          <button type="button" class="btn-act btn-outline-p" onclick="openNeedCheckModal()">확인 필요 <span id="pr-need-count"></span></button>
+        </div>
         <div class="card-body">
           <div id="pr-progress" class="pr-progress"></div>
         </div>
