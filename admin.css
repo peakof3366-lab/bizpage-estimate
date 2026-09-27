@@ -66,7 +66,9 @@
 
     /* ── DASH HEADER ───────────────── */
     .dash-header { background: var(--heading); padding: 0 1.5rem; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255,255,255,.1); }
-    .dash-header-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; width: 96%; max-width: 1680px; margin: 0 auto 0 1.5rem; }
+    /* 오른쪽 묶음(시각·계정·로그아웃)이 **본문 오른쪽 끝과 맞게** 전폭으로 둔다 (2026-09-27).
+       예전엔 96%·최대 1680px라 넓은 모니터(1920)에서 로그아웃이 본문보다 150px 안쪽에 떠 있었다. */
+    .dash-header-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; width: 100%; margin: 0; }
     .dash-brand { font-size: .82rem; font-weight: 900; color: #fff; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid transparent; padding-bottom: 2px; transition: border-color .18s; }
     .dash-brand:hover { border-color: var(--primary); }
     /* BI 로고 (2026-09-17) — 높이로만 크기를 정한다(가로는 비율이 정한다).
@@ -105,6 +107,9 @@
     /* ── SIDEBAR ───────────────────── */
     .sidebar-logo { padding: 1.1rem 1.2rem .8rem; color: rgba(255,255,255,.9); font-size: .76rem; font-weight: 900;
       display: flex; align-items: center; gap: .5rem; border-bottom: 1px solid rgba(255,255,255,.1); letter-spacing: .06em; text-transform: uppercase; }
+    /* 🔴 머리줄 로고와 **같은 로고가 바로 아래 한 번 더** 있었다 (2026-09-27) — 둘 다 늘 보인다
+       (머리줄은 sticky). 사이드바 쪽을 감춰 메뉴가 그만큼 위로 올라온다. 마크업은 남긴다. */
+    .sidebar-logo { display: none; }
     .sidebar-nav { padding: .6rem .6rem; flex: 1; display: flex; flex-direction: column; gap: .15rem; }
     .sidebar-divider { height: 1px; background: rgba(255,255,255,.1); margin: .4rem 0; }
     .sidebar-item {
