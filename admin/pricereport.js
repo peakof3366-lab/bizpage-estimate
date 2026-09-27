@@ -640,7 +640,7 @@
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'btn-act btn-primary';
     btn.style.cssText = 'margin-top:.5rem';
-    btn.textContent = '📅 일정 관리로 보내기';
+    btn.textContent = '📅 일정·방식 비교로 보내기';   /* ⚠ 2026-09-27 메뉴 이름에 맞췄다(옛 이름 「일정 관리」) */
     btn.addEventListener('click', () => {
       const destKey = (document.getElementById('pr-dest') || {}).value || '';
       if (!destKey) { alert('먼저 위에서 목적지를 골라 주세요 — 어느 목적지의 일정으로 넣을지 알아야 합니다.'); return; }
@@ -650,7 +650,7 @@
 
     const btnNote = document.createElement('div');
     btnNote.style.cssText = 'font-size:.71rem;color:var(--muted);margin-top:.25rem';
-    btnNote.textContent = '새 코스로 넣기만 합니다 — 기존 코스는 건드리지 않고, 일정 관리에서 저장을 눌러야 반영됩니다.';
+    btnNote.textContent = '새 코스로 넣기만 합니다 — 기존 코스는 건드리지 않고, 일정·방식 비교에서 저장을 눌러야 반영됩니다.';
     wrap.appendChild(btnNote);
 
     box.appendChild(wrap);

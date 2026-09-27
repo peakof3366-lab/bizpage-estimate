@@ -118,7 +118,7 @@ const EXTRACT = {
   ok('나뉜 날은 오전·오후·저녁으로 보인다',
     /오전<\/strong> 08:00/.test(box.innerHTML) && /저녁<\/strong> 19:30/.test(box.innerHTML));
   ok('안 나뉜 날은 「시간대 미분류」라고 보인다', /시간대 미분류/.test(box.innerHTML));
-  const btn = Array.from(box.querySelectorAll('button')).find((b) => /일정 관리로 보내기/.test(b.textContent));
+  const btn = Array.from(box.querySelectorAll('button')).find((b) => /(일정 관리|일정·방식 비교)로 보내기/.test(b.textContent));   /* 2026-09-27 메뉴 이름에 맞춰 버튼 이름이 바뀌었다 */
   ok('보내기 버튼이 있다', !!btn);
 
   /* 일정표가 없는 문서에서는 이 구역이 아예 안 나와야 한다 */
