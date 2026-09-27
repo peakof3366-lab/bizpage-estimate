@@ -160,6 +160,9 @@
      ⚠ 한 값에 이름을 두 개 두지 않는다 — 서버가 부르는 이름 하나로 간다. */
     { key: 'incl', label: '포함사항', has: (p) => Array.isArray(p.included) && p.included.length > 0 },
     { key: 'img',  label: '사진',   has: (p) => !!p.imageUrl },
+    /* 🔴 금액이 0원인 작성중 상품이 「✓ 팔 준비됨」으로 세졌다 (2026-09-27) — 일정·포함사항만
+       보고 판단해서, 고객에게 0원으로 나갈 상품을 준비됐다고 말하고 있었다. */
+    { key: 'price', label: '금액', has: (p) => Number(p.pricePerPerson) > 0 },
   ];
   const pkgGaps = (p) => PKG_GAPS.filter((g) => !g.has(p));
   /* 고객에게 내보내도 되는 상태인가 — 일정과 포함사항이 이 판단의 전부다.
@@ -224,7 +227,9 @@
                 : '<div class="pkg-gaps"><span class="pkg-gap is-ok">✓ 팔 준비됨</span></div>';
             })())
         + '</div>'
-        + '<div style="text-align:right;font-weight:800">' + Number(p.pricePerPerson || 0).toLocaleString() + '원</div>'
+        + (Number(p.pricePerPerson) > 0
+            ? '<div style="text-align:right;font-weight:800">' + Number(p.pricePerPerson).toLocaleString() + '원</div>'
+            : '<div style="text-align:right;color:var(--muted);font-size:.85rem">금액 미입력</div>')
         + '<div class="pkg-stale">' + (old ? '⚠ ' + age + '일 전 금액' : '') + '</div>'
         + '<div><span class="pkg-st ' + esc(p.status) + '">' + esc(stLabel) + '</span></div>'
         /* ── 상태마다 **맞는 동작 하나만** 준다 (ZO) ─────────────────────────
@@ -388,7 +393,8 @@
         imageUrl: (document.getElementById('pkgImage') || {}).value || null,
       };
       const gaps = kind === 'adhoc' ? [] : pkgGaps(cur);
-      const blocking = gaps.filter((g) => g.key !== 'img');
+      /* 금액은 이 안내의 말(「고객 화면에 그 칸이 안 나온다」)과 맞지 않는다 — 금액 칸이 따로 말한다 */
+      const blocking = gaps.filter((g) => g.key !== 'img' && g.key !== 'price');
       gapNote.classList.toggle('hidden', !blocking.length);
       gapNote.innerHTML = !blocking.length ? '' :
         '⚠ <b>' + blocking.map((g) => g.label).join(' · ') + '</b>' + josa(blocking.length ? blocking[blocking.length - 1].label : '', '이', '가') + ' 비어 있습니다. '

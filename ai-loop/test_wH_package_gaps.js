@@ -186,7 +186,10 @@ function run() {
     /* 사진 없이도 카드가 그려진다(VZ) — 사진까지 필수로 하면 팔 수 있는 상품이
        「준비 안 됨」으로 묶여 진짜 빈 상품과 구분이 안 된다 */
     ok('⑥ 사진 없는 상품도 「팔 준비」 판정에 안 걸린다',
-      w.eval('pkgSellable({itinerary:[{}],included:["a"],imageUrl:null})') === true);
+      w.eval('pkgSellable({itinerary:[{}],included:["a"],imageUrl:null,pricePerPerson:1})') === true);
+    /* 🔴 0원 작성중 상품이 「✓ 팔 준비됨」으로 세졌다 (2026-09-27) */
+    ok('⑥ 금액이 0원이면 걸린다',
+      w.eval('pkgSellable({itinerary:[{}],included:["a"],imageUrl:null,pricePerPerson:0})') === false);
     ok('⑥ 일정이 없으면 걸린다',
       w.eval('pkgSellable({itinerary:null,included:["a"],imageUrl:"https://x/y.jpg"})') === false);
   }
