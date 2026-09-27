@@ -804,6 +804,14 @@
     .cms-img-preview { height:64px; object-fit:cover; border:1px solid var(--border); background:var(--bg); }
     .cms-field-actions { display:flex; align-items:end; gap:.6rem; align-self:end; }
     .cms-field-msg { font-size:.76rem; font-weight:700; }
+    /* 콘텐츠 관리 — 저장 하나 (2026-09-27 S-1 ①). 화면 오른쪽 아래에 **떠서** 늘 보인다.
+       🔴 sticky를 쓰지 않는다 — `.dash-main`이 `overflow-x:hidden`이라 **그 상자가 스크롤 기준**이 되는데
+         그 상자는 스크롤하지 않고 화면보다 길어서, sticky 띠가 화면 바닥에 안 붙고 **본문 끝에 묻혔다**
+         (실측: 띠 아래 15px이 화면 밖 · 구역을 펼치면 수천 px 아래). 탭이 감춰지면 함께 감춰진다. */
+    .cms-savebar { position: fixed; right: 1.5rem; bottom: 1rem; z-index: 50; display: flex; align-items: center; gap: 1rem;
+      padding: .7rem 1rem; background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-lg); max-width: calc(100vw - 3rem); }
+    #tab-content { padding-bottom: 5rem; }   /* 마지막 칸이 떠 있는 저장 상자 밑에 가리지 않게 */
+    .cms-dirty-note { font-size: .84rem; font-weight: 700; color: var(--muted); }
     .cms-pf-item { border:1px solid var(--border); border-radius:var(--r); padding:.75rem 1rem; margin-bottom:.75rem; }
     .cms-pf-item summary { cursor:pointer; font-size:.84rem; font-weight:700; color:var(--heading); }
     .cms-pf-item .cms-field-row { margin-top:.9rem; padding-top:0; border-bottom:none; }

@@ -53,6 +53,20 @@ ok('[5-d] 🔴 바깥은 **자기 틀이 보낸 것만** 받는다 (자동 견�
   && /\(d\.__aqp === 'height' \|\| d\.__aqp === 'top'\) && !fromMine\) return/.test(EST));
 ok('[5-e] 틀 안에서 따로 스크롤하지 않는다', /id="em-edit-frame"[^>]*scrolling="no"/.test(ADMIN));
 
+/* ═══ ① 콘텐츠 관리 — 「저장」 110개 → 하나 ═══════════════════════════════════ */
+const fieldFn = (ADMIN.match(/function renderContentField\([\s\S]*?\n  \}/) || [''])[0];
+ok('[1] 🔴 칸마다 「저장」 버튼이 없다 (110개였다)', fieldFn && !/<button/.test(fieldFn));
+ok('[1-b] 결과 표시(저장됨·실패)는 칸 옆에 남아 있다', /class="cms-field-msg"/.test(fieldFn));
+ok('[1-c] 저장 버튼은 하나다', (ADMIN.match(/onclick="saveAllContent\(\)"/g) || []).length === 1);
+ok('[1-d] 🔴 고친 칸은 **캐시와 값 비교**로 센다 (건드린 것으로 세면 되돌린 칸까지 간다)',
+  /function cmsDirtyFields\(\)[\s\S]{0,300}el\.value !== \(contentOverridesCache\[f\.key\] \|\| ''\)/.test(ADMIN));
+ok('[1-e] 🔴 저장은 예전 경로(saveContentField)를 그대로 탄다', /await saveContentField\(f\.key,/.test(ADMIN));
+ok('[1-f] 🔴 저장 안 한 채 다른 탭으로 가면 묻는다', /function switchTab\(name\) \{\s*\n[^\n]*\n?\s*if \(name !== currentTab && typeof cmsLeaveGuard === 'function' && !cmsLeaveGuard\(\)\) return;/.test(read('admin.html')));
+ok('[1-g] 창을 닫을 때도 묻는다', /beforeunload[\s\S]{0,120}cmsDirtyFields\(\)\.length/.test(ADMIN));
+ok('[1-h] 🔴 저장 상자가 sticky가 아니다 (.dash-main 안에서 sticky는 화면 바닥에 안 붙었다)',
+  /\.cms-savebar \{ position: fixed;/.test(read('admin.css')));
+ok('[1-i] 구역이 접히는 카드다', /<details class="card fold-card" data-cms-sec=/.test(ADMIN));
+
 console.log('\n' + '─'.repeat(64));
 fails.forEach((f) => console.log('  ✗ ' + f));
 console.log('결과: ' + pass + ' pass / ' + fails.length + ' fail  — aF 관리자 화면 간소화');

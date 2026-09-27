@@ -1590,6 +1590,9 @@
         <h1 class="page-title">콘텐츠 관리</h1>
         <p class="page-sub">홈페이지에 나가는 글과 사진을 고칩니다. 저장하면 고객 화면에 바로 반영됩니다.</p>
       </div>
+      <!-- ⚠ 2026-09-27 긴 안내(여덟 줄)를 접었다(S-1 ①) — 핵심 한 줄(「URL로만 넣는다」)은 접힌 제목에 남긴다 -->
+      <details class="cms-guide" style="margin-bottom:1rem">
+      <summary class="fold-note">🖼 이미지는 <b>주소(URL)로만</b> 넣습니다 — 준비 요령 보기</summary>
       <div class="rate-update-info">
         <strong>이미지는 URL만 입력하는 방식입니다</strong> (파일 업로드 아님) — 새 이미지를 쓰려면 먼저
         어딘가에 업로드해서 바로 접근 가능한 이미지 링크(.jpg/.png/.webp로 끝나는 주소)를 확보한 뒤
@@ -1598,8 +1601,17 @@
         화질 저하나 어색한 크롭 없이 깔끔하게 노출됩니다. 공통 권장: JPG 또는 WebP 형식,
         장당 500KB 이하(로딩 속도), 사진 속 주요 피사체(인물·랜드마크)는 가운데에 배치.
       </div>
+      </details>
       <div id="content-empty" class="empty-state hidden"><div class="empty-icon">✏️</div><p>콘텐츠를 불러오지 못했습니다. 새로고침해 주세요.</p></div>
       <div id="content-sections"></div>
+      <!-- 🔴 「저장」은 **여기 하나** (2026-09-27 대표 승인 S-1 ①). 예전엔 칸 110개가 **각자** 「저장」을
+           가졌다(화면 6,212px). 고친 칸만 모아 한 번에 저장한다 — 저장 경로는 칸 하나씩 보내는
+           `saveContentField` 그대로다(서버 API·결과 표시 모두 예전과 같다).
+           ⚠ 버튼이 칸에서 멀어졌으니 **저장 안 한 채 나가면 묻는다**(`cmsLeaveGuard`). -->
+      <div class="cms-savebar" id="cmsSaveBar">
+        <span id="cmsDirtyNote" class="cms-dirty-note">칸을 고치면 여기서 한 번에 저장합니다</span>
+        <button type="button" class="btn-act btn-primary" id="cmsSaveAll" onclick="saveAllContent()" disabled>변경 사항 저장</button>
+      </div>
     </div>
 
     <!-- ── 설정 ── -->
@@ -4015,6 +4027,8 @@
   }
 
   function switchTab(name) {
+    /* 콘텐츠 관리에서 저장 안 한 칸을 두고 떠나면 묻는다 (2026-09-27 S-1 ①) */
+    if (name !== currentTab && typeof cmsLeaveGuard === 'function' && !cmsLeaveGuard()) return;
     currentTab = name;
     rememberTab(name);
     document.querySelectorAll('.sidebar-item').forEach(b => b.classList.toggle('active', b.dataset.tab===name));
@@ -5024,7 +5038,9 @@
       body = groups.map((g, idx) => renderContentRow(
         g, groups.length > 1 ? 구역이름 + ' ' + (idx + 1) + '번' : 구역이름)).join('');
     }
-    return `<div class="card" style="margin-bottom:1.25rem"><div class="card-header"><span class="card-title">${esc(CMS_SECTION_LABELS[section])}</span></div><div class="card-body">${body}</div></div>`;
+    /* ⚠ 2026-09-27 구역을 접는 카드로(S-1 ①) — 여섯 구역이 한꺼번에 펼쳐져 6,212px였다.
+       이름·칸 수만 보이고, 고칠 구역만 연다. 모양은 기존 `.fold-card` 규칙 하나를 쓴다. */
+    return `<details class="card fold-card" data-cms-sec="${esc(section)}" style="margin-bottom:1.25rem"><summary class="card-header"><span class="card-title">${esc(CMS_SECTION_LABELS[section])}</span><span class="fold-count">${fields.length}칸</span></summary><div class="card-body">${body}</div></details>`;
   }
 
   /* 필드를 각자 감싼 블록으로 두지 않고, "라벨 전부 → 안내문 전부 → 미리보기 전부 →
@@ -5065,8 +5081,9 @@
         <!-- 🔴 이 화면에 「저장」 버튼이 **110개** 있는데 이름이 전부 같았다 (XT).
              낭독기에는 「저장, 저장, 저장…」으로만 들려 어느 항목을 저장하는지 알 수
              없었다. 무엇을 저장하는지 이름에 넣는다(눈에 보이는 글자는 그대로 「저장」). -->
-        <button type="button" class="btn-act btn-outline-p" aria-label="${esc(읽을이름)} 저장" onclick="saveContentField('${f.key}','${fieldId}')">저장</button>
-        <span id="${fieldId}-msg" class="cms-field-msg"></span>
+        <!-- ⚠ 2026-09-27 칸마다의 「저장」을 걷었다 — 아래 「변경 사항 저장」 하나가 고친 칸만 보낸다.
+             결과(저장됨·저장 실패)는 예전처럼 **그 칸 옆**에 뜬다. -->
+        <span id="${fieldId}-msg" class="cms-field-msg" data-cms-key="${esc(f.key)}" aria-label="${esc(읽을이름)} 저장 상태"></span>
       </div>`;
     return { label, hint, preview, input, actions };
   }
@@ -5090,7 +5107,63 @@
       msg.style.color = 'var(--danger)'; msg.textContent = '저장 실패';
     }
     setTimeout(() => { msg.textContent = ''; }, 3000);
+    return msg.textContent === '저장됨';
   }
+
+  /* ══ 고친 칸만 모아 저장 (2026-09-27 대표 승인 S-1 ①) ════════════════════════
+     🔴 **무엇이 바뀌었나는 캐시와 칸 값을 비교해 센다** — 「건드렸다」로 세면 고쳤다가 되돌린
+       칸까지 서버로 간다. 캐시는 저장이 성공할 때만 바뀐다(saveContentField). */
+  function cmsDirtyFields() {
+    if (typeof CMS_FIELDS === 'undefined') return [];
+    return CMS_FIELDS.filter((f) => {
+      const el = document.getElementById('cms-' + f.key.replace(/\./g, '-'));
+      return el && el.value !== (contentOverridesCache[f.key] || '');
+    });
+  }
+  function cmsSyncDirty() {
+    const n = cmsDirtyFields().length;
+    const note = document.getElementById('cmsDirtyNote');
+    const btn = document.getElementById('cmsSaveAll');
+    if (note) note.textContent = n ? '고친 칸 ' + n + '개 — 아직 저장 안 됨' : '칸을 고치면 여기서 한 번에 저장합니다';
+    if (note) note.style.color = n ? 'var(--warn)' : 'var(--muted)';
+    if (btn) { btn.disabled = !n; btn.textContent = n ? '변경 사항 저장 (' + n + ')' : '변경 사항 저장'; }
+    return n;
+  }
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains('cms-field-input')) cmsSyncDirty();
+  });
+  async function saveAllContent() {
+    const list = cmsDirtyFields();
+    if (!list.length) return;
+    const btn = document.getElementById('cmsSaveAll');
+    if (btn) btn.disabled = true;
+    let okN = 0, failN = 0;
+    /* 하나씩 보낸다 — 서버 API가 칸 하나 단위다(예전 버튼과 같은 길). 실패한 칸은 캐시가 안 바뀌어
+       「고친 칸」으로 남으므로 다시 누르면 그것만 다시 간다. */
+    for (const f of list) {
+      const ok = await saveContentField(f.key, 'cms-' + f.key.replace(/\./g, '-'));
+      if (ok) okN++; else failN++;
+    }
+    cmsSyncDirty();
+    const note = document.getElementById('cmsDirtyNote');
+    if (note) {
+      note.textContent = failN
+        ? '⚠ ' + okN + '개 저장 · ' + failN + '개 실패 — 실패한 칸은 남아 있습니다. 다시 눌러 주세요'
+        : '✓ ' + okN + '개 저장했습니다 — 고객 화면에 바로 반영됩니다';
+      note.style.color = failN ? 'var(--danger)' : 'var(--success)';
+    }
+  }
+  /* 저장 안 한 채 **다른 탭으로** 가려 하면 묻는다 — 버튼이 칸에서 멀어진 대가다 */
+  function cmsLeaveGuard() {
+    if (currentTab !== 'content') return true;
+    const n = cmsDirtyFields().length;
+    if (!n) return true;
+    const NL = String.fromCharCode(10);
+    return confirm('콘텐츠 관리에 저장하지 않은 칸이 ' + n + '개 있습니다.' + NL + NL + '이동하면 고친 내용이 사라집니다. 이동할까요?');
+  }
+  window.addEventListener('beforeunload', (e) => {
+    if (currentTab === 'content' && cmsDirtyFields().length) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   /* ════ SETTINGS ════ */
   async function changePw() {
