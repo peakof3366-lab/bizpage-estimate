@@ -1636,20 +1636,14 @@
             <div class="setting-info"><p>전체 데이터 내보내기</p><span>문의, 방문, 이벤트, 견적 데이터를 JSON으로 다운로드합니다.</span></div>
             <button class="btn-act btn-outline-p" onclick="exportAll()">전체 내보내기</button>
           </div>
-          <!-- 아래 4개는 되돌릴 수 없는 대량 삭제라 관리자 전용(신규) -->
+          <!-- 되돌릴 수 없는 대량 삭제라 관리자 전용(신규)
+               🔴 2026-09-27 「방문 기록 · 이벤트 통계 · 견적 기록 초기화」 셋을 걷었다(대표 승인 S-1).
+                 셋 다 **이 브라우저의 사본(localStorage)만** 지웠다 — 방문·이벤트·목적지 통계는
+                 로그인할 때마다 `/api/admin/insights?type=analytics`가 다시 채우므로 **새로고침하면
+                 그대로 돌아오는데** 「삭제되었습니다」라고 말했다. 견적 기록(`linkedt_estimates`)은 **이 브라우저에서
+                 직접 뽑은 견적**만 담는 옛 키다(대시보드 「견적 완료」가 더한다) — 담당자 브라우저에선 늘 비어 있다.
+                 서버 통계를 지우는 길은 원래 없었다. -->
           <div id="ownerDataDangerZone">
-            <div class="setting-row">
-              <div class="setting-info"><p>방문 기록 초기화</p><span>방문자 추적 데이터를 삭제합니다.</span></div>
-              <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_visits','방문 기록')">초기화</button>
-            </div>
-            <div class="setting-row">
-              <div class="setting-info"><p>이벤트 통계 초기화</p><span>버튼 클릭, 목적지 선택 통계를 삭제합니다.</span></div>
-              <button class="btn-act btn-danger-sm" onclick="clearMulti(['linkedt_events','linkedt_dest_stats'],'이벤트 통계')">초기화</button>
-            </div>
-            <div class="setting-row">
-              <div class="setting-info"><p>견적 기록 초기화</p><span>견적 분석 데이터를 삭제합니다.</span></div>
-              <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_estimates','견적 기록')">초기화</button>
-            </div>
             <div class="setting-row">
               <div class="setting-info"><p>문의 전체 삭제</p><span>모든 문의 내역을 영구 삭제합니다.</span></div>
               <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_contacts','문의 내역')">전체 삭제</button>
@@ -5799,9 +5793,6 @@
     alert('삭제되었습니다.');
   }
 
-  function clearMulti(keys, label) {
-    if (confirm(`${label}을(를) 초기화하시겠습니까?`)) { keys.forEach(k=>localStorage.removeItem(k)); renderTab(currentTab); alert('초기화되었습니다.'); }
-  }
 
 </script>
 <script>
