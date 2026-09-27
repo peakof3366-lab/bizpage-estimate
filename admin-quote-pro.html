@@ -1878,7 +1878,16 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
        기록을 만들어 `?action=internal`로 보낸다. 그 52줄을 여기 베끼면 두 벌이 되고
        반드시 어긋난다(결함 생성기 ①). 숨은 폼에 submit을 흘린 뒤, 만들어진 견적에
        문서를 붙인다. */
+  /* 🔴 2026-09-27 **새 견적을 두 번 만들지 않게** — 저장한 뒤 버튼이 다시 풀려, 한 번 더 누르면 같은 내용의
+     견적이 **새 번호로 하나 더** 생겼다(이 경로는 누를 때마다 새 기록을 만든다). 저장 뒤엔 「✓ 저장됨」으로 바꾸고,
+     그래도 누르면 묻는다(일부러 한 건 더 만드는 것은 막지 않는다). 고치기(`?quote=`)는 같은 건을 고치므로 해당 없음. */
+  let savedNewOnce = false;
   $('btnSave').addEventListener('click', async () => {
+    if (savedNewOnce && !EDIT_ID
+        && !confirm(['이 견적은 방금 견적 관리에 저장했습니다.', '',
+          '한 번 더 저장하면 같은 내용의 견적이 새 번호로 하나 더 생깁니다.',
+          '저장한 견적을 고치려면 견적 관리 → 상세 → 「수정하기」를 쓰세요.', '',
+          '그래도 한 건 더 만들까요?'].join(String.fromCharCode(10)))) return;
     const msg = $('saveMsg');
     /* `ok`를 주면 초록(끝난 일), `err`를 주면 빨강(사람이 손대야 하는 일),
        둘 다 없으면 기본 노랑(진행 중) — 색이 **무슨 상태인지**를 먼저 말한다. */
@@ -1955,6 +1964,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
              🔴 대신 **실패 쪽에는 번호를 남긴다**(아래 PATCH 실패 자리) — 거기서는
                어느 건을 다시 열어야 하는지가 유일한 단서다. */
         show('✅ 견적 관리 업로드 완료', false, true);
+        savedNewOnce = true;
         return;
       }
 
@@ -1983,10 +1993,12 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         return;
       }
       show('✅ 견적 관리 업로드 완료', false, true);
+      savedNewOnce = true;
     } catch (e) {
       show('저장에 실패했습니다: ' + e.message, true);
     } finally {
       $('btnSave').disabled = false;
+      if (savedNewOnce && !EDIT_ID) $('btnSave').textContent = '✓ 저장됨 — 한 건 더 저장';
     }
   });
 

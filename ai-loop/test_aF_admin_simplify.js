@@ -67,6 +67,12 @@ ok('[1-h] 🔴 저장 상자가 sticky가 아니다 (.dash-main 안에서 sticky
   /\.cms-savebar \{ position: fixed;/.test(read('admin.css')));
 ok('[1-i] 구역이 접히는 카드다', /<details class="card fold-card" data-cms-sec=/.test(ADMIN));
 
+/* ═══ 새 견적을 두 번 만들지 않게 (2026-09-27) ═══════════════════════════════════
+   저장 뒤 버튼이 다시 풀려 한 번 더 누르면 같은 내용의 견적이 새 번호로 또 생겼다. */
+ok('[D] 🔴 새 견적 저장 뒤 다시 누르면 묻는다 (두 경로 모두 저장됨을 기록)',
+  /if \(savedNewOnce && !EDIT_ID[\s\S]{0,40}!confirm\(/.test(PRO)
+  && (PRO.match(/savedNewOnce = true;/g) || []).length === 2);
+
 /* ═══ 조사 — 「을(를)」·「이(가)」가 화면에 그대로 찍혔다 (2026-09-27) ═══════════════ */
 {
   const src = read(path.join('admin', 'common.js'));
