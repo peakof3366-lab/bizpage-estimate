@@ -138,7 +138,9 @@ const rates = fs.existsSync(RATES_FIXTURE)
   /* 견적서 대장 검색칸이 클래스 없는 맨 input이라 높이 19px이었다. */
   ok('🔴 대장 검색칸에 높이 규칙이 있다',
     /\.iti-bar input\[type="search"\][^{]*\{[^}]*height:\s*40px/.test(admin));
-  ok('PDF 파일칸에 높이가 있다', /id="pr-pdf"[^>]*height:\s*34px/.test(admin));
+  /* 2026-09-27 파일칸을 「📄 PDF 파일 고르기」 버튼으로 덮었다(영어 Choose File 제거) — 높이는 그 버튼이 갖는다 */
+  ok('PDF 파일칸에 높이가 있다', /<label class="file-pick">\s*<input type="file" id="pr-pdf"/.test(admin)
+    && /\.file-pick \.fp-btn \{[^}]*height:\s*36px/.test(admin));
 
   console.log('\n[4] 🔴 읽어야 하는 글의 양 (YQ — 대표 지시 2026-09-03 「글자가 너무 많다」)');
   {

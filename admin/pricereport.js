@@ -1100,7 +1100,7 @@
          ⚠ **가격 칸만** 비운다 — 공통 칸(출발일·견적작성일·박수)은 방식과 무관하다.
            함께 지우면 먼저 넣어 둔 날짜가 사라져 새로고침된 것처럼 보인다. */
       PR_PRICE_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-      const pdfInput = document.getElementById('pr-pdf'); if (pdfInput) pdfInput.value = '';
+      const pdfInput = document.getElementById('pr-pdf'); if (pdfInput) { pdfInput.value = ''; pdfInput.dispatchEvent(new Event('change', { bubbles: true })); }
       const msg = document.getElementById('pr-msg'); if (msg) msg.textContent = '';
     }
     priceReportMode = mode;
@@ -1428,6 +1428,7 @@
       PR_FIELD_IDS.forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
       PR_MANUAL_FIELDS = {};
       pdfInput.value = '';
+      pdfInput.dispatchEvent(new Event('change', { bubbles: true }));
       clearPdfEvidence();
       await loadPriceReports();
       renderRateSuggestions();

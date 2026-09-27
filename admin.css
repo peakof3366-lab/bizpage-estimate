@@ -1528,3 +1528,15 @@
 /* 옮겨 온 구역들이 모달 가장자리까지 늘어나지 않게 — 접힌 상자 안쪽이다 */
 #em-more-box > * { border-bottom: 1px solid var(--border); }
 #em-more-box > *:last-child { border-bottom: none; }
+
+/* 파일 고르기 — 브라우저 파일칸의 영어 문구(Choose File)를 감추고 우리 말로 (2026-09-27).
+   ⚠ 칸을 display:none으로 지우지 않는다 — 누르는 자리·키보드 초점·자동화 도구가 그 칸을 쓴다.
+     투명하게 덮어 두면 라벨 어디를 눌러도 원래 칸이 눌린다. */
+.file-pick { position: relative; display: inline-flex; align-items: center; gap: .6rem; cursor: pointer; max-width: 100%; }
+.file-pick input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
+.file-pick .fp-btn { display: inline-flex; align-items: center; height: 36px; padding: 0 .9rem; border: 1px solid var(--border);
+  background: #fff; font-size: .8rem; font-weight: 700; color: var(--heading); white-space: nowrap; }
+.file-pick:hover .fp-btn { border-color: var(--primary); }
+.file-pick:focus-within .fp-btn { outline: 2px solid var(--primary); outline-offset: 2px; }
+.file-pick .fp-name { font-size: .78rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.file-pick.has-file .fp-name { color: var(--heading); font-weight: 600; }

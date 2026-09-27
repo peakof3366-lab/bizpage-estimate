@@ -827,9 +827,12 @@
               <!-- 🔴 높이가 20px이었다 (YB). 파일 고르기는 이 화면에서 **가장 먼저
                    하는 동작**인데 가장 누르기 어려웠다. 파일칸은 브라우저가 그리는
                    버튼이라 안쪽을 못 꾸미지만, 칸 자체의 높이·여백은 준다. -->
-              <input type="file" id="pr-pdf" accept="application/pdf"
-                     style="font-size:.76rem;height:34px;padding:.35rem .5rem;border:1px solid var(--border);background:#fff"
-                     aria-label="견적서 PDF 파일" />
+              <!-- 🔴 브라우저 파일칸은 「Choose File · No file chosen」을 **영어로** 그린다 (2026-09-27).
+                   칸은 투명하게 덮어 두고(누르는 자리는 그대로) 보이는 글자만 우리 말로 바꾼다. -->
+              <label class="file-pick">
+                <input type="file" id="pr-pdf" accept="application/pdf" aria-label="견적서 PDF 파일" />
+                <span class="fp-btn">📄 PDF 파일 고르기</span><span class="fp-name">아직 고른 파일이 없습니다</span>
+              </label>
               <button type="button" class="btn-act btn-outline-p" onclick="extractPdfDetails()">PDF에서 추출</button>
             </div>
           </div>
@@ -1482,7 +1485,10 @@
             <strong>저장은 하지 않습니다</strong> — 이미 적어 두신 칸은 건드리지 않습니다.
           </p>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <input type="file" id="pkgPdf" accept="application/pdf" style="font-size:12px" aria-label="상품 PDF 파일">
+            <label class="file-pick">
+              <input type="file" id="pkgPdf" accept="application/pdf" aria-label="상품 PDF 파일">
+              <span class="fp-btn">📄 PDF 파일 고르기</span><span class="fp-name">아직 고른 파일이 없습니다</span>
+            </label>
             <button type="button" class="btn-act btn-outline-p" id="pkgPdfRead">읽어서 채우기</button>
             <span id="pkgPdfMsg" style="font-size:12px"></span>
           </div>
@@ -4398,6 +4404,16 @@
   document.getElementById('modalClose').addEventListener('click', ()=>document.getElementById('modal').classList.add('hidden'));
   document.getElementById('modal').addEventListener('click', e=>{ if(e.target===document.getElementById('modal')) document.getElementById('modal').classList.add('hidden'); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.getElementById('modal').classList.add('hidden'); });
+  /* 파일칸 옆에 고른 파일 이름을 적는다 — 브라우저가 그리던 영어 문구 대신 (2026-09-27).
+     ⚠ 코드가 value=''로 비울 때는 change가 안 나므로 그쪽에서 직접 이 이벤트를 낸다. */
+  document.addEventListener('change', e=>{
+    const i = e.target;
+    if (!i || !i.closest || i.type !== 'file') return;
+    const box = i.closest('.file-pick'); if (!box) return;
+    const n = box.querySelector('.fp-name');
+    if (n) n.textContent = i.files && i.files[0] ? i.files[0].name : '아직 고른 파일이 없습니다';
+    box.classList.toggle('has-file', !!(i.files && i.files[0]));
+  });
 
   /* ════ STATS ════ */
   /* 방문 원본 행의 상한 정보 (PZ). 서버가 최근 N건만 보내므로, "전체 방문"처럼
