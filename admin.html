@@ -2104,7 +2104,10 @@
                  같은 버튼이 **「일정 확인·수정」을 글자 그대로 부른다.** 오늘 하루에 네 번
                  나온 자리다(버튼 이름을 건드리면 부르는 곳까지 함께 고쳐야 한다).
                  여기서 바꾼 것은 **모양뿐**이다. -->
-            <button type="button" class="btn-act btn-iti-edit" onclick="eqOpen(emCurrentId)">일정 확인·수정</button>
+            <!-- ⚠ 2026-09-27: **견적서 문서가 붙은 건에서는 감춘다**(`emRenderItiState`). 그런 건은 여기서
+                 고친 일정이 고객에게 **안 나간다**(문서의 일정이 나간다) — 누르면 헛일을 하는 버튼이었다.
+                 진짜 자리는 고객용 탭 일정표의 「수정하기」(고치기 ④일정)다. 문서 없는 옛 건에는 그대로. -->
+            <button type="button" class="btn-act btn-iti-edit" id="emItiEditBtn" onclick="eqOpen(emCurrentId)">일정 확인·수정</button>
           </div>
           <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">
             여기서 고친 일정은 <strong style="color:var(--heading)">이 견적서에만</strong> 적용됩니다.

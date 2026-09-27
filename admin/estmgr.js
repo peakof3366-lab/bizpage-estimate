@@ -1400,11 +1400,14 @@
     const rec = getEstsFull().find((x) => x.id === emCurrentId);
     /* 🔴 문서가 붙어 있으면 **아래 일정은 고객에게 안 나간다.** 먼저 그 사실을 말한다. */
     const doc = emDocOf(rec);
+    /* 🔴 문서가 있으면 「일정 확인·수정」을 감춘다 — 거기서 고친 일정은 안 나간다(2026-09-27) */
+    const btn = document.getElementById('emItiEditBtn');
+    if (btn) btn.classList.toggle('hidden', !!doc);
     if (doc) {
       const n = emDocItiDays(doc).length;
       el.textContent = n
-        ? '🧾 견적서 문서의 일정이 나갑니다 (' + n + '일) — 아래 코스는 나가지 않습니다'
-        : '🧾 견적서 문서가 붙어 있는데 일정표가 비어 있습니다 — 일정 없이 나갑니다';
+        ? '🧾 견적서 문서의 일정이 나갑니다 (' + n + '일) — 고치려면 고객용 탭 일정표의 「수정하기」'
+        : '🧾 견적서 문서가 붙어 있는데 일정표가 비어 있습니다 — 일정 없이 나갑니다 · 고객용 탭 일정표의 「수정하기」로 채웁니다';
       el.style.color = n ? '#15803D' : 'var(--warn)';
       return;
     }
