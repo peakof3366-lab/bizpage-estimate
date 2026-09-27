@@ -32,6 +32,9 @@
     .hidden { display: none !important; }
     a { color: inherit; text-decoration: none; }
     button { font-family: inherit; cursor: pointer; }
+    /* ⚠ 2026-09-27 입력칸도 페이지 글꼴을 물려받는다 — `button`만 있어서 `.pw-input` 등 많은 칸이 시스템 글꼴로
+       그려졌다(한글 자간이 벌어져 「아 이 디」처럼 보였다). */
+    input, select, textarea { font-family: inherit; }
 
     /* ── LOGIN ─────────────────────── */
     #loginPage {
