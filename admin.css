@@ -1371,6 +1371,10 @@
                  display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem 1rem; }
     .page-head .page-title { flex-basis: 100%; }
     .page-head .page-sub   { margin-right: auto; }
+    /* ⚠ 2026-09-27 설명 줄이 없는 탭(문의 관리·견적 관리 등)에서는 제목이 한 줄을 통째로 차지해 매뉴얼 링크가
+         **혼자 둘째 줄**로 밀렸다(약 50px) → 그때만 제목 옆 오른쪽 끝에 둔다. */
+    .page-head:not(:has(.page-sub)) { align-items: center; }
+    .page-head:not(:has(.page-sub)) .page-title { flex-basis: auto; margin: 0 auto 0 0; }
     /* 누르는 자리는 44px 이상 — 글자는 11px 이상(이 저장소 규칙). */
     .page-manual-link {
       display: inline-flex; align-items: center; min-height: 34px; padding: .4rem .7rem;

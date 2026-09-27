@@ -55,15 +55,19 @@
     if (redraw) renderEstMgr();
   }
   const EM_SHARE_ST = { issued: '발급', won: '계약', lost: '무산', void: '취소' };
-  function emShareBadge(quoteId) {
+  function emShareBadge(quoteId, ownNo) {
     if (emShareLinks === null) return '';         /* 모르면 아무 말도 하지 않는다 */
     const list = emShareLinks[quoteId];
     if (!list || !list.length) return '';
     const first = list[0];
     const more = list.length > 1 ? ' 외 ' + (list.length - 1) : '';
+    /* ⚠ 2026-09-27 발급 번호가 이 견적의 번호와 같으면(9/23부터 그렇다 — 차수 -R1만 다르다) 번호를 다시 적지 않는다.
+       바로 왼쪽 「견적번호」 칸과 같은 글자가 한 줄에 두 번 찍혔다. 다를 때(옛 Q번호 등)만 번호를 적는다. */
+    const base = (s) => String(s || '').replace(/-R\d+$/i, '');
+    const label = ownNo && base(first.no) === base(ownNo) ? '발급됨' + (first.no !== ownNo ? ' (' + String(first.no).slice(String(ownNo).length + 1) + ')' : '') : (first.no || '견적서');
     return ' <span title="견적서 대장에 있는 문서 — ' + esc(list.map((x) => x.no + ' (' + (EM_SHARE_ST[x.status] || x.status) + ')').join(', '))
       + '" style="font-size:.72rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:.05rem .35rem">📄 '
-      + esc(first.no || '견적서') + esc(more) + '</span>';
+      + esc(label) + esc(more) + '</span>';
   }
 
   function renderEstMgr() {
@@ -146,7 +150,7 @@
         <td class="em-qno">${e.quoteNo
           ? `<strong>${esc(e.quoteNo)}</strong>`
           : '<span title="번호가 없는 옛 건입니다 — 번호 붙이기는 개발 담당에게 요청하세요" style="color:var(--warn)">번호 없음</span>'}<span class="em-sub date-col">${fmtDate(e.ts)}</span></td>
-        <td class="em-who"><strong>${esc(e.orgName||'(기관명 없음)')}</strong><span class="em-sub">${esc(e.destLabel||e.destKey||'-')}${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}${emShareBadge(e.id)}</span></td>
+        <td class="em-who"><strong>${esc(e.orgName||'(기관명 없음)')}</strong><span class="em-sub">${esc(e.destLabel||e.destKey||'-')}${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}${emShareBadge(e.id, e.quoteNo)}</span></td>
         <td style="white-space:nowrap">${e.participants}명 / ${e.days}일</td>
         <td class="em-num"><b style="color:var(--primary)">${man(M.sell)}</b><span class="em-sub">1인당 ${man(per)}</span></td>
         <td class="em-num" title="${M.known ? '원가 ' + man(M.cost) + ' · 이익 = 청구 금액 − 원가' : '이 견적 기록에 원가가 없습니다'}">${rateCell}</td>
