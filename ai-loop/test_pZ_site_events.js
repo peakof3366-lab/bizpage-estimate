@@ -135,8 +135,10 @@ console.log('\n[5] 화면이 총계를 쓰는가 (③)');
 ok('visitMeta() 헬퍼가 있다', /function visitMeta\(\)/.test(adminSrc));
 ok('"전체 방문"이 visits.length가 아니다',
   /getElementById\('s-all'\)\.textContent\s*=\s*vm\.total/.test(adminSrc));
-ok('대시보드 "총 방문"도 총계를 쓴다',
-  /\$\{visitMeta\(\)\.total\.toLocaleString\(\)\}<\/div><div class="kpi-lbl">총 방문/.test(adminSrc));
+/* ⚠ 2026-09-27 대시보드 「빠른 통계」(총 방문 칸 포함)를 걷었다 — 같은 숫자는 「방문 통계」의
+   「전체 방문」이 총계로 보여 준다(바로 위 줄). 지키는 뜻은 같다: **잘린 목록 길이로 센 총 방문이 없다.** */
+ok('대시보드에 잘린 목록 길이로 센 "총 방문"이 없다',
+  !/\$\{visits\.length[^}]*\}<\/div><div class="kpi-lbl">총 방문/.test(adminSrc));
 ok('퍼널 분모가 총계다 (전환율이 부풀려지지 않게)',
   /const vTotal = visitMeta\(\)\.total;/.test(adminSrc));
 ok('절단 시 안내를 띄울 자리가 있다', /id="s-trunc-note"/.test(adminSrc));

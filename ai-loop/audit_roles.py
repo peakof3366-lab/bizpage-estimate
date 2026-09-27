@@ -61,7 +61,7 @@ GATED = [
     ("navAdhoc",              "직접 견적 작성 메뉴",     "manager"),
     ("btnDeleteInquiry",      "문의 삭제",               "manager"),
     ("btnDeleteQuote",        "견적 삭제",               "manager"),
-    ("clearAllBtn",           "문의 전체 삭제",          "manager"),
+    # ⚠ 목록의 「문의 전체 삭제」(clearAllBtn)는 2026-09-27 걷었다 — 설정의 관리자 전용 삭제가 남는다
     ("emDeleteSelectedBtn",   "견적 선택 삭제",          "manager"),
     # ⚠ 「견적 전체 삭제」(emClearAllBtn)는 2026-09-27 버튼째 걷었다 — 목록에서도 뺐다
 ]

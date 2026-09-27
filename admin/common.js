@@ -75,8 +75,11 @@
   const safeId = (s) => String(s == null ? '' : s).replace(/[^A-Za-z0-9_-]/g, '');
   const isToday = (ts) => new Date(ts).toDateString() === new Date().toDateString();
   const isThisWeek = (ts) => { const d=new Date(ts); const now=new Date(); const weekAgo=new Date(now-7*864e5); return d>=weekAgo; };
-  const fmtDate  = (ts) => new Date(ts).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'})+' '+new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});
-  const fmtDateS = (ts) => new Date(ts).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'});
+  /* ⚠ 날짜가 없거나 못 읽으면 **「—」**라고 말한다 (2026-09-27). 예전엔 브라우저가 만든
+     영어 「Invalid Date」가 그대로 화면에 찍혔다(문의 기록에 `timestamp`가 빠진 경우). */
+  const fmtBadTs = (ts) => ts == null || ts === '' || isNaN(new Date(ts).getTime());
+  const fmtDate  = (ts) => fmtBadTs(ts) ? '—' : new Date(ts).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'})+' '+new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const fmtDateS = (ts) => fmtBadTs(ts) ? '—' : new Date(ts).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'});
 
   /* ── 권역·나라 분류 맵 (data.js의 destFieldMap에서 파생) ── */
   /* 지역 분류 맵 — PY: data.js의 DEST_CLASSIFY(region)에서 파생한다.

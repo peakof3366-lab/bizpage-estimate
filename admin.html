@@ -429,20 +429,15 @@
         <div class="stat-card"><div id="d-est-count" class="stat-num">0</div><div class="stat-lbl">견적 완료</div><div class="stat-sub">누적</div></div>
       </div>
 
-      <div class="grid-3">
+      <!-- 🔴 2026-09-27 카드 둘을 걷었다 (대표: 「겹치거나 잘못된 부분 정리」).
+           · 「주요 이벤트 현황」 — 카카오 상담·견적 완료를 **바로 위 숫자 카드와 똑같이** 한 번 더 보여 줬다
+             (나머지 둘은 「이벤트 분석」 탭에 있다).
+           · 「빠른 통계」 — 견적 건수·평균 인원·평균 기간이 **늘 0**이었다. 아무도 안 채우는 옛 브라우저
+             저장소(`linkedt_estimates`)를 읽었다. 진짜 값은 「견적 분석」 탭에 있다. -->
+      <div class="grid-2">
         <div class="card">
           <div class="card-header"><span class="card-title">인기 연수지 TOP 5</span></div>
           <div class="card-body"><div id="d-dest-chart" class="h-bar-list"></div></div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title">주요 이벤트 현황</span></div>
-          <div class="card-body"><div id="d-events" class="event-grid"></div></div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title">빠른 통계</span></div>
-          <div class="card-body">
-            <div class="kpi-row" id="d-kpi"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -465,7 +460,9 @@
         <div style="display:flex;gap:.5rem">
           <button class="btn-act btn-outline-p" id="markAllReadBtn">전체 읽음</button>
           <button class="btn-act btn-outline-p" id="exportCsvBtn">CSV 내보내기</button>
-          <button class="btn-act btn-danger-sm" id="clearAllBtn">전체 삭제</button>
+          <!-- 🔴 「전체 삭제」를 걷었다 (2026-09-27) — 확인창 한 번에 문의 **전부**를 서버에서 지우는 버튼이
+               「CSV 내보내기」 바로 옆에 있었다. 견적 관리에서 같은 이유로 걷은 것과 맞춘다.
+               정말 다 지워야 하면 **설정 → 데이터 관리 → 문의 전체 삭제**(관리자 전용)가 남아 있다. -->
         </div>
       </div>
       <div class="card">
@@ -478,9 +475,10 @@
         <table id="inqTable" class="inq-table hidden">
           <thead>
             <tr>
-              <th style="width:40px">#</th>
+              <!-- ⚠ 2026-09-27 「#」(줄 번호)를 뺐다 — 새로 고치면 바뀌는 값이라 건을 부를 수 없었다.
+                   「소속」 열에 **전화번호가 찍히고 있었다**(`c.tel||c.org`) → 소속·연락처 두 줄로. -->
               <th>이름</th>
-              <th>소속</th>
+              <th>소속 · 연락처</th>
               <th>문의 내용</th>
               <th>접수 일시</th>
               <th style="width:70px">상태</th>
@@ -1802,10 +1800,13 @@
     <div class="modal-body">
       <div id="d-estimate-block" class="hidden"></div>
       <div id="d-linked-quote" class="hidden"></div>
+      <!-- ⚠ 2026-09-27 네 칸을 2×2로 — 한 줄에 하나씩 쌓여 창이 쓸데없이 길었다 -->
+      <div class="inq-info-grid">
       <div class="detail-field"><div class="detail-label">이름</div><div class="detail-value" id="d-name"></div></div>
       <div class="detail-field"><div class="detail-label">소속</div><div class="detail-value" id="d-org"></div></div>
       <div class="detail-field"><div class="detail-label">연락처</div><div class="detail-value" id="d-tel"></div></div>
       <div class="detail-field"><div class="detail-label">접수 일시</div><div class="detail-value" id="d-time"></div></div>
+      </div>
       <div class="detail-field"><div class="detail-label">문의 내용</div><div class="detail-message" id="d-msg"></div></div>
 
       <!-- 답변 내용 (신규) — 고객에게 실제로 전달한 확정 답변. 진행 기록(내부 이력)과는 별개 -->
@@ -1821,23 +1822,25 @@
         </div>
       </div>
 
+      <!-- 🔴 2026-09-27 「저장」·「닫기」를 걷었다 — 견적 상세와 **같은 방식**으로 맞췄다:
+           상태·담당자는 **고르면 바로**, 메모는 **칸을 떠날 때** 저장된다. 「닫기」는 머리의 ✕와 같았다.
+           두 상세 창의 저장 방식이 다르면 한쪽에서 「저장」을 찾다가 헤맨다. -->
       <div class="detail-field">
-        <div class="detail-label">관리자 메모</div>
-        <textarea class="note-area" id="d-note" placeholder="메모를 입력하세요..." aria-label="내부 메모"></textarea>
+        <div class="detail-label">관리자 메모 <span id="d-autosave-state" style="font-weight:400;font-size:.74rem;margin-left:.3rem;text-transform:none;letter-spacing:0"></span></div>
+        <textarea class="note-area" id="d-note" placeholder="메모를 입력하세요... (칸을 떠나면 저장됩니다)" aria-label="내부 메모" onchange="saveDetail()"></textarea>
       </div>
       <div class="modal-actions">
-        <select class="status-select" id="d-status" aria-label="문의 처리 상태">
+        <select class="status-select" id="d-status" aria-label="문의 처리 상태" onchange="saveDetail()">
           <option value="unread">신규</option>
           <option value="read">확인</option>
           <option value="pending">처리중</option>
           <option value="done">완료</option>
         </select>
-        <select class="status-select" id="d-assignee" onchange="confirmAssigneeSelect(this)" aria-label="담당자">
+        <select class="status-select" id="d-assignee" onchange="if (confirmAssigneeSelect(this)) saveDetail()" aria-label="담당자">
           <option value="">담당자 미배정</option>
         </select>
-        <button class="btn-act btn-primary" onclick="saveDetail()">저장</button>
-        <button class="btn-act btn-danger-sm" id="btnDeleteInquiry" onclick="deleteFromModal()">삭제</button>
-        <button class="btn-act btn-ghost-p" onclick="document.getElementById('modal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
+        <span class="inq-autosave-hint">고르면 바로 저장됩니다</span>
+        <button class="btn-act btn-danger-sm" id="btnDeleteInquiry" onclick="deleteFromModal()" style="margin-left:auto">이 문의 삭제</button>
       </div>
 
       <!-- 진행 기록 (신규) -->
@@ -2726,7 +2729,7 @@
        막으니 데이터는 안전했지만, 예전 코드는 응답을 보지 않아 **화면에서만 리드가 전부
        사라졌다.** 지우는 범위가 개별 삭제보다 넓은 버튼들이 정작 빠져 있었던 것이다. */
     for (const id of ['btnDeleteInquiry', 'btnDeleteQuote',
-                      'clearAllBtn', 'emDeleteSelectedBtn']) {
+                      'emDeleteSelectedBtn']) {
       const btn = document.getElementById(id);
       if (btn) btn.classList.toggle('hidden', !isManagerUp);
     }
@@ -4137,24 +4140,7 @@
       '아직 산출된 견적이 없어 목적지 순위를 만들 수 없습니다.\n'
       + '고객이 홈페이지에서 견적을 내거나, 「견적 산출」 탭에서 직접 만들면 여기에 쌓입니다.');
 
-    /* Events */
-    const evNames = { kakao:'카카오톡 상담', estimate_step2:'견적 2단계', estimate_complete:'견적 완료', header_cta:'상단 CTA 클릭' };
-    const evEl = document.getElementById('d-events');
-    evEl.innerHTML = Object.entries(evNames).map(([k,lbl])=>`
-      <div class="event-row">
-        <span class="event-name">${lbl}</span>
-        <span class="event-count">${events[k]||0}</span>
-      </div>`).join('');
-
-    /* KPI */
-    const avgP = ests.length ? Math.round(ests.reduce((s,e)=>s+(e.participants||0),0)/ests.length) : 0;
-    const avgD = ests.length ? Math.round(ests.reduce((s,e)=>s+(e.days||0),0)/ests.length) : 0;
-    document.getElementById('d-kpi').innerHTML = `
-      <div class="kpi-box"><div class="kpi-num">${ests.length}</div><div class="kpi-lbl">견적 건수</div></div>
-      <div class="kpi-box"><div class="kpi-num">${avgP}명</div><div class="kpi-lbl">평균 인원</div></div>
-      <div class="kpi-box"><div class="kpi-num">${avgD}일</div><div class="kpi-lbl">평균 기간</div></div>
-      <div class="kpi-box"><div class="kpi-num">${visitMeta().total.toLocaleString()}</div><div class="kpi-lbl">총 방문</div></div>
-    `;
+    /* ⚠ 「주요 이벤트 현황」·「빠른 통계」는 2026-09-27에 걷었다(위 HTML 주석) */
   }
 
   /* ════ INQUIRIES ════ */
@@ -4188,15 +4174,6 @@
     await leadWriteBatch('전체 읽음 처리', toSync.map(c => () => patchInquiry(c.id, { read: true }, { defer: true })));
   });
   document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
-  document.getElementById('clearAllBtn').addEventListener('click', async () => {
-    if(!confirm('모든 문의를 삭제하시겠습니까?')) return;
-    const ids = get(KEYS.contacts).map(c=>c.id);
-    set(KEYS.contacts,[]); renderInquiries(); renderDashboard();
-    /* 실패하면(권한 없음·서버 오류) 서버 값으로 되돌린다 (PV) — 예전엔 서버에 문의가
-       그대로 남아 있는데도 목록이 비어 보였다. */
-    if (!ids.length) return;
-    await leadWriteBatch('문의 전체 삭제', ids.map(id => () => deleteInquiry(id, { defer: true })));
-  });
 
   function getFilteredContacts() {
     let arr = get(KEYS.contacts).slice().reverse();
@@ -4218,13 +4195,11 @@
     const tbl   = document.getElementById('inqTable');
     const body  = document.getElementById('inqBody');
     const pager = document.getElementById('inqPager');
-    const allContacts = get(KEYS.contacts);
 
     if (total === 0) { empty.classList.remove('hidden'); tbl.classList.add('hidden'); pager.innerHTML=''; return; }
     empty.classList.add('hidden'); tbl.classList.remove('hidden');
 
     body.innerHTML = slice.map((c,i) => {
-      const origIdx = allContacts.findIndex(x=>x.id===c.id)+1;
       const statusBadge = c.status==='pending' ? 'badge-pend' : c.status==='done' ? 'badge-done' : c.read ? 'badge-read' : 'badge-new';
       const statusTxt   = c.status==='pending' ? '처리중' : c.status==='done' ? '완료' : c.read ? '확인' : '신규';
       const isEstimate  = c.type === 'estimate_inquiry';
@@ -4237,9 +4212,8 @@
         ? `<span class="badge" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;margin-left:.3rem;font-size:.7rem">✓ 답변완료</span>`
         : '';
       return `<tr class="${c.read?'':'unread'}" data-id="${safeId(c.id)}">
-        <td>${origIdx}</td>
         <td><strong>${esc(c.name)}</strong>${estBadge}${replyBadge}</td>
-        <td>${esc(c.tel||c.org||'—')}</td>
+        <td>${esc(c.org || (c.estimate && c.estimate.orgName) || '—')}${c.tel ? `<span class="inq-sub">${esc(c.tel)}</span>` : ''}</td>
         <td class="msg-preview">${isEstimate && c.estimate ? esc((c.estimate.destLabel||''))+' '+(Number(c.estimate.participants)||0)+'명/'+(Number(c.estimate.days)||0)+'일' : esc(preview)}</td>
         <td class="date-col">${fmtDate(c.timestamp)}</td>
         <td><span class="badge ${statusBadge}">${statusTxt}</span></td>
@@ -4278,7 +4252,9 @@
     if (!wasRead) patchInquiry(id, { read: true }, { quiet: true, desc: '읽음 표시' });
 
     currentModalId = id;
-    document.getElementById('modalTitle').textContent = `문의 상세 #${idx+1}`;
+    /* ⚠ 2026-09-27 「#줄번호」 대신 이름 — 줄 번호는 새로 고치면 바뀌어 건을 부를 수 없었다 */
+    document.getElementById('modalTitle').textContent = '문의 상세 — ' + (c.name || '(이름 없음)');
+    { const st = document.getElementById('d-autosave-state'); if (st) st.textContent = ''; }
     document.getElementById('d-name').textContent = c.name;
     document.getElementById('d-org').textContent  = c.org||'—';
     document.getElementById('d-tel').textContent  = c.tel||'—';
@@ -4375,13 +4351,19 @@
     /* 서버에 먼저 보내고, 성공한 뒤에 캐시 반영·모달 닫기 (PV). 실패하면 모달을 닫지
        않는다 — 담당자가 방금 쓴 메모를 잃지 않고 그대로 다시 저장할 수 있다
        (PR에서 고객 상담 폼을 닫지 않은 것과 같은 원칙). */
+    const st = document.getElementById('d-autosave-state');
+    if (st) { st.textContent = '저장 중…'; st.style.color = 'var(--muted)'; }
     const r = await patchInquiry(currentModalId, {
       status: contacts[idx].status, note: contacts[idx].note,
       read: contacts[idx].read, assignee: contacts[idx].assignee,
     }, { desc: '문의 상태·메모·담당자 저장' });
-    if (!r.ok) return;
+    if (!r.ok) {
+      if (st) { st.textContent = '⚠ 저장하지 못했습니다'; st.style.color = 'var(--danger)'; }
+      return;
+    }
     set(KEYS.contacts, contacts);
-    document.getElementById('modal').classList.add('hidden');
+    /* ⚠ 2026-09-27 자동 저장이라 **창을 닫지 않는다** — 상태 하나 고른다고 닫히면 답변·기록을 못 이어 쓴다 */
+    if (st) { st.textContent = '✓ 저장됨'; st.style.color = 'var(--success)'; }
     renderInquiries(); renderDashboard();
   }
 

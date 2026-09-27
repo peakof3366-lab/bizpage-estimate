@@ -69,8 +69,9 @@ ok('setReply(덮어쓰기=멱등)에는 retries: 0을 붙이지 않았다',
 ok('백오프 상수가 분리돼 있다', /const LEAD_WRITE_BACKOFF_MS = \[\d+, \d+\];/.test(adminSrc));
 
 console.log('\n[3] 실패한 뒤에 화면을 바꾸지 않는 순서인가 (원문)');
+/* ⚠ 2026-09-27 문의 상세도 자동 저장으로 — 실패 시 안내 줄이 들어가 `if (!r.ok) { …; return; }` 꼴도 받는다 */
 ok('문의 모달 저장은 성공 뒤에 캐시를 쓴다',
-  /desc: '문의 상태·메모·담당자 저장' \}\);\s*\n\s*if \(!r\.ok\) return;\s*\n\s*set\(KEYS\.contacts, contacts\);/.test(adminSrc));
+  /desc: '문의 상태·메모·담당자 저장' \}\);\s*\n\s*if \(!r\.ok\) (return;|\{[\s\S]{0,200}?\breturn;\s*\})\s*\n\s*set\(KEYS\.contacts, contacts\);/.test(adminSrc));
 /* ⚠ 2026-09-27 자동 저장으로 바꾸며 실패 시 「저장하지 못했습니다」를 말하는 줄이 들어갔다 —
    `if (!r.ok) { 알림; return; }` 꼴도 받는다. 재는 뜻은 같다: 실패하면 캐시보다 **먼저** 나간다. */
 ok('견적 모달 저장은 성공 뒤에 캐시를 쓴다',
@@ -83,21 +84,25 @@ ok('견적 삭제는 성공 뒤에 목록에서 지운다',
 console.log('\n[4] 일괄 경로가 부분 실패를 삼키지 않는가 (원문)');
 const batchDescs = (adminSrc.match(/leadWriteBatch\('([^']+)'/g) || []).map(s => s.slice(16, -1));
 ok('일괄 경로 네 곳이 leadWriteBatch를 쓴다',
-  /* ⚠ 5 → 4: 「견적 전체 삭제」를 2026-09-27 버튼째 걷었다 */
-  (adminSrc.match(/await leadWriteBatch\(/g) || []).length >= 4,
+  /* ⚠ 5 → 3: 「견적 전체 삭제」·목록의 「문의 전체 삭제」를 2026-09-27 버튼째 걷었다 */
+  (adminSrc.match(/await leadWriteBatch\(/g) || []).length >= 3,
   String((adminSrc.match(/await leadWriteBatch\(/g) || []).length));
 ok('전체 읽음이 포함된다', batchDescs.includes('전체 읽음 처리'), batchDescs.join(','));
-ok('문의 전체 삭제가 포함된다', batchDescs.includes('문의 전체 삭제'), batchDescs.join(','));
+/* ⚠ 목록의 「문의 전체 삭제」는 2026-09-27 걷었다 — 남은 길은 설정의 `clearData(contacts)`이고
+   그것도 일괄 경로(부분 실패 보고)를 탄다 */
+ok('설정의 문의 전체 삭제도 일괄 경로를 탄다',
+  /if \(key === KEYS\.contacts\)[\s\S]{0,600}leadWriteBatch\(/.test(adminSrc));
+ok('🔴 목록의 문의 전체 삭제 버튼이 되살아나지 않았다', !/id="clearAllBtn"/.test(adminSrc));
 /* ⚠ 2026-09-27 「견적 전체 삭제」는 버튼째 걷었다(확인창 한 번에 운영 견적 전부가 지워지던 길) */
 ok('견적 선택 삭제가 포함된다', batchDescs.includes('견적 선택 삭제'), batchDescs.join(','));
 ok('🔴 견적 전체 삭제 길이 되살아나지 않았다', !batchDescs.includes('견적 전체 삭제') && !/clearEstimatesFull\(/.test(adminSrc.replace(/\/\*[\s\S]*?\*\//g, '')));
 ok('일괄 항목은 defer로 개별 알림을 끈다',
-  (adminSrc.match(/\{ defer: true \}/g) || []).length >= 4,
+  (adminSrc.match(/\{ defer: true \}/g) || []).length >= 3,
   String((adminSrc.match(/\{ defer: true \}/g) || []).length));
 
 console.log('\n[5] 일괄 삭제 버튼이 서버 권한과 맞는가 (④)');
 const roleBlock = (adminSrc.match(/for \(const id of \[[\s\S]{0,220}?\]\) \{[\s\S]{0,200}?\n    \}/) || [''])[0];
-for (const id of ['btnDeleteInquiry', 'btnDeleteQuote', 'clearAllBtn', 'emDeleteSelectedBtn']) {
+for (const id of ['btnDeleteInquiry', 'btnDeleteQuote', 'emDeleteSelectedBtn']) {
   ok(`역할 숨김 목록에 ${id}이 있다`, roleBlock.includes(`'${id}'`), roleBlock.slice(0, 160));
 }
 ok('견적 전체 삭제 버튼이 없다 (2026-09-27 걷음)', !/id="emClearAllBtn"/.test(adminSrc));
@@ -349,13 +354,13 @@ const RATES_PAYLOAD = { overrides: {}, fxRates: {}, fxBaseline: {}, customDestin
   console.log('\n[13] 직원 화면에서 일괄 삭제 버튼이 숨는가 (④ 실동작)');
   w.__setUser({ id: 2, displayName: '직원A', role: 'staff' });
   w.__applyRoles();
-  for (const id of ['clearAllBtn', 'emDeleteSelectedBtn']) {
+  for (const id of ['emDeleteSelectedBtn']) {
     const btn = w.document.getElementById(id);
     ok(`직원에게 ${id}이 숨는다`, !!btn && btn.classList.contains('hidden'));
   }
   w.__setUser({ id: 1, displayName: '테스트담당', role: 'manager' });
   w.__applyRoles();
-  for (const id of ['clearAllBtn', 'emDeleteSelectedBtn']) {
+  for (const id of ['emDeleteSelectedBtn']) {
     const btn = w.document.getElementById(id);
     ok(`매니저에게 ${id}이 보인다`, !!btn && !btn.classList.contains('hidden'));
   }
