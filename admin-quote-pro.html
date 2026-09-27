@@ -932,6 +932,21 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
      아닌 금액(다낭 23명 37,540,959원 → 방콕 40명으로 바꾸자 「지역 다낭 · 40명 · 21,586,052원」)을
      경고 없이 보여 주고 그대로 발급할 수 있었다. ①단계에는 여전히 「산출 완료」가 떠 있었다.
      ⚠ 자동 모드만 — 직접 입력·고치기는 금액을 사람이 적으므로 조건을 바꿔도 다시 셀 것이 없다. */
+  /* 🔴 **직접 입력·고치기는 잠그지 않고 따라간다** (2026-09-27). 금액은 사람이 적으니 다시 셀 것이 없지만,
+     견적서 머리(지역·숙박지·인원·유류 기준월)와 일정은 조건을 따라야 한다. 예전엔 23,000,000원을 적고
+     인원을 23 → 30명으로 바꾸면 견적서가 「30명 · 1인 766,667원 × 성인 23 = 17,633,341원」이 되어
+     **담당자가 적은 총액보다 537만원 적게** 나갔고, 지역·일정은 옛 목적지로 남았다(실측).
+     사람이 고친 칸은 그대로 둔다(seedDoc·seedItinerary의 규칙 그대로). 칸을 떠날 때(change)만 돈다. */
+  $('sec1').addEventListener('change', (e) => {
+    if (!ADHOC || !unlocked) return;
+    if (!e.target || !/^(INPUT|SELECT)$/.test(e.target.tagName)) return;
+    const v = input();
+    if (!v.dest || !v.pax || !v.days) return;
+    seedDoc(S.bd || { rows: [], hotelGrade: { label: '' } }, v);
+    seedItinerary(v);
+    renderAll();
+    $('calcState').textContent = '여행 조건을 바꾸셨습니다 — 견적서 머리·일정에 반영했습니다(직접 고치신 칸은 그대로). 금액은 적으신 그대로입니다.';
+  });
   let staleCalc = false;
   $('sec1').addEventListener('input', markCalcStale);
   $('sec1').addEventListener('change', markCalcStale);
@@ -1333,7 +1348,8 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     }
     {
       const m = (v.startDate || '').slice(5, 7);
-      follow('dFuel', '#' + (m ? String(Number(m)) : '00') + '월 기준 유류할증료 적용 기준');
+      /* 출발일이 없으면(옛 저장본) 쓰지 않는다 — 「#00월 기준」이 견적서에 찍혔다 */
+      if (m) follow('dFuel', '#' + String(Number(m)) + '월 기준 유류할증료 적용 기준');
     }
 
     const has = (re) => (bd.rows || []).some((r) => re.test(r.name));
@@ -1380,6 +1396,13 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
        (조건이 바뀌어 자동으로 달라지는 줄 — 호텔 등급 등 — 은 고치지 않았으면 새 값을 따른다.) */
     const autoCopy = JSON.parse(JSON.stringify(D));
     const prevAuto = S.autoDetails, prevCur = S.details;
+    /* 저장된 견적을 연 경우(고치기) — 그 상세 내용은 **사람이 쓴 문서**다. 자동값 기록이 없으니
+       무엇이 자동인지 모른다. 통째로 두고 건드리지 않는다. */
+    if (!prevAuto && prevCur && prevCur.length) {
+      S.details = prevCur; renderDetails();
+      if (!S.options.length) { S.options = []; renderOptions(); }
+      return;
+    }
     if (prevAuto && prevCur && prevCur.length) {
       const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
       D.forEach((d) => {
@@ -1528,6 +1551,11 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
   });
 
   /* ═══ ④ 일정 ═══════════════════════════════════════════════════════════ */
+  /* 「손댄 일정인가」는 **내용으로만** 가른다 — 날짜·일차는 출발일을 따라 자동으로 바뀌므로 넣으면
+     출발일만 바꿔도 「담당자가 고친 일정」으로 잘못 읽힌다(실측: 6일 여행에 5일 일정이 남았다). */
+  const itiSig = (arr) => JSON.stringify((arr || []).map((it) => {
+    const o = Object.assign({}, it); delete o.date; delete o.day; return o;
+  }));
   function seedItinerary(v) {
     /* 🔴 **다시 산출하면 일정도 조건을 따라간다** (2026-09-27). 예전엔 일정이 한 줄이라도 있으면
        그대로 돌아가서, 다낭 5일(3/10)로 깔린 일정이 방콕 6일(7/1)로 바꾼 뒤에도 그대로 남았다 —
@@ -1535,7 +1563,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
        · 손대지 않은 초안이면 → 새 조건으로 다시 깐다
        · 담당자가 고친 일정이면 → 지우지 않는다. 날짜만 새 출발일로 맞추고, 무엇이 어긋나는지 말한다 */
     if (S.iti.length) {
-      const untouched = S.itiAuto !== undefined && JSON.stringify(S.iti) === S.itiAuto;
+      const untouched = S.itiAuto !== undefined && itiSig(S.iti) === S.itiAuto;
       const changed = S.itiDest !== v.dest || S.iti.length !== Number(v.days);
       if (!changed) { stampDates(); renderIti(); return; }
       if (!untouched) {
@@ -1548,7 +1576,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     }
     S.itiDest = v.dest; S.itiDays = Number(v.days);
     fitDays(v.days);
-    S.itiAuto = JSON.stringify(S.iti);
+    S.itiAuto = itiSig(S.iti);
     /* 🔴 빈 칸만 만들어 두고 끝내지 않는다 — 담당자가 전화를 받으면서 5일치를 처음부터
        적어야 했다(0-ah). 추천 코스를 **초안으로** 깔고, 무엇을 깔았는지 말한다. */
     fillCourseSelect();
@@ -1731,7 +1759,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     if (ITI_SRC === 'failed') say.push('⚠ 관리자 화면에서 고친 일정은 못 불러왔습니다(기본 일정입니다).');
     itiState(say, ITI_SRC === 'failed');
     /* 자동으로 깐 초안을 기억한다 — 다시 산출할 때 「손대지 않은 초안」인지 가르는 기준 */
-    if (auto) S.itiAuto = JSON.stringify(S.iti);
+    if (auto) S.itiAuto = itiSig(S.iti);
   }
 
   $('btnItiDraft').addEventListener('click', () => applyItiDraft(false));
@@ -2269,6 +2297,17 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     S.residual = savedTotal ? savedTotal - (rowSum + adjSum2) : 0;
     const bigGap = Math.abs(S.residual) >= 1000;
 
+    /* 불러온 칸 중 **조건과 딱 맞는 것만** 「자동값」으로 친다 — 그래야 고치기에서 인원·목적지를 바꿨을 때
+       그 칸이 따라간다. 조건과 다른 값(담당자가 따로 적은 것)은 지킨다. 상세 내용·일정은 저장본 그대로 둔다. */
+    {
+      const A = S.autoDoc = {};
+      const dst = $('pDest').value, nts = Math.max(0, num($('pNights'))), mo = ($('pStart').value || '').slice(5, 7);
+      if ($('dRegion').value === dst) A.dRegion = dst;
+      if ($('dStay').value === dst + '(' + nts + ')') A.dStay = $('dStay').value;
+      if (num($('dChild')) === 0 && num($('dInfant')) === 0 && num($('dAdult')) === num($('pPax'))) A.dAdult = $('dAdult').value;
+      if (mo && $('dFuel').value === '#' + Number(mo) + '월 기준 유류할증료 적용 기준') A.dFuel = $('dFuel').value;
+      S.itiDest = dst; S.itiDays = S.iti.length;
+    }
     unlockSteps();
     $('calcState').textContent = '저장된 견적을 불러왔습니다 — 고칠 곳만 손보시면 됩니다'
       + (rec.quoteNo ? ' (' + rec.quoteNo + ')' : '');

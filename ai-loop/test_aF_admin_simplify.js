@@ -221,6 +221,13 @@ ok('[K-b] 창마다 ✕가 있다 (Esc가 누를 자리)',
   ok('[P-h] 🔴 산출 뒤 ①단계를 바꾸면 ②~⑤를 다시 잠근다 (옛 총액 ÷ 새 인원이 경고 없이 발급되던 자리)',
     /\$\('sec1'\)\.addEventListener\('input', markCalcStale\)/.test(PRO) && /staleCalc = true;\s*unlocked = false;/.test(PRO)
     && /function unlockSteps\(\) \{\s*unlocked = true;\s*staleCalc = false;/.test(PRO));
+  ok('[P-i] 🔴 직접 입력·고치기: ①단계를 바꾸면 견적서 머리·일정이 따라간다 (잠그지 않는다)',
+    /\$\('sec1'\)\.addEventListener\('change', \(e\) => \{\s*if \(!ADHOC \|\| !unlocked\) return;[\s\S]{0,300}seedDoc\(S\.bd \|\| \{ rows: \[\], hotelGrade: \{ label: '' \} \}, v\);\s*seedItinerary\(v\);/.test(PRO));
+  ok('[P-j] 🔴 고치기: 불러온 칸 중 조건과 맞는 것만 자동값으로 치고, 저장된 상세 내용은 건드리지 않는다',
+    /const A = S\.autoDoc = \{\};/.test(PRO) && /if \(!prevAuto && prevCur && prevCur\.length\) \{\s*S\.details = prevCur;/.test(PRO));
+  ok('[P-k] 🔴 「손댄 일정」은 날짜·일차를 빼고 가른다 (출발일만 바꿔도 손댄 것으로 읽혔다)',
+    /const itiSig = \(arr\)/.test(PRO) && /delete o\.date; delete o\.day;/.test(PRO) && !/JSON\.stringify\(S\.iti\) === S\.itiAuto/.test(PRO));
+  ok('[P-l] 출발일이 없으면 「#00월 기준 유류할증료」를 쓰지 않는다', /if \(m\) follow\('dFuel'/.test(PRO));
   ok('[P-g] 🔴 골프 요금이 없는 목적지는 골프를 잠근다 (고객 화면과 같은 규칙)',
     /function syncGolfLock\(\)/.test(PRO) && /box\.disabled = lock/.test(PRO) && /rateOverridesReady\)\.then\(syncGolfLock\)/.test(PRO));
 }
