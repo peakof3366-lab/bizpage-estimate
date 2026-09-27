@@ -1401,7 +1401,7 @@
     if (!itiState.destKey) { itiSetMsg('목적지를 먼저 고르세요.', 'err'); return; }
     /* QU: 이제 코스만 되돌린다. 추천 콘텐츠는 그 화면에서 따로 되돌린다 —
        한 버튼이 다른 화면의 작업까지 지우면 누른 사람이 예상하지 못한 손실이 난다. */
-    if (!confirm(itiState.destKey + '의 **추천 일정(코스)** 수정 내용을 지우고 기본값으로 되돌립니다.\n(추천 콘텐츠 방식 A·B는 그대로 남습니다.)\n계속할까요?')) return;
+    if (!confirm(itiState.destKey + '의 추천 일정(코스) 수정 내용을 지우고 기본값으로 되돌립니다.\n(추천 콘텐츠 방식 A·B는 그대로 남습니다.)\n계속할까요?')) return;
     try {
       const r = await fetch('/api/content?action=itineraries&part=courses&destKey=' + encodeURIComponent(itiState.destKey), { method: 'DELETE' });
       const out = await r.json().catch(() => ({}));

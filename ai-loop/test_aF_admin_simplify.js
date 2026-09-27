@@ -187,6 +187,18 @@ ok('[K] 🔴 Esc는 맨 위 창의 ✕를 누른다 (창마다의 닫기 처리�
 ok('[K-b] 창마다 ✕가 있다 (Esc가 누를 자리)',
   (ADMIN.match(/class="modal-overlay/g) || []).length === (ADMIN.match(/class="modal-close/g) || []).length);
 
+/* ═══ 확인창에 마크다운 별표가 그대로 찍히던 것 (2026-09-27) ═══════════════════════════
+   confirm/alert는 글자 그대로 보여준다 — 「**일정이 실리지 않습니다.**」가 별표째 떴다. */
+{
+  const bad = [];
+  ['admin/estmgr.js', 'admin/itinerary.js', 'admin/rates.js', 'admin/packages.js', 'admin/ledger.js', 'admin/pricereport.js', 'admin/recommend.js']
+    .forEach((f) => {
+      const src = noComments(read(f));
+      for (const m of src.matchAll(/(?:confirm|alert)\(([\s\S]{0,600}?)\)\s*(?:\)|;|\{|return)/g)) if (/\*\*/.test(m[1])) bad.push(f);
+    });
+  ok('[Q] 🔴 확인창·알림 글에 ** 가 없다', bad.length === 0, [...new Set(bad)].join(','));
+}
+
 /* ═══ 방문 통계 시간대 — 홀수 시 방문이 버려졌다 (2026-09-27) ═══════════════════════
    짝수 시만 골라 그려서(filter i%2===0) 1·3·…·15시 방문이 그래프에서 통째로 사라졌다. */
 {
