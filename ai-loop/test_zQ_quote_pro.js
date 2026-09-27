@@ -341,6 +341,10 @@ const EDIT_CHECKS = async () => {
   /* 단계가 풀려야 고칠 수 있다 */
   ok('[18-n] 단계가 잠겨 있지 않다',
     !(D.getElementById('btnNext1') || { className: '' }).className.includes('hidden'));
+  /* 🔴 (2026-09-27) 고치기에서는 「금액 입력 시작」이 안 보여야 한다 — 「다음」과 같은 자리에
+     둘이 떠 있었고, 이쪽을 누르면 되살린 잔차를 0으로 지워 **저장만 해도 총액이 움직였다.** */
+  ok('[18-o] 🔴 고치기에서는 「금액 입력 시작」이 없다 (잔차를 지우는 버튼)',
+    (D.getElementById('btnStart') || { className: 'hidden' }).className.includes('hidden'));
 };
 
 

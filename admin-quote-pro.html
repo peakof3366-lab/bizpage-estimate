@@ -670,7 +670,11 @@ html:not(.aqp-adhoc) .adhoc-only { display: none !important; }
     $('sec1Title').textContent = '여행 정보';
     $('sec1Desc').textContent = '견적서 개요표에 들어갑니다 · 필수 4칸';
     $('btnCalc').classList.add('hidden');
-    $('btnStart').classList.remove('hidden');
+    /* 🔴 **고치기(`?quote=`)에서는 「금액 입력 시작」을 띄우지 않는다** (2026-09-27).
+       저장된 건을 불러오면 「다음: 금액 입력 →」이 이미 떠 있어 같은 자리에 버튼이 둘이었고,
+       이쪽을 누르면 `S.residual = 0`으로 **불러올 때 되살린 잔차를 지운다** — 아무것도 안
+       고치고 저장해도 고객이 받은 총액이 몇 원 움직인다(`5a8018b`가 막은 바로 그 자리). */
+    if (!EDIT_ID) $('btnStart').classList.remove('hidden');
   }
 
   /* 🔴 **요율·환율을 못 불러왔으면 금액 자체가 달라진다.**
