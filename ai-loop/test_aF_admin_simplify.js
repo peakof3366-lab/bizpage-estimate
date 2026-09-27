@@ -158,6 +158,12 @@ ok('[X-d] 🔴 요율 CSV에 단가가 실리고, 운영 값(effectiveRate)을 �
     /Object\.assign\(\{\}, a, \{ qtyLabel: t\.qtyLabel, auto: t\.auto/.test(rs) && !/kind: t\.kind/.test(rs));
 }
 
+/* ═══ 「지금 할 일」은 그 건들만 걸러 연다 (2026-09-27) — 탭만 바꾸면 「전체」에서 다시 찾아야 했다 ═══ */
+ok('[T] 🔴 미확인 문의 → 「미확인」 필터, 미처리 견적 → 「신규」 필터를 함께 누른다',
+  /what: '미확인 문의', pick: '#tab-inquiries \.filter-btn\[data-filter="unread"\]'/.test(ADMIN)
+  && /what: '미처리 견적', pick: '#tab-estmgr \.filter-btn\[data-emfilter="new"\]'/.test(ADMIN)
+  && /switchTab\(btn\.dataset\.go\);\s*const pick = btn\.dataset\.pick[^\n]*\n\s*if \(pick\) pick\.click\(\);/.test(ADMIN));
+
 /* ═══ 방문 통계 시간대 — 홀수 시 방문이 버려졌다 (2026-09-27) ═══════════════════════
    짝수 시만 골라 그려서(filter i%2===0) 1·3·…·15시 방문이 그래프에서 통째로 사라졌다. */
 {
