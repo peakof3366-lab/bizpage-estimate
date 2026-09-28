@@ -343,6 +343,22 @@ const EDIT_CHECKS = async () => {
   ok('[18-k] 내부 메모가 돌아왔다', val('dMemo') === '내부 메모입니다', val('dMemo'));
   ok('[18-l] 불러왔다고 말한다', /저장된 견적을 불러왔습니다/.test(txt()));
   ok('[18-m] 번호를 함께 말한다', /BP-2609-0042/.test(txt()));
+  ok('[18-m2] 고치기로 연 견적서 제목줄에 번호가 뜬다',
+    /견적번호 BP-2609-0042/.test(((D.getElementById('docEdit') || {}).textContent || '')));
+
+  /* 🔴 2026-09-28 대표 지적 — 상해 견적(지역 칸에 「대한민국」)을 북유럽으로 바꾸자 숙박지만 따라가고
+     지역은 「대한민국」에 남았다. 같은 목적지 안에서는 사람이 적은 지역을 지키고, 목적지가 바뀌면 새로 채운다. */
+  {
+    const fire = (id, v) => { const e = D.getElementById(id); e.value = v;
+      e.dispatchEvent(new boot.win.Event('input', { bubbles: true }));
+      e.dispatchEvent(new boot.win.Event('change', { bubbles: true })); };
+    fire('dRegion', '대한민국');
+    fire('pDays', '6'); await boot.tick(120);
+    ok('[18-n] 같은 목적지에서 일수만 바꾸면 사람이 적은 지역은 그대로다', val('dRegion') === '대한민국', val('dRegion'));
+    fire('pDest', '방콕'); await boot.tick(120);
+    ok('[18-n2] 🔴 목적지를 바꾸면 지역도 새 목적지로 바뀐다', val('dRegion') === '방콕', val('dRegion'));
+    ok('[18-n3] 숙박지도 새 목적지로 바뀐다', /^방콕\(/.test(val('dStay')), val('dStay'));
+  }
   /* 단계가 풀려야 고칠 수 있다 */
   ok('[18-n] 단계가 잠겨 있지 않다',
     !(D.getElementById('btnNext1') || { className: '' }).className.includes('hidden'));

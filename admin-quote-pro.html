@@ -1373,6 +1373,13 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       const el = $(id), cur = el.value;
       if (!cur || (AUTO[id] !== undefined && cur === AUTO[id])) { el.value = val; AUTO[id] = val; }
     };
+    /* 🔴 **목적지가 바뀌면 지역·숙박지는 무조건 새 목적지로** (2026-09-28 대표 지적).
+       고치기로 연 상해 견적(지역 칸에 누가 「대한민국」을 적어 둠)을 북유럽으로 바꾸자 숙박지는 「북유럽(n)」으로
+       따라갔는데 지역은 「대한민국」에 남았다 — 사람이 고친 값이라 지켰기 때문이다. 하지만 목적지가 바뀌었으면
+       옛 지역 표기는 **옛 장소를 가리키므로 틀린 값**이다. 지키는 것은 같은 목적지 안에서만 한다. */
+    const destChanged = S.seedDest !== undefined && S.seedDest !== dest;
+    S.seedDest = dest;
+    if (destChanged) { delete AUTO.dRegion; delete AUTO.dStay; $('dRegion').value = ''; $('dStay').value = ''; }
     follow('dRegion', dest);
     follow('dStay', dest + '(' + Math.max(0, num($('pNights'))) + ')');
     if (!$('dIssue').value) $('dIssue').value = ymd(new Date());
@@ -2386,6 +2393,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       if (num($('dChild')) === 0 && num($('dInfant')) === 0 && num($('dAdult')) === num($('pPax'))) A.dAdult = $('dAdult').value;
       if (mo && $('dFuel').value === '#' + Number(mo) + '월 기준 유류할증료 적용 기준') A.dFuel = $('dFuel').value;
       S.itiDest = dst; S.itiDays = S.iti.length;
+      S.seedDest = dst;   /* 이 목적지 안에서는 불러온 지역·숙박지를 지킨다 — 목적지를 바꾸면 seedDoc이 새로 채운다 */
     }
     unlockSteps();
     $('calcState').textContent = '저장된 견적을 불러왔습니다 — 고칠 곳만 손보시면 됩니다'
