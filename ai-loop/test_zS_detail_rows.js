@@ -127,6 +127,35 @@ async function run() {
     org.value = ''; org.dispatchEvent(new W.Event('input', { bubbles: true }));
   }
 
+  /* ═══ ⓪-b 🔴 브라우저 자동완성이 고객·장소 칸을 덮지 못한다 (2026-09-28 — 멜버른 견적 제목에 「_대한민국」) ═══
+     jsdom엔 자동완성이 없다 — 크롬이 하는 일을 흉내 낸다: 담당자 칸에 들어가(focusin) 주소록을 고르면
+     여러 칸에 값이 들어가고 그 칸들에 `:autofill` 표시가 붙은 채 input이 난다. */
+  {
+    const fakeAutofill = (el, v) => {
+      const orig = el.matches.bind(el);
+      el.matches = (sel) => (/autofill/.test(sel) ? true : orig(sel));
+      el.value = v; el.dispatchEvent(new W.Event('input', { bubbles: true }));
+      el.matches = orig;
+    };
+    const region = D.getElementById('dRegion'), tel = D.getElementById('dStaffTel'), cust = D.getElementById('dCustTel');
+    const before = region.value;
+    tel.dispatchEvent(new W.FocusEvent('focusin', { bubbles: true }));
+    fakeAutofill(tel, '010-9767-3366');
+    fakeAutofill(region, '대한민국');
+    fakeAutofill(cust, '010-9767-3366');
+    await sleep(10);
+    ok('[0-h] 🔴 자동완성이 지역 칸에 넣은 「대한민국」을 되돌린다', region.value === before && before !== '대한민국', region.value + ' / 원래 ' + before);
+    ok('[0-h2] 🔴 고객 연락처에 들어간 내 휴대폰도 되돌린다', cust.value === '', cust.value);
+    ok('[0-h3] 담당자 칸의 자동완성은 막지 않는다 (내 정보가 맞다)', tel.value === '010-9767-3366', tel.value);
+    ok('[0-h4] 견적서 제목에 「대한민국」이 안 붙는다', !/대한민국/.test((D.querySelector('#docEdit h1') || { textContent: '' }).textContent));
+    /* 대조군 — 사람이 직접 적은 값은 그대로 */
+    region.value = '호주_멜버른'; region.dispatchEvent(new W.Event('input', { bubbles: true }));
+    ok('[0-h5] 대조군: 사람이 적은 지역 표기는 남는다', region.value === '호주_멜버른', region.value);
+    region.value = before; region.dispatchEvent(new W.Event('input', { bubbles: true }));
+    tel.value = ''; tel.dispatchEvent(new W.Event('input', { bubbles: true }));
+    ok('[0-h6] 칸에 자동완성 끄기가 붙어 있다', region.getAttribute('autocomplete') === 'off' && cust.getAttribute('autocomplete') === 'off');
+  }
+
   /* ═══ ① 표준 양식의 항목이 **칸으로 존재하는가** ═══════════════════════ */
   const secs = Array.from(D.querySelectorAll('#detailRows .day'));
   const labelOf = (s) => (s.querySelector('.day-h').childNodes[0].textContent || '').trim();

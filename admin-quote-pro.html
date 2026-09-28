@@ -491,17 +491,17 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       <details class="fold-note" id="docFormFold">
         <summary class="fold-note" style="margin-top:14px">견적서 내용 보충</summary>
       <div class="grid">
-        <label class="f"><span>거래처명</span><input type="text" id="dClient" placeholder="○○기업" /></label>
-        <label class="f"><span>받는 분 <em>(고객 담당자)</em></span><input type="text" id="dClientContact" placeholder="홍길동" /></label>
-        <label class="f"><span>단체명</span><input type="text" id="dOrgName" placeholder="○○기업 해외연수단" /></label>
-        <label class="f"><span>지역 표기 <em>(국가명_지역명)</em></span><input type="text" id="dRegion" /></label>
-        <label class="f"><span>숙박지</span><input type="text" id="dStay" placeholder="다낭(3)" /></label>
+        <label class="f"><span>거래처명</span><input type="text" id="dClient" autocomplete="off" placeholder="○○기업" /></label>
+        <label class="f"><span>받는 분 <em>(고객 담당자)</em></span><input type="text" id="dClientContact" autocomplete="off" placeholder="홍길동" /></label>
+        <label class="f"><span>단체명</span><input type="text" id="dOrgName" autocomplete="off" placeholder="○○기업 해외연수단" /></label>
+        <label class="f"><span>지역 표기 <em>(예: 호주_멜버른)</em></span><input type="text" id="dRegion" autocomplete="off" /></label>
+        <label class="f"><span>숙박지</span><input type="text" id="dStay" autocomplete="off" placeholder="다낭(3)" /></label>
         <label class="f"><span>담당자 이름</span><input type="text" id="dStaffName" /></label>
         <label class="f"><span>담당자 연락처</span><input type="text" id="dStaffTel" placeholder="02-0000-0000" /></label>
         <label class="f"><span>담당자 E-mail</span><input type="text" id="dStaffEmail" placeholder="name@hanatrabiz.com" /></label>
         <label class="f"><span>견적서 작성일자</span><input type="date" id="dIssue" /></label>
         <label class="f"><span>유효기간</span><input type="date" id="dValid" /></label>
-        <label class="f"><span>고객 연락처</span><input type="text" id="dCustTel" /></label>
+        <label class="f"><span>고객 연락처</span><input type="text" id="dCustTel" autocomplete="off" /></label>
       </div>
 
       <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">견적가 구성</h3>
@@ -509,8 +509,8 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         <label class="f"><span>성인 인원</span><input type="number" id="dAdult" min="0" value="0" /></label>
         <label class="f"><span>아동 인원 <em>(단가는 성인과 같습니다)</em></span><input type="number" id="dChild" min="0" value="0" /></label>
         <label class="f"><span>유아 인원 <em>(단가는 성인과 같습니다)</em></span><input type="number" id="dInfant" min="0" value="0" /></label>
-        <label class="f"><span>조건 표기</span><input type="text" id="dCondition" placeholder="10+1조건" /></label>
-        <label class="f"><span>유류할증료 기준</span><input type="text" id="dFuel" placeholder="#9월 기준 유류할증료 적용 기준" /></label>
+        <label class="f"><span>조건 표기</span><input type="text" id="dCondition" autocomplete="off" placeholder="10+1조건" /></label>
+        <label class="f"><span>유류할증료 기준</span><input type="text" id="dFuel" autocomplete="off" placeholder="#9월 기준 유류할증료 적용 기준" /></label>
       </div>
       <p class="note hidden" id="paxWarn"></p>
 
@@ -2063,6 +2063,35 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
   })();
 
   function renderAll() { renderMoney(); renderPreview(); renderDocEdit(); }
+
+  /* 🔴 **브라우저 자동완성이 고객·장소 칸을 덮지 못하게** (2026-09-28 대표 지적 — 멜버른 견적 제목에 「_대한민국」).
+     담당자 칸(이름·연락처·메일)을 크롬 주소록으로 채우면 크롬이 **같은 화면의 다른 칸까지** 채운다 —
+     「지역 표기 (국가명_지역명)」는 「국가」로 읽혀 **대한민국**, 고객 연락처엔 **내 휴대폰**, 거래처명엔 **내 회사**.
+     운영 DB 증거: 「대한민국」이 든 상해 견적의 담당자 칸이 대표 본인 이름·휴대폰·네이버 메일이었다.
+     ① `autocomplete="off"` · 「국가」 낱말을 뺀 칸 이름 — 크롬이 늘 따르지는 않는다
+     ② 그래서 **자동완성으로 바뀐 값은 되돌린다**: 어느 칸에 들어가든(focusin) 이 칸들을 사진 찍어 두고,
+        자동완성 표시(`:autofill`)가 붙은 채 바뀌면 사진 값으로 돌린다. 담당자 칸은 **안 막는다**(내 정보가 맞다). */
+  const AUTOFILL_GUARD = ['dClient', 'dClientContact', 'dOrgName', 'dRegion', 'dStay', 'dCustTel', 'dCondition', 'dFuel'];
+  let autofillSnap = {};
+  const isAutofilled = (el) => {
+    try { if (el.matches(':autofill')) return true; } catch (e) { /* 모르는 선택자 */ }
+    try { if (el.matches(':-webkit-autofill')) return true; } catch (e) { /* 모르는 선택자 */ }
+    return false;
+  };
+  document.addEventListener('focusin', () => {
+    autofillSnap = {};
+    AUTOFILL_GUARD.forEach((id) => { const el = $(id); if (el) autofillSnap[id] = el.value; });
+  }, true);
+  const undoAutofill = (e) => {
+    const el = e.target;
+    if (!el || AUTOFILL_GUARD.indexOf(el.id) < 0 || !isAutofilled(el)) return;
+    if (!(el.id in autofillSnap) || el.value === autofillSnap[el.id]) return;
+    el.value = autofillSnap[el.id];
+    e.stopImmediatePropagation();
+    renderPreview(); renderDocEdit();
+  };
+  document.addEventListener('input', undoAutofill, true);
+  document.addEventListener('change', undoAutofill, true);
 
   /* 🔴 **견적번호는 보여 주기만 한다** (2026-09-28). `buildDoc()`에는 넣지 않는다 — 번호는 서버가 저장할 때
        정하고, 발급 때 차수(-R1)가 붙을 수 있다. 여기서 문서에 박아 저장하면 옛 번호가 굳는다.
