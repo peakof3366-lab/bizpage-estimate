@@ -137,7 +137,9 @@ ok('[6-b] 내부 저장임을 켠다', /__INTERNAL_TOOL__\s*=\s*true/.test(PRO))
 ok('[6-c] 견적 기록 필드를 베껴 적지 않았다 (estRecord 복사 금지)',
   !/programFactor\s*:/.test(PRO) && !/cabinClassLabel\s*:/.test(PRO));
 ok('[6-d] 문서는 PATCH로 붙인다', /fetch\('\/api\/quotes\/'[\s\S]{0,180}PATCH/.test(PRO));
-ok('[6-e] PATCH 본문이 doc 하나다', /JSON\.stringify\(\{ doc: buildDoc\(\) \}\)/.test(PRO));
+/* 🔴 2026-09-28 — 새 견적 첫 저장이 문서만 보내 **목록 금액이 엔진 총액으로 남던** 결함(BP-2609-0032). 금액도 함께 보낸다 */
+ok('[6-e] PATCH 본문이 doc + totals다 (목록·대장 금액이 문서와 같아진다)',
+  /JSON\.stringify\(\{ doc: buildDoc\(\),\s*totals: \{ total: tNew\.total, participants: tNew\.pax, perPerson: tNew\.unit/.test(PRO));
 
 /* ═══ ⑦ PATCH 분기 — 인증 뒤 · 조용히 자르지 않는다 ═══ */
 const iAuth = PATCHSRC.indexOf('requireAdmin(req, res)');
@@ -704,6 +706,24 @@ ok('[20-j] 저장 기록에 kind가 남는다', /adjust: S\.adj\.filter[\s\S]{0,
 (async () => {
   try { await BOOT_CHECKS(); } catch (e) { fails.push('[12-c] 화면을 못 띄웠다 — ' + e.message); }
   try { await EDIT_CHECKS(); } catch (e) { fails.push('[18] 고치기 화면을 못 띄웠다 — ' + e.message); }
+  /* 🔴 2026-09-28 BP-2609-0032 재현 — 목록 금액(엔진 총액)은 옛값, 문서의 최종 총액은 부대비용 +1,404,423 반영.
+       예전 화면은 목록 금액을 기준으로 잡아 「140만원 다릅니다」를 띄우고 올린 금액을 잔차로 지웠다. */
+  try {
+    const gapDoc = JSON.parse(JSON.stringify(EDIT_DOC));
+    gapDoc._internal.finalTotal = 32500000;            // 줄 합 33,000,000 + FOC −500,000
+    const boot = bootPage('admin-quote-pro.html', {
+      query: '?quote=qGAP1',
+      fixtures: { quotes: { id: 'qGAP1', quoteNo: 'BP-2609-0099', destKey: '다낭', participants: 20, days: 5,
+        total: 32500000 - 1404423, perPerson: 1500000, doc: require(path.join(ROOT, 'quote_doc.js')).normalize(gapDoc) } },
+    });
+    await boot.ready; await boot.tick(400);
+    const D = boot.doc;
+    const err = (D.getElementById('calcErr') || {}).textContent || '';
+    ok('[18-s] 🔴 목록 금액이 옛값이어도 「다릅니다」 경고가 안 뜬다 (최종 총액을 기준으로)', !/다릅니다/.test(err), err.slice(0, 80));
+    const b2 = D.querySelector('[data-step="2"]'); if (b2) b2.click(); await boot.tick(120);
+    const totTxt = Array.from(D.querySelectorAll('#sumBox > div')).map((d) => d.textContent).find((x) => /견적 총액/.test(x)) || '';
+    ok('[18-s2] 🔴 총액이 담당자가 저장한 최종 총액이다 (올린 금액이 사라지지 않는다)', /32,500,000/.test(totTxt), totTxt.slice(0, 60));
+  } catch (e) { fails.push('[18-s] 금액 어긋남 재현을 못 띄웠다 — ' + e.message); }
   console.log('\n══════════════════════════════════════════════════════════════════');
   console.log(' 자동 견적 산출 (내부직원용) — 메뉴 3분류 · admin-quote-pro.html');
   console.log('══════════════════════════════════════════════════════════════════');

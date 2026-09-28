@@ -2551,9 +2551,14 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
       const id = (window._lastQuoteRecord || {}).id;
       if (!id) { show('견적 기록을 만들지 못했습니다. 새로고침 후 다시 시도해 주세요.', true); return; }
 
+      /* 🔴 2026-09-28 — **금액도 함께 보낸다.** 폼 제출(script.js)은 **엔진 총액**으로 기록을 만든다. 담당자가 ②단계에서
+         줄을 고쳤으면(부대비용 +140만 등) 문서만 새 총액이고 **목록·대장은 엔진 총액**으로 남았다(BP-2609-0032).
+         고치기 저장(위 EDIT_ID 분기)과 같은 모양으로 totals를 싣는다 — 서버가 목록 금액까지 맞춘다. */
+      const tNew = totals();
       const r = await fetch('/api/quotes/' + encodeURIComponent(id), {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ doc: buildDoc() }),
+        body: JSON.stringify({ doc: buildDoc(),
+          totals: { total: tNew.total, participants: tNew.pax, perPerson: tNew.unit, visibleTotal: tNew.cost } }),
       });
       if (!r.ok) {
         show('견적은 저장됐지만 견적서 문서를 붙이지 못했습니다 (오류 ' + r.status
@@ -2714,7 +2719,11 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
        담당자가 아무것도 안 고치고 저장만 해도 **총액이 움직인다** — 고객이 이미 받은
        금액이 바뀌는 자리다.
      ⚠ 차이가 크면 반올림이 아니다. 그때는 **조용히 흡수하지 않고 말한다**(결함 생성기 ②). */
-    const savedTotal = Number((doc.price && doc.price.total) || rec.total) || 0;
+    /* 🔴 2026-09-28 — **담당자가 저장한 최종 총액(`_internal.finalTotal`)이 먼저다.** 예전엔 `doc.price.total`(저장 안 됨) →
+       `rec.total`(목록 금액)을 봤는데, 새 견적 첫 저장이 목록 금액을 안 고쳐서(아래 btnSave) 목록엔 **고치기 전 엔진 총액**이 남아 있었다.
+       그걸 기준으로 삼으니 담당자가 올린 부대비용 +1,404,423이 「차이」로 잡혀 경고가 뜨고, 저장하면 총액에서 **사라질** 뻔했다(BP-2609-0032). */
+    const fin = Number(inn.finalTotal);
+    const savedTotal = (Number.isFinite(fin) && fin > 0) ? fin : (Number((doc.price && doc.price.total) || rec.total) || 0);
     const rowSum = S.rows.reduce((a, r) => a + (Number(r.val) || 0), 0);
     const adjSum2 = S.adj.reduce((a, x) => a + (Number(x.amount) || 0), 0);
     S.residual = savedTotal ? savedTotal - (rowSum + adjSum2) : 0;
