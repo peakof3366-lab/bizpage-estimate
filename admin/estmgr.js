@@ -1033,17 +1033,15 @@
     /* 🔴 **나갈 것을 그대로 말한다** — 체크를 껐으면 「안 나감」이라고 적는다.
        숫자만 적으면 담당자는 「0일」을 「일정이 없다」로 읽는다(일부러 뺀 것과 다른 말이다). */
     const parts2 = (typeof emShareParts === 'function') ? emShareParts() : null;
-    const say = (on, n2, unit, what) => (on === false)
-      ? what + ' <strong>안 나감</strong>'
-      : (n2 ? what + ' ' + n2 + unit : what + ' <strong>비어 있습니다</strong>');
-    state.innerHTML = '상세 ' + items + '항목 · '
-      + say(parts2 && parts2.breakdown, bdRows, '줄', '세부견적서') + ' · '
-      + say(parts2 && parts2.iti, days, '일', '일정표');
-    /* 일부러 뺀 것은 경고가 아니다 — 비어 있는 것만 노랗게 */
-    /* 🔴 세부견적서도 센다 (2026-09-27) — 「세부견적서 비어 있습니다」가 초록 글자로 떠 있었다(일정표만 봤다). */
-    const missing = ((!parts2 || parts2.iti !== false) && !days)
-      || ((!parts2 || parts2.breakdown !== false) && !bdRows);
-    state.style.color = missing ? 'var(--warn)' : '#15803D';
+    /* 🔴 2026-09-28 대표 요청 — 평소의 「상세 n항목 · 세부견적서 n줄 · 일정표 n일」 줄은 뺐다(문서가 바로 아래 보인다).
+         **비어 있는 채 나갈 문서만** 말한다 — 그건 발급 전에 잡아야 하는 사고다(9/27 「비어 있습니다」가 초록으로 떠 있던 자리).
+         체크를 꺼서 **일부러 뺀 것**은 말하지 않는다 — 체크 칸이 이미 보여 준다. `items`는 안 쓴다(항목 수는 문서에 보인다). */
+    void items;
+    const empty = [];
+    if ((!parts2 || parts2.breakdown !== false) && !bdRows) empty.push('세부견적서');
+    if ((!parts2 || parts2.iti !== false) && !days) empty.push('일정표');
+    state.innerHTML = empty.length ? '⚠ ' + empty.join(' · ') + ' <strong>비어 있습니다</strong> — 이대로 발급하면 빈 장이 나갑니다' : '';
+    state.style.color = 'var(--warn)';
   }
 
 

@@ -135,8 +135,9 @@ async function 태우기(견적) {
       await B.tick(120);
       ok('[2-i] 🔴 체크를 끄면 두 장으로 준다',
         prev.querySelectorAll('.qd').length === 2, String(prev.querySelectorAll('.qd').length) + '장');
-      ok('[2-j] 「안 나감」이라고 말한다',
-        /세부견적서 안 나감/.test(D.getElementById('em-doc-state').textContent || ''),
+      /* 2026-09-28 대표 요청 — 상태 줄을 걷었다. 일부러 뺀 것은 체크 칸이 보여 주므로 말하지 않는다 */
+      ok('[2-j] 일부러 뺀 문서는 경고하지 않는다 (체크 칸이 이미 말한다)',
+        !/세부견적서/.test(D.getElementById('em-doc-state').textContent || ''),
         D.getElementById('em-doc-state').textContent);
     }
   }
@@ -153,8 +154,10 @@ async function 태우기(견적) {
     /* 🔴 2026-09-21 — 문서가 셋이 됐으므로 **셋을 다 이름으로 말한다.**
        예전엔 「일정 2일」이었는데, 세부견적서가 생긴 뒤로는 무엇이 몇 줄인지
        가려지지 않으면 담당자가 나갈 것을 못 읽는다. */
-    ok('[2-c] 무엇이 들어 있는지 말한다',
-      /상세 2항목/.test(state) && /세부견적서/.test(state) && /일정표 2일/.test(state), state);
+    /* 2026-09-28 대표 요청 — 「상세 n항목 · 세부견적서 n줄 · 일정표 n일」 줄을 뺐다. 다 차 있으면 아무 말도 안 한다 */
+    ok('[2-c] 평소의 개수 요약은 없고, 비어 있는 문서만 말한다 (이 견적은 세부견적서가 없다)',
+      !/상세 \d+항목/.test(state) && !/일정표 2일/.test(state) && /세부견적서/.test(state) && /비어 있습니다/.test(state)
+      && !/일정표/.test(state), state);
     const 글 = (prev.textContent || '').replace(/\s+/g, ' ');
     ok('[2-d] 담당자가 적은 내용이 실제로 보인다', /한국인 우수가이드/.test(글) && /산업 시찰/.test(글));
     /* 🔴🔴 **세부견적서를 만들어 놓고 이 자리에 안 그리고 있었다** (2026-09-21).

@@ -1454,6 +1454,8 @@
 
 /* 고객용 칸 — 문서 사이를 갈라 「세 장」임이 보이게 한다(고객 화면과 같은 언어) */
 .em-cust-head { display:flex; align-items:center; padding:.9rem 1.25rem .2rem; }
+/* 알릴 것이 없으면(상태 비어 있고 「미리보기」 버튼도 감춰짐) 머리 줄째 감춘다 — 2026-09-28 */
+.em-cust-head:has(#em-doc-state:empty):has(#em-nodoc-preview.hidden) { display: none; }
 #emTabCust .em-doc-prev { background:#F4F4F2; padding:1rem 1.25rem 1.4rem; }
 .em-cust-sect { margin-bottom:1.1rem; }
 .em-cust-sect:last-child { margin-bottom:0; }
