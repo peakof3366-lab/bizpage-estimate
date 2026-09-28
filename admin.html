@@ -3625,7 +3625,12 @@
           아직 안 감춰져 있어, 직원이 대표 전용 탭으로 복원될 수 있다.
        ② `aqHandleItiHash()` **뒤**여야 한다 — 일정 딥링크(`#quote-iti=`)로 들어온
           경우 그쪽이 먼저 자기 자리를 잡는다(해시 모양이 달라 서로 안 먹는다). */
+    /* 🔴 주소를 **먼저 붙잡는다** — `restoreTabFromHash()`가 여는 `switchTab()`이 `rememberTab()`으로
+         주소를 `#tab=estmgr`로 덮어써, 뒤에 붙은 `&q=…`가 읽히기 전에 사라졌다(브라우저 실측에서 걸렸다). */
+    const bootHash = location.hash;
     restoreTabFromHash();
+    /* 탭 **위에 떠 있던** 견적 상세까지 (2026-09-28) — 탭이 열린 뒤여야 한다 */
+    if (typeof emRestoreFromHash === 'function') emRestoreFromHash(bootHash);
   }
 
   /* ════ CLOCK ════ */
@@ -4024,7 +4029,8 @@
     try { history.replaceState(null, '', '#tab=' + name); } catch (e) { /* 주소를 못 바꿔도 화면은 멀쩡해야 한다 */ }
   }
   function restoreTabFromHash() {
-    const m = /^#tab=([a-z0-9-]+)$/i.exec(location.hash || '');
+    /* ⚠ 뒤에 `&q=…`(견적 상세 기억, 2026-09-28)가 붙을 수 있다 — 탭 이름만 읽는다 */
+    const m = /^#tab=([a-z0-9-]+)(?:&|$)/i.exec(location.hash || '');
     if (!m) return false;
     /* 🔴 **없어진 화면으로 가는 북마크를 대신받는다** (2026-09-17).
        `quotetool`(자동 견적 산출 · 고객용)을 지우면 그 주소를 저장해 둔 사람은
@@ -5958,6 +5964,15 @@
   document.getElementById('emModal')?.addEventListener('click', e => {
     if (e.target === document.getElementById('emModal')) document.getElementById('emModal').classList.add('hidden');
   });
+  /* 🔴 상세 창을 닫는 자리가 여럿이다(✕·바깥 클릭·삭제·복사·다른 화면으로 건너가기) — 하나하나 주소를 지우게 하면
+     언젠가 하나를 빠뜨린다(결함 생성기 ①). **창이 감춰지는 순간** 한 곳에서 지운다. */
+  (function () {
+    const m = document.getElementById('emModal');
+    if (!m || typeof MutationObserver === 'undefined' || typeof emHashSet !== 'function') return;
+    new MutationObserver(() => {
+      if (m.classList.contains('hidden')) emHashSet({ q: null, v: null, s: null, f: null });
+    }).observe(m, { attributes: true, attributeFilter: ['class'] });
+  })();
 
   /* 설정 탭에도 견적 삭제 추가 */
   async function clearData(key, label) {

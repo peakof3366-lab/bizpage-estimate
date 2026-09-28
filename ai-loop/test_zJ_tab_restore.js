@@ -133,6 +133,27 @@ console.log('\n[6] ⚠ 기본 화면은 예전 그대로다');
 ok('⑥ 사이드바 기본 활성은 대시보드다', SRC.indexOf('class="sidebar-item active" data-tab="dashboard"') >= 0);
 ok('⑥ 기본 활성 패널도 대시보드다', SRC.indexOf('class="tab-panel active" id="tab-dashboard"') >= 0);
 
+console.log('\n[7] 🔴 탭 위에 떠 있던 견적 상세·직원용·단계까지 (2026-09-28 대표 지시)');
+/* 브라우저 실측(진짜 크롬 · 가짜 API): 상세 → 직원용 → 3단계에서 F5 → 셋 다 복원 ✅ · 닫고 F5 → 목록 ✅ ·
+   없는 건 → 10초 기다리다 목록에 머물고 주소를 치운다 ✅.
+   ⚠ 처음엔 복원이 한 번도 안 됐다 — `restoreTabFromHash()`의 `switchTab()`이 `rememberTab()`으로 주소를
+     `#tab=estmgr`로 덮어써 `&q=`가 읽히기 전에 사라졌다. 그래서 **부팅 때 주소를 먼저 붙잡는다.** */
+{
+  const EST = strip(fs.readFileSync(path.join(ROOT, 'admin/estmgr.js'), 'utf8'), '/*', '*/');
+  const PRO = fs.readFileSync(path.join(ROOT, 'admin-quote-pro.html'), 'utf8');
+  ok('⑦ 탭 복원이 뒤에 붙은 &q= 를 받아들인다', CODE.indexOf('/^#tab=([a-z0-9-]+)(?:&|$)/i') >= 0);
+  ok('⑦ 🔴 주소를 탭 복원보다 먼저 붙잡아 넘긴다',
+    /const bootHash = location\.hash;\s*restoreTabFromHash\(\);[\s\S]{0,200}emRestoreFromHash\(bootHash\)/.test(CODE));
+  ok('⑦ 상세를 열면 q, 직원용이면 v, 단계를 옮기면 s를 적는다',
+    /emHashSet\(\{ q: id,/.test(EST) && /emHashSet\(tab === 'staff' \? \{ v: 'staff' \}/.test(EST) && /emHashSet\(\{ s: String/.test(EST));
+  ok('⑦ 창이 감춰지면 한 곳에서 지운다 (닫는 길이 여럿이다)',
+    /new MutationObserver\(\(\) => \{\s*if \(m\.classList\.contains\('hidden'\)\) emHashSet\(\{ q: null/.test(CODE));
+  ok('⑦ 편집 화면이 단계를 알리고, step= 으로 돌아온다',
+    /emitEdit\('step', \{ n: n \}\)/.test(PRO) && /Q\.get\('step'\)/.test(PRO) && /'&step=' \+/.test(EST));
+  ok('⑦ 🔴 저장 안 한 새 견적도 나가기 전에 묻는다 (새로고침이 되살리지 못한다)',
+    /const unsavedNew = !EDIT_ID && unlocked && !savedNewOnce;/.test(PRO));
+}
+
 console.log('\n' + '─'.repeat(64));
 console.log(`결과: ${pass} pass / ${fail} fail  — ZJ F5를 눌러도 그 자리`);
 process.exit(fail ? 1 : 0);

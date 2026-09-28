@@ -608,6 +608,7 @@
     document.getElementById('em-actual-total-msg').textContent = '';
 
     document.getElementById('emModal').classList.remove('hidden');
+    emHashSet({ q: id, v: null, s: null, f: null });
   }
 
   /* 실제 계약 항공료 저장 (신규) — saveEstimateDetail()과 별개의 독립 저장(상태/메모/
@@ -1180,6 +1181,53 @@
 
   /* 상세를 닫는 자리는 **하나**다 — 머리의 ✕와 아래 「닫기」가 같은 것을 부른다.
      두 곳에 각각 적으면 한쪽만 지킴이를 지나간다(결함 생성기 ①). */
+  /* ══ F5를 눌러도 **보던 견적 상세**로 돌아온다 (2026-09-28 대표 지시) ═══════════════════
+     탭은 9/15부터 주소(`#tab=estmgr`)로 기억했는데, 그 위에 뜬 **상세 창·고객용/직원용·편집 단계**는
+     기억하지 않아 새로고침하면 목록으로 떨어졌다. 같은 주소 뒤에 덧붙인다:
+       `#tab=estmgr&q=<견적 id>&v=staff&s=3&f=<좁힌 영역>`
+     ⚠ 저장하지 않은 수정은 **되살리지 않는다**(저장본을 다시 연다). 그건 편집 화면의 「나가기 전 확인」이 막는다.
+     ⚠ `replaceState` — 히스토리를 쌓지 않는다(뒤로가기가 창 여닫기를 되짚지 않게). */
+  const EM_HASH_KEYS = ['q', 'v', 's', 'f'];
+  function emHashRead(from) {
+    const h = String(from !== undefined ? from : (location.hash || ''));
+    const m = /^#tab=([a-z0-9-]+)((?:&[a-z]=[^&]*)*)$/i.exec(h);
+    if (!m) return null;
+    const out = { tab: m[1] };
+    (m[2] || '').split('&').filter(Boolean).forEach((kv) => {
+      const i = kv.indexOf('=');
+      try { out[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); } catch (e) { /* 망가진 값은 버린다 */ }
+    });
+    return out;
+  }
+  function emHashSet(patch) {
+    const cur = emHashRead();
+    if (!cur || cur.tab !== 'estmgr') return;   /* 다른 탭(대시보드의 바로가기 등)에서 연 상세는 주소를 안 건드린다 */
+    const next = Object.assign({}, cur, patch);
+    let h = '#tab=' + next.tab;
+    EM_HASH_KEYS.forEach((k) => { if (next[k]) h += '&' + k + '=' + encodeURIComponent(next[k]); });
+    if (h === location.hash) return;
+    try { history.replaceState(null, '', h); } catch (e) { /* 주소를 못 바꿔도 화면은 멀쩡해야 한다 */ }
+  }
+  /* 부팅 때 한 번 — `restoreTabFromHash()`가 견적 관리 탭을 연 **뒤에** 부른다.
+     목록이 아직 안 왔으면 조금 기다린다(최대 10초). 끝내 없으면(지워진 건) 목록에 머문다. */
+  function emRestoreFromHash(bootHash) {
+    const h = emHashRead(bootHash);
+    if (!h || h.tab !== 'estmgr' || !h.q) return;
+    const t0 = Date.now();
+    (function tryOpen() {
+      const has = getEstsFull().some((x) => String(x.id) === String(h.q));
+      if (!has) {
+        if (Date.now() - t0 < 10000) return setTimeout(tryOpen, 300);
+        emHashSet({ q: null, v: null, s: null, f: null });
+        return;
+      }
+      emRestoringStep = h.s ? Number(h.s) : null;
+      openEstDetail(h.q);
+      if (h.v === 'staff') { emPendingFocus = h.f || null; emSetTab('staff'); }
+    })();
+  }
+  let emRestoringStep = null;
+
   function emCloseDetail() {
     if (!emEditGuard('창을 닫기')) return;
     emEditReset();
@@ -1206,7 +1254,10 @@
     /* 🔴 처음 부를 때는 **주소에 실어 보낸다.** 띄우자마자 보내는 메시지는 아직
        듣는 사람이 없어 그대로 사라진다(실제로 그렇게 조용히 안 먹었다). */
     f.src = 'admin-quote-pro.html?quote=' + encodeURIComponent(emCurrentId)
-      + (focus ? '&focus=' + encodeURIComponent(focus) : '');
+      + (focus ? '&focus=' + encodeURIComponent(focus) : '')
+      + (!focus && emRestoringStep ? '&step=' + encodeURIComponent(emRestoringStep) : '');
+    emRestoringStep = null;
+    emHashSet({ f: focus || null });
   }
 
   /* 견적을 바꿔 열면 **앞 건의 편집기를 버린다** — 안 버리면 다음 건 화면에 앞 건이
@@ -1236,7 +1287,11 @@
     /* 🔴 **보낸 창이 이 틀인지 본다.** 「자동 견적 산출」 탭도 같은 편집 화면을 틀에 넣어 쓰므로,
        안 보면 그쪽의 키 알림에 견적 상세 틀이 늘었다 줄었다 한다. */
     const fromMine = !!emEditFrame() && ev.source === emEditFrame().contentWindow;
-    if ((d.__aqp === 'height' || d.__aqp === 'top') && !fromMine) return;
+    if ((d.__aqp === 'height' || d.__aqp === 'top' || d.__aqp === 'step') && !fromMine) return;
+    if (d.__aqp === 'step') {
+      if (fromMine && Number(d.n) >= 1 && Number(d.n) <= 5) emHashSet({ s: String(Number(d.n)) });
+      return;
+    }
     if (d.__aqp === 'height') {
       /* S-1 ⑤ (2026-09-27): 틀을 편집 화면 키에 맞춘다 — 스크롤은 창 하나만 */
       const f = emEditFrame();
@@ -1400,6 +1455,7 @@
     if (tab === 'staff') emEditEnsure(emPendingFocus);
     emPendingFocus = null;
     body.dataset.emtab = tab;
+    emHashSet(tab === 'staff' ? { v: 'staff' } : { v: null, s: null, f: null });
     const c = document.getElementById('emTabBtnCust');
     const t = document.getElementById('emTabBtnStaff');
     if (c) c.setAttribute('aria-pressed', tab === 'cust' ? 'true' : 'false');

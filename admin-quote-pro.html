@@ -919,6 +919,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
   function showStep(n) {
     if (!unlocked && n > 1) return;
     curStep = n;
+    emitEdit('step', { n: n });   /* 견적 상세가 주소에 적어 둔다 — F5를 눌러도 이 단계로 돌아온다 (2026-09-28) */
     STEPS.forEach((s) => $(s.sec).classList.toggle('hidden', s.n !== n));
     paintSteps();
     /* 5단계는 들어올 때 **다시 그린다** — 앞 단계에서 고친 것이 안 비치면
@@ -2413,7 +2414,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     renderIti();
     /* 주소에 `focus=`가 실려 왔으면 **그 영역만** 연다(수정하기로 들어온 경우) */
     const wantFocus = Q.get('focus') || '';
-    if (FOCUS_SEC[wantFocus]) applyFocus(wantFocus); else showStep(2);
+    /* `step=`은 F5로 돌아올 때 견적 상세가 실어 보낸다(2026-09-28) */
+    const wantStep = Number(Q.get('step'));
+    if (FOCUS_SEC[wantFocus]) applyFocus(wantFocus); else showStep(wantStep >= 2 && wantStep <= 5 ? wantStep : 2);
     emitEdit('loaded', { quoteNo: rec.quoteNo || '' });
     showSavedNo(rec.quoteNo);
   }
@@ -2497,7 +2500,10 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
   document.addEventListener('input', (e) => { if (EDIT_ID && e.target && e.target.id !== 'saveMsg') setDirty(true); });
   document.addEventListener('change', () => { if (EDIT_ID) setDirty(true); });
   window.addEventListener('beforeunload', (e) => {
-    if (!EDIT_ID || !aqpDirty) return;
+    /* 🔴 2026-09-28 — **새 견적도** 산출해 놓고 저장 전이면 묻는다. 새로고침은 저장 안 한 견적을 되살리지 못한다
+       (고치기는 저장본을 다시 열 수 있지만, 새 견적은 돌아갈 저장본이 없다). */
+    const unsavedNew = !EDIT_ID && unlocked && !savedNewOnce;
+    if (!(EDIT_ID && aqpDirty) && !unsavedNew) return;
     e.preventDefault(); e.returnValue = '';
   });
 

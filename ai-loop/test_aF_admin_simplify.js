@@ -50,7 +50,7 @@ ok('[5-b] 🔴 키는 내용(#app)의 바닥으로 잰다 (documentElement.scrol
 ok('[5-c] 단계를 넘기면 바깥에 머리로 데려가 달라고 한다', (PRO.match(/emitEdit\('top'\)/g) || []).length >= 2);
 ok('[5-d] 🔴 바깥은 **자기 틀이 보낸 것만** 받는다 (자동 견적 산출 탭도 같은 화면을 쓴다)',
   /ev\.source === emEditFrame\(\)\.contentWindow/.test(EST)
-  && /\(d\.__aqp === 'height' \|\| d\.__aqp === 'top'\) && !fromMine\) return/.test(EST));
+  && /\(d\.__aqp === 'height' \|\| d\.__aqp === 'top'( \|\| d\.__aqp === 'step')?\) && !fromMine\) return/.test(EST));
 ok('[5-e] 틀 안에서 따로 스크롤하지 않는다', /id="em-edit-frame"[^>]*scrolling="no"/.test(ADMIN));
 
 /* ═══ ① 콘텐츠 관리 — 「저장」 110개 → 하나 ═══════════════════════════════════ */
