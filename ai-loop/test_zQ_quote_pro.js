@@ -343,6 +343,21 @@ const EDIT_CHECKS = async () => {
   ok('[18-k] 내부 메모가 돌아왔다', val('dMemo') === '내부 메모입니다', val('dMemo'));
   ok('[18-l] 불러왔다고 말한다', /저장된 견적을 불러왔습니다/.test(txt()));
   ok('[18-m] 번호를 함께 말한다', /BP-2609-0042/.test(txt()));
+  /* 🔴 2026-09-28 대표 요청 — 고치기에서 금액을 바꾸고 **그 자리에서** 저장한다(예전엔 ⑤단계에만 저장이 있었다).
+       처리기는 하나(⑤단계 btnSave를 눌러 준다) — 진짜 PATCH가 나가고, 결과 글이 버튼 옆에 비친다. */
+  {
+    await goStep(2);
+    const here = D.querySelector('#secMoney .navbar .btn-save-here');
+    ok('[18-o] 금액 입력 단계에 「저장하기」가 있다 (다음 버튼 앞)', !!here && here.textContent.trim() === '저장하기'
+      && here.nextElementSibling && here.nextElementSibling.getAttribute('data-goto') === '3');
+    const before = boot.log.requests.filter((r) => r.method === 'PATCH').length;
+    if (here) { here.click(); await boot.tick(300); }
+    const patches = boot.log.requests.filter((r) => r.method === 'PATCH' && /\/api\/quotes\/qEDIT1/.test(r.url));
+    ok('[18-o2] 🔴 누르면 이 견적으로 진짜 저장(PATCH)이 나간다', patches.length > before, String(patches.length));
+    const msg = D.querySelector('#secMoney .nav-save-msg');
+    ok('[18-o3] 결과가 버튼 옆에 보인다', !!msg && /저장했습니다/.test(msg.textContent), msg ? msg.textContent : '없음');
+    ok('[18-o4] 저장 처리기는 하나다 (btnSave를 눌러 준다)', /b\.addEventListener\('click', \(\) => \$\('btnSave'\)\.click\(\)\)/.test(PRO));
+  }
   ok('[18-m2] 고치기로 연 견적서 제목줄에 번호가 뜬다',
     /견적번호 BP-2609-0042/.test(((D.getElementById('docEdit') || {}).textContent || '')));
 

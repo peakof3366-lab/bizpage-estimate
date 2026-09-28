@@ -284,6 +284,11 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 /* 수정하기(좁힌 화면)에는 진짜 「견적 저장하기」가 이 자리로 온다 — 「저장하기」가 둘이면 헷갈린다 */
 .aqp-focus #btnDocApply, .aqp-focus #docApplyMsg { display: none; }
 .apply-msg { font-size: 12px; font-weight: 700; color: var(--ok); }
+/* 고치기의 단계별 「저장하기」 옆 결과 글 — ⑤단계 saveMsg를 비춘다 (2026-09-28) */
+.nav-save-msg { font-size: 12px; font-weight: 700; color: var(--t-sub); }
+.nav-save-msg.ok { color: var(--ok); }
+.nav-save-msg.err { color: var(--red-dk); }
+.nav-save-msg:empty { display: none; }
 /* 🔴 2026-09-28 대표 요청 — 보충 칸의 **예시 글씨는 더 연하게**. 적힌 값(확정)과 한눈에 갈리게 */
 #docFormFold input::placeholder, #docFormFold textarea::placeholder { color: #BDBDBD; opacity: 1; }
 #focusBar { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px; }
@@ -417,10 +422,10 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         </ul>
       </div>
       </details>
-      <p class="note-i adhoc-only">
-        🔴 이 화면은 <b>엔진을 타지 않습니다.</b> 요율·계수·마진이 하나도 안 붙으니
-        <b>그것까지 포함한 금액</b>을 적어 주세요. 아래 <b>원가</b>를 적으면 마진이 자동으로 계산됩니다.
-      </p>
+      <!-- 2026-09-28 대표 요청 「깔끔하게 · 붉은 원 삭제」 — 한 문단 → 결론 한 줄 + 보조 한 줄 -->
+      <div class="note-i adhoc-only">
+        <p class="ni-lead"><b>적은 금액이 그대로 고객 견적가가 됩니다.</b> 요율·계수·마진이 자동으로 붙지 않으니 최종 금액으로 적어 주세요.</p>
+      </div>
       <div class="bar adhoc-only" style="margin-top:0;margin-bottom:12px">
         <button type="button" class="btn btn-sm" id="btnAddLine">+ 항목 추가</button>
         <span class="bar-sp"></span>
@@ -1990,10 +1995,48 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     syncMirrors();
   }
 
-  /* 「저장하기」(③단계) — 보충 칸에 적은 것을 위 견적서에 다시 그리고 그리로 옮겨 간다. 서버 저장이 아니다. */
+  /* ══ 고치기에서는 **단계마다 진짜 저장** (2026-09-28 대표 요청 「금액을 바꾸고 저장할 버튼이 없다」) ══
+     예전엔 고치기(?quote=)의 저장이 ⑤단계에만 있어, 금액만 고치러 온 사람이 저장할 곳을 못 찾았다.
+     🔴 **버튼을 새로 만들되 저장 처리는 복제하지 않는다** — ⑤단계 `btnSave`를 눌러 준다(처리기는 하나).
+       결과 글(`saveMsg`)은 ⑤단계에 있어 안 보이므로, 바뀔 때마다 버튼 옆 글에 **비춘다.**
+     ⚠ 새 견적(고치기 아님)에는 안 붙인다 — 새 견적은 누를 때마다 새 기록이 생기므로 ⑤단계 한 곳에서만 저장한다.
+     ⚠ 수정하기(좁힌 화면)에서는 이 줄이 감춰지고 진짜 버튼이 그 영역 아래로 온다(applyFocus). */
+  function mirrorSaveMsg() {
+    const src = $('saveMsg');
+    document.querySelectorAll('.nav-save-msg').forEach((m) => {
+      m.textContent = src.classList.contains('hidden') ? '' : src.textContent;
+      m.classList.toggle('ok', src.classList.contains('note-ok'));
+      m.classList.toggle('err', src.classList.contains('note-err'));
+    });
+  }
+  if (EDIT_ID) {
+    ['secMoney', 'secIti'].forEach((sec) => {
+      const nav = $(sec) && $(sec).querySelector('.navbar');
+      const next = nav && nav.querySelector('[data-goto].btn-p');
+      if (!nav || !next) return;
+      const msg = document.createElement('span'); msg.className = 'nav-save-msg'; msg.setAttribute('role', 'status');
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-save-here'; b.textContent = '저장하기';
+      b.addEventListener('click', () => $('btnSave').click());
+      nav.insertBefore(msg, next); nav.insertBefore(b, next);
+    });
+    if (typeof MutationObserver !== 'undefined') {
+      new MutationObserver(mirrorSaveMsg).observe($('saveMsg'), { attributes: true, childList: true, characterData: true, subtree: true });
+    }
+  }
+
+  /* 「저장하기」(③단계) — 보충 칸에 적은 것을 위 견적서에 다시 그리고 그리로 옮겨 간다.
+     새 견적: 서버 저장이 아니다(최종 저장은 ⑤단계). 🔴 고치기: **진짜 저장까지** 한다(2026-09-28, 위와 같은 이유). */
   $('btnDocApply').addEventListener('click', () => {
     renderAll();
     const m = $('docApplyMsg');
+    if (EDIT_ID) {
+      $('btnSave').click();
+      m.textContent = '';
+      m.classList.add('hidden');
+      const host0 = $('docEdit');
+      if (host0 && host0.scrollIntoView) host0.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     m.textContent = '✓ 견적서에 반영했습니다 · 최종 저장은 ⑤단계';
     m.classList.remove('hidden');
     clearTimeout(m._t); m._t = setTimeout(() => m.classList.add('hidden'), 6000);
