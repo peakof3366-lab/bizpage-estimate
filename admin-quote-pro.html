@@ -285,6 +285,11 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 /* 🔴 2026-09-28 대표 요청 — 보충 칸의 **예시 글씨는 더 연하게**. 적힌 값(확정)과 한눈에 갈리게 */
 #docFormFold input::placeholder, #docFormFold textarea::placeholder { color: #BDBDBD; opacity: 1; }
 #focusBar { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px; }
+/* 🔴 2026-09-28 대표 요청 「레이아웃 맞춰」 — 수정하기(좁힌 화면)에서
+   ① 단계 이동 줄은 버튼이 전부 감춰져 **빈 줄 + 윗선**만 남아 선이 두 겹으로 보였다 → 줄째 감춘다
+   ② 「✓ 저장했습니다」가 버튼보다 낮고 위로 10px 밀려 있었다 → 버튼과 같은 높이·같은 줄 가운데 */
+.aqp-focus .navbar { display: none; }
+#focusBar .note { margin: 0; min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; padding: 0 14px; }
 </style>
 </head>
 <body>
