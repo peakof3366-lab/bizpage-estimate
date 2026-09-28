@@ -69,7 +69,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 /* ⚠ **이 자리에 `hidden` 클래스를 같이 쓰지 말 것.** `.hidden{display:none!important}`이
    위 규칙을 이겨서, 직접 입력 모드인데도 원가 칸이 안 보였다(브라우저로 재고 알았다).
    보임/숨김은 **`<html>`의 모드 클래스 하나**가 정한다. */
-.aqp-embedded .wrap { padding-top: 0; }
+/* 🔴 2026-09-28 대표 지적 「회색 상자 안 내용이 위에 딱 붙어 있다」 — 틀 안에서 위 여백이 0이었다.
+   바깥 상자(견적 상세)와 어울리게 위·양옆 20px, 아래는 바깥이 틀 키를 내 키에 맞추므로 24px면 된다. */
+.aqp-embedded .wrap { padding: 20px 20px 24px; }
 .page-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
 .page-sub { margin: 5px 0 0; font-size: 12.5px; color: var(--t-sub); max-width: var(--measure); }
 
