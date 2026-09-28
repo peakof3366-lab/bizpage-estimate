@@ -104,7 +104,7 @@ ok('_leadPostOnce가 status를 실어 준다 (401 판별의 근거)', /err\.stat
 
 console.log('\n[6] 관리자 화면 렌더는 그대로 안전한가 (회귀)');
 ok('목록 배지가 esc를 거친다', /channel==='internal'[\s\S]{0,160}esc\(e\.createdBy\)/.test(adminSrc));
-ok('상세 배지도 esc를 거친다', /🖥 내부 산출 — \$\{esc\(e\.createdBy\|\|'담당자 미지정'\)\}/.test(adminSrc));
+ok('상세 배지도 esc를 거친다', /내부 산출 · \$\{esc\(e\.createdBy\|\|'담당자 미지정'\)\}/.test(adminSrc));
 
 /* ── 실동작: saveQuote가 출처를 실제로 덮어쓰는가 ───────────────────────
    운영 DB에 닿지 않도록 db·auth·verify를 require 캐시에서 갈아끼우고 핸들러를 직접 호출한다.

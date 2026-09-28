@@ -464,34 +464,41 @@
     const verifyEl = document.getElementById('em-verify-block');
     if (verifyEl) verifyEl.innerHTML = verifyDetailHtml(e);
 
-    /* 기관 정보 */
-    document.getElementById('em-orginfo').innerHTML =
-      `<b>${esc(e.orgName||'—')}</b><br>담당자: ${esc(e.contact||'—')}<br>기관 유형: ${esc(e.orgTypeLabel||'—')}` +
-      (e.channel==='internal' ? `<br><span style="color:var(--primary);font-size:.76rem">🖥 내부 산출 — ${esc(e.createdBy||'담당자 미지정')}</span>` : '') +
-      (e.request ? `<br><span style="color:var(--muted);font-size:.76rem">${esc(e.request)}</span>` : '');
+    /* 🎨 2026-09-28 대표 요청 「깔끔하게」 — 「담당자: admin<br>기관 유형: —」처럼 글줄로 이어 쓰던 것을
+       **[항목 이름 | 값] 두 칸 표**로. 이름은 회색 고정 폭, 값은 진하게. 값이 없는 줄은 「—」로 남긴다(빠진 줄로 오해하지 않게).
+       ⚠ 값은 전부 esc를 거친다(공개 제출 payload에서 온 값이다 — 결함 생성기 ④). */
+    const dlRow = (k, v) => `<div class="em-dl-r"><dt>${k}</dt><dd>${v}</dd></div>`;
+    document.getElementById('em-orginfo').innerHTML = '<dl class="em-dl">'
+      + dlRow('기관명', `<b>${esc(e.orgName||'—')}</b>`)
+      + dlRow('담당자', esc(e.contact||'—'))
+      + dlRow('기관 유형', esc(e.orgTypeLabel||'—'))
+      + (e.channel==='internal' ? dlRow('작성', `내부 산출 · ${esc(e.createdBy||'담당자 미지정')}`) : '')
+      + (e.request ? dlRow('요청 사항', `<span class="em-dl-note">${esc(e.request)}</span>`) : '')
+      + '</dl>';
 
     /* 연수 조건 */
-    const rateInfo = e.rateDate
-      ? `<br><span style="font-size:.74rem;color:#1d4ed8;background:#eff6ff;padding:.1rem .4rem;border-radius:0">요율기준: ${e.rateDate} · v${e.rateVersion||'—'}</span>`
-      : '';
     /* 출발공항·좌석등급·객실구성은 저장은 되고 있었지만 어디에도 표시되지 않았다.
        셋 다 금액을 크게 좌우하는 고객 선택값이라(좌석 최대 4배·객실 최대 2배·출발지 16%),
        관리자가 총액만 보고 "왜 이렇게 비싼가"를 판단할 수 없었다. 계수 기여도 패널(P12)에
        배수(×4.000)는 있지만 "비즈니스 몇 명"인지는 그 숫자로 읽히지 않는다.
        구버전 견적에는 필드가 없으므로 있을 때만 줄을 추가한다(없는 값을 지어내지 않음). */
     const condExtra = [
-      e.departureCityLabel ? `출발: ${esc(e.departureCityLabel)}` : '',
-      e.cabinClassLabel    ? `좌석: <b>${esc(e.cabinClassLabel)}</b>` : '',
-      e.roomConfigLabel    ? `객실구성: ${esc(e.roomConfigLabel)}` : '',
-    ].filter(Boolean).join(' · ');
-    document.getElementById('em-conds').innerHTML =
-      `목적지: <b>${esc(e.destLabel||e.destKey)}</b>${rateInfo}<br>프로그램: ${esc(e.programLabel||'—')}<br>인원: ${e.participants}명 / 기간: ${e.days}일 (${e.nights}박)<br>` +
-      (condExtra ? condExtra + '<br>' : '') +
-      /* ⚠ 식사 단위가 바뀌었다 (RO): 예전 견적은 '식수'(mealCount), 새 견적은
-         '일수'(mealDays)로 기록된다. 둘을 같은 칸에 그냥 찍으면 7과 4가 섞여
-         무엇을 뜻하는지 알 수 없다 — 단위를 함께 적어 구분한다. */
-      `식사: ${e.mealDays != null ? e.mealDays + '일' : (e.mealCount != null ? e.mealCount + '식(구버전)' : '—')}`
-      + ` · 객실: ${e.rooms||Math.ceil(e.participants/2)}실<br>계수: ×${(e.combinedFactor||1).toFixed(3)}`;
+      e.departureCityLabel ? dlRow('출발', esc(e.departureCityLabel)) : '',
+      e.cabinClassLabel    ? dlRow('좌석', `<b>${esc(e.cabinClassLabel)}</b>`) : '',
+      e.roomConfigLabel    ? dlRow('객실 구성', esc(e.roomConfigLabel)) : '',
+    ].filter(Boolean).join('');
+    /* ⚠ 식사 단위가 바뀌었다 (RO): 예전 견적은 '식수'(mealCount), 새 견적은
+       '일수'(mealDays)로 기록된다. 단위를 함께 적어 구분한다. */
+    const mealTxt = e.mealDays != null ? e.mealDays + '일' : (e.mealCount != null ? e.mealCount + '식(구버전)' : '—');
+    document.getElementById('em-conds').innerHTML = '<dl class="em-dl">'
+      + dlRow('목적지', `<b>${esc(e.destLabel||e.destKey)}</b>`
+        + (e.rateDate ? ` <span class="em-dl-tag">요율 ${esc(e.rateDate)} · v${esc(e.rateVersion||'—')}</span>` : ''))
+      + dlRow('프로그램', esc(e.programLabel||'—'))
+      + dlRow('인원 · 기간', `${Number(e.participants)||0}명 · ${Number(e.days)||0}일 (${Number(e.nights)||0}박)`)
+      + condExtra
+      + dlRow('식사 · 객실', `${mealTxt} · ${e.rooms||Math.ceil((Number(e.participants)||0)/2)}실`)
+      + dlRow('계수', `×${(e.combinedFactor||1).toFixed(3)}`)
+      + '</dl>';
 
     /* 항목 내역 (비공개 포함) */
     /* 공개 제출 payload에서 온 값이라 문자열일 수 있다. String.toLocaleString은
@@ -1411,8 +1418,8 @@
     const sum = document.getElementById('em-more-sum');
     if (sum) {
       sum.textContent = done
-        ? '자세히 — 기관 정보·원가·수익·요율·실적·일정·진행 기록'
-        : '자세히 — 기관 정보·원가·수익·요율·일정·진행 기록';
+        ? '상세 정보 더 보기 — 기관·원가·수익·요율·실적·일정·진행 기록'
+        : '상세 정보 더 보기 — 기관·원가·수익·요율·일정·진행 기록';   /* 2026-09-28 문구 다듬음(「자세히 —」) */
     }
   }
 

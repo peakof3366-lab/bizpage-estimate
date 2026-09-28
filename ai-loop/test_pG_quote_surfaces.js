@@ -127,7 +127,7 @@ const ok = (name, cond, extra = '') => {
   console.log('\n[4] 관리자 견적 상세 — 조건 표시');
   const adminSrc = adminSource();
   const condStart = adminSrc.indexOf('const condExtra = [');
-  const condEndMark = ".filter(Boolean).join(' · ');";
+  const condEndMark = ".filter(Boolean).join('');";   /* 2026-09-28 두 칸 표로 바꾸며 줄마다 dlRow — 구분자 없이 잇는다 */
   const condBlock = adminSrc.slice(condStart, adminSrc.indexOf(condEndMark, condStart) + condEndMark.length);
   ok('condExtra 블록 존재', condStart > 0 && condBlock.endsWith(condEndMark));
   ok('출발 공항 표시', /departureCityLabel/.test(condBlock));
@@ -136,7 +136,7 @@ const ok = (name, cond, extra = '') => {
   ok('구버전 견적 대비 filter(Boolean)로 빈 줄 방지', /\.filter\(Boolean\)/.test(condBlock));
 
   /* 실제로 실행해 결과 문자열 확인 */
-  const mkCond = new Function('e', 'esc', condBlock + '\n    return condExtra;');
+  const mkCond = new Function('e', 'esc', "const dlRow = (k, v) => k + ':' + v + ';';\n" + condBlock + '\n    return condExtra;');
   const condNew = mkCond({ departureCityLabel: '서울 · 인천 (ICN)', cabinClassLabel: '혼합 (비즈니스 3명 · 이코노미 17명)', roomConfigLabel: '2인 1실 (기본)' }, s => String(s));
   ok('신규 견적: 세 조건이 모두 문자열에 포함', /인천/.test(condNew) && /비즈니스 3명/.test(condNew) && /2인 1실/.test(condNew), condNew);
   const condOld = mkCond({}, s => String(s));

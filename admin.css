@@ -1650,3 +1650,12 @@
   .cc-r { text-align: left; }
   .cc-note { grid-column: 1; margin-top: 0; }
 }
+
+/* ── 견적 상세 · 기관 정보 / 연수 조건 — [항목 이름 | 값] 두 칸 표 (2026-09-28 대표 요청 「깔끔하게」) ── */
+.em-dl { display: grid; row-gap: .45rem; margin: 0; }
+.em-dl-r { display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: .75rem; align-items: baseline; }
+.em-dl dt { font-size: .76rem; font-weight: 600; color: var(--muted); }
+.em-dl dd { margin: 0; font-size: .88rem; color: var(--text); word-break: keep-all; }
+.em-dl dd b { color: var(--heading); }
+.em-dl-tag { display: inline-block; margin-left: .35rem; font-size: .7rem; font-weight: 600; color: #3F3BA8; background: #EEEDFB; padding: .08rem .45rem; }
+.em-dl-note { color: var(--muted); font-size: .8rem; }
