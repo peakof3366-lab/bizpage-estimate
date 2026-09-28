@@ -740,7 +740,8 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     $('pgSub').innerHTML = '금액을 <b>직접 적어</b> 고객이 받는 견적서와 일정표를 만듭니다. '
       + '엔진을 타지 않으므로 <b>요율·계수·마진이 붙지 않습니다</b> — 그것까지 포함한 금액을 적어 주세요.';
     $('sec1Title').textContent = '여행 정보';
-    $('sec1Desc').textContent = '견적서 개요표에 들어갑니다 · 필수 4칸';
+    /* 2026-09-28 대표 요청 — 「견적서 개요표에 들어갑니다 · 필수 4칸」을 뺐다(직원용·직접 입력) */
+    $('sec1Desc').textContent = ''; $('sec1Desc').classList.add('hidden');
     $('btnCalc').classList.add('hidden');
     /* 🔴 **고치기(`?quote=`)에서는 「금액 입력 시작」을 띄우지 않는다** (2026-09-27).
        저장된 건을 불러오면 「다음: 금액 입력 →」이 이미 떠 있어 같은 자리에 버튼이 둘이었고,
@@ -801,7 +802,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     if (!box) return;
     const s = $('pStart').value, e = $('pEnd').value;
     const fmt = (x) => { const t = new Date(x + 'T00:00:00'); return (t.getMonth() + 1) + '월 ' + t.getDate() + '일'; };
-    if (!s) { box.textContent = '출발일을 고르면 귀국일과 일수가 자동으로 맞춰집니다.'; box.className = 'datebar'; return; }
+    /* 2026-09-28 대표 요청 — 출발일 전의 안내(「출발일을 고르면 …」)와 그 줄의 테두리·바탕을 뺐다. 줄째 감춘다.
+       날짜를 고른 뒤의 확인(ok)·오류(err)는 그대로 — 그건 틀린 것을 잡는 자리다. */
+    if (!s) { box.textContent = ''; box.className = 'datebar hidden'; return; }
     if (!e) { box.textContent = '귀국일이 비어 있습니다 — 지금은 일수 ' + num($('pDays')) + '일로 계산합니다.'; box.className = 'datebar'; return; }
     const diff = 날짜차(s, e);
     let txt = fmt(s) + ' ~ ' + fmt(e) + ' · ' + Math.max(0, diff) + '박 ' + (diff + 1) + '일';
