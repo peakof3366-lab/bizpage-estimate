@@ -51,7 +51,11 @@ const wantIds = Array.from(new Set(
 if (BODY.indexOf('destinationSelect') >= 0) wantIds.push('destination');
 
 const haveIds = [].concat(HOST.FIELDS.select, HOST.FIELDS.date, HOST.FIELDS.number,
-  Object.keys(HOST.FIELDS.check), HOST.EXTRA_IDS, HOST.SHELL.map((s) => s.id));
+  Object.keys(HOST.FIELDS.check), Object.keys(HOST.STAFF_CHECK || {}), HOST.EXTRA_IDS, HOST.SHELL.map((s) => s.id));
+/* 🔴 2026-09-28 담당자 전용 칸(redEye · 기내 1박) — 고객 화면엔 없고, 엔진은 없으면 false로 읽는다 */
+ok('[1-b2] 담당자 전용 칸은 고객 화면에 없다 (고객 금액 불변)',
+  Object.keys(HOST.STAFF_CHECK || {}).every((id) => fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').indexOf('id="' + id + '"') < 0)
+  && /document\.getElementById\('redEye'\)\?\.checked/.test(BODY));
 const missIds = wantIds.filter((id) => haveIds.indexOf(id) < 0);
 ok('[1-b] 엔진이 읽는 칸을 호스트가 전부 만든다', missIds.length === 0, '빠진 것: ' + missIds.join(', '));
 ok('[1-c] 엔진이 읽는 칸이 20개 안팎이다 (추출이 통째로 실패하면 0이 된다)',

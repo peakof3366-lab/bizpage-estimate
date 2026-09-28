@@ -901,7 +901,11 @@ function getBreakdownData(opts) {
   const dest = getDestinationByKey(destKey);
   if (!dest) return null;
 
-  const nights = Math.max(days - 1, 0); /* 박수 = 일수 - 1 (당일치기 0박) */
+  /* 박수 = 일수 - 1 (당일치기 0박).
+     🔴 2026-09-28: **밤 출발 귀국(기내 1박)**이면 호텔은 하루 적다 — 3박 5일. 담당자 화면에만 있는 칸(`redEye`)이고
+       고객 화면엔 없어 `false`다(고객 금액 불변). 3일 미만은 기내박 자리가 없어 무시한다. */
+  const redEye = !!(document.getElementById('redEye')?.checked) && days >= 3;
+  const nights = Math.max(days - 1 - (redEye ? 1 : 0), 0);
 
   const incHotel       = document.getElementById('incHotel')?.checked ?? true;
   const incMeal        = document.getElementById('incMeal')?.checked ?? true;

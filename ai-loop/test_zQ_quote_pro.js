@@ -354,6 +354,30 @@ const EDIT_CHECKS = async () => {
     const s1 = D.querySelector('#itiDays [data-it="0"][data-k="stay"]'); fire(s1, 'B호텔'); fire(s1, 'B호텔', 'change');
     await boot.tick(30);
     ok('[18-p6] 숙박을 적으면 빈 뒷날이 이어받는다 (마지막 날 제외)', stays().join('|') === 'B호텔|B호텔|', stays().join('|'));
+
+    /* 🔴 2026-09-28 — 3박 5일(밤 출발 · 기내 1박): 체크 하나로 박수·기내박·기내식 */
+    const lastB = D.querySelector('#itiDays [data-it], #itiDays [data-im][data-k="b"]') && Array.from(D.querySelectorAll('#itiDays [data-im][data-k="b"]')).pop();
+    if (lastB) fire(lastB, '');
+    fire(D.getElementById('pDays'), '5');
+    const re = D.getElementById('pRedEye');
+    ok('[18-q] 「밤 출발 (기내 1박)」 체크가 있다', !!re);
+    if (re) { re.checked = true; re.dispatchEvent(new boot.win.Event('change', { bubbles: true })); await boot.tick(60); }
+    ok('[18-q2] 🔴 박수 = 일수 − 2 (5일 → 3박)', val('pNights') === '3', val('pNights'));
+    ok('[18-q3] 날짜 줄이 기내 1박이라고 말한다', /기내 1박/.test((D.getElementById('dateState') || {}).textContent || ''),
+      (D.getElementById('dateState') || {}).textContent);
+    const st = stays(), mb = meal('b');
+    ok('[18-q4] 귀국 전날 숙박이 「기내박」', st[st.length - 2] === '기내박', st.join('|'));
+    ok('[18-q5] 마지막 날 조식이 「기내식」', mb[mb.length - 1] === '기내식', mb.join('|'));
+    /* 한 번에 적용이 기내박·기내식을 덮지 않는다 */
+    fire(D.getElementById('bkStay'), 'C호텔'); fire(D.getElementById('bkB'), '호텔식');
+    D.getElementById('btnBulkApply').click(); await boot.tick(60);
+    const st2 = stays(), mb2 = meal('b');
+    ok('[18-q6] 「모든 날에 적용」이 기내박·기내식을 건너뛴다', st2[st2.length - 2] === '기내박' && mb2[mb2.length - 1] === '기내식'
+      && st2[0] === 'C호텔', st2.join('|') + ' / ' + mb2.join('|'));
+    /* 체크를 풀면 우리가 넣은 것만 걷고 박수가 돌아온다 */
+    re.checked = false; re.dispatchEvent(new boot.win.Event('change', { bubbles: true })); await boot.tick(60);
+    ok('[18-q7] 체크를 풀면 박수 = 일수 − 1 · 기내박/기내식이 걷힌다', val('pNights') === '4'
+      && !stays().includes('기내박') && !meal('b').includes('기내식'), val('pNights') + ' / ' + stays().join('|'));
   }
   await goStep(5);
   const prevTxt = ((D.getElementById('prevBox') || {}).textContent || '').replace(/\s+/g, ' ');
