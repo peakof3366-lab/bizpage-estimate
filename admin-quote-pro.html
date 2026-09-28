@@ -205,6 +205,16 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .doc-step-h { margin: 4px 0 8px; font-size: 14px; color: var(--ink); }
 .note-i { margin: 0 0 12px; padding: 9px 12px; background: #F3F4F6; border-left: 3px solid var(--ink);
   font-size: 12px; color: var(--t-sub); line-height: 1.75; max-width: var(--measure); }
+/* 설명 접기 (2026-09-28 대표 요청 — 기본은 접힘). 누를 자리는 44px(화면 규칙) */
+.help-fold { margin: 0 0 10px; }
+.help-fold > summary { display: inline-flex; align-items: center; min-height: 44px; padding: 0 2px;
+  font-size: 12.5px; font-weight: 700; color: var(--t-sub); cursor: pointer; list-style: none; }
+.help-fold > summary::-webkit-details-marker { display: none; }
+.help-fold > summary:hover { color: var(--ink); text-decoration: underline; }
+.help-fold > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.help-fold .hf-o, .help-fold[open] .hf-c { display: none; }
+.help-fold[open] .hf-o { display: inline; }
+.help-fold > .note-i:last-child { margin-bottom: 0 !important; }
 .note-i p { margin: 0; }
 .note-i { word-break: keep-all; }  /* 한글 단어 중간에서 접히지 않게 (폰 폭 「방식/은」) */
 .note-i .ni-lead { color: var(--ink); }
@@ -375,7 +385,10 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       <span class="sec-d adhoc-only">항목과 금액을 직접 적습니다 · 원가 합계를 적으면 마진이 계산됩니다</span></div>
     <div class="sec-b">
       <!-- 2026-09-28 대표 요청 「알아듣기 쉽게」 — 한 문단에 세 가지가 섞여 있던 것을 결론 한 줄 + 줄 종류별 두 줄로 -->
-      <div class="note-i eng-only">
+      <!-- 2026-09-28 대표 요청 — 설명은 **기본으로 접어 둔다**(표가 먼저 보이게). 펼치면 아래 안내 -->
+      <details class="help-fold eng-only" id="helpMoney">
+        <summary><span class="hf-c">ⓘ 설명 보기 — 어느 줄을 고치면 무엇이 바뀌나</span><span class="hf-o">ⓘ 설명 접기</span></summary>
+      <div class="note-i">
         <p class="ni-lead"><b>자동값 = 고객이 받는 금액</b>입니다. 여기서 고쳐도 자동 계산 방식은 그대로이고, 그 위에 조정만 얹힙니다.</p>
         <p class="ni-h">🔴 어느 줄을 고치느냐에 따라 바뀌는 돈이 다릅니다</p>
         <ul class="ni-list">
@@ -386,6 +399,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
             <span class="ni-when">깎아 줄 때</span></li>
         </ul>
       </div>
+      </details>
       <p class="note-i adhoc-only">
         🔴 이 화면은 <b>엔진을 타지 않습니다.</b> 요율·계수·마진이 하나도 안 붙으니
         <b>그것까지 포함한 금액</b>을 적어 주세요. 아래 <b>원가</b>를 적으면 마진이 자동으로 계산됩니다.
@@ -408,6 +422,8 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 
       <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">실무 변수</h3>
       <!-- 2026-09-28 대표 요청 「알아듣기 쉽게」 — 두 문단을 제목 한 줄 + 목록으로. 기본값(원가/마진)은 buildAdjust의 kind와 같게 -->
+      <details class="help-fold" id="helpAdjust">
+        <summary><span class="hf-c">ⓘ 설명 보기 — 10+1(FOC) · 원가/마진 고르기</span><span class="hf-o">ⓘ 설명 접기</span></summary>
       <div class="note-i" style="margin-bottom:10px">
         <p class="ni-h">🔴 10+1(FOC)은 표기 단가에 반영됩니다 <span class="ni-tag">대표 결정</span></p>
         <ul class="ni-list">
@@ -426,6 +442,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
             <span class="ni-when">기본: FOC (우리가 포기하는 돈)</span></li>
         </ul>
       </div>
+      </details>
       <table class="mt">
         <thead><tr><th>항목</th><th class="n">수량</th><th class="n">금액</th><th class="n">어디서 나가나</th><th class="n"></th></tr></thead>
         <tbody id="adjRows"></tbody>

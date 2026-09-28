@@ -205,6 +205,11 @@ ok('[11] 담당자 연락처가 공란으로 시작한다',
   /id="dStaffTel"[^>]*>/.test(PRO) && !/id="dStaffTel"[^>]*value="[^"]+"/.test(PRO));
 ok('[11-b] 아동·유아 단가가 성인과 같다고 화면이 말한다', /단가는 성인과 같습니다/.test(PRO));
 ok('[11-c] 10+1이 단가에 반영된다고 말한다', /표기 단가에 반영됩니다/.test(PRO));
+/* 2026-09-28 대표 요청 — ② 금액 설명 두 곳은 **기본으로 접힌다**(open 속성이 없어야 한다) */
+ok('[11-f] 금액·실무 변수 설명이 접혀 시작한다',
+  /<details class="help-fold eng-only" id="helpMoney">[\s\S]{0,600}자동값 = 고객이 받는 금액/.test(PRO)
+  && /<details class="help-fold" id="helpAdjust">[\s\S]{0,400}표기 단가에 반영됩니다/.test(PRO)
+  && !/<details class="help-fold[^"]*" id="help\w+" open/.test(PRO));
 ok('[11-d] 카드 결제·알선수수료 칸이 없다', !/카드\s*결제/.test(PRO) && !/알선수수료/.test(PRO));
 ok('[11-e] 불포함내역을 company-info.js에서 읽는다 (여기 다시 적지 않는다)',
   /window\.QUOTE_EXCLUDED/.test(PRO) && !/여권 발급비/.test(PRO));
