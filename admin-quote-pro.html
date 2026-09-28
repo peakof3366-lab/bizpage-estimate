@@ -417,7 +417,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
           <!-- ⚠ 여행자보험은 「내부」 표시가 붙지만 원가다(buildRows의 margin 판정) — 예전 문구는 내부 줄 전부를 마진이라 했다 -->
           <li><b>원가 줄</b> (항공·호텔·식사·차량·가이드·관광·부대비용·여행자보험) → <b>원가</b>가 바뀝니다
             <span class="ni-when">공급사에게 받은 실제 금액을 넣을 때</span></li>
-          <li><span class="badge badge-in">내부</span> 줄 (본사 수익·현지 수익금 등, 여행자보험 제외) · 아래 <b>실무 변수</b> → <b>마진</b>이 바뀝니다
+          <li><b>연분홍 바탕 줄</b> (본사 수익·현지 수익금 등, 여행자보험 제외) · 아래 <b>실무 변수</b> → <b>마진</b>이 바뀝니다
             <span class="ni-when">깎아 줄 때</span></li>
         </ul>
       </div>
@@ -1201,7 +1201,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
           ? '<input type="text" value="' + esc(r.name) + '" data-nm="' + r.key
             + '" aria-label="항목 이름" style="width:100%;height:34px;border:1.5px solid var(--line);font-family:inherit;font-size:13px;padding:0 8px" />'
           : '<span class="nm">' + esc(r.name) + '</span>')
-        + (r.internal ? ' <span class="badge badge-in">내부</span>' : '')
+        /* 2026-09-28 대표 요청 — 줄마다 붙던 「내부」 배지를 뺐다. 내부 줄은 **연분홍 바탕**(tr.internal)으로 가른다 */
         + (!S.adhoc && d !== 0 ? ' <span class="badge badge-ed">수정됨</span>' : '')
         + (S.adhoc ? '' : '<span class="sub">' + esc(r.qty) + (r.unit ? ' · 단가 ' + won(r.unit) : '') + '</span>')
         + '</td>'
