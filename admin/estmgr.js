@@ -576,7 +576,7 @@
     document.getElementById('em-status-sel').value = e.status || 'new';
     document.getElementById('em-note-area').value   = e.note   || '';
     fillAssigneeSelect(document.getElementById('em-assignee-sel'), e.assignee);
-    emAutoSaveState('고르면 바로 저장됩니다', 'var(--muted)');
+    emAutoSaveState('고르거나 적으면 바로 저장됩니다', 'var(--muted)');
     document.getElementById('em-log-author-tag').textContent = `작성자: ${currentUser.displayName}`;
     document.getElementById('em-log-list').innerHTML = activityLogHtml(e.activityLog);
 

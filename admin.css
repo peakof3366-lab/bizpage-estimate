@@ -1569,3 +1569,22 @@
   #tab-inquiries table { min-width: 640px; }
   #tab-inquiries td:first-child { white-space: nowrap; }
 }
+
+/* ── 견적 상세 · 진행 관리 (2026-09-28 대표 요청 「깔끔하게」) ──
+   제목 한 줄 + [상태/담당자 위아래 · 같은 폭] | [상담 메모 — 왼쪽 두 칸 높이에 맞춤]. 폰 폭에선 한 줄씩 쌓는다. */
+.em-manage-h { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; margin-bottom: .6rem; }
+.em-manage-h .detail-label { margin: 0; }
+.em-autosave { font-size: .76rem; color: var(--muted); }
+.em-manage { display: grid; grid-template-columns: 200px 1fr; gap: 1rem; align-items: stretch; }
+.em-manage-sel { display: flex; flex-direction: column; gap: .75rem; }
+.em-fl { display: flex; flex-direction: column; gap: .35rem; margin: 0; }
+.em-fl .detail-label { margin: 0; font-size: .76rem; }
+.em-manage .status-select { width: 100%; height: 40px; box-sizing: border-box; background: #fff; }
+.em-fl-note { min-width: 0; }
+.em-fl-note .note-area { flex: 1; margin: 0; min-height: 0; height: 100%; box-sizing: border-box; }
+@media (max-width: 640px) {
+  .em-manage { grid-template-columns: 1fr; }
+  .em-manage-sel { flex-direction: row; }
+  .em-manage-sel .em-fl { flex: 1; }
+  .em-fl-note .note-area { min-height: 96px; }
+}
