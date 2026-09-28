@@ -1668,3 +1668,8 @@
 #ledList tr.led-old td { background: #FAFAF8; color: var(--muted); }
 #ledList tr.led-old td:first-child { padding-left: 1.4rem; }
 #ledList .led-old-mark { color: var(--muted); font-weight: 400; }
+/* 견적서 대장 — 월 머리줄 (2026-09-28 대표 요청 「월별로 관리」) */
+#ledList tr.led-mh td { background: #F1F0FB; border-top: 2px solid #514dc2; padding: .55rem .8rem; font-size: .8rem; color: var(--heading); }
+#ledList tr.led-mh td b { font-size: .9rem; font-weight: 800; margin-right: .9rem; }
+#ledList tr.led-mh td span { margin-right: .9rem; color: #3F3BA8; font-weight: 700; }
+#ledList tr.led-mh td em { font-style: normal; font-weight: 500; color: var(--muted); }

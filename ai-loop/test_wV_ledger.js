@@ -96,8 +96,8 @@ const listOk = () => () => (url) => (/action=list/.test(String(url))
     await w.renderLedger();
     const box = w.document.getElementById('ledList');
     const heads = [...box.querySelectorAll('thead th')].map((e) => e.textContent.trim());
-    ok('① 표가 그려졌다', box.querySelectorAll('tbody tr').length === 3,
-      String(box.querySelectorAll('tbody tr').length));
+    ok('① 표가 그려졌다', box.querySelectorAll('tbody tr[data-i]').length === 3,
+      String(box.querySelectorAll('tbody tr[data-i]').length));
     /* ⚠ ZV에서 머리글이 **두 줄**이 됐다(「총액」 위 / 「1인당」 아래) — 열을 11개에서
        8개로 줄이면서 짝지어 묶었기 때문이다. `textContent`는 두 줄이 붙어 나온다.
        지키려던 것은 **총액과 1인당이 둘 다 머리글에 있다**이지 열이 따로라는 게 아니다. */
@@ -105,7 +105,7 @@ const listOk = () => () => (url) => (/action=list/.test(String(url))
     ok('① 🔴 「총액」이 머리글에 있다', /총액/.test(headTxt), JSON.stringify(heads));
     ok('① 1인당도 그대로 있다', /1인당/.test(headTxt), JSON.stringify(heads));
 
-    const cells = (i) => [...box.querySelectorAll('tbody tr')[i].querySelectorAll('td')].map((e) => e.textContent.trim());
+    const cells = (i) => [...box.querySelectorAll('tbody tr[data-i]')[i].querySelectorAll('td')].map((e) => e.textContent.trim());
     /* ⚠ 한 칸에 총액+1인당이 함께 들어가므로 `includes`(정확히 일치)가 아니라
        **그 칸 안에 있는가**로 잰다. */
     const rowTxt = (i) => cells(i).join(' | ');
@@ -121,7 +121,7 @@ const listOk = () => () => (url) => (/action=list/.test(String(url))
     ok('② 연락처가 없으면 —', /—/.test(rowTxt(1)), rowTxt(1));
 
     /* 🔴 누가 언제 바꿨는가 */
-    const rows = [...box.querySelectorAll('tbody tr')];
+    const rows = [...box.querySelectorAll('tbody tr[data-i]')];
     ok('① 🔴 상태를 바꾼 사람이 보인다', /박재규/.test(rows[2].textContent), rows[2].textContent.slice(0, 80));
     ok('① 바꾼 날짜도 보인다', /2026-08-01/.test(rows[2].textContent));
     /* ⚠ 안 바뀐 건에는 그 줄이 없다 — 늘 켜져 있으면 아무도 안 본다 */

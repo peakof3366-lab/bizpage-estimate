@@ -619,6 +619,8 @@
                style="flex:1;min-width:240px;font-size:13px" aria-label="견적서 검색">
         <button type="button" class="btn-act btn-primary" id="ledFind">찾기</button>
         <button type="button" class="btn-act btn-outline-p" id="ledReload">전체</button>
+        <!-- 2026-09-28 대표 요청 「월별로 관리」 — 월을 고르면 그달 견적만. 목록에는 월마다 머리줄(견적·계약·금액 합계) -->
+        <select id="ledMonth" class="status-select" aria-label="월 선택" style="font-size:13px"><option value="">전체 월</option></select>
         <span id="ledCount" style="font-size:13px;color:#666"></span>
       </div>
 

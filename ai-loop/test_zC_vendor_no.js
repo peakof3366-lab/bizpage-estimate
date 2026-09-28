@@ -186,7 +186,7 @@ const listReply = () => ({ ok: true, status: 200,
       /height:(2[4-9]|[3-9]\d)px/.test(inputs[0].getAttribute('style') || ''),
       inputs[0].getAttribute('style'));
     /* 누가 언제 적었는지 — 적힌 건에만 */
-    const rows = [...box.querySelectorAll('tbody tr')];
+    const rows = [...box.querySelectorAll('tbody tr[data-i]')];
     /* ⚠ ZV에서 공급사 번호가 **독립 열**로 나왔다(예전에는 우리 번호 칸 안).
        칸 위치를 세지 말고 **입력칸이 든 칸**을 찾는다 — 열 순서가 바뀌어도 안 깨진다. */
     const vtd = (i) => rows[i].querySelector('.led-vno').closest('td');

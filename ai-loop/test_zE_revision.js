@@ -204,7 +204,7 @@ const ROWS = [
     }
     await w.renderLedger();
     const box = w.document.getElementById('ledList');
-    const tr = [...box.querySelectorAll('tbody tr')];
+    const tr = [...box.querySelectorAll('tbody tr[data-i]')];
     const shown = tr.filter((t) => !t.classList.contains('hidden'));
     ok('⑦ 세 판이 모두 그려져 있다 (지우지 않는다)', tr.length === 3, String(tr.length));
     ok('⑦ 🔴 보이는 줄은 최신판 하나다', shown.length === 1 && /Q260905-01/.test(shown[0].textContent),
@@ -212,7 +212,7 @@ const ROWS = [
     const fold = box.querySelector('.led-fold');
     ok('⑦ 「이전 판 2개」로 접혀 있다', !!fold && /이전 판 2개/.test(fold.textContent), fold ? fold.textContent : '없음');
     fold.click();
-    const shown2 = [...box.querySelectorAll('tbody tr')].filter((t) => !t.classList.contains('hidden'));
+    const shown2 = [...box.querySelectorAll('tbody tr[data-i]')].filter((t) => !t.classList.contains('hidden'));
     ok('⑦ 누르면 이전 판이 펼쳐진다 (최신 → 옛 순)', shown2.length === 3 && /Q260901-01/.test(shown2[2].textContent));
     ok('⑦ 이전 판 줄은 「이전 판」이라고 말한다', /이전 판/.test(shown2[1].textContent) && /이전 판/.test(shown2[2].textContent));
     ok('⑦ 줄마다 붙던 차수·개정·최신본 표시가 없다', !/\d차|개정|최신본/.test(box.textContent),
@@ -238,7 +238,7 @@ const ROWS = [
     const cnt = w.document.getElementById('ledCount').textContent;
     ok('⑧ 못 셌다고 말한다', /차수를 세지 못했습니다/.test(cnt), cnt);
     /* 그래도 목록 자체는 나온다 — 대장의 일은 찾는 것이다 */
-    ok('⑧ 목록은 그대로 나온다', w.document.querySelectorAll('#ledList tbody tr').length === 3);
+    ok('⑧ 목록은 그대로 나온다', w.document.querySelectorAll('#ledList tbody tr[data-i]').length === 3);
     ok('⑧ 없는 차수를 지어내지 않는다', !/차$/m.test(w.document.getElementById('ledList').textContent));
   }
 
@@ -251,9 +251,32 @@ const ROWS = [
           json: () => Promise.resolve({ shares: broken.slice(0, 2).concat([other], broken.slice(2)), capped: false, max: 300, revisions: true }) })
       : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })));
     await w.renderLedger();
-    const shown = [...w.document.querySelectorAll('#ledList tbody tr')].filter((t) => !t.classList.contains('hidden'));
+    const shown = [...w.document.querySelectorAll('#ledList tbody tr[data-i]')].filter((t) => !t.classList.contains('hidden'));
     ok('⑨ 보이는 줄 = 견적 수(2) — 사슬이 끊긴 판도 같은 견적 기록이면 묶인다', shown.length === 2,
       shown.map((t) => t.textContent.slice(0, 12)).join(' | '));
+  }
+
+  console.log('\n[9-b] 🔴 월별 (2026-09-28 대표 요청) — 달마다 머리줄 · 달을 고르면 그달만');
+  {
+    const aug = base({ id: 'm1', quote_no: 'Q260820-01', quote_id: 'q8', created_at: '2026-08-20T01:00:00Z', iso: '2026-08-20',
+      total: '10000000', status: 'won' });
+    const augVoid = base({ id: 'm2', quote_no: 'Q260821-01', quote_id: 'q9', created_at: '2026-08-21T01:00:00Z', iso: '2026-08-21',
+      total: '5000000', status: 'void' });
+    const w = await boot(() => (url) => (/action=list/.test(String(url))
+      ? Promise.resolve({ ok: true, status: 200,
+          json: () => Promise.resolve({ shares: ROWS.concat([augVoid, aug]), capped: false, max: 300, revisions: true }) })
+      : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })));
+    await w.renderLedger();
+    const heads = [...w.document.querySelectorAll('#ledList tr.led-mh')].map((t) => t.textContent);
+    ok('⑨b 달마다 머리줄이 있다 (9월 → 8월)', heads.length === 2 && /2026년 9월/.test(heads[0]) && /2026년 8월/.test(heads[1]), heads.join(' | '));
+    ok('⑨b 머리줄이 견적·계약·금액을 센다 (취소는 금액에서 뺀다)',
+      /견적 2건/.test(heads[1]) && /계약 1건/.test(heads[1]) && /10,000,000원/.test(heads[1]), heads[1]);
+    const sel = w.document.getElementById('ledMonth');
+    ok('⑨b 월 칸에 두 달이 있다', !!sel && sel.options.length === 3, sel ? String(sel.options.length) : '없음');
+    sel.value = '2026-08'; sel.dispatchEvent(new w.Event('change', { bubbles: true }));
+    const shown = [...w.document.querySelectorAll('#ledList tbody tr[data-i]')].filter((t) => !t.classList.contains('hidden'));
+    ok('⑨b 8월을 고르면 8월 견적만 보인다', shown.length === 2 && shown.every((t) => /Q2608/.test(t.textContent)),
+      shown.map((t) => t.textContent.slice(0, 10)).join(' | '));
   }
 
   console.log('\n[10] 담당자가 화면에서 이 표시를 이해한다');

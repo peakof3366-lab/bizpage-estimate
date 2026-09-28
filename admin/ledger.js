@@ -22,6 +22,7 @@
   const LED_STATUS = { issued: '발급', won: '계약', lost: '무산', void: '취소' };
   let ledRows = [];
   const ledOpen = new Set();   /* 펼쳐 둔 묶음(견적) — 다시 그려도 편 채로 (2026-09-28) */
+  let ledMonth = '';           /* 고른 달 'YYYY-MM' · '' = 전체 월 (2026-09-28) */
 
   async function renderLedger(q) {
     const box = document.getElementById('ledList');
@@ -81,8 +82,35 @@
     const gkOf = (r) => (r.quote_id ? 'q:' + r.quote_id : (baseNo(r.quote_no) ? 'n:' + baseNo(r.quote_no) : 'i:' + r.id));
     const groups = new Map();
     ledRows.forEach((r, i) => { const k = gkOf(r); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); });
+    /* ══ 월별 (2026-09-28 대표 요청 「월별로 관리」) ══════════════════════════════
+       견적의 달 = **최신판의 발행일** 달. 월 칸에서 고르면 그달만, 「전체 월」이면 달마다 머리줄을 끼운다.
+       머리줄 = 견적 수 · 계약 수 · 금액 합계(발급·계약만 — 취소·무산은 뺀다. 「그달 살아 있는 견적 금액」이다). */
+    const monthOf = (r) => String(r.iso || r.created_at || '').slice(0, 7);
+    const gMonth = new Map();
+    groups.forEach((idx, gk) => gMonth.set(gk, monthOf(ledRows[idx[0]])));
+    const months = Array.from(new Set(gMonth.values())).filter(Boolean).sort().reverse();
+    const msel = document.getElementById('ledMonth');
+    if (msel) {
+      if (ledMonth && months.indexOf(ledMonth) < 0) ledMonth = '';
+      msel.innerHTML = '<option value="">전체 월</option>' + months.map((m) =>
+        '<option value="' + esc(m) + '"' + (m === ledMonth ? ' selected' : '') + '>' + esc(m.slice(0, 4) + '년 ' + Number(m.slice(5, 7)) + '월') + '</option>').join('');
+    }
+    const mStat = {};
+    groups.forEach((idx, gk) => {
+      const m = gMonth.get(gk), r0 = ledRows[idx[0]];
+      const s = mStat[m] || (mStat[m] = { n: 0, won: 0, sum: 0 });
+      s.n += 1;
+      if (r0.status === 'won') s.won += 1;
+      if (r0.status !== 'void' && r0.status !== 'lost') s.sum += Number(r0.total) || 0;
+    });
     const order = [];
-    groups.forEach((idx, gk) => idx.forEach((i, j) => order.push({ i, gk, main: j === 0, older: idx.length - 1 })));
+    let curM = null;
+    groups.forEach((idx, gk) => {
+      const m = gMonth.get(gk);
+      if (ledMonth && m !== ledMonth) return;
+      if (m !== curM) { curM = m; order.push({ head: m }); }
+      idx.forEach((i, j) => order.push({ i, gk, main: j === 0, older: idx.length - 1 }));
+    });
     const gid = (gk) => 'g' + Array.from(groups.keys()).indexOf(gk);
     const cnt = document.getElementById('ledCount');
     if (cnt && !/견적 \d+건/.test(cnt.textContent)) cnt.textContent = '견적 ' + groups.size + '건 · 발급 문서 ' + cnt.textContent;
@@ -113,7 +141,14 @@
       +   '<th>상태<div class="sub">바꾼 사람</div></th>'
       +   '<th></th>'
       + '</tr></thead><tbody>'
-      + order.map(({ i, gk, main, older }) => {
+      + order.map(({ i, gk, main, older, head }) => {
+        if (head !== undefined) {
+          const s = mStat[head] || { n: 0, won: 0, sum: 0 };
+          return '<tr class="led-mh"><td colspan="8">'
+            + '<b>' + (head ? esc(head.slice(0, 4) + '년 ' + Number(head.slice(5, 7)) + '월') : '날짜 없음') + '</b>'
+            + '<span>견적 ' + s.n + '건</span><span>계약 ' + s.won + '건</span>'
+            + '<span>금액 합계 ' + won(s.sum) + '원 <em>(취소·무산 제외)</em></span></td></tr>';
+        }
         const r = ledRows[i];
         const cust = r.org || r.customer_label || r.cn || '—';
         /* 엔진 검증을 거친 것과 아닌 것을 구분해 보여준다 — 나중에 금액을 다툴 때 근거다 */
@@ -435,5 +470,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('ledFind')?.addEventListener('click', () => { if (ledLeaveOk()) renderLedger(document.getElementById('ledSearch').value.trim()); });
   document.getElementById('ledReload')?.addEventListener('click', () => { if (!ledLeaveOk()) return; document.getElementById('ledSearch').value=''; renderLedger(); });
+  document.getElementById('ledMonth')?.addEventListener('change', (e) => { ledMonth = e.target.value; ledDraw(); });
   document.getElementById('ledSearch')?.addEventListener('keydown', (e) => { if (e.key==='Enter') { e.preventDefault(); if (ledLeaveOk()) renderLedger(e.target.value.trim()); } });
 });

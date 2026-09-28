@@ -109,7 +109,7 @@ const stCalls = (w) => w.__calls.filter((c) => /action=status/.test(c.url));
       return done();
     }
     await w.renderLedger();
-    const tr = w.document.querySelector('#ledList tbody tr');
+    const tr = w.document.querySelector('#ledList tbody tr[data-i]');
     const sel = tr.querySelector('.led-st');
     const btn = tr.querySelector('.led-st-save');
 
@@ -145,7 +145,7 @@ const stCalls = (w) => w.__calls.filter((c) => /action=status/.test(c.url));
   {
     const w = await boot(listRow(statusOk));
     await w.renderLedger();
-    const tr = w.document.querySelector('#ledList tbody tr');
+    const tr = w.document.querySelector('#ledList tbody tr[data-i]');
     const sel = tr.querySelector('.led-st');
     const btn = tr.querySelector('.led-st-save');
 
@@ -174,7 +174,7 @@ const stCalls = (w) => w.__calls.filter((c) => /action=status/.test(c.url));
     ok('⑦ 감춰져 있지 않다', by.hidden === false);
     ok('⑦ 버튼은 다시 꺼진다 (누를 것이 없다)', btn.disabled === true);
     /* ⚠ 다음 줄(이미 계약인 건)을 덮어쓰지 않았는가 — ZV에서 옆 칸을 덮을 뻔했다 */
-    const tr2 = w.document.querySelectorAll('#ledList tbody tr')[1];
+    const tr2 = w.document.querySelectorAll('#ledList tbody tr[data-i]')[1];
     ok('⑦ ⚠ 옆 줄의 「바꾼 사람」은 그대로다',
       /박재규/.test(tr2.querySelector('.led-st-by').textContent),
       tr2.querySelector('.led-st-by').textContent);
@@ -184,7 +184,7 @@ const stCalls = (w) => w.__calls.filter((c) => /action=status/.test(c.url));
   {
     const w = await boot(listRow(statusFail));
     await w.renderLedger();
-    const tr = w.document.querySelector('#ledList tbody tr');
+    const tr = w.document.querySelector('#ledList tbody tr[data-i]');
     const sel = tr.querySelector('.led-st');
     const btn = tr.querySelector('.led-st-save');
 
