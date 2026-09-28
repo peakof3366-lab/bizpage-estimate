@@ -1311,7 +1311,7 @@
       return;
     }
     if (d.__aqp === 'loaded') {
-      if (st) { st.textContent = '불러왔습니다' + (d.quoteNo ? ' · ' + d.quoteNo : ''); st.style.color = '#15803D'; }
+      if (st) { st.textContent = d.quoteNo || '';   /* 2026-09-28 대표 요청 — 「불러왔습니다」 문구 없이 번호만 */ st.style.color = '#15803D'; }
     } else if (d.__aqp === 'dirty') {
       emEditDirty = !!d.dirty;
       if (st && emEditDirty) { st.textContent = '저장하지 않은 변경사항이 있습니다'; st.style.color = 'var(--warn)'; }

@@ -82,7 +82,11 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .step { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px 0 10px;
   border: 1.5px solid var(--line); background: #fff; font-family: inherit; font-size: 13px;
   font-weight: 700; color: var(--t-sub); cursor: pointer; }
-.step:hover:not(:disabled) { background: #F0F0EC; }
+/* 🔴 2026-09-28 대표 지적 — 지금 단계(검정 바탕·흰 글자)에 마우스를 올리면 바탕만 연회색으로 바뀌어
+   **흰 글자가 사라졌다**(흰 글자 on #F0F0EC). 올렸을 때는 테두리·글자를 진하게, 지금 단계는 검정을 유지한다. */
+.step:hover:not(:disabled) { background: #FAFAF7; border-color: var(--ink); color: var(--ink); }
+.step:hover:not(:disabled) .step-n { background: var(--ink); color: #fff; }
+.step:focus-visible { outline: 2px solid #514dc2; outline-offset: 2px; }
 .step-n { display: inline-flex; align-items: center; justify-content: center;
   min-width: 20px; height: 20px; background: #E5E5E1; color: var(--t-sub);
   font-size: 11px; font-weight: 800; }
@@ -90,6 +94,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .step[aria-current="step"] .step-n { background: #fff; color: var(--ink); }
 .step.done { color: var(--t); border-color: var(--ink); }
 .step.done .step-n { background: var(--ok); color: #fff; }
+/* 지금 단계는 올려도 검정 그대로(조금 밝게) — 글자는 늘 흰색 */
+.step[aria-current="step"]:hover:not(:disabled) { background: #2B2B2B; border-color: #2B2B2B; color: #fff; }
+.step[aria-current="step"]:hover:not(:disabled) .step-n { background: #fff; color: var(--ink); }
 /* ⚠ `opacity`로 흐리게 만들지 않는다(CLAUDE.md 색 규칙) — 잠긴 것도 **색으로** 말한다.
    `--t-dim`(#767676)은 이 바탕(#F2F2EF)에서 4.5:1을 넘는다. */
 .step:disabled { background: #F2F2EF; color: var(--t-dim); border-color: #E2E2DE; cursor: not-allowed; }
