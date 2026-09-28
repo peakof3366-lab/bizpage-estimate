@@ -183,7 +183,7 @@ ok('[8-i] 줄글에 최대 폭을 준다', /--measure:/.test(PRO) && /max-width:
    ⑤단계는 **묶음을 부르기만** 한다 — 그래서 여기서는 두 가지를 잠근다:
    ① 화면이 묶음을 부르는가 ② 그 묶음이 실제로 내부 필드를 지우는가. */
 ok('[9] 미리보기를 stripInternal 뒤에 그린다',
-  /QuoteDoc\.renderBundle\(buildDoc\(\)/.test(PRO)
+  /QuoteDoc\.renderBundle\((withQuoteNo\()?buildDoc\(\)/.test(PRO)
   && /stripInternal\(normalize\(docIn\)\)/.test(read('quote_doc.js')));
 ok('[9-a2] 🔴 ⑤단계가 셋을 다 보여준다 (고객이 받는 것과 같다)',
   /bundle\.sections[\s\S]{0,120}map/.test(PRO) && !/S\.prevTab === 'quote'[\s\S]{0,80}renderQuote/.test(PRO));

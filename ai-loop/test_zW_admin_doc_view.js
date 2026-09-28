@@ -165,7 +165,7 @@ async function 태우기(견적) {
     ok('[2-d2] 🔴 세부견적서도 함께 그린다',
       /QuoteDoc\.renderBundle/.test(EST) && /if \(bdHtml\) sections\.push/.test(read('quote_doc.js')));
     ok('[2-d3] 🔴 「고객에게 보낼 문서」 체크를 따른다',
-      /renderBundle\(doc, \{[\s\S]{0,80}parts \}\)/.test(EST) && /emShareParts/.test(EST));
+      /renderBundle\(docNo?, \{[\s\S]{0,80}parts \}\)/.test(EST) && /emShareParts/.test(EST));
     ok('[2-d4] 체크를 바꾸면 미리보기가 따라온다',
       /\['emPartBd', 'emPartIti'\][\s\S]{0,300}emRenderDocPreview\(rec\)/.test(EST));
     /* 🔴 여기가 핵심 — 내부 값이 비치면 안 된다 */

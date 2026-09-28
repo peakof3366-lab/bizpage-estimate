@@ -1916,7 +1916,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
          탭으로 두면 담당자가 일정표를 아예 안 눌러 본 채 내보낸다(고객 화면에서
          2026-09-21에 이미 같은 이유로 탭을 걷어냈다).
        🔴 깎는 순서·무엇을 몇 개 그릴지는 전부 `renderBundle` 한 곳이 정한다. */
-    const bundle = QuoteDoc.renderBundle(buildDoc(), { company: window.COMPANY_INFO });
+    const bundle = QuoteDoc.renderBundle(withQuoteNo(buildDoc()), { company: window.COMPANY_INFO });
     $('prevBox').innerHTML = bundle.sections
       .map((s) => '<div class="qdv-panel">' + s.tag + s.html + '</div>').join('');
     /* 🔴 **A4 한 장에 맞춘다** (2026-09-22). 담당자가 적는 동안 **넘치는 순간**을
@@ -1960,7 +1960,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
   function renderDocEdit() {
     const host = $('docEdit');
     if (!host || typeof QuoteDoc === 'undefined') return;
-    host.innerHTML = QuoteDoc.renderQuote(QuoteDoc.stripInternal(buildDoc()),
+    host.innerHTML = QuoteDoc.renderQuote(withQuoteNo(QuoteDoc.stripInternal(buildDoc())),
       { company: window.COMPANY_INFO, edit: true });
     syncMirrors();
   }
@@ -2055,6 +2055,19 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
   })();
 
   function renderAll() { renderMoney(); renderPreview(); renderDocEdit(); }
+
+  /* 🔴 **견적번호는 보여 주기만 한다** (2026-09-28). `buildDoc()`에는 넣지 않는다 — 번호는 서버가 저장할 때
+       정하고, 발급 때 차수(-R1)가 붙을 수 있다. 여기서 문서에 박아 저장하면 옛 번호가 굳는다.
+       고치기로 열면 그 건의 번호, 새로 저장하면 서버가 돌려준 번호. 없으면 문서가 「저장하면 부여」를 그린다. */
+  function withQuoteNo(doc) {
+    if (S.quoteNo && doc && doc.meta) doc.meta.quoteNo = S.quoteNo;
+    return doc;
+  }
+  function showSavedNo(no) {
+    if (!no) return;
+    S.quoteNo = String(no);
+    renderPreview(); renderDocEdit();
+  }
 
   /* 오늘에서 달력으로 한 달 뒤 — 다음 달에 그 날이 없으면 그달 말일 */
   function oneMonthLater(from) {
@@ -2182,6 +2195,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
                어느 건을 다시 열어야 하는지가 유일한 단서다. */
         show('✅ 견적 관리 업로드 완료', false, true);
         savedNewOnce = true;
+        showSavedNo(out.quoteNo);
         emitEdit('created');
         return;
       }
@@ -2212,6 +2226,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       }
       show('✅ 견적 관리 업로드 완료', false, true);
       savedNewOnce = true;
+      /* 번호는 저장 경로(script.js)가 돌려주지 않는다 — 한 번 더 물어 문서에 띄운다. 못 받아도 저장은 끝났다 */
+      fetch('/api/quotes/' + encodeURIComponent(id)).then((x) => (x.ok ? x.json() : null))
+        .then((q) => showSavedNo(q && q.quoteNo)).catch(() => {});
       emitEdit('created');
     } catch (e) {
       show('저장에 실패했습니다: ' + e.message, true);
@@ -2390,6 +2407,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     const wantFocus = Q.get('focus') || '';
     if (FOCUS_SEC[wantFocus]) applyFocus(wantFocus); else showStep(2);
     emitEdit('loaded', { quoteNo: rec.quoteNo || '' });
+    showSavedNo(rec.quoteNo);
   }
 
   async function loadPkg() {

@@ -617,7 +617,13 @@
         ${c.tel ? `<div>Tel. ${esc(c.tel)}</div>` : ''}
       </div>
     </header>
-    <h1 class="qd-title">${esc(d.meta.title || '해외연수 견적서')}</h1>
+    ${/* 🔴 **견적번호는 제목줄 오른쪽** (2026-09-28 대표 결정). 예전엔 바닥줄에 작은 글씨로만 있어
+           고객이 전화로 「그 견적서」를 말할 때 찾지 못했다. 세 장표(견적서·세부·일정표)가 이 머리를 같이 쓴다.
+           ⚠ 편집 화면에서 번호가 아직 없으면(저장 전) 연한 글씨로 「저장하면 부여」라고 자리를 보여 준다 —
+             고객 문서(edit 없음)에는 그 자리가 **아예 안 생긴다.** */''}
+    <h1 class="qd-title"><span class="qd-title-t">${esc(d.meta.title || '해외연수 견적서')}</span>${d.meta.quoteNo
+      ? `<span class="qd-title-no">견적번호 ${esc(d.meta.quoteNo)}</span>`
+      : ((opts && opts.edit) ? '<span class="qd-title-no qd-title-no-ph">견적번호 — 저장하면 부여됩니다</span>' : '')}</h1>
     <div class="qd-staff">
       ${/* 🔴 **받으시는 분이 먼저다** — 공문이라 수신이 발신보다 위에 온다.
              없으면 줄을 안 그린다(담당자 칸과 달리 「미입력」이 아니다). */''}
@@ -727,7 +733,6 @@
         ? `<h2 class="qd-h2">취소 규정</h2><div class="qd-free">${slot(opts, 'cancelPolicy', d.cancelPolicy, '비우면 견적서에 안 나갑니다', true)}</div>` : ''}
       <footer class="qd-foot-bar">
         <span class="qd-brand qd-brand-sm">${esc(c.brand || d.meta.vendor || '비즈페이지')}</span>
-        ${d.meta.quoteNo ? `<span class="qd-qno">견적번호 ${esc(d.meta.quoteNo)}</span>` : ''}
         ${d.meta.validUntil ? `<span class="qd-qno">유효기간 ${esc(d.meta.validUntil)}</span>` : ''}
         ${/* 🔴 **금액이 언제 값인지** — 인쇄용 팝업에는 있고 이 문서에는 없었다.
                견적서(금액 문서)에만 붙인다. 일정표·세부견적서 바닥에는 안 붙인다. */''}
@@ -776,7 +781,6 @@
         ${d.breakdown.note ? escLines(d.breakdown.note) : ''}</p>
       <footer class="qd-foot-bar">
         <span class="qd-brand qd-brand-sm">${esc(c.brand || d.meta.vendor || '비즈페이지')}</span>
-        ${d.meta.quoteNo ? `<span class="qd-qno">견적번호 ${esc(d.meta.quoteNo)}</span>` : ''}
       </footer>
     `);
   }
@@ -827,7 +831,6 @@
       </table>
       <footer class="qd-foot-bar">
         <span class="qd-brand qd-brand-sm">${esc(c.brand || d.meta.vendor || '비즈페이지')}</span>
-        ${d.meta.quoteNo ? `<span class="qd-qno">견적번호 ${esc(d.meta.quoteNo)}</span>` : ''}
       </footer>
     `);
   }

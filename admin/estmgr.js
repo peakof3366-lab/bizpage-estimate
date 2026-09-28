@@ -982,7 +982,10 @@
       const parts = (typeof emShareParts === 'function') ? emShareParts() : null;
       /* 🔴 **깎는 순서도 묶음이 한다** (2026-09-23 대표 지시 3) — 화면마다 제 순서로
          깎으면 「고객이 받는 그대로」라는 말이 화면마다 다른 뜻이 된다. */
-      bundle = QuoteDoc.renderBundle(doc, { company: window.COMPANY_INFO || {}, parts });
+      /* 견적번호는 문서에 저장돼 있지 않다(서버가 발급 때 넣는다) — 미리보기에도 이 건의 번호를 띄운다 (2026-09-28) */
+      const docNo = (rec.quoteNo && doc.meta && !doc.meta.quoteNo)
+        ? Object.assign({}, doc, { meta: Object.assign({}, doc.meta, { quoteNo: rec.quoteNo }) }) : doc;
+      bundle = QuoteDoc.renderBundle(docNo, { company: window.COMPANY_INFO || {}, parts });
       safe = bundle.doc;
       /* 🔴 **세부견적서가 빠져 있었다** — 만들어 놓고 이 자리에 안 그리고 있었다.
          순서는 고객 화면(롤링)과 같아야 한다: 견적서 → 세부견적서 → 일정표. */

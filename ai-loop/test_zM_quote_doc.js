@@ -399,6 +399,23 @@ ok('[11-f] address2에 하드코딩 폴백을 두지 않았다',
     && /\.\.\.\(parts \? \{ parts \} : \{\}\)/.test(ADM));
 }
 
+/* ═══ ⑬ 견적번호는 제목줄 오른쪽 (2026-09-28 대표 결정) ═══════════════════════════ */
+{
+  const d = Q.blank();
+  d.meta.title = '해외연수 견적서_다낭'; d.meta.quoteNo = 'BP-2609-0007';
+  const html = Q.renderQuote(d, {});
+  const title = (html.match(/<h1 class="qd-title">[\s\S]*?<\/h1>/) || [''])[0];
+  ok('[13] 번호가 제목줄에 나온다', /qd-title-no">견적번호 BP-2609-0007</.test(title), title.slice(0, 160));
+  ok('[13-b] 바닥줄에는 번호가 두 번 나오지 않는다', (html.match(/견적번호 BP-2609-0007/g) || []).length === 1);
+  d.meta.quoteNo = '';
+  const cust = Q.renderQuote(d, {});
+  ok('[13-c] 🔴 번호가 없으면 고객 문서엔 자리 자체가 없다 (「저장하면 부여」가 새지 않는다)',
+    !/qd-title-no/.test(cust) && !/저장하면 부여/.test(cust));
+  ok('[13-d] 편집 화면에는 「저장하면 부여」 자리를 보인다', /저장하면 부여됩니다/.test(Q.renderQuote(d, { edit: true })));
+  d.meta.quoteNo = '<img src=x onerror=alert(1)>';
+  ok('[13-e] 번호도 esc를 거친다', !/<img src=x/.test(Q.renderQuote(d, {})));
+}
+
 console.log('\n══════════════════════════════════════════════════════════════════');
 console.log(' 견적서 공통 모듈 — quote_doc.js / quote_doc.css');
 console.log('══════════════════════════════════════════════════════════════════');
