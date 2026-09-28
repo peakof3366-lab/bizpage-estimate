@@ -1336,11 +1336,13 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     $('sumBox').innerHTML =
       (S.adhoc ? '' : '<div><b>자동 산출 총액</b><strong>' + won(t.autoTotal) + '</strong><em>원 · 고객이 받는 금액</em></div>')
       + '<div><b>' + (S.adhoc ? '견적 총액' : '최종 총액') + '</b><strong>' + won(t.total) + '</strong><em>원 '
-        + (S.adhoc ? '· 담당자가 적은 값' : (t.total !== t.autoTotal ? '· 자동 대비 ' + (t.total > t.autoTotal ? '+' : '') + won(t.total - t.autoTotal) : '· 조정 없음')) + '</em></div>'
-      + '<div><b>표기 단가</b><strong>' + won(t.unit) + '</strong><em>원 · 총액 ÷ ' + won(t.pax) + '명</em></div>'
-      + '<div class="int"><b>원가 (공급가)</b><strong>' + won(t.cost) + '</strong><em>원 · 🔴 내부'
+        + (S.adhoc ? '' : (t.total !== t.autoTotal ? '· 자동 대비 ' + (t.total > t.autoTotal ? '+' : '') + won(t.total - t.autoTotal) : '· 조정 없음')) + '</em></div>'
+      /* 2026-09-28 대표 요청 — 「· 담당자가 적은 값」·「· 총액 ÷ n명」·「· 🔴 내부」(원가·마진)를 뺐다.
+           원가·마진이 내부 값이라는 것은 연분홍 칸(.int)이 말한다. 마진율과 실무 변수 포함액은 남긴다(판단에 쓰는 숫자다). */
+      + '<div><b>표기 단가</b><strong>' + won(t.unit) + '</strong><em>원</em></div>'
+      + '<div class="int"><b>원가 (공급가)</b><strong>' + won(t.cost) + '</strong><em>원'
         + (t.adjCost ? ' · 실무 변수 ' + (t.adjCost > 0 ? '+' : '') + won(t.adjCost) + ' 포함' : '') + '</em></div>'
-      + '<div class="int"><b>마진</b><strong>' + won(t.margin) + '</strong><em>원 · 마진율 ' + t.rate.toFixed(1) + '% · 🔴 내부</em></div>';
+      + '<div class="int"><b>마진</b><strong>' + won(t.margin) + '</strong><em>원 · 마진율 ' + t.rate.toFixed(1) + '%</em></div>';
 
     const w = $('moneyWarn');
     if (t.margin < 0) {
