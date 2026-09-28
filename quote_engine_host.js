@@ -60,7 +60,7 @@
   /* 🔴 **담당자 화면에만 있는 엔진 칸** (2026-09-28 대표 요청 — 3박 5일 · 밤 출발 귀국).
      고객 화면(index.html)에는 이 칸이 없다 — 엔진은 `?.checked ?? false`로 읽으므로 고객 금액은 그대로다.
      ⚠ `FIELDS.check`에 넣지 않는다 — 그 목록은 고객 화면과 1:1 대조된다(test_zP [2-c]). */
-  const STAFF_CHECK = { redEye: false };
+  const STAFF_CHECK = { redEye: false, redEyeOut: false };   /* 귀국편 · 출국편 기내박 */
 
   /* 엔진이 읽지는 않지만 견적서에 들어가는 칸들. 있으면 화면이 채워 넣는다. */
   const EXTRA_IDS = ['endDate', 'visitMode', 'organization', 'contactName', 'contactTel', 'requestDetails'];

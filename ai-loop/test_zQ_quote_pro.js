@@ -378,6 +378,22 @@ const EDIT_CHECKS = async () => {
     re.checked = false; re.dispatchEvent(new boot.win.Event('change', { bubbles: true })); await boot.tick(60);
     ok('[18-q7] 체크를 풀면 박수 = 일수 − 1 · 기내박/기내식이 걷힌다', val('pNights') === '4'
       && !stays().includes('기내박') && !meal('b').includes('기내식'), val('pNights') + ' / ' + stays().join('|'));
+
+    /* 🔴 2026-09-28 — 출국편도 기내 1박일 수 있다(유럽·미주) */
+    const ro = D.getElementById('pRedEyeOut');
+    ok('[18-r] 「출국편 밤 출발」 체크가 있다', !!ro);
+    Array.from(D.querySelectorAll('#itiDays [data-im][data-k="b"]')).forEach((e) => fire(e, ''));
+    fire(D.querySelector('#itiDays [data-it="0"][data-k="stay"]'), '');
+    if (ro) { ro.checked = true; ro.dispatchEvent(new boot.win.Event('change', { bubbles: true })); await boot.tick(60); }
+    ok('[18-r2] 출국편만 — 박수 = 일수 − 2', val('pNights') === '3', val('pNights'));
+    ok('[18-r3] 첫날 숙박 「기내박」 · 둘째 날 조식 「기내식」', stays()[0] === '기내박' && meal('b')[1] === '기내식',
+      stays().join('|') + ' / ' + meal('b').join('|'));
+    re.checked = true; re.dispatchEvent(new boot.win.Event('change', { bubbles: true })); await boot.tick(60);
+    ok('[18-r4] 둘 다 켜면 박수 = 일수 − 3 · 날짜 줄이 기내 2박이라고 말한다', val('pNights') === '2'
+      && /기내 2박/.test((D.getElementById('dateState') || {}).textContent || ''), val('pNights'));
+    ro.checked = false; ro.dispatchEvent(new boot.win.Event('change', { bubbles: true }));
+    re.checked = false; re.dispatchEvent(new boot.win.Event('change', { bubbles: true })); await boot.tick(60);
+    ok('[18-r5] 둘 다 풀면 원래대로', val('pNights') === '4' && !stays().includes('기내박'), val('pNights') + ' / ' + stays().join('|'));
   }
   await goStep(5);
   const prevTxt = ((D.getElementById('prevBox') || {}).textContent || '').replace(/\s+/g, ' ');

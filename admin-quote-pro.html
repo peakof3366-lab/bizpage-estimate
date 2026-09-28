@@ -150,6 +150,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .f textarea { height: auto; min-height: 66px; padding: 8px 10px; line-height: 1.6; resize: vertical; }
 /* 체크 한 칸짜리 칸(귀국편 · 기내 1박) — 옆 입력칸과 높이를 맞춘다 */
 .f-check .chk { height: 40px; font-size: 13.5px; font-weight: 600; color: var(--t); }
+.f-check .chk-row { display: flex; flex-wrap: wrap; gap: 0 14px; }
 .f input:focus, .f select:focus, .f textarea:focus { outline: 2px solid var(--ink); outline-offset: -2px; }
 
 .btn { min-height: 44px; padding: 0 18px; border: 1.5px solid var(--ink); background: #fff;
@@ -375,8 +376,10 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         <label class="f"><span>귀국일 <em>(고르면 일수가 따라옵니다)</em></span><input type="date" id="pEnd" /></label>
         <!-- 🔴 2026-09-28 대표 요청 — 3박 5일(밤 출발 · 기내 1박)을 체크 하나로. 박수 = 일수 − 2 ·
              일정표는 귀국 전날 숙박 「기내박」 · 마지막 날 조식 「기내식」. 호텔 금액은 원래대로 박수를 따른다. -->
-        <div class="f f-check"><span>귀국편</span>
-          <label class="chk"><input type="checkbox" id="pRedEye" /> 밤 출발 (기내 1박)</label></div>
+        <!-- 2026-09-28 대표 요청 — 출국편도 기내 1박일 수 있다(유럽·미주). 체크 하나마다 박수(호텔 금액 포함) −1 -->
+        <div class="f f-check"><span>기내박</span>
+          <span class="chk-row"><label class="chk"><input type="checkbox" id="pRedEyeOut" /> 출국편 밤 출발</label>
+          <label class="chk"><input type="checkbox" id="pRedEye" /> 귀국편 밤 출발</label></span></div>
       </div>
       <!-- 🔴 날짜와 일수가 **맞는지를 그 자리에서** 보여 준다. -->
       <p class="datebar" id="dateState"></p>
@@ -861,11 +864,14 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     if (!s || !e) return null;
     return Math.round((new Date(e + 'T00:00:00') - new Date(s + 'T00:00:00')) / 864e5);
   }
-  /* 기내 1박(밤 출발 귀국)이면 박수가 하루 더 적다 — 부르는 쪽은 「일수 − 1」을 주고 여기서 뺀다 (2026-09-28) */
+  /* 기내박(밤 출발)이면 박수가 그만큼 적다 — 부르는 쪽은 「일수 − 1」을 주고 여기서 뺀다 (2026-09-28).
+     출국편·귀국편 각각 1박. `redEye`는 귀국편(처음 만든 이름 그대로 — 저장·엔진 칸 이름이다) */
   const redEye = () => !!($('pRedEye') && $('pRedEye').checked);
+  const redEyeOut = () => !!($('pRedEyeOut') && $('pRedEyeOut').checked);
+  const flightNights = () => (redEye() ? 1 : 0) + (redEyeOut() ? 1 : 0);
   function setNights(n) {
     if ($('pNights').dataset.touched) return;
-    $('pNights').value = String(Math.max(0, n - (redEye() ? 1 : 0)));
+    $('pNights').value = String(Math.max(0, n - flightNights()));
   }
   /* 🔴 **맞는지를 그 자리에서 보여 준다.** 세 칸이 흩어져 있어(일수는 위, 귀국일은
      「세부 조건」 안) 담당자가 눈으로 맞춰 볼 방법이 없던 것이 이 결함이 오래 산 이유다. */
@@ -883,8 +889,8 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     /* ⚠ 박수를 손으로 정했고 날짜 차이와 다르면 **그 사실을 말한다.** 안 그러면
        줄은 「7박」이라는데 칸은 5박이라 어느 쪽이 견적서로 가는지 알 수 없다. */
     const nights = num($('pNights'));
-    if (redEye() && nights === Math.max(0, diff - 1)) {
-      txt += ' — 견적서 표기는 ' + nights + '박 ' + (diff + 1) + '일 (기내 1박)';
+    if (flightNights() && nights === Math.max(0, diff - flightNights())) {
+      txt += ' — 견적서 표기는 ' + nights + '박 ' + (diff + 1) + '일 (기내 ' + flightNights() + '박)';
     } else if ($('pNights').dataset.touched && nights !== Math.max(0, diff)) {
       txt += ' — 견적서 표기는 ' + nights + '박 (직접 정한 값)';
     }
@@ -933,12 +939,12 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     sayDates();
   });
   /* 「밤 출발 (기내 1박)」 — 박수를 다시 정하고(손으로 정한 값도 이 체크가 이긴다) 일정표 표시를 맞춘다 */
-  $('pRedEye').addEventListener('change', () => {
+  ['pRedEye', 'pRedEyeOut'].forEach((id) => $(id).addEventListener('change', () => {
     delete $('pNights').dataset.touched;
     setNights(Math.max(0, num($('pDays')) - 1));
     sayDates();
     if (typeof markRedEye === 'function' && S.iti && S.iti.length) { markRedEye(); renderIti(); renderPreview(); }
-  });
+  }));
   $('pNights').value = String(Math.max(0, num($('pDays')) - 1));
   sayDates();
 
@@ -953,7 +959,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       incHotel: $('pIncHotel').checked, incMeal: $('pIncMeal').checked, incVehicle: $('pIncVehicle').checked,
       incGuide: $('pIncGuide').checked, incSightseeing: $('pIncSight').checked,
       incGolf: $('pIncGolf').checked, golfCount: num($('pGolfCount')), golfRounds: num($('pGolfRounds')),
-      redEye: $('pRedEye').checked,   /* 기내 1박 — 엔진이 호텔 박수를 하루 줄인다 (2026-09-28) */
+      redEye: $('pRedEye').checked, redEyeOut: $('pRedEyeOut').checked,   /* 기내박 — 엔진이 호텔 박수를 그만큼 줄인다 (2026-09-28) */
     };
   }
 
@@ -1772,8 +1778,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
   function markRedEye() {
     const n = S.iti.length;
     if (n < 3) return;
+    S.iti.forEach((it) => { if (!it.meals) it.meals = { b: '', l: '', d: '' }; });
+    /* 귀국편 — 귀국 전날 숙박 「기내박」 · 마지막 날 조식 「기내식」 */
     const idx = n - 2, last = S.iti[n - 1];
-    if (!last.meals) last.meals = { b: '', l: '', d: '' };
     if (redEye()) {
       const prev = String(S.iti[idx - 1].stay || '').trim(), cur = String(S.iti[idx].stay || '').trim();
       if (!cur || cur === prev) S.iti[idx].stay = '기내박';
@@ -1781,6 +1788,16 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     } else {
       if (S.iti[idx].stay === '기내박') S.iti[idx].stay = '';
       if (last.meals.b === '기내식') last.meals.b = '';
+    }
+    /* 출국편 — 첫날 숙박 「기내박」 · 둘째 날 조식 「기내식」 (첫날 칸이 비었거나 둘째 날과 같은 호텔 = 이어받은 값일 때만) */
+    const d1 = S.iti[0], d2 = S.iti[1];
+    if (redEyeOut()) {
+      const cur = String(d1.stay || '').trim();
+      if (!cur || cur === String(d2.stay || '').trim()) d1.stay = '기내박';
+      if (!String(d2.meals.b || '').trim()) d2.meals.b = '기내식';
+    } else {
+      if (d1.stay === '기내박') d1.stay = '';
+      if (d2.meals.b === '기내식') d2.meals.b = '';
     }
   }
   function stampDates() {
@@ -1858,8 +1875,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     if (!want.stay && !want.b && !want.l && !want.d) { msg.textContent = '적용할 값을 한 칸 이상 적어 주세요'; return; }
     const last = S.iti.length > 1 ? S.iti.length - 1 : -1;
     /* 기내 1박이면 귀국 전날 숙박(기내박)과 마지막 날 조식(기내식)은 건너뛴다 (2026-09-28) */
-    const ro = redEye() && S.iti.length >= 3;
-    const skip = (k, j) => (k === 'stay' && (j === last || (ro && j === last - 1))) || (ro && k === 'b' && j === last);
+    const ro = redEye() && S.iti.length >= 3, oo = redEyeOut() && S.iti.length >= 3;
+    const skip = (k, j) => (k === 'stay' && (j === last || (ro && j === last - 1) || (oo && j === 0)))
+      || (ro && k === 'b' && j === last) || (oo && k === 'b' && j === 1);
     const cur = (it, k) => String((k === 'stay' ? it.stay : (it.meals || {})[k]) || '').trim();
     let clash = 0;
     S.iti.forEach((it, j) => Object.keys(want).forEach((k) => {
@@ -1875,7 +1893,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     markRedEye();
     renderIti(); renderPreview();
     msg.textContent = '✓ ' + S.iti.length + '일에 적용했습니다'
-      + (want.stay && last >= 0 ? (ro ? ' (숙박은 기내박·귀국일 제외)' : ' (숙박은 마지막 날 제외)') : '');
+      + (want.stay && last >= 0 ? ((ro || oo) ? ' (숙박은 기내박·귀국일 제외)' : ' (숙박은 마지막 날 제외)') : '');
     clearTimeout(msg._t); msg._t = setTimeout(() => { msg.textContent = ''; }, 6000);
   });
   $('btnAddDay').addEventListener('click', () => { fitDays(S.iti.length + 1); renderPreview(); });
@@ -2544,8 +2562,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     setv('pPax', (doc.trip && doc.trip.pax) || rec.participants);
     setv('pDays', (doc.trip && doc.trip.days) || rec.days);
     if (doc.trip && doc.trip.nights !== undefined) { setv('pNights', doc.trip.nights); $('pNights').dataset.touched = '1'; }
-    /* 기내 1박으로 저장된 건(박수 = 일수 − 2)은 체크를 켜 둔다 — 저장값에서 되읽는다(따로 저장하지 않는다) */
-    if (doc.trip && Number(doc.trip.days) >= 3 && Number(doc.trip.nights) === Number(doc.trip.days) - 2) $('pRedEye').checked = true;
+    /* 기내박 체크는 따로 저장하지 않는다 — 아래 일정(「기내박」 칸)과 박수에서 되읽는다(S.iti를 채운 뒤) */
     setv('pStart', (doc.trip && doc.trip.startDate) || rec.startDate);
     setv('pEnd', (doc.trip && doc.trip.endDate) || rec.endDate);
 
@@ -2627,6 +2644,13 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       meals: Object.assign({ b: '', l: '', d: '' }, it.meals || {}),
       stay: it.stay || '', note: it.note || '',
     }));
+    /* 기내박 되읽기 — 첫날 「기내박」이면 출국편, 귀국 전날이면 귀국편. 일정이 비었으면 예전처럼 박수(일수 − 2)로 귀국편 */
+    {
+      const n = S.iti.length, dd = Number((doc.trip || {}).days), nn = Number((doc.trip || {}).nights);
+      const outF = n >= 3 && S.iti[0].stay === '기내박', inF = n >= 3 && S.iti[n - 2].stay === '기내박';
+      $('pRedEyeOut').checked = outF;
+      $('pRedEye').checked = inF || (!outF && !inF && dd >= 3 && nn === dd - 2);
+    }
 
     /* 엔진 결과는 없지만 **「있다」는 표시**는 세운다 — 아래 코드가 이 값으로 갈린다 */
     S.bd = { total: 0, perPerson: 0, combinedFactor: 1, rows: [], hotelGrade: { label: '' } };
