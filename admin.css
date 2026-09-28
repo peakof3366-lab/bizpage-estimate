@@ -1476,12 +1476,24 @@
 /* ═══ 견적 상세 — 기본은 넷만 (2026-09-24 대표 지시) ═════════════════════════
    「더할 나위 없이 간결하게」. 🔴 **지우지 않고 접는다** — 가끔 쓰는 것이지 안 쓰는
    것이 아니다. 접어 두면 처음 보는 사람이 **무엇부터 봐야 하는지**가 남는다. */
-#em-head-sum { padding: .9rem 1.25rem; border-bottom: 1px solid var(--border); }
-.em-sum-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1.1rem; }
-.em-sum-row b { font-size: 1.02rem; }
-.em-sum-row span { font-size: .84rem; color: var(--muted); }
-.em-sum-row .em-sum-money { font-size: 1.02rem; font-weight: 800; color: #1d4ed8; }
-.em-sum-row .em-sum-rate { font-size: .84rem; font-weight: 700; }
+/* 한 줄 요약 — 2026-09-28 대표 요청으로 카드 두 덩이([기관·조건 칩] | [견적 금액·이익률]). 모서리는 직각 */
+#em-head-sum { padding: 1.15rem 1.25rem; border-bottom: 1px solid var(--border); background: #FCFCFA; }
+.em-sum { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .9rem 1.5rem; }
+.em-sum-l { min-width: 0; }
+.em-sum-org { font-size: 1.2rem; font-weight: 800; color: var(--heading); letter-spacing: -.01em; }
+.em-sum-meta { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .45rem; }
+.em-sum-meta span { font-size: .76rem; font-weight: 600; color: #555; background: #EFEFEA; padding: .18rem .6rem; }
+.em-sum-r { display: grid; grid-template-columns: auto auto; align-items: center; column-gap: .75rem; row-gap: .15rem; text-align: right; }
+.em-sum-lbl { grid-column: 1 / 3; font-size: .72rem; font-weight: 600; color: var(--muted); }
+.em-sum-money { font-size: 1.45rem; font-weight: 800; color: var(--heading); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.em-sum-rate { font-size: .78rem; font-weight: 800; padding: .25rem .6rem; white-space: nowrap; }
+.em-sum-rate.ok { background: #ECFDF5; color: #15803D; }
+.em-sum-rate.low { background: #FEF2F2; color: #B42318; }
+.em-sum-rate.none { background: #EFEFEA; color: #6B6B6B; }
+@media (max-width: 640px) { .em-sum-r { text-align: left; } .em-sum-lbl { grid-column: 1 / 3; } }
+/* 고치기 틀 위 상태 줄 — 알릴 것이 있을 때만 보인다 */
+.em-edit-state { font-size: .78rem; font-weight: 600; margin: 0 0 .5rem; }
+.em-edit-state:empty { display: none; }
 /* 견적 관리 목록 — 짝 칸의 둘째 줄 (2026-09-27, 13열 → 9열)
    ⚠ `#emTable` 안으로 좁힌다. `.inq-table`은 문의 표도 쓴다. */
 #emTable .em-sub { display: block; margin-top: .15rem; font-size: .76rem; font-weight: 400; color: var(--muted); }

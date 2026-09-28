@@ -1968,10 +1968,9 @@
            ⚠ `src`는 **직원용 탭을 처음 열 때** 넣는다 — 상세를 열 때마다 엔진 화면을
              통째로 불러오면 목록에서 상세를 눌러 보는 일이 느려진다. -->
       <div id="em-sec-edit" style="padding:1.1rem 1.25rem;border-bottom:1px solid var(--border)">
-        <div class="detail-label" style="margin-bottom:.5rem">이 견적 고치기
-          <span style="font-size:.72rem;font-weight:400;color:var(--muted);margin-left:.5rem"
-                id="em-edit-state">직원용 탭을 열면 불러옵니다</span>
-        </div>
+        <!-- 2026-09-28 대표 요청 — 「이 견적 고치기 · BP-…」 줄을 뺐다. 상태 줄(em-edit-state)은 **알릴 것이 있을 때만**
+             보인다(불러오는 중 · 저장하지 않은 변경 · 저장했습니다). 비면 CSS `:empty`가 감춘다. -->
+        <div class="em-edit-state" id="em-edit-state"></div>
         <!-- ⚠ 높이 760px은 **처음 값**일 뿐이다 — 편집 화면이 자기 키를 알려 오면 거기에 맞춘다
              (2026-09-27 S-1 ⑤, 「스크롤 속 스크롤」 없애기). 틀 안에서 따로 스크롤하지 않는다. -->
         <iframe id="em-edit-frame" title="이 견적 고치기" scrolling="no" style="width:100%;height:760px;border:1px solid var(--border);background:#fff"></iframe>

@@ -398,9 +398,9 @@
   function verifyDetailHtml(rec) {
     const v = rec && rec._verify;
     if (!v) return '';
-    if (v.verdict === 'verified') {
-      return `<div style="font-size:.78rem;color:var(--success);margin:.4rem 0 .2rem">✓ 서버 검증 통과 (${String(v.at || '').slice(0, 10)})</div>`;
-    }
+    /* 2026-09-28 대표 요청 — 통과한 건은 아무것도 안 띄운다(「✓ 서버 검증 통과 (날짜)」를 뺐다).
+       🔴 **걸린 건의 경고는 그대로** — 조작인지 낡은 값인지 판단할 유일한 단서다. */
+    if (v.verdict === 'verified') return '';
     const failed = (v.steps || []).filter(x => !x.ok);
     const rows = failed.length
       ? failed.map(x => `<li><strong>${esc(x.label)}</strong> — ${esc(x.detail || '')}</li>`).join('')
@@ -1273,7 +1273,7 @@
     emEditDirty = false;
     if (f) f.removeAttribute('src');
     const st = document.getElementById('em-edit-state');
-    if (st) { st.textContent = '직원용 탭을 열면 불러옵니다'; st.style.color = 'var(--muted)'; }
+    if (st) { st.textContent = ''; st.style.color = 'var(--muted)'; }
   }
 
   window.addEventListener('message', (ev) => {
@@ -1316,7 +1316,7 @@
       return;
     }
     if (d.__aqp === 'loaded') {
-      if (st) { st.textContent = d.quoteNo || '';   /* 2026-09-28 대표 요청 — 「불러왔습니다」 문구 없이 번호만 */ st.style.color = '#15803D'; }
+      if (st) { st.textContent = ''; }   /* 2026-09-28 대표 요청 — 번호도 뺐다(번호는 견적서 제목줄과 창 제목에 있다) */
     } else if (d.__aqp === 'dirty') {
       emEditDirty = !!d.dirty;
       if (st && emEditDirty) { st.textContent = '저장하지 않은 변경사항이 있습니다'; st.style.color = 'var(--warn)'; }
@@ -1388,16 +1388,18 @@
     const won = (n) => '₩' + Math.round(Number(n) || 0).toLocaleString('ko-KR');
     const M = emMoney(e);
     const sell = M.sell, rate = M.rate, low = M.low;
-    el.innerHTML = '<div class="em-sum-row">'
-      + '<b>' + esc(e.orgName || '(기관명 없음)') + '</b>'
-      + '<span>' + esc(e.destLabel || e.destKey || '-') + ' · '
-      + (Number(e.participants) || 0) + '명 · ' + (Number(e.days) || 0) + '일'
-      + (e.contact ? ' · 담당 ' + esc(e.contact) : '') + '</span>'
-      + '<span class="em-sum-money">' + won(sell) + '</span>'
-      + (rate !== null ? '<span class="em-sum-rate" style="color:'
-        + (low ? 'var(--danger)' : 'var(--success)') + '">이익률 '
-        + (rate * 100).toFixed(1) + '%</span>'
-        : (sell > 0 ? '<span class="em-sum-rate" style="color:var(--muted)">이익률 —</span>' : ''))
+    /* 🎨 2026-09-28 대표 요청 「깔끔하게 · 예쁘게」 — 한 줄에 글자 크기·색이 뒤섞여 있던 것을
+       왼쪽 [기관명 + 조건 칩] / 오른쪽 [견적 금액 + 이익률 배지] 두 덩이로. 값·계산은 그대로(emMoney). */
+    const meta = [esc(e.destLabel || e.destKey || '-'), (Number(e.participants) || 0) + '명', (Number(e.days) || 0) + '일']
+      .concat(e.contact ? ['담당 ' + esc(e.contact)] : []);
+    const rateHtml = rate !== null
+      ? '<span class="em-sum-rate ' + (low ? 'low' : 'ok') + '">이익률 ' + (rate * 100).toFixed(1) + '%</span>'
+      : (sell > 0 ? '<span class="em-sum-rate none">이익률 —</span>' : '');
+    el.innerHTML = '<div class="em-sum">'
+      + '<div class="em-sum-l"><div class="em-sum-org">' + esc(e.orgName || '(기관명 없음)') + '</div>'
+      + '<div class="em-sum-meta">' + meta.map((m) => '<span>' + m + '</span>').join('') + '</div></div>'
+      + '<div class="em-sum-r"><div class="em-sum-lbl">견적 금액</div>'
+      + '<div class="em-sum-money">' + won(sell) + '</div>' + rateHtml + '</div>'
       + '</div>';
   }
 
