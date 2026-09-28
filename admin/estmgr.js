@@ -252,7 +252,7 @@
   function coefContribHtml(e) {
     const hasSnap = ['seasonFactor','leadFactor','peakFactor'].some(k => typeof e[k] === 'number');
     if (!hasSnap) {
-      return `<div class="detail-label" style="margin-bottom:.5rem">⚙️ 계수 기여도</div>
+      return `<div class="detail-label" style="margin-bottom:.5rem">계수 기여도</div>
         <div style="color:var(--muted);font-size:.82rem">2026-07 이전 견적이라 계수 기록이 없습니다.</div>`;
         /* ⚠ 2026-09-15 대표 지시로 줄였다. 예전: 「이 견적은 계수 스냅샷 도입(2026-07)
            이전에 생성되어 계수 기여도 정보가 없습니다. 이후 생성된 견적부터 표시됩니다.」
@@ -269,24 +269,29 @@
     const fuelNet  = season * dep * lead * peak * volScale;
     const hotelNet = season * fx * hotelPeak;
 
-    /* 계수 칩 — 1.0이면 흐리게, 오르면 빨강·내리면 파랑, 증감% 표기 */
+    /* 🎨 2026-09-28 대표 요청 「박스들 딱딱 떨어지게 · 더 이쁘게」 — **숫자는 한 글자도 안 바뀐다**(표시만).
+       예전엔 칩이 글자 길이만큼 늘고 설명 글이 칩 사이에 끼어, 줄마다 칩 자리가 달랐다.
+       → 칩은 **모든 줄이 같은 5칸 격자**(세로 줄이 맞는다) · 이름(위)/배수(아래) 두 줄 · 설명은 칩 아래 한 줄 ·
+         결과 배수는 오른쪽 한 열의 알약. 색: 1.0 = 회색 · 오름 = 붉게 · 내림 = 푸르게.
+       ⚠ 바꾸기 전후로 226가지 조합의 숫자(×배수·%·원/인)를 대조했다 — 같다. 규칙은 admin.css `.cc-*`. */
     const chip = (label, v, note) => {
       const on = Math.abs(v - 1) > 1e-6;
-      const col = !on ? 'var(--muted)' : (v > 1 ? 'var(--danger)' : '#1d4ed8');
-      const pct = on ? ` <span style="font-size:.68rem">(${v > 1 ? '+' : ''}${((v - 1) * 100).toFixed(0)}%)</span>` : '';
-      const nt = note ? ` <span style="color:var(--muted);font-size:.68rem">${esc(note)}</span>` : '';
-      return `<span style="display:inline-block;font-size:.76rem;padding:.14rem .45rem;margin:.1rem;border:1px solid var(--border);border-radius:4px;background:#fff;color:${col}">${esc(label)} <b>×${v.toFixed(3)}</b>${pct}${nt}</span>`;
+      const dir = !on ? 'eq' : (v > 1 ? 'up' : 'dn');
+      const pct = on ? ` <small>(${v > 1 ? '+' : ''}${((v - 1) * 100).toFixed(0)}%)</small>` : '';
+      const nt = note ? ` <i>${esc(note)}</i>` : '';
+      return `<span class="cc-chip cc-${dir}"><span class="cc-k">${esc(label)}${nt}</span><span class="cc-v"><b>×${v.toFixed(3)}</b>${pct}</span></span>`;
     };
     const netBadge = (v) => {
       const strong = v >= 2.0;
-      const col = strong ? 'var(--danger)' : (v > 1 ? '#b45309' : (v < 1 ? '#1d4ed8' : 'var(--muted)'));
-      return `<b style="color:${col}">×${v.toFixed(3)}</b>` + (strong ? ` <span style="color:var(--danger);font-size:.7rem;font-weight:700">· 높은 변동배수, 확인 권장</span>` : '');
+      const cls = strong ? 'hi' : (v > 1 ? 'up' : (v < 1 ? 'dn' : 'eq'));
+      return `<span class="cc-net cc-net-${cls}">×${v.toFixed(3)}</span>` + (strong ? `<span class="cc-warn">높은 변동배수 · 확인 권장</span>` : '');
     };
-    const row = (title, chipsHtml, netHtml) => `
-      <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:.35rem;padding:.5rem 0;border-top:1px solid var(--border)">
-        <div style="flex:0 0 92px;font-size:.78rem;font-weight:700;color:var(--heading)">${title}</div>
-        <div style="flex:1;min-width:200px">${chipsHtml}</div>
-        <div style="flex:0 0 auto;font-size:.82rem;white-space:nowrap">= ${netHtml}</div>
+    const row = (title, chipsHtml, netHtml, note) => `
+      <div class="cc-row">
+        <div class="cc-t">${title}</div>
+        <div class="cc-chips">${chipsHtml}</div>
+        <div class="cc-r">${netHtml}</div>
+        ${note ? `<div class="cc-note">${note}</div>` : ''}
       </div>`;
 
     const seasonLabelMap = { peak:'성수기', offpeak:'비수기', normal:'평시' };
@@ -310,24 +315,23 @@
       (volScale < 1 ? chip('변동상한', volScale, '') : ''),
     ].join('');
     const hotelChips = [ chip('시즌', season, seasonNote), chip('환율', fx), chip('호텔피크', hotelPeak) ].join('');
-    const groundChips = chip('환율', fx) + ` <span style="color:var(--muted);font-size:.72rem">· 식사는 인원 볼륨 할인이 단가에 이미 반영됨</span>`;
+    const groundChips = chip('환율', fx);
 
     /* PC: 관광은 환율 위에 '여행 일수' 계수가 더 붙는다(sightseeing_fee가 4~5일 기준
        전체 묶음이라). 스냅샷에 없으면(PC 이전 견적) 이 행 자체를 렌더하지 않는다. */
     const sightF = (e.sightDuration && typeof e.sightDuration.factor === 'number') ? e.sightDuration.factor : null;
     const sightRow = sightF === null ? '' : row('관광',
-      chip('환율', fx) + chip('일수', sightF, e.sightDuration.label || '') +
-        ` <span style="color:var(--muted);font-size:.72rem">· 인원 볼륨 할인은 단가에 이미 반영됨</span>`,
-      netBadge(fx * sightF));
+      chip('환율', fx) + chip('일수', sightF, e.sightDuration.label || ''),
+      netBadge(fx * sightF), '인원 볼륨 할인은 단가에 이미 반영됨');
 
     /* PB: 보험은 권역(현지 의료비)×기간. 환율·시즌·노브 대상이 아니라 별도 행으로 둔다
        — 다른 행과 같은 자리에 섞으면 '보험도 환율을 받는다'고 오해하게 된다. */
     const ins = e.insuranceInfo;
     const insRow = (!ins || typeof ins.zoneFactor !== 'number') ? '' : row('보험',
-      chip('권역', ins.zoneFactor, ins.zoneLabel || '') + chip('기간', ins.durationFactor, ins.durationLabel || '') +
-        ` <span style="color:var(--muted);font-size:.72rem">· 원가 기반이라 시즌·리드·피크·환율 무관</span>`,
+      chip('권역', ins.zoneFactor, ins.zoneLabel || '') + chip('기간', ins.durationFactor, ins.durationLabel || ''),
       netBadge(ins.zoneFactor * ins.durationFactor) +
-        (typeof ins.rate === 'number' ? ` <span style="color:var(--muted);font-size:.72rem">= ${ins.rate.toLocaleString('ko-KR')}원/인</span>` : ''));
+        (typeof ins.rate === 'number' ? `<span class="cc-sub">= ${ins.rate.toLocaleString('ko-KR')}원/인</span>` : ''),
+      '원가 기반이라 시즌·리드·피크·환율 무관');
 
     const wholeChips = chip('프로그램×기관', combined) + chip('인원(항공·유류)', pax);
 
@@ -337,12 +341,11 @@
          「구간 계수가 없었다」와 「1배 구간이었다」가 구분되지 않는다(조용한 폴백). */
     const mb = (typeof e.marginBandMul === 'number') ? e.marginBandMul : null;
     const marginRow = mb === null ? '' : row('마진(구간)',
-      chip('금액구간', mb, e.marginBandLabel || '') +
-        (typeof e.costSubtotalUnit === 'number'
-          ? ` <span style="color:var(--muted);font-size:.72rem">· 판정 기준 원가소계 ${Math.round(e.costSubtotalUnit).toLocaleString('ko-KR')}원/인 (마진·보험 전)</span>`
-          : '') +
-        ` <span style="color:var(--muted);font-size:.72rem">· 본사 수익·현지 수익금 두 줄에만 적용</span>`,
-      netBadge(mb));
+      chip('금액구간', mb, e.marginBandLabel || ''),
+      netBadge(mb),
+      (typeof e.costSubtotalUnit === 'number'
+        ? `판정 기준 원가소계 ${Math.round(e.costSubtotalUnit).toLocaleString('ko-KR')}원/인 (마진·보험 전) · ` : '')
+        + '본사 수익·현지 수익금 두 줄에만 적용');
 
     /* 적용된 노브(coef)가 기본값과 다르면 별도 안내 — 전 견적에 전역 영향을 준 값 */
     let knobHtml = '';
@@ -350,25 +353,27 @@
       const changed = Object.keys(COEF_DEFAULTS).filter(k => typeof e.coef[k] === 'number' && Math.abs(e.coef[k] - COEF_DEFAULTS[k]) > 1e-6);
       if (changed.length) {
         const nameMap = { seasonStrength:'시즌강도', leadTimeStrength:'리드강도', peakStrength:'피크강도', hotelPeakWeight:'호텔피크비중' };
-        knobHtml = `<div style="margin-top:.6rem;padding:.5rem .6rem;background:#fff7ed;border:1px solid #fed7aa;border-radius:4px;font-size:.76rem;color:#9a3412">
-          ⚙️ 이 견적에 적용된 계수 노브(기본값과 다름): ${changed.map(k => `${nameMap[k]||k} ${e.coef[k]}`).join(' · ')}
-          <span style="color:var(--muted)">— 관리자 계수 조정이 반영된 견적입니다.</span></div>`;
+        knobHtml = `<div class="cc-knob">
+          이 견적에 적용된 계수 노브(기본값과 다름): <b>${changed.map(k => `${nameMap[k]||k} ${e.coef[k]}`).join(' · ')}</b>
+          <span>— 관리자 계수 조정이 반영된 견적입니다.</span></div>`;
       }
     }
 
     return `
-      <div class="detail-label" style="margin-bottom:.3rem">⚙️ 계수 기여도
-        <span style="font-size:.7rem;font-weight:400;color:var(--muted);margin-left:.4rem">내부 전용 · 실측 전 계수 타당성 검증용 · 고객 미노출</span>
+      <div class="cc-head">
+        <span class="cc-title">계수 기여도</span>
+        <span class="cc-tags"><span>내부 전용</span><span>실측 전 계수 타당성 검증용</span><span>고객 미노출</span></span>
       </div>
-      <div style="font-size:.74rem;color:var(--muted);margin-bottom:.35rem">기본단가에 아래 계수가 곱해져 항목 단가가 정해집니다(계산 당시 스냅샷).</div>
+      <div class="cc-lead">기본단가에 아래 계수가 곱해져 항목 단가가 정해집니다(계산 당시 스냅샷).</div>
+      <div class="cc-legend"><span class="cc-net cc-net-eq">1.0 그대로</span><span class="cc-net cc-net-up">올림</span><span class="cc-net cc-net-dn">내림</span><span class="cc-legend-r">= 이 항목에 곱해진 값</span></div>
       ${row('항공', airChips, netBadge(airNet))}
       ${row('유류', fuelChips, netBadge(fuelNet))}
       ${row('호텔', hotelChips, netBadge(hotelNet))}
-      ${row('현지 지상비', groundChips, `<b style="color:${Math.abs(fx-1)>1e-6?(fx>1?'var(--danger)':'#1d4ed8'):'var(--muted)'}">×${fx.toFixed(3)}</b>`)}
+      ${row('현지 지상비', groundChips, netBadge(fx), '식사는 인원 볼륨 할인이 단가에 이미 반영됨')}
       ${sightRow}
       ${insRow}
       ${marginRow}
-      ${row('전체', wholeChips, `<span style="color:var(--muted);font-size:.76rem">항목별 별도 적용</span>`)}
+      ${row('전체', wholeChips, `<span class="cc-sub">항목별 별도 적용</span>`)}
       ${knobHtml}`;
   }
 
