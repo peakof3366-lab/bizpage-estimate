@@ -159,7 +159,7 @@ async function 내부견적화면() {
     /* 이 화면에서만 누를 수 있는 것 — 단계 막대와 「세부 조건」 접는 줄 */
     also: '.step, summary',
     /* 이 화면이 말을 거는 자리 — 누르기 전에 비우고 잰다 */
-    messageSelector: '#calcState, #calcErr, #moneyWarn, #saveMsg, #detailWarn, #paxWarn',
+    messageSelector: '#calcState, #calcErr, #moneyWarn, #saveMsg, #docApplyMsg, #paxWarn',
     after: async (B) => {
       /* 🔴 로그인 게이트를 정말 지났는지 확인한다 — 못 지나면 `#app`이 통째로 감춰져
          「누를 것이 몇 개뿐인데 전부 깨끗하다」는 거짓 초록이 된다. */

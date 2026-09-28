@@ -96,6 +96,37 @@ async function run() {
   await sleep(30);
   ok('[0-e3] 견적서 내용 칸이 열렸다', !D.getElementById('secDoc').classList.contains('hidden'));
 
+  /* ═══ ⓪ 2026-09-28 대표 요청 — 위쪽은 날짜 둘(자동) + 내부 메모만, 「저장하기」는 견적서에 반영하고 그리로 간다 ═══ */
+  {
+    const ymdL = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const now = new W.Date();
+    const nm = new W.Date(now.getFullYear(), now.getMonth() + 1, 1);
+    nm.setDate(Math.min(now.getDate(), new W.Date(nm.getFullYear(), nm.getMonth() + 1, 0).getDate()));
+    const v = (id) => (D.getElementById(id) || { value: '(칸 없음)' }).value;
+    /* 🔴 고치기 전: 원래 칸엔 날짜가 있는데 **위 칸은 비어 있었다**(코드로 채우면 input 이벤트가 안 난다) */
+    ok('[0-f] 위 작성일자 칸에 오늘이 보인다', v('dIssue2') === ymdL(now), v('dIssue2'));
+    ok('[0-f2] 위 유효기간 칸에 한 달 뒤가 보인다', v('dValid2') === ymdL(nm), v('dValid2') + ' / 기대 ' + ymdL(nm));
+    const top = D.querySelector('#secDoc .sec-b > .grid');
+    ok('[0-f3] 위에는 거래처명·고객 연락처가 없다',
+      !!top && !top.querySelector('#dClient') && !D.getElementById('dCustTel2'));
+    ok('[0-f4] 거래처명은 「견적서 내용 보충」 안으로 옮겼다(대장·문서 제목이 쓴다)',
+      !!D.querySelector('#docFormFold #dClient') && /견적서 내용 보충/.test(D.querySelector('#docFormFold > summary').textContent));
+    ok('[0-f5] 보충은 접혀 시작한다', !D.getElementById('docFormFold').open);
+    /* 저장하기 — 보충에 적은 것이 위 견적서에 나오고, 그리로 스크롤한다 */
+    const org = D.getElementById('dOrgName');
+    org.value = '반영점검 연수단'; org.dispatchEvent(new W.Event('input', { bubbles: true }));
+    let scrolled = false;
+    D.getElementById('docEdit').scrollIntoView = () => { scrolled = true; };
+    const btn = D.getElementById('btnDocApply');
+    ok('[0-g] 「다음: 일정」 옆에 「저장하기」가 있다', !!btn && btn.textContent.trim() === '저장하기'
+      && btn.nextElementSibling && btn.nextElementSibling.getAttribute('data-goto') === '4');
+    if (btn) { btn.click(); await sleep(10); }
+    ok('[0-g2] 누르면 위 견적서에 반영된다', /반영점검 연수단/.test(D.getElementById('docEdit').textContent));
+    ok('[0-g3] 누르면 견적서로 옮겨 간다', scrolled);
+    ok('[0-g4] 서버 저장이 아니라고 말한다', /최종 저장은/.test(D.getElementById('docApplyMsg').textContent));
+    org.value = ''; org.dispatchEvent(new W.Event('input', { bubbles: true }));
+  }
+
   /* ═══ ① 표준 양식의 항목이 **칸으로 존재하는가** ═══════════════════════ */
   const secs = Array.from(D.querySelectorAll('#detailRows .day'));
   const labelOf = (s) => (s.querySelector('.day-h').childNodes[0].textContent || '').trim();
@@ -145,21 +176,22 @@ async function run() {
   ok('[4-c] 예시가 견적서로 새지 않는다',
     !/무사고 경력|노쇼핑|책임인솔자|FSC \(Full/.test(pv0));
 
-  /* ═══ ⑤ 🔴 비면 빠진다 — 그리고 화면이 그 사실을 말한다 ═══════════════ */
-  /* ⚠ 칸이 **없을 수도 있다**(고치기 전 화면이 그랬다) — 없으면 실패로 말하고 계속한다 */
-  const warnEl = D.getElementById('detailWarn');
-  const warnTxt = () => (D.getElementById('detailWarn') || { textContent: '' }).textContent;
-  ok('[5] 빠지는 항목을 위에서 세어 말한다',
-    !!warnEl && !warnEl.classList.contains('hidden') && /빠지는 항목/.test(warnTxt()),
-    warnEl ? warnTxt() : '#detailWarn이 없다');
-  ok('[5-b] 인솔자가 그 목록에 들어 있다', /인솔자/.test(warnTxt()), warnTxt() || '(빈 칸)');
-  const badges = Array.from(D.querySelectorAll('[data-dempty]')).filter((b) => !b.classList.contains('off'));
-  ok('[5-c] 비어 있는 항목마다 배지가 붙는다', badges.length >= 4, '배지 수: ' + badges.length);
-  /* ⚠ `hidden` 속성은 `.badge{display:inline-block}`에 진다 — 클래스로 감췄는지 본다 */
-  ok('[5-d] 배지를 hidden 속성으로 감추지 않는다',
-    !Array.from(D.querySelectorAll('[data-dempty]')).some((b) => b.hasAttribute('hidden')));
-  ok('[5-e] 안 빠지는 항목엔 배지가 없다',
-    Array.from(D.querySelectorAll('[data-dempty]')).some((b) => b.classList.contains('off')));
+  /* ═══ ⑤ 비면 빠진다 — 🔴 2026-09-28 대표 요청으로 화면의 「비어 있음」 배지·「빠지는 항목 n개」 안내는 걷었다 ═══
+     ⚠ 빠지는 것 자체는 그대로다 — 아래 [5-b]가 문서에서 직접 본다. 말로 알려 주지 않을 뿐이다(매뉴얼 ③이 말한다). */
+  ok('[5] 배지·빠지는 항목 안내를 걷었다(대표 요청)',
+    !D.getElementById('detailWarn') && !D.querySelector('[data-dempty]'));
+  ok('[5-b] 비워 둔 인솔자는 견적서에 안 나온다', !/인솔자/.test(D.getElementById('prevBox').textContent));
+  /* 🔴 칸 순서 — 내용 → 각주 → 비고 (2026-09-28 대표 요청). DOM 순서로 잰다 */
+  {
+    const etc = find('기타사항');
+    const order = etc ? Array.from(etc.querySelectorAll('textarea[data-dr], textarea[data-df], input[data-dn]'))
+      .map((el) => el.dataset.dr !== undefined ? '내용' : el.dataset.df !== undefined ? '각주' : '비고') : [];
+    const firstFoot = order.indexOf('각주'), lastBody = order.lastIndexOf('내용'), firstNote = order.indexOf('비고');
+    ok('[5-c] 칸 순서가 내용 → 각주 → 비고다', firstFoot > lastBody && firstNote > firstFoot, order.join(' · '));
+    const noteLabels = etc ? Array.from(etc.querySelectorAll('input[data-dn]')).map((el) => el.closest('label').textContent.trim()) : [];
+    ok('[5-d] 줄이 둘이면 비고가 어느 줄 것인지 말한다', noteLabels.length === 2 && /1번째 줄/.test(noteLabels[0]) && /2번째 줄/.test(noteLabels[1]),
+      noteLabels.join(' | '));
+  }
 
   /* ═══ ⑥ 🔴 적으면 **견적서에 나온다** — 이게 진짜 그물이다 ═══════════════ */
   const type = (sec, j, text, note) => {
@@ -179,8 +211,6 @@ async function run() {
   ok('[6-b] 기타사항 두 줄이 모두 나온다',
     /쇼핑센터 방문/.test(pv) && /선택관광 제안/.test(pv));
   ok('[6-c] 줄마다 다른 비고가 나온다', /노쇼핑/.test(pv) && /노옵션/.test(pv));
-  ok('[6-d] 적고 나면 그 항목이 경고 목록에서 빠진다',
-    !/인솔자/.test(warnTxt()));
 
   /* ⑦ 항공 각주 — 적은 것만 나간다 */
   const air = find('항공');

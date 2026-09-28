@@ -272,6 +272,11 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .aqp-focus #btnNext1,
 .aqp-focus [data-goto] { display: none; }
 .aqp-focus .sec { margin-top: 0; }
+/* 수정하기(좁힌 화면)에는 진짜 「견적 저장하기」가 이 자리로 온다 — 「저장하기」가 둘이면 헷갈린다 */
+.aqp-focus #btnDocApply, .aqp-focus #docApplyMsg { display: none; }
+.apply-msg { font-size: 12px; font-weight: 700; color: var(--ok); }
+/* 🔴 2026-09-28 대표 요청 — 보충 칸의 **예시 글씨는 더 연하게**. 적힌 값(확정)과 한눈에 갈리게 */
+#docFormFold input::placeholder, #docFormFold textarea::placeholder { color: #BDBDBD; opacity: 1; }
 #focusBar { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px; }
 </style>
 </head>
@@ -473,19 +478,20 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
            「거래처명·유효기간·내부 메모는 어디서 적나」를 못 찾았다(대표). 문서 안에 자리가 없는 값이다. -->
       <!-- 🔴 2026-09-28 대표 요청 「바로 견적서 볼 수 있게」 — 소제목 둘(①먼저 적을 것·②노란 칸)과 칸 옆 괄호 설명,
            노란 칸 안내문을 걷었다. 그 안내(점선 = 빈 칸 · 비우면 항목이 빠진다)는 manual.html ③에 있다. -->
+      <!-- 🔴 2026-09-28 대표 요청 — 위에는 날짜 둘(작성일 = 오늘 · 유효기간 = 한 달 뒤, 자동)과 내부 메모만.
+           거래처명·고객 연락처는 **지우지 않고** 아래 「견적서 내용 보충」으로 옮겼다 — 문서 제목·견적 대장이 쓰는 값이다. -->
       <div class="grid" style="margin-bottom:18px">
-        <label class="f"><span>거래처명</span><input type="text" id="dClient" placeholder="○○기업" /></label>
         <label class="f"><span>견적서 작성일자</span><input type="date" id="dIssue2" /></label>
         <label class="f"><span>유효기간</span><input type="date" id="dValid2" /></label>
-        <label class="f"><span>고객 연락처</span><input type="text" id="dCustTel2" /></label>
         <label class="f" style="grid-column:1/-1"><span>내부 메모</span><textarea id="dMemo2"></textarea></label>
       </div>
 
       <div id="docEdit" class="doc-edit"></div>
 
       <details class="fold-note" id="docFormFold">
-        <summary class="fold-note" style="margin-top:14px">견적서에 없는 것 더 넣기 — 상세 내용 <b>줄 추가</b> · 인원 구성(아동·유아) · 선택 옵션 · 전체 칸 목록</summary>
+        <summary class="fold-note" style="margin-top:14px">견적서 내용 보충</summary>
       <div class="grid">
+        <label class="f"><span>거래처명</span><input type="text" id="dClient" placeholder="○○기업" /></label>
         <label class="f"><span>받는 분 <em>(고객 담당자)</em></span><input type="text" id="dClientContact" placeholder="홍길동" /></label>
         <label class="f"><span>단체명</span><input type="text" id="dOrgName" placeholder="○○기업 해외연수단" /></label>
         <label class="f"><span>지역 표기 <em>(국가명_지역명)</em></span><input type="text" id="dRegion" /></label>
@@ -509,9 +515,6 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       <p class="note hidden" id="paxWarn"></p>
 
       <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">상세 내용</h3>
-      <p class="note-i" style="margin-bottom:10px">자동 산출 결과로 채워 두었습니다. 회색 예시는 <b>표준 양식의 문구</b>이며 그대로 나가지 않습니다 —
-        <b>빈 칸은 견적서에서 그 항목 자체가 빠집니다.</b></p>
-      <p class="note hidden" id="detailWarn"></p>
       <div id="detailRows"></div>
 
       <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">선택 옵션</h3>
@@ -527,6 +530,10 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       <div class="navbar">
         <button type="button" class="btn" data-goto="2">← 이전: 금액 조정</button>
         <span class="bar-sp"></span>
+        <!-- 🔴 2026-09-28 대표 요청 — 아래(보충)에 적은 것을 **위 견적서에 다시 그리고 그리로 옮겨 간다.**
+             ⚠ 서버에 저장하지 않는다(그건 ⑤단계 「견적 저장하기」) — 그래서 누른 뒤 그 말을 한 줄 남긴다. -->
+        <span class="apply-msg hidden" id="docApplyMsg" role="status"></span>
+        <button type="button" class="btn" id="btnDocApply">저장하기</button>
         <button type="button" class="btn btn-p" data-goto="4">다음: 일정 →</button>
       </div>
     </div>
@@ -1370,10 +1377,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     follow('dStay', dest + '(' + Math.max(0, num($('pNights'))) + ')');
     if (!$('dIssue').value) $('dIssue').value = ymd(new Date());
     if (!$('dValid').value) {
-      /* ⚠ +30일은 `estimate-view.html`이 이미 쓰는 값이다. 며칠이 맞는지는 대표 확인
-         대기 중이다(결정대기열 0-ac) — 여기서 임의로 정하지 않고 같은 값을 쓴다. */
-      const d = new Date(); d.setDate(d.getDate() + 30);
-      $('dValid').value = ymd(d);
+      /* 🔴 **한 달 뒤** (2026-09-28 대표 결정, 대기열 0-ac — 연수 견적서). 예전엔 +30일이었다.
+         ⚠ 달력으로 센다: 1/31 → 2/28(29). `setMonth`만 쓰면 3/3으로 넘어간다. */
+      $('dValid').value = ymd(oneMonthLater(new Date()));
     }
     /* 인원 — 성인·아동·유아를 사람이 나눠 적었으면 건드리지 않는다(합이 안 맞으면 paxWarn이 말한다) */
     const noKids = num($('dChild')) === 0 && num($('dInfant')) === 0;
@@ -1466,13 +1472,15 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       wrap.className = 'day';
       let h = '<div class="day-h">' + esc(d.label)
         + (d.red ? ' <span class="badge badge-ed">빨간 글씨</span>' : '')
-        + ' <span class="badge badge-in' + (secEmpty(d) ? '' : ' off') + '" data-dempty="' + i + '">비어 있음 · 견적서에서 빠집니다</span>'
         + '<span style="flex:1"></span>'
         + '<button type="button" class="btn btn-sm" data-dadd="' + i + '">+ 줄 추가</button></div>';
+      /* 🔴 2026-09-28 대표 요청 — 칸 순서를 **내용 → 각주 → 비고**로. 비고는 줄마다 하나라
+           줄이 둘 이상이면 「비고 (n번째 줄)」로 이름을 붙여 어느 줄 것인지 말한다. */
+      const many = d.rows.length > 1;
       d.rows.forEach((r, j) => {
         const k = i + '-' + j;
         h += '<div class="day-b">'
-          + (d.rows.length > 1
+          + (many
             ? '<div class="rn"><span>' + (j + 1) + '번째 줄</span><span style="flex:1"></span>'
               + '<button type="button" class="btn btn-sm" data-drm="' + k + '">이 줄 삭제</button></div>'
             : '')
@@ -1482,8 +1490,6 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
             : '')
           + '<label class="f" style="grid-column:1/-1"><span>내용</span>'
           + '<textarea data-dr="' + k + '" placeholder="' + esc(r.ph || '') + '">' + esc(r.text || '') + '</textarea></label>'
-          + '<label class="f"><span>비고</span><input type="text" data-dn="' + k + '" value="' + esc(r.note || '')
-          + '" placeholder="' + esc(r.phNote || '') + '" /></label>'
           + '</div>';
       });
       /* 각주는 **항목에 하나**다 — 줄마다 붙이면 기준 양식의 파란 두 줄이 여러 벌 찍힌다.
@@ -1492,6 +1498,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       h += '<div class="day-b"><label class="f" style="grid-column:1/-1">'
         + '<span>각주 <em>(파란 글씨 · 줄바꿈으로 여러 줄)</em></span>'
         + '<textarea data-df="' + i + '" placeholder="' + esc(d.footPh || '') + '">' + esc(d.foot || '') + '</textarea></label></div>';
+      h += '<div class="day-b">' + d.rows.map((r, j) => '<label class="f"><span>비고' + (many ? ' (' + (j + 1) + '번째 줄)' : '') + '</span>'
+        + '<input type="text" data-dn="' + i + '-' + j + '" value="' + esc(r.note || '')
+        + '" placeholder="' + esc(r.phNote || '') + '" /></label>').join('') + '</div>';
       wrap.innerHTML = h;
       box.appendChild(wrap);
     });
@@ -1531,20 +1540,10 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     updateDetailWarn();
   }
 
-  /* 무엇이 빠지는지 **세어서 위에 적는다.** 배지 하나씩은 스크롤해야 보인다. */
-  function updateDetailWarn() {
-    S.details.forEach((d, i) => {
-      const b = document.querySelector('[data-dempty="' + i + '"]');
-      /* ⚠ `hidden` 속성은 `.badge`의 `display:inline-block`에 진다 — 이 저장소가 두 번 밟았다 */
-      if (b) b.classList.toggle('off', !secEmpty(d));
-    });
-    const empties = S.details.filter(secEmpty).map((d) => d.label);
-    const w = $('detailWarn');
-    if (!empties.length) { w.classList.add('hidden'); return; }
-    w.textContent = '지금 비어 있어 견적서에서 빠지는 항목 ' + empties.length + '개 — ' + empties.join(' · ')
-      + '. 표준 양식에는 있는 자리입니다(비워 두셔도 됩니다).';
-    w.classList.remove('hidden');
-  }
+  /* 🔴 2026-09-28 대표 요청으로 「비어 있음 · 견적서에서 빠집니다」 배지와 「빠지는 항목 n개」 안내를 걷었다.
+       ⚠ **잃은 것**: 비워 둔 항목이 견적서에서 통째로 빠진다는 것을 화면이 더는 말하지 않는다(결함 생성기 ②).
+         대신 위 견적서에서 그 항목이 **안 보이는 것**으로 드러나고, 매뉴얼 ③이 말한다. 되살릴 일이 생기면 git 이력에 있다. */
+  function updateDetailWarn() {}
 
   function renderOptions() {
     const box = $('optRows'); box.innerHTML = '';
@@ -1963,7 +1962,19 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     if (!host || typeof QuoteDoc === 'undefined') return;
     host.innerHTML = QuoteDoc.renderQuote(QuoteDoc.stripInternal(buildDoc()),
       { company: window.COMPANY_INFO, edit: true });
+    syncMirrors();
   }
+
+  /* 「저장하기」(③단계) — 보충 칸에 적은 것을 위 견적서에 다시 그리고 그리로 옮겨 간다. 서버 저장이 아니다. */
+  $('btnDocApply').addEventListener('click', () => {
+    renderAll();
+    const m = $('docApplyMsg');
+    m.textContent = '✓ 견적서에 반영했습니다 · 최종 저장은 ⑤단계';
+    m.classList.remove('hidden');
+    clearTimeout(m._t); m._t = setTimeout(() => m.classList.add('hidden'), 6000);
+    const host = $('docEdit');
+    if (host && host.scrollIntoView) host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   /* 문서의 한 자리 → 원래 칸. **이 표가 유일한 연결점이다.** */
   function writeDocField(field, v) {
@@ -2045,10 +2056,27 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 
   function renderAll() { renderMoney(); renderPreview(); renderDocEdit(); }
 
+  /* 오늘에서 달력으로 한 달 뒤 — 다음 달에 그 날이 없으면 그달 말일 */
+  function oneMonthLater(from) {
+    const d = new Date(from.getFullYear(), from.getMonth() + 1, 1);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(from.getDate(), last));
+    return d;
+  }
+
   /* 🔴 **같은 값을 두 칸에 적지 않는다.** 위(문서 옆)로 뺀 네 칸은 접이식 안의
      원래 칸을 **그대로 비추는 거울**이다 — 어느 쪽에 적어도 원래 칸 하나에만 저장된다.
      ⚠ 거울을 따로 저장하면 두 값이 갈리고, 저장되는 것은 늘 한쪽뿐이다(결함 생성기 ①). */
-  [['dIssue2', 'dIssue'], ['dValid2', 'dValid'], ['dCustTel2', 'dCustTel'], ['dMemo2', 'dMemo']]
+  /* 🔴 2026-09-28 — 산출이 작성일·유효기간을 **코드로** 채우면 input 이벤트가 안 나서 **위 거울 칸은 비어 있었다**
+       (「오늘 날짜 자동 기입」을 요청받고 보니 이미 채우고 있었다 — 안 보였을 뿐이다). 그릴 때마다 원래 칸 → 거울로 맞춘다. */
+  const MIRRORS = [['dIssue2', 'dIssue'], ['dValid2', 'dValid'], ['dMemo2', 'dMemo']];
+  function syncMirrors() {
+    MIRRORS.forEach(([mirror, real]) => {
+      const a = $(mirror), b = $(real);
+      if (a && b && a.value !== b.value && document.activeElement !== a) a.value = b.value;
+    });
+  }
+  MIRRORS
     .forEach(([mirror, real]) => {
       const a = $(mirror), b = $(real);
       if (!a || !b) return;

@@ -369,7 +369,8 @@
 }
 /* 🔴 빈 칸은 **무엇을 적는 자리인지** 말한다. 빈 칸이 그냥 비어 있으면 담당자는
    그 자리가 있는 줄도 모르고 지나가고, 그 항목은 견적서에서 통째로 빠진다. */
-.qd-ed:empty::before { content: attr(data-ph); color: #7A7462; }
+/* 2026-09-28 대표 요청 — 예시 글씨를 더 연하게(#7A7462 → #B3AA90). 확정된 값(검정)과 한눈에 갈리게 */
+.qd-ed:empty::before { content: attr(data-ph); color: #B3AA90; }
 /* 빈 칸은 더 도드라지게 — 비워 두면 그 항목이 견적서에서 통째로 빠진다 */
 .qd-ed:empty { background: #FFF1B8; box-shadow: inset 0 0 0 1px #E8B400; outline: 1px dashed #C99A00; outline-offset: 1px; }
 .qd-ed-m { display: block; }
