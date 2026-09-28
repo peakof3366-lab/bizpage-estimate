@@ -201,8 +201,6 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 
 .note { margin: 10px 0 0; padding: 9px 12px; background: var(--warn-bg); border: 1px solid var(--warn-line);
   font-size: 12px; color: var(--warn); line-height: 1.75; max-width: var(--measure); }
-/* ③단계 소제목 — ①먼저 적을 것 · ②노란 칸 · ③더 넣기 (2026-09-27) */
-.doc-step-h { margin: 4px 0 8px; font-size: 14px; color: var(--ink); }
 .note-i { margin: 0 0 12px; padding: 9px 12px; background: #F3F4F6; border-left: 3px solid var(--ink);
   font-size: 12px; color: var(--t-sub); line-height: 1.75; max-width: var(--measure); }
 /* 설명 접기 (2026-09-28 대표 요청 — 기본은 접힘). 누를 자리는 44px(화면 규칙) */
@@ -460,8 +458,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 
   <!-- ══ ③ 견적서 내용 ══ -->
   <section class="sec hidden" id="secDoc">
-    <div class="sec-h"><span class="sec-n">3</span><span class="sec-t">견적서 내용</span>
-      <span class="sec-d">아래 견적서에서 <b>고칠 자리를 눌러</b> 바로 적으세요</span></div>
+    <div class="sec-h"><span class="sec-n">3</span><span class="sec-t">견적서 내용</span></div>
     <div class="sec-b">
       <!-- ═══ 🔴 **나갈 문서를 보면서 고친다** (2026-09-24 대표 지시) ═══════════
            「견적서 틀이 그대로 오고 거기에 내용을 입력할 수 있게. 메모 남기고 글쓰고
@@ -474,24 +471,20 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
            (인원 구성·상세 내용 줄 추가 등)은 거기서 손본다. -->
       <!-- 🔴 2026-09-27 이 다섯 칸을 **문서 위로** 올렸다 — 1,119px 문서 **아래**에 있어서
            「거래처명·유효기간·내부 메모는 어디서 적나」를 못 찾았다(대표). 문서 안에 자리가 없는 값이다. -->
-      <p class="doc-step-h"><b>① 먼저 적을 것</b> — 문서 제목·유효기간·대장에 들어갑니다</p>
+      <!-- 🔴 2026-09-28 대표 요청 「바로 견적서 볼 수 있게」 — 소제목 둘(①먼저 적을 것·②노란 칸)과 칸 옆 괄호 설명,
+           노란 칸 안내문을 걷었다. 그 안내(점선 = 빈 칸 · 비우면 항목이 빠진다)는 manual.html ③에 있다. -->
       <div class="grid" style="margin-bottom:18px">
-        <label class="f"><span>거래처명 <em>(문서 제목에 들어갑니다)</em></span><input type="text" id="dClient" placeholder="○○기업" /></label>
+        <label class="f"><span>거래처명</span><input type="text" id="dClient" placeholder="○○기업" /></label>
         <label class="f"><span>견적서 작성일자</span><input type="date" id="dIssue2" /></label>
         <label class="f"><span>유효기간</span><input type="date" id="dValid2" /></label>
-        <label class="f"><span>고객 연락처 <em>(대장용 · 견적서엔 안 나감)</em></span><input type="text" id="dCustTel2" /></label>
-        <label class="f" style="grid-column:1/-1"><span>내부 메모 <em>(🔴 고객에게 안 나갑니다)</em></span><textarea id="dMemo2"></textarea></label>
+        <label class="f"><span>고객 연락처</span><input type="text" id="dCustTel2" /></label>
+        <label class="f" style="grid-column:1/-1"><span>내부 메모</span><textarea id="dMemo2"></textarea></label>
       </div>
 
-      <p class="doc-step-h"><b>② 견적서에서 노란 칸을 눌러 적기</b></p>
-      <p class="note-i" style="margin-bottom:10px">
-        <b>노란 칸을 누르면 바로 고쳐집니다.</b> 점선 칸은 아직 <b>비어 있는</b> 자리입니다 —
-        비워 두면 <b>견적서에서 그 항목이 통째로 빠집니다</b>(흐린 글씨는 무엇을 적는 자리인지 알려 주는 예시).
-      </p>
       <div id="docEdit" class="doc-edit"></div>
 
       <details class="fold-note" id="docFormFold">
-        <summary class="fold-note" style="margin-top:14px">③ 견적서에 없는 것 더 넣기 — 상세 내용 <b>줄 추가</b> · 인원 구성(아동·유아) · 선택 옵션 · 전체 칸 목록</summary>
+        <summary class="fold-note" style="margin-top:14px">견적서에 없는 것 더 넣기 — 상세 내용 <b>줄 추가</b> · 인원 구성(아동·유아) · 선택 옵션 · 전체 칸 목록</summary>
       <div class="grid">
         <label class="f"><span>받는 분 <em>(고객 담당자)</em></span><input type="text" id="dClientContact" placeholder="홍길동" /></label>
         <label class="f"><span>단체명</span><input type="text" id="dOrgName" placeholder="○○기업 해외연수단" /></label>
@@ -502,7 +495,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         <label class="f"><span>담당자 E-mail</span><input type="text" id="dStaffEmail" placeholder="name@hanatrabiz.com" /></label>
         <label class="f"><span>견적서 작성일자</span><input type="date" id="dIssue" /></label>
         <label class="f"><span>유효기간</span><input type="date" id="dValid" /></label>
-        <label class="f"><span>고객 연락처 <em>(대장용 · 견적서엔 안 나감)</em></span><input type="text" id="dCustTel" /></label>
+        <label class="f"><span>고객 연락처</span><input type="text" id="dCustTel" /></label>
       </div>
 
       <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">견적가 구성</h3>
@@ -528,7 +521,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       <div class="grid" style="margin-top:18px">
         <label class="f" style="grid-column:1/-1"><span>비고</span><textarea id="dRemarks"></textarea></label>
         <label class="f" style="grid-column:1/-1"><span>취소 규정 <em>(비우면 견적서에 안 나갑니다)</em></span><textarea id="dCancel"></textarea></label>
-        <label class="f" style="grid-column:1/-1"><span>내부 메모 <em>(🔴 고객에게 안 나갑니다)</em></span><textarea id="dMemo"></textarea></label>
+        <label class="f" style="grid-column:1/-1"><span>내부 메모</span><textarea id="dMemo"></textarea></label>
       </div>
       </details>
       <div class="navbar">
