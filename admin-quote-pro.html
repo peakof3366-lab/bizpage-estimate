@@ -209,6 +209,10 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .note-i { word-break: keep-all; }  /* 한글 단어 중간에서 접히지 않게 (폰 폭 「방식/은」) */
 .note-i .ni-lead { color: var(--ink); }
 .note-i .ni-h { margin-top: 8px; font-weight: 700; color: var(--ink); }
+.note-i .ni-h:first-child { margin-top: 0; }
+.note-i .ni-h + .ni-lead { margin-top: 2px; }
+.note-i .ni-tag { margin-left: 4px; font-size: 11px; font-weight: 600; color: var(--t-sub); }
+.note-i .ni-foot { margin-top: 6px; }
 .note-i .ni-list { margin: 4px 0 0; padding-left: 18px; }
 .note-i .ni-list li { margin: 2px 0; }
 .note-i .ni-when { display: block; color: var(--t-sub); }
@@ -403,18 +407,25 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       </table>
 
       <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">실무 변수</h3>
-      <p class="note-i" style="margin-bottom:10px">
-        🔴 <b>10+1(FOC)은 표기 단가에 반영됩니다</b>(대표 결정) — 총액 = 단가 × <b>전체</b> 인원입니다.
-        무료 인원을 넣으면 그만큼 <b>총액이 줄고</b>, 단가는 전체 인원으로 나눈 값이 됩니다.
-        제안값은 <b>고쳐 쓰시라고</b> 채워 둔 것입니다.
-      </p>
-      <p class="note-i" style="margin-bottom:10px">
-        🔴 <b>「어디서 나가나」를 보고 적어 주세요.</b> 같은 +300만이라도
-        <b>원가</b>면 「공급사에 줄 돈이 늘었다」, <b>마진</b>이면 「우리가 더 벌었다」로 기록됩니다.
-        인솔자·싱글 차지·항공 BD·지상비는 <b>우리가 나가는 돈</b>이라 원가가 기본이고,
-        FOC는 우리가 포기하는 것이라 마진이 기본입니다.
-        <b>총액은 어느 쪽을 골라도 똑같습니다</b> — 갈리는 것은 마진율뿐입니다.
-      </p>
+      <!-- 2026-09-28 대표 요청 「알아듣기 쉽게」 — 두 문단을 제목 한 줄 + 목록으로. 기본값(원가/마진)은 buildAdjust의 kind와 같게 -->
+      <div class="note-i" style="margin-bottom:10px">
+        <p class="ni-h">🔴 10+1(FOC)은 표기 단가에 반영됩니다 <span class="ni-tag">대표 결정</span></p>
+        <ul class="ni-list">
+          <li>무료 인원을 넣으면 → <b>총액이 그만큼 줄어듭니다</b></li>
+          <li>1인 단가 = 줄어든 총액 ÷ <b>전체 인원</b>(무료 인원 포함)</li>
+        </ul>
+        <p class="ni-foot">아래 제안값은 채워 둔 예시입니다. 아는 값으로 고쳐 쓰세요.</p>
+      </div>
+      <div class="note-i" style="margin-bottom:10px">
+        <p class="ni-h">🔴 금액을 적으면 「어디서 나가나」를 확인해 주세요</p>
+        <p class="ni-lead"><b>고객 총액은 어느 쪽을 골라도 같습니다.</b> 달라지는 건 우리가 보는 마진율뿐입니다.</p>
+        <ul class="ni-list">
+          <li><b>원가</b> → 공급사에 줄 돈으로 기록
+            <span class="ni-when">기본: 인솔자·싱글 차지·항공 BD·지상비 (우리가 내는 돈)</span></li>
+          <li><b>마진</b> → 우리 몫에서 늘거나 줄어든 것으로 기록
+            <span class="ni-when">기본: FOC (우리가 포기하는 돈)</span></li>
+        </ul>
+      </div>
       <table class="mt">
         <thead><tr><th>항목</th><th class="n">수량</th><th class="n">금액</th><th class="n">어디서 나가나</th><th class="n"></th></tr></thead>
         <tbody id="adjRows"></tbody>
