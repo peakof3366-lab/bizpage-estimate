@@ -46,6 +46,23 @@
   <script src="quote_doc.js"></script>
   <link rel="stylesheet" href="quote_doc.css" />
   <link rel="stylesheet" href="admin.css" />
+  <!-- 🔴 **새로고침할 때 로그인 화면이 잠깐 번쩍이던 것** (2026-09-28 대표 지적).
+       로그인 여부는 서버에 물어봐야 안다(세션 쿠키는 httpOnly라 화면이 못 읽는다). 그 답이 오기 전엔
+       로그인 화면이 기본으로 떠 있어, 로그인된 사람도 F5마다 로그인 폼을 1~2초 봤다.
+       → **이 브라우저에서 로그인한 적이 있으면**(표시 하나) 답이 올 때까지 둘 다 감추고 「불러오는 중」만 보인다.
+       ⚠ 표시는 편의일 뿐 인증이 아니다 — 서버가 아니라고 하면 곧바로 로그인 화면이 뜬다.
+       ⚠ 무슨 일이 있어도 10초 뒤엔 풀린다(빈 화면에 갇히지 않게). 처음 온 사람은 예전처럼 바로 로그인 화면. -->
+  <style>
+    html.auth-checking #loginPage, html.auth-checking #dashPage { display: none !important; }
+    html.auth-checking body::before {
+      content: '불러오는 중…'; position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      font: 600 14px/1 Pretendard, 'Malgun Gothic', sans-serif; color: #6B6B6B; background: var(--bg, #F4F4F2);
+    }
+  </style>
+  <script>
+    try { if (localStorage.getItem('bp_admin_session') === '1') document.documentElement.classList.add('auth-checking'); } catch (e) { /* 저장소를 못 읽으면 예전처럼 */ }
+    setTimeout(function () { document.documentElement.classList.remove('auth-checking'); }, 10000);
+  </script>
 </head>
 <body>
 
@@ -3073,8 +3090,19 @@
   const loginPage = document.getElementById('loginPage');
   const dashPage  = document.getElementById('dashPage');
 
+  /* 「불러오는 중」을 걷는다 — 대시보드든 로그인 화면이든 **어느 쪽이 정해진 뒤에** 부른다 (2026-09-28) */
+  function authSettled(loggedIn) {
+    try {
+      if (loggedIn === true) localStorage.setItem('bp_admin_session', '1');
+      else if (loggedIn === false) localStorage.removeItem('bp_admin_session');
+    } catch (e) { /* 표시를 못 남겨도 화면은 멀쩡해야 한다 */ }
+    document.documentElement.classList.remove('auth-checking');
+  }
+
   /* 서버 세션 쿠키가 실제 인증 근거 — 페이지 로드 시 유효성 재확인(클라이언트 플래그는 신뢰하지 않음) */
-  fetch('/api/admin/account?action=me').then(r => { if (r.ok) showDash(); }).catch(() => {});
+  fetch('/api/admin/account?action=me')
+    .then(r => { if (r.ok) showDash(); else authSettled(false); })
+    .catch(() => authSettled());
 
   /* 로그인 실패 사유를 사람 말로 옮긴다.
      ⚠ 예전엔 423(잠김)만 구분하고 **나머지를 전부 "아이디 또는 비밀번호가 올바르지
@@ -3202,6 +3230,7 @@
   /* 헤더/사이드바 두 곳에 로그아웃 버튼이 있는데 기존엔 id 중복이라 getElementById가
      하나만 잡고 다른 하나는 죽어있던 버그(신규 발견) — class 기반으로 둘 다 바인딩 */
   document.querySelectorAll('.js-logout').forEach(btn => btn.addEventListener('click', () => {
+    authSettled(false);   /* 로그아웃하면 다음 새로고침은 바로 로그인 화면 */
     fetch('/api/admin/account?action=logout', { method: 'POST' }).catch(() => {});
     dashPage.classList.add('hidden');
     loginPage.classList.remove('hidden');
@@ -3383,6 +3412,7 @@
   /* 세션이 죽었으면 로그인 화면으로 되돌린다. loadRemoteData()의 401 분기와 같은
      처리인데, 그쪽은 '읽기'에서만 돌고 쓰기 경로에는 없었다. */
   function showLoginAgain() {
+    authSettled(false);
     dashPage.classList.add('hidden');
     loginPage.classList.remove('hidden');
     const idEl = document.getElementById('adminId');
@@ -3598,9 +3628,10 @@
     const ok = await loadRemoteData();
     /* 401이면 loadRemoteData가 이미 로그인 화면으로 보냈다. 그 외 실패는 여기서
        이유를 띄운다 (PW) — 조용히 return하면 로그인 폼만 남아 오해를 만든다. */
-    if (!ok) { showSyncFailureOnLogin(); return; }
+    if (!ok) { showSyncFailureOnLogin(); authSettled(); return; }
     loginPage.classList.add('hidden');
     dashPage.classList.remove('hidden');
+    authSettled(true);
     /* 로그인 폼 입력창을 disabled로 꺼둔다 (신규) — autocomplete="off"만으로는
        크롬 등이 저장된 로그인 정보(admin)를 대시보드의 다른 빈 텍스트 입력창(요율
        검색창 등)에 자동으로 채워 넣는 걸 막지 못했음(브라우저가 autocomplete="off"를

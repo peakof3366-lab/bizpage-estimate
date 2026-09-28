@@ -199,7 +199,7 @@ const cookieCleared = (res) => /bp_admin_session=;/.test(String(res.headers['Set
     !/set\(KEYS\.contacts, await inqRes\.json\(\)\)/.test(adminSrc));
   ok('실패 이유를 로그인 화면에 띄운다',
     /function showSyncFailureOnLogin/.test(adminSrc)
-    && /if \(!ok\) \{ showSyncFailureOnLogin\(\); return; \}/.test(adminSrc));
+    && /if \(!ok\) \{ showSyncFailureOnLogin\(\);( authSettled\(\);)? return; \}/.test(adminSrc));
 
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   process.exit(fail === 0 ? 0 : 1);

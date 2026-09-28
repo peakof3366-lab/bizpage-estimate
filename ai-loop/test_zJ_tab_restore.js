@@ -154,6 +154,26 @@ console.log('\n[7] 🔴 탭 위에 떠 있던 견적 상세·직원용·단계�
     /const unsavedNew = !EDIT_ID && unlocked && !savedNewOnce;/.test(PRO));
 }
 
+console.log('\n[8] 🔴 새로고침 때 로그인 화면이 번쩍이지 않는다 (2026-09-28 대표 지적)');
+/* 브라우저 실측(서버 쪽 1초 지연): 고치기 전 「L → D」 → 고친 뒤 「· → D」 · 세션이 끊겼으면 「· → L」 · 그다음은 바로 L.
+   ⚠ 처음엔 Playwright route 안에서 sleep으로 지연을 흉내 냈다가 **브라우저까지 멈춰** 엉뚱한 결과를 읽었다 —
+     지연은 진짜 서버(스레드 서버)에서 줘야 한다. */
+{
+  const HEAD = SRC.slice(0, SRC.indexOf('</head>'));
+  ok('⑧ 머리에서 표시가 있으면 둘 다 감춘다 (그리기 전에)',
+    /html\.auth-checking #loginPage, html\.auth-checking #dashPage \{ display: none !important; \}/.test(HEAD)
+    && /localStorage\.getItem\('bp_admin_session'\) === '1'\) document\.documentElement\.classList\.add\('auth-checking'\)/.test(HEAD));
+  ok('⑧ 🔴 무슨 일이 있어도 풀린다 (빈 화면에 갇히지 않는다)',
+    /setTimeout\(function \(\) \{ document\.documentElement\.classList\.remove\('auth-checking'\); \}, 10000\)/.test(HEAD));
+  ok('⑧ 서버가 아니라면 곧바로 로그인 화면 + 표시를 지운다',
+    /\.then\(r => \{ if \(r\.ok\) showDash\(\); else authSettled\(false\); \}\)\s*\.catch\(\(\) => authSettled\(\)\)/.test(CODE));
+  ok('⑧ 대시보드가 뜨는 순간 표시를 남기고, 동기화 실패·세션 끊김·로그아웃도 푼다',
+    /dashPage\.classList\.remove\('hidden'\);\s*authSettled\(true\);/.test(CODE)
+    && /showSyncFailureOnLogin\(\); authSettled\(\); return;/.test(CODE)
+    && /function showLoginAgain\(\) \{\s*authSettled\(false\);/.test(CODE)
+    && /authSettled\(false\);\s*fetch\('\/api\/admin\/account\?action=logout'/.test(CODE));
+}
+
 console.log('\n' + '─'.repeat(64));
 console.log(`결과: ${pass} pass / ${fail} fail  — ZJ F5를 눌러도 그 자리`);
 process.exit(fail ? 1 : 0);
