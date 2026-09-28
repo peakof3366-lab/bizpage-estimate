@@ -21,6 +21,7 @@
        근거가 사라진다. 무산은 status='void'로 남긴다. */
   const LED_STATUS = { issued: '발급', won: '계약', lost: '무산', void: '취소' };
   let ledRows = [];
+  const ledOpen = new Set();   /* 펼쳐 둔 묶음(견적) — 다시 그려도 편 채로 (2026-09-28) */
 
   async function renderLedger(q) {
     const box = document.getElementById('ledList');
@@ -68,6 +69,23 @@
     }
     const won = (n) => Number(n || 0).toLocaleString();
     const day = (v) => (v ? String(v).slice(0, 10) : '');
+    /* ══ 🔴 견적 1건 = 1줄 (2026-09-28 대표 지시 「무분별하게 업데이트되는 게 보인다 · 깔끔하게」) ══════
+       같은 견적에서 나온 문서(BP-2609-0030 → _V2 → _V3 → _V4)가 **판마다 한 줄씩** 쌓여, 목록이 판 수만큼
+       부풀고 「최신본 ○○」·「↳ ○○ 개정」·「개정 아님으로」가 줄마다 붙어 어느 게 살아 있는 견적인지 흐렸다.
+       → **묶는다: 같은 견적 기록(quote_id)에서 나온 문서 = 한 묶음**(기록이 없으면 기본 번호로).
+         맨 위(가장 최근 발급) 한 줄만 보이고, 이전 판은 「이전 판 n개 ▾」로 접는다.
+       ⚠ 개정 사슬(revision_of)이 아니라 **견적 기록**으로 묶는다 — 사슬은 사람이 끊고 이을 수 있어 실제로
+         중간이 끊겨 있었다(0030_V3이 따로 떨어져 「최신본 V4」와 「V2 개정으로」를 동시에 달고 있었다).
+       ⚠ 서버는 최근 발급순으로 준다 — 묶음 안 첫 줄이 최신이다. 목록 순서는 묶음의 최신 발급순. */
+    const baseNo = (s) => String(s || '').replace(/(?:-R\d+|_V\d+)$/i, '');
+    const gkOf = (r) => (r.quote_id ? 'q:' + r.quote_id : (baseNo(r.quote_no) ? 'n:' + baseNo(r.quote_no) : 'i:' + r.id));
+    const groups = new Map();
+    ledRows.forEach((r, i) => { const k = gkOf(r); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); });
+    const order = [];
+    groups.forEach((idx, gk) => idx.forEach((i, j) => order.push({ i, gk, main: j === 0, older: idx.length - 1 })));
+    const gid = (gk) => 'g' + Array.from(groups.keys()).indexOf(gk);
+    const cnt = document.getElementById('ledCount');
+    if (cnt && !/견적 \d+건/.test(cnt.textContent)) cnt.textContent = '견적 ' + groups.size + '건 · 발급 문서 ' + cnt.textContent;
     /* ══ 표 (ZV로 다시 짰다) ══════════════════════════════════════════════════
        대표: 「다른 직원이 이 내용을 기반으로 다음 작업을 이어나가야 한다.」
        그래서 한 줄이 답해야 하는 질문은 다섯이다:
@@ -95,34 +113,25 @@
       +   '<th>상태<div class="sub">바꾼 사람</div></th>'
       +   '<th></th>'
       + '</tr></thead><tbody>'
-      + ledRows.map((r, i) => {
+      + order.map(({ i, gk, main, older }) => {
+        const r = ledRows[i];
         const cust = r.org || r.customer_label || r.cn || '—';
         /* 엔진 검증을 거친 것과 아닌 것을 구분해 보여준다 — 나중에 금액을 다툴 때 근거다 */
         const vd = { package: '패키지', assembled: '담당자 산출' }[r.verdict];
         /* 줄에도 상태를 실어 준다 — 드롭다운 하나보다 **줄**이 먼저 눈에 든다.
            ⚠ 상태별 클래스는 CSS 한 곳에만 적는다. 여기서 색을 정하면 두 벌이 된다. */
-        return '<tr data-i="' + i + '" class="st-' + esc(r.status || 'issued') + '">'
-          /* ── ① 우리 번호 ── 차수·최신본 경고가 여기 붙는다 */
+        const g = gid(gk);
+        /* 이전 판 줄은 접어 둔다(묶음을 펼쳤으면 그대로 편 채로 다시 그린다) */
+        const cls = 'st-' + esc(r.status || 'issued') + (main ? ' led-main' : ' led-old' + (ledOpen.has(gk) ? '' : ' hidden'));
+        return '<tr data-i="' + i + '" data-g="' + g + '" class="' + cls + '">'
+          /* ── ① 우리 번호 ── 묶음의 맨 윗줄에만 「이전 판 n개」, 이전 판 줄은 「이전 판」 표시 */
           + '<td style="white-space:nowrap">'
-          +   '<div style="font-weight:700">' + esc(r.quote_no || '—')
-          /* 차수 (ZE) — 1차에는 안 붙인다. 늘 켜져 있는 표시는 아무도 안 본다.
-             ⚠ 못 셌으면 **못 셌다고** 말한다. 짐작한 차수는 「최신이 아닌데 최신처럼
-               보이는」 자리를 만든다. */
-          +   (r.revBroken ? ' <span class="pkg-st draft" title="앞선 견적서를 못 찾아 차수를 세지 못했습니다">차수 모름</span>'
-          /* ⚠ 차수가 무엇인지는 **배지 자체가** 말한다(ZV). 예전에는 파란 안내 상자에
-             적혀 있었는데, 안내를 줄이면서 설명을 **그 물건 옆으로** 옮겼다 — 상자보다
-             가까운 자리다. */
-              : (r.revNo > 1
-                ? ' <span class="pkg-st draft" title="같은 문의로 견적서를 다시 내면 차수가 붙습니다. 이 건은 ' + esc(String(r.revNo)) + '번째로 낸 견적서입니다.">'
-                  + esc(String(r.revNo)) + '차</span>'
-                : ''))
-          +   '</div>'
-          +   (r.revOfNo ? '<div class="sub">↳ ' + esc(r.revOfNo) + ' 개정</div>' : '')
-          /* 🔴 **이 줄이 이 기능의 전부다.** 이어받은 사람이 옛 견적서를 보고 옛 금액으로
-             응대하는 것을 막는다. 최신본일 때는 아무 말도 안 한다. */
-          +   (r.isLatest === false && r.latestNo
-                ? '<div style="font-size:11px;color:#B91C1C;font-weight:700;margin-top:3px">🔴 최신본 ' + esc(r.latestNo) + '</div>'
+          +   '<div style="font-weight:700">' + (main ? '' : '<span class="led-old-mark">└ </span>') + esc(r.quote_no || '—') + '</div>'
+          +   (main && older
+                ? '<button type="button" class="led-fold" data-gk="' + esc(gk) + '" data-g="' + g + '" aria-expanded="' + (ledOpen.has(gk) ? 'true' : 'false') + '">'
+                  + '이전 판 ' + older + '개 <span aria-hidden="true">' + (ledOpen.has(gk) ? '▴' : '▾') + '</span></button>'
                 : '')
+          +   (main ? '' : '<div class="sub">이전 판</div>')
           + '</td>'
           /* ── ② 공급사 번호 (ZC) ── 우리 번호 **바로 옆**이라 짝이 눈에 보인다 */
           + '<td style="white-space:nowrap">'
@@ -217,23 +226,9 @@
                「링크」→「링크 복사」 · 「문의」→「견적 상세」(견적 관리의 그 건을 연다 — 「문의 관리」의 문의가 아니다) */
           + '<td style="white-space:nowrap"><button class="btn-act btn-outline-p led-open" data-i="' + i + '" title="고객이 받는 견적서 페이지를 새 창으로 엽니다">고객 화면</button>'
           +   ' <button class="btn-act btn-outline-p led-copy" data-i="' + i + '">링크 복사</button>'
-          /* 🔴 **어느 문의에 대한 견적서인가** (ZB). 없으면 버튼을 안 낸다 —
-             고객이 홈페이지에서 직접 뽑은 건은 문의가 아예 없고, 그때 눌리는 버튼을
-             내주면 「못 열었다」로 끝난다(YN에서 겪은 그 자리다). */
-          +   (r.quote_id ? ' <button class="btn-act btn-outline-p led-req" data-i="' + i + '" title="이 견적서를 만든 견적 기록을 견적 관리에서 엽니다">견적 상세</button>' : '')
-          /* 개정 관계를 사람이 고치는 자리 (ZE). **끊기와 잇기가 같은 버튼**이다 —
-             끊는 문만 내면 잘못 끊었을 때 화면에서 되돌릴 길이 없다.
-             ⚠ 이을 후보(같은 문의의 직전 견적서)가 있을 때만 잇기 버튼을 낸다.
-               고를 것이 없는데 버튼을 내주면 「눌렀는데 아무 일도 안 난다」가 된다. */
-          +   (r.revOf
-                ? ' <button class="btn-act btn-outline-p led-rev" data-i="' + i + '" data-to=""'
-                  + ' aria-label="' + esc((r.quote_no || '이 견적서') + '를 개정 아님으로 표시') + '"'
-                  + ' title="이 견적서는 앞 건의 개정본이 아니라고 표시합니다">개정 아님으로</button>'
-                : (r.prevId
-                  ? ' <button class="btn-act btn-outline-p led-rev" data-i="' + i + '" data-to="' + esc(r.prevId) + '"'
-                    + ' aria-label="' + esc((r.quote_no || '이 견적서') + '를 ' + (r.prevNo || '앞 건') + '의 개정으로 표시') + '"'
-                    + ' title="같은 문의의 직전 견적서와 이어 차수를 매깁니다">' + esc(r.prevNo || '앞 건') + ' 개정으로</button>'
-                  : ''))
+          /* 2026-09-28 대표 지시 — 「견적 상세」(견적 관리로 건너뛰기)와 개정 잇기·끊기 버튼(「개정 아님으로」·「○○ 개정으로」)을 뺐다.
+             판은 이제 **견적 기록으로 묶여** 한 줄에 모인다 — 사슬을 손으로 잇고 끊을 일이 없다.
+             ⚠ 서버의 ?action=revision은 남겨 둔다(발급 차수 계산이 쓴다 · 되살릴 때 git 이력). */
           + '</td>'
           + '</tr>';
       }).join('') + '</tbody></table>';
@@ -244,6 +239,14 @@
       () => window.open(urlOf(ledRows[Number(b.dataset.i)]), '_blank', 'noopener')));
     /* 문의로 건너뛴다. ⚠ 그 문의가 목록에 없을 수 있다(지워졌거나 아직 안 불러왔거나) —
        **조용히 아무 일도 안 일어나게 두지 않는다.** 담당자는 버튼이 고장 났다고 생각한다. */
+    /* 묶음 펼치기 — 이전 판 줄을 보였다 감췄다. 다시 그려도 펼친 묶음은 기억한다(ledOpen) */
+    box.querySelectorAll('.led-fold').forEach(b => b.addEventListener('click', () => {
+      const gk = b.dataset.gk, open = !ledOpen.has(gk);
+      if (open) ledOpen.add(gk); else ledOpen.delete(gk);
+      box.querySelectorAll('tr.led-old[data-g="' + b.dataset.g + '"]').forEach((tr) => tr.classList.toggle('hidden', !open));
+      b.setAttribute('aria-expanded', open ? 'true' : 'false');
+      const arrow = b.querySelector('span'); if (arrow) arrow.textContent = open ? '▴' : '▾';
+    }));
     box.querySelectorAll('.led-req').forEach(b => b.addEventListener('click', () => {
       const row = ledRows[Number(b.dataset.i)];
       if (!row || !row.quote_id) return;

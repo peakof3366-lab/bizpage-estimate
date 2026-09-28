@@ -128,7 +128,7 @@ const stCalls = (w) => w.__calls.filter((c) => /action=status/.test(c.url));
     ok('③ 「아직 저장 안 됨」이 드롭다운 색으로도 보인다', sel.classList.contains('is-dirty'));
     ok('③ 버튼도 같은 색으로 말한다', btn.classList.contains('is-on'));
     /* 🔴 미리 칠하지 않는다 */
-    ok('⑥ 🔴 줄 색은 아직 「발급」 그대로다', tr.className === 'st-issued', tr.className);
+    ok('⑥ 🔴 줄 색은 아직 「발급」 그대로다', tr.classList.contains('st-issued') && !tr.classList.contains('st-won'), tr.className);
     ok('⑥ 🔴 드롭다운 상태색도 아직 안 바뀐다',
       sel.classList.contains('led-st--issued') && !sel.classList.contains('led-st--won'),
       sel.className);
@@ -197,7 +197,7 @@ const stCalls = (w) => w.__calls.filter((c) => /action=status/.test(c.url));
     ok('⑧ 🔴 값이 되돌아온다', sel.value === 'issued', sel.value);
     ok('⑧ 실패했다고 말한다', w.__alerts.some((m) => /바꾸지 못했습니다/.test(m)),
       JSON.stringify(w.__alerts));
-    ok('⑧ 줄 색도 안 바뀐다', tr.className === 'st-issued', tr.className);
+    ok('⑧ 줄 색도 안 바뀐다', tr.classList.contains('st-issued') && !tr.classList.contains('st-won'), tr.className);
     ok('⑧ 버튼이 다시 꺼진다', btn.disabled === true);
     ok('⑧ 버튼 글자가 「저장 중…」에 멈춰 있지 않다', btn.textContent === '저장', btn.textContent);
     ok('⑧ ⚠ 없는 「누가 언제」를 지어내지 않는다',

@@ -1659,3 +1659,12 @@
 .em-dl dd b { color: var(--heading); }
 .em-dl-tag { display: inline-block; margin-left: .35rem; font-size: .7rem; font-weight: 600; color: #3F3BA8; background: #EEEDFB; padding: .08rem .45rem; }
 .em-dl-note { color: var(--muted); font-size: .8rem; }
+
+/* ── 견적서 대장 — 견적 1건 = 1줄, 이전 판은 접는다 (2026-09-28 대표 지시 「깔끔하게 관리」) ── */
+#ledList .led-fold { display: inline-flex; align-items: center; gap: .25rem; margin-top: .3rem; padding: .15rem .55rem;
+  font-size: .72rem; font-weight: 700; color: #3F3BA8; background: #EEEDFB; border: 0; cursor: pointer; }
+#ledList .led-fold:hover { background: #E1DFF8; }
+#ledList .led-fold:focus-visible { outline: 2px solid #514dc2; outline-offset: 2px; }
+#ledList tr.led-old td { background: #FAFAF8; color: var(--muted); }
+#ledList tr.led-old td:first-child { padding-left: 1.4rem; }
+#ledList .led-old-mark { color: var(--muted); font-weight: 400; }

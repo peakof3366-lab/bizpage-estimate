@@ -192,7 +192,7 @@ const ROWS = [
 ];
 
 (async () => {
-  console.log('\n[7] 화면 — 최신이 아닌 줄이 그렇다고 말한다');
+  console.log('\n[7] 화면 — 🔴 견적 1건 = 1줄 (2026-09-28 대표 지시): 최신판만 보이고 이전 판은 접힌다');
   {
     const w = await boot(() => (url) => (/action=list/.test(String(url))
       ? Promise.resolve({ ok: true, status: 200,
@@ -205,20 +205,22 @@ const ROWS = [
     await w.renderLedger();
     const box = w.document.getElementById('ledList');
     const tr = [...box.querySelectorAll('tbody tr')];
-    ok('⑦ 세 줄이 그려졌다', tr.length === 3, String(tr.length));
-    ok('⑦ 차수 배지가 붙는다', /3차/.test(tr[0].textContent) && /2차/.test(tr[1].textContent),
-      tr[0].textContent.slice(0, 40));
-    /* 1차에는 안 붙인다 — 늘 켜져 있는 표시는 아무도 안 본다 */
-    ok('⑦ 1차에는 배지가 없다', !/1차/.test(tr[2].textContent), tr[2].textContent.slice(0, 40));
-    ok('⑦ 무엇의 개정인지 보인다', /Q260903-01 개정/.test(tr[0].textContent));
-    /* 🔴 이 기능의 전부 */
-    ok('⑦ 🔴 옛 줄이 최신본 번호를 말한다',
-      /최신본 Q260905-01/.test(tr[1].textContent) && /최신본 Q260905-01/.test(tr[2].textContent),
-      tr[2].textContent.slice(0, 80));
-    ok('⑦ 최신 줄에는 그 말이 없다', !/최신본/.test(tr[0].textContent), tr[0].textContent.slice(0, 60));
-    /* 화면 규칙 5 — 영문 기술용어가 그려진 글자에 없다 */
-    ok('⑦ 그려진 글자에 영문 기술용어가 없다', !/revision|isLatest/i.test(box.textContent),
-      (/[^\s]*revision[^\s]*/i.exec(box.textContent) || [''])[0]);
+    const shown = tr.filter((t) => !t.classList.contains('hidden'));
+    ok('⑦ 세 판이 모두 그려져 있다 (지우지 않는다)', tr.length === 3, String(tr.length));
+    ok('⑦ 🔴 보이는 줄은 최신판 하나다', shown.length === 1 && /Q260905-01/.test(shown[0].textContent),
+      shown.map((t) => t.textContent.slice(0, 20)).join(' | '));
+    const fold = box.querySelector('.led-fold');
+    ok('⑦ 「이전 판 2개」로 접혀 있다', !!fold && /이전 판 2개/.test(fold.textContent), fold ? fold.textContent : '없음');
+    fold.click();
+    const shown2 = [...box.querySelectorAll('tbody tr')].filter((t) => !t.classList.contains('hidden'));
+    ok('⑦ 누르면 이전 판이 펼쳐진다 (최신 → 옛 순)', shown2.length === 3 && /Q260901-01/.test(shown2[2].textContent));
+    ok('⑦ 이전 판 줄은 「이전 판」이라고 말한다', /이전 판/.test(shown2[1].textContent) && /이전 판/.test(shown2[2].textContent));
+    ok('⑦ 줄마다 붙던 차수·개정·최신본 표시가 없다', !/\d차|개정|최신본/.test(box.textContent),
+      (/[^\s]*(\d차|개정|최신본)[^\s]*/.exec(box.textContent) || [''])[0]);
+    ok('⑦ 개정 잇기·끊기 버튼과 「견적 상세」가 없다', !box.querySelector('.led-rev') && !box.querySelector('.led-req'));
+    ok('⑦ 몇 건인지 견적 기준으로 센다', /견적 1건 · 발급 문서 3건/.test(w.document.getElementById('ledCount').textContent),
+      w.document.getElementById('ledCount').textContent);
+    ok('⑦ 그려진 글자에 영문 기술용어가 없다', !/revision|isLatest/i.test(box.textContent));
   }
 
   console.log('\n[8] 🔴 차수를 못 셌으면 말한다 — 조용하면 전부 「1차·최신」으로 보인다');
@@ -240,94 +242,25 @@ const ROWS = [
     ok('⑧ 없는 차수를 지어내지 않는다', !/차$/m.test(w.document.getElementById('ledList').textContent));
   }
 
-  console.log('\n[9] 🔴 자동 판단을 사람이 고칠 수 있다 — 끊기와 잇기가 같은 버튼');
+  console.log('\n[9] 🔴 개정 사슬이 끊겨 있어도 같은 견적이면 한 묶음이다 (0030_V3이 따로 떨어져 보이던 자리)');
   {
-    const w = await boot((win) => (url, opt) => {
-      if (/action=list/.test(String(url))) {
-        return Promise.resolve({ ok: true, status: 200,
-          json: () => Promise.resolve({ shares: ROWS, capped: false, max: 300, revisions: true }) });
-      }
-      if (/action=revision/.test(String(url))) {
-        win.__posts.push(JSON.parse((opt && opt.body) || '{}'));
-        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
-      }
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
-    });
+    const broken = ROWS.map((r) => Object.assign({}, r, r.id === 'b' ? { revision_of: null, revOf: null, revOfNo: null } : {}));
+    const other = base({ id: 'z', quote_no: 'Q260902-07', quote_id: 'q2', created_at: T(2) });
+    const w = await boot(() => (url) => (/action=list/.test(String(url))
+      ? Promise.resolve({ ok: true, status: 200,
+          json: () => Promise.resolve({ shares: broken.slice(0, 2).concat([other], broken.slice(2)), capped: false, max: 300, revisions: true }) })
+      : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })));
     await w.renderLedger();
-    const btns = [...w.document.querySelectorAll('#ledList .led-rev')];
-    ok('⑨ 이어진 줄에 끊는 버튼이 있다', btns.length === 2, String(btns.length));
-    ok('⑨ 버튼이 무슨 일이 날지 말한다', /개정 아님으로/.test(btns[0].textContent), btns[0].textContent);
-    ok('⑨ 낭독기 이름에 줄 번호가 들어 있다',
-      (btns[0].getAttribute('aria-label') || '').includes('Q260905-01'), btns[0].getAttribute('aria-label'));
-    btns[0].click();
-    await new Promise((r) => setTimeout(r, 150));
-    ok('⑨ 서버로 보낸다', w.__posts.length === 1 && w.__posts[0].id === 'c', JSON.stringify(w.__posts));
-    ok('⑨ 🔴 끊을 때는 빈 값을 보낸다', w.__posts[0].revisionOf === '', JSON.stringify(w.__posts[0]));
-  }
-  {
-    /* 잇는 쪽 — 후보가 있을 때만 버튼을 낸다 */
-    const rows = [
-      base({ id: 'b', quote_no: 'Q260903-01', created_at: T(3), revision_of: null,
-        revNo: 1, revBroken: false, revOf: null, revOfNo: null,
-        latestId: 'b', latestNo: 'Q260903-01', isLatest: true, prevId: 'a', prevNo: 'Q260901-01' }),
-      base({ id: 'a', quote_no: 'Q260901-01', created_at: T(1), revision_of: null,
-        revNo: 1, revBroken: false, revOf: null, revOfNo: null,
-        latestId: 'a', latestNo: 'Q260901-01', isLatest: true, prevId: null, prevNo: null }),
-    ];
-    const w = await boot((win) => (url, opt) => {
-      if (/action=list/.test(String(url))) {
-        return Promise.resolve({ ok: true, status: 200,
-          json: () => Promise.resolve({ shares: rows, capped: false, max: 300, revisions: true }) });
-      }
-      if (/action=revision/.test(String(url))) {
-        win.__posts.push(JSON.parse((opt && opt.body) || '{}'));
-        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
-      }
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
-    });
-    await w.renderLedger();
-    const btns = [...w.document.querySelectorAll('#ledList .led-rev')];
-    ok('⑩ 후보가 있는 줄에만 잇는 버튼', btns.length === 1, String(btns.length));
-    ok('⑩ 어느 건과 잇는지 이름에 있다', /Q260901-01 개정으로/.test(btns[0].textContent), btns[0].textContent);
-    btns[0].click();
-    await new Promise((r) => setTimeout(r, 150));
-    ok('⑩ 앞 건의 id를 보낸다', w.__posts[0] && w.__posts[0].revisionOf === 'a', JSON.stringify(w.__posts));
-  }
-  {
-    /* 실패하면 말한다 — 왜 안 됐는지 그대로 */
-    const w = await boot(() => (url) => {
-      if (/action=list/.test(String(url))) {
-        return Promise.resolve({ ok: true, status: 200,
-          json: () => Promise.resolve({ shares: ROWS, capped: false, max: 300, revisions: true }) });
-      }
-      if (/action=revision/.test(String(url))) {
-        return Promise.resolve({ ok: false, status: 409, json: () => Promise.resolve({ error: 'cycle' }) });
-      }
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
-    });
-    await w.renderLedger();
-    const b = w.document.querySelector('#ledList .led-rev');
-    b.click();
-    await new Promise((r) => setTimeout(r, 150));
-    ok('⑪ 실패했다고 말한다', w.__alerts.some((m) => /바꾸지 못했습니다/.test(m)), JSON.stringify(w.__alerts));
-    ok('⑪ 🔴 왜인지도 말한다', w.__alerts.some((m) => /서로가 서로의 개정본/.test(m)), JSON.stringify(w.__alerts));
-    ok('⑪ 버튼이 잠긴 채로 남지 않는다', b.disabled === false, String(b.disabled));
+    const shown = [...w.document.querySelectorAll('#ledList tbody tr')].filter((t) => !t.classList.contains('hidden'));
+    ok('⑨ 보이는 줄 = 견적 수(2) — 사슬이 끊긴 판도 같은 견적 기록이면 묶인다', shown.length === 2,
+      shown.map((t) => t.textContent.slice(0, 12)).join(' | '));
   }
 
   console.log('\n[10] 담당자가 화면에서 이 표시를 이해한다');
   {
     const ADMIN = adminSource();
-    /* ⚠ ZV에서 안내를 12줄 → 3줄로 줄이며 설명을 **그 물건 옆으로** 옮겼다(대표 지시).
-       지키려던 것은 「파란 상자에 있다」가 아니라 **담당자가 그 자리에서 뜻을 알 수
-       있다**이다 — 배지의 `title`, 버튼의 `title`이 상자보다 가까운 자리다.
-       🔴 다만 **「옛 줄로 응대하지 마라」만은 상자에 남겼다.** 그건 배지를 안 눌러
-         봐도 읽혀야 하는 말이고, 틀리면 옛 금액으로 응대하는 사고가 난다. */
-    ok('⑫ 차수가 무엇인지 그 자리에서 말한다',
-      /같은 문의로 견적서를 다시 내면 차수가 붙습니다/.test(ADMIN));
-    ok('⑫ 옛 줄로 응대하지 말라고 말한다',
-      /최신본[\s\S]{0,80}응대하지 마세요/.test(ADMIN));
-    ok('⑫ 고치는 법도 말한다',
-      /개정본이 아니라고 표시합니다/.test(ADMIN) && /직전 견적서와 이어 차수를 매깁니다/.test(ADMIN));
+    ok('⑫ 한 견적 = 한 줄 · 이전 판으로 응대하지 말라고 말한다',
+      /한 견적은 <strong>한 줄<\/strong>[\s\S]{0,160}이전 판으로 응대하지 마세요/.test(ADMIN));
   }
 
   done();
