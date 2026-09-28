@@ -148,6 +148,14 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .f input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; border: 0; flex: none; accent-color: var(--ink); }
 .f label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
 .f textarea { height: auto; min-height: 66px; padding: 8px 10px; line-height: 1.6; resize: vertical; }
+/* ② 원가 줄을 고치면 — 고객 가격에 반영 / 우리 마진에서 부담 (2026-09-28) */
+.absorb-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 12px; padding: 10px 14px;
+  background: #F6F6F2; border: 1.5px solid var(--line); }
+.absorb-t { font-size: 13px; font-weight: 800; color: var(--ink); }
+.absorb-o { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.absorb-o input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
+.absorb-msg { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--ok); }
+.absorb-msg:empty { display: none; }
 /* ③ 「견적서 내용 보충」 — 눈에 띄는 전폭 막대 (2026-09-28 대표 요청) */
 .doc-fold-sum { display: flex; align-items: center; gap: 12px; margin-top: 18px; min-height: 56px; padding: 0 18px;
   background: var(--ink); color: #fff; cursor: pointer; list-style: none; }
@@ -490,6 +498,15 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
            → (대표 요청: 설명 글은 최소로) 안내문 없이 · 표 머리 「판매 금액 (고객가)」 · 줄 묶음 제목 · 판매가 합계 줄 · 원가는 표 아래 별도 상자. -->
       <div class="bar adhoc-only" style="margin-top:0;margin-bottom:12px">
         <button type="button" class="btn btn-sm" id="btnAddLine">+ 항목 추가</button>
+      </div>
+      <!-- 🔴 2026-09-28 대표 요청 — 원가 줄(항공·호텔·부대비용…)을 고칠 때 **누가 부담하나**를 고른다.
+           고객 가격에 반영(기본): 원가 +50만 → 총액 +50만 · 마진 그대로 (예전 동작)
+           우리 마진에서 부담: 원가 +50만 → 「본사 수익」 −50만 → 총액 그대로 · 마진 −50만 (예전엔 손으로 맞춰야 했다) -->
+      <div class="absorb-bar eng-only" role="radiogroup" aria-label="원가 줄을 고치면">
+        <span class="absorb-t">원가 줄을 고치면</span>
+        <label class="absorb-o"><input type="radio" name="absorb" value="pass" checked /> 고객 가격에 반영</label>
+        <label class="absorb-o"><input type="radio" name="absorb" value="margin" /> 우리 마진에서 부담</label>
+        <span class="absorb-msg" id="absorbMsg" role="status"></span>
       </div>
       <table class="mt" id="moneyTable">
         <thead><tr>
@@ -1285,6 +1302,24 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
     ];
   }
 
+  /* 금액 줄 값을 바꾸는 곳은 **여기 하나** (2026-09-28) — 「우리 마진에서 부담」이면 원가 줄의 증감만큼
+     「본사 수익」(없으면 첫 마진 줄)을 반대로 움직여 **고객 총액을 그대로** 둔다.
+     ⚠ 자동 산출 화면만(직접 입력·고치기는 원가가 표 밖 한 칸이라 해당 없음) · 마진 줄 자신을 고칠 때는 그대로 */
+  function setRowVal(r, v) {
+    const delta = v - (Number(r.val) || 0);
+    r.val = v;
+    const msg = $('absorbMsg');
+    const mode = (document.querySelector('input[name="absorb"]:checked') || {}).value;
+    if (!delta) return;   /* 값이 그대로인 change(칸을 떠날 때 한 번 더 온다)는 안내를 지우지 않는다 */
+    if (S.adhoc || r.margin || mode !== 'margin') { if (msg) msg.textContent = ''; return; }
+    const tgt = S.rows.find((x) => x.margin && /본사/.test(x.name)) || S.rows.find((x) => x.margin);
+    if (!tgt) { if (msg) msg.textContent = '⚠ 마진 줄이 없어 고객 가격에 반영했습니다'; return; }
+    tgt.val = (Number(tgt.val) || 0) - delta;
+    const nm = (s) => String(s || '').replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '');
+    if (msg) msg.textContent = nm(r.name) + ' ' + (delta > 0 ? '+' : '') + won(delta) + ' → ' + nm(tgt.name) + ' '
+      + (delta > 0 ? '−' : '+') + won(Math.abs(delta)) + ' · 고객 총액 그대로';
+  }
+
   function renderMoney() {
     const tb = $('moneyRows'); tb.innerHTML = '';
     /* 직접 입력·고치기: **고객에게 보이는 줄 먼저, 내부 줄은 따로 묶어** 제목을 붙인다(보여 주는 순서만 — S.rows는 그대로) */
@@ -1344,7 +1379,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
     tb.querySelectorAll('input[data-k]').forEach((el) => {
       el.addEventListener('change', () => {
         const r = S.rows.find((x) => x.key === el.dataset.k);
-        if (r) { r.val = num(el); renderAll(); }
+        if (r) { setRowVal(r, num(el)); renderAll(); }
       });
     });
     tb.querySelectorAll('input[data-nm]').forEach((el) => {
@@ -1362,7 +1397,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
     tb.querySelectorAll('button[data-undo]').forEach((el) => {
       el.addEventListener('click', () => {
         const r = S.rows.find((x) => x.key === el.dataset.undo);
-        if (r) { r.val = r.auto; renderAll(); }
+        if (r) { setRowVal(r, r.auto); renderAll(); }
       });
     });
 

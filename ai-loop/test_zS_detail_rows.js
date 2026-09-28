@@ -287,6 +287,39 @@ async function run() {
   const pvAll = D.getElementById('prevBox').textContent;
   ok('[9] 미리보기에 원가·마진 낱말이 없다', !/원가|마진|공급가/.test(pvAll));
 
+  /* ═══ ⑩ 🔴 원가 줄을 고치면 — 고객 가격에 반영 / 우리 마진에서 부담 (2026-09-28 대표 요청) ═══
+     「부대비용을 올렸는데 왜 마진은 그대로냐」 — 기본(고객 가격에 반영)은 총액이 오르고 마진은 그대로다.
+     「우리 마진에서 부담」이면 본사 수익이 같은 만큼 내려가 **총액은 그대로 · 마진만 준다.** */
+  {
+    D.querySelector('.step[data-step="2"]').click(); await sleep(30);
+    const sumNum = (label) => {
+      const box = Array.from(D.querySelectorAll('#sumBox > div')).find((d) => (d.querySelector('b') || {}).textContent === label);
+      return box ? Number(box.querySelector('strong').textContent.replace(/[^\d-]/g, '')) : NaN;
+    };
+    const rowInput = (re) => Array.from(D.querySelectorAll('#moneyRows tr')).map((tr) => [tr.querySelector('.nm'), tr.querySelector('input[data-k]')])
+      .find(([n, i]) => n && i && re.test(n.textContent)) || [];
+    const [, anc] = rowInput(/부대비용/);
+    ok('[10] 부대비용 줄이 있다 (검사 준비)', !!anc);
+    if (anc) {
+      const T0 = sumNum('최종 총액'), M0 = sumNum('마진'), base = Number(anc.value.replace(/[^\d-]/g, ''));
+      const bump = (v) => { const [, a] = rowInput(/부대비용/); a.value = String(v); a.dispatchEvent(new W.Event('change', { bubbles: true })); };
+      bump(base + 500000); await sleep(10);
+      ok('[10-b] 기본(고객 가격에 반영): 총액 +50만 · 마진 그대로', sumNum('최종 총액') === T0 + 500000 && sumNum('마진') === M0,
+        (sumNum('최종 총액') - T0) + ' / ' + (sumNum('마진') - M0));
+      bump(base); await sleep(10);
+      D.querySelector('input[name="absorb"][value="margin"]').checked = true;
+      bump(base + 500000); await sleep(10);
+      ok('[10-c] 🔴 우리 마진에서 부담: 총액 그대로 · 마진 −50만', sumNum('최종 총액') === T0 && sumNum('마진') === M0 - 500000,
+        (sumNum('최종 총액') - T0) + ' / ' + (sumNum('마진') - M0));
+      const [, hq] = rowInput(/본사/);
+      ok('[10-d] 본사 수익 줄이 내려가 「수정됨」이 붙는다', !!hq && hq.closest('tr').classList.contains('edited'));
+      ok('[10-e] 무엇을 옮겼는지 말한다', /본사 수익 −500,000 · 고객 총액 그대로/.test(D.getElementById('absorbMsg').textContent),
+        D.getElementById('absorbMsg').textContent);
+      bump(base); await sleep(10);
+      ok('[10-f] 되돌리면 둘 다 원래대로', sumNum('최종 총액') === T0 && sumNum('마진') === M0);
+    }
+  }
+
   dom.window.close();
 }
 
