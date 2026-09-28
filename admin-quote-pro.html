@@ -2306,7 +2306,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         const out2 = await r2.json().catch(() => ({}));
         setDirty(false);
         show(out2.issuedBefore
-          ? '✅ 저장했습니다 — 이미 발급된 건이라 다음 발급부터 차수(R1…)가 붙습니다'
+          ? '✅ 저장했습니다 — 이미 발급된 건이라 다음 발급부터 _V2, _V3 …이 붙습니다'
           : '✅ 저장했습니다', false, true);
         emitEdit('saved', { issuedBefore: !!out2.issuedBefore, changed: out2.changed || '' });
         return;

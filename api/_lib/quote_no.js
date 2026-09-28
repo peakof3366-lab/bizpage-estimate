@@ -56,7 +56,9 @@
    ⚠ 차수까지 붙은 모양(`BP-2609-0001-R1`)은 `QUOTE_NO_ANY_RE`다. 기본 번호만 받아야
      하는 자리(대장 컬럼·유일 제약)와 **표시용**을 섞지 않는다. */
 const QUOTE_NO_RE = /^BP-\d{4}-\d{4,}$/;
-const QUOTE_NO_ANY_RE = /^BP-\d{4}-\d{4,}(-R\d+)?$/;
+/* 🔴 2026-09-28 대표 지시로 차수 표기가 `-R1` → `_V2`로 바뀌었다. **옛 `-R1`도 알아본다** —
+   이미 그 번호로 고객에게 나간 견적서가 있다(발급본은 찍힌 문자열 그대로 저장된다). */
+const QUOTE_NO_ANY_RE = /^BP-\d{4}-\d{4,}(?:-R\d+|_V\d+)?$/;
 /* 🔴 옛 형식(`Q260824-03`). **버리지 않는다** — 이미 이 번호로 나간 문서가 있고,
    마이그레이션이 「번호 없음」과 구별해야 한다. */
 const LEGACY_QUOTE_NO_RE = /^Q\d{6}-\d{2,}$/;
@@ -73,19 +75,21 @@ function formatQuoteNo(kstDayOrYm, n) {
 }
 
 /* 차수 표기. 🔴 **최초 발행본은 차수 없이** (대표 지시) — revNo 1이 최초다.
+   🔴 2026-09-28 대표 지시: 수정본은 `BP-2609-0030_V2`, `_V3` … — **V 뒤 숫자가 곧 몇 번째 판인지**다
+     (최초본이 V1이라 두 번째가 V2). 예전 `-R1`(= 두 번째)과 같은 자리를 가리킨다.
    ⚠ `revNo`가 null이면(관계가 끊겨 셀 수 없으면) **붙이지 않는다.** 틀린 차수는
      「최신이 아닌데 최신처럼 보이는」 자리를 만든다(`buildRevisionMap`의 revBroken과 같은 규칙). */
 function withRevision(baseNo, revNo) {
   const base = String(baseNo || '');
   const n = Number(revNo);
   if (!base || !Number.isFinite(n) || n <= 1) return base;
-  return base + '-R' + (n - 1);
+  return base + '_V' + n;
 }
 
 /* 표시된 번호에서 기본 번호만 떼어 낸다 — 검색·대조가 차수 때문에 빗나가지 않게. */
 function baseQuoteNo(anyNo) {
   const s = String(anyNo || '').trim();
-  const m = s.match(/^(BP-\d{4}-\d{4,})(?:-R\d+)?$/);
+  const m = s.match(/^(BP-\d{4}-\d{4,})(?:-R\d+|_V\d+)?$/i);
   return m ? m[1] : s;
 }
 
@@ -112,7 +116,7 @@ async function nextQuoteNo(sql) {
 /* ── 발급된 견적서가 쓸 번호 ────────────────────────────────────────────────
    🔴 **새로 따지 않고 견적의 번호를 물려받는다.** 같은 건을 두 번 발급하면 예전에는
      번호가 둘 났고, 그러면 고객과 담당자가 **서로 다른 번호로 같은 건**을 부른다.
-   차수는 그 건의 발급 횟수로 센다 — 1차는 차수 없이, 2차부터 `-R1`.
+   차수는 그 건의 발급 횟수로 센다 — 1차는 차수 없이, 2차부터 `_V2`(2026-09-28 전엔 `-R1`).
    ⚠ 견적 기록이 없는 건(옛 링크·기록 저장이 실패한 건)은 **새로 딴다.** 번호 없이
      내보내지 않는다(그 건만 대장에서 영영 못 찾는다). */
 async function shareQuoteNo(sql, quoteId) {

@@ -63,7 +63,7 @@
     const more = list.length > 1 ? ' 외 ' + (list.length - 1) : '';
     /* ⚠ 2026-09-27 발급 번호가 이 견적의 번호와 같으면(9/23부터 그렇다 — 차수 -R1만 다르다) 번호를 다시 적지 않는다.
        바로 왼쪽 「견적번호」 칸과 같은 글자가 한 줄에 두 번 찍혔다. 다를 때(옛 Q번호 등)만 번호를 적는다. */
-    const base = (s) => String(s || '').replace(/-R\d+$/i, '');
+    const base = (s) => String(s || '').replace(/(?:-R\d+|_V\d+)$/i, '');   /* 옛 -R1 · 새 _V2 둘 다 */
     const label = ownNo && base(first.no) === base(ownNo) ? '발급됨' + (first.no !== ownNo ? ' (' + String(first.no).slice(String(ownNo).length + 1) + ')' : '') : (first.no || '견적서');
     return ' <span title="견적서 대장에 있는 문서 — ' + esc(list.map((x) => x.no + ' (' + (EM_SHARE_ST[x.status] || x.status) + ')').join(', '))
       + '" style="font-size:.72rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:.05rem .35rem">📄 '
@@ -104,7 +104,7 @@
       const no = String(e.quoteNo || '');
       const hay = (e.destLabel+e.orgName+e.contact+e.programLabel+no+(e.sourceQuoteNo||'')).toLowerCase();
       if (hay.includes(emSearch)) return true;
-      const q = emSearch.replace(/-r\d+$/i, '');
+      const q = emSearch.replace(/(?:-r\d+|_v\d+)$/i, '');
       return !!no && q !== emSearch && no.toLowerCase().includes(q);
     });
 
@@ -1328,7 +1328,7 @@
     } else if (d.__aqp === 'saved') {
       emEditDirty = false;
       if (st) {
-        st.textContent = '저장했습니다' + (d.issuedBefore ? ' · 다음 발급부터 차수(R1…)가 붙습니다' : '');
+        st.textContent = '저장했습니다' + (d.issuedBefore ? ' · 다음 발급부터 _V2, _V3 …이 붙습니다' : '');
         st.style.color = '#15803D';
       }
       /* 🔴 **고객용 탭이 곧바로 새 내용을 보여줘야 한다** (대표 지시 2-4:
