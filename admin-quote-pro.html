@@ -171,6 +171,16 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
    ⚠ `.bar` 전체를 바꾸지 않는다. 버튼만 있는 줄(「+ 하루 추가」·이동 버튼)은 지금이 맞다. */
 .bar-field { align-items: flex-end; }
 .bar-field .f { margin: 0; }
+/* ④ 전체 일정에 한 번에 — 숙박·식사 셋 + 적용 버튼 한 줄 (2026-09-28) */
+.iti-bulk { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px 10px; margin: 14px 0; padding: 12px 14px;
+  background: #F6F6F2; border: 1.5px solid var(--line); }
+.iti-bulk-t { flex: 0 0 100%; font-size: 12.5px; font-weight: 800; color: var(--ink); }
+.iti-bulk .f { margin: 0; flex: 0 1 120px; }
+.iti-bulk .f.iti-bulk-stay { flex: 1 1 220px; }
+.iti-bulk .f input { height: 44px; }
+.iti-bulk .btn { height: 44px; }
+.iti-bulk-msg { align-self: center; font-size: 12px; font-weight: 700; color: var(--ok); }
+.iti-bulk-msg:empty { display: none; }
 /* ④ 추천 코스 줄 — 고르는 칸과 버튼의 높이·아래선을 맞춘다 (2026-09-28 대표 요청). 칸은 남는 폭을 쓴다 */
 #itiDraftBar { flex-wrap: nowrap; }
 #itiDraftBar .f { flex: 1 1 auto; min-width: 0 !important; max-width: 560px; }
@@ -606,6 +616,21 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         <span class="bar-sp"></span>
       </div>
       <p class="note hidden" id="itiDraftState"></p>
+      <!-- 🔴 2026-09-28 대표 요청 「작성자가 더 손쉽게」 — 날마다 같은 숙박·식사를 반복해 적던 것을 줄인다.
+           ① 한 번에 적용 줄 ② 식사 칸은 눌러서 고르기(목록) ③ 숙박은 앞날에서 이어받기(아래 renderIti). 저장 모양은 그대로. -->
+      <div class="iti-bulk" id="itiBulk">
+        <span class="iti-bulk-t">전체 일정에 한 번에</span>
+        <label class="f iti-bulk-stay"><span>숙박</span><input type="text" id="bkStay" placeholder="호텔명" autocomplete="off" /></label>
+        <label class="f"><span>조식</span><input type="text" id="bkB" list="mealOpts" autocomplete="off" /></label>
+        <label class="f"><span>중식</span><input type="text" id="bkL" list="mealOpts" autocomplete="off" /></label>
+        <label class="f"><span>석식</span><input type="text" id="bkD" list="mealOpts" autocomplete="off" /></label>
+        <button type="button" class="btn" id="btnBulkApply">모든 날에 적용</button>
+        <span class="iti-bulk-msg" id="itiBulkMsg" role="status"></span>
+      </div>
+      <datalist id="mealOpts">
+        <option value="호텔식"></option><option value="현지식"></option><option value="한식"></option>
+        <option value="기내식"></option><option value="자유식"></option><option value="불포함"></option>
+      </datalist>
       <div id="itiDays"></div>
       <div class="bar">
         <button type="button" class="btn btn-sm" id="btnAddDay">+ 하루 추가</button>
@@ -1749,9 +1774,10 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         /* ⚠ 2026-09-27 짧은 칸 다섯(지역·숙박·조식·중식·석식)을 **먼저** 둔다 — 넓은 화면에서 한 줄에
              들어가 하루 카드가 한 줄씩 준다. 예전엔 지역·숙박 / 오전 / 오후 / 저녁 / 식사 셋 순이라
              짧은 칸이 두 줄로 흩어졌다. 칸·저장 이름은 그대로(순서만). */
-        + '<label class="f"><span>조식</span><input type="text" data-im="' + i + '" data-k="b" value="' + esc(it.meals.b) + '" /></label>'
-        + '<label class="f"><span>중식</span><input type="text" data-im="' + i + '" data-k="l" value="' + esc(it.meals.l) + '" /></label>'
-        + '<label class="f"><span>석식</span><input type="text" data-im="' + i + '" data-k="d" value="' + esc(it.meals.d) + '" /></label>'
+        /* 식사 칸은 **눌러서 고른다**(list=mealOpts · 직접 적어도 된다) — 2026-09-28 */
+        + '<label class="f"><span>조식</span><input type="text" list="mealOpts" autocomplete="off" data-im="' + i + '" data-k="b" value="' + esc(it.meals.b) + '" /></label>'
+        + '<label class="f"><span>중식</span><input type="text" list="mealOpts" autocomplete="off" data-im="' + i + '" data-k="l" value="' + esc(it.meals.l) + '" /></label>'
+        + '<label class="f"><span>석식</span><input type="text" list="mealOpts" autocomplete="off" data-im="' + i + '" data-k="d" value="' + esc(it.meals.d) + '" /></label>'
         + '<label class="f" style="grid-column:1/-1"><span>오전</span><input type="text" data-it="' + i + '" data-k="am" value="' + esc(it.am) + '" /></label>'
         + '<label class="f" style="grid-column:1/-1"><span>오후</span><input type="text" data-it="' + i + '" data-k="pm" value="' + esc(it.pm) + '" /></label>'
         + '<label class="f" style="grid-column:1/-1"><span>저녁</span><input type="text" data-it="' + i + '" data-k="eve" value="' + esc(it.eve) + '" /></label>'
@@ -1762,6 +1788,23 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     box.querySelectorAll('[data-it]').forEach((el) => {
       el.addEventListener('input', () => { S.iti[Number(el.dataset.it)][el.dataset.k] = el.value; renderPreview(); });
     });
+    /* 숙박은 **앞날에서 이어받는다** (2026-09-28) — 어느 날 숙박을 적고 칸을 떠나면, 그 뒤의 **빈** 숙박 칸에 같은 이름이 들어간다.
+       ⚠ 마지막 날(귀국일)은 채우지 않는다 · 사람이 이미 적은 칸은 덮지 않는다 */
+    box.querySelectorAll('[data-it][data-k="stay"]').forEach((el) => {
+      el.addEventListener('change', () => {
+        const i = Number(el.dataset.it), v = el.value.trim();
+        if (!v) return;
+        const last = S.iti.length > 1 ? S.iti.length - 1 : S.iti.length;
+        let n = 0;
+        for (let j = i + 1; j < last; j++) {
+          if (String(S.iti[j].stay || '').trim()) continue;
+          S.iti[j].stay = v; n++;
+          const inp = box.querySelector('[data-it="' + j + '"][data-k="stay"]');
+          if (inp) inp.value = v;
+        }
+        if (n) renderPreview();
+      });
+    });
     box.querySelectorAll('[data-im]').forEach((el) => {
       el.addEventListener('input', () => { S.iti[Number(el.dataset.im)].meals[el.dataset.k] = el.value; renderPreview(); });
     });
@@ -1769,6 +1812,30 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       el.addEventListener('click', () => { S.iti.splice(Number(el.dataset.irm), 1); stampDates(); renderIti(); renderPreview(); });
     });
   }
+  /* 「모든 날에 적용」 — 적은 칸만 모든 날에 넣는다(빈 칸은 안 건드린다). 숙박은 마지막 날(귀국일) 제외.
+     ⚠ 이미 **다른 값**이 적힌 날이 있으면 먼저 묻는다 — 말없이 덮으면 따로 적어 둔 호텔·식사가 사라진다. */
+  $('btnBulkApply').addEventListener('click', () => {
+    const msg = $('itiBulkMsg');
+    if (!S.iti.length) { msg.textContent = '먼저 「일수에 맞추기」로 날짜 칸을 만드세요'; return; }
+    const want = { stay: $('bkStay').value.trim(), b: $('bkB').value.trim(), l: $('bkL').value.trim(), d: $('bkD').value.trim() };
+    if (!want.stay && !want.b && !want.l && !want.d) { msg.textContent = '적용할 값을 한 칸 이상 적어 주세요'; return; }
+    const last = S.iti.length > 1 ? S.iti.length - 1 : -1;
+    const cur = (it, k) => String((k === 'stay' ? it.stay : (it.meals || {})[k]) || '').trim();
+    let clash = 0;
+    S.iti.forEach((it, j) => Object.keys(want).forEach((k) => {
+      if (!want[k] || (k === 'stay' && j === last)) return;
+      const c = cur(it, k); if (c && c !== want[k]) clash++;
+    }));
+    if (clash && !confirm('이미 다른 값이 적힌 칸 ' + clash + '곳을 덮어씁니다. 계속할까요?')) return;
+    S.iti.forEach((it, j) => {
+      if (!it.meals) it.meals = { b: '', l: '', d: '' };
+      if (want.stay && j !== last) it.stay = want.stay;
+      ['b', 'l', 'd'].forEach((k) => { if (want[k]) it.meals[k] = want[k]; });
+    });
+    renderIti(); renderPreview();
+    msg.textContent = '✓ ' + S.iti.length + '일에 적용했습니다' + (want.stay && last >= 0 ? ' (숙박은 마지막 날 제외)' : '');
+    clearTimeout(msg._t); msg._t = setTimeout(() => { msg.textContent = ''; }, 6000);
+  });
   $('btnAddDay').addEventListener('click', () => { fitDays(S.iti.length + 1); renderPreview(); });
   $('btnFitDays').addEventListener('click', () => { fitDays(num($('pDays'))); renderPreview(); });
 

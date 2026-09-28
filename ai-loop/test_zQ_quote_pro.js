@@ -335,6 +335,26 @@ const EDIT_CHECKS = async () => {
 
   await goStep(4);
   ok('[18-j] 일정 2일치가 돌아왔다', /기관 방문/.test(vals()), vals().slice(0, 100));
+  /* 🔴 2026-09-28 대표 요청 「작성자가 더 손쉽게」 — 한 번에 적용 · 식사 목록 · 숙박 이어받기 */
+  {
+    const fire = (el, v, ev) => { el.value = v; el.dispatchEvent(new boot.win.Event(ev || 'input', { bubbles: true })); };
+    const addDay = D.getElementById('btnAddDay'); if (addDay) { addDay.click(); await boot.tick(60); }   // 3일로
+    const stays = () => Array.from(D.querySelectorAll('#itiDays [data-k="stay"]')).map((e) => e.value);
+    const meal = (k) => Array.from(D.querySelectorAll('#itiDays [data-im][data-k="' + k + '"]')).map((e) => e.value);
+    ok('[18-p] 날짜가 셋이다 (검사 준비)', stays().length === 3, String(stays().length));
+    fire(D.getElementById('bkStay'), 'A호텔'); fire(D.getElementById('bkB'), '호텔식');
+    D.getElementById('btnBulkApply').click(); await boot.tick(60);
+    ok('[18-p2] 「모든 날에 적용」 — 숙박은 마지막 날 빼고 들어간다', stays().join('|') === 'A호텔|A호텔|', stays().join('|'));
+    ok('[18-p3] 조식은 모든 날에 들어간다', meal('b').every((v) => v === '호텔식'), meal('b').join('|'));
+    ok('[18-p4] 적지 않은 칸(중식)은 건드리지 않는다', !meal('l').some((v) => v === '호텔식'));
+    ok('[18-p5] 식사 칸은 눌러서 고른다 (목록이 붙어 있다)',
+      D.querySelectorAll('#itiDays input[data-im][list="mealOpts"]').length === 9 && D.querySelectorAll('#mealOpts option').length >= 5);
+    /* 숙박 이어받기: 첫날을 바꾸면 **빈** 뒷날만 채운다 — 둘째 날을 비우고 첫날을 B호텔로 */
+    const s2 = D.querySelector('#itiDays [data-it="1"][data-k="stay"]'); fire(s2, '');
+    const s1 = D.querySelector('#itiDays [data-it="0"][data-k="stay"]'); fire(s1, 'B호텔'); fire(s1, 'B호텔', 'change');
+    await boot.tick(30);
+    ok('[18-p6] 숙박을 적으면 빈 뒷날이 이어받는다 (마지막 날 제외)', stays().join('|') === 'B호텔|B호텔|', stays().join('|'));
+  }
   await goStep(5);
   const prevTxt = ((D.getElementById('prevBox') || {}).textContent || '').replace(/\s+/g, ' ');
   ok('[18-j2] 미리보기에 총액이 뜬다', /30,000,000/.test(prevTxt), prevTxt.slice(0, 100));
