@@ -247,6 +247,12 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .note-i .ni-tag { margin-left: 4px; font-size: 11px; font-weight: 600; color: var(--t-sub); }
 .note-i .ni-foot { margin-top: 6px; }
 .note-i .ni-list { margin: 4px 0 0; padding-left: 18px; }
+/* 접는 설명은 글씨를 조금 크게 (2026-09-28 대표 요청) · 예시 상자 */
+.help-fold .note-i { font-size: 13.5px; line-height: 1.8; }
+.note-i .ni-ex { margin: 8px 0 2px; padding: 10px 12px; background: #fff; border: 1px solid var(--line); color: var(--t); }
+.note-i .ni-ex > div + div { margin-top: 2px; }
+.note-i .ni-ex-t { font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+.note-i .ni-dim { color: var(--t-sub); font-size: 12.5px; }
 .note-i .ni-list li { margin: 2px 0; }
 .note-i .ni-when { display: block; color: var(--t-sub); }
 .note-i .ni-when::before { content: '└ '; }
@@ -428,7 +434,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         <summary><span class="hf-c">ⓘ 설명 보기 — 어느 줄을 고치면 무엇이 바뀌나</span><span class="hf-o">ⓘ 설명 접기</span></summary>
       <div class="note-i">
         <p class="ni-lead"><b>자동값 = 고객이 받는 금액</b>입니다. 여기서 고쳐도 자동 계산 방식은 그대로이고, 그 위에 조정만 얹힙니다.</p>
-        <p class="ni-h">🔴 어느 줄을 고치느냐에 따라 바뀌는 돈이 다릅니다</p>
+        <p class="ni-h">어느 줄을 고치느냐에 따라 바뀌는 돈이 다릅니다</p>
         <ul class="ni-list">
           <!-- ⚠ 여행자보험은 「내부」 표시가 붙지만 원가다(buildRows의 margin 판정) — 예전 문구는 내부 줄 전부를 마진이라 했다 -->
           <li><b>원가 줄</b> (항공·호텔·식사·차량·가이드·관광·부대비용·여행자보험) → <b>원가</b>가 바뀝니다
@@ -464,23 +470,25 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
       <!-- 2026-09-28 대표 요청 「알아듣기 쉽게」 — 두 문단을 제목 한 줄 + 목록으로. 기본값(원가/마진)은 buildAdjust의 kind와 같게 -->
       <details class="help-fold" id="helpAdjust">
         <summary><span class="hf-c">ⓘ 설명 보기 — 10+1(FOC) · 원가/마진 고르기</span><span class="hf-o">ⓘ 설명 접기</span></summary>
+      <!-- 2026-09-28 대표 요청 — 붉은 원 빼고 · 글씨 조금 크게 · **예시로** 설명. 예시 숫자는 계산 규칙 그대로다
+           (FOC 자동값 = −1인 단가 × 무료 인원 · 총액 = 단가 × 전체 인원 · 원가/마진 어느 쪽이든 총액은 같은 만큼 변한다). -->
       <div class="note-i" style="margin-bottom:10px">
-        <p class="ni-h">🔴 10+1(FOC)은 표기 단가에 반영됩니다 <span class="ni-tag">대표 결정</span></p>
-        <ul class="ni-list">
-          <li>무료 인원을 넣으면 → <b>총액이 그만큼 줄어듭니다</b></li>
-          <li>1인 단가 = 줄어든 총액 ÷ <b>전체 인원</b>(무료 인원 포함)</li>
-        </ul>
-        <p class="ni-foot">아래 제안값은 채워 둔 예시입니다. 아는 값으로 고쳐 쓰세요.</p>
+        <p class="ni-h">10+1(FOC)은 표기 단가에 반영됩니다 <span class="ni-tag">대표 결정</span></p>
+        <div class="ni-ex">
+          <div class="ni-ex-t">예) 20명 · 총액 2,000만원 · 1명 무료</div>
+          <div>무료 1명분 <b>−100만원</b> → 총액 <b>1,900만원</b></div>
+          <div>1인 단가 = 1,900만 ÷ <b>20명</b>(무료 포함) = <b>95만원</b></div>
+        </div>
+        <p class="ni-foot">제안값은 예시입니다. 아는 값으로 고쳐 쓰세요.</p>
       </div>
       <div class="note-i" style="margin-bottom:10px">
-        <p class="ni-h">🔴 금액을 적으면 「어디서 나가나」를 확인해 주세요</p>
-        <p class="ni-lead"><b>고객 총액은 어느 쪽을 골라도 같습니다.</b> 달라지는 건 우리가 보는 마진율뿐입니다.</p>
-        <ul class="ni-list">
-          <li><b>원가</b> → 공급사에 줄 돈으로 기록
-            <span class="ni-when">기본: 인솔자·싱글 차지·항공 BD·지상비 (우리가 내는 돈)</span></li>
-          <li><b>마진</b> → 우리 몫에서 늘거나 줄어든 것으로 기록
-            <span class="ni-when">기본: FOC (우리가 포기하는 돈)</span></li>
-        </ul>
+        <p class="ni-h">「어디서 나가나」 — 원가인가, 마진인가</p>
+        <p class="ni-lead">어느 쪽을 골라도 <b>고객 총액은 같습니다.</b> 달라지는 건 마진율뿐입니다.</p>
+        <div class="ni-ex">
+          <div class="ni-ex-t">예) 인솔자 비용 300만원을 적으면 — 고객 총액 +300만원</div>
+          <div><b>원가</b>로 고르면 → 원가 +300만 · 마진 그대로 <span class="ni-dim">(우리가 내는 돈: 인솔자·싱글 차지·항공 BD·지상비)</span></div>
+          <div><b>마진</b>으로 고르면 → 원가 그대로 · 마진 +300만 <span class="ni-dim">(우리가 포기하는 돈: FOC)</span></div>
+        </div>
       </div>
       </details>
       <table class="mt">
