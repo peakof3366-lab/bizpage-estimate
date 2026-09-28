@@ -1161,7 +1161,9 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
          닫힌 채로는 한 칸도 안 세어진다. 감추는 규칙(`.eng-only`)으로 직접 가린다. */
     const n = Array.prototype.filter.call(
       $('moreCond').querySelectorAll('label.f'),
-      (el) => !(ADHOC && el.classList.contains('eng-only'))
+      /* 🔴 2026-09-28 — 칸이 아니라 **묶음 상자**가 eng-only인 경우(포함 항목·골프)도 있다 — `closest`로 본다.
+           예전엔 칸 자신만 봐서 직접 입력·고치기에서 보이는 4칸을 「6칸」이라 했다(대표 지적). */
+      (el) => !(ADHOC && el.closest('.eng-only'))
     ).length;
     const box = $('moreCondSum');
     /* 직접 입력은 계산을 안 한다 — 「기본값으로 계산」은 이 모드에선 틀린 말이다 (2026-09-27) */

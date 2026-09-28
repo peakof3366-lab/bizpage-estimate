@@ -420,6 +420,9 @@ const EDIT_CHECKS = async () => {
     ok('[18-o3] 결과가 버튼 옆에 보인다', !!msg && /저장했습니다/.test(msg.textContent), msg ? msg.textContent : '없음');
     ok('[18-o4] 저장 처리기는 하나다 (btnSave를 눌러 준다)', /b\.addEventListener\('click', \(\) => \$\('btnSave'\)\.click\(\)\)/.test(PRO));
   }
+  /* 🔴 2026-09-28 대표 지적 — 보이는 칸은 4개(박수·호텔·좌석·객실)인데 「세부 조건 6칸」이라 했다 */
+  ok('[18-t] 고치기의 세부 조건 칸 수가 보이는 칸과 같다 (4칸)', /세부 조건 4칸/.test((D.getElementById('moreCondSum') || {}).textContent || ''),
+    (D.getElementById('moreCondSum') || {}).textContent);
   ok('[18-m2] 고치기로 연 견적서 제목줄에 번호가 뜬다',
     /견적번호 BP-2609-0042/.test(((D.getElementById('docEdit') || {}).textContent || '')));
 
@@ -623,7 +626,7 @@ ok('[19-h] 각 단계에 다음·이전 버튼이 있다',
 /* 🔴 필수 4칸과 나머지를 같은 무게로 늘어놓지 않는다 — 나머지는 접는다 */
 ok('[19-i] 세부 조건을 접어 둔다', /<details class="more" id="moreCond">/.test(PRO));
 ok('[19-j] 접힌 칸 수를 세어서 적는다 — 모드마다 다르다',
-  /ADHOC && el\.classList\.contains\('eng-only'\)/.test(PRO));
+  /ADHOC && el\.closest\('\.eng-only'\)/.test(PRO));   /* 2026-09-28 묶음 상자가 eng-only인 칸도 뺀다 */
 /* 🔴 `select`는 첫 보기가 그냥 골라진 값이다 — 안 건드리면 목록 첫 행으로 산출됐다 */
 ok('[19-k] 목적지는 「고르지 않음」으로 시작한다',
   /목적지를 고르세요/.test(PRO) && /sel\.value = '';/.test(PRO));
