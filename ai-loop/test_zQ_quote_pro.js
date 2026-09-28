@@ -311,7 +311,7 @@ const EDIT_CHECKS = async () => {
     .map((i) => i.value || '').join(' | ');
   await goStep(2);
   ok('[18-g] 🔴 감춘 수익 줄도 돌아왔다', /ENBT 수익/.test(vals()), vals().slice(0, 100));
-  ok('[18-h] 원가가 돌아왔다', val('adhocCost') === '21000000', val('adhocCost'));
+  ok('[18-h] 원가가 돌아왔다 (천 단위 쉼표로 보인다)', val('adhocCost').replace(/,/g, '') === '21000000', val('adhocCost'));
   ok('[18-i] 실무 변수(FOC)가 돌아왔다', /FOC/.test(txt()));
   /* 🔴🔴 **상세 내용이 통째로 날아가던 자리** (2026-09-24에 실제로 겪었다).
      `normalize`가 모든 줄에 `right: ''`를 채워 두는데, 되돌려 읽을 때 「right가 있으면

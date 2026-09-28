@@ -187,6 +187,22 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
   font-family: inherit; font-size: 12.5px; font-weight: 700; padding: 0 6px; }
 .mt select.k:focus { outline: 2px solid var(--ink); outline-offset: -2px; }
 .mt tr.internal { background: #FBF7F7; }
+/* 판매가 표의 묶음 제목 · 합계 줄 (2026-09-28) */
+.mt tr.grp td { background: #fff; padding: 14px 8px 6px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.mt tr.grp td b { font-weight: 800; color: var(--ink); }
+.mt tr.grp td span { margin-left: 8px; color: var(--t-sub); font-weight: 500; }
+.mt tr.subtot td { background: #F4F4F0; border-top: 2px solid var(--ink); }
+.mt tr.subtot td b { font-size: 14px; }
+/* 원가 상자 — 판매가 표와 떨어뜨려 둔다 */
+.cost-box { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin: 14px 0 4px; padding: 14px 16px;
+  background: #FBF7F7; border: 1.5px solid #EAD9D9; }
+.cost-f { display: flex; flex-direction: column; gap: 2px; margin: 0; flex: 1 1 260px; }
+.cost-t { font-size: 13px; font-weight: 800; color: var(--ink); }
+.cost-d { font-size: 11.5px; color: var(--t-sub); }
+.cost-box input { width: 180px; height: 40px; text-align: right; border: 1.5px solid var(--ink); background: #fff;
+  font-family: inherit; font-size: 14px; font-weight: 700; padding: 0 10px; font-variant-numeric: tabular-nums; }
+.cost-eq { font-size: 12.5px; color: var(--t-sub); white-space: nowrap; }
+.cost-eq b { color: var(--ink); }
 .mt .nm { font-weight: 600; }
 .mt .sub { display: block; font-size: 11px; color: var(--t-dim); font-weight: 500; }
 
@@ -404,7 +420,7 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
     <div class="sec-h"><span class="sec-n">2</span><span class="sec-t">금액 — 항목별 조정</span>
       <span class="sec-d eng-only">자동값을 고치면 「수정됨」과 증감이 붙습니다</span>
       <!-- ⚠ 2026-09-27 직접 입력(·고치기)에는 자동값이 없다 — 위 문구가 없는 기능을 말하고 있었다 -->
-      <span class="sec-d adhoc-only">항목과 금액을 직접 적습니다 · 원가 합계를 적으면 마진이 계산됩니다</span></div>
+      </div>
     <div class="sec-b">
       <!-- 2026-09-28 대표 요청 「알아듣기 쉽게」 — 한 문단에 세 가지가 섞여 있던 것을 결론 한 줄 + 줄 종류별 두 줄로 -->
       <!-- 2026-09-28 대표 요청 — 설명은 **기본으로 접어 둔다**(표가 먼저 보이게). 펼치면 아래 안내 -->
@@ -422,25 +438,27 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         </ul>
       </div>
       </details>
-      <!-- 2026-09-28 대표 요청 「깔끔하게 · 붉은 원 삭제」 — 한 문단 → 결론 한 줄 + 보조 한 줄 -->
-      <div class="note-i adhoc-only">
-        <p class="ni-lead"><b>적은 금액이 그대로 고객 견적가가 됩니다.</b> 요율·계수·마진이 자동으로 붙지 않으니 최종 금액으로 적어 주세요.</p>
-      </div>
+      <!-- 🔴 2026-09-28 대표 지적 「처음 보는 사람은 원가를 적으라는 건지 판매가를 적으라는 건지 헷갈린다」
+           표의 금액 = **고객에게 받을 돈(판매가)**, 합계가 견적 총액이다. 원가는 **표 아래 한 칸**에만 적는다.
+           예전엔 표 머리가 그냥 「금액」이고 「원가 합계」 칸이 표 바로 위 오른쪽에 붙어 있어, 둘이 같은 종류로 읽혔다.
+           → (대표 요청: 설명 글은 최소로) 안내문 없이 · 표 머리 「판매 금액 (고객가)」 · 줄 묶음 제목 · 판매가 합계 줄 · 원가는 표 아래 별도 상자. -->
       <div class="bar adhoc-only" style="margin-top:0;margin-bottom:12px">
         <button type="button" class="btn btn-sm" id="btnAddLine">+ 항목 추가</button>
-        <span class="bar-sp"></span>
-        <label class="f" style="flex-direction:row;align-items:center;gap:8px">
-          <span style="white-space:nowrap">원가 합계 <em>(🔴 내부)</em></span>
-          <input type="text" inputmode="numeric" id="adhocCost" value="0"
-            style="width:140px;height:34px;text-align:right;border:1.5px solid var(--line);font-family:inherit;padding:0 8px" />
-        </label>
       </div>
       <table class="mt" id="moneyTable">
         <thead><tr>
-          <th>항목</th><th class="n">자동값</th><th class="n"><span class="eng-only">적용값</span><span class="adhoc-only">금액</span></th><th class="n">증감</th><th class="n"></th>
+          <th>항목</th><th class="n">자동값</th><th class="n"><span class="eng-only">적용값</span><span class="adhoc-only">판매가 (고객 금액)</span></th><th class="n">증감</th><th class="n"></th>
         </tr></thead>
         <tbody id="moneyRows"></tbody>
       </table>
+      <!-- 원가는 여기 한 칸 — 판매가 표와 **떨어뜨려** 둔다(같은 표에 있으면 같은 종류로 읽힌다) -->
+      <div class="cost-box adhoc-only">
+        <label class="cost-f" for="adhocCost">
+          <span class="cost-t">공급사 원가 합계</span>
+        </label>
+        <input type="text" inputmode="numeric" id="adhocCost" value="0" aria-label="공급사 원가 합계" />
+        <span class="cost-eq" id="costToMargin"></span>
+      </div>
 
       <h3 style="margin:20px 0 6px;font-size:13px;font-weight:800">실무 변수</h3>
       <!-- 2026-09-28 대표 요청 「알아듣기 쉽게」 — 두 문단을 제목 한 줄 + 목록으로. 기본값(원가/마진)은 buildAdjust의 kind와 같게 -->
@@ -1188,7 +1206,20 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 
   function renderMoney() {
     const tb = $('moneyRows'); tb.innerHTML = '';
-    S.rows.forEach((r) => {
+    /* 직접 입력·고치기: **고객에게 보이는 줄 먼저, 내부 줄은 따로 묶어** 제목을 붙인다(보여 주는 순서만 — S.rows는 그대로) */
+    const grp = (text, sub) => {
+      const g = document.createElement('tr'); g.className = 'grp';
+      g.innerHTML = '<td colspan="5"><b>' + text + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</td>';
+      tb.appendChild(g);
+    };
+    const order = S.adhoc ? S.rows.filter((r) => !r.internal).concat(S.rows.filter((r) => r.internal)) : S.rows;
+    let shownInternalHead = false;
+    if (S.adhoc && order.length) grp('고객 견적서 항목');
+    order.forEach((r) => {
+      if (S.adhoc && r.internal && !shownInternalHead) {
+        shownInternalHead = true;
+        grp('내부 항목', '견적서 비노출');
+      }
       const d = r.val - r.auto;
       const tr = document.createElement('tr');
       if (d !== 0) tr.className = 'edited';
@@ -1222,6 +1253,13 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
         + '<span class="sub">엔진이 마지막에 계수를 한 번 곱해 생기는 차이입니다 · 고칠 수 없습니다</span></td>'
         + '<td class="n">' + won(S.residual) + '</td><td class="n">' + won(S.residual)
         + '</td><td class="n">—</td><td class="n"></td>';
+      tb.appendChild(tr);
+    }
+    if (S.adhoc) {
+      const sub = S.rows.reduce((a, r) => a + (Number(r.val) || 0), 0) + (S.residual || 0);
+      const tr = document.createElement('tr'); tr.className = 'subtot';
+      tr.innerHTML = '<td><b>판매가 합계</b></td>'
+        + '<td class="n"></td><td class="n"><b>' + won(sub) + '</b></td><td class="n"></td><td class="n"></td>';
       tb.appendChild(tr);
     }
     tb.querySelectorAll('input[data-k]').forEach((el) => {
@@ -1333,6 +1371,13 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 
   function renderSum() {
     const t = totals();
+    if (S.adhoc) {
+      /* 원가 칸을 천 단위로 보이게(쓰는 중엔 안 건드린다) · 옆에 「→ 마진 ○○원 (○%)」 */
+      const c = $('adhocCost');
+      if (c && document.activeElement !== c) c.value = won(num(c));
+      const eq = $('costToMargin');
+      if (eq) eq.innerHTML = num(c) > 0 ? '→ 마진 <b>' + won(t.margin) + '원</b> · ' + t.rate.toFixed(1) + '%' : '';
+    }
     $('sumBox').innerHTML =
       (S.adhoc ? '' : '<div><b>자동 산출 총액</b><strong>' + won(t.autoTotal) + '</strong><em>원 · 고객이 받는 금액</em></div>')
       + '<div><b>' + (S.adhoc ? '견적 총액' : '최종 총액') + '</b><strong>' + won(t.total) + '</strong><em>원 '
