@@ -1255,14 +1255,9 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
             + '" aria-label="' + esc(r.name) + ' 자동값으로 되돌리기">되돌리기</button>')) + '</td>';
       tb.appendChild(tr);
     });
-    if (S.residual !== 0) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td><span class="nm">계수 반올림 조정</span>'
-        + '<span class="sub">엔진이 마지막에 계수를 한 번 곱해 생기는 차이입니다 · 고칠 수 없습니다</span></td>'
-        + '<td class="n">' + won(S.residual) + '</td><td class="n">' + won(S.residual)
-        + '</td><td class="n">—</td><td class="n"></td>';
-      tb.appendChild(tr);
-    }
+    /* 2026-09-28 대표 결정 — 「계수 반올림 조정」 줄은 **화면에서만 감춘다.** 몇 원짜리라 헷갈리게만 했다.
+       🔴 계산에는 그대로 들어간다(totals의 S.residual) — 빼면 저장만 해도 고객이 받은 총액이 몇 원 움직인다.
+       직접 입력·고치기의 「판매가 합계」 줄은 잔차를 **포함해** 센다(아래) — 그래서 합계가 총액과 맞는다. */
     if (S.adhoc) {
       const sub = S.rows.reduce((a, r) => a + (Number(r.val) || 0), 0) + (S.residual || 0);
       const tr = document.createElement('tr'); tr.className = 'subtot';
