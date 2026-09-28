@@ -171,6 +171,12 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
    ⚠ `.bar` 전체를 바꾸지 않는다. 버튼만 있는 줄(「+ 하루 추가」·이동 버튼)은 지금이 맞다. */
 .bar-field { align-items: flex-end; }
 .bar-field .f { margin: 0; }
+/* ④ 추천 코스 줄 — 고르는 칸과 버튼의 높이·아래선을 맞춘다 (2026-09-28 대표 요청). 칸은 남는 폭을 쓴다 */
+#itiDraftBar { flex-wrap: nowrap; }
+#itiDraftBar .f { flex: 1 1 auto; min-width: 0 !important; max-width: 560px; }
+#itiDraftBar select, #itiDraftBar .btn { height: 44px; min-height: 44px; box-sizing: border-box; }
+#itiDraftBar .btn { padding: 0 16px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+@media (max-width: 520px) { #itiDraftBar { flex-wrap: wrap; } #itiDraftBar .btn { width: 100%; } }
 
 /* ── 금액 표 ── */
 .mt { width: 100%; border-collapse: collapse; }
