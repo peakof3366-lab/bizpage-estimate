@@ -215,7 +215,7 @@ p { line-height:1.8; }
 .brand {
   font-size:16px; font-weight:900; color:var(--white);
   letter-spacing:.06em; text-transform:uppercase; flex-shrink:0;
-  display:flex; align-items:center;
+  display:flex; align-items:center; min-height:44px;  /* 34px였다 */
 }
 /* BI 로고 — 높이로만 크기를 정한다(가로는 비율이 정한다).
    🔴 2026-09-17 「좀더 크게」는 이 값만 올려서는 안 됐다 — **로고 파일 자체가 여백 33%**였다
@@ -226,12 +226,14 @@ p { line-height:1.8; }
 .nav-links a {
   font-size:12.5px; font-weight:600; color:rgba(255,255,255,.78);
   text-transform:uppercase;
-  padding:6px 11px;
-  border-bottom:1.5px solid transparent;
-  transition:color var(--dur), border-color var(--dur);
+  /* ⚠ 누를 높이 34px였다 — 밑줄이 border-bottom이라 padding을 늘리면 밑줄이 글자에서 멀어졌다.
+     밑줄을 글자 장식으로 옮기고 위아래만 넓혔다(CLAUDE.md YA에 적힌 방법, 2026-09-29) */
+  padding:13px 11px;
+  text-decoration:underline 1.5px transparent; text-underline-offset:7px;
+  transition:color var(--dur), text-decoration-color var(--dur);
   white-space:nowrap;
 }
-.nav-links a:hover { color:var(--white); border-bottom-color:var(--brand); }
+.nav-links a:hover { color:var(--white); text-decoration-color:var(--brand); }
 
 /* 패키지 여행 (VP) — **다른 화면으로 나가는 링크**라 나머지 앵커와 구분한다.
    나머지는 이 페이지 안을 이동하는데 이것만 페이지를 떠난다. 같은 모양이면
@@ -1357,9 +1359,9 @@ p { line-height:1.8; }
   gap:56px; margin-bottom:48px; padding-bottom:48px;
   border-bottom:1px solid var(--rule-inv);
 }
-.footer-brand   { font-size:15px; font-weight:900; color:var(--white); display:block; margin-bottom:9px; text-transform:uppercase; letter-spacing:.06em; }
+.footer-brand   { font-size:15px; font-weight:900; color:var(--white); display:block; padding:9px 0; margin:-9px 0 0;  /* 누를 높이 26→44, 보이는 자리는 그대로 */ text-transform:uppercase; letter-spacing:.06em; }
 .footer-tagline { font-size:12px; color:rgba(255,255,255,.55); font-weight:600; margin-bottom:18px; }
-.footer-info    { font-size:12.5px; color:rgba(255,255,255,.48); line-height:2; }
+.footer-info    { max-width:46em; font-size:12.5px; color:rgba(255,255,255,.48); line-height:2; }
 .footer-col-contact { text-align:right; }
 .footer-col-label   { font-size:10px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.55); margin-bottom:14px; display:block; }
 .footer-col-contact p { font-size:12.5px; color:rgba(255,255,255,.6); line-height:2; }
@@ -1398,7 +1400,7 @@ p { line-height:1.8; }
 @media (max-width:1024px) {
   :root { --sec-y:96px; }
 
-  .nav-links a { font-size:12px; padding:6px 7px; }
+  .nav-links a { font-size:12px; padding:13px 7px; }
 
   /* 태블릿: 2열, 모든 카드 span 없이 16/9 균등 배치 → 행 바닥 완벽 정렬 */
   .gallery-grid { grid-template-columns:repeat(2,1fr); }

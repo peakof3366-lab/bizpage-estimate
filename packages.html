@@ -52,13 +52,14 @@
   border-bottom: 1px solid var(--rule-inv);
 }
 .pk-nav-in { display: flex; align-items: center; gap: 20px; height: 62px; }
-.pk-brand { font-weight: 800; font-size: 17px; letter-spacing: -.01em; color: var(--white); }
+.pk-brand { font-weight: 800; font-size: 17px; letter-spacing: -.01em; color: var(--white); display: inline-flex; align-items: center; min-height: 44px; }
 /* 이 줄은 먹색 바(`--ink`) 위다 — 보라는 2.95:1이라 안 읽힌다(측정). 민트로 쓴다. */
 .pk-brand span { color: var(--brand-on-dk); }
 .pk-nav-sep { flex: 1; }
 .pk-nav a.pk-back {
   font-size: 13px; color: rgba(255,255,255,.72); border: 1px solid var(--rule-inv);
   padding: 8px 14px; border-radius: 999px; transition: .18s;
+  display: inline-flex; align-items: center; min-height: 44px; box-sizing: border-box;  /* 41px였다 */
 }
 .pk-nav a.pk-back:hover { color: var(--white); border-color: rgba(255,255,255,.3); }
 
@@ -120,7 +121,7 @@
 .pk-cta:hover { background: var(--brand-dk); }
 
 /* ── 빈 상태 ── **비어 있는 이유를 말한다.** 그냥 비면 고장으로 읽힌다 */
-.pk-empty { padding: 56px 20px; text-align: center; color: var(--t-sub); font-size: 14px; line-height: 1.9; }
+.pk-empty { padding: 56px 20px; text-align: center; color: var(--t-sub); font-size: 14px; line-height: 1.9; max-width: 46em; margin: 0 auto; }
 .pk-empty b { color: var(--t-head); }
 
 /* ── 상세 ── */
@@ -283,7 +284,7 @@
            ③ 정말 파는 것이 없다 → 맞춤 견적으로 안내한다 */
       empty.innerHTML = LOAD_FAILED
         ? '<b>지금 상품 목록을 불러오지 못했습니다.</b><br>일시적인 오류입니다 — 잠시 후 다시 열어 주세요.'
-          + ' <button type="button" onclick="location.reload()" style="margin-left:6px;background:#CC001A;color:#fff;border:none;padding:6px 14px;font-weight:700;cursor:pointer">다시 시도</button>'
+          + ' <button type="button" onclick="location.reload()" style="margin-left:6px;background:var(--brand);color:#fff;border:none;padding:6px 14px;min-height:44px;font-weight:700;cursor:pointer">다시 시도</button>'
         : (ALL.length
           ? '<b>고르신 지역에는 지금 열린 상품이 없습니다.</b><br>다른 지역을 보시거나, 원하시는 일정으로 <a href="index.html" style="border-bottom:1px solid #ccc">맞춤 견적</a>을 요청해 주세요.'
           : '<b>지금 준비된 패키지 상품이 없습니다.</b><br>원하시는 지역·일정을 알려 주시면 맞춰 드립니다 — <a href="index.html" style="border-bottom:1px solid #ccc">맞춤 견적 요청</a>');
