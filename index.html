@@ -609,45 +609,6 @@
                 <div class="result-card-top">
                   <p class="result-label">예상 견적</p>
                 </div>
-                <!-- 견적 확인 후 활성화되는 견적서 버튼 — **이 화면의 유일한 견적서 입구다.**
-                     🔴 이름을 「견적서 확인하기」에서 **「견적서 받기」로 바꿨다**(2026-09-15).
-                     같은 `id="downloadEstimate"`가 `admin-quote.html (⚠ 2026-09-17에 지워졌다 — 이제 이름의 기준은 여기다)`(담당자 산출)에도 있는데
-                     **거기서는 이미 「견적서 받기」였다.** 같은 id·같은 함수인데 화면마다
-                     이름이 달라, 매뉴얼과 검사가 같은 것을 두 이름으로 부르고 있었다. -->
-                <button type="button" id="downloadEstimate" class="btn-dl-main hidden">
-                  견적서 받기
-                </button>
-
-                <!-- 견적 기반 상담 신청 버튼 -->
-                <button type="button" id="consultBtn" class="btn-consult hidden" onclick="openConsultForm()">
-                  이 견적으로 바로 상담 신청하기
-                </button>
-
-                <!-- 상담 신청 인라인 폼 -->
-                <div id="consultFormWrap" class="consult-form-wrap hidden">
-                  <div class="consult-form-head">
-                    <span>빠른 상담 신청</span>
-                    <button type="button" class="consult-close" onclick="closeConsultForm()" aria-label="닫기">&times;</button>
-                  </div>
-                  <div class="consult-fields">
-                    <label class="consult-label">
-                      이름 <span class="req">*</span>
-                      <input type="text" id="consultName" placeholder="이름을 입력하세요" />
-                    </label>
-                    <label class="consult-label">
-                      연락처 <span class="req">*</span>
-                      <input type="tel" id="consultTel" placeholder="010-0000-0000" />
-                    </label>
-                  </div>
-                  <div id="consultSuccess" class="consult-ok hidden">
-                    상담 신청이 완료되었습니다! 빠른 시일 내에 연락드리겠습니다.
-                  </div>
-                  <div class="consult-actions">
-                    <button type="button" onclick="closeConsultForm()" class="btn-consult-cancel">취소</button>
-                    <button type="button" onclick="submitConsult()" class="btn-consult-submit">상담 신청하기 →</button>
-                  </div>
-                </div>
-
                 <!-- 선택 전 안내 -->
                 <div id="noEstimateMsg" class="no-estimate-msg">
                   <span class="no-est-icon"><i data-lucide="calculator" style="width:28px;height:28px;color:var(--brand)"></i></span>
@@ -694,6 +655,48 @@
                     <a href="#contact" class="disc-cta">정확한 견적 상담 신청 →</a>
                   </div>
                   <p class="result-note" id="resultNote"></p>
+                </div>
+
+                <!-- 🔴 2026-09-29 대표 결정: **금액을 버튼 위로.** 예전엔 「예상 견적」 바로 밑에
+                     [견적서 받기]·[상담 신청]이 먼저 오고 금액은 그 아래였다 — 고객은 금액을 보기 전에
+                     누를 버튼부터 만났다(9/15부터 대기 중이던 건). 버튼·폼은 **옮기기만** 했다(id·동작 그대로). -->
+                <!-- 견적 확인 후 활성화되는 견적서 버튼 — **이 화면의 유일한 견적서 입구다.**
+                     🔴 이름을 「견적서 확인하기」에서 **「견적서 받기」로 바꿨다**(2026-09-15).
+                     같은 `id="downloadEstimate"`가 `admin-quote.html (⚠ 2026-09-17에 지워졌다 — 이제 이름의 기준은 여기다)`(담당자 산출)에도 있는데
+                     **거기서는 이미 「견적서 받기」였다.** 같은 id·같은 함수인데 화면마다
+                     이름이 달라, 매뉴얼과 검사가 같은 것을 두 이름으로 부르고 있었다. -->
+                <button type="button" id="downloadEstimate" class="btn-dl-main hidden">
+                  견적서 받기
+                </button>
+
+                <!-- 견적 기반 상담 신청 버튼 -->
+                <button type="button" id="consultBtn" class="btn-consult hidden" onclick="openConsultForm()">
+                  이 견적으로 바로 상담 신청하기
+                </button>
+
+                <!-- 상담 신청 인라인 폼 -->
+                <div id="consultFormWrap" class="consult-form-wrap hidden">
+                  <div class="consult-form-head">
+                    <span>빠른 상담 신청</span>
+                    <button type="button" class="consult-close" onclick="closeConsultForm()" aria-label="닫기">&times;</button>
+                  </div>
+                  <div class="consult-fields">
+                    <label class="consult-label">
+                      이름 <span class="req">*</span>
+                      <input type="text" id="consultName" placeholder="이름을 입력하세요" />
+                    </label>
+                    <label class="consult-label">
+                      연락처 <span class="req">*</span>
+                      <input type="tel" id="consultTel" placeholder="010-0000-0000" />
+                    </label>
+                  </div>
+                  <div id="consultSuccess" class="consult-ok hidden">
+                    상담 신청이 완료되었습니다! 빠른 시일 내에 연락드리겠습니다.
+                  </div>
+                  <div class="consult-actions">
+                    <button type="button" onclick="closeConsultForm()" class="btn-consult-cancel">취소</button>
+                    <button type="button" onclick="submitConsult()" class="btn-consult-submit">상담 신청하기 →</button>
+                  </div>
                 </div>
 
                 <!-- 기업 단체연수 체크리스트 (참고용 · 접이식)
