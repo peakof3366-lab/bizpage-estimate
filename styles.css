@@ -153,7 +153,7 @@ p { line-height:1.8; }
    두 벌**이 된다(결함 생성기 ①). 한 곳에서 11.5px로 올렸다 — 이 클래스를 쓰는
    다섯 자리(FAQ·회사소개·문의·404·매뉴얼)가 같이 올라간다 — 원래 한 식구다.
    이 저장소엔 10.5px가 아직 **19곳** 남아 있다 — 이번 지시 밖이라 안 건드렸다. */
-  font-size:11.5px; font-weight:700;
+  font-size:12px; font-weight:700;
   letter-spacing:.22em; text-transform:uppercase;
   color:var(--brand);
   margin-bottom:14px;
@@ -224,8 +224,8 @@ p { line-height:1.8; }
 .brand-logo { display:block; height:34px; width:auto; }
 .nav-links { display:flex; align-items:center; gap:2px; flex-wrap:nowrap; }
 .nav-links a {
-  font-size:11.5px; font-weight:600; color:rgba(255,255,255,.78);
-  letter-spacing:.08em; text-transform:uppercase;
+  font-size:12.5px; font-weight:600; color:rgba(255,255,255,.78);
+  text-transform:uppercase;
   padding:6px 11px;
   border-bottom:1.5px solid transparent;
   transition:color var(--dur), border-color var(--dur);
@@ -344,8 +344,8 @@ p { line-height:1.8; }
   padding:5px 14px;
   /* 어두운 히어로 위 배지 — 측정 2.79:1이었다. 글자·테두리를 민트로 돌린다 */
   background:rgba(99,214,212,.08); border:1px solid rgba(99,214,212,.38);
-  color:var(--brand-on-dk); font-size:10.5px; font-weight:700;
-  letter-spacing:.14em; text-transform:uppercase;
+  color:var(--brand-on-dk); font-size:12px; font-weight:700;
+  letter-spacing:.04em; text-transform:uppercase;
   border-radius:var(--r); align-self:flex-start;
 }
 .hero-center h1 {
@@ -412,15 +412,15 @@ p { line-height:1.8; }
 }
 .stat-unit { color:var(--brand); font-size:.58em; font-weight:700; }
 .stat-lbl-hero {
-  margin-top:8px; font-size:10.5px; color:rgba(255,255,255,.62);
-  letter-spacing:.1em; text-transform:uppercase; display:block;
+  margin-top:8px; font-size:12px; color:rgba(255,255,255,.62);
+  display:block;
 }
 
 /* ── 9. Estimate ────────────────────────────────────────────────── */
 .section-estimate { padding:var(--sec-y) 0; background:var(--bg-off); }
 .estimate-section-hd { text-align:center; margin-bottom:56px; }
 .est-hd-badge {
-  display:inline-block; font-size:10.5px; font-weight:700;
+  display:inline-block; font-size:12px; font-weight:700;
   letter-spacing:.2em; color:var(--brand);
   text-transform:uppercase; margin-bottom:14px;
 }
@@ -459,9 +459,8 @@ p { line-height:1.8; }
 .fld-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
 .fld-row > .fld { margin-bottom:0; }
 .fld-lbl {
-  font-size:11px; font-weight:700; color:var(--t-head);
+  font-size:12.5px; font-weight:700; color:var(--t-head);
   display:flex; align-items:center; gap:6px;
-  letter-spacing:.08em; text-transform:uppercase;
 }
 .fld-hint { font-size:11px; font-weight:400; color:var(--t-sub); text-transform:none; letter-spacing:0; }
 .fld select,
@@ -506,11 +505,11 @@ p { line-height:1.8; }
 .date-block-header {
   display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;
 }
-.date-block-title { font-size:11px; font-weight:700; color:var(--t-head); text-transform:uppercase; letter-spacing:.06em; }
+.date-block-title { font-size:12.5px; font-weight:700; color:var(--t-head); }
 .date-block-hint  { font-size:11px; color:var(--t-sub); }
 .date-inputs-row  { display:flex; align-items:flex-end; gap:10px; }
 .date-input-wrap  { flex:1; display:flex; flex-direction:column; gap:5px; }
-.date-inp-label   { font-size:10.5px; font-weight:600; color:var(--t-mute); text-transform:uppercase; letter-spacing:.08em; }
+.date-inp-label   { font-size:12px; font-weight:600; color:var(--t-mute); }
 .date-inp {
   width:100%; padding:10px 13px;
   border:1.5px solid rgba(0,0,0,.12);
@@ -528,7 +527,7 @@ p { line-height:1.8; }
 .season-badge {
   display:inline-block; margin-top:7px; padding:3px 11px;
   background:rgba(81,77,194,.07); border:1px solid rgba(81,77,194,.18);
-  color:var(--brand); font-size:10.5px; font-weight:700;
+  color:var(--brand); font-size:12px; font-weight:700;
   border-radius:var(--r); letter-spacing:.04em;
 }
 
@@ -572,9 +571,9 @@ p { line-height:1.8; }
 .inc-lock { color:var(--t-mute); }
 .inc-fixed-text { font-size:13px; font-weight:600; flex:1; color:var(--t-head); }
 .inc-fixed-badge {
-  font-size:10px; font-weight:700; padding:2px 9px;
+  font-size:12px; font-weight:700; padding:2px 9px;
   background:var(--ink); color:var(--white);
-  border-radius:var(--r); letter-spacing:.06em;
+  border-radius:var(--r);
 }
 .inc-chips { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px; }
 .inc-chip {
@@ -600,13 +599,13 @@ p { line-height:1.8; }
   border-radius:var(--r);
 }
 .vip-count-inp {
-  width:72px; padding:6px 10px;
+  width:72px; padding:6px 10px; min-height:44px; box-sizing:border-box;  /* 37px였다 — 폰에서 누르는 칸 */
   border:1.5px solid rgba(0,0,0,.15); border-radius:var(--r);
   font-size:13px; font-weight:600; color:var(--t-head);
   background:var(--bg); transition:border-color var(--dur);
 }
 .vip-count-inp:focus { border-color:var(--brand); outline:none; box-shadow:0 0 0 3px rgba(81,77,194,.12); }
-.vip-count-unit { font-size:11.5px; color:var(--t-mute); }
+.vip-count-unit { font-size:12.5px; color:var(--t-mute); }
 /* TJ: 옵션을 왜 못 쓰는지 그 자리에서 말하는 줄(골프 요금이 없는 목적지).
    ⚠ 색은 --t-sub까지만 쓴다. --t-mute는 이 배경(--bg-off)에서 대비가 모자란다 —
      check_contrast.py가 잡는 자리다(「보이는데 안 읽히는 글자」). */
@@ -723,13 +722,12 @@ p { line-height:1.8; }
   border-radius:var(--r); padding:32px; box-shadow:var(--sh-md);
 }
 .result-card-top { margin-bottom:16px; }
-.result-label { font-size:10px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--brand); }
+.result-label { font-size:12.5px; font-weight:700; color:var(--brand); }
 .btn-dl-main {
   width:100%; padding:14px; background:var(--ink); color:var(--white);
   border:2px solid var(--ink); border-radius:var(--r);
   font-size:13px; font-weight:700; cursor:pointer;
-  transition:all var(--dur); margin-bottom:10px;
-  letter-spacing:.05em; text-transform:uppercase;
+  transition:all var(--dur); margin:16px 0 10px;  /* 금액 아래로 옮겨 위 여백을 준다(2026-09-29) */
 }
 .btn-dl-main:hover { background:var(--ink2); border-color:var(--ink2); }
 .btn-consult {
@@ -737,7 +735,6 @@ p { line-height:1.8; }
   border:1.5px solid rgba(81,77,194,.35); border-radius:var(--r);
   font-size:13px; font-weight:700; cursor:pointer;
   transition:all var(--dur); margin-bottom:20px;
-  letter-spacing:.05em; text-transform:uppercase;
 }
 .btn-consult:hover { background:var(--brand); color:var(--white); border-color:var(--brand); }
 
@@ -816,7 +813,7 @@ p { line-height:1.8; }
 /* 체크리스트 (접이식 details/summary) */
 .group-checklist { margin-top:24px; padding-top:24px; border-top:1px solid rgba(0,0,0,.08); }
 .gcl-head {
-  margin-bottom:16px; cursor:pointer; list-style:none;
+  margin-bottom:16px; cursor:pointer; list-style:none; min-height:44px;  /* 32px였다 */
   display:flex; align-items:center; justify-content:space-between; gap:12px;
 }
 .gcl-head::-webkit-details-marker { display:none; }
@@ -860,7 +857,7 @@ p { line-height:1.8; }
    ⚠ 「제목 위 선」은 오늘 포함 항목에 넣은 것과 **같은 구조**다 — 화면이 한 언어를 쓴다.
      색만 다르다(포함 항목=먹선(주) · 체크리스트=레드선(참고용 보조)). */
 .gcl-sec-title {
-  font-size:11.5px; font-weight:800; letter-spacing:.02em;
+  font-size:12.5px; font-weight:800;
   text-transform:none; color:var(--t-head);
   border-top:2px solid var(--brand); padding-top:9px; margin-bottom:11px;
 }
@@ -882,9 +879,9 @@ p { line-height:1.8; }
 
 /* 포함 항목 태그 */
 #estimateDetail { margin-top:16px; }
-.inc-label { font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--t-sub); margin-bottom:10px; }
+.inc-label { font-size:12.5px; font-weight:700; color:var(--t-mute); margin-bottom:10px; }  /* 10px·자간이었다 — 견적을 낸 뒤에만 보여 검사가 못 봤다 */
 .inc-tags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
-.inc-tag { padding:4px 11px; background:var(--bg-off); border:1px solid rgba(0,0,0,.1); border-radius:var(--r); font-size:11px; font-weight:600; color:var(--t-head); }
+.inc-tag { padding:4px 11px; background:var(--bg-off); border:1px solid rgba(0,0,0,.1); border-radius:var(--r); font-size:12.5px; font-weight:600; color:var(--t-head); }
 
 /* 총액 */
 .result-totals { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
@@ -895,11 +892,12 @@ p { line-height:1.8; }
    ⚠ 총액을 없애지는 않았다 — 기업 담당자에게는 그게 결재 숫자다. */
 .total-per   { background:var(--ink); border-top:3px solid var(--brand); }
 .total-grand { background:var(--bg-off); border:1px solid rgba(0,0,0,.08); }
-.total-lbl { font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; margin-bottom:7px; display:block; }
+/* ⚠ 10px·자간이었다(2026-09-29) — 결과 카드는 견적을 낸 뒤에만 보여 화면 검사가 한 번도 못 봤다 */
+.total-lbl { font-size:12.5px; font-weight:700; margin-bottom:7px; display:block; }
 /* 🔴 2026-09-14 대표 지시: 검은 바탕의 「1인당 금액」은 **흰색**이다.
    전에는 65% 투명이라 흐렸다. CLAUDE.md — 흐림은 `opacity`가 아니라 **색으로** 정한다. */
 .total-per   .total-lbl { color:#fff; }
-.total-grand .total-lbl { color:var(--t-sub); }
+.total-grand .total-lbl { color:var(--t-mute); }
 .total-amt { font-size:22px; font-weight:900; letter-spacing:-.03em; display:block; }
 /* 🔴 2026-09-14 대표 지시: 두 박스의 **글자·숫자 크기 비율을 맞춘다.**
    전에는 32px 대 18px이라 나란히 놓였을 때 한쪽만 크게 튀었다. 크기는 같게 두고
@@ -908,7 +906,7 @@ p { line-height:1.8; }
      들어오면 사람은 놀라서 나간다(VX에서 순서를 뒤집은 이유다). 같게까지만 한다. */
 .total-per   .total-amt { color:var(--brand); font-size:28px; }
 .total-grand .total-amt { color:var(--t-head); font-size:28px; }
-.rate-note-badge { font-size:11px; color:var(--t-sub); background:var(--bg-off); border-radius:var(--r); padding:5px 11px; margin-bottom:12px; text-align:center; }
+.rate-note-badge { font-size:12px; color:var(--t-mute); background:var(--bg-off); border-radius:var(--r); padding:5px 11px; margin-bottom:12px; text-align:center; }
 .estimate-disclaimer { background:rgba(81,77,194,.04); border:1px solid rgba(81,77,194,.12); border-radius:var(--r); padding:16px; }
 .disc-main { font-size:13px; font-weight:700; color:var(--t-head); margin-bottom:6px; }
 .disc-sub  { font-size:12px; color:var(--t-mute); line-height:1.7; margin-bottom:12px; }
@@ -924,7 +922,7 @@ p { line-height:1.8; }
              background:#fff; border:1.5px solid var(--brand); border-radius:var(--r);
              text-decoration:none; transition:background .18s, color .18s; }
 .disc-cta:hover { background:var(--brand); color:#fff; }
-.result-note { font-size:11px; color:var(--t-sub); margin-top:10px; text-align:center; }
+.result-note { font-size:12px; color:var(--t-mute); margin-top:10px; text-align:center; }
 
 /* ── 10. Gallery ────────────────────────────────────────────────── */
 .section-gallery { padding:var(--sec-y) 0; background:var(--bg-dk); }
@@ -932,7 +930,7 @@ p { line-height:1.8; }
 .gal-section-hd { display:flex; align-items:flex-end; gap:24px; margin-bottom:18px; }
 .gal-hd-inner { flex-shrink:0; }
 /* 어두운 구역의 아이브로우 — 측정 2.95:1이었다 */
-.gal-hd-our { display:block; font-size:10.5px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--brand-on-dk); margin-bottom:5px; }
+.gal-hd-our { display:block; font-size:12px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--brand-on-dk); margin-bottom:5px; }
 .gal-hd-title { font-size:clamp(36px,6vw,64px); font-weight:900; color:var(--white); letter-spacing:-.04em; line-height:.95; }
 .gal-hd-line { flex:1; height:1px; background:var(--rule-inv); margin-bottom:14px; }
 .gal-hd-sub { font-size:14px; color:rgba(255,255,255,.55); line-height:1.7; max-width:560px; margin-bottom:28px; }
@@ -981,7 +979,7 @@ p { line-height:1.8; }
 .gal-filter-row { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:28px; }
 .gal-filter-chip {
   font-family:var(--font); font-size:12.5px; font-weight:600; color:rgba(255,255,255,.65);
-  background:none; border:1px solid var(--rule-inv); padding:8px 16px; cursor:pointer;
+  background:none; border:1px solid var(--rule-inv); padding:8px 16px; cursor:pointer; min-height:44px;
   transition:border-color var(--dur), color var(--dur), background var(--dur);
 }
 .gal-filter-chip:hover { color:var(--white); border-color:rgba(255,255,255,.3); }
@@ -1049,7 +1047,7 @@ p { line-height:1.8; }
   margin-bottom:56px; padding-bottom:48px;
   border-bottom:1px solid var(--rule);
 }
-.svc-eyebrow { display:block; font-size:10.5px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--brand); margin-bottom:14px; }
+.svc-eyebrow { display:block; font-size:12px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--brand); margin-bottom:14px; }
 .svc-title { font-size:clamp(24px,3.5vw,40px); font-weight:900; color:var(--t-head); letter-spacing:-.04em; line-height:1.18; }
 .svc-lead  { font-size:15px; color:var(--t-mute); line-height:1.85; }
 
@@ -1077,7 +1075,7 @@ p { line-height:1.8; }
 }
 .svc-item:hover::before { color:rgba(81,77,194,.08); }
 .svc-step { display:block; font-size:36px; font-weight:900; color:rgba(0,0,0,.08); line-height:1; letter-spacing:-.05em; margin-bottom:6px; }
-.svc-cat  { font-size:10px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--brand); }
+.svc-cat  { font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--brand); }
 .svc-item-title { font-size:20px; font-weight:800; color:var(--t-head); margin-bottom:12px; letter-spacing:-.02em; }
 .svc-item-desc  { font-size:14px; color:var(--t-mute); line-height:1.8; margin-bottom:16px; }
 .svc-bullets { display:flex; flex-direction:column; gap:7px; }
@@ -1086,7 +1084,7 @@ p { line-height:1.8; }
 .svc-item-metric { text-align:right; padding-top:4px; position:relative; z-index:1; }
 .svc-metric-val  { font-size:44px; font-weight:900; color:var(--t-head); letter-spacing:-.05em; line-height:1; }
 .svc-metric-unit { font-size:.48em; color:var(--brand); font-weight:700; }
-.svc-metric-lbl  { font-size:10.5px; color:var(--t-sub); margin-top:5px; margin-bottom:0; letter-spacing:.04em; }
+.svc-metric-lbl  { font-size:12px; color:var(--t-mute); margin-top:5px; margin-bottom:0; }
 /* 🔴 **누를 곳이 79×16px이었다** (YA). 그리고 이 카드에서 **누를 수 있는 것은 이것뿐**이다
    — 카드는 `<div>`라 카드를 눌러도 아무 일도 안 난다. 즉 폰에서 「견적 계산하기」로 가는
    길이 16px짜리 줄 하나였다(WCAG 2.5.5 · Apple HIG 권장 44px).
@@ -1120,7 +1118,7 @@ p { line-height:1.8; }
 
 /* 견적 조건 배지 */
 .cond-tags-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-.cond-tag { padding:3px 10px; border-radius:var(--r); font-size:10.5px; font-weight:700; }
+.cond-tag { padding:3px 10px; border-radius:var(--r); font-size:12px; font-weight:700; }
 .cond-discount     { background:rgba(34,197,94,.1); color:#059669; border:1px solid rgba(34,197,94,.2); }
 .cond-season-peak  { background:rgba(239,68,68,.1);  color:#b91c1c; border:1px solid rgba(239,68,68,.2); }
 .cond-season-offpeak { background:rgba(59,130,246,.1); color:#1d4ed8; border:1px solid rgba(59,130,246,.2); }
@@ -1135,7 +1133,7 @@ p { line-height:1.8; }
 .section-portfolio { padding:var(--sec-y) 0; background:var(--bg-off); }
 .pf-section-hd { display:flex; align-items:flex-end; gap:28px; margin-bottom:36px; }
 .pf-hd-inner { flex-shrink:0; }
-.pf-hd-our { display:block; font-size:10.5px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--brand); margin-bottom:5px; }
+.pf-hd-our { display:block; font-size:12px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--brand); margin-bottom:5px; }
 /* 방향 1 — 섹션 대형 타이틀 */
 .pf-hd-title { font-size:clamp(40px,7vw,80px); font-weight:900; color:var(--t-head); letter-spacing:-.05em; line-height:.95; }
 .pf-hd-line  { flex:1; height:1px; background:var(--rule-md); margin-bottom:14px; }
@@ -1144,7 +1142,7 @@ p { line-height:1.8; }
 .pf-filter {
   padding:7px 20px; border:1.5px solid rgba(0,0,0,.12);
   border-radius:var(--r); background:var(--bg);
-  font-size:12px; font-weight:600; color:var(--t-mute);
+  font-size:13px; font-weight:600; color:var(--t-mute); min-height:44px;  /* 37px였다 */
   cursor:pointer; transition:all var(--dur);
 }
 .pf-filter:hover  { border-color:var(--ink); color:var(--t-head); }
@@ -1190,7 +1188,7 @@ p { line-height:1.8; }
 .section-testimonials .section-sub-center   { color:rgba(255,255,255,.65); }
 .testi-eyebrow-row { display:flex; align-items:center; gap:20px; margin-bottom:22px; }
 .testi-eyebrow-line { flex:1; height:1px; background:var(--rule-inv); }
-.testi-eyebrow-label { font-size:10.5px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:rgba(255,255,255,.55); }
+.testi-eyebrow-label { font-size:12px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:rgba(255,255,255,.55); }
 
 .testimonial-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:56px; }
 .testi-card {
@@ -1208,7 +1206,7 @@ p { line-height:1.8; }
    색으로 정한다(투명도는 뒤에 무엇이 오는지에 따라 결과가 달라진다). */
 .testi-star  { color:var(--brand-on-dk); font-size:12px; letter-spacing:.06em; margin-bottom:7px; }
 .testi-name  { font-size:14px; font-weight:700; color:var(--white); margin-bottom:3px; }
-.testi-org   { font-size:11.5px; color:rgba(255,255,255,.6); }
+.testi-org   { font-size:12.5px; color:rgba(255,255,255,.6); }
 
 /* trust strip */
 .trust-strip {
@@ -1225,7 +1223,7 @@ p { line-height:1.8; }
 .trust-num  { font-size:32px; font-weight:900; color:var(--white); letter-spacing:-.04em; line-height:1; }
 /* 수치 단위(YRS·+·%) — 검정 띄 위라 2.75:1이었다 */
 .trust-unit { color:var(--brand-on-dk); font-size:.5em; font-weight:700; }
-.trust-lbl  { font-size:10.5px; color:rgba(255,255,255,.62); margin-top:7px; letter-spacing:.04em; }
+.trust-lbl  { font-size:12px; color:rgba(255,255,255,.62); margin-top:7px; }
 .trust-divider { display:none; }
 
 /* ── 14. FAQ ────────────────────────────────────────────────────── */
@@ -1300,8 +1298,8 @@ p { line-height:1.8; }
 }
 .partner-logo-item:hover img { filter:grayscale(0) opacity(1); }
 .partner-logo-name {
-  font-size:10.5px; font-weight:600; color:var(--t-sub); text-align:center;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:118px;
+  font-size:12px; font-weight:600; color:var(--t-mute); text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;
   letter-spacing:-.01em;
 }
 
@@ -1335,7 +1333,7 @@ p { line-height:1.8; }
   padding:36px; display:flex; flex-direction:column; gap:18px;
   box-shadow:var(--sh-lg);
 }
-.contact-form label { display:flex; flex-direction:column; gap:7px; font-size:10.5px; font-weight:700; color:var(--t-head); text-transform:uppercase; letter-spacing:.06em; }
+.contact-form label { display:flex; flex-direction:column; gap:7px; font-size:12.5px; font-weight:700; color:var(--t-head); }
 .contact-form input,
 .contact-form textarea {
   padding:11px 14px; border:1.5px solid rgba(0,0,0,.12);
@@ -1360,12 +1358,12 @@ p { line-height:1.8; }
   border-bottom:1px solid var(--rule-inv);
 }
 .footer-brand   { font-size:15px; font-weight:900; color:var(--white); display:block; margin-bottom:9px; text-transform:uppercase; letter-spacing:.06em; }
-.footer-tagline { font-size:11px; color:rgba(255,255,255,.55); font-weight:600; letter-spacing:.1em; text-transform:uppercase; margin-bottom:18px; }
-.footer-info    { font-size:11.5px; color:rgba(255,255,255,.48); line-height:2; }
+.footer-tagline { font-size:12px; color:rgba(255,255,255,.55); font-weight:600; margin-bottom:18px; }
+.footer-info    { font-size:12.5px; color:rgba(255,255,255,.48); line-height:2; }
 .footer-col-contact { text-align:right; }
 .footer-col-label   { font-size:10px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.55); margin-bottom:14px; display:block; }
 .footer-col-contact p { font-size:12.5px; color:rgba(255,255,255,.6); line-height:2; }
-.footer-bottom { font-size:11px; color:rgba(255,255,255,.38); text-align:center; }
+.footer-bottom { font-size:12px; color:rgba(255,255,255,.38); text-align:center; }
 
 /* ── 18. Floating ───────────────────────────────────────────────── */
 .scroll-top-btn {
@@ -1400,7 +1398,7 @@ p { line-height:1.8; }
 @media (max-width:1024px) {
   :root { --sec-y:96px; }
 
-  .nav-links a { font-size:11px; padding:6px 8px; }
+  .nav-links a { font-size:12px; padding:6px 7px; }
 
   /* 태블릿: 2열, 모든 카드 span 없이 16/9 균등 배치 → 행 바닥 완벽 정렬 */
   .gallery-grid { grid-template-columns:repeat(2,1fr); }
@@ -2073,7 +2071,7 @@ p { line-height:1.8; }
    조건 칩은 `.cond-tags-row` 안에 따로 있어서 그 늘어남을 못 받아 낮게 머물렀다.
    → 그 줄도 **같이 늘어나게** 하고, 칩 안에서 글자를 가운데 둔다. */
 
-.cond-tag { padding:4px 11px; font-size:11px; border:1px solid transparent;
+.cond-tag { padding:4px 11px; font-size:12px; border:1px solid transparent;
             display:inline-flex; align-items:center; }
 .cond-tags-row { margin-top:0; align-items:stretch; }
 

@@ -96,6 +96,22 @@ PAGES = [
 ]
 
 
+AFTER_ESTIMATE = """() => {
+  const sel = document.getElementById('destination');
+  if (!sel) return false;
+  const opt = [...sel.options].find(o => o.value && /도쿄/.test(o.textContent)) || [...sel.options].find(o => o.value);
+  if (!opt) return false;
+  sel.value = opt.value; sel.dispatchEvent(new Event('change', {bubbles: true}));
+  const set = (id, v) => { const e = document.getElementById(id); if (!e) return;
+    e.value = v; e.dispatchEvent(new Event('input', {bubbles: true})); e.dispatchEvent(new Event('change', {bubbles: true})); };
+  set('startDate', '2026-11-10'); set('endDate', '2026-11-14'); set('participants', '20');
+  return true;
+}"""
+REVEAL_RESULT_BUTTONS = """() => ['downloadEstimate', 'consultBtn'].forEach((id) => {
+  const b = document.getElementById(id); if (b) { b.classList.remove('hidden'); b.classList.add('visible'); }
+})"""
+
+
 def run():
     share = load_share()
     findings = []          # (심각도, 폭이름, 화면, 종류, 설명)
@@ -136,6 +152,22 @@ def run():
 
                 collect(pg, wname, findings, scope=label)
                 counted += 1
+
+                # 🔴 결과 카드는 **견적을 낸 뒤에만** 보인다 — 첫 화면만 재면 금액 이름(10px)·
+                #   포함 항목 제목(10px)이 늘 감춰져 있어 한 번도 안 재졌다(2026-09-29).
+                #   값을 넣어 계산시키고, 제출 뒤에야 뜨는 두 버튼은 화면이 하는 일(숨김 해제)만 흉내 낸다
+                #   — 실제로 제출하면 운영 DB에 쓴다(메모리: 9/15 사고).
+                if fname == "index.html":
+                    shown = pg.evaluate(AFTER_ESTIMATE)
+                    pg.wait_for_timeout(1200)
+                    pg.evaluate(REVEAL_RESULT_BUTTONS)
+                    pg.wait_for_timeout(300)
+                    if not shown or not pg.evaluate("() => !document.getElementById('estimateDetail').classList.contains('hidden')"):
+                        findings.append(("🔴", wname, "고객 · 견적 결과(계산 뒤) — 검사가 화면을 못 띄웠다",
+                                         "값을 넣었는데 결과 카드가 안 열렸다 — 입력 칸 id가 바뀌었는지 볼 것"))
+                    else:
+                        collect(pg, wname, findings, scope="고객 · 견적 결과(계산 뒤)")
+                        counted += 1
 
                 if SHOOT:
                     SHOTS.mkdir(parents=True, exist_ok=True)
