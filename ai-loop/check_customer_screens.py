@@ -87,7 +87,7 @@ WIDTHS = [("아주 좁은 폰", 320), ("폰", 390), ("태블릿", 860), ("노트
 #   담당자 화면 도구(`check_admin_screens.py`)도 같은 것을 쓴다. 규칙이 두 벌이 되면
 #   「밀렸다」·「잘렸다」·「줄이 길다」의 뜻이 두 화면에서 달라지고, 그러면 **두 결과를
 #   나란히 놓고 볼 수 없다**(결함 생성기 ①). 문턱값·판정도 전부 거기 있다.
-from _screen_probe import collect, report  # noqa: E402
+from _screen_probe import collect, report, selftest_cells  # noqa: E402
 
 PAGES = [
     ("index.html", "고객 · 홈", ""),
@@ -126,7 +126,11 @@ def run():
                 if fname == "estimate-view.html":
                     why = assert_loaded(pg, share)
                     if why:
-                        findings.append(("🔴", wname, label, "검사가 화면을 못 띄웠다", why))
+                        # 🔴 2026-09-29: 예전엔 **다섯 칸**을 넣었다 — 보고는 네 칸을 풀어서
+                        #   `ValueError`로 죽었다. 즉 이 안전망은 **걸리는 순간 도구째 쓰러졌고**,
+                        #   `--selftest`도 같은 자리에서 죽어 「살아 있다」를 한 번도 말하지 못했다.
+                        #   종류 칸은 `collect()`와 같은 모양(「화면 — 종류」)으로 맞춘다.
+                        findings.append(("🔴", wname, f"{label} — 검사가 화면을 못 띄웠다", why))
                         ctx.close()
                         continue
 
@@ -164,6 +168,17 @@ def selftest():
         print("\n🔴 안전망이 죽었다 — 픽스처가 없는데도 통과했다")
         return 1
     print("\n✓ 안전망이 살아 있다 — 픽스처가 안 꽂히면 그 자리에서 말한다")
+
+    print("\n── 고장 주입: 칸을 넘는 글자 · 두 줄로 갈린 금액 (⑦⑧) ──")
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        bad = selftest_cells(b.new_page())
+        b.close()
+    if bad:
+        for x in bad:
+            print("🔴 " + x)
+        return 1
+    print("✓ 표 칸 검사도 살아 있다 — 겹침·갈린 금액을 잡고, 멀쩡한 칸은 안 건다")
     return 0
 
 

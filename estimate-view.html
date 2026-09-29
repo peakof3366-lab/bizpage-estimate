@@ -396,8 +396,10 @@ a { color: inherit; text-decoration: none; }
    ⚠ 누를 것은 44px 이상(CLAUDE.md YA) · 인쇄에는 안 나간다(`no-print`). */
 /* 🔴 롤링 페이지의 **바로가기**(2026-09-21) — 탭이 아니다. 눌러도 감춰지지 않는다. */
 .qdv-jump { display: flex; gap: 8px; margin: 0 auto; max-width: 900px; padding: 10px 0 18px; flex-wrap: wrap; }
+/* ⚠ 누를 높이 44px(CLAUDE.md YA) — 예전엔 32px이라 폰에서 엄지로 옆 버튼을 눌렀다. */
 .qdv-jump-a {
-  display: inline-block; padding: 7px 15px; font-size: 13px; font-weight: 700;
+  display: inline-flex; align-items: center; min-height: 44px; box-sizing: border-box;
+  padding: 7px 16px; font-size: 13px; font-weight: 700;
   color: #444; background: #fff; border: 1px solid #DDD; border-radius: 999px;
   text-decoration: none; line-height: 1.2;
 }
@@ -424,7 +426,12 @@ a { color: inherit; text-decoration: none; }
    있어서 브라우저 기본 `[hidden]{display:none}`을 **이긴다** — 엑셀 버튼을
    `hidden`으로 내렸는데 그대로 보였다(브라우저로 재고 알았다). 못 박는다. */
 .top-bar-btns [hidden] { display: none !important; }
-@media (max-width: 560px) { .qdv-tab { padding: 0 14px; font-size: 13px; } }
+@media (max-width: 560px) {
+  .qdv-tab { padding: 0 14px; font-size: 13px; }
+  /* 🔴 폰에서 문서 좌우에 **41px씩** 비어 있었다 — 바깥 여백 24 + 테두리 1 + 문서 여백 16.
+     카드 안의 카드다. 320px 폰에서 표가 238px밖에 못 썼다. 바깥을 줄여 문서에 돌려준다. */
+  .content-wrap { padding-left: 8px; padding-right: 8px; }
+}
 @media print {
   /* 🔴 **한 페이지에 쌓인 것을 다 인쇄한다** (2026-09-21 롤링 전환).
      예전에는 탭이라 「보고 있는 것만」 인쇄했는데, 그러면 고객이 인쇄 버튼을 누를 때

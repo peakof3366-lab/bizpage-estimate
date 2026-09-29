@@ -50,7 +50,8 @@ LINE_MIN_CHARS = 40       # 이보다 짧은 글은 애초에 줄이 안 넘어�
 
 SWEEP = r"""
 (opt) => {
-  const out = { doc: {}, clipped: [], small: [], taps: [], outside: [], lines: [], widest: [] };
+  const out = { doc: {}, clipped: [], small: [], taps: [], outside: [], lines: [], widest: [],
+                spill: [], numsplit: [] };
   const vw = window.innerWidth;
   const de = document.documentElement;
   out.doc = {
@@ -155,6 +156,34 @@ SWEEP = r"""
     }
   });
 
+  /* ── ⑦⑧ 표 칸: 넘침 · 금액 갈림 (2026-09-29 신설) ──
+     🔴 위 ②는 **감추는 칸**(`overflow:hidden`)의 잘림만 센다. 표 칸은 `visible`이라 넘친 글자가
+       **옆 칸 위에 그대로 올라앉는다** — 고객 견적서(폰)에서 「30명」이 금액 「83,019,990」 위에
+       겹쳐 있었는데 이 도구는 「✓ 밀림·잘림 없음」이라고 했다. 자의 사각지대였다.
+     ⑧ 금액은 한 덩어리다. 「83,019, / 990」으로 갈리면 **두 숫자로 읽힌다.** */
+  document.querySelectorAll('td,th').forEach((el) => {
+    const v = shown(el); if (!v) return;
+    if (inScroller(el)) return;
+    const txt = label(el); if (!txt) return;
+    if (v.cs.overflowX === 'visible' && el.scrollWidth - el.clientWidth > opt.clipSlop) {
+      out.spill.push({ sel: path(el), text: txt, lost: el.scrollWidth - el.clientWidth });
+    }
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const re = /\d{1,3}(?:,\d{3})+/g;
+      let m;
+      while ((m = re.exec(n.textContent))) {
+        try {
+          const rg = document.createRange();
+          rg.setStart(n, m.index); rg.setEnd(n, m.index + m[0].length);
+          const tops = new Set(Array.from(rg.getClientRects()).filter((x) => x.width > 0)
+            .map((x) => Math.round(x.top)));
+          if (tops.size > 1) out.numsplit.push({ sel: path(el), text: m[0] });
+        } catch (e) { /* 못 재면 안 센다 — 없는 결함을 만들지 않는다 */ }
+      }
+    }
+  });
+
   /* ── ④⑤ 누를 수 있는 것 ── */
   const TAPPY = 'a[href],button,input,select,textarea,[role=button],[onclick],summary';
   document.querySelectorAll(TAPPY).forEach((el) => {
@@ -212,6 +241,14 @@ def collect(page, where, findings, scope=None):
         findings.append(("🔴", where, tag("글자가 잘렸다"),
                          f"{c['dir']} {c['lost']}px · 「{c['text']}」 [{c['sel']}]"))
 
+    for c in r.get("spill", []):
+        findings.append(("🔴", where, tag("글자가 칸을 넘어 옆 칸에 겹친다"),
+                         f"{c['lost']}px · 「{c['text']}」 [{c['sel']}]"))
+
+    for c in r.get("numsplit", []):
+        findings.append(("🔴", where, tag("금액이 두 줄로 갈렸다"),
+                         f"「{c['text']}」 [{c['sel']}]"))
+
     for s in r["small"]:
         sev = "🔴" if s["px"] < SMALL_TEXT_FAIL else "·"
         findings.append((sev, where, tag("글자가 작다"), f"{s['px']}px · 「{s['text']}」 [{s['sel']}]"))
@@ -231,6 +268,33 @@ def collect(page, where, findings, scope=None):
                          f"{ln['cpl']}자/줄 · {ln['rows']}줄 · {ln['px']}px · 「{ln['text']}」 [{ln['sel']}]"))
 
     return r
+
+
+# ── ⑦⑧ 자가 살아 있는지 — 일부러 망가진 표를 그려 재 본다 (CLAUDE.md 결함 생성기 ③) ──
+# ⚠ 진짜 화면에서 고장을 흉내 내면 **고장이 안 날 수 있다**(2026-09-29: 금액 칸의 `nowrap`을
+#   뗐는데 칸이 넓어서 숫자가 안 갈렸고, 자는 조용히 통과했다 — 아무것도 확인 못 한 셈).
+#   그래서 **반드시 고장이 나는 표**를 따로 그린다. 대조군(멀쩡한 칸)이 안 걸리는 것까지 본다.
+CELL_FAULTS = """<!doctype html><meta charset="utf-8">
+<style>table{table-layout:fixed;border-collapse:collapse;font-size:13px}
+td{border:1px solid #ccc;padding:4px;word-break:keep-all}</style>
+<table style="width:160px"><tr>
+ <td id="spill" style="width:40px">오리엔테이션오리엔테이션</td>
+ <td id="split" style="width:52px;overflow-wrap:anywhere">83,019,990</td>
+ <td id="ok" style="width:68px">30명</td></tr></table>"""
+
+
+def selftest_cells(page):
+    """망가진 표 하나를 재서 ⑦⑧이 잡는지 본다. 문제 목록을 돌려준다(비면 살아 있다)."""
+    page.set_content(CELL_FAULTS)
+    r = page.evaluate(SWEEP, OPTS)
+    bad = []
+    if not any("오리엔테이션" in c["text"] for c in r["spill"]):
+        bad.append("⑦ 칸을 넘은 글자를 못 잡았다")
+    if not any(c["text"] == "83,019,990" for c in r["numsplit"]):
+        bad.append("⑧ 두 줄로 갈린 금액을 못 잡았다")
+    if any("30명" in c["text"] for c in r["spill"]):
+        bad.append("대조군(멀쩡한 칸)까지 걸었다 — 없는 결함을 만든다")
+    return bad
 
 
 def report(findings, header, swept, show_all=False, width_names=()):

@@ -119,7 +119,14 @@ ok('[3-e] 🔴 인쇄하면 실려 온 것이 다 나간다 (문서마다 새 �
 ok('[3-e2] 그래도 감춘 것은 인쇄가 되살리지 않는다',
   /\.qdv-panel\[hidden\] \{ display: none !important; \}/.test(QDOCCSS));
 ok('[3-f] 바로가기 줄은 인쇄에 안 나간다', /class="qdv-jump no-print"/.test(VIEW));
-ok('[3-g] 누를 것이 충분히 크다', /\.qdv-jump-a \{[\s\S]{0,160}padding: 7px 15px/.test(VIEW));
+/* 🔴 2026-09-29: 예전엔 `padding: 7px 15px`이 있는지를 봤다 — 그런데 그 여백이 만든 높이는
+   **32px**였다(브라우저 실측, `check_customer_screens.py`가 「누르기 작다」로 적고 있었다).
+   자가 「작은 상태」를 잠그고 있었다. 이제 **높이 자체**를 44px 이상으로 잰다(CLAUDE.md YA). */
+ok('[3-g] 누를 것이 충분히 크다 (높이 44px 이상)', (() => {
+  const blk = (VIEW.match(/\.qdv-jump-a \{([^}]*)\}/) || [])[1] || '';
+  const h = Number((blk.match(/min-height:\s*(\d+)px/) || [])[1] || 0);
+  return h >= 44;
+})());
 /* 🔴 구역이 하나뿐이면 목차를 안 그린다 — 누를 곳이 하나인 목차는 잡음이다 */
 ok('[3-g2] 구역이 하나면 바로가기를 안 그린다', /bundle\.count > 1 \?/.test(VIEW));
 /* 🔴🔴 **이 검사가 이 기능의 방어선이다** — 화면이 감추는 것이 아니라 payload에 없다 */

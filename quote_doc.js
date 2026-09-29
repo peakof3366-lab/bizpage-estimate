@@ -448,16 +448,19 @@
 
     const priceRows = lines.map((l, i) => `
       <tr>
-        ${i === 0 ? `<th class="qd-th" rowspan="${lines.length}">견적가</th>` : ''}
-        <th class="qd-th qd-sub">${esc(l.label)}</th>
-        <td class="qd-num">${l._empty ? '<span class="qd-todo">미입력</span>' : money(l.unit)}</td>
-        <td class="qd-mid">${(o && o.edit)
+        ${i === 0 ? `<th class="qd-th qd-k-ph" rowspan="${lines.length}">견적가</th>` : ''}
+        <th class="qd-th qd-sub qd-k-pl">${esc(l.label)}</th>
+        <td class="qd-num qd-k-unit">${l._empty ? '<span class="qd-todo">미입력</span>' : money(l.unit)}</td>
+        <td class="qd-mid qd-k-qty">${(o && o.edit)
           ? slot(o, 'price.qty.' + (l.kind || 'adult'), l.qty, '0') + '명'
           : won(l.qty) + '명'}</td>
-        <td class="qd-num">${l._empty ? '<span class="qd-todo">미입력</span>' : money(l.amount)}</td>
-        ${i === 0 ? `<td class="qd-mid" rowspan="${lines.length}">${slot(o, 'price.condition', d.price.condition, '10+1조건')}</td>` : ''}
+        <td class="qd-num qd-k-amt">${l._empty ? '<span class="qd-todo">미입력</span>' : money(l.amount)}</td>
+        ${i === 0 ? `<td class="qd-mid qd-k-cond" rowspan="${lines.length}">${slot(o, 'price.condition', d.price.condition, '10+1조건')}</td>` : ''}
       </tr>`).join('');
 
+    /* `qd-k-*` 이름은 **폰 폭에서 칸을 다시 늘어놓는 손잡이**다(`quote_doc.css` 「폰 폭」).
+       이 표는 글자를 안 접고 그리려면 564px가 필요해 폰(320~430px)에서는 칸이 겹쳤다 —
+       「30명」이 금액 위에 올라앉았다(2026-09-29 실측). 인쇄·넓은 화면에는 아무 규칙도 안 붙는다. */
     return `
     <table class="qd-t qd-ov">
       ${colgroup(COLS_OV)}
@@ -469,17 +472,17 @@
           <td class="qd-mid">${esc(d.meta.issueDate)}</td>
         </tr>
         <tr>
-          <th class="qd-th">출발일</th>
-          <td class="qd-mid">${dateLabel(d.trip.startDate)}</td>
-          <td class="qd-mid" rowspan="2">${esc(d.trip.durationLabel)}</td>
-          <th class="qd-th">지역</th>
-          <td class="qd-mid" colspan="2">${slot(o, 'trip.region', d.trip.region, '국가명_지역명')}</td>
+          <th class="qd-th qd-k-sd">출발일</th>
+          <td class="qd-mid qd-k-sd">${dateLabel(d.trip.startDate)}</td>
+          <td class="qd-mid qd-k-dur" rowspan="2">${esc(d.trip.durationLabel)}</td>
+          <th class="qd-th qd-k-reg">지역</th>
+          <td class="qd-mid qd-k-reg" colspan="2">${slot(o, 'trip.region', d.trip.region, '국가명_지역명')}</td>
         </tr>
         <tr>
-          <th class="qd-th">도착일</th>
-          <td class="qd-mid">${dateLabel(d.trip.endDate)}</td>
-          <th class="qd-th">숙박지</th>
-          <td class="qd-mid" colspan="2">${slot(o, 'trip.stayLabel', d.trip.stayLabel, '다낭(3)')}</td>
+          <th class="qd-th qd-k-ed">도착일</th>
+          <td class="qd-mid qd-k-ed">${dateLabel(d.trip.endDate)}</td>
+          <th class="qd-th qd-k-stay">숙박지</th>
+          <td class="qd-mid qd-k-stay" colspan="2">${slot(o, 'trip.stayLabel', d.trip.stayLabel, '다낭(3)')}</td>
         </tr>
         <tr>
           <th class="qd-th" colspan="2">여행인원</th>
