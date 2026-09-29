@@ -45,3 +45,7 @@ ai-loop/.intake_seen.json
 # 블랙다운 표본 캐시 (ZA) — 거래처 단가와 인원이 그대로 들어 있다.
 # 코퍼스 캐시와 같은 이유로 저장소에 넣지 않는다.
 ai-loop/.bd_db.json
+
+# 담당자 화면 검사용 가상 데이터 (2026-09-29) — 고객 정보는 바꿨지만 금액·목적지·날짜는
+# 운영 백업 그대로다. make_admin_fixture.js가 만든다.
+ai-loop/.admin_fixture.json

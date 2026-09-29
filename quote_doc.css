@@ -122,6 +122,11 @@
   font-size: 12px; vertical-align: middle; word-break: keep-all;
 }
 .qd-th { background: var(--qd-th-bg); font-weight: 700; text-align: center; }
+/* 🔴 칸보다 긴 낱말은 **칸 안에서 꺾는다** (2026-09-29). `keep-all`만 걸려 있어 긴 기관명
+   (「○○도시개발공사…」)이 칸을 34px 넘어 **옆 칸 위에 겹쳤다** — 견적 상세 모달처럼 문서가 좁게
+   그려지는 자리에서 실측. 넘칠 때만 꺾으므로 들어가는 글은 그대로다(A4 인쇄 모양 불변).
+   ⚠ 금액 칸은 뺀다 — 「83,019, / 990」은 두 숫자로 읽힌다. */
+.qd-t th, .qd-t td:not(.qd-num) { overflow-wrap: anywhere; }
 .qd-sub { background: #FAFAFA; }
 .qd-mid { text-align: center; }
 .qd-num { text-align: right; font-variant-numeric: tabular-nums; }

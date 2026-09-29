@@ -12,6 +12,9 @@
   ② 🔴 **잘린 글자** — 칸보다 글이 길어 뒤가 사라진 것.
   ③ **너무 작은 글자** — 12px 미만(10px 미만은 오류).
   ④ **누르기 작은 것** — 24×24 미만은 오류(WCAG 2.5.8 AA), 44×44 미만은 확인 대상.
+     2.5.8의 **간격 예외**(둘레 24px 원이 비어 있으면 충족)를 원문대로 적용한다(2026-09-29).
+  ⑦ 🔴 **칸을 넘은 글자** — 표 칸은 visible이라 넘친 글자가 옆 칸 위에 올라앉는다(2026-09-29).
+  ⑧ 🔴 **두 줄로 갈린 금액·전화번호** — 「83,019, / 990」은 두 숫자로 읽힌다(2026-09-29).
   ⑤ **화면 밖으로 나간 조작.**
   ⑥ 🔴 **한 줄이 너무 긴 글**(YB에서 추가) — 아래 설명 참고.
 
@@ -163,14 +166,18 @@ SWEEP = r"""
      ⑧ 금액은 한 덩어리다. 「83,019, / 990」으로 갈리면 **두 숫자로 읽힌다.** */
   document.querySelectorAll('td,th').forEach((el) => {
     const v = shown(el); if (!v) return;
-    if (inScroller(el)) return;
+    /* ⚠ `inScroller`로 빼지 않는다 — 그 예외는 「표를 옆으로 미는 것은 설계」라는 **화면 폭** 이야기다.
+       칸 겹침·숫자 갈림은 굴리는 칸 안에서도 똑같이 결함이다. 처음에 그 예외를 그대로 옮겼다가
+       대장(`.tbl-scroll` 안)의 세 줄로 갈린 전화번호를 못 잡았다(2026-09-29). */
     const txt = label(el); if (!txt) return;
     if (v.cs.overflowX === 'visible' && el.scrollWidth - el.clientWidth > opt.clipSlop) {
       out.spill.push({ sel: path(el), text: txt, lost: el.scrollWidth - el.clientWidth });
     }
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-      const re = /\d{1,3}(?:,\d{3})+/g;
+      /* 금액(83,019,990)과 **전화번호**(010-1234-5678) — 둘 다 한 덩어리로 읽어야 하는 숫자다.
+         ⚠ 전화번호는 2026-09-29 대장에서 「010- / 0000- / 0000」 세 줄로 갈려 있었다. */
+      const re = /\d{1,3}(?:,\d{3})+|\b0\d{1,2}-\d{3,4}-\d{4}\b/g;
       let m;
       while ((m = re.exec(n.textContent))) {
         try {
@@ -186,6 +193,42 @@ SWEEP = r"""
 
   /* ── ④⑤ 누를 수 있는 것 ── */
   const TAPPY = 'a[href],button,input,select,textarea,[role=button],[onclick],summary';
+  /* ④ 24px 미만의 **간격 예외** (WCAG 2.5.8 원문, 2026-09-29 반영).
+     「작은 대상이라도 그 중심에 지름 24px 원을 그렸을 때 **다른 대상에도, 다른 작은 대상의 원에도**
+      닿지 않으면 충족」이다. 이 자는 「24 미만 = 오류」만 적용해 **기준보다 엄했다** —
+     자기 열에 혼자 있는 체크박스(13px)도 오류로 셌다. 원문대로 잰다.
+     ⚠ 자를 깎아 0을 만드는 것과 다르다: **붙어 있는 작은 대상은 여전히 오류**다
+       (`selftest_cells`의 촘촘한 버튼 줄이 그것을 잡는지 매번 본다). 44px 확인 대상은 그대로다. */
+  /* 다른 것에 **덮여** 못 누르는 것(모달 뒤의 표)은 누를 자리가 아니다 — 모달을 열고 재면
+     뒤에 깔린 체크박스를 「작다」고 셌다(2026-09-29). ⚠ 화면 밖(스크롤 아래)은 `elementFromPoint`가
+     답을 못 하므로 **덮였다고 보지 않는다** — 모르는 것을 결함 없음으로 치우지 않는다. */
+  const covered = (el, r) => {
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    if (cx < 0 || cy < 0 || cx > vw || cy > window.innerHeight) return false;
+    const top = document.elementFromPoint(cx, cy);
+    return !!top && top !== el && !el.contains(top) && !top.contains(el) && !(el.labels && [...el.labels].some((l) => l.contains(top)));
+  };
+  const tapRects = [];
+  document.querySelectorAll(TAPPY).forEach((el) => {
+    const v = shown(el); if (!v || el.disabled) return;
+    if (covered(el, v.r)) return;
+    if (el.tagName === 'INPUT' && el.type === 'hidden') return;
+    tapRects.push({ el, r: v.r, small: Math.min(v.r.width, v.r.height) < opt.tapFail });
+  });
+  const spaced = (me) => {
+    const cx = me.r.left + me.r.width / 2, cy = me.r.top + me.r.height / 2, R = opt.tapFail / 2;
+    return tapRects.every((o) => {
+      if (o.el === me.el || o.el.contains(me.el) || me.el.contains(o.el)) return true;
+      if (o.small) {
+        const ox = o.r.left + o.r.width / 2, oy = o.r.top + o.r.height / 2;
+        return Math.hypot(cx - ox, cy - oy) >= 2 * R;
+      }
+      const dx = Math.max(o.r.left - cx, 0, cx - (o.r.left + o.r.width));
+      const dy = Math.max(o.r.top - cy, 0, cy - (o.r.top + o.r.height));
+      return Math.hypot(dx, dy) >= R;
+    });
+  };
+  const tapInfo = new Map(tapRects.map((t) => [t.el, t]));
   document.querySelectorAll(TAPPY).forEach((el) => {
     const v = shown(el); if (!v) return;
     if (el.disabled) return;
@@ -196,10 +239,12 @@ SWEEP = r"""
     const p = el.parentElement;
     const inlineLink = tag === 'a' && p && /^(P|LI|TD|SPAN|SMALL|EM|STRONG|DD)$/.test(p.tagName)
       && v.cs.display === 'inline';
-    if (!inlineLink) {
+    if (!inlineLink && tapInfo.has(el)) {
       const w = Math.round(v.r.width), h = Math.round(v.r.height);
       if (Math.min(w, h) < opt.tapWarn) {
-        out.taps.push({ sel: path(el), text: label(el) || (el.getAttribute('aria-label') || ''), w: w, h: h });
+        const t = tapInfo.get(el);
+        out.taps.push({ sel: path(el), text: label(el) || (el.getAttribute('aria-label') || ''), w: w, h: h,
+                        spaced: !!(t && t.small && spaced(t)) });
       }
     }
 
@@ -216,6 +261,7 @@ OPTS = {
     "clipSlop": CLIP_SLOP,
     "smallWarn": SMALL_TEXT_WARN,
     "tapWarn": TAP_WARN,
+    "tapFail": TAP_FAIL,
     "lineWarn": LINE_WARN,
     "lineMinChars": LINE_MIN_CHARS,
 }
@@ -246,7 +292,7 @@ def collect(page, where, findings, scope=None):
                          f"{c['lost']}px · 「{c['text']}」 [{c['sel']}]"))
 
     for c in r.get("numsplit", []):
-        findings.append(("🔴", where, tag("금액이 두 줄로 갈렸다"),
+        findings.append(("🔴", where, tag("금액·전화번호가 두 줄로 갈렸다"),
                          f"「{c['text']}」 [{c['sel']}]"))
 
     for s in r["small"]:
@@ -254,9 +300,11 @@ def collect(page, where, findings, scope=None):
         findings.append((sev, where, tag("글자가 작다"), f"{s['px']}px · 「{s['text']}」 [{s['sel']}]"))
 
     for t in r["taps"]:
-        sev = "🔴" if min(t["w"], t["h"]) < TAP_FAIL else "·"
+        small = min(t["w"], t["h"]) < TAP_FAIL
+        sev = "🔴" if small and not t.get("spaced") else "·"
+        note = " · 둘레가 비어 24px 기준 충족(간격 예외)" if small and t.get("spaced") else ""
         findings.append((sev, where, tag("누르기 작다"),
-                         f"{t['w']}×{t['h']}px · 「{t['text']}」 [{t['sel']}]"))
+                         f"{t['w']}×{t['h']}px{note} · 「{t['text']}」 [{t['sel']}]"))
 
     for o in r["outside"]:
         findings.append(("🔴", where, tag("화면 밖으로 나갔다"),
@@ -280,7 +328,11 @@ td{border:1px solid #ccc;padding:4px;word-break:keep-all}</style>
 <table style="width:160px"><tr>
  <td id="spill" style="width:40px">오리엔테이션오리엔테이션</td>
  <td id="split" style="width:52px;overflow-wrap:anywhere">83,019,990</td>
- <td id="ok" style="width:68px">30명</td></tr></table>"""
+ <td id="ok" style="width:68px">30명</td></tr></table>
+<table style="width:60px"><tr><td id="tel">010-1234-5678</td></tr></table>
+<div style="margin-top:40px"><button id="crowdA" style="width:14px;height:14px;padding:0">a</button><button
+ id="crowdB" style="width:14px;height:14px;padding:0">b</button></div>
+<div style="margin-top:40px"><button id="alone" style="width:14px;height:14px;padding:0">c</button></div>"""
 
 
 def selftest_cells(page):
@@ -292,6 +344,13 @@ def selftest_cells(page):
         bad.append("⑦ 칸을 넘은 글자를 못 잡았다")
     if not any(c["text"] == "83,019,990" for c in r["numsplit"]):
         bad.append("⑧ 두 줄로 갈린 금액을 못 잡았다")
+    if not any(c["text"] == "010-1234-5678" for c in r["numsplit"]):
+        bad.append("⑧ 여러 줄로 갈린 전화번호를 못 잡았다")
+    taps = {t["text"]: t for t in r["taps"]}
+    if not (taps.get("a") and not taps["a"].get("spaced")):
+        bad.append("④ 붙어 있는 작은 버튼을 간격 예외로 봐줬다 — 기준보다 무르다")
+    if not (taps.get("c") and taps["c"].get("spaced")):
+        bad.append("④ 혼자 떨어진 작은 버튼에 간격 예외를 못 줬다")
     if any("30명" in c["text"] for c in r["spill"]):
         bad.append("대조군(멀쩡한 칸)까지 걸었다 — 없는 결함을 만든다")
     return bad

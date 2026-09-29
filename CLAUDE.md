@@ -142,7 +142,8 @@ node ai-loop/audit_admin_journey.js         # 담당자 화면 버튼을 전부 
 python ai-loop/check_quote_form_layout.py   # 폼에 도착했을 때 무엇이 보이나 (브라우저)
 python ai-loop/check_contrast.py            # 안 읽히는 글자 — 고객 견적서·패키지 포함
 python ai-loop/check_customer_screens.py    # 폰 폭에서 밀림·잘림·누르기·줄 길이 (브라우저)
-python ai-loop/check_admin_screens.py       # 담당자 탭 17개 × 폭 3가지 (브라우저)
+node ai-loop/make_admin_fixture.js          # ↓ 먼저 — 백업에서 고객 정보를 바꾼 가상 데이터(없으면 빈 목록만 잰다)
+python ai-loop/check_admin_screens.py       # 담당자 탭 17개 × 폭 3가지 + 견적 상세 모달 + 견적 작성 ①~⑤ (브라우저)
 python ai-loop/audit_roles.py               # 🔴 **직원이 첫날 보는 화면** (owner·manager·staff)
 ```
 

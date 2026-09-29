@@ -436,7 +436,10 @@
       border-left: 3px solid var(--primary); position: sticky; top: 0;
     }
     .modal-header h3 { font-size: .92rem; font-weight: 800; }
-    .modal-close { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; line-height: 1; }
+    /* ⚠ 누를 자리 14×18px였다(2026-09-29 실측) — 글자 크기만큼만 눌렸다. 모달 11개가 같이 쓴다.
+       보이는 ✕는 그대로 두고 **누르는 상자만** 32px로 키운다. */
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; line-height: 1;
+      min-width: 32px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; margin: -6px -8px -6px 0; }
     .modal-close:hover { color: var(--heading); }
     .modal-body { padding: 1.5rem; }
 
@@ -1659,12 +1662,18 @@
 .em-dl dd b { color: var(--heading); }
 .em-dl-tag { display: inline-block; margin-left: .35rem; font-size: .7rem; font-weight: 600; color: #3F3BA8; background: #EEEDFB; padding: .08rem .45rem; }
 .em-dl-note { color: var(--muted); font-size: .8rem; }
+/* 견적 관리 체크박스 — 13px였다. 자기 열에 혼자 있어 누르기 기준(간격 예외)은 맞지만 눈으로 찾기 어렵다 */
+#emSelectAll, #emBody .em-row-check { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
 
 /* ── 견적서 대장 — 견적 1건 = 1줄, 이전 판은 접는다 (2026-09-28 대표 지시 「깔끔하게 관리」) ── */
-#ledList .led-fold { display: inline-flex; align-items: center; gap: .25rem; margin-top: .3rem; padding: .15rem .55rem;
+/* ⚠ 높이 20px였다 — 줄마다 붙는 버튼이라 26px로(2026-09-29). */
+#ledList .led-fold { display: inline-flex; align-items: center; gap: .25rem; margin-top: .3rem; padding: .3rem .6rem; min-height: 26px;
   font-size: .72rem; font-weight: 700; color: #3F3BA8; background: #EEEDFB; border: 0; cursor: pointer; }
 #ledList .led-fold:hover { background: #E1DFF8; }
 #ledList .led-fold:focus-visible { outline: 2px solid #514dc2; outline-offset: 2px; }
+/* 🔴 전화번호가 「010- / 0000- / 0000」 **세 줄**로 갈렸다(2026-09-29, 가상 데이터로 처음 재 봄).
+   표가 자동 폭이라 고객 칸이 가장 좁게 졸아들었다 — 번호를 한 덩어리로 묶으면 그 칸이 번호만큼 선다. */
+#ledList a[href^="tel:"] { white-space: nowrap; }
 #ledList tr.led-old td { background: #FAFAF8; color: var(--muted); }
 #ledList tr.led-old td:first-child { padding-left: 1.4rem; }
 #ledList .led-old-mark { color: var(--muted); font-weight: 400; }
