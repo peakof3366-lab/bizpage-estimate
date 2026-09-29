@@ -79,7 +79,7 @@
     .sidebar-brand-logo { height: 22px; width: auto; display: block; }
     /* 「Admin」 — 관리자 화면인지 고객 화면인지를 이 단어가 가른다 */
     .dash-brand-tag {
-      font-size: .64rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+      font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;   /* .64rem(10.2px)였다 — 11px 바닥 아래 */
       color: rgba(255,255,255,.72); border: 1px solid rgba(255,255,255,.28);
       padding: .08rem .34rem; white-space: nowrap;
     }
@@ -90,7 +90,7 @@
     .btn-ghost:hover { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.7); }
     .current-staff-widget { display: flex; align-items: center; gap: .4rem; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); padding: .3rem .6rem; }
     .csw-label { font-size: .78rem; font-weight: 700; color: #fff; white-space: nowrap; }
-    .csw-role { font-size: .66rem; font-weight: 700; color: rgba(255,255,255,.6); background: rgba(255,255,255,.1); padding: .1rem .4rem; letter-spacing: .03em; }
+    .csw-role { font-size: .72rem; font-weight: 700; color: rgba(255,255,255,.6); background: rgba(255,255,255,.1); padding: .1rem .4rem; letter-spacing: .03em; }
     /* ⚠ 2026-09-27 테두리 상자 → 평범한 글씨. 「작성자: ○○」가 **버튼처럼 생겨서** 누르는 것인 줄 알았다
          (답변 확정·진행 기록·요율 편집 등 여섯 곳 공용 — 전부 누를 것이 아니다). */
     .rate-author-tag { font-size: .8rem; font-weight: 600; color: var(--muted); padding: .4rem 0; white-space: nowrap; }
@@ -127,7 +127,7 @@
        **아래 줄에** 내린다. 두 메뉴의 줄바꿈 자리가 같아야 나란히 읽힌다.
        ⚠ 글자는 안 바꿨다 — 탭 제목·iframe 제목·검사가 같은 이름을 쓴다(결함 생성기 ①). */
     .si-sub { display: block; }
-    .si-badge { background: var(--danger); color: #fff; font-size: .65rem; font-weight: 700;
+    .si-badge { background: var(--danger); color: #fff; font-size: .72rem; font-weight: 700;
       padding: .1rem .35rem; border-radius: 0; line-height: 1.4; }
     /* 알림 켜기 안내 (QT) — 대시보드 맨 위. 권한이 정해지면 JS가 숨긴다. */
     .notify-cta { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
@@ -250,7 +250,8 @@
     .stat-card.warn .stat-num { color: var(--warn); }
     .stat-card.success .stat-num { color: var(--success); }
     .stat-card.danger .stat-num { color: var(--danger); }
-    .stat-lbl { font-size: .72rem; color: var(--muted); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+    /* ⚠ 2026-09-29: 11.5 → 12.5px · 자간 벌림을 걷었다 — 이름이 전부 한글이다(CLAUDE.md YA: 한글에 letter-spacing 금지) */
+    .stat-lbl { font-size: .78rem; color: var(--muted); font-weight: 700; }
     .stat-sub { font-size: .72rem; color: var(--muted); margin-top: .3rem; }
 
     /* ── GRID LAYOUTS ─────────────── */
@@ -270,7 +271,7 @@
     .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; padding: .5rem 0 0; }
     .bar-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
     .bar { width: 100%; background: var(--primary); min-height: 4px; transition: height .4s ease; }
-    .bar-lbl { font-size: .72rem; color: var(--muted); font-weight: 500; }
+    .bar-lbl { font-size: .76rem; color: var(--muted); font-weight: 500; }
     .bar-val  { font-size: .72rem; color: var(--primary); font-weight: 700; }
 
     /* ── HORIZONTAL BAR ───────────── */
@@ -322,7 +323,7 @@
 
     .inq-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
     .inq-table thead { background: var(--bg); }
-    .inq-table th { padding: .65rem .85rem; text-align: left; font-weight: 700; color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .inq-table th { padding: .65rem .85rem; text-align: left; font-weight: 700; color: var(--muted); font-size: .78rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
     .inq-table td { padding: .75rem .85rem; border-bottom: 1px solid rgba(0,0,0,.05); vertical-align: middle; }
     .btn-detail { padding: .35rem .8rem; font-size: .78rem; font-weight: 600; border: 1.5px solid var(--border); background: var(--white); color: var(--muted); border-radius: 0; cursor: pointer; transition: all .2s; white-space: nowrap; }
     .btn-detail:hover { border-color: var(--primary); color: var(--primary); }
@@ -351,7 +352,7 @@
     .tbl thead { background: var(--bg); }
     .tbl th {
       padding: .6rem .8rem; text-align: left; font-weight: 700; color: var(--muted);
-      font-size: .72rem; letter-spacing: .04em; border-bottom: 1px solid var(--border);
+      font-size: .78rem; border-bottom: 1px solid var(--border);
       white-space: nowrap; vertical-align: bottom;
     }
     .tbl td { padding: .7rem .8rem; border-bottom: 1px solid rgba(0,0,0,.05); vertical-align: top; }
@@ -360,8 +361,8 @@
     /* 숫자는 오른쪽 — **머리글도 같이** 오른쪽이어야 눈이 한 선을 따라간다 */
     .tbl .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     /* 한 칸 안의 둘째 줄(적은이·바꾼이·1인당) */
-    .tbl .sub { font-size: 11px; color: #888; margin-top: 3px; line-height: 1.5; }
-    .tbl .sub-strong { font-size: 11px; color: #666; margin-top: 2px; line-height: 1.5; }
+    .tbl .sub { font-size: 12px; color: #888; margin-top: 3px; line-height: 1.5; }
+    .tbl .sub-strong { font-size: 12px; color: #666; margin-top: 2px; line-height: 1.5; }
 
     /* ── 상태를 색으로 먼저 읽게 한다 (ZW, 2026-09-08 대표 지시) ──────────────
        대장은 **훑는 화면**이다. 넷이 다 같은 회색 드롭다운이면 「계약된 건」과
@@ -729,7 +730,7 @@
     .rate-meta-box { background:var(--white); border:1px solid var(--border); padding:.9rem 1.1rem; border-left:3px solid var(--primary); }
     .rate-meta-box.warn   { border-left-color:var(--warn);    background:#fffbeb; }
     .rate-meta-box.danger { border-left-color:var(--danger);  background:#fef2f2; }
-    .rate-meta-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:.3rem; }
+    .rate-meta-label { font-size:.76rem; font-weight:700; color:var(--muted); margin-bottom:.3rem; }
     .rate-meta-value { font-size:.95rem; font-weight:800; color:var(--primary); }
     .rate-meta-box.warn .rate-meta-value   { color:#92400e; }
     .rate-meta-box.danger .rate-meta-value { color:var(--danger); }
@@ -747,7 +748,7 @@
     .rate-table.by-region th:first-child,
     .rate-table.by-region td.rate-region { display:none; }
     .rate-table thead { background:var(--bg); }
-    .rate-table th { padding:.6rem .85rem; text-align:left; font-weight:700; color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--border); white-space:nowrap; }
+    .rate-table th { padding:.6rem .85rem; text-align:left; font-weight:700; color:var(--muted); font-size:.78rem; border-bottom:2px solid var(--border); white-space:nowrap; }
     .rate-table td { padding:.65rem .85rem; border-bottom:1px solid rgba(0,0,0,.05); vertical-align:middle; }
     .rate-table tbody tr:hover { background:rgba(0,0,0,.02); }
     /* ⚠ nowrap (2026-09-27) — 「⚠ 확인 권장 💱」가 좁은 칸에서 「확인 권 / 장」으로 쪼개졌다 */
@@ -829,7 +830,8 @@
     #tab-content { padding-bottom: 5rem; }   /* 마지막 칸이 떠 있는 저장 상자 밑에 가리지 않게 */
     .cms-dirty-note { font-size: .84rem; font-weight: 700; color: var(--muted); }
     .cms-pf-item { border:1px solid var(--border); border-radius:var(--r); padding:.75rem 1rem; margin-bottom:.75rem; }
-    .cms-pf-item summary { cursor:pointer; font-size:.84rem; font-weight:700; color:var(--heading); }
+    /* ⚠ 누를 자리 높이 22px였다(2026-09-29 실측 — 줄 45개). 글자는 그대로, 위아래만 넓힌다 */
+    .cms-pf-item summary { cursor:pointer; font-size:.84rem; font-weight:700; color:var(--heading); padding:.4rem 0; margin:-.4rem 0; }
     .cms-pf-item .cms-field-row { margin-top:.9rem; padding-top:0; border-bottom:none; }
 
     /* ── RESPONSIVE ──────────────── */

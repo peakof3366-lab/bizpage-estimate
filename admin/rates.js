@@ -1631,7 +1631,8 @@
      ❗실측대비 ±N%. "이 숫자가 어디서 왔는지"를 셀마다 말해 준다 (RM). */
   function rateValidationBadge(destKey, field, base) {
     const info = rateActualValidationMap[`${destKey}|${field}`];
-    const style = 'font-size:.62rem;margin-top:.15rem;white-space:nowrap;font-weight:700';
+    /* ⚠ .62rem(9.9px)였다 — 11px 바닥 아래라 오류였다(2026-09-29) */
+    const style = 'font-size:.72rem;margin-top:.15rem;white-space:nowrap;font-weight:700';
     /* RM: '미검증'이라고만 하면 **이 숫자가 어디서 왔는지**를 말하지 않는다. 이 값들은
        온라인 조사로 넣은 추정치이고, 실제 견적서가 들어오면 그 값으로 교체할 대상이다.
        그 사실을 배지가 직접 말하게 한다 — 수백 건을 넣는 동안 "아직 안 바뀐 곳"이
