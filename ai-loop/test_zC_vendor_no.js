@@ -97,7 +97,10 @@ console.log('\n[2] 🔴 고객 문서로 새지 않는다 — 원가 쪽 번호�
     bodies.every((b) => !/vendor/i.test(b)),
     bodies.map((b, i) => i + ':' + (/vendor\w*/i.exec(b) || [''])[0]).join(' '));
   /* 고객 견적서를 내주는 API는 칸을 **골라서** 읽는다 — `select *`면 언젠가 샌다 */
-  ok('② 고객용 조회가 칸을 골라 읽는다', /select payload, status, quote_no from quote_shares/.test(VIEW_API));
+  /* ⚠ 칸이 늘 수 있다(zU에서 quote_id·created_at — 더 최근 판을 찾으려고). 지킬 것은
+     「골라 읽는다(`select *`가 아니다)」이고, 공급사 번호가 없는 것은 바로 아래 검사가 본다. */
+  ok('② 고객용 조회가 칸을 골라 읽는다', /select payload, status, quote_no(?:, [a-z_]+)* from quote_shares/.test(VIEW_API)
+    && !/select \* from quote_shares/.test(VIEW_API));
   ok('② 🔴 그 목록에 공급사 번호가 없다', !/vendor/i.test(VIEW_API));
   ok('② 고객 견적서 화면도 그 값을 모른다', !/vendor/i.test(VIEW));
   /* 쓰는 문은 관리자 뒤에 있다 */
