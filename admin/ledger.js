@@ -17,8 +17,9 @@
    ═══════════════════════════════════════════════════════════════════════════ */
   /* ════ 견적서 대장 (WB) ════════════════════════════════════════════════════
      ⚠ **전 직원이 다 본다.** 가리면 「휴가 대응」이라는 목적 자체가 깨진다.
-     ⚠ 삭제 버튼을 두지 않았다 — 견적서를 지우면 「우리가 그 금액을 낸 적 있다」는
-       근거가 사라진다. 무산은 status='void'로 남긴다. */
+     ⚠ 삭제 버튼은 **2026-09-30 대표 요청으로 생겼다** — 매니저 이상에게만 보인다.
+       지운 줄은 서버가 `deletion_log`에 통째로 남긴다(근거는 사라지지 않는다).
+       무산·취소는 여전히 상태로 남기는 것이 기본이다. */
   const LED_STATUS = { issued: '발급', won: '계약', lost: '무산', void: '취소' };
   let ledRows = [];
   const ledOpen = new Set();   /* 펼쳐 둔 묶음(견적) — 다시 그려도 편 채로 (2026-09-28) */
@@ -112,6 +113,7 @@
       idx.forEach((i, j) => order.push({ i, gk, main: j === 0, older: idx.length - 1 }));
     });
     const gid = (gk) => 'g' + Array.from(groups.keys()).indexOf(gk);
+    const canDel = typeof isManagerUpRole === 'function' && isManagerUpRole();
     const cnt = document.getElementById('ledCount');
     if (cnt && !/견적 \d+건/.test(cnt.textContent)) cnt.textContent = '견적 ' + groups.size + '건 · 발급 문서 ' + cnt.textContent;
     /* ══ 표 (ZV로 다시 짰다) ══════════════════════════════════════════════════
@@ -261,6 +263,12 @@
                「링크」→「링크 복사」 · 「문의」→「견적 상세」(견적 관리의 그 건을 연다 — 「문의 관리」의 문의가 아니다) */
           + '<td style="white-space:nowrap"><button class="btn-act btn-outline-p led-open" data-i="' + i + '" title="고객이 받는 견적서 페이지를 새 창으로 엽니다">고객 화면</button>'
           +   ' <button class="btn-act btn-outline-p led-copy" data-i="' + i + '">링크 복사</button>'
+          /* 삭제 (2026-09-30 대표 요청) — 매니저 이상만. 서버도 같은 문턱으로 막는다(화면만 감추면 통제가 아니다) */
+          +   (canDel
+                ? ' <button type="button" class="btn-act btn-danger-sm led-del" data-i="' + i + '"'
+                  + ' aria-label="' + esc((r.quote_no || '이 견적서') + ' — 견적서 삭제') + '"'
+                  + ' title="이 견적서를 대장에서 지웁니다. 고객 링크도 더 이상 열리지 않습니다.">삭제</button>'
+                : '')
           /* 2026-09-28 대표 지시 — 「견적 상세」(견적 관리로 건너뛰기)와 개정 잇기·끊기 버튼(「개정 아님으로」·「○○ 개정으로」)을 뺐다.
              판은 이제 **견적 기록으로 묶여** 한 줄에 모인다 — 사슬을 손으로 잇고 끊을 일이 없다.
              ⚠ 서버의 ?action=revision은 남겨 둔다(발급 차수 계산이 쓴다 · 되살릴 때 git 이력). */
@@ -292,6 +300,33 @@
       }
       switchTab('estmgr');
       openEstDetail(row.quote_id);
+    }));
+    /* 삭제 — 되묻고, 서버가 지운 뒤에야 목록을 다시 그린다. 실패하면 이유를 말한다. */
+    box.querySelectorAll('.led-del').forEach(b => b.addEventListener('click', async () => {
+      const row = ledRows[Number(b.dataset.i)];
+      if (!row) return;
+      if (!ledLeaveOk()) return;
+      const no = row.quote_no || '이 견적서';
+      if (!confirm(no + ' (' + (row.org || row.customer_label || row.cn || '고객 미상') + ' · ' + won(row.total) + '원)을 삭제합니다.\n\n'
+        + (row.status === 'won' ? '⚠ 「계약」으로 표시된 견적서입니다.\n' : '')
+        + '· 고객이 이 링크를 열면 「없는 견적서」로 나옵니다.\n'
+        + '· 지운 내용은 삭제 기록에 남고, 이 번호는 다시 쓰지 않습니다.\n\n계속할까요?')) return;
+      b.disabled = true;
+      try {
+        const r = await fetch('/api/quote-shares?action=delete', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: row.id }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.ok) {
+          throw new Error({ 403: '매니저 이상만 삭제할 수 있습니다.', 404: '이미 지워진 견적서입니다.' }[r.status] || ('오류 ' + r.status));
+        }
+        if (d.relinkFailed) alert(no + '은(는) 지워졌지만, 다음 판과의 연결을 잇지 못했습니다. 대장에 차수가 「모름」으로 보일 수 있습니다.');
+        await renderLedger(((document.getElementById('ledSearch') || {}).value || '').trim());
+      } catch (err) {
+        b.disabled = false;
+        alert('견적서를 삭제하지 못했습니다 — ' + String(err.message || err));
+      }
     }));
     box.querySelectorAll('.led-copy').forEach(b => b.addEventListener('click', () => {
       navigator.clipboard?.writeText(urlOf(ledRows[Number(b.dataset.i)])).catch(() => {});

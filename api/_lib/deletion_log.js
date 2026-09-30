@@ -26,6 +26,7 @@
    빠진다. 아는 이름이 아니면 그 자리에서 던진다(조용한 폴백을 만들지 않는다). */
 const KNOWN_TABLES = new Set([
   'quotes',
+  'quote_shares',   /* 견적서 대장 삭제 (2026-09-30 대표 요청) */
   'inquiries',
   'packages',
   'itinerary_overrides',

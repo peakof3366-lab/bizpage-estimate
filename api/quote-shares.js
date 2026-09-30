@@ -1,6 +1,7 @@
 const { sql } = require('./_lib/db');
 const { newId, payloadTooLarge, SAFE_ID_RE } = require('./_lib/public_input');
-const { requireAdmin } = require('./_lib/auth');
+const { requireAdmin, requireRole } = require('./_lib/auth');
+const { deleteAndLog } = require('./_lib/deletion_log');
 const { verifyQuote } = require('./_lib/quote_verify');
 /* ⚠ `packages`를 읽는 조건·금액 계산은 **`_lib/packages.js` 하나가 진실**이다(VS). */
 const PKG = require('./_lib/packages');
@@ -270,8 +271,11 @@ async function issuePackageShare(req, res) {
    ⚠ **payload에 있는 것을 컬럼으로 복사하지 않았다**(결함 생성기 ①). 목적지·금액·인원은
      `payload->>'…'`로 읽는다. 두 벌이 되면 반드시 어긋난다.
    ⚠ **직원 전원이 다 본다.** 가리면 휴가 대응이라는 목적 자체가 깨진다.
-     상태 변경만 로그인한 사람 이름으로 남고, 삭제는 아예 없다(견적서는 안 지운다 —
-     지우면 「우리가 그 금액을 낸 적 있다」는 근거가 사라진다. 대신 status='void').
+     상태 변경만 로그인한 사람 이름으로 남는다.
+   ⚠ **삭제는 2026-09-30 대표 요청으로 생겼다**(`?action=delete`, 매니저 이상). 예전엔
+     「지우면 우리가 그 금액을 낸 적 있다는 근거가 사라진다」며 두지 않았는데, 그 근거는
+     이제 `deletion_log`에 행 전체로 남는다 — 기록에 실패하면 지우지도 않는다.
+     무산·취소는 여전히 status로 남기는 것이 기본이다(목록에 남아 이어받는 사람이 본다).
    ═══════════════════════════════════════════════════════════════════════════ */
 const LIST_MAX = 300;
 
@@ -517,8 +521,54 @@ async function handleRevision(req, res) {
   }
 }
 
+/* ?action=delete (2026-09-30 대표 요청) — **견적서 대장에서 한 줄을 지운다.**
+   ⚠ 매니저 이상 — 견적 관리의 삭제(`api/quotes/[id].js`)와 같은 문턱이다.
+   🔴 **지우기 전에 행 전체를 `deletion_log`에 남긴다**(`deleteAndLog` 한 곳). 기록이 실패하면
+     지우지 않는다.
+   🔴 **그보다 먼저 `quote_no_log`에 번호를 적는다**(`QNO.SHARE_DELETED`). 차수 번호
+     (`shareQuoteNo`)가 이것을 함께 세서 **지운 번호를 다시 쓰지 않는다** — 안 세면 _V2를
+     지우고 다시 발급할 때 고객 손에 있는 _V2가 또 나온다. 적기에 실패하면 지우지 않는다.
+     (삭제가 실패하면 번호 하나를 건너뛸 뿐이다 — 겹치는 것보다 비어 있는 편이 안전하다.)
+   ⚠ **이 견적서를 개정한 다음 판이 있으면 사슬을 잇는다** — 지운 줄의 앞 판으로 옮긴다.
+     안 이으면 다음 판이 없는 줄을 가리켜 대장에 「차수를 모른다」로 남는다.
+     잇기에 실패해도 삭제는 이미 됐다 — 그 사실을 조용히 넘기지 않고 응답에 싣는다.
+   ⚠ 고객 링크는 이 순간부터 404다. `estimate-view.html`이 「없는 링크」로 안내한다. */
+async function handleDelete(req, res) {
+  if (!(await requireRole(req, res, ['owner', 'manager']))) return;
+  const b = req.body || {};
+  const id = typeof b.id === 'string' ? b.id : '';
+  if (!id || !SAFE_ID_RE.test(id)) return res.status(400).json({ error: 'invalid_id' });
+  try {
+    const cur = await sql`select id, quote_id, quote_no, revision_of from quote_shares where id = ${id} limit 1`;
+    if (!cur.length) return res.status(404).json({ error: 'not_found' });
+    if (cur[0].quote_id) {
+      await sql`
+        insert into quote_no_log (quote_id, old_no, new_no, by_user, reason)
+        values (${cur[0].quote_id}, ${cur[0].quote_no || null}, null,
+                ${(req.user && (req.user.displayName || req.user.username)) || 'staff'}, ${QNO.SHARE_DELETED})`;
+    }
+    const { deleted } = await deleteAndLog(sql, 'quote_shares', { column: 'id', value: id },
+      { req, reason: '견적서 대장에서 삭제' });
+    let relinked = 0, relinkFailed = false;
+    try {
+      const r = await sql`
+        update quote_shares set revision_of = ${cur[0].revision_of || null}
+         where revision_of = ${id} returning id`;
+      relinked = r.length;
+    } catch (err) {
+      console.error('[quote-shares] 삭제 뒤 개정 사슬 잇기 실패:', err);
+      relinkFailed = true;
+    }
+    return res.status(200).json({ ok: true, removed: deleted > 0, relinked, relinkFailed });
+  } catch (err) {
+    console.error('[quote-shares] 삭제 실패:', err);
+    return res.status(500).json({ error: 'delete_failed' });
+  }
+}
+
 module.exports = async (req, res) => {
   const action = req.query && req.query.action;
+  if (action === 'delete' && req.method === 'POST') return handleDelete(req, res);
   if (action === 'list' && req.method === 'GET') return handleList(req, res);
   if (action === 'links' && req.method === 'GET') return handleLinks(req, res);
   if (action === 'status' && req.method === 'POST') return handleStatus(req, res);

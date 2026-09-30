@@ -119,12 +119,25 @@ async function nextQuoteNo(sql) {
    차수는 그 건의 발급 횟수로 센다 — 1차는 차수 없이, 2차부터 `_V2`(2026-09-28 전엔 `-R1`).
    ⚠ 견적 기록이 없는 건(옛 링크·기록 저장이 실패한 건)은 **새로 딴다.** 번호 없이
      내보내지 않는다(그 건만 대장에서 영영 못 찾는다). */
+/* `quote_no_log.reason`의 표지 — 「이 발급 번호는 대장에서 지워졌고 다시 쓰지 않는다」.
+   적는 곳(handleDelete)과 세는 곳(shareQuoteNo)이 **이 상수 하나**를 쓴다. */
+const SHARE_DELETED = 'share_deleted';
+
 async function shareQuoteNo(sql, quoteId) {
   if (!quoteId) return { no: await nextQuoteNo(sql), base: null, revNo: 1, inherited: false };
   const rows = await sql`select quote_no from quotes where id = ${quoteId}`;
   const base = rows.length ? rows[0].quote_no : null;
   if (!base) return { no: await nextQuoteNo(sql), base: null, revNo: 1, inherited: false };
-  const cnt = await sql`select count(*)::int as n from quote_shares where quote_id = ${quoteId}`;
+  /* 🔴 **지운 견적서도 센다** (2026-09-30 대장 삭제 신설). 남은 줄만 세면 _V2를 지운 뒤
+     다시 발급할 때 **_V2가 또 나온다** — 고객 손에 이미 있는 번호와 같은 번호다.
+     대장 삭제는 지우기 **전에** `quote_no_log`에 그 번호를 `SHARE_DELETED`로 적는다
+     (api/quote-shares.js handleDelete). 둘을 더하면 「지금까지 발급한 횟수」다.
+     ⚠ `deletion_log`를 읽지 않는다 — 거기엔 고객 연락처가 있고, 이 함수는 **공개 발급
+       경로에서도** 불린다(test_yP ⑦이 API의 그 표 읽기를 막는다). */
+  const cnt = await sql`
+    select (select count(*)::int from quote_shares where quote_id = ${quoteId})
+         + (select count(*)::int from quote_no_log
+             where quote_id = ${quoteId} and reason = ${SHARE_DELETED}) as n`;
   const revNo = (cnt.length ? cnt[0].n : 0) + 1;
   return { no: withRevision(base, revNo), base, revNo, inherited: true };
 }
@@ -246,5 +259,5 @@ function buildRevisionMap(rows) {
 }
 
 module.exports = { QUOTE_NO_RE, QUOTE_NO_ANY_RE, LEGACY_QUOTE_NO_RE, toYymm,
-  withRevision, baseQuoteNo, shareQuoteNo,
+  withRevision, baseQuoteNo, shareQuoteNo, SHARE_DELETED,
   formatQuoteNo, kstToday, nextQuoteNo, normalizeTel, normalizeVendorNo, VENDOR_NO_MAX, buildRevisionMap };
