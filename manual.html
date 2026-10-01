@@ -734,13 +734,15 @@
           아래 견적서의 <strong>노란 칸</strong>을 눌러 바로 적습니다(<strong>연한 글씨 = 예시, 아직 비어 있음</strong> —
           비워 두면 <strong>견적서에서 그 항목이 통째로 빠집니다</strong>).<br>
           거래처명·고객 연락처·항목 <strong>줄 추가</strong>·아동/유아 인원·선택 옵션은 맨 아래 <strong>「견적서 내용 보충」</strong>을 펼쳐서 적고,
-          <strong>「저장하기」</strong>를 누르면 위 견적서에 반영되고 그리로 올라갑니다(서버 저장은 ⑤단계 「견적 저장하기」).<br>
+          <strong>「저장하기」</strong>를 누르면 위 견적서에 반영되고 그리로 올라갑니다(새 견적은 ⑤단계 「견적 저장하기」에서 서버에 저장됩니다 · 이미 저장한 견적을 <strong>고칠 때</strong>는 ②·③·④의 「저장하기」가 바로 서버에 저장합니다).<br>
           거래처명은 문서 제목에 들어가고, <strong>고객 연락처·내부 메모는 고객에게 안 나갑니다</strong>(대장에만 남습니다).<br>
           🔴 <strong>담당자 이름·연락처·메일</strong>을 비우면 견적서에 <strong>「미입력」이 빨갛게</strong> 찍힙니다.</li>
         <li><b>④</b> <strong>일정</strong>은 비어 있지 않습니다 — 산출하면 <strong>추천 코스가 초안으로</strong> 깔립니다.
           코스가 둘 이상이면 고른 뒤 <strong>「추천 일정으로 채우기」</strong>.
           <ul>
             <li>이미 적은 칸은 <strong>안 덮습니다</strong>. 바꾸려면 비우고 다시 누르세요.</li>
+            <li>숙박·식사가 날마다 같으면 위 <strong>「전체 일정에 한 번에」</strong>에 한 번 적고 <strong>「모든 날에 적용」</strong> —
+              적은 칸만 들어가고, <strong>마지막 날 숙박은 빠집니다</strong>. 이미 다른 값이 적힌 날이 있으면 먼저 묻습니다.</li>
             <li>🔴 <strong>여기 남은 글이 고객 일정표에 그대로</strong> 나갑니다 — 읽어 보고 고치세요.</li>
             <li>일정·방식 비교에서 고친 내용이 있으면 <strong>그 최신본</strong>이 깔립니다
               (못 불러오면 화면이 「기본 일정입니다」라고 말합니다).</li>
@@ -771,7 +773,7 @@
               <td><span class="yes">됩니다</span></td></tr>
             <tr><td class="field">원가</td>
               <td>엔진이 압니다</td>
-              <td>「원가 합계」에 적으면 마진이 자동 계산</td></tr>
+              <td>「공급사 원가 합계」에 적으면 마진이 자동 계산</td></tr>
             <tr><td class="field">서버 검증</td>
               <td>요율로 다시 계산해 대조</td>
               <td>「해당 없음」</td></tr>
@@ -787,12 +789,12 @@
           <figcaption><strong>자동 견적 산출</strong> — 세부 조건 <strong>11칸</strong> · 버튼은 <strong>「자동 산출하기」</strong></figcaption>
         </figure>
         <figure class="shot">
-          <img src="이미지/매뉴얼/adhoc-1-조건.png" alt="직접 견적 작성 1단계 — 여행 정보. 세부 조건 6칸." loading="lazy">
-          <figcaption><strong>직접 견적 작성</strong> — 세부 조건 <strong>6칸</strong> · 버튼은 <strong>「금액 입력 시작」</strong></figcaption>
+          <img src="이미지/매뉴얼/adhoc-1-조건.png" alt="직접 견적 작성 1단계 — 여행 정보. 세부 조건 4칸." loading="lazy">
+          <figcaption><strong>직접 견적 작성</strong> — 세부 조건 <strong>4칸</strong> · 버튼은 <strong>「금액 입력 시작」</strong></figcaption>
         </figure>
       </div>
       <p>
-        같은 화면인데 <strong>칸이 5개 줄어 있습니다.</strong> 사라진 칸이 곧
+        같은 화면인데 <strong>칸이 7개 줄어 있습니다.</strong> 사라진 칸이 곧
         <strong>엔진이 금액을 만드는 데 쓰는 칸</strong>입니다 — 직접 견적은 엔진을 안 타니까요.
       </p>
       <div class="warn">
@@ -811,7 +813,7 @@
         <figcaption>
           <strong>2단계 금액</strong> — <strong>자동값</strong>이 고객이 받는 금액입니다.
           <strong>적용값</strong>을 고치면 오른쪽에 증감이 붙고 <strong>「수정됨」</strong> 표시가 남습니다.
-          <span class="tag off">내부</span>가 붙은 줄(ENBT 수익·현지 수익금)은 <strong>고객 견적서에 안 나갑니다.</strong>
+          <strong>연분홍 바탕 줄</strong>(본사 수익·현지 수익금·여행자보험)은 <strong>고객 견적서에 안 나갑니다.</strong>
         </figcaption>
       </figure>
       <h3>금액이 어떻게 맞춰지나</h3>
@@ -819,6 +821,9 @@
         <li>🔴 <strong>어느 줄을 고치느냐로 나가는 주머니가 다릅니다.</strong>
           <strong>원가 줄</strong>(항공·호텔·식사·차량·가이드·관광·부대비용)을 고치면 <strong>원가</strong>가 움직이고 —
           공급사에게 받은 실제 금액을 아는 자리입니다.
+          이때 표 위에서 <strong>누가 부담할지</strong> 고릅니다:
+          <strong>「고객 가격에 반영」</strong>(기본)이면 총액이 같이 오르고 마진은 그대로,
+          <strong>「우리 마진에서 부담」</strong>이면 「본사 수익」이 같은 만큼 내려가 <strong>총액은 그대로, 마진만 줄어듭니다.</strong>
           <strong>연분홍 바탕 줄</strong>(본사 수익·현지 수익금 — 고객에게 안 나가는 줄)과 아래 <strong>실무 변수</strong>를 고치면
           <strong>마진</strong>에서 나갑니다 — 깎아 주는 자리입니다.</li>
         <li><strong>마진율이 5% 아래로 내려가면 화면이 알려 줍니다.</strong> 마이너스가 되면 빨갛게 경고합니다.
@@ -878,7 +883,7 @@
       <h4>① 금액을 만드는 칸</h4>
       <div class="scroller">
         <table>
-          <caption>13칸 · 고치면 총액이 바뀝니다. 「직접 견적 작성」에서는 안 보입니다.</caption>
+          <caption>고치면 총액이 바뀝니다. 「직접 견적 작성」은 금액을 만들지 않습니다 — 거기서 보이는 호텔·좌석·객실 칸은 견적서 문구에만 쓰입니다.</caption>
           <tbody>
             <tr><td class="field">목적지</td>
               <td>모든 단가의 출발점 — 항공·호텔·식사·차량·가이드·관광비.<br>
@@ -889,6 +894,9 @@
             <tr><td class="field">일수</td>
               <td>숙박·식사·차량·가이드가 비례합니다.<br>
                 🔴 <strong>관광비는 비례하지 않습니다</strong> — 4~5일 기준 묶음값입니다.</td></tr>
+            <tr><td class="field">기내박</td>
+              <td>「출국편 밤 출발」·「귀국편 밤 출발」 — 체크 하나마다 <strong>박수와 호텔 금액이 1박씩 줄고</strong>,
+                일정표에 기내박·기내식이 들어갑니다(예: 3박 5일).</td></tr>
             <tr><td class="field">객실 구성</td>
               <td>싱글 차지. 「혼합」을 골라야 <strong>1인 1실 임원</strong> 칸이 나옵니다.<br>
                 🔴 <strong>좌석과 무관합니다</strong> — 방을 혼자 쓰는 인원입니다.</td></tr>
@@ -923,7 +931,7 @@
             <tr><td class="field">내부 메모</td><td>🔴 고객에게 안 나갑니다.</td></tr>
             <tr><td class="field">고객 연락처</td><td>대장에만 남습니다 — 견적서에는 안 나갑니다.</td></tr>
             <tr><td class="field">취소 규정</td><td>비우면 견적서에 안 나갑니다.</td></tr>
-            <tr><td class="field">유효기간</td><td>비우면 <strong>14일</strong>이 붙습니다.</td></tr>
+            <tr><td class="field">유효기간</td><td>자동으로 <strong>한 달 뒤</strong>가 들어갑니다 — 고칠 수 있습니다.</td></tr>
             <tr><td class="field">성인 · 아동 · 유아 인원</td><td>표기용 — <strong>단가는 셋 다 같습니다.</strong></td></tr>
             <tr><td class="field">거래처명</td><td>견적서 <strong>제목</strong>에 들어갑니다.</td></tr>
             <tr><td class="field">단체명 · 지역 표기 · 숙박지</td><td>견적서 머리의 여행 개요</td></tr>
@@ -1443,7 +1451,7 @@
         <span class="label">📌 자동 견적 산출과 같은 화면입니다</span>
         <p>
           두 메뉴는 <strong>같은 5단계</strong>를 지납니다 — 다른 것은 <strong>금액을 누가 만드느냐</strong>뿐입니다.
-          직접 견적에서는 ①의 <strong>세부 조건이 11칸 → 6칸</strong>으로 줄고
+          직접 견적에서는 ①의 <strong>세부 조건이 11칸 → 4칸</strong>으로 줄고
           (엔진이 쓰는 칸이 빠집니다), ②가 <strong>「금액 조정」이 아니라 「금액 입력」</strong>입니다.
         </p>
       </div>
@@ -1453,7 +1461,7 @@
         <li><b>①</b> <strong>목적지·인원·일수·출발일</strong>을 넣고 <strong>「금액 입력 시작」</strong>.</li>
         <li><b>②</b> <strong>항목과 금액을 직접 적습니다.</strong>
           <strong>「+ 항목 추가」</strong>로 줄을 늘리고, 항목 이름도 직접 짓습니다.
-          <strong>「원가 합계」</strong>를 적으면 마진이 자동으로 계산됩니다.</li>
+          <strong>「공급사 원가 합계」</strong>를 적으면 마진이 자동으로 계산됩니다.</li>
         <li><b>③</b> <strong>담당자 이름·연락처</strong>를 적습니다 —
           🔴 비우면 견적서에 <strong>「미입력」이 빨갛게</strong> 찍혀 나갑니다.</li>
         <li><b>④</b> 일정을 확인하고 <b>⑤</b> <strong>미리보기</strong>로 고객이 받는 모습을 봅니다.</li>
@@ -1497,12 +1505,12 @@
         <p class="trap"><strong>발급한 견적서를 찾고 상태를 남깁니다</strong></p>
         <ol>
           <li><b>견적번호·회사명·목적지·담당자</b>로 찾습니다</li>
-          <li><b>「고객 화면」</b>으로 고객이 받은 그 견적서를 봅니다 · <b>「견적 상세」</b>는 견적 관리의 그 건을 엽니다</li>
+          <li><b>「고객 화면」</b>으로 고객이 받은 그 견적서를 봅니다 · <b>「링크 복사」</b>로 링크를 다시 보냅니다</li>
           <li>상태를 <b>발급/계약/무산/취소</b>로 바꾸고 <b>「저장」</b>을 누릅니다</li>
         </ol>
         <p class="trap">⚠ <b>고르기만 하면 저장이 아닙니다</b> — 옆의 「저장」을 눌러야 합니다.</p>
-        <p class="trap">⚠ 🔴 <b>최신본 Q…</b> 가 빨갛게 붙은 줄은 <b>옛 견적서</b>입니다 — 그 금액으로 응대하지 마세요.</p>
-        <p class="more">차수가 잘못 이어졌을 때 쓰는 「개정 아님으로」는 아래에 있습니다.</p>
+        <p class="trap">⚠ <b>한 견적은 한 줄</b>입니다 — 맨 위 줄이 <b>최신판</b>이고, 고쳐 낸 이전 판은 「이전 판 n개 ▾」에 접혀 있습니다. 이전 판으로 응대하지 마세요.</p>
+        <p class="more">무산·잘못 낸 건은 지우지 말고 「취소」로 — 「삭제」는 매니저 이상만, 아래에 있습니다.</p>
       </div>
       <p>
         <strong>우리가 발급한 견적서가 전부 여기 있습니다.</strong> 왼쪽 메뉴에서
@@ -1531,60 +1539,31 @@
         <li><strong>회사명 · 고객 담당자 이름</strong></li>
         <li><strong>목적지</strong> (예: 오키나와)</li>
         <li><strong>발급한 직원 이름</strong></li>
+        <li><strong>월</strong> — 검색줄 오른쪽 「전체 월」에서 고르면 그달 견적만 봅니다.
+          목록은 달마다 머리줄이 붙어 <strong>그달 견적 수 · 계약 수 · 금액 합계</strong>(취소·무산 제외)를 보여 줍니다.</li>
       </ul>
-      <h4 id="ledger-rev">차수와 「최신본」 — 옛 견적서를 보고 응대하지 않게</h4>
+      <!-- 2026-10-01 고침 — 9/28(c5085c2)에 대장이 「견적 1건 = 1줄」로 바뀌며 차수 배지·「🔴 최신본」·
+           「개정 아님으로」·「○○ 개정으로」 버튼이 **화면에서 사라졌는데** 이 절은 그 버튼들을 설명하고 있었다.
+           id는 그대로 둔다(밖에서 이 자리로 오는 링크가 생겼을 수 있다). -->
+      <h4 id="ledger-rev">한 견적 = 한 줄 — 이전 판은 접혀 있습니다</h4>
       <p>
-        <strong>같은 문의로 견적서를 다시 내면 시스템이 앞 건과 이어 붙입니다.</strong>
-        번호 칸에 이렇게 보입니다.
-      </p>
-      <div class="scroller">
-        <table>
-          <tbody>
-            <tr><td class="field"><span class="tag">2차</span></td>
-              <td>이 문의로 <strong>두 번째</strong> 낸 견적서입니다. 1차에는 안 붙습니다.</td></tr>
-            <tr><td class="field">↳ BP-2609-0001 개정</td>
-              <td>어느 건을 고쳐 낸 것인지.</td></tr>
-            <tr><td class="field"><span class="tag bad">🔴 최신본 BP-2609-0002</span></td>
-              <td><strong>이 줄은 옛 견적서입니다.</strong> 고객이 들고 있는 것은 저 번호입니다 —
-                이 금액으로 응대하지 마세요.</td></tr>
-            <tr><td class="field"><span class="tag">차수 모름</span></td>
-              <td>앞선 견적서를 못 찾았습니다. <strong>짐작한 차수를 보여 주지 않습니다</strong> —
-                틀린 차수가 더 위험하기 때문입니다.</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h4>「개정 아님으로」는 언제 누르나</h4>
-      <p>
-        이어 붙이는 것은 <strong>자동이라 틀릴 때가 있습니다.</strong>
-        가장 흔한 경우가 <strong>한 문의에 A안·B안을 같이 낸 때</strong>입니다.
+        견적을 고쳐서 다시 발급하면(<code>_V2</code>·<code>_V3</code>) <strong>줄이 새로 생기지 않고</strong>
+        맨 위 줄 아래 <strong>「이전 판 n개 ▾」</strong>에 접힙니다. 누르면 펼쳐져
+        <strong>흐린 줄(└ 번호 · 이전 판)</strong>로 보입니다.
       </p>
       <div class="warn">
-        <span class="label">🔴 이런 일이 생깁니다</span>
+        <span class="label">🔴 맨 위 줄이 최신판입니다</span>
         <p>
-          같은 고객 문의로 <strong>「베트남안」</strong>과 <strong>「일본안」</strong>을 각각 발급했습니다.
-          시스템은 시간 순서만 보고 <strong>「일본안 = 베트남안의 2차」</strong>로 잇습니다.
-          그러면 베트남안에 <strong>🔴 최신본</strong> 경고가 붙어
-          <strong>버려진 견적서처럼 보입니다</strong> — 둘 다 살아 있는 제안인데요.
-        </p>
-        <p>
-          그 줄의 <strong>「개정 아님으로」</strong>를 누르면 연결이 끊기고,
-          차수 배지와 빨간 경고가 사라져 <strong>둘이 대등한 견적서로 돌아갑니다.</strong>
+          고객이 들고 있어야 할 견적서는 <strong>맨 위 줄</strong>입니다. 펼친 이전 판의 금액으로 응대하지 마세요.
+          옛 링크를 연 고객에게도 견적서 맨 위에 <strong>「더 최근 판이 있습니다 · 최신 견적서 보기 →」</strong>가 뜹니다
+          (옛 링크는 그대로 열립니다 — A안·B안을 같이 낸 경우가 있어 「무효」라고 하지 않습니다).
         </p>
       </div>
       <p>
-        <strong>같은 버튼이 반대로도 씁니다.</strong> 이어져 있지 않은데 이어야 할 건이면
-        <strong>「BP-2609-0001 개정으로」</strong>라고 나옵니다 — 누르면 이어집니다.
-        이을 건이 없으면 버튼 자체가 안 나옵니다.
+        목록 위 건수는 <strong>「견적 n건 · 발급 문서 n건」</strong>입니다 — 판을 모두 센 수가 뒤의 숫자입니다.
+        드물게 <strong>「⚠ 차수를 세지 못했습니다」</strong>가 뜨면 판 번호를 짐작해 보여 주지 않은 것이니
+        담당자에게 알려 주세요.
       </p>
-      <div class="note">
-        <span class="label">📌 금액은 아무것도 안 바뀝니다</span>
-        <p>
-          차수는 <strong>줄과 줄의 관계</strong>일 뿐입니다. 끊거나 이어도
-          <strong>견적서 금액과 이미 나간 링크는 그대로입니다.</strong>
-          바뀌는 것은 대장에서 보이는 배지와 경고뿐이니, 잘못 눌러도 되돌리면 됩니다.
-        </p>
-      </div>
       <h4>상태를 바꿔 두세요</h4>
       <p>
         각 줄의 상태를 <strong>발급 / 계약 / 무산 / 취소</strong>로 바꿀 수 있습니다.
@@ -1595,12 +1574,20 @@
         <strong>이걸 해 두셔야 다른 사람이 「이 건 어떻게 됐지」를 묻지 않아도 됩니다.</strong>
       </p>
       <div class="warn">
-        <span class="label">견적서는 지우지 않습니다</span>
+        <span class="label">지우기보다 「취소」가 먼저입니다</span>
         <p>
-          삭제 버튼이 없습니다. 지우면 <strong>「우리가 그 금액을 낸 적 있다」는 근거가
-          사라지기</strong> 때문입니다. 무산되거나 잘못 낸 건은 상태를
-          <strong>「취소」</strong>로 바꿔 주세요 — 목록에는 남되 무엇이 됐는지는 분명해집니다.
+          무산되거나 잘못 낸 건은 상태를 <strong>「취소」</strong>로 바꿔 주세요 — 목록에는 남되
+          무엇이 됐는지는 분명해지고, <strong>「우리가 그 금액을 낸 적 있다」는 근거</strong>가 남습니다.
         </p>
+        <p>
+          꼭 지워야 할 때만 줄 오른쪽 <strong>「삭제」</strong>를 씁니다(2026-09-30부터).
+          <strong>매니저 이상에게만 보입니다.</strong> 지우면 —
+        </p>
+        <ul>
+          <li>고객이 그 링크를 열면 <strong>「없는 견적서」</strong>로 나옵니다</li>
+          <li>지운 내용은 <strong>삭제 기록</strong>에 통째로 남고, <strong>그 번호는 다시 쓰지 않습니다</strong></li>
+          <li>「계약」 상태인 건은 확인창이 한 번 더 경고합니다</li>
+        </ul>
       </div>
     </section>
 
@@ -2146,6 +2133,9 @@
             <tr><td>일정·방식 비교 편집 (두 구역 모두)</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>목적지 단가 개별 수정 · 변경 이력 되돌리기</td><td class="yes">가능</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>문의 · 견적 <strong>삭제</strong></td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>
+            <tr><td>견적서 대장 <strong>삭제</strong> (지운 번호는 다시 안 씀 · 삭제 기록에 남음)</td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>
+            <tr><td>직접 견적 작성</td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>
+            <tr><td>전체 데이터 내보내기</td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>권역 일괄 조정 (%)</td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>새 목적지 추가 · 삭제</td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>
             <tr><td>견적 계수 조정</td><td class="no">—</td><td class="yes">가능</td><td class="yes">가능</td></tr>

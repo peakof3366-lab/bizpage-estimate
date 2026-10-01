@@ -231,11 +231,17 @@ console.log('\n[7] 대장 — 담당자가 휴가여도 찾을 수 있다');
   /* 견적서는 지우지 않는다 */
   ok('⑦ 삭제가 아니라 상태로 남긴다', /'issued', 'won', 'lost', 'void'/.test(SHARES));
   ok('⑦ 누가 언제 바꿨는지 남는다', /status_by/.test(SHARES) && /status_at = now\(\)/.test(SHARES));
-  ok('⑦ 화면에 삭제 버튼이 없다', !/led-delete/.test(ADMIN));
+  /* 🔴 2026-10-01 — 이 자리는 「화면에 삭제 버튼이 없다」(`!/led-delete/`)였다. 9/30(zT)에 삭제 버튼이
+       **`led-del`**이라는 이름으로 생겼는데 이 검사는 다른 이름을 찾고 있어 **계속 통과했다**(결함 생성기 ③).
+       이제 지키는 것은 「삭제는 매니저 이상만」 — 버튼은 `canDel`(isManagerUpRole)일 때만 그린다.
+       (서버 쪽 문턱·삭제 기록·번호 재사용 금지는 test_zT_ledger_delete가 잰다.) */
+  const LEDJS = fs.readFileSync(path.join(ROOT, 'admin', 'ledger.js'), 'utf8');
+  ok('⑦ 삭제 버튼은 매니저 이상에게만 그린다',
+    /const canDel = [^;]*isManagerUpRole\(\)/.test(LEDJS) && /canDel\s*\?[\s\S]{0,80}led-del/.test(LEDJS));
   /* ⚠ 안내를 줄이면서 표현이 바뀌었다(ZV) — **뜻으로 잰다.** 지키려던 것은 문장이
-     아니라 「왜 안 지우는가」가 화면에 남아 있는가다. */
-  ok('⑦ 왜 안 지우는지가 화면에 적혀 있다',
-    /지우지 않습니다/.test(ADMIN) && /낸 적 있다」는 근거/.test(ADMIN));
+     아니라 「왜 먼저 취소로 두는가」가 화면에 남아 있는가다. */
+  ok('⑦ 지우기 전에 「취소」 — 그 이유가 화면에 적혀 있다',
+    /지우기 전에 「취소」/.test(ADMIN) && /낸 적 있다」는 근거/.test(ADMIN));
 }
 
 /* ── [8] 실제로 열어 본다 ─────────────────────────────────────────────────── */
