@@ -2166,3 +2166,87 @@ body:has(.hero) .site-header:not(.scrolled):not(.nav-mobile-open) { border-botto
   .gallery-card:hover img, .pf-card:hover .pf-img img { transform:none; }
   .pf-card:hover, .button:hover, .button:active { transform:none; }
 }
+
+/* ══ 고객 첫 화면 · 견적 폼 · 푸터 — 눈에 보이는 개편 (2026-10-01 대표 「고객이 보는 곳은 달라진 게 없다」) ══
+   앞 블록(다듬기 · 움직임)은 반응만 고쳐서 **고객 눈엔 그대로였다.** 여기서는 모양을 바꾼다.
+   방향은 같다 — 각진 에디토리얼 · 먹색 + 보라(흰 면) / 민트(어두운 면) · 장식용 그라데이션 없음. */
+
+/* ① 히어로 사진 구성 — 넓은 화면: 글자 왼쪽 · 사진 오른쪽 */
+.hero-visual { position:relative; display:grid; gap:12px; animation:heroIn 1s var(--ease) .32s both; }
+.hero-visual figure { position:relative; margin:0; overflow:hidden; background:var(--ink2); }
+.hero-visual img { display:block; width:100%; height:100%; object-fit:cover; filter:saturate(.92);
+  animation:hvDrift 22s ease-in-out infinite alternate; }
+.hero-visual .hv-a img { animation-delay:-7s; }
+.hero-visual .hv-b img { animation-delay:-14s; }
+@keyframes hvDrift { from { transform:scale(1); } to { transform:scale(1.07); } }
+/* 도시 이름 — 사진 아래쪽을 어둡게 깔고 그 위에 흰 글자(사진이 밝아도 읽힌다) */
+.hero-visual figcaption {
+  position:absolute; left:0; right:0; bottom:0; padding:28px 14px 11px;
+  background:linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,0));
+  color:#fff; font-size:12.5px; font-weight:700;
+}
+@media (min-width:1025px) {
+  /* ⚠ 사진(높이 500px)이 글자 줄 넷에 걸치면 남는 높이가 **글자 줄 사이로** 나뉘어 제목·설명·버튼이
+     벌어진다 — 위아래에 빈 줄(1fr)을 두고 글자는 가운데 auto 줄 넷에 몰아 둔다. */
+  .hero-center {
+    display:grid; grid-template-columns:minmax(0,1fr) 420px;
+    grid-template-rows:1fr auto auto auto auto 1fr;
+    column-gap:64px; row-gap:28px;
+  }
+  .hero-center > * { grid-column:1; }
+  .hero-badge { grid-row:2; } .hero-center h1 { grid-row:3; } .hero-sub { grid-row:4; } .hero-actions { grid-row:5; }
+  .hero-badge { justify-self:start; }
+  .hero-center h1 { font-size:clamp(40px,4.6vw,64px); }
+  .hero-visual {
+    grid-column:2; grid-row:1 / -1; align-self:center;
+    grid-template-columns:1.12fr 1fr; grid-template-rows:1fr 1fr;
+    height:min(500px, 58vh);
+  }
+  .hero-visual .hv-tall { grid-row:1 / 3; }
+  /* 에디토리얼 틀 — 큰 사진 뒤로 민트 선 하나가 비껴 선다(장식은 이것 하나뿐) */
+  .hero-visual::before {
+    content:''; position:absolute; top:-16px; left:-16px; width:56%; height:72%;
+    border:1px solid rgba(99,214,212,.4); pointer-events:none; z-index:-1;
+  }
+}
+/* 좁은 화면: 버튼 아래 세 장을 한 줄로 */
+@media (max-width:1024px) {
+  .hero-visual { grid-template-columns:repeat(3,1fr); height:clamp(120px, 26vw, 220px); }
+  .hero-visual figcaption { font-size:11.5px; padding:20px 9px 7px; }
+}
+
+/* ② 견적 폼 — 「관리 도구 같다」의 원인 셋을 걷는다
+   · 고른 칸이 **먹색 덩어리**로 칠해졌다 → 보라 테두리 + 옅은 보라 바탕 + 보라 글자(7:1)
+   · 안쪽 상자가 회색 바탕이라 폼 전체가 칙칙했다 → 흰 바탕 + 실선
+   · 폼 머리에 아무 표시가 없었다 → 위에 보라 3px 띠(이 폼이 페이지의 주인공이다) */
+.estimate-form { border-top:3px solid var(--brand); box-shadow:var(--sh-md); }
+.date-block, .item-selector { background:var(--bg); border-color:var(--rule-md); }
+.inc-chip:has(input:checked), .grade-pill:has(input:checked) {
+  border-color:var(--brand); background:#F1F0FB; color:var(--brand-dk);
+}
+.inc-chip:hover, .grade-pill:hover { border-color:var(--brand); color:var(--brand-dk); }
+.inc-fixed-badge { background:#F1F0FB; color:var(--brand-dk); }
+.date-result-bar { background:var(--bg-off); border-color:transparent; }
+
+/* ③ 푸터 — 글자 「비즈페이지」 대신 BI 로고 · 바로가기 열을 더해 세 칸 */
+.footer-logo { display:block; height:28px; width:auto; }
+/* 열 머리(MENU·CONTACT) 10px → 12px — 고객 화면 검사의 작은 글자 문턱 위로. CONTACT는 원래부터 10px였다 */
+.footer-col-label { font-size:12px; }
+.footer-col-nav { row-gap:0; }
+.footer-brand { margin-bottom:6px; }
+.footer-grid { grid-template-columns:minmax(0,1.6fr) minmax(0,.7fr) auto; }
+.footer-col-nav { display:flex; flex-direction:column; align-items:flex-start; }
+.footer-col-nav a {
+  font-size:13px; color:rgba(255,255,255,.66); line-height:1.6; padding:12px 0;  /* 누를 높이 44px 이상 */
+  text-decoration:underline 1px transparent; text-underline-offset:5px;
+  transition:color var(--dur), text-decoration-color var(--dur);
+}
+.footer-col-nav a:hover { color:#fff; text-decoration-color:var(--brand-on-dk); }
+@media (max-width:760px) {
+  .footer-grid { grid-template-columns:1fr; }
+  .footer-col-nav { flex-direction:row; flex-wrap:wrap; column-gap:18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-visual, .hero-visual img { animation:none; }
+}
