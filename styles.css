@@ -2283,36 +2283,45 @@ body:has(.hero) .site-header:not(.scrolled):not(.nav-mobile-open) { background:r
   .nav-mobile-open .nav-links a { color:var(--t-head); }
 }
 
-/* 히어로 — 따뜻한 흰빛 위에 아주 옅은 보라 하늘 · 노선도는 먹색 선 + 보라 점(script.js) */
-.hero { background:#FAFAF8 linear-gradient(180deg, #F3F2FB 0%, #FAFAF8 70%); }
+/* 히어로 — **해 질 녘** (2026-10-01 두 번째 지시 「너무 밝아졌다 · 어둠과 밝음 중간 어딘가」)
+   먹색 밤(33c6ec1)과 흰 낮(830fc53) 사이 — 깊은 남보라에서 조금 밝은 보라 회색으로 내려오고,
+   바닥에 지평선 같은 민트 빛. 면은 **어두운 쪽**이라 강조는 민트, 글자는 흰색(브랜드 규칙).
+   ⚠ `background-color`(#34325E)가 글자 대비의 기준이다 — check_contrast는 그라데이션이 아니라 이 값을 읽는다.
+   ⚠ 노선도 색은 --map-line · --map-dot으로 여기서 정한다(script.js가 읽는다). */
+.hero { background:#34325E linear-gradient(160deg, #2A2852 0%, #3A3870 55%, #4B4886 100%); }
 .hero-gradient {
   background:
-    radial-gradient(ellipse 55% 60% at 82% 26%, rgba(81,77,194,.10) 0%, transparent 70%),
-    radial-gradient(ellipse 45% 55% at 0% 45%, rgba(99,214,212,.10) 0%, transparent 70%);
+    radial-gradient(ellipse 70% 40% at 50% 106%, rgba(99,214,212,.16) 0%, transparent 72%),
+    radial-gradient(ellipse 50% 55% at 85% 20%, rgba(255,255,255,.07) 0%, transparent 70%);
 }
-.hero::after { opacity:.03; }
-.hero-canvas { opacity:.9; }
+.hero::after { opacity:.04; }
+.hero-canvas { opacity:.75; --map-line:rgba(255,255,255,.13); --map-dot:99,214,212; }
 /* 폰에선 노선 점이 설명 글자 위에 겹친다 — 옅게 */
 @media (max-width:1024px) { .hero-canvas { opacity:.4; } }
-.hero-bg-text { color:rgba(13,13,13,.035); }
-.hero-badge { background:rgba(81,77,194,.06); border-color:rgba(81,77,194,.3); color:var(--brand-dk); }
-.hero-center h1 { color:var(--t-head); }
-.hero-center h1 em { color:var(--brand); }
-.hero-sub { color:var(--t-mute); }
-.hero .button-outline { color:var(--t-head); border-color:rgba(13,13,13,.32); }
-.hero .button-outline:hover { background:var(--t-head); color:var(--white); border-color:var(--t-head); }
-.hero .button:focus-visible { outline-color:var(--brand); }
-.hero-visual::before { border-color:rgba(81,77,194,.38); }
-.hero-visual figure { background:#E9E8F3; box-shadow:0 10px 30px rgba(20,20,60,.12); }
-.dest-ticker-wrap { background:var(--bg); border-top-color:var(--rule); border-bottom:1px solid var(--rule); }
-.dest-ticker span:not(.t-sep) { color:var(--t-mute); }  /* --t-sub는 흰 바탕 위 11px에서 4.42:1 */
-.t-sep { background:rgba(81,77,194,.35); }
+.hero-bg-text { color:rgba(255,255,255,.04); }
+.hero-badge { background:rgba(99,214,212,.10); border-color:rgba(99,214,212,.45); color:var(--brand-on-dk); }
+.hero-center h1 { color:var(--white); }
+.hero-center h1 em { color:var(--brand-on-dk); }
+.hero-sub { color:rgba(255,255,255,.82); }
+.hero .button-outline { color:var(--white); border-color:rgba(255,255,255,.55); }
+.hero .button-outline:hover { background:var(--white); color:var(--ink); border-color:var(--white); }
+.hero .button:focus-visible { outline-color:var(--brand-on-dk); }
+/* 보라 버튼이 보라 하늘에 묻혔다 — 이 면에서만 흰 버튼 · 보라 글자(7:1). 누르면 민트. */
+.hero .button-primary { background:var(--white); color:var(--brand-dk); border-color:var(--white); }
+.hero .button-primary:hover { background:var(--brand-on-dk); color:var(--ink); border-color:var(--brand-on-dk); }
+.hero-visual::before { border-color:rgba(99,214,212,.45); }
+.hero-visual figure { background:#2A2852; box-shadow:0 12px 32px rgba(10,10,40,.35); }
+/* 티커는 히어로의 바닥 색으로 이어 — 그 아래 숫자 띠부터 흰 면이 시작된다 */
+.dest-ticker-wrap { background:#2A2852; border-top-color:rgba(255,255,255,.1); border-bottom:1px solid var(--rule); }
+.dest-ticker span:not(.t-sep) { color:rgba(255,255,255,.72); }
+.t-sep { background:rgba(99,214,212,.5); }
 .hero-stats { background:var(--bg); border-top-color:var(--rule); }
 .stat-item { border-right-color:var(--rule); }
 .stat-item:hover { background:var(--bg-off); }
 .stat-num-hero { color:var(--t-head); }
 .hero-stats .stat-unit { color:var(--brand); }
 .stat-lbl-hero { color:var(--t-mute); }
+.hero-bg-text { display:none; }  /* 「GLOBAL」 워터마크 — 숫자 띠가 흰 면이 되며 위아래로 갈려 반쪽만 보였다 */
 
 /* 목적지 — 흰 면 */
 .section-gallery { background:var(--bg); }

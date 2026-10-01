@@ -2676,6 +2676,9 @@ function submitConsult() {
   ];
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let W = 0, H = 0, dpr = 1, running = false, visible = true;
+  /* 색은 **CSS가 정한다**(`.hero-canvas`의 --map-line · --map-dot) — 히어로 면이 밝음/어둠/해 질 녘으로
+     바뀔 때마다 여기 숫자를 고치면 두 곳이 갈린다(2026-10-01 하루에 세 번 바뀌었다). --map-dot은 「r,g,b」. */
+  let LINE = 'rgba(13,13,13,0.09)', DOT = '81,77,194';
 
   function drawBase() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -2685,6 +2688,9 @@ function submitConsult() {
     bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     bctx.clearRect(0, 0, W, H);
+    const cs = getComputedStyle(canvas);
+    LINE = cs.getPropertyValue('--map-line').trim() || LINE;
+    DOT = cs.getPropertyValue('--map-dot').trim() || DOT;
 
     /* 노선 선 */
     EDGES.forEach(([a, b]) => {
@@ -2694,7 +2700,7 @@ function submitConsult() {
       bctx.beginPath();
       bctx.moveTo(ax, ay);
       bctx.quadraticCurveTo(mx, my, bx, by);
-      bctx.strokeStyle = 'rgba(13,13,13,0.09)';
+      bctx.strokeStyle = LINE;
       bctx.lineWidth = 0.8;
       bctx.stroke();
     });
@@ -2705,14 +2711,14 @@ function submitConsult() {
       /* 🔴 2026-10-01 히어로가 **밝은 면**이 되어 보라(#514dc2)로 바꿨다 — 민트는 흰 바탕에서 1.8:1로 사라진다.
          (어두운 면으로 되돌리면 민트 99,214,212 · 선은 흰색 .10 · 코어 214,248,247로) */
       const grd = bctx.createRadialGradient(cx, cy, 0, cx, cy, sz * 6);
-      grd.addColorStop(0, 'rgba(81,77,194,0.16)');
-      grd.addColorStop(1, 'rgba(81,77,194,0)');
+      grd.addColorStop(0, 'rgba(' + DOT + ',0.2)');
+      grd.addColorStop(1, 'rgba(' + DOT + ',0)');
       bctx.beginPath(); bctx.arc(cx, cy, sz * 6, 0, Math.PI * 2); bctx.fillStyle = grd; bctx.fill();
       bctx.beginPath(); bctx.arc(cx, cy, sz * 2.4, 0, Math.PI * 2);
-      bctx.strokeStyle = 'rgba(81,77,194,0.22)'; bctx.lineWidth = 0.8; bctx.stroke();
+      bctx.strokeStyle = 'rgba(' + DOT + ',0.24)'; bctx.lineWidth = 0.8; bctx.stroke();
       /* 코어 — 분홍(레드 시절 잔재)이었다 → 보라 */
       bctx.beginPath(); bctx.arc(cx, cy, sz * 0.8, 0, Math.PI * 2);
-      bctx.fillStyle = 'rgba(81,77,194,0.85)'; bctx.fill();
+      bctx.fillStyle = 'rgba(' + DOT + ',0.9)'; bctx.fill();
     });
   }
 
@@ -2736,7 +2742,7 @@ function submitConsult() {
           const [x, y] = bez(a, b, tt);
           ctx.beginPath();
           ctx.arc(x, y, k === 0 ? 1.9 : 1.2, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(81,77,194,' + (k === 0 ? 0.95 : 0.32 * (1 - k / 15)).toFixed(3) + ')';
+          ctx.fillStyle = 'rgba(' + DOT + ',' + (k === 0 ? 0.95 : 0.32 * (1 - k / 15)).toFixed(3) + ')';
           ctx.fill();
         }
       });
