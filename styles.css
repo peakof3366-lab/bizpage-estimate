@@ -2261,3 +2261,126 @@ body:has(.hero) .site-header:not(.scrolled):not(.nav-mobile-open) { border-botto
 @media (prefers-reduced-motion: reduce) {
   .hero-visual, .hero-visual img { animation:none; }
 }
+
+/* ══ 밝은 톤 (2026-10-01 대표 지시 「홈페이지 전체를 좀 더 밝은 톤으로」) ══════════════════════
+   어두운 면이던 여섯 곳(머리줄 · 히어로 · 목적지 · 후기 · 문의 · 푸터)을 밝은 면으로 돌린다.
+   🔴 **면이 바뀌면 강조색도 바뀐다** — 브랜드 규칙(맨 위 토큰 주석): 흰 바탕 = 보라, 어두운 면 = 민트.
+     민트는 흰 바탕에서 1.8:1로 사라지므로 이 구역들의 민트 글자·선은 **전부 보라로** 옮긴다.
+   ⚠ 위쪽 규칙은 지우지 않고 여기서 덮는다 — 되돌리려면 이 블록과 index.html 로고 두 곳(biz-logo.svg ↔
+     biz-logo-white.svg), script.js 노선도 색 주석만 보면 된다.
+   ⚠ 사진 위 글자(목적지 카드·히어로 사진 이름표)는 **사진이 어두운 면**이라 그대로 흰 글자다. */
+
+/* 머리줄 — 흰 면 + 살짝 비치는 유리 */
+.site-header { background:rgba(255,255,255,.92); border-bottom-color:var(--rule); }
+body:has(.hero) .site-header:not(.scrolled):not(.nav-mobile-open) { background:rgba(255,255,255,.92); }
+.nav-links a { color:var(--t-mute); }
+.nav-links a:hover { color:var(--t-head); text-decoration-color:var(--brand); }
+.nav-links a.nav-pkg { color:var(--t-head); border-color:var(--rule-md); }
+.nav-links a.nav-pkg:hover { color:var(--brand-dk); border-color:var(--brand); }
+.nav-toggle span { background:var(--t-head); }
+@media (max-width:1024px) {
+  .nav-mobile-open .nav-links { background:var(--bg); border-bottom-color:var(--rule); }
+  .nav-mobile-open .nav-links a { color:var(--t-head); }
+}
+
+/* 히어로 — 따뜻한 흰빛 위에 아주 옅은 보라 하늘 · 노선도는 먹색 선 + 보라 점(script.js) */
+.hero { background:#FAFAF8 linear-gradient(180deg, #F3F2FB 0%, #FAFAF8 70%); }
+.hero-gradient {
+  background:
+    radial-gradient(ellipse 55% 60% at 82% 26%, rgba(81,77,194,.10) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 55% at 0% 45%, rgba(99,214,212,.10) 0%, transparent 70%);
+}
+.hero::after { opacity:.03; }
+.hero-canvas { opacity:.9; }
+/* 폰에선 노선 점이 설명 글자 위에 겹친다 — 옅게 */
+@media (max-width:1024px) { .hero-canvas { opacity:.4; } }
+.hero-bg-text { color:rgba(13,13,13,.035); }
+.hero-badge { background:rgba(81,77,194,.06); border-color:rgba(81,77,194,.3); color:var(--brand-dk); }
+.hero-center h1 { color:var(--t-head); }
+.hero-center h1 em { color:var(--brand); }
+.hero-sub { color:var(--t-mute); }
+.hero .button-outline { color:var(--t-head); border-color:rgba(13,13,13,.32); }
+.hero .button-outline:hover { background:var(--t-head); color:var(--white); border-color:var(--t-head); }
+.hero .button:focus-visible { outline-color:var(--brand); }
+.hero-visual::before { border-color:rgba(81,77,194,.38); }
+.hero-visual figure { background:#E9E8F3; box-shadow:0 10px 30px rgba(20,20,60,.12); }
+.dest-ticker-wrap { background:var(--bg); border-top-color:var(--rule); border-bottom:1px solid var(--rule); }
+.dest-ticker span:not(.t-sep) { color:var(--t-mute); }  /* --t-sub는 흰 바탕 위 11px에서 4.42:1 */
+.t-sep { background:rgba(81,77,194,.35); }
+.hero-stats { background:var(--bg); border-top-color:var(--rule); }
+.stat-item { border-right-color:var(--rule); }
+.stat-item:hover { background:var(--bg-off); }
+.stat-num-hero { color:var(--t-head); }
+.hero-stats .stat-unit { color:var(--brand); }
+.stat-lbl-hero { color:var(--t-mute); }
+
+/* 목적지 — 흰 면 */
+.section-gallery { background:var(--bg); }
+.gal-hd-our { color:var(--brand); }
+.gal-hd-title { color:var(--t-head); }
+.gal-hd-line { background:var(--rule-md); }
+.gal-hd-sub { color:var(--t-mute); }
+.dest-recommender { background:var(--bg-off); border-color:var(--rule); }
+.dest-rec-lbl { color:var(--t-head); }
+#destIndustry {
+  color-scheme:light; color:var(--t-head); border-color:var(--rule-md);
+  background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%230D0D0D' stroke-opacity='.55' stroke-width='1.4' fill='none'/%3E%3C/svg%3E") no-repeat right 14px center;
+}
+#destIndustry option   { background:var(--bg); color:var(--t-head); }
+#destIndustry optgroup { background:var(--bg-off); color:var(--brand-dk); }
+#destIndustry option:disabled { color:var(--t-sub); }
+.dest-rec-result { color:var(--t-body); }
+.dest-rec-result.show { background:rgba(81,77,194,.06); border-color:rgba(81,77,194,.25); border-left-color:var(--brand); }
+.dest-rec-result strong { color:var(--t-head); }
+.dest-rec-tag { color:var(--t-mute); }
+.gal-filter-chip { color:var(--t-mute); border-color:var(--rule-md); }
+.gal-filter-chip:hover { color:var(--t-head); border-color:var(--t-head); }
+.gallery-card { border-color:transparent; }
+/* 사진을 어두운 면에 맞춰 눌러 뒀다(밝기 .85 + 위까지 덮는 그늘) — 밝은 면에선 무겁다. 사진은 밝히고 그늘은 글자 자리(아래)에만 */
+.gallery-card img { filter:saturate(1) brightness(.97); }
+.gallery-card:hover img { filter:saturate(1.05) brightness(.9); }
+.gallery-overlay { background:linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.18) 45%, transparent 70%); }
+.gallery-card:hover .gallery-overlay { background:linear-gradient(to top, rgba(0,0,0,.8) 0%, rgba(0,0,0,.28) 50%, transparent 75%); }
+
+/* 후기 — 옅은 회백 면 + 흰 카드 */
+.section-testimonials { background:var(--bg-off); }
+.section-testimonials .section-title-center { color:var(--t-head); }
+.section-testimonials .section-sub-center { color:var(--t-mute); }
+.testi-eyebrow-line { background:var(--rule-md); }
+.testi-eyebrow-label { color:var(--brand); }
+.testi-card { background:var(--bg); border-color:var(--rule); }
+.testi-card:hover { background:var(--bg); border-color:rgba(81,77,194,.35); }
+.testi-card-highlight { background:#F7F6FD; border-color:rgba(81,77,194,.22); }
+.testi-quote { opacity:1; color:rgba(81,77,194,.45); }
+.testi-text { color:var(--t-body); }
+.testi-star { color:var(--brand); }
+.testi-name { color:var(--t-head); }
+.testi-org { color:var(--t-mute); }
+.trust-strip { background:var(--bg); border-color:var(--rule); }
+.trust-item { border-right-color:var(--rule); }
+.trust-item:hover { background:var(--bg-off); }
+.trust-num { color:var(--t-head); }
+.trust-unit { color:var(--brand); }
+.trust-lbl { color:var(--t-mute); }
+
+/* 문의 — 옅은 보라빛 면 + 흰 폼 */
+.section-contact { background:#F3F2FB; }
+.section-contact .eyebrow { color:var(--brand); }
+.section-contact h2 { color:var(--t-head); }
+.contact-grid > div > p { color:var(--t-mute); }
+.contact-details p { color:var(--t-body); }
+.contact-details strong { color:var(--t-head); }
+.map-wrap { border-color:var(--rule-md); }
+.contact-form { box-shadow:var(--sh-md); }
+.contact-form .button:focus-visible { outline-color:var(--brand); }
+
+/* 푸터 — 회백 면 */
+.site-footer { background:#F1F1EE; border-top-color:var(--rule); }
+.footer-grid { border-bottom-color:var(--rule-md); }
+.footer-tagline { color:var(--t-mute); }
+.footer-info { color:var(--t-mute); }
+.footer-col-label { color:var(--t-mute); }
+.footer-col-contact p { color:var(--t-mute); }
+.footer-col-nav a { color:var(--t-mute); }
+.footer-col-nav a:hover { color:var(--t-head); text-decoration-color:var(--brand); }
+.footer-bottom { color:var(--t-mute); }  /* --t-sub는 이 회백 면에서 3.9:1 */

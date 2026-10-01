@@ -2694,7 +2694,7 @@ function submitConsult() {
       bctx.beginPath();
       bctx.moveTo(ax, ay);
       bctx.quadraticCurveTo(mx, my, bx, by);
-      bctx.strokeStyle = 'rgba(255,255,255,0.10)';
+      bctx.strokeStyle = 'rgba(13,13,13,0.09)';
       bctx.lineWidth = 0.8;
       bctx.stroke();
     });
@@ -2702,16 +2702,17 @@ function submitConsult() {
     /* 도시 노드 */
     CITIES.forEach(([,, sz], i) => {
       const [cx, cy] = toPixel(i, W, H);
-      /* 🔴 어두운 지도 위의 도시 불빛 — BI 민트(#63d6d4). 보라는 검정 바탕에서 거의 안 보인다(2.9:1). */
+      /* 🔴 2026-10-01 히어로가 **밝은 면**이 되어 보라(#514dc2)로 바꿨다 — 민트는 흰 바탕에서 1.8:1로 사라진다.
+         (어두운 면으로 되돌리면 민트 99,214,212 · 선은 흰색 .10 · 코어 214,248,247로) */
       const grd = bctx.createRadialGradient(cx, cy, 0, cx, cy, sz * 6);
-      grd.addColorStop(0, 'rgba(99,214,212,0.22)');
-      grd.addColorStop(1, 'rgba(99,214,212,0)');
+      grd.addColorStop(0, 'rgba(81,77,194,0.16)');
+      grd.addColorStop(1, 'rgba(81,77,194,0)');
       bctx.beginPath(); bctx.arc(cx, cy, sz * 6, 0, Math.PI * 2); bctx.fillStyle = grd; bctx.fill();
       bctx.beginPath(); bctx.arc(cx, cy, sz * 2.4, 0, Math.PI * 2);
-      bctx.strokeStyle = 'rgba(99,214,212,0.22)'; bctx.lineWidth = 0.8; bctx.stroke();
-      /* 코어 — 분홍(레드 시절 잔재)이었다 → 민트가 섞인 흰빛 */
+      bctx.strokeStyle = 'rgba(81,77,194,0.22)'; bctx.lineWidth = 0.8; bctx.stroke();
+      /* 코어 — 분홍(레드 시절 잔재)이었다 → 보라 */
       bctx.beginPath(); bctx.arc(cx, cy, sz * 0.8, 0, Math.PI * 2);
-      bctx.fillStyle = 'rgba(214,248,247,0.9)'; bctx.fill();
+      bctx.fillStyle = 'rgba(81,77,194,0.85)'; bctx.fill();
     });
   }
 
@@ -2735,7 +2736,7 @@ function submitConsult() {
           const [x, y] = bez(a, b, tt);
           ctx.beginPath();
           ctx.arc(x, y, k === 0 ? 1.9 : 1.2, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(99,214,212,' + (k === 0 ? 0.95 : 0.32 * (1 - k / 15)).toFixed(3) + ')';
+          ctx.fillStyle = 'rgba(81,77,194,' + (k === 0 ? 0.95 : 0.32 * (1 - k / 15)).toFixed(3) + ')';
           ctx.fill();
         }
       });
