@@ -2286,13 +2286,17 @@ body:has(.hero) .site-header:not(.scrolled):not(.nav-mobile-open) { background:r
 /* 히어로 — **해 질 녘** (2026-10-01 두 번째 지시 「너무 밝아졌다 · 어둠과 밝음 중간 어딘가」)
    먹색 밤(33c6ec1)과 흰 낮(830fc53) 사이 — 깊은 남보라에서 조금 밝은 보라 회색으로 내려오고,
    바닥에 지평선 같은 민트 빛. 면은 **어두운 쪽**이라 강조는 민트, 글자는 흰색(브랜드 규칙).
-   ⚠ `background-color`(#34325E)가 글자 대비의 기준이다 — check_contrast는 그라데이션이 아니라 이 값을 읽는다.
+   ⚠ `background-color`(#1C1A45)가 글자 대비의 기준이다 — check_contrast는 그라데이션이 아니라 이 값을 읽는다.
    ⚠ 노선도 색은 --map-line · --map-dot으로 여기서 정한다(script.js가 읽는다). */
-.hero { background:#34325E linear-gradient(160deg, #2A2852 0%, #3A3870 55%, #4B4886 100%); }
+/* 🔄 같은 날 세 번째 — 「살짝 옛날 느낌」(대표). 원인은 **넓은 면을 고르게 채운 중간 채도 보라**였다
+   (#2A2852→#4B4886 160°). 후보 셋(미드나이트 네이비 · 딥 인디고 · 슬레이트 차콜)을 실제 화면에 입혀
+   보여 드렸고 **딥 인디고(B)**로 정했다: 바탕은 한 단계 깊게, 보라 빛은 사진 뒤에만 번진다. */
+.hero { background:#1C1A45 linear-gradient(135deg, #17153A 0%, #221F55 60%, #1B1946 100%); }
 .hero-gradient {
   background:
-    radial-gradient(ellipse 70% 40% at 50% 106%, rgba(99,214,212,.16) 0%, transparent 72%),
-    radial-gradient(ellipse 50% 55% at 85% 20%, rgba(255,255,255,.07) 0%, transparent 70%);
+    radial-gradient(ellipse 55% 70% at 85% 30%, rgba(110,104,235,.55) 0%, transparent 68%),
+    radial-gradient(ellipse 50% 55% at 5% 100%, rgba(99,214,212,.24) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 40% 0%, rgba(255,255,255,.05) 0%, transparent 70%);
 }
 .hero::after { opacity:.04; }
 .hero-canvas { opacity:.75; --map-line:rgba(255,255,255,.13); --map-dot:99,214,212; }
@@ -2310,9 +2314,9 @@ body:has(.hero) .site-header:not(.scrolled):not(.nav-mobile-open) { background:r
 .hero .button-primary { background:var(--white); color:var(--brand-dk); border-color:var(--white); }
 .hero .button-primary:hover { background:var(--brand-on-dk); color:var(--ink); border-color:var(--brand-on-dk); }
 .hero-visual::before { border-color:rgba(99,214,212,.45); }
-.hero-visual figure { background:#2A2852; box-shadow:0 12px 32px rgba(10,10,40,.35); }
+.hero-visual figure { background:#17153A; box-shadow:0 12px 32px rgba(10,10,40,.35); }
 /* 티커는 히어로의 바닥 색으로 이어 — 그 아래 숫자 띠부터 흰 면이 시작된다 */
-.dest-ticker-wrap { background:#2A2852; border-top-color:rgba(255,255,255,.1); border-bottom:1px solid var(--rule); }
+.dest-ticker-wrap { background:#17153A; border-top-color:rgba(255,255,255,.1); border-bottom:1px solid var(--rule); }
 .dest-ticker span:not(.t-sep) { color:rgba(255,255,255,.72); }
 .t-sep { background:rgba(99,214,212,.5); }
 .hero-stats { background:var(--bg); border-top-color:var(--rule); }
