@@ -312,19 +312,30 @@ p { line-height:1.8; }
 /* ── 8. Hero ────────────────────────────────────────────────────── */
 .hero {
   position:relative; min-height:100vh;
-  background:var(--bg-dk);
+  background:var(--bg-dk) linear-gradient(180deg, #0B0B16 0%, #0D0D0D 78%);
   display:flex; flex-direction:column;
   overflow:hidden; padding-top:64px;
 }
 .hero-canvas {
   position:absolute; inset:0;
-  width:100%; height:100%; opacity:.18; z-index:0;
+  width:100%; height:100%; opacity:.55; z-index:0;  /* .18이라 노선도가 거의 안 보였다(2026-10-01) — 선 자체를 옅게 그리고 여기를 올렸다 */
 }
 .hero-gradient {
   position:absolute; inset:0; z-index:1;
+  /* 2026-10-01 「어두운 배경을 예쁘게」 — 단색 먹색 위에 보라 얼룩 둘이던 것을 **밤하늘의 깊이**로.
+     위는 깊은 남색, 아래로 갈수록 먹색 · 바닥(티커 줄)에는 지평선처럼 아주 옅은 민트 빛 ·
+     사진 쪽(오른쪽 위)이 조금 더 깊다. 형광 보라 번짐은 쓰지 않는다. */
   background:
-    radial-gradient(ellipse 60% 60% at 0% 40%, rgba(81,77,194,.14) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 40% at 100% 80%, rgba(81,77,194,.06) 0%, transparent 60%);
+    radial-gradient(ellipse 55% 60% at 80% 28%, rgba(46,44,120,.38) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 38% at 50% 104%, rgba(99,214,212,.10) 0%, transparent 72%),
+    radial-gradient(ellipse 45% 55% at 0% 45%, rgba(81,77,194,.10) 0%, transparent 70%);
+  /* ⚠ 불투명한 바탕(위→아래 남색→먹색)은 여기 두지 않는다 — 이 층(z 1)이 노선도 캔버스(z 0)를
+       **통째로 덮었다**(처음 그렇게 해서 노선도가 사라졌다). 바탕은 `.hero`에 있다. */
+}
+/* 필름 질감 — 아주 옅은 입자(4%)가 「매끈한 디지털 단색」 느낌을 걷는다. 그림 파일 없이 SVG 잡음으로. */
+.hero::after {
+  content:''; position:absolute; inset:0; z-index:1; pointer-events:none; opacity:.045;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 /* 방향 1 — 대형 배경 텍스트 (에디토리얼) */
 .hero-bg-text {

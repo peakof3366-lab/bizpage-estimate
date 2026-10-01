@@ -2658,58 +2658,105 @@ function submitConsult() {
     return [(ax + bx) / 2, (ay + by) / 2 - d * 0.22];
   }
 
-  let W = 0, H = 0;
-  function render() {
-    W = canvas.width  = canvas.clientWidth;
-    H = canvas.height = canvas.clientHeight;
-    ctx.clearRect(0, 0, W, H);
+  /* 2026-10-01 대표 요청 「처음 어두운 배경을 예쁘게」 —
+     예전엔 이 지도가 투명도 18%라 **거의 안 보였고**, 도시 점은 레드 시절의 분홍색이 남아 있었다.
+     → 노선·도시는 바깥 캔버스에 **한 번만** 그려 두고(정적 레이어), 매 장면엔 그것을 붙인 뒤
+       서울·도쿄·런던에서 떠나는 「비행 점」 다섯 개만 노선을 따라 천천히 움직인다.
+     ⚠ 히어로가 화면 밖이거나 탭이 숨겨지면 멈춘다(배터리·CPU).
+     ⚠ `prefers-reduced-motion`이면 비행 점 없이 정적 지도만 그린다.
+     ⚠ 화면 배율(dpr)을 반영해 선이 흐리지 않게 — 2배까지만(폰 4K에서 캔버스가 터지지 않게). */
+  const base = document.createElement('canvas');
+  const bctx = base.getContext('2d');
+  const FLIGHTS = [  /* [출발, 도착, 한 번 나는 시간(초), 시작 위상] */
+    [0, 9, 11, 0.00],   /* 서울 → 런던 */
+    [0, 8, 13, 0.35],   /* 서울 → 뉴욕 */
+    [0, 4,  8, 0.62],   /* 서울 → 싱가포르 */
+    [1, 7,  9, 0.18],   /* 도쿄 → 시드니 */
+    [9, 11, 8, 0.80],   /* 런던 → 두바이 */
+  ];
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W = 0, H = 0, dpr = 1, running = false, visible = true;
 
-    /* 노선 선 (정적) */
+  function drawBase() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = canvas.clientWidth; H = canvas.clientHeight;
+    canvas.width = base.width = Math.round(W * dpr);
+    canvas.height = base.height = Math.round(H * dpr);
+    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bctx.clearRect(0, 0, W, H);
+
+    /* 노선 선 */
     EDGES.forEach(([a, b]) => {
       const [ax, ay] = toPixel(a, W, H);
       const [bx, by] = toPixel(b, W, H);
       const [mx, my] = ctrlPt(ax, ay, bx, by);
-      ctx.beginPath();
-      ctx.moveTo(ax, ay);
-      ctx.quadraticCurveTo(mx, my, bx, by);
-      ctx.strokeStyle = 'rgba(255,255,255,0.09)';
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
+      bctx.beginPath();
+      bctx.moveTo(ax, ay);
+      bctx.quadraticCurveTo(mx, my, bx, by);
+      bctx.strokeStyle = 'rgba(255,255,255,0.10)';
+      bctx.lineWidth = 0.8;
+      bctx.stroke();
     });
 
-    /* 도시 노드 (정적 — 펄스 없음) */
+    /* 도시 노드 */
     CITIES.forEach(([,, sz], i) => {
       const [cx, cy] = toPixel(i, W, H);
-
-      /* 글로우 헤일로 */
-      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, sz * 6);
-      /* 🔴 어두운 지도 위의 도시 불빛 — BI 민트(#63d6d4).
-         보라는 검정 바탕에서 거의 안 보인다(2.9:1) — 여기는 어두운 면이다. */
-      grd.addColorStop(0, 'rgba(99,214,212,0.24)');
+      /* 🔴 어두운 지도 위의 도시 불빛 — BI 민트(#63d6d4). 보라는 검정 바탕에서 거의 안 보인다(2.9:1). */
+      const grd = bctx.createRadialGradient(cx, cy, 0, cx, cy, sz * 6);
+      grd.addColorStop(0, 'rgba(99,214,212,0.22)');
       grd.addColorStop(1, 'rgba(99,214,212,0)');
-      ctx.beginPath();
-      ctx.arc(cx, cy, sz * 6, 0, Math.PI * 2);
-      ctx.fillStyle = grd;
-      ctx.fill();
-
-      /* 외곽 링 (단일 고정) */
-      ctx.beginPath();
-      ctx.arc(cx, cy, sz * 2.4, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(99,214,212,0.20)';
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-
-      /* 코어 */
-      ctx.beginPath();
-      ctx.arc(cx, cy, sz, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,200,210,0.85)';
-      ctx.fill();
+      bctx.beginPath(); bctx.arc(cx, cy, sz * 6, 0, Math.PI * 2); bctx.fillStyle = grd; bctx.fill();
+      bctx.beginPath(); bctx.arc(cx, cy, sz * 2.4, 0, Math.PI * 2);
+      bctx.strokeStyle = 'rgba(99,214,212,0.22)'; bctx.lineWidth = 0.8; bctx.stroke();
+      /* 코어 — 분홍(레드 시절 잔재)이었다 → 민트가 섞인 흰빛 */
+      bctx.beginPath(); bctx.arc(cx, cy, sz * 0.8, 0, Math.PI * 2);
+      bctx.fillStyle = 'rgba(214,248,247,0.9)'; bctx.fill();
     });
   }
 
-  /* 한 번만 그리고 리사이즈 시 재렌더 */
-  window.addEventListener('resize', render);
-  render();
+  function bez(a, b, t) {
+    const [ax, ay] = toPixel(a, W, H), [bx, by] = toPixel(b, W, H);
+    const [mx, my] = ctrlPt(ax, ay, bx, by), u = 1 - t;
+    return [u * u * ax + 2 * u * t * mx + t * t * bx, u * u * ay + 2 * u * t * my + t * t * by];
+  }
+
+  function frame(now) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(base, 0, 0, W, H);
+    if (!reduce) {
+      FLIGHTS.forEach(([a, b, dur, ph]) => {
+        const c = (now / 1000 / dur + ph) % 1;
+        if (c > 0.82) return;                         /* 도착 뒤 잠깐 쉰다 — 늘 날고 있으면 산만하다 */
+        const t = c / 0.82;
+        const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;   /* 이륙·착륙에서 느리게 */
+        for (let k = 14; k >= 0; k--) {                /* 꼬리 — 지나온 길이 옅게 남는다 */
+          const tt = Math.max(0, e - k * 0.012);
+          const [x, y] = bez(a, b, tt);
+          ctx.beginPath();
+          ctx.arc(x, y, k === 0 ? 1.9 : 1.2, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(99,214,212,' + (k === 0 ? 0.95 : 0.32 * (1 - k / 15)).toFixed(3) + ')';
+          ctx.fill();
+        }
+      });
+    }
+    if (running) requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (running || reduce || !visible || document.hidden) return;
+    running = true; requestAnimationFrame(frame);
+  }
+  function stop() { running = false; }
+
+  drawBase(); frame(performance.now());
+  window.addEventListener('resize', () => { drawBase(); if (!running) frame(performance.now()); });
+  document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver((es) => { visible = es[0].isIntersecting; visible ? start() : stop(); })
+      .observe(canvas);
+  }
+  start();
 })();
 
 /* ════════════════════════════════════════════════════════════════════
