@@ -756,7 +756,26 @@
     .rate-badge.ok    { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
     .rate-badge.check { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
     .rate-badge.stale { background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; }
-    .rate-region-row td { background:var(--bg); font-weight:700; color:var(--heading); font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; padding:.45rem .85rem; }
+    /* 🎨 2026-10-02 대표 지시 「카테고리별로 색상을」 — 지역 색은 admin/common.js REGION_COLORS 한 곳(--rg로 넘긴다).
+       ⚠ 예전 규칙의 uppercase·letter-spacing을 뺐다 — 한글에 자간을 벌리지 않는다(CLAUDE.md 화면 규칙).
+       ⚠ 색은 띠·옅은 바탕에만. 글자는 진한 색 그대로라 대비가 안 떨어진다. */
+    .rate-region-row td { background:color-mix(in srgb, var(--rg, #94A3B8) 13%, #fff); font-weight:800; color:var(--heading); font-size:.84rem; padding:.55rem .85rem; box-shadow:inset 5px 0 0 var(--rg, #94A3B8); border-top:2px solid var(--rg, #94A3B8); }
+    .rate-region-row .rg-dot { display:inline-block; width:.62rem; height:.62rem; border-radius:50%; background:var(--rg, #94A3B8); margin-right:.45rem; vertical-align:middle; }
+    .rate-region-row .rg-n { font-weight:600; color:var(--muted); font-size:.78rem; margin-left:.3rem; }
+    /* ⚠ 지역순 보기에서는 첫 칸(td.rate-region)이 감춰진다(.by-region) — 띠는 **보이는 첫 칸**에 그린다 */
+    .rate-row-rg > td:first-child, .rate-table.by-region .rate-row-rg > td.rate-region + td { box-shadow:inset 4px 0 0 var(--rg, #94A3B8); }
+    .rate-table.by-region .rate-row-rg > td.rate-region + td { padding-left:1.1rem; }
+    .rate-region { font-size:.76rem; }
+    .rg-tag { display:inline-block; font-size:.74rem; font-weight:700; padding:.08rem .45rem; color:var(--heading); background:color-mix(in srgb, var(--rg, #94A3B8) 16%, #fff); border-left:3px solid var(--rg, #94A3B8); white-space:nowrap; }
+    /* 🎨 요율 관리 위쪽 카드 — 카드마다 왼쪽 띠 색을 달리해 한눈에 구분한다 */
+    #tab-rates > .fold-card, #tab-rates > details.card { border-left:5px solid var(--card-accent, var(--border)); }
+    #ext-feeds-card { --card-accent:#1BA39C; }
+    #fuel-card { --card-accent:#2E86DE; }
+    #airfare-suggestion-card { --card-accent:#514DC2; }
+    #accuracy-stats-card { --card-accent:#8C6BD8; }
+    #coef-tuning-card { --card-accent:#6B7280; }
+    #rate-history-panel { --card-accent:#94A3B8; }
+    #tab-rates > .fold-card > summary .card-title, #tab-rates > details.card > summary .card-title { color:var(--heading); }
     /* TA: 접히는 카드 — 요율 관리 화면의 긴 목록 셋이 공유한다(갱신 제안 · 견적 정확도 ·
        변경 이력). ⚠ **한 클래스로 둔다.** 카드마다 따로 적으면 하나만 고쳐진다.
        기본 삼각형(::marker)을 지우고 오른쪽에 표시를 두는 이유: 브라우저마다 삼각형

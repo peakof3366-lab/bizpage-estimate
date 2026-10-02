@@ -108,7 +108,7 @@
       });
       sorted.forEach(d => {
         const region = REGION_MAP[d.label] || '기타';
-        html += renderRateRow(d, region);
+        html += renderRateRow(d, region, region);
       });
       if (!sorted.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">${rateEmptyMsg(q)}</td></tr>`;
     } else {
@@ -121,15 +121,15 @@
       });
       REGION_ORDER.forEach(region => {
         if (!grouped[region] || !grouped[region].length) return;
-        html += `<tr class="rate-region-row"><td colspan="11">${esc(region)}</td></tr>`;
-        grouped[region].forEach(d => { html += renderRateRow(d, ''); });
+        html += rateRegionHeader(region, grouped[region].length);
+        grouped[region].forEach(d => { html += renderRateRow(d, '', region); });
       });
       /* REGION_ORDER에 없는 나머지 그룹(주로 관리자 신규 목적지의 '기타') — 이게
          없으면 REGION_ORDER에 명시된 지역만 그려져서 커스텀 목적지가 지역순 보기
          에서 통째로 사라진다(신규). */
       Object.keys(grouped).filter(r => !REGION_ORDER.includes(r)).forEach(region => {
-        html += `<tr class="rate-region-row"><td colspan="11">${esc(region)}</td></tr>`;
-        grouped[region].forEach(d => { html += renderRateRow(d, ''); });
+        html += rateRegionHeader(region, grouped[region].length);
+        grouped[region].forEach(d => { html += renderRateRow(d, '', region); });
       });
       if (!searched.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">${rateEmptyMsg(q)}</td></tr>`;
     }
@@ -138,11 +138,17 @@
 
   /* 요율 테이블 한 행 렌더 — 지역순 모드에서는 regionLabel=''(지역 그룹 헤더로 이미
      표시됨), 우선순위순 모드에서는 regionLabel에 실제 지역명을 넣어 첫 칸에 보여준다. */
-  function renderRateRow(d, regionLabel) {
+  /* 🎨 지역 제목 줄 — 지역 색 옅은 바탕 + 왼쪽 굵은 띠 + 몇 곳인지 (색은 admin/common.js REGION_COLORS 한 곳) */
+  function rateRegionHeader(region, n) {
+    return `<tr class="rate-region-row" style="--rg:${regionColor(region)}"><td colspan="11"><span class="rg-dot" aria-hidden="true"></span>${esc(region)} <span class="rg-n">${n}곳</span></td></tr>`;
+  }
+
+  function renderRateRow(d, regionLabel, region) {
         const eff = effectiveRate(d);
         const rs = adminGetCombinedStatus(d.destination_key, eff.rateDate);
-        return `<tr>
-          <td class="rate-region" style="color:var(--muted);font-size:.76rem">${esc(regionLabel)}</td>
+        /* 🎨 줄마다 왼쪽에 지역 색 띠 — 60줄을 내려가도 어느 지역인지 보인다. 우선순위순에서는 지역 칸이 같은 색 꼬리표 */
+        return `<tr class="rate-row-rg" style="--rg:${regionColor(region || regionLabel)}">
+          <td class="rate-region">${regionLabel ? `<span class="rg-tag">${esc(regionLabel)}</span>` : ''}</td>
           <td style="white-space:nowrap"><strong>${esc(d.label)}</strong></td>
           <!-- 🔴 표의 버튼은 **눈으로는 줄이 말해 주지만 귀로는 아니다** (XT).
                낭독기에는 「시즌 확인하기」가 60번, 「편집」이 60번 똑같이 들려 어느
