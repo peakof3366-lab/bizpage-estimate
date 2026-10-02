@@ -1907,3 +1907,7 @@
 }
 .pw-form.set-grid { max-width: none; margin-top: 0; }   /* 옛 .pw-form(세로 한 줄 · 320px)을 새 격자가 덮는다 */
 .led-gone { color: var(--muted); font-size: .72rem; border: 1px dashed var(--border); display: inline-block; padding: 0 .35rem; margin-top: .2rem; }   /* 견적 관리에서 기록이 지워진 묶음 (2026-10-02) */
+/* 견적 관리 「○○ 검색 중」 안내 (2026-10-02) — 검색칸 글자만으로는 목록이 걸러진 줄 모른다 */
+.em-search-note { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .84rem; font-weight: 600; color: var(--warn); background: #fffbeb; border: 1px solid #fde68a; padding: .45rem .75rem; margin: .5rem 0 .75rem; }
+.em-search-note.hidden { display: none; }
+.em-search-note .em-search-clear { min-height: 44px; font-weight: 700; }

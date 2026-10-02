@@ -470,7 +470,7 @@
       </div>
       <div class="toolbar">
         <div class="toolbar-left">
-          <input type="search" id="inqSearch" class="search-box" placeholder="이름 · 소속 · 내용 검색..." autocomplete="off" aria-label="문의 검색" />
+          <input type="search" id="inqSearch" readonly data-noautofill class="search-box" placeholder="이름 · 소속 · 내용 검색..." autocomplete="off" aria-label="문의 검색" />
           <button class="filter-btn active" data-filter="all">전체</button>
           <button class="filter-btn" data-filter="unread">미확인</button>
           <button class="filter-btn" data-filter="read">확인</button>
@@ -528,7 +528,7 @@
       <!-- 필터 + 액션 -->
       <div class="toolbar" style="margin-bottom:1rem">
         <div class="toolbar-left">
-          <input type="search" id="emSearch" class="search-box" placeholder="목적지·기관명·담당자 검색..." style="min-width:220px" autocomplete="off" aria-label="견적 검색" />
+          <input type="search" id="emSearch" readonly data-noautofill class="search-box" placeholder="목적지·기관명·담당자 검색..." style="min-width:220px" autocomplete="off" aria-label="견적 검색" />
           <button class="filter-btn active" data-emfilter="all">전체</button>
           <button class="filter-btn" data-emfilter="new">신규</button>
           <button class="filter-btn" data-emfilter="consulting">상담중</button>
@@ -538,6 +538,8 @@
                신뢰구간·요율 갱신 제안이 돌아가는데, 시간이 지나면 다시 알아내기 어렵다. -->
           <button class="filter-btn filter-warn" data-emfilter="needs-actual" id="emNeedsActualBtn">💰 실적 미입력</button>
         </div>
+        <!-- 검색 중이면 눈에 보이게 말한다 (2026-10-02) — 그리는 곳은 admin/estmgr.js renderEstMgr -->
+        <p id="emSearchNote" class="em-search-note hidden" role="status"></p>
         <div style="display:flex;gap:.5rem">
           <button class="btn-act btn-danger-sm" id="emDeleteSelectedBtn" onclick="deleteSelectedEstimates()" disabled>🗑️ 선택 삭제 (0)</button>
           <button class="btn-act btn-outline-p" onclick="exportEstimatesCsv()">CSV 내보내기</button>
@@ -633,7 +635,7 @@
       </div>
 
       <div class="iti-bar">
-        <input type="search" id="ledSearch" placeholder="견적번호 · 공급사 번호 · 고객/회사명 · 연락처 · 목적지 · 담당자로 검색"
+        <input type="search" id="ledSearch" readonly data-noautofill placeholder="견적번호 · 공급사 번호 · 고객/회사명 · 연락처 · 목적지 · 담당자로 검색"
                style="flex:1;min-width:240px;font-size:13px" aria-label="견적서 검색">
         <button type="button" class="btn-act btn-primary" id="ledFind">찾기</button>
         <button type="button" class="btn-act btn-outline-p" id="ledReload">전체</button>
@@ -969,7 +971,7 @@
         <div class="card-header"><span class="card-title">실제 이용 호텔</span></div>
         <div class="card-body">
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem">
-            <input type="text" id="hotel-ref-search" class="pw-input" style="max-width:300px" placeholder="호텔명·나라·지역·도시로 찾기" oninput="renderHotelReference()" aria-label="호텔 검색" />
+            <input type="text" id="hotel-ref-search" readonly data-noautofill class="pw-input" style="max-width:300px" placeholder="호텔명·나라·지역·도시로 찾기" oninput="renderHotelReference()" aria-label="호텔 검색" />
             <button type="button" class="btn-act btn-outline-p" onclick="exportHotelReferenceCsv()">⤓ CSV 내보내기</button>
             <span id="hotel-ref-count" style="font-size:.76rem;color:var(--muted)"></span>
           </div>
@@ -1158,7 +1160,7 @@
 
       <!-- 필터 + 검색 + 정렬 + 내보내기 -->
       <div class="rate-filter-bar">
-        <input type="search" id="rateSearch" class="search-box" placeholder="목적지 · 지역 검색..." style="min-width:180px" autocomplete="off" aria-label="목적지 검색" />
+        <input type="search" id="rateSearch" readonly data-noautofill class="search-box" placeholder="목적지 · 지역 검색..." style="min-width:180px" autocomplete="off" aria-label="목적지 검색" />
         <button class="filter-btn active" data-rfilter="all">전체</button>
         <button class="filter-btn" data-rfilter="ok">✅ 최신</button>
         <button class="filter-btn" data-rfilter="check">⚠️ 확인 권장</button>
@@ -1743,7 +1745,11 @@
           </div>
           <div class="set-block">
             <p class="set-label">비밀번호 변경</p>
-            <div class="pw-form set-grid set-grid-3" id="pwForm">
+            <!-- 🔴 2026-10-02 **양식(form)으로 묶고 아이디 칸을 숨겨 둔다.** 묶지 않았을 때 크롬은 「현재 비밀번호」 앞쪽의 아무 글자 칸을
+                 아이디 칸으로 짐작해 저장된 아이디(admin)를 넣었다 — 견적 관리 **검색칸에 admin이 들어가 목록이 2건만** 보였다(대표 캡처).
+                 크롬 권장대로 같은 양식 안에 autocomplete="username" 칸을 두면 거기에만 채운다. 값은 로그인한 사람(loadCurrentUser). -->
+            <form class="pw-form set-grid set-grid-3" id="pwForm" onsubmit="event.preventDefault(); changePw();">
+              <input type="text" id="pwUsername" name="username" autocomplete="username" readonly tabindex="-1" aria-hidden="true" style="display:none" />
               <!-- ⚠ 2026-10-02 이름표를 칸 위에 단다 — 브라우저가 현재 비밀번호를 자동으로 채우면 예시 글씨가 사라져
                    무슨 칸인지 몰랐다(대표 캡처). 「8자 이상」은 실제 규칙과 같다(예전 「6자 이상」 안내 사고). -->
               <label class="set-field"><span>현재 비밀번호</span>
@@ -1752,7 +1758,7 @@
                 <input type="password" class="pw-input" id="pwNew" data-fact-ph="PASSWORD_MIN_LENGTH:{}자 이상" placeholder="8자 이상" aria-label="새 비밀번호" autocomplete="new-password" /></label>
               <label class="set-field"><span>새 비밀번호 확인</span>
                 <input type="password" class="pw-input" id="pwConfirm" placeholder="한 번 더" aria-label="새 비밀번호 확인" autocomplete="new-password" /></label>
-            </div>
+            </form>
             <div class="set-actions">
               <button class="btn-act btn-primary" onclick="changePw()">비밀번호 변경</button>
               <p id="pwMsg" class="set-msg" style="color:var(--danger)"></p>
@@ -1793,7 +1799,7 @@
             <p class="set-label">새 계정 만들기 <span class="set-desc-inline">가입코드 없이 바로 만듭니다 — 초기 비밀번호를 본인에게 전해 주세요</span></p>
             <!-- 🔴 2026-10-02 브라우저가 이 아이디 칸에 **관리자 아이디(admin)를 자동으로 채웠다**(대표 캡처) — 그대로 누르면
                  엉뚱한 계정을 만든다. 비밀번호 칸은 new-password로, 두 칸 모두 누르기 전까지 readonly로 두어 자동 채움을 막는다. -->
-            <div class="set-grid set-grid-new">
+            <form class="set-grid set-grid-new" id="newStaffForm" autocomplete="off" onsubmit="event.preventDefault(); submitCreateStaff();">
               <label class="set-field"><span>아이디</span>
                 <input type="text" id="new-staff-username" class="pw-input" placeholder="영문·숫자" aria-label="새 팀원 아이디" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" /></label>
               <label class="set-field"><span>표시 이름</span>
@@ -1807,8 +1813,8 @@
                   <option value="owner">관리자</option>
                 </select></label>
               <div class="set-field set-field-btn"><span aria-hidden="true">&nbsp;</span>
-                <button class="btn-act btn-primary" onclick="submitCreateStaff()">계정 생성</button></div>
-            </div>
+                <button type="submit" class="btn-act btn-primary">계정 생성</button></div>
+            </form>
             <p id="staff-admin-msg" class="set-msg"></p>
           </div>
         </div>
@@ -2702,7 +2708,7 @@
       <!-- ⚠ 범위(이 목적지·같은 지역·전체) 칩은 없앴다 (RB). 후보는 늘 이 목적지 것뿐이다 —
            도쿄 일정에 파리 문구를 넣을 일이 없기 때문이다(한 연수로 두 지역을 가지 않는다). -->
       <div class="itip-bar" id="itiPickFits"></div>
-      <input type="text" class="itip-search" id="itiPickSearch" placeholder="검색 — 단어를 넣으면 좁혀집니다" aria-label="일정 검색" />
+      <input type="text" class="itip-search" id="itiPickSearch" readonly data-noautofill placeholder="검색 — 단어를 넣으면 좁혀집니다" aria-label="일정 검색" />
       <p class="itip-count" id="itiPickCount"></p>
       <div class="itip-list" id="itiPickList"></div>
     </div>
@@ -2720,7 +2726,7 @@
     </div>
     <div class="modal-body">
       <div class="itip-bar" id="itiCopyScopes"></div>
-      <input type="text" class="itip-search" id="itiCopySearch" placeholder="검색 — 코스 제목·설명·목적지로 찾습니다" aria-label="코스 검색" />
+      <input type="text" class="itip-search" id="itiCopySearch" readonly data-noautofill placeholder="검색 — 코스 제목·설명·목적지로 찾습니다" aria-label="코스 검색" />
       <p class="itip-count" id="itiCopyCount"></p>
       <div class="itip-list" id="itiCopyList"></div>
     </div>
@@ -2779,7 +2785,9 @@
       currentUser = await res.json();
       document.getElementById('currentUserName').textContent = currentUser.displayName;
       { const mine = document.getElementById('myAccountId');
-        if (mine) mine.textContent = (currentUser.username || '—') + (currentUser.displayName ? ' (' + currentUser.displayName + ')' : ''); }
+        if (mine) mine.textContent = (currentUser.username || '—') + (currentUser.displayName ? ' (' + currentUser.displayName + ')' : '');
+        /* 비밀번호 양식의 숨은 아이디 칸 — 브라우저가 아이디를 여기에만 채우게(검색칸에 채우던 사고, 2026-10-02) */
+        const pu = document.getElementById('pwUsername'); if (pu) pu.value = currentUser.username || ''; }
       document.getElementById('currentUserRole').textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
       return true;
     } catch { return false; }
@@ -4195,6 +4203,15 @@
     /* 모바일: 스크롤 상단 */
     document.querySelector('.dash-main')?.scrollTo({top: 0, behavior: 'smooth'});
   }
+
+  /* 🔐 검색칸 자동 채움 막기 (2026-10-02) — 크롬이 저장된 아이디(admin)를 견적 관리 검색칸에 넣어 목록이 2건만 보였다.
+     비밀번호 양식에 아이디 칸을 둔 것(pwUsername)이 1차 방어이고, 이것은 2차 — 검색칸은 HTML에서 readonly로 시작해
+     **사람이 누르는 순간** 풀린다(브라우저는 readonly 칸을 채우지 않는다). */
+  document.querySelectorAll('input[data-noautofill]').forEach((el) => {
+    const unlock = () => el.removeAttribute('readonly');
+    el.addEventListener('focus', unlock);
+    el.addEventListener('pointerdown', unlock);
+  });
 
   /* 🔄 매일 아침 화면도 새 값으로 (2026-10-02 대표 지시) — 판단은 admin/rates.js `dailyRefreshTick` 하나가 한다.
      10분마다 + 탭·노트북을 다시 열었을 때 확인한다. 05:15(KST) 전에 불러온 값이면 다시 불러오고,

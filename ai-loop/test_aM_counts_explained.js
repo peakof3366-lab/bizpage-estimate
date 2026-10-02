@@ -69,6 +69,33 @@ const finish = async () => {
   w.renderEstMgr();
   ok('① 다시 그려도 숫자가 겹쳐 붙지 않는다 (「신규 3 3」 아님)', btn('new') === '신규 3', btn('new'));
 
+  /* 🔴 브라우저가 검색칸에 아이디(admin)를 채운 상태 — 버튼과 목록이 **같은 것**을 세야 한다
+       (대표 캡처: 버튼 「전체 4 · 신규 3」인데 목록은 2건 · 1건) */
+  w.__E = ESTS.map((e, i) => Object.assign({}, e, { contact: i === 0 || i === 3 ? 'admin' : '' }));
+  d.getElementById('emSearch').value = 'admin';
+  w.eval('emSearch = "admin"; emPage = 1;');
+  w.renderEstMgr();
+  ok('🔴 ① 검색 중이면 버튼도 검색 결과 안에서 센다 (전체 2 · 신규 1)', btn('all') === '전체 2' && btn('new') === '신규 1', btn('all') + ' / ' + btn('new'));
+  ok('① 목록 줄 수 = 「전체」 버튼 숫자', d.querySelectorAll('#emBody tr').length === 2, String(d.querySelectorAll('#emBody tr').length));
+  const note = d.getElementById('emSearchNote');
+  ok('🔴 ① 「admin 검색 중 — 전체 4건 중 2건」이 눈에 보인다', !note.classList.contains('hidden') && /「admin」 검색 중 — 전체 4건 중 2건/.test(note.textContent), note.textContent);
+  w.emClearSearch();
+  ok('① 「검색 지우기」 — 칸이 비고 전체로 돌아간다', d.getElementById('emSearch').value === '' && btn('all') === '전체 4' && note.classList.contains('hidden'));
+  w.__E = ESTS;
+
+  console.log('\n[1-b] 🔐 브라우저 자동 채움 막기 (구조)');
+  const html = require('fs').readFileSync(path.join(ROOT, 'admin.html'), 'utf8');
+  ok('🔴 ①b 비밀번호 칸이 양식(form)으로 묶이고 그 안에 아이디 칸(autocomplete=username)이 있다',
+    /<form[^>]*id="pwForm"[\s\S]{0,1200}autocomplete="username"[\s\S]{0,2400}id="pwCurrent"[\s\S]{0,1600}<\/form>/.test(html));
+  ok('①b 새 계정 만들기도 자기 양식(autocomplete=off)', /<form[^>]*id="newStaffForm"[^>]*autocomplete="off"/.test(html));
+  const searches = ['inqSearch', 'emSearch', 'ledSearch', 'rateSearch'];
+  const locked = searches.filter((id) => new RegExp('id="' + id + '" readonly data-noautofill').test(html));
+  ok('🔴 ①b 검색칸 넷이 누르기 전까지 잠겨 있다(readonly → 누르면 풀림)', locked.length === 4, locked.join(','));
+  const em = d.getElementById('emSearch');
+  em.setAttribute('readonly', ''); em.dispatchEvent(new w.Event('focus'));
+  ok('①b 누르면(focus) 잠금이 풀린다', !em.hasAttribute('readonly'));
+  ok('①b 로그인한 사람 아이디가 숨은 칸에 들어간다', /getElementById\('pwUsername'\); if \(pu\) pu\.value = currentUser\.username/.test(html));
+
   console.log('\n[2] 🔴 대장 머리');
   await w.renderLedger();
   await new Promise((r) => setTimeout(r, 50));

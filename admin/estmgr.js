@@ -23,6 +23,14 @@
   let   emCurrentId = null;
   let   emSelectedIds = new Set(); // 체크박스로 선택한 견적 id (신규 — 선택 삭제용, 필터/페이지 이동해도 유지)
 
+  /* 「검색 지우기」 — 검색칸을 비우고 다시 그린다(2026-10-02) */
+  function emClearSearch() {
+    const box = document.getElementById('emSearch');
+    if (box) box.value = '';
+    emSearch = ''; emPage = 1;
+    renderEstMgr();
+  }
+
   function getEstsFull() {
     try { return JSON.parse(localStorage.getItem(EM_KEY) || '[]'); }
     catch { return []; }
@@ -83,15 +91,36 @@
        "데이터가 없어서 못 한다"가 영원히 계속된다. */
     const emNeedsActual = (e) => e.status === 'contracted' && e.actualTotal == null;
     const needsActualCount = all.filter(emNeedsActual).length;
-    /* 🔢 2026-10-02 필터 버튼에 건수 — 좌측 배지(「신규」만 센다)와 목록(전부)이 달라 오류로 보였다.
-         「전체 4 · 신규 3」이 보이면 배지 3이 무엇인지 바로 맞춰진다. 셈은 이 목록(all) 하나에서 한다. */
+    /* 검색 — **목록과 버튼 숫자가 같은 함수로** 거른다 */
+    const emMatches = (e) => {
+      if (!emSearch) return true;
+      /* 🔴 **번호로도 찾는다** (2026-09-23 대표 지시 1-5). 고객이 전화로 대는 것은
+         목적지가 아니라 번호다. 차수(`-R1`)까지 적힌 번호를 그대로 붙여 넣어도
+         찾히게 기본 번호도 함께 본다 — 그러지 않으면 「BP-2609-0001-R1」로 검색했을 때
+         정작 그 견적 기록(차수가 없는 쪽)이 안 나온다. */
+      const no = String(e.quoteNo || '');
+      const hay = (e.destLabel+e.orgName+e.contact+e.programLabel+no+(e.sourceQuoteNo||'')).toLowerCase();
+      if (hay.includes(emSearch)) return true;
+      const q = emSearch.replace(/(?:-r\d+|_v\d+)$/i, '');
+      return !!no && q !== emSearch && no.toLowerCase().includes(q);
+    };
+    const searched = all.filter(emMatches);
+    /* 🔢 2026-10-02 필터 버튼에 건수 — 🔴 **검색어가 걸려 있으면 검색 결과 안에서 센다.**
+         처음엔 전체로 셌더니, 브라우저가 검색칸에 「admin」을 자동으로 채운 상태에서 버튼은 「전체 4 · 신규 3」인데
+         목록은 2건·1건만 보였다(대표 캡처) — 버튼과 목록이 다른 것을 셌다. 이제 둘이 같은 `searched`를 본다. */
     document.querySelectorAll('#tab-estmgr [data-emfilter]').forEach((b) => {
       const k = b.dataset.emfilter;
       if (k === 'needs-actual') return;
       if (!b.dataset.label) b.dataset.label = b.textContent.trim();
-      const n = k === 'all' ? all.length : all.filter((e) => e.status === k).length;
+      const n = k === 'all' ? searched.length : searched.filter((e) => e.status === k).length;
       b.textContent = b.dataset.label + ' ' + n;
     });
+    /* 검색 중이면 **눈에 보이게** 말한다 — 검색칸 글자만으로는 걸러진 줄 모른다 */
+    const note = document.getElementById('emSearchNote');
+    if (note) {
+      note.classList.toggle('hidden', !emSearch);
+      if (emSearch) note.innerHTML = `「${esc(emSearch)}」 검색 중 — 전체 ${all.length}건 중 ${searched.length}건 <button type="button" class="btn-act btn-outline-p em-search-clear" onclick="emClearSearch()">검색 지우기</button>`;
+    }
     const naBtn = document.getElementById('emNeedsActualBtn');
     if (naBtn) {
       naBtn.textContent = '💰 실적 미입력' + (needsActualCount ? ' ' + needsActualCount : '');
@@ -105,17 +134,7 @@
     let list = all.slice().reverse();
     if (emFilter === 'needs-actual') list = list.filter(emNeedsActual);
     else if (emFilter !== 'all') list = list.filter(e => e.status === emFilter);
-    if (emSearch) list = list.filter(e => {
-      /* 🔴 **번호로도 찾는다** (2026-09-23 대표 지시 1-5). 고객이 전화로 대는 것은
-         목적지가 아니라 번호다. 차수(`-R1`)까지 적힌 번호를 그대로 붙여 넣어도
-         찾히게 기본 번호도 함께 본다 — 그러지 않으면 「BP-2609-0001-R1」로 검색했을 때
-         정작 그 견적 기록(차수가 없는 쪽)이 안 나온다. */
-      const no = String(e.quoteNo || '');
-      const hay = (e.destLabel+e.orgName+e.contact+e.programLabel+no+(e.sourceQuoteNo||'')).toLowerCase();
-      if (hay.includes(emSearch)) return true;
-      const q = emSearch.replace(/(?:-r\d+|_v\d+)$/i, '');
-      return !!no && q !== emSearch && no.toLowerCase().includes(q);
-    });
+    list = list.filter(emMatches);
 
     const total = list.length;
     const pages = Math.ceil(total/EM_PAGE) || 1;
