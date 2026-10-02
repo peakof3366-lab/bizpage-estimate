@@ -795,6 +795,12 @@
     .fold-note:hover { background: var(--bg); }
     /* 이 파란 안내 상자는 탭 다섯 곳에서 쓰인다 — 폭을 안 잡아 91자/줄이었다 (YB) */
     .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; max-width:var(--measure); }
+    /* 견적서 대장 안내 — 제목 + 짧은 줄 세 칸 (2026-10-02 대표 지시 「간략하게 · 깔끔하게」) */
+    .led-guide { display:grid; gap:.6rem; line-height:1.6; }
+    .led-guide-h { display:block; font-weight:700; margin-bottom:.1rem; }
+    .led-guide ul { margin:0; padding-left:1.1rem; }
+    .led-guide li { margin:.05rem 0; }
+    .led-guide code { font-size:.92em; }
     .rate-undo-banner { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; font-size:.82rem; font-weight:600; background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:.75rem 1rem; margin-bottom:1.25rem; }
 
     /* ── CONTENT MANAGEMENT ─────────────── */
