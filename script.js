@@ -4604,6 +4604,8 @@ function shareCopyLink() {
 
 /* ── Hero Stats 카운트업 ──────────────────────────────────────────── */
 (function () {
+  /* 2026-10-02 — 「움직임 줄이기」를 켠 사람에게는 세지 않는다(HTML에 적힌 최종값 그대로). 히어로의 다른 움직임과 같은 규칙 */
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const STATS = [
     { sel: '.hero-stats .stat-item:nth-child(1) .stat-num-hero', end: 14,   suffix: 'YRS', dec: 0 },
     { sel: '.hero-stats .stat-item:nth-child(2) .stat-num-hero', end: 55,   suffix: '+',   dec: 0 },

@@ -2397,3 +2397,29 @@ body:has(.hero) .site-header:not(.scrolled):not(.nav-mobile-open) { background:r
 .footer-col-nav a { color:var(--t-mute); }
 .footer-col-nav a:hover { color:var(--t-head); text-decoration-color:var(--brand); }
 .footer-bottom { color:var(--t-mute); }  /* --t-sub는 이 회백 면에서 3.9:1 */
+
+/* ══ 히어로 움직임 더하기 (2026-10-02 대표 「메인 부분에 동적인 효과 살짝 더」) ═════════════════════
+   원칙은 위 「다듬기 · 움직임」과 같다 — 한 번, 짧게, 같은 곡선. 반짝임·떠다니는 그림자는 안 쓴다.
+   ① 제목 강조줄 밑에 민트 선이 한 번 그어진다   ② 사진 세 장이 한 장씩 차례로 올라온다
+   ③ 사진이 마우스를 따라 최대 8px(큰 사진)·5px(작은 사진) 움직이고, 민트 틀은 반대로 — 깊이감
+   ④ 숫자 세어 올리기는 원래 있던 script.js 「Hero Stats 카운트업」 그대로(움직임 줄이기면 안 센다)
+   ⚠ 시차는 translate 속성으로 준다 — 등장 애니메이션이 transform을 쓰므로 둘이 겹치지 않는다. */
+.hero-center h1 em { position:relative; display:inline-block; }
+.hero-center h1 em::after {
+  content:""; position:absolute; left:0; right:0; bottom:-.06em; height:.07em; min-height:3px;
+  background:var(--brand-on-dk); opacity:.55; transform:scaleX(0); transform-origin:left center;
+  animation:heroLine .9s var(--ease) 1.05s forwards;
+}
+@keyframes heroLine { to { transform:scaleX(1); } }
+.hero-visual { animation:none; }
+.hero-visual figure { animation:heroIn .9s var(--ease) both; translate:calc(var(--hx,0) * -8px) calc(var(--hy,0) * -8px); transition:translate .6s var(--ease); }
+.hero-visual .hv-tall { animation-delay:.3s; }
+.hero-visual .hv-a    { animation-delay:.45s; translate:calc(var(--hx,0) * -5px) calc(var(--hy,0) * -5px); }
+.hero-visual .hv-b    { animation-delay:.6s;  translate:calc(var(--hx,0) * -5px) calc(var(--hy,0) * -5px); }
+@media (min-width:1025px) {
+  .hero-visual::before { animation:heroIn 1s var(--ease) .75s both; translate:calc(var(--hx,0) * 6px) calc(var(--hy,0) * 6px); transition:translate .6s var(--ease); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-center h1 em::after { animation:none; transform:scaleX(1); }
+  .hero-visual figure, .hero-visual::before { animation:none; translate:none; transition:none; }
+}
