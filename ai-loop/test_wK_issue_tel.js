@@ -193,6 +193,31 @@ console.log('\n[4] 🔴 실제로 눌러 본다 — 발급 요청에 연락처�
     ok('④ 숫자가 모자라면 발급하지 않는다',
       calls.filter((c) => /action=issue/.test(c.url)).length === 0);
 
+    /* ⑤ 🔴 담당자 칸이 비었으면 **발급 전에 묻는다** (2026-10-02, 신입 직원 종단 시험).
+         직원 계정에 연락처·E-mail 칸이 없어 견적마다 손으로 적는데, 빠뜨리면 고객 문서
+         세 장 머리에 빨간 「미입력」이 찍힌 채 아무 확인 없이 나갔다. */
+    const DOC = (meta) => ({ meta: Object.assign({ client: '한빛산업', quoteNo: 'BP-2610-0001',
+      issueDate: '2026-10-02', validUntil: '2026-11-02' }, meta),
+      trip: { orgName: '한빛산업', region: '오키나와', pax: 12, days: 4, nights: 3 },
+      price: { lines: [{ kind: 'adult', label: '성인', unit: 1190000, qty: 12 }] } });
+    const asks = [];
+    w.prompt = () => '010-1234-5678';
+    w.confirm = (m) => { asks.push(String(m)); return !/담당자 칸이 비어/.test(m); };
+    calls.length = 0;
+    recs = [Object.assign({}, REC, { doc: DOC({ staffName: '김신입', staffTel: '', staffEmail: '' }) })];
+    await w.issueShareLink();
+    const staffAsk = asks.find((m) => /담당자 칸이 비어/.test(m)) || '';
+    ok('⑤ 🔴 담당자 연락처·E-mail이 비면 묻는다', !!staffAsk, asks.map((m) => m.slice(0, 30)).join(' | ') || '확인창 없음');
+    ok('⑤ 무엇이 비었는지 말한다(이름은 있으니 빼고)',
+      /담당자 연락처/.test(staffAsk) && /담당자 E-mail/.test(staffAsk) && !/담당자 이름/.test(staffAsk), staffAsk.slice(0, 120));
+    ok('⑤ 🔴 [취소]하면 발급하지 않는다', calls.filter((c) => /action=issue/.test(c.url)).length === 0);
+
+    asks.length = 0; calls.length = 0;
+    recs = [Object.assign({}, REC, { doc: DOC({ staffName: '김신입', staffTel: '02-2088-4253', staffEmail: 'k@hanatrabiz.com' }) })];
+    await w.issueShareLink();
+    ok('⑤ 다 채웠으면 묻지 않고 발급한다',
+      !asks.some((m) => /담당자 칸이 비어/.test(m)) && calls.filter((c) => /action=issue/.test(c.url)).length === 1);
+
     done();
   };
   if (d.readyState === 'complete') finish();

@@ -626,7 +626,7 @@ async function loadShareData() {
    실측: 패키지 발급 경로가 `iso`를 안 넣어서, 만료된 견적서가 만료가 아닌 것으로
    보이고 있었다. 지금은 세 발급 경로가 전부 `iso`를 넣지만(서버가 채운다), 옛 링크와
    앞으로 생길 경로를 위해 **여기서도 막는다** — 모르면 「모른다」고 말한다. */
-function calcValidity(isoDate, pkgValidUntil) {
+function calcValidity(isoDate, pkgValidUntil, docValidUntil) {
   /* 🔴 **패키지는 공급사가 정한 유효기간이 진실이다** (WP).
      우리의 「발급 후 30일」은 맞춤 견적 규칙이다. 패키지에 그대로 적용했더니
      **한 문서에 유효기간이 두 개** 찍혔다(실측: 상단 바 9/25까지 · 금액 기준 박스
@@ -640,6 +640,20 @@ function calcValidity(isoDate, pkgValidUntil) {
          이미 만료로 뜬다 — 사람이 읽는 「까지」와 어긋난다. */
       until.setHours(23, 59, 59, 999);
       return Object.assign({ fromPackage: true }, leftFrom(until));
+    }
+  }
+  /* 🔴 **문서가 스스로 적은 유효기간이 그다음이다** (2026-10-02, 신입 직원 종단 시험에서 발견).
+     2026-09-28 대표 결정(대기열 0-ac)으로 연수 견적서는 「작성일로부터 **한 달 뒤**」가 됐고
+     담당자가 칸에서 날짜를 바꿀 수도 있다. 그런데 이 띠는 계속 「발급 + 30일」로 셌다 —
+     **한 화면에 유효기간이 두 개** 찍혔다(실측: 머리 띠 11월 1일까지 · 문서 본문 2026-11-02).
+     위 패키지와 같은 이유로, 문서에 날짜가 있으면 그것이 이긴다.
+     ⚠ `new Date("2026-11-02")`는 UTC 자정이다 — 날짜만 있으면 **한국 시각 자정**으로 읽는다. */
+  if (docValidUntil) {
+    const v = String(docValidUntil);
+    const until = new Date(/^\d{4}-\d{2}-\d{2}$/.test(v) ? v + 'T00:00:00' : v);
+    if (!isNaN(until.getTime())) {
+      until.setHours(23, 59, 59, 999);
+      return leftFrom(until);
     }
   }
   const issued = new Date(isoDate);
@@ -810,7 +824,8 @@ function renderPage(d) {
   /* ── 유효기간 ── */
   const validity = calcValidity(
     d.iso || (d.id || '').replace(/[년 월일]/g, m => m === '년' ? '-' : m === '월' ? '-' : ''),
-    d.pkg && d.pkg.validUntil);
+    d.pkg && d.pkg.validUntil,
+    d.doc && d.doc.meta && d.doc.meta.validUntil);
   const expiresStr = validity.expires
     ? validity.expires.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
     : null;

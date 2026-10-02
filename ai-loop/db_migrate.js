@@ -247,21 +247,6 @@ async function main() {
     )
   `;
 
-  /* 커스텀 목적지 보험 권역 (신규) — 없으면 getInsuranceZone이 어디에도 못 찾아
-     보험 권역 계수 1.00(중립)으로 조용히 폴백한다. 권역별 계수가 0.85~1.80이라
-     최대 80% 어긋나는데 콘솔 경고만 남고 화면에는 아무 표시가 없었다.
-     기본값 asiaMid는 '기준 권역'(계수 1.00)이라 기존 폴백과 동작이 같다 —
-     즉 이 마이그레이션만으로는 금액이 변하지 않고, 담당자가 값을 고르면 그때 반영된다. */
-  await sql`alter table custom_destinations add column if not exists insurance_zone text not null default 'asiaMid'`;
-
-  /* 커스텀 목적지 시즌 프로파일 (PQ) — 없으면 getSeasonInfo가 DEST_SEASON_PROFILES에서
-     그 목적지를 못 찾아 공용표(SEASON_CONFIG)로 폴백한다. 보험 권역과 달리 폴백이
-     '중립값'이 아니라 **다른 계절**이다: 동남아를 추가하고 7월 출발이면 공용표는
-     성수기 1.20, 실제 동남아는 우기 비수기 0.88 — 항공·유류·호텔이 36% 어긋난다.
-     nullable이고 null이면 종전 폴백과 100% 동일 동작이라, 이 마이그레이션만으로는
-     금액이 변하지 않는다(담당자가 프로파일을 고르면 그때부터 반영). */
-  await sql`alter table custom_destinations add column if not exists season_profile text`;
-
   /* 직원 자가 가입 (신규) — 가입 신청으로 만들어진 계정인지 표시한다.
      staff_accounts.active만으로는 "가입하고 승인을 기다리는 사람"과 "관리자가
      일부러 꺼둔 사람"이 똑같이 비활성으로 보여, 관리자가 대기자를 놓치거나
@@ -376,6 +361,24 @@ async function main() {
      ⚠ createDestination의 INSERT가 이 컬럼을 쓴다 — **배포보다 이 마이그레이션이 먼저**여야
      새 목적지 추가가 500으로 깨지지 않는다. 조회(GET)는 `select *`라 순서에 무관하다. */
   await sql`alter table custom_destinations add column if not exists country text`;
+
+  /* ⚠ 2026-10-02 — 아래 두 칸은 원래 이 표를 만들기(create table) **전에** 있었다.
+     운영 DB는 표가 이미 있어 몰랐고, 빈 DB에 처음 깔면 "custom_destinations does not exist"로
+     마이그레이션 전체가 멈췄다(로컬 종단 시험에서 발견). alter는 반드시 create 뒤에. */
+  /* 커스텀 목적지 보험 권역 (신규) — 없으면 getInsuranceZone이 어디에도 못 찾아
+     보험 권역 계수 1.00(중립)으로 조용히 폴백한다. 권역별 계수가 0.85~1.80이라
+     최대 80% 어긋나는데 콘솔 경고만 남고 화면에는 아무 표시가 없었다.
+     기본값 asiaMid는 '기준 권역'(계수 1.00)이라 기존 폴백과 동작이 같다 —
+     즉 이 마이그레이션만으로는 금액이 변하지 않고, 담당자가 값을 고르면 그때 반영된다. */
+  await sql`alter table custom_destinations add column if not exists insurance_zone text not null default 'asiaMid'`;
+
+  /* 커스텀 목적지 시즌 프로파일 (PQ) — 없으면 getSeasonInfo가 DEST_SEASON_PROFILES에서
+     그 목적지를 못 찾아 공용표(SEASON_CONFIG)로 폴백한다. 보험 권역과 달리 폴백이
+     '중립값'이 아니라 **다른 계절**이다: 동남아를 추가하고 7월 출발이면 공용표는
+     성수기 1.20, 실제 동남아는 우기 비수기 0.88 — 항공·유류·호텔이 36% 어긋난다.
+     nullable이고 null이면 종전 폴백과 100% 동일 동작이라, 이 마이그레이션만으로는
+     금액이 변하지 않는다(담당자가 프로파일을 고르면 그때부터 반영). */
+  await sql`alter table custom_destinations add column if not exists season_profile text`;
 
   /* 실제 계약 항공료 (신규) — 항공료는 인원별 협상 견적이라 공개 API로 자동 갱신할
      수 없지만, 계약완료된 견적의 진짜 최종 항공료를 담당자가 한 번 입력해 두면

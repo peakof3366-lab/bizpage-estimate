@@ -166,9 +166,14 @@ const 문서 = (st) => {
     const 경우 = [
       ['정상', v2('issued'), true],
       ['취소', v2('void'), false],
-      ['만료', v2('issued', (d) => { d.iso = ymd(-400); d.doc.meta.issueDate = d.iso; }), false],
-      ['발행일 없음', v2('issued', (d) => { delete d.iso; }), false],
+      /* ⚠ 2026-10-02 — 만료는 **문서 날짜도 지난 것**이어야 한다. 이제 문서의 유효기간이
+           띠를 이긴다(대기열 0-ac 「한 달 뒤」를 띠가 못 따라가 한 화면에 날짜가 둘이었다).
+           예전 픽스처는 발급일만 400일 전으로 돌리고 문서는 「30일 뒤까지」로 두었다 — 실제로는 없는 조합이다. */
+      ['만료', v2('issued', (d) => { d.iso = ymd(-400); d.doc.meta.issueDate = d.iso; d.doc.meta.validUntil = ymd(-370); }), false],
+      ['발행일 없음', v2('issued', (d) => { delete d.iso; d.doc.meta.validUntil = ''; }), false],
       ['문서에 유효기간이 없음', v2('issued', (d) => { d.doc.meta.validUntil = ''; }), false],
+      /* 🔴 문서 날짜가 이긴다 — 둘이 갈리면 띠도 문서를 따른다 */
+      ['문서는 지났는데 발급 +30일은 남음', v2('issued', (d) => { d.doc.meta.validUntil = ymd(-1); }), false],
     ];
     for (const [이름, fx, 뺄수있나] of 경우) {
       const V = bootPage('estimate-view.html', { query: '?id=x', fixtures: { shareDoc: fx } });
@@ -177,6 +182,17 @@ const 문서 = (st) => {
       ok('④-b ' + 이름 + ' — v2 문서로 그려졌다', /\bqdv-v2\b/.test(cls), cls);
       ok('🔴 ④-b ' + 이름 + (뺄수있나 ? ' — 배너를 인쇄에서 뺀다' : ' — 배너가 인쇄에 남는다'),
         /\bqdv-v2-validity\b/.test(cls) === 뺄수있나, cls);
+      V.win.close();
+    }
+    /* 🔴 ④-c 띠가 **문서의 날짜를 말한다** (2026-10-02) — 「한 달 뒤」는 발급 +30일과 하루가 갈린다.
+         실측: 머리 띠 「11월 1일까지」 · 문서 본문 「2026-11-02」가 한 화면에 함께 떴다. */
+    {
+      const fx = v2('issued', (d) => { d.doc.meta.validUntil = ymd(33); });
+      const V = bootPage('estimate-view.html', { query: '?id=x', fixtures: { shareDoc: fx } });
+      await V.ready; await V.tick(320);
+      const bar = (V.doc.getElementById('validity-bar') || {}).textContent || '';
+      const want = new Date(ymd(33) + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+      ok('🔴 ④-c 유효기간 띠 = 문서의 유효기간 (발급 +30일이 아니다)', bar.includes(want), bar + ' ≠ ' + want);
       V.win.close();
     }
   }
