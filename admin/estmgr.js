@@ -73,8 +73,8 @@
        바로 왼쪽 「견적번호」 칸과 같은 글자가 한 줄에 두 번 찍혔다. 다를 때(옛 Q번호 등)만 번호를 적는다. */
     const base = (s) => String(s || '').replace(/(?:-R\d+|_V\d+)$/i, '');   /* 옛 -R1 · 새 _V2 둘 다 */
     const label = ownNo && base(first.no) === base(ownNo) ? '발급됨' + (first.no !== ownNo ? ' (' + String(first.no).slice(String(ownNo).length + 1) + ')' : '') : (first.no || '견적서');
-    return ' <span title="견적서 대장에 있는 문서 — ' + esc(list.map((x) => x.no + ' (' + (EM_SHARE_ST[x.status] || x.status) + ')').join(', '))
-      + '" style="font-size:.72rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:.05rem .35rem">📄 '
+    return '<span class="em-tag em-tag-doc" title="견적서 대장에 있는 문서 — ' + esc(list.map((x) => x.no + ' (' + (EM_SHARE_ST[x.status] || x.status) + ')').join(', '))
+      + '">📄 '
       + esc(label) + esc(more) + '</span>';
   }
 
@@ -185,7 +185,7 @@
         <td class="em-qno">${e.quoteNo
           ? `<strong>${esc(e.quoteNo)}</strong>`
           : '<span title="번호가 없는 옛 건입니다 — 번호 붙이기는 개발 담당에게 요청하세요" style="color:var(--warn)">번호 없음</span>'}<span class="em-sub date-col">${fmtDate(e.ts)}</span></td>
-        <td class="em-who"><strong>${esc(e.orgName||'(기관명 없음)')}</strong><span class="em-sub">${esc(e.destLabel||e.destKey||'-')}${e.channel==='internal'?` <span title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}" style="font-size:.72rem;background:#fef2f2;color:var(--primary);border:1px solid #fecaca;padding:.05rem .35rem">🖥 내부산출</span>`:''}${linkedQuoteIds.has(e.id)?' <span title="상담 신청됨" style="font-size:.72rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:.05rem .35rem">☎ 상담</span>':''}${emShareBadge(e.id, e.quoteNo)}</span></td>
+        <td class="em-who"><strong>${esc(e.orgName||'(기관명 없음)')}</strong><span class="em-sub em-who-sub">${/* 2026-10-02 대표 「꼬리표가 글자 끝에 붙어 들쭉날쭉」 — 칸을 고정한다: 목적지 | 내부산출 | 상담 | 발급. 없는 칸도 자리는 남긴다 */''}<span class="em-dest">${esc(e.destLabel||e.destKey||'-')}</span><span class="em-slot">${e.channel==='internal'?`<span class="em-tag em-tag-int" title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}">🖥 내부산출</span>`:''}</span><span class="em-slot">${linkedQuoteIds.has(e.id)?'<span class="em-tag em-tag-cs" title="상담 신청됨">☎ 상담</span>':''}</span><span class="em-slot">${emShareBadge(e.id, e.quoteNo)}</span></span></td>
         <td style="white-space:nowrap">${e.participants ? e.participants + '명' : '—'} / ${e.days ? e.days + '일' : '—'}</td>
         ${/* 금액이 0이면 「₩0만」이 아니라 **적지 않았다**고 말한다 (2026-09-27) — 직접 작성 초안이 그렇게 저장된다 */''}
         <td class="em-num">${M.sell > 0

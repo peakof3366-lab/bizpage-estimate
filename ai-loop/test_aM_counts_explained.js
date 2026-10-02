@@ -68,6 +68,10 @@ const finish = async () => {
   ok('① 상담중 1 · 계약완료 0 · 종료 0', btn('consulting') === '상담중 1' && btn('contracted') === '계약완료 0' && btn('closed') === '종료 0');
   w.renderEstMgr();
   ok('① 다시 그려도 숫자가 겹쳐 붙지 않는다 (「신규 3 3」 아님)', btn('new') === '신규 3', btn('new'));
+  /* 꼬리표는 목적지 글자 끝에 붙지 않고 자기 칸에 선다 (2026-10-02 대표 지시) — 줄마다 칸 수가 같아야 열이 맞는다 */
+  const subs = [...d.querySelectorAll('#emBody .em-who-sub')];
+  ok('🔴 ① 줄마다 [목적지 + 칸 3개] — 꼬리표가 없어도 빈 칸이 자리를 지킨다',
+    subs.length === 4 && subs.every((s) => s.querySelector(':scope > .em-dest') && s.querySelectorAll(':scope > .em-slot').length === 3), String(subs.length));
 
   /* 🔴 브라우저가 검색칸에 아이디(admin)를 채운 상태 — 버튼과 목록이 **같은 것**을 세야 한다
        (대표 캡처: 버튼 「전체 4 · 신규 3」인데 목록은 2건 · 1건) */

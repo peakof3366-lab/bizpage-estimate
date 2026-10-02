@@ -1911,3 +1911,22 @@
 .em-search-note { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .84rem; font-weight: 600; color: var(--warn); background: #fffbeb; border: 1px solid #fde68a; padding: .45rem .75rem; margin: .5rem 0 .75rem; }
 .em-search-note.hidden { display: none; }
 .em-search-note .em-search-clear { min-height: 44px; font-weight: 700; }
+
+/* 📋 견적 관리 목록 줄 정리 (2026-10-02 대표 지시 「꼬리표는 자기 자리에 일렬로 · 신규·미배정·상세 높이 맞춤」)
+   ① 「기관 · 목적지」 둘째 줄 — 목적지 이름이 길이마다 달라 뒤에 붙은 꼬리표가 들쭉날쭉했다.
+      → 칸을 고정: [목적지 6.5em] [내부산출] [상담] [발급]. 없는 꼬리표도 자리는 남겨 세로줄이 맞는다.
+   ② 상태 알약 · 담당자 고르기 · 상세 버튼 — 높이를 하나로(44px — 누를 것은 44px 이상, CLAUDE.md 화면 규칙). */
+#emTable .em-who-sub { display: grid; grid-template-columns: 6.5em 5.8em auto auto; column-gap: .4rem; align-items: center; justify-content: start; }
+#emTable .em-dest { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#emTable .em-slot { display: flex; align-items: center; min-width: 0; }
+#emTable .em-slot:empty { display: block; }
+#emTable .em-tag { display: inline-flex; align-items: center; gap: .15rem; font-size: .72rem; line-height: 1.5; padding: .05rem .4rem; white-space: nowrap; border: 1px solid; }
+#emTable .em-tag-int { background: #fef2f2; color: var(--primary); border-color: #fecaca; }
+#emTable .em-tag-cs  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+#emTable .em-tag-doc { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+#emTable td > .badge, #emTable td > .status-select, #emTable td > .btn-detail {
+  height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+}
+#emTable td > .badge { padding: 0 .7rem; min-width: 4.2em; }
+#emTable td > .status-select { padding-top: 0 !important; padding-bottom: 0 !important; min-width: 6.5em; }
+#emTable td > .btn-detail { padding: 0 .9rem; }
