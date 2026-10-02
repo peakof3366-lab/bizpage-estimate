@@ -795,6 +795,17 @@
     .fold-note:hover { background: var(--bg); }
     /* 이 파란 안내 상자는 탭 다섯 곳에서 쓰인다 — 폭을 안 잡아 91자/줄이었다 (YB) */
     .rate-update-info { font-size:.8rem; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:.65rem 1rem; margin-bottom:1rem; max-width:var(--measure); }
+    /* 🔄 외부 자료 자동 갱신 카드 (요율 관리, 2026-10-02) — 그리는 곳은 admin/rates.js renderExternalFeeds */
+    #ext-feeds-body { display:grid; gap:.7rem; max-width:var(--measure); }
+    .ext-row { display:grid; grid-template-columns:1.6rem 1fr; gap:.6rem; align-items:start; font-size:.84rem; line-height:1.6; }
+    .ext-dot { display:inline-flex; align-items:center; justify-content:center; width:1.4rem; height:1.4rem; border-radius:50%; font-size:.8rem; font-weight:800; color:#fff; }
+    .ext-dot.ext-ok { background:var(--success); }
+    .ext-dot.ext-bad { background:var(--danger); }
+    .ext-name { font-weight:700; color:var(--text); }
+    .ext-main { color:var(--text); }
+    .ext-sub { color:var(--muted); font-size:.8rem; }
+    .ext-feeds-note { font-size:.8rem; color:var(--muted); margin:0; }
+    .ext-feeds-note.ext-bad, #ext-feeds-count.ext-bad { color:var(--danger); font-weight:700; }
     /* 견적서 대장 안내 — 제목 + 짧은 줄 세 칸 (2026-10-02 대표 지시 「간략하게 · 깔끔하게」) */
     .led-guide { display:grid; gap:.6rem; line-height:1.6; }
     .led-guide-h { display:block; font-weight:700; margin-bottom:.1rem; }

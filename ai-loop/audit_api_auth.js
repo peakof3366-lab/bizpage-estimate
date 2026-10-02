@@ -40,6 +40,10 @@ const API = path.join(ROOT, 'api');
 const PUBLIC_WRITES = {
   saveQuote: '고객 계산기가 남기는 견적 기록 (로그인 없이 쓴다 — 리드다)',
   issuePackageShare: '패키지 견적서 발급 — 고객 경로 (adhoc은 함수 안에서 관리자만)',
+  /* 2026-10-02 — 사람 로그인이 아니라 **자동 실행 비밀값**으로 막힌다(api/rates.js GET ?cron=1:
+     `Authorization: Bearer ${CRON_SECRET}`가 아니면 401). 쓰는 곳은 app_settings의 두 키·fx_rates뿐. */
+  runFeeds: '매일 05:00 자동 실행 — CRON_SECRET 확인 뒤에서만 불린다 (환율·공휴일·실행 기록)',
+  writeSetting: 'runFeeds 전용 — app_settings에 자동 실행 기록(ext_feed_status·ext_kr_holidays)만 쓴다',
 };
 
 /* 🔴 **`module.exports` 핸들러는 공개 분기와 관리자 분기가 한 함수에 섞여 있다.**
@@ -53,7 +57,7 @@ const MODULE_NOTES = {
   'quote-shares:module': 'POST=공개(검증 통과해야 발급) · list/status=requireAdmin',
   'quotes:module': 'POST=공개(saveQuote) · 그 외 action=requireAdmin',
   'content:module': 'GET=공개(사이트 문구) · PATCH/PUT/DELETE=requireRole',
-  'rates:module': 'GET=공개(요율·환율) · PATCH/POST=requireAdmin+requireRole',
+  'rates:module': 'GET=공개(요율·환율) · ?cron=CRON_SECRET · ?action=feeds=requireAdmin · PATCH/POST=requireAdmin+requireRole',
   'track:module': '전부 공개 — 방문·클릭 수집 (이름 화이트리스트 + 2KB 상한)',
 };
 

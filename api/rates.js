@@ -24,6 +24,7 @@ const destinationRates = require('../data');
 /* XQ: 칸 이름은 `_lib/rate_fields.js` 한 곳이다 — 감사 도구 둘도 같은 것을 읽는다.
    예전엔 세 곳에 손으로 적혀 있어, 칸을 늘리면 **검사에서만 조용히 빠질** 수 있었다. */
 const RATE_FIELDS = require('./_lib/rate_fields');
+const FEEDS = require('./_lib/external_feeds');
 const NUMERIC_FIELDS = new Set(RATE_FIELDS.RATE_NUMERIC_FIELDS);
 
 /* TJ: 고칠 수는 있지만 **없어도 되는** 요율 칸.
@@ -136,24 +137,114 @@ function isValidNewDestination(body) {
   return null;
 }
 
-async function fetchRateToKrw(currency) {
-  const code = currency.toLowerCase();
-  const urls = [
-    `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${code}.json`,
-    `https://latest.currency-api.pages.dev/v1/currencies/${code}.json`,
-  ];
-  for (const url of urls) {
+/* 환율 받기는 `_lib/external_feeds.js`로 옮겼다(2026-10-02) — 공식 출처(수출입은행) 우선 + 예전 출처로 메움 */
+
+/* ── 매일 자동 실행 (vercel.json cron) ─────────────────────────────────────
+   🔴 **결과를 반드시 남긴다.** 예전엔 응답으로만 돌려주고 끝이었다 — 응답은 Vercel만 보고
+     사람은 못 본다. 매일 실패해도 화면은 어제 환율을 「오늘 것」처럼 쓰고 있었을 것이다.
+   ⚠ 한 갈래가 터져도 다른 갈래는 돈다. 그리고 **못 받았으면 어제 받은 좋은 값을 지우지 않는다.** */
+async function readSetting(key) {
+  const rows = await sql`select value from app_settings where key = ${key}`;
+  return rows.length ? rows[0].value : null;
+}
+async function writeSetting(key, value) {
+  await sql`
+    insert into app_settings (key, value, updated_at, updated_by)
+    values (${key}, ${JSON.stringify(value)}::jsonb, now(), 'cron')
+    on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = 'cron'
+  `;
+}
+
+async function runFeeds(res) {
+  const runAt = new Date().toISOString();
+  let prev = null;
+  try { prev = await readSetting(FEEDS.STATUS_KEY); } catch (e) { /* 처음이면 없다 */ }
+  const status = { runAt, fx: null, holidays: null };
+
+  /* ① 환율 — 내장 목적지 통화 + **관리자가 추가한 목적지의 통화**까지.
+       예전엔 내장 통화만 받아서, 추가 목적지가 새 통화를 쓰면 그 환율이 영영 안 들어왔다. */
+  try {
+    const curSet = new Set(Object.values(DEST_CURRENCY));
     try {
-      const r = await fetch(url);
-      if (!r.ok) continue;
-      const data = await r.json();
-      const rate = data[code] && data[code].krw;
-      if (typeof rate === 'number') return rate;
-    } catch {
-      // 다음 URL(fallback)로 계속
+      const extra = await sql`select distinct currency from custom_destinations where currency is not null and currency <> ''`;
+      for (const r of extra) curSet.add(r.currency);
+    } catch (e) { /* 표가 없거나 못 읽어도 내장 통화는 받는다 */ }
+    const { got, status: fx } = await FEEDS.collectFx([...curSet], { eximKey: process.env.EXIM_API_KEY });
+    let saved = 0;
+    for (const [currency, v] of Object.entries(got)) {
+      try {
+        await sql`
+          insert into fx_rates (currency, rate_to_krw, fetched_at)
+          values (${currency}, ${v.rate}, now())
+          on conflict (currency) do update set rate_to_krw = excluded.rate_to_krw, fetched_at = now()
+        `;
+        saved++;
+      } catch (err) {
+        console.error('[rates cron] fx_rates 저장 실패:', currency, err);
+        fx.failed.push(currency);
+      }
     }
+    fx.saved = saved;
+    fx.total = [...curSet].filter((c) => c !== 'KRW').length;
+    fx.sources = Object.fromEntries(Object.entries(got).map(([c, v]) => [c, v.source]));
+    fx.lastSuccessAt = saved > 0 ? runAt : ((prev && prev.fx && prev.fx.lastSuccessAt) || null);
+    status.fx = fx;
+  } catch (err) {
+    console.error('[rates cron] 환율 갈래 실패:', err);
+    status.fx = { error: String(err && err.message || err), lastSuccessAt: (prev && prev.fx && prev.fx.lastSuccessAt) || null };
   }
-  return null;
+
+  /* ② 한국 공휴일 — 올해 · 내년 · 후년 */
+  try {
+    const y0 = Number(FEEDS.kstYmd().slice(0, 4));
+    const h = await FEEDS.fetchKrHolidays(process.env.DATA_GO_KR_KEY, [y0, y0 + 1, y0 + 2]);
+    if (h.ok) {
+      /* 받은 해만 덮는다 — 한 해를 못 받았다고 그 해의 어제 값을 지우지 않는다 */
+      let old = null;
+      try { old = await readSetting(FEEDS.HOLIDAYS_KEY); } catch (e) { /* 처음 */ }
+      const years = Object.assign({}, (old && old.years) || {}, h.years);
+      await writeSetting(FEEDS.HOLIDAYS_KEY, { fetchedAt: runAt, years });
+    }
+    status.holidays = {
+      ok: h.ok, reason: h.reason || null, errors: h.errors || [],
+      years: Object.keys(h.years || {}).map(Number),
+      lastSuccessAt: h.ok ? runAt : ((prev && prev.holidays && prev.holidays.lastSuccessAt) || null),
+    };
+  } catch (err) {
+    console.error('[rates cron] 공휴일 갈래 실패:', err);
+    status.holidays = { ok: false, error: String(err && err.message || err), lastSuccessAt: (prev && prev.holidays && prev.holidays.lastSuccessAt) || null };
+  }
+
+  try { await writeSetting(FEEDS.STATUS_KEY, status); }
+  catch (err) { console.error('[rates cron] 상태 기록 실패:', err); }
+  return res.status(200).json(status);
+}
+
+/* 관리자 화면 「외부 자료 상태」 — 마지막 실행 결과 + 공휴일 ↔ 성수기 달력 대조.
+   ⚠ 대조는 **여기 한 곳**에서 한다. 달력은 data.js가 진실이고 서버도 같은 파일을 읽는다. */
+async function handleFeeds(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  try {
+    const [status, holidays, fxRows] = await Promise.all([
+      readSetting(FEEDS.STATUS_KEY),
+      readSetting(FEEDS.HOLIDAYS_KEY),
+      sql`select currency, fetched_at from fx_rates`,
+    ]);
+    const fxFetched = fxRows.map((r) => r.fetched_at).filter(Boolean).map((d) => new Date(d).getTime());
+    const calendar = holidays && holidays.years
+      ? FEEDS.checkCalendar(holidays.years, destinationRates.PEAK_CALENDAR, destinationRates.LUNAR_PEAKS)
+      : null;
+    return res.status(200).json({
+      status: status || null,
+      fxOldestAt: fxFetched.length ? new Date(Math.min(...fxFetched)).toISOString() : null,
+      fxNewestAt: fxFetched.length ? new Date(Math.max(...fxFetched)).toISOString() : null,
+      holidays: holidays ? { fetchedAt: holidays.fetchedAt, years: Object.keys(holidays.years || {}).map(Number) } : null,
+      calendar,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'query_failed' });
+  }
 }
 
 function isValidChange(c) {
@@ -187,24 +278,10 @@ module.exports = async (req, res) => {
       if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return res.status(401).json({ error: 'unauthorized' });
       }
-      const currencies = [...new Set(Object.values(DEST_CURRENCY))];
-      let okCount = 0;
-      for (const currency of currencies) {
-        const rate = await fetchRateToKrw(currency);
-        if (rate === null) continue;
-        try {
-          await sql`
-            insert into fx_rates (currency, rate_to_krw, fetched_at)
-            values (${currency}, ${rate}, now())
-            on conflict (currency) do update set rate_to_krw = excluded.rate_to_krw, fetched_at = now()
-          `;
-          okCount++;
-        } catch (err) {
-          console.error('[rates cron] fx_rates 저장 실패:', currency, err);
-        }
-      }
-      return res.status(200).json({ ok: okCount, failed: currencies.length - okCount, total: currencies.length });
+      return runFeeds(res);
     }
+
+    if (req.query && req.query.action === 'feeds') return handleFeeds(req, res);
 
     if (req.query && req.query.history) {
       if (!(await requireAdmin(req, res))) return;

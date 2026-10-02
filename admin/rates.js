@@ -1813,7 +1813,107 @@
     const ok = await loadRateOverrides();
     await loadPriceReports();
     renderRates();
+    /* 외부 자료 상태는 기다리지 않는다 — 요율 표가 그것 때문에 늦게 뜨면 안 된다 */
+    loadExternalFeeds();
     return ok;
+  }
+
+  /* ════ 🔄 외부 자료 자동 갱신 (2026-10-02 대표 지시) ═════════════════════════
+     매일 05:00 자동 실행(api/rates.js runFeeds)이 남긴 기록을 읽어 보여 준다.
+     🔴 **「모른다」를 「괜찮다」로 바꾸지 않는다** (결함 생성기 ②):
+       · 기록이 아예 없으면 「아직 한 번도 안 돌았다」고 말한다
+       · 마지막 성공이 36시간을 넘으면 🔴 — 하루 한 번 도는 일이 하루 넘게 안 됐다는 뜻이다
+       · 인증키가 없으면 「키 없음 — 보조 출처로만 받는 중」이라고 말한다
+     ⚠ 금액은 여기서 안 바뀐다. 공휴일 대조는 **알리기만** 한다. */
+  const EXT_STALE_HOURS = 36;
+  async function loadExternalFeeds() {
+    const body = document.getElementById('ext-feeds-body');
+    if (!body) return;
+    try {
+      const r = await fetch('/api/rates?action=feeds');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      renderExternalFeeds(await r.json());
+    } catch (e) {
+      renderExternalFeeds(null, e && e.message);
+    }
+  }
+
+  function renderExternalFeeds(d, loadErr) {
+    const body = document.getElementById('ext-feeds-body');
+    const count = document.getElementById('ext-feeds-count');
+    if (!body) return;
+    const setCount = (t, bad) => { if (count) { count.textContent = t; count.classList.toggle('ext-bad', !!bad); } };
+    if (!d) {
+      setCount('확인 못 함', true);
+      body.innerHTML = `<p class="ext-feeds-note ext-bad">자동 갱신 기록을 불러오지 못했습니다 (${esc(loadErr || '')}). 새로고침해 주세요 — 환율이 갱신되고 있는지 <b>지금은 모릅니다.</b></p>`;
+      return;
+    }
+    const now = Date.now();
+    const ago = (iso) => {
+      if (!iso) return null;
+      const h = (now - new Date(iso).getTime()) / 3600000;
+      return h < 1 ? '1시간 안' : h < 48 ? Math.round(h) + '시간 전' : Math.round(h / 24) + '일 전';
+    };
+    const stale = (iso) => !iso || (now - new Date(iso).getTime()) / 3600000 > EXT_STALE_HOURS;
+    const when = (iso) => iso ? new Date(iso).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+    const st = d.status || {};
+    const fx = st.fx || {};
+    const ho = st.holidays || {};
+    const problems = [];
+    const row = (name, okFlag, main, sub) => `
+      <div class="ext-row">
+        <span class="ext-dot ${okFlag ? 'ext-ok' : 'ext-bad'}" aria-hidden="true">${okFlag ? '✓' : '!'}</span>
+        <div><div class="ext-name">${name}</div><div class="ext-main">${main}</div>${sub ? `<div class="ext-sub">${sub}</div>` : ''}</div>
+      </div>`;
+
+    if (!d.status) problems.push('기록 없음');
+    /* ① 환율 */
+    const fxStale = stale(fx.lastSuccessAt);
+    if (fxStale) problems.push('환율');
+    const fxBy = fx.bySource || {};
+    const keyNote = fx.exim && fx.exim.ok
+      ? `공식(수출입은행 ${esc(fx.exim.date || '')}) ${fxBy.exim || 0}개 · 보조 출처 ${fxBy.fallback || 0}개`
+      : (fx.exim && fx.exim.reason === 'no_key'
+        ? `⚠ 수출입은행 인증키가 없습니다 — <b>보조 출처로만</b> ${fxBy.fallback || 0}개 받는 중`
+        : `⚠ 수출입은행 실패(${esc((fx.exim && fx.exim.reason) || '?')}) — 보조 출처 ${fxBy.fallback || 0}개`);
+    const fxMain = !d.status ? '아직 한 번도 자동 실행 기록이 없습니다 — 매일 05:00에 돕니다. 하루가 지나도 이대로면 개발 담당에게 <b>Vercel 자동 실행(CRON_SECRET) 설정</b> 확인을 요청하세요'
+      : `마지막 성공 <b>${when(fx.lastSuccessAt)}</b>${fx.lastSuccessAt ? ` (${ago(fx.lastSuccessAt)})` : ''}${fxStale ? ` — <b>${EXT_STALE_HOURS}시간 넘게 갱신 안 됨</b>` : ''}`;
+    const fxSub = d.status ? `${keyNote}${(fx.failed || []).length ? ` · <b>못 받은 통화 ${fx.failed.map(esc).join(', ')}</b>` : ''}` : '';
+    let html = row('환율', d.status && !fxStale && !(fx.failed || []).length, fxMain, fxSub);
+
+    /* ② 한국 공휴일 */
+    const hoStale = stale(ho.lastSuccessAt);
+    const hoNoKey = ho.reason === 'no_key';
+    if (!hoNoKey && hoStale) problems.push('공휴일');
+    const hoMain = hoNoKey ? '⚠ 공공데이터포털 인증키가 없어 <b>받지 않고 있습니다</b>'
+      : `마지막 성공 <b>${when(ho.lastSuccessAt)}</b>${ho.lastSuccessAt ? ` (${ago(ho.lastSuccessAt)})` : ''}`;
+    const hoSub = d.holidays ? `받아 둔 해: ${(d.holidays.years || []).join(' · ')}${(ho.errors || []).length ? ` · 실패 ${ho.errors.map(esc).join(', ')}` : ''}` : '';
+    html += row('한국 공휴일', !hoNoKey && !hoStale, hoMain, hoSub);
+
+    /* ③ 성수기 달력 대조 */
+    const cal = d.calendar;
+    if (cal) {
+      const bad = (cal.lunar || []).filter((x) => x.state !== 'ok');
+      if (bad.length) problems.push('달력');
+      const lunarLine = (cal.lunar || []).map((x) => `${x.year} ${esc(x.name)} ${x.state === 'ok' ? '✓' : (x.state === 'missing' ? '❌ 달력에 없음' : `⚠ 어긋남(공식 ${esc(x.official.from.slice(5))}~${esc(x.official.to.slice(5))} · 우리 ${esc(x.ours.from.slice(5))}~${esc(x.ours.to.slice(5))})`)}`).join(' · ');
+      const lb = cal.longBreaks || [];
+      const lbLine = lb.length
+        ? `<div class="ext-sub">달력에 없는 <b>4일 이상 연휴 ${lb.length}건</b> (검토 후보 — 연휴라고 항공권이 꼭 오르지는 않습니다): `
+          + lb.map((b) => `${esc(b.from.slice(5))}~${esc(b.to.slice(5))} ${b.days}일(${b.names.map(esc).join('·')})`).join(' · ') + '</div>'
+        : '';
+      html += row('성수기 달력 대조', !bad.length,
+        bad.length ? `<b>설·추석 ${bad.length}건이 공식 날짜와 다릅니다</b> — 견적 피크 계수가 엉뚱한 날에 붙거나 빠집니다. 개발 담당에게 data.js LUNAR_PEAKS 수정을 요청하세요.` : '설·추석이 공식 날짜와 맞습니다',
+        lunarLine + lbLine);
+    } else {
+      html += row('성수기 달력 대조', false, '공휴일 자료가 없어 대조하지 못했습니다 — 공공데이터포털 인증키를 넣으면 다음 날 05:00부터 대조합니다', '');
+    }
+    html += `<p class="ext-feeds-note">자동 실행이 바꾸는 것은 <b>환율 표뿐</b>입니다(환율 보정은 예전처럼 ±30% 안). 성수기 달력과 요율은 사람이 고칩니다.</p>`;
+    body.innerHTML = html;
+    /* ⚠ 머리와 줄이 같은 말을 해야 한다 — 줄에 「!」가 있는데 머리가 「정상」이면 접힌 채로는 아무도 안 연다 */
+    const needKeys = (fx.exim && fx.exim.reason === 'no_key' ? 1 : 0) + (hoNoKey ? 1 : 0);
+    if (!cal) problems.push('달력 대조 못 함');
+    if (needKeys) problems.push(`인증키 ${needKeys}개 필요`);
+    setCount(problems.length ? `⚠ ${problems.join(' · ')}` : '정상', problems.length > 0);
   }
 
   /* 경고띠의 '다시 불러오기' — 성공하면 표까지 새 값으로 다시 그린다. */

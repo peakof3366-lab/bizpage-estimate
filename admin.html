@@ -1015,6 +1015,19 @@
            표를 그릴 수 있어서, 표시하지 않으면 "낡은 값이 운영값인 척" 보인다. -->
       <div id="rate-stale-banner" class="hidden" style="max-width:var(--measure);margin-bottom:1rem;padding:.8rem 1rem;border:1.6px solid var(--danger,#dc2626);background:#fef2f2;color:#7f1d1d;font-size:.85rem;font-weight:600;line-height:1.6"></div>
 
+      <!-- 🔄 외부 자료 자동 갱신 (2026-10-02 대표 지시) — 매일 05:00 자동 실행의 **결과**를 보여준다.
+           예전엔 그 결과가 어디에도 안 남아, 매일 실패해도 화면은 어제 환율을 오늘 것처럼 썼다.
+           ⚠ 여기서 금액을 바꾸지 않는다. 공휴일 대조는 「달력에 빠진 것」을 알리기만 한다.
+           그리는 일은 admin/rates.js `renderExternalFeeds` 하나가 한다. -->
+      <details class="card fold-card" id="ext-feeds-card" style="margin-bottom:1.25rem">
+        <summary class="card-header">
+          <span class="card-title">🔄 외부 자료 자동 갱신</span>
+          <span class="fold-count" id="ext-feeds-count">확인 중…</span>
+          <span class="fold-hint">환율 · 한국 공휴일 — 매일 05:00</span>
+        </summary>
+        <div class="card-body" id="ext-feeds-body"><p class="ext-feeds-note">불러오는 중…</p></div>
+      </details>
+
       <!-- 실제 계약 데이터 기반 갱신 제안 (신규) — 항공료·호텔·식비는 인원별 협상 견적이라
            공개 API로 자동 갱신할 수 없지만, 계약완료된 견적/실제 계약가 위젯에 담당자가
            남긴 실제 단가를 목적지×항목별로 모아서 기준 요율과 얼마나 벌어졌는지 보여준다.
