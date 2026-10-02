@@ -111,8 +111,9 @@ const ok = (name, cond, extra = '') => {
   /* 펼치면 내용이 있다 */
   sugCard.open = true;
   ok('펼치면 목록이 들어 있다',
-    doc.getElementById('airfare-suggestion-list').children.length === 13,
-    String(doc.getElementById('airfare-suggestion-list').children.length));
+    /* 2026-10-02 묶음(적용 가능·확인 필요·참고) 표로 바꿨다 — 줄은 `.sug-row`로 센다 */
+    doc.querySelectorAll('#airfare-suggestion-list .sug-row').length === 13,
+    String(doc.querySelectorAll('#airfare-suggestion-list .sug-row').length));
 
   /* 데이터가 없으면 **카드 자체를 숨긴다** — 접기와 숨기기는 다른 일이다 */
   win.__stubSuggest(() => []);

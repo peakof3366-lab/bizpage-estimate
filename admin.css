@@ -812,6 +812,33 @@
     @media (max-width: 640px) { .ext-row { grid-template-columns:4.6rem 1fr; } .ext-row .ext-main { grid-column:1 / -1; } }
     .ext-feeds-note { font-size:.8rem; color:var(--muted); margin:0; }
     .ext-feeds-note.ext-bad, .ext-bad { color:var(--danger); font-weight:700; }
+    /* 📊 실제 계약 데이터 기반 갱신 제안 (2026-10-02 「정리」) — 그리는 곳은 admin/rates.js renderRateSuggestions */
+    .sug-intro { font-size:.8rem; color:var(--muted); margin:0 0 .8rem; max-width:var(--measure); word-break:keep-all; }
+    .sug-list { display:grid; gap:1.1rem; }
+    .sug-h { font-size:.92rem; font-weight:800; margin:0 0 .25rem; color:var(--text); }
+    .sug-n { font-weight:600; color:var(--muted); font-size:.82rem; margin-left:.3rem; }
+    .sug-note { font-size:.8rem; color:var(--muted); margin:0 0 .45rem; max-width:var(--measure); word-break:keep-all; }
+    .sug-sec-far .sug-h { color:var(--warn); }
+    .sug-sec-conf .sug-h { color:var(--success); }
+    .sug-wrap { overflow-x:auto; }
+    .sug-table { min-width:820px; font-size:.83rem; table-layout:fixed; width:100%; }
+    /* 세 묶음이 따로 표라 칸 너비를 **똑같이 고정**한다 — 안 그러면 묶음마다 칸이 어긋난다 */
+    .sug-table th:nth-child(1) { width:22%; } .sug-table th:nth-child(2), .sug-table th:nth-child(3) { width:12%; }
+    .sug-table th:nth-child(4) { width:9%; } .sug-table th:nth-child(5) { width:30%; } .sug-table th:nth-child(6) { width:15%; }
+    .sug-table .em-num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .sug-table th.em-num { text-align:right; }
+    .sug-table td:nth-child(5) { padding-left:1.25rem; }
+    .sug-table td { vertical-align:middle; }
+    .sug-what { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sug-gap { font-weight:800; }
+    .sug-up { color:var(--danger); }
+    .sug-down { color:var(--primary,#514dc2); }
+    .sug-why { color:var(--muted); }
+    .sug-tag { display:inline-block; font-size:.72rem; font-weight:700; padding:.05rem .4rem; margin:.1rem .15rem .1rem 0; border:1px solid var(--border); color:var(--muted); white-space:nowrap; }
+    .sug-tag-em { color:var(--primary,#514dc2); border-color:currentColor; }
+    .sug-tag-warn { color:var(--warn); border-color:currentColor; }
+    .sug-tag-bad { color:var(--danger); border-color:currentColor; }
+    .sug-act { white-space:nowrap; text-align:right; }
     /* ⛽ 유류할증료 월별 표 (요율 관리, 2026-10-02) — 그리는 곳은 admin/rates.js renderFuelCard */
     .fuel-status, .fuel-import { max-width:var(--measure); margin-bottom:.9rem; }
     .fuel-line { font-size:.84rem; line-height:1.6; margin:0 0 .35rem; color:var(--text); }

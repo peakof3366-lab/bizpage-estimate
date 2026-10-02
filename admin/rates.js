@@ -1358,41 +1358,53 @@
     if (cntEl) cntEl.textContent = suggestions.length ? suggestions.length + '건' : '';
     if (!suggestions.length) { card.classList.add('hidden'); return; }
     card.classList.remove('hidden');
-    list.innerHTML = suggestions.map(s => {
-      const isReport = s.source === 'report';
-      /* confident(EM 표본 충분)만 파랑(액션색)으로 강조. 빨강(danger)은 이상치 등 실제
-         경고에만 남긴다. 제보 소스는 참고용이라 강조 없음. */
-      /* TB: farOff = 기준가와 너무 벌어져(0.5~2배 밖) 제안을 만들 수 없는 것.
-         **버리지 않고 따로 보여준다** — 오타일 수도, 요율이 낡은 것일 수도 있는데
-         그 판단은 사람만 한다. 주황 테두리로 「확인 대상」임을 밝힌다. */
-      const frameColor = s.farOff ? '#E0A100' : (s.confident ? 'var(--primary)' : 'var(--border)');
-      const frameBg    = s.farOff ? '#fffbeb' : (s.confident ? '#eff6ff' : 'var(--bg)');
-      const srcBadge = isReport
-        ? '<span style="font-size:.66rem;font-weight:700;background:#f1f5f9;color:var(--muted);border:1px solid var(--border);padding:.1rem .4rem;margin-right:.4rem">실측 제보 · 참고용</span>'
-        : '<span style="font-size:.66rem;font-weight:700;background:#eef2ff;color:var(--primary);border:1px solid #c7d2fe;padding:.1rem .4rem;margin-right:.4rem">실제 계약</span>';
-      const confBadge = s.farOff
-        ? '<span style="font-size:.68rem;font-weight:700;background:#E0A100;color:#fff;padding:.1rem .4rem;margin-right:.4rem">확인 필요 · 제안 못 만듦</span>'
-        : (s.confident
-          ? '<span style="font-size:.68rem;font-weight:700;background:var(--primary);color:#fff;padding:.1rem .4rem;margin-right:.4rem">지금 적용 가능</span>'
-          : '');
-      return `
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.6rem .8rem;border:1px solid ${frameColor};border-left-width:${s.confident ? '4px' : '1px'};background:${frameBg};flex-wrap:wrap">
-        <div style="font-size:.85rem">
-          ${confBadge}${srcBadge}
-          <!-- ⚠ 1건일 때 '중앙값'이라 쓰면 여러 건을 모은 것처럼 읽힌다. 그 목적지의
-               **첫 실측**이라는 사실이 판단에 중요하다(대표 지시로 1건도 제안한다). -->
-          <strong>${esc(s.label)} · ${esc(s.fieldLabel)}</strong> · 최근 ${RATE_SUGGEST_RECENT_MONTHS}개월 ${isReport ? '실측 제보' : '실제 계약'} ${s.count === 1 ? '<b>1건</b>(이 목적지의 첫 실측)이' : `${s.count}건 중앙값이`} 기준 대비
-          <strong>${s.diffPct > 0 ? '+' : ''}${s.diffPct.toFixed(1)}%</strong>
-          — 기준 ${fmtWon(s.currentBase)}${s.farOff ? ` · 제보값 ${fmtWon(s.suggestedBase)}` : ` → 제안 ${fmtWon(s.suggestedBase)}`}${s.outlierCount ? ` <span style="color:var(--danger);font-weight:700">· 이상치 ${s.outlierCount}건 제외</span>` : ''}${s.excludedCount ? ` <span style="color:var(--muted);font-weight:700">· 평균에서 뺀 ${s.excludedCount}건 제외</span>` : ''}${s.uncheckedCount ? ` <span style="color:#8A6100;font-weight:700">· 검산 안 된 ${s.uncheckedCount}건 제외</span>` : ''}${s.unknownCount ? ` <span style="color:var(--muted);font-weight:700">· 출처 미상 ${s.unknownCount}건 포함</span>` : ''}
-          ${s.farOff ? `<div style="color:#8A6100;font-size:.72rem;margin-top:.25rem;font-weight:700">※ 기준가의 ${(Math.abs(s.diffPct) / 100 + 1).toFixed(1)}배 안팎이라 <b>제안 금액을 만들지 않았습니다</b> — 오타일 수도, 요율이 낡은 것일 수도 있어 사람이 봐야 합니다. 견적서를 열어 확인한 뒤 <b>요율 편집하기</b>로 직접 넣어 주세요.</div>` : ''}
-          ${isReport && !s.farOff ? '<div style="color:var(--muted);font-size:.72rem;margin-top:.25rem">※ 제보값은 성수기·피크 프리미엄이 섞여 있어 참고용입니다 — 값을 확인하고 <b>요율 편집하기</b>로 판단해 반영하세요(자동 적용 대상 아님).</div>' : ''}
-        </div>
-        <div style="display:flex;gap:.4rem;flex-shrink:0">
-          ${s.confident ? `<button type="button" class="btn-act btn-primary" onclick="applyRateSuggestion('${s.destKey}','${s.field}',${s.suggestedBase},${s.count})">✅ 지금 바로 적용</button>` : ''}
-          <button type="button" class="btn-act btn-outline-p" onclick="openRateEditModal('${s.destKey}')">요율 편집하기</button>
-        </div>
-      </div>`;
-    }).join('');
+
+    /* ═══ 2026-10-02 대표 지시 「불필요한 글자·레이아웃 정리」 ═══════════════════
+       예전엔 30건이 **줄마다 같은 긴 문장과 같은 경고 두 줄**을 되풀이했다 — 봐야 할 숫자
+       (지금 기준 · 실측 · 차이)가 문장 속에 묻혔다. 이제:
+         · 세 묶음으로 가른다 — ① 지금 적용 가능 ② 확인 필요 · 제안 못 만듦 ③ 참고(제보값)
+         · **설명은 묶음 머리에 한 번만.** 줄에는 숫자와 짧은 꼬리표만.
+         · 줄 = 한 줄 표: 목적지·항목 | 지금 기준 | 제안(제보값) | 차이 | 근거 | 편집
+       ⚠ 말하던 내용은 하나도 안 버렸다 — 「제안 못 만듦」의 이유 · 오타일 수도/낡았을 수도 ·
+         제보값은 참고용 · 첫 실측 · 이상치/뺀 건/검산 안 된/출처 미상 건수(test_tB·sI가 지킨다). */
+    const farOff = suggestions.filter((s) => s.farOff);
+    const conf = suggestions.filter((s) => !s.farOff && s.confident);
+    const ref = suggestions.filter((s) => !s.farOff && !s.confident);
+    const byGap = (a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct);
+    const pct = (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
+    const tags = (s) => [
+      s.source === 'report' ? '<span class="sug-tag">제보</span>' : '<span class="sug-tag sug-tag-em">계약</span>',
+      s.count === 1 ? '<span class="sug-tag" title="이 목적지의 첫 실측">첫 실측</span>' : '',
+      s.outlierCount ? `<span class="sug-tag sug-tag-bad">이상치 ${s.outlierCount}건 제외</span>` : '',
+      s.excludedCount ? `<span class="sug-tag">평균에서 뺀 ${s.excludedCount}건 제외</span>` : '',
+      s.uncheckedCount ? `<span class="sug-tag sug-tag-warn">검산 안 된 ${s.uncheckedCount}건 제외</span>` : '',
+      s.unknownCount ? `<span class="sug-tag">출처 미상 ${s.unknownCount}건 포함</span>` : '',
+    ].join('');
+    const row = (s, kind) => `
+      <tr class="sug-row">
+        <td class="sug-what"><b>${esc(s.label)}</b> · ${esc(s.fieldLabel)}</td>
+        <td class="em-num">${fmtWon(s.currentBase)}</td>
+        <td class="em-num"><b>${fmtWon(s.suggestedBase)}</b></td>
+        <td class="em-num sug-gap ${s.diffPct > 0 ? 'sug-up' : 'sug-down'}">${pct(s.diffPct)}</td>
+        <td class="sug-why">${s.count}건${s.count > 1 ? ' 중앙값' : ''} ${tags(s)}</td>
+        <td class="sug-act">
+          ${kind === 'conf' ? `<button type="button" class="btn-act btn-primary" aria-label="${esc(s.label)} ${esc(s.fieldLabel)} 제안값 바로 적용" onclick="applyRateSuggestion('${s.destKey}','${s.field}',${s.suggestedBase},${s.count})">바로 적용</button>` : ''}
+          <button type="button" class="btn-act btn-outline-p" aria-label="${esc(s.label)} 요율 편집" onclick="openRateEditModal('${s.destKey}')">편집</button>
+        </td>
+      </tr>`;
+    const section = (kind, title, note, items, valueHead) => items.length ? `
+      <section class="sug-sec sug-sec-${kind}">
+        <h3 class="sug-h">${title} <span class="sug-n">${items.length}건</span></h3>
+        ${note ? `<p class="sug-note">${note}</p>` : ''}
+        <div class="sug-wrap"><table class="inq-table sug-table">
+          <thead><tr><th>목적지 · 항목</th><th class="em-num">지금 기준</th><th class="em-num">${valueHead}</th><th class="em-num">차이</th><th>근거 (최근 ${RATE_SUGGEST_RECENT_MONTHS}개월)</th><th></th></tr></thead>
+          <tbody>${items.slice().sort(byGap).map((s) => row(s, kind)).join('')}</tbody>
+        </table></div>
+      </section>` : '';
+    list.innerHTML =
+      section('conf', '✅ 지금 적용 가능', `실제 계약이 ${RATE_SUGGEST_CONFIDENT_COUNT}건 이상 쌓인 항목입니다. 「바로 적용」은 제안값으로 기준을 바꿉니다.`, conf, '제안')
+      + section('far', '⚠ 확인 필요 · 제안 못 만듦', '기준가와 너무 벌어져 <b>제안 금액을 만들지 않았습니다</b> — 오타일 수도, 요율이 낡은 것일 수도 있습니다. 견적서를 열어 확인한 뒤 「편집」으로 직접 고쳐 주세요.', farOff, '제보값')
+      + section('ref', '참고', `실제 계약이 ${RATE_SUGGEST_CONFIDENT_COUNT}건이 안 되거나, 실측 제보(성수기·피크 프리미엄이 섞임)라 <b>참고용</b>입니다 — 자동 적용 안 함. 판단해서 「편집」으로 반영하세요.`, ref, '제안');
   }
 
   /* 실제 이용 호텔 목록 (RY) — 가격 비교가 아니라 "어느 나라 어느 도시에서 어느 호텔을
