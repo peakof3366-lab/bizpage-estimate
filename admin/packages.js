@@ -70,7 +70,7 @@
        다시 부르지만, 한쪽만 그리면 돌아왔을 때 옛 목록이 남는다. */
     const boxes = PKG_VIEWS.map(v => document.getElementById(v.box)).filter(Boolean);
     if (!boxes.length) return;
-    boxes.forEach(b => { b.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">불러오는 중…</div>'; });
+    boxes.forEach(b => { b.innerHTML = '<div style="padding:16px;color:#888;font-size:.89rem">불러오는 중…</div>'; });
     try {
       /* 관리자는 초안·마감까지 봐야 관리가 된다 — `all=1` */
       const r = await fetch('/api/content?action=packages&all=1');
@@ -81,7 +81,7 @@
       /* ⚠ **못 불러온 것을 「0건」으로 보여주지 않는다.** 그러면 담당자가 상품이
          지워진 줄 알고 다시 만든다(결함 생성기 ②). */
       boxes.forEach(b => {
-        b.innerHTML = '<div style="padding:16px;color:#B91C1C;font-size:.85rem">'
+        b.innerHTML = '<div style="padding:16px;color:#B91C1C;font-size:.89rem">'
           + '목록을 불러오지 못했습니다 — <strong>「없다」는 뜻이 아닙니다.</strong> '
           + '잠시 뒤 다시 열어 주세요. (' + String(err.message || err) + ')</div>';
       });
@@ -188,7 +188,7 @@
         : wantGap === 'ready' ? '팔 준비가 된 상품이 아직 없습니다 — 일정과 포함사항을 채우면 여기 올라옵니다.'
         : wantGap === 'gap' ? '덜 채워진 상품이 없습니다. 전부 팔 준비가 됐습니다.'
         : view.none;
-      box.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">' + why + '</div>';
+      box.innerHTML = '<div style="padding:16px;color:#888;font-size:.89rem">' + why + '</div>';
       return;
     }
 
@@ -229,7 +229,7 @@
         + '</div>'
         + (Number(p.pricePerPerson) > 0
             ? '<div style="text-align:right;font-weight:800">' + Number(p.pricePerPerson).toLocaleString() + '원</div>'
-            : '<div style="text-align:right;color:var(--muted);font-size:.85rem">금액 미입력</div>')
+            : '<div style="text-align:right;color:var(--muted);font-size:.89rem">금액 미입력</div>')
         + '<div class="pkg-stale">' + (old ? '⚠ ' + age + '일 전 금액' : '') + '</div>'
         + '<div><span class="pkg-st ' + esc(p.status) + '">' + esc(stLabel) + '</span></div>'
         /* ── 상태마다 **맞는 동작 하나만** 준다 (ZO) ─────────────────────────

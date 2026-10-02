@@ -28,7 +28,7 @@
   async function renderLedger(q) {
     const box = document.getElementById('ledList');
     if (!box) return;
-    box.innerHTML = '<div style="padding:16px;color:#888;font-size:.85rem">불러오는 중…</div>';
+    box.innerHTML = '<div style="padding:16px;color:#888;font-size:.89rem">불러오는 중…</div>';
     try {
       const url = '/api/quote-shares?action=list' + (q ? '&q=' + encodeURIComponent(q) : '');
       const r = await fetch(url);
@@ -44,7 +44,7 @@
         + (d.revisions === false ? ' · ⚠ 차수를 세지 못했습니다 (개정 표시가 빠져 있습니다)' : '');
     } catch (err) {
       /* 못 불러온 것을 「0건」으로 보여주지 않는다 — 견적서가 사라진 줄 알게 된다 */
-      box.innerHTML = '<div style="padding:16px;color:#B91C1C;font-size:.85rem">'
+      box.innerHTML = '<div style="padding:16px;color:#B91C1C;font-size:.89rem">'
         + '목록을 불러오지 못했습니다 — <strong>「견적서가 없다」는 뜻이 아닙니다.</strong> ('
         + esc(String(err.message || err)) + ')</div>';
       return;
@@ -60,10 +60,10 @@
          검색어를 지우면 되고, 처음이면 발급부터 해야 한다 — 할 일이 정반대다. */
       const q = (document.getElementById('ledSearch') || {}).value || '';
       box.innerHTML = q.trim()
-        ? '<div style="padding:16px;color:#888;font-size:.85rem;line-height:1.8">'
+        ? '<div style="padding:16px;color:#888;font-size:.89rem;line-height:1.8">'
           + '「' + esc(q.trim()) + '」와 맞는 견적서가 없습니다.<br>'
           + '검색어를 지우고 <strong>새로고침</strong>을 누르면 전체 목록이 나옵니다.</div>'
-        : '<div style="padding:16px;color:#888;font-size:.85rem;line-height:1.8">'
+        : '<div style="padding:16px;color:#888;font-size:.89rem;line-height:1.8">'
           + '아직 발급된 견적서가 없습니다.<br>'
           + '견적서는 고객이 홈페이지에서 직접 받거나, <strong>「견적 관리」</strong>에서 '
           + '담당자가 발급하면 여기에 기록됩니다.</div>';
@@ -195,7 +195,7 @@
           /* ⚠ 낭독기에는 **어느 줄의 칸인지**를 준다 — 「번호」짜리 칸이 화면에 수십 개다 */
           +     ' aria-label="' + esc((r.quote_no || '이 견적서') + ' — 하나투어·랜드사 견적번호') + '"'
           +     ' title="원가 견적서(하나투어·랜드사)에 적힌 번호입니다. 이 번호로도 검색되고, 원가와 우리 판매가를 잇는 유일한 열쇠입니다. 고객 문서에는 나가지 않습니다."'
-          +     ' style="width:118px;height:28px;font-size:11.5px;padding:0 6px;border:1px solid var(--border);border-radius:4px">'
+          +     ' style="width:118px;height:28px;font-size:12.5px;padding:0 6px;border:1px solid var(--border);border-radius:4px">'
           /* 누가 언제 적었나 — 적힌 건에만 보인다(늘 켜져 있으면 아무도 안 본다) */
           +   (r.vendor_no_by
                 ? '<div class="sub led-vno-by">' + esc(r.vendor_no_by)

@@ -127,10 +127,12 @@ const mkCourse = (first, days) => ({
 
   console.log('\n[4] 잴 수 있는 것은 취향이 아니다 — 글자 크기');
   {
+    /* 값이 아니라 **문턱**을 본다(2026-10-02 관리자 글자 일괄 확대로 값이 바뀌었다) — 1rem = 16px */
+    const remAtLeast11 = (src, cls) => { const m = src.match(new RegExp('\\.' + cls + ' \\{ font-size: ([\\d.]+)rem')); return !!m && parseFloat(m[1]) * 16 >= 11; };
     /* .68rem = 10.88px이라 「글자는 11px 이상」에 걸렸다 */
-    ok('④ 출처 배지가 11px 이상', /\.iti-src-quote \{ font-size: \.7rem/.test(ADMIN),
+    ok('④ 출처 배지가 11px 이상', remAtLeast11(ADMIN, 'iti-src-quote'),
       (/\.iti-src-quote \{ font-size: [^;]+/.exec(ADMIN) || [''])[0]);
-    ok('④ 구별선도 11px 이상', /\.iti-course-hint \{ font-size: \.72rem/.test(ADMIN));
+    ok('④ 구별선도 11px 이상', remAtLeast11(ADMIN, 'iti-course-hint'));
     /* ⚠ 흐림은 색으로 정한다 — opacity는 대비를 한 번 더 깎는다 */
     ok('④ 구별선에 opacity를 쓰지 않는다',
       !/\.iti-course-hint \{[^}]*opacity/.test(ADMIN));

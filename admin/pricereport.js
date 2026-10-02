@@ -388,7 +388,7 @@
     box.className = 'pr-ev';
     box.style.cssText = 'margin-bottom:.75rem;padding:.6rem .8rem;border:1.5px solid var(--border);background:var(--bg)';
 
-    const line = (html) => { const p = document.createElement('div'); p.style.cssText = 'font-size:.76rem;line-height:1.7'; p.innerHTML = html; box.appendChild(p); return p; };
+    const line = (html) => { const p = document.createElement('div'); p.style.cssText = 'font-size:.83rem;line-height:1.7'; p.innerHTML = html; box.appendChild(p); return p; };
 
     const kind = data.kind || {};
     line(`📄 <strong>${esc(kind.label || '문서 종류를 판별하지 못했습니다')}</strong>`
@@ -439,7 +439,7 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'btn-act ' + (b.selected ? 'btn-primary' : 'btn-outline-p');
-        btn.style.cssText = 'text-align:left;font-size:.74rem;padding:.35rem .6rem;line-height:1.5';
+        btn.style.cssText = 'text-align:left;font-size:.81rem;padding:.35rem .6rem;line-height:1.5';
         const dt = (b.dates && b.dates.departDate) ? b.dates.departDate : '출발일 모름';
         btn.textContent = `${b.selected ? '▶ ' : ''}${dt} 출발`
           + ` · 총계 ${b.total ? Number(b.total).toLocaleString() : '—'}원`
@@ -458,13 +458,13 @@
       const wrap = document.createElement('div');
       wrap.style.cssText = 'margin-top:.5rem;padding:.5rem .7rem;border:1.5px solid var(--danger,#dc2626);display:flex;gap:.5rem;align-items:center;flex-wrap:wrap';
       const lab = document.createElement('span');
-      lab.style.cssText = 'font-size:.76rem;font-weight:700;color:var(--danger,#dc2626)';
+      lab.style.cssText = 'font-size:.83rem;font-weight:700;color:var(--danger,#dc2626)';
       lab.textContent = `💱 ${cur} 기준 견적서인데 문서에 환율이 없습니다 — 1 ${cur} =`;
       const inp = document.createElement('input');
       inp.type = 'number'; inp.className = 'pw-input'; inp.id = 'pr-fx-input';
       inp.style.cssText = 'max-width:110px'; inp.placeholder = '예: 1450'; inp.step = 'any';
       const unit = document.createElement('span');
-      unit.style.cssText = 'font-size:.76rem'; unit.textContent = '원';
+      unit.style.cssText = 'font-size:.83rem'; unit.textContent = '원';
       const btn = document.createElement('button');
       btn.type = 'button'; btn.className = 'btn-act btn-primary'; btn.textContent = '이 환율로 다시 읽기';
       btn.addEventListener('click', () => {
@@ -474,7 +474,7 @@
         extractPdfDetails({ fxRate: fx });
       });
       const note = document.createElement('div');
-      note.style.cssText = 'font-size:.72rem;color:var(--muted);width:100%';
+      note.style.cssText = 'font-size:.8rem;color:var(--muted);width:100%';
       note.textContent = `넣으면 ${Number(data.needsFxRate.rowCount)}줄이 원화로 환산되어 빈 칸이 채워집니다. `
         + '오늘 환율로 임의 환산하지 않는 이유는, 견적 시점과 다른 값이 실측으로 굳으면 요율이 틀어지기 때문입니다.';
       wrap.appendChild(lab); wrap.appendChild(inp); wrap.appendChild(unit); wrap.appendChild(btn); wrap.appendChild(note);
@@ -521,14 +521,14 @@
     /* ⚠ 배경은 바깥 상자를 물려받는다 — 여기서 색을 깔면 그 위 글자의 대비를 알 수 없다 */
     wrap.style.cssText = 'margin-top:.6rem;padding:.55rem .75rem;border:1.5px solid var(--border)';
     const head = document.createElement('div');
-    head.style.cssText = 'font-size:.78rem;line-height:1.7;font-weight:700';
+    head.style.cssText = 'font-size:.84rem;line-height:1.7;font-weight:700';
     head.textContent = '⛳ 이 견적서는 관광조와 골프조로 나뉩니다'
       + (c.tourSize ? ` — 관광조 ${c.tourSize}명` : '')
       + (c.golfSize ? ` · 골프조 ${c.golfSize}명` : '');
     wrap.appendChild(head);
 
     const note = document.createElement('div');
-    note.style.cssText = 'font-size:.72rem;line-height:1.7;color:var(--muted);margin-top:.2rem';
+    note.style.cssText = 'font-size:.8rem;line-height:1.7;color:var(--muted);margin-top:.2rem';
     const bits = [];
     bits.push(`문서가 「관광조」·「골프조」라고 적어 둔 줄이 <strong>${c.tourRows + c.golfRows}개</strong>입니다`
       + ` (관광조 ${c.tourRows} · 골프조 ${c.golfRows}).`);
@@ -584,12 +584,12 @@
 
     const unsplit = Number(itin.unsplitDays) || 0;
     const head = document.createElement('div');
-    head.style.cssText = 'font-size:.78rem;line-height:1.7;font-weight:700';
+    head.style.cssText = 'font-size:.84rem;line-height:1.7;font-weight:700';
     head.textContent = `📅 이 견적서에 일정표가 있습니다 — ${itin.days.length}일`;
     wrap.appendChild(head);
 
     const note = document.createElement('div');
-    note.style.cssText = 'font-size:.72rem;line-height:1.7;color:var(--muted);margin-top:.2rem';
+    note.style.cssText = 'font-size:.8rem;line-height:1.7;color:var(--muted);margin-top:.2rem';
     const bits = [];
     if (unsplit) bits.push(`⚠ ${unsplit}일은 문서에 시각·끼니 구분이 없어 <strong>시간대를 나누지 않았습니다</strong> — 그 날은 줄을 오전 칸에 모아 두니 나눠 주세요.`);
     if (itin.repeated) bits.push('⚠ 같은 일정표가 <strong>두 벌</strong> 실려 있어 앞엣것만 읽었습니다.');
@@ -603,7 +603,7 @@
        따로 세워 눈에 걸리게 한다. 실측 사고 id 17(KT CES)이 여기서 안 걸렸다. */
     if (itin.multiCity && Array.isArray(itin.stays)) {
       const warn = document.createElement('div');
-      warn.style.cssText = 'font-size:.74rem;line-height:1.7;margin-top:.45rem;padding:.45rem .6rem;'
+      warn.style.cssText = 'font-size:.81rem;line-height:1.7;margin-top:.45rem;padding:.45rem .6rem;'
         + 'border:1.5px solid var(--danger);color:var(--danger);font-weight:700';
       warn.innerHTML = `🏨 이 일정은 <strong>${itin.stays.length}곳</strong>에서 묵습니다 — 한 도시 견적이 아닐 수 있습니다.`
         + '<div style="font-weight:400;margin-top:.25rem">' + itin.stays.map(esc).join(' · ') + '</div>'
@@ -616,12 +616,12 @@
     const det = document.createElement('details');
     det.style.cssText = 'margin-top:.4rem';
     const sum = document.createElement('summary');
-    sum.style.cssText = 'font-size:.74rem;cursor:pointer';
+    sum.style.cssText = 'font-size:.81rem;cursor:pointer';
     sum.textContent = '읽은 일정 보기';
     det.appendChild(sum);
     itin.days.forEach((d) => {
       const p = document.createElement('div');
-      p.style.cssText = 'font-size:.72rem;line-height:1.65;margin-top:.35rem;padding-left:.5rem;border-left:2px solid var(--border)';
+      p.style.cssText = 'font-size:.8rem;line-height:1.65;margin-top:.35rem;padding-left:.5rem;border-left:2px solid var(--border)';
       const parts = [];
       if (d.am) parts.push('<strong>오전</strong> ' + esc(d.am));
       if (d.pm) parts.push('<strong>오후</strong> ' + esc(d.pm));
@@ -649,7 +649,7 @@
     wrap.appendChild(btn);
 
     const btnNote = document.createElement('div');
-    btnNote.style.cssText = 'font-size:.71rem;color:var(--muted);margin-top:.25rem';
+    btnNote.style.cssText = 'font-size:.79rem;color:var(--muted);margin-top:.25rem';
     btnNote.textContent = '새 코스로 넣기만 합니다 — 기존 코스는 건드리지 않고, 일정·방식 비교에서 저장을 눌러야 반영됩니다.';
     wrap.appendChild(btnNote);
 
@@ -823,7 +823,7 @@
         wrap.appendChild(line);
         const btn = document.createElement('button');
         btn.type = 'button'; btn.className = 'btn-act btn-outline-p';
-        btn.style.cssText = 'margin-top:.25rem;padding:.15rem .5rem;font-size:.72rem';
+        btn.style.cssText = 'margin-top:.25rem;padding:.15rem .5rem;font-size:.8rem';
         btn.textContent = `${trip.days}일로 나누기 → ${Math.round(trip.perDay).toLocaleString()}원`;
         btn.addEventListener('click', () => {
           const before = Number(String(input.value).replace(/[^\d.-]/g, ''));
@@ -866,7 +866,7 @@
           t.textContent = `추출값은 ${Number(origValue).toLocaleString()}원이었습니다 · `;
           const a = document.createElement('button');
           a.type = 'button'; a.className = 'btn-detail';
-          a.style.cssText = 'padding:.05rem .35rem;font-size:.7rem';
+          a.style.cssText = 'padding:.05rem .35rem;font-size:.79rem';
           a.textContent = '되돌리기';
           a.addEventListener('click', () => { input.value = origValue; renderPdfEvidence(data); });
           back.appendChild(t); back.appendChild(a);
@@ -905,7 +905,7 @@
         const num = (ph, val) => {
           const i = document.createElement('input');
           i.type = 'number'; i.className = 'pw-input'; i.placeholder = ph;
-          i.style.cssText = 'max-width:96px;padding:.15rem .3rem;font-size:.72rem';
+          i.style.cssText = 'max-width:96px;padding:.15rem .3rem;font-size:.8rem';
           if (val != null) i.value = String(val);
           return i;
         };
@@ -913,11 +913,11 @@
         const pax = num('인원', data.pax || null);
         const days = num('일수', f.key === 'meal' ? (ev.dayCount || null) : null);
         const lab = document.createElement('span');
-        lab.style.cssText = 'font-size:.71rem;font-weight:700';
+        lab.style.cssText = 'font-size:.79rem;font-weight:700';
         lab.textContent = f.key === 'meal' ? '계산: 총액 ÷ 인원 ÷ 일수 =' : '계산: 총액 ÷ 인원 =';
         const go = document.createElement('button');
         go.type = 'button'; go.className = 'btn-act btn-outline-p';
-        go.style.cssText = 'padding:.12rem .45rem;font-size:.72rem';
+        go.style.cssText = 'padding:.12rem .45rem;font-size:.8rem';
         go.textContent = '넣기';
         go.addEventListener('click', () => {
           const t = Number(total.value); const p = Number(pax.value);
@@ -1623,11 +1623,11 @@
       const d = days(x.report.createdAt);
       return `<tr>
         <td style="white-space:nowrap"><strong>${esc(x.report.destinationKey)}</strong>
-          <br><span style="font-size:.7rem;color:var(--muted)">${d === 0 ? '오늘' : d + '일 전'} · ${esc(x.report.author || '')}</span></td>
+          <br><span style="font-size:.79rem;color:var(--muted)">${d === 0 ? '오늘' : d + '일 전'} · ${esc(x.report.author || '')}</span></td>
         <td style="white-space:nowrap">${esc(x.f.label)}</td>
         <td style="text-align:right"><input type="number" class="pw-input" style="max-width:120px;text-align:right"
              id="nc-v-${x.report.id}-${x.f.key}" value="${Number(x.value)}"></td>
-        <td style="font-size:.74rem;${x.reason.level === 'high' ? 'color:#8A6100;font-weight:700' : 'color:var(--muted)'}">${esc(x.reason.why)}</td>
+        <td style="font-size:.81rem;${x.reason.level === 'high' ? 'color:#8A6100;font-weight:700' : 'color:var(--muted)'}">${esc(x.reason.why)}</td>
         <td style="white-space:nowrap;text-align:right">
           <button class="btn-detail" onclick="confirmNeedCheck(${Number(x.report.id)},'${x.f.key}')">확인</button>
           <button class="btn-detail" onclick="togglePriceReportExclude(${Number(x.report.id)},'${x.f.key}')">평균에서 빼기</button>
@@ -1702,7 +1702,7 @@
         + (off ? 'text-decoration:line-through;color:var(--muted)' : '')
         + `" title="${off ? esc('평균에서 뺌 — ' + why + ' (눌러서 되돌리기)') : '눌러서 평균에서 빼기'}"`
         + ` onclick="togglePriceReportExclude(${Number(r.id)},'${REPORT_FX_KEY[rateField]}')">${fmtWon(v)}</button>`
-        + (off ? `<div style="font-size:.66rem;color:var(--muted);font-weight:700">평균 제외 · ${esc(why)}</div>` : '');
+        + (off ? `<div style="font-size:.76rem;color:var(--muted);font-weight:700">평균 제외 · ${esc(why)}</div>` : '');
     };
     /* 출발일·견적 작성일 — **참고자료**다(2026-08-11 대표 지시로 그대로 저장한다).
        ⚠ 작성일이 출발일보다 **뒤**면 그건 견적을 낸 날이 아니라 **문서를 PDF로 뽑은 날**일
@@ -1714,7 +1714,7 @@
       const q = r.quoteDate || '—';
       const suspect = r.departDate && r.quoteDate && r.quoteDate > r.departDate;
       return `<span style="white-space:nowrap">${esc(dep)}</span>`
-        + `<br><span style="font-size:.7rem;color:var(--muted);white-space:nowrap">작성 ${esc(q)}`
+        + `<br><span style="font-size:.79rem;color:var(--muted);white-space:nowrap">작성 ${esc(q)}`
         + (suspect ? ` <span title="작성일이 출발일보다 뒤입니다 — 견적을 낸 날이 아니라 문서를 뽑은 날일 수 있어 리드타임 계산에는 쓰지 않습니다" style="color:#b45309;font-weight:700">· 참고용</span>` : '')
         + `</span>`;
     };
@@ -1726,12 +1726,12 @@
         <td style="white-space:nowrap">${r.createdAt ? new Date(r.createdAt).toISOString().slice(0, 10) : '—'}</td>
         <td style="white-space:nowrap"><strong>${esc(optLabel(r.destinationKey))}</strong>${
           dupIds.has(Number(r.id))
-            ? ' <span style="font-size:.66rem;font-weight:800;color:var(--danger)" title="같은 목적지에 출발일·판매가·값이 겹치는 제보가 또 있습니다 — 같은 견적서를 두 번 넣으면 실측 중앙값이 그쪽으로 끌립니다">⚠ 중복 의심</span>'
+            ? ' <span style="font-size:.76rem;font-weight:800;color:var(--danger)" title="같은 목적지에 출발일·판매가·값이 겹치는 제보가 또 있습니다 — 같은 견적서를 두 번 넣으면 실측 중앙값이 그쪽으로 끌립니다">⚠ 중복 의심</span>'
             : ''}${(() => {
           /* 나라를 함께 보여준다 (RY) — 호텔명 칸이 바로 옆이라, 도시 이름만으로는
              어느 나라 호텔인지 모르는 줄이 이 표에서 제일 자주 나온다. */
           const c = destCountryOf(r.destinationKey);
-          return c && c !== optLabel(r.destinationKey) ? `<br><span style="font-size:.7rem;color:var(--muted);font-weight:400">${esc(c)}</span>` : '';
+          return c && c !== optLabel(r.destinationKey) ? `<br><span style="font-size:.79rem;color:var(--muted);font-weight:400">${esc(c)}</span>` : '';
         })()}</td>
         <td>${dateCell(r)}</td>
         <td style="text-align:right">${cell(r, 'airfare', r.airfareUnit)}</td>
@@ -1739,7 +1739,7 @@
         <td style="text-align:right">${cell(r, 'meal_per_person', r.mealUnit)}</td>
         <td>${r.hotelName ? esc(r.hotelName) : '<span style="color:var(--muted)">—</span>'}</td>
         <td>${esc(r.author || '—')}</td>
-        <td><span style="font-size:.7rem;color:var(--muted)">${r.source === 'pdf' ? 'PDF' : '직접'}</span></td>
+        <td><span style="font-size:.79rem;color:var(--muted)">${r.source === 'pdf' ? 'PDF' : '직접'}</span></td>
         <td style="text-align:right"><button class="btn-detail" onclick="deletePriceReportById(${r.id})">🗑 삭제</button></td>
       </tr>`).join('');
   }

@@ -181,7 +181,8 @@ const listReply = () => ({ ok: true, status: 200,
       JSON.stringify(labels));
     ok('⑤ 그 이름에 견적번호가 들어 있다', labels[0].includes('Q260907-01'), labels[0]);
     /* 글자 11px 이상 · 누를 자리 24px 이상 (YA 규칙) */
-    ok('⑤ 글자가 11px 이상', /font-size:11\.5px/.test(inputs[0].getAttribute('style') || ''),
+    /* 값이 아니라 문턱을 본다 — 2026-10-02 관리자 글자 일괄 확대로 11.5px → 12.5px */
+    ok('⑤ 글자가 11px 이상', parseFloat(((inputs[0].getAttribute('style') || '').match(/font-size:([\d.]+)px/) || [])[1]) >= 11,
       inputs[0].getAttribute('style'));
     /* ⚠ 정확한 픽셀이 아니라 **하한을 넘는가**로 잰다 — 한 픽셀만 다듬어도
        깨지는 검사는 사람이 지운다(WCAG 2.5.8의 24px 하한이 지키려는 것이다). */

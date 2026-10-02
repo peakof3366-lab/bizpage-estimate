@@ -91,7 +91,7 @@
          이 폼은 그때 안내만 띄운다. -->
     <div style="margin-top:1.1rem;padding-top:1.1rem;border-top:1px solid rgba(255,255,255,.15);text-align:center">
       <button type="button" id="signupToggle" onclick="toggleSignupForm()"
-        style="background:none;border:none;color:inherit;opacity:.75;font-size:.82rem;cursor:pointer;text-decoration:underline;text-underline-offset:3px">
+        style="background:none;border:none;color:inherit;opacity:.75;font-size:.87rem;cursor:pointer;text-decoration:underline;text-underline-offset:3px">
         직원 가입 신청
       </button>
     </div>
@@ -638,12 +638,12 @@
 
       <div class="iti-bar">
         <input type="search" id="ledSearch" readonly data-noautofill placeholder="견적번호 · 공급사 번호 · 고객/회사명 · 연락처 · 목적지 · 담당자로 검색"
-               style="flex:1;min-width:240px;font-size:13px" aria-label="견적서 검색">
+               style="flex:1;min-width:240px;font-size:14px" aria-label="견적서 검색">
         <button type="button" class="btn-act btn-primary" id="ledFind">찾기</button>
         <button type="button" class="btn-act btn-outline-p" id="ledReload">전체</button>
         <!-- 2026-09-28 대표 요청 「월별로 관리」 — 월을 고르면 그달 견적만. 목록에는 월마다 머리줄(견적·계약·금액 합계) -->
-        <select id="ledMonth" class="status-select" aria-label="월 선택" style="font-size:13px"><option value="">전체 월</option></select>
-        <span id="ledCount" style="font-size:13px;color:#666"></span>
+        <select id="ledMonth" class="status-select" aria-label="월 선택" style="font-size:14px"><option value="">전체 월</option></select>
+        <span id="ledCount" style="font-size:14px;color:#666"></span>
       </div>
 
       <div class="card">
@@ -663,7 +663,7 @@
         <div class="stat-card"><div id="s-avg" class="stat-num">0</div><div class="stat-lbl">일 평균 방문</div></div>
       </div>
       <!-- 방문 원본 행 상한 안내 (PZ) — 상한에 걸렸을 때만 보인다 -->
-      <p id="s-trunc-note" class="hidden" style="font-size:.8rem;color:#92400e;background:#fffbeb;border:1px solid #fde68a;padding:.55rem .8rem;margin-bottom:.9rem"></p>
+      <p id="s-trunc-note" class="hidden" style="font-size:.85rem;color:#92400e;background:#fffbeb;border:1px solid #fde68a;padding:.55rem .8rem;margin-bottom:.9rem"></p>
       <div class="grid-2">
         <div class="card">
           <div class="card-header"><span class="card-title">최근 14일 방문 추이</span></div>
@@ -749,7 +749,7 @@
       </div>
       <div class="toolbar">
         <div class="toolbar-left">
-          <span id="mi-meta" style="font-size:.8rem;color:var(--muted)">아직 분석한 적이 없습니다.</span>
+          <span id="mi-meta" style="font-size:.85rem;color:var(--muted)">아직 분석한 적이 없습니다.</span>
         </div>
         <!-- 🔴 한 번도 안 했는데 「**다시** 분석하기」였다 (XT). 처음 여는 사람에게는
              「무엇을 다시 하라는 거지?」가 된다. 분석한 적이 있을 때만 「다시」라고 한다
@@ -819,12 +819,12 @@
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">출발일</div>
               <input type="date" id="pr-depart" class="pw-input" style="width:100%" aria-label="출발일" />
-              <div id="pr-depart-note" style="font-size:.7rem;color:var(--muted);margin-top:.25rem"></div>
+              <div id="pr-depart-note" style="font-size:.79rem;color:var(--muted);margin-top:.25rem"></div>
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">견적 작성일</div>
               <input type="date" id="pr-quote-date" class="pw-input" style="width:100%" aria-label="견적서 작성일" />
-              <div id="pr-lead-note" style="font-size:.7rem;color:var(--muted);margin-top:.25rem"></div>
+              <div id="pr-lead-note" style="font-size:.79rem;color:var(--muted);margin-top:.25rem"></div>
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">박 수</div>
@@ -860,7 +860,7 @@
                  하나뿐인데, 접혀 있으면 열어 보지 않아 올린 뒤에야 알게 된다.
                ⚠ 남은 한 줄은 **제약**이지 안내가 아니다. 3.2MB·저장 안 함까지 같이 있어야
                  올리기 전에 판단이 끝난다 — 쪼개서 다시 접지 말 것. -->
-            <p style="font-size:.78rem;color:var(--muted);margin:0 0 .6rem;line-height:1.6;max-width:var(--measure)">
+            <p style="font-size:.84rem;color:var(--muted);margin:0 0 .6rem;line-height:1.6;max-width:var(--measure)">
               텍스트가 있는 PDF만 됩니다(스캔 이미지는 안 됩니다) · 3.2MB 이하 ·
               올린 파일은 저장하지 않습니다.
             </p>
@@ -913,7 +913,7 @@
               <!-- 어느 나라로 정리되는지 입력 순간에 보여준다 (RY) — 호텔 체인은 이름만으로는
                    나라를 알 수 없어서, 목적지를 잘못 고른 채 넣으면 나중에 목록에서 찾을 수
                    없다. 저장 뒤에 확인하는 게 아니라 넣기 전에 보이게 한다. -->
-              <div id="pr-hotel-scope" style="font-size:.72rem;color:var(--muted);margin-top:.3rem"></div>
+              <div id="pr-hotel-scope" style="font-size:.8rem;color:var(--muted);margin-top:.3rem"></div>
             </div>
             <div>
               <div class="detail-label" style="margin-bottom:.3rem">실제 식비(1인 1일)</div>
@@ -955,7 +955,7 @@
             <!-- ⚠ 2026-09-27 「제보 내역·삭제」·「확인 필요」는 아래 「지금까지 넣은 견적서」 머리로 옮겼다 —
                  둘 다 **이미 넣은 것**을 다루는데 「제출」 옆에 있어 제출 단계의 버튼처럼 보였다. -->
           </div>
-          <p id="pr-msg" style="font-size:.78rem;font-weight:700;margin-top:.6rem"></p>
+          <p id="pr-msg" style="font-size:.84rem;font-weight:700;margin-top:.6rem"></p>
         </div>
       </div>
 
@@ -975,7 +975,7 @@
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem">
             <input type="text" id="hotel-ref-search" readonly data-noautofill class="pw-input" style="max-width:300px" placeholder="호텔명·나라·지역·도시로 찾기" oninput="renderHotelReference()" aria-label="호텔 검색" />
             <button type="button" class="btn-act btn-outline-p" onclick="exportHotelReferenceCsv()">⤓ CSV 내보내기</button>
-            <span id="hotel-ref-count" style="font-size:.76rem;color:var(--muted)"></span>
+            <span id="hotel-ref-count" style="font-size:.83rem;color:var(--muted)"></span>
           </div>
           <div id="hotel-reference-list" style="display:grid;gap:.6rem"></div>
         </div>
@@ -1017,7 +1017,7 @@
 
       <!-- 기준가를 서버에서 못 읽었을 때의 경고띠 — 이 화면은 실패해도 data.js 기본값으로
            표를 그릴 수 있어서, 표시하지 않으면 "낡은 값이 운영값인 척" 보인다. -->
-      <div id="rate-stale-banner" class="hidden" style="max-width:var(--measure);margin-bottom:1rem;padding:.8rem 1rem;border:1.6px solid var(--danger,#dc2626);background:#fef2f2;color:#7f1d1d;font-size:.85rem;font-weight:600;line-height:1.6"></div>
+      <div id="rate-stale-banner" class="hidden" style="max-width:var(--measure);margin-bottom:1rem;padding:.8rem 1rem;border:1.6px solid var(--danger,#dc2626);background:#fef2f2;color:#7f1d1d;font-size:.89rem;font-weight:600;line-height:1.6"></div>
 
       <!-- 🔄 외부 자료 자동 갱신 (2026-10-02 대표 지시) — 매일 05:00 자동 실행의 **결과**를 보여준다.
            예전엔 그 결과가 어디에도 안 남아, 매일 실패해도 화면은 어제 환율을 오늘 것처럼 썼다.
@@ -1102,9 +1102,9 @@
           <span class="fold-hint">견적이 실제와 얼마나 맞았나</span>
         </summary>
         <div class="card-body">
-          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">최근 <span id="accuracy-months">12</span>개월 계약·실측 기준, 목적지×항목별 <strong style="color:var(--heading)">견적 대비 실제 오차</strong>입니다(표본 2건 이상). 오차가 큰 항목이 위에 옵니다 — 우선 손볼 곳을 알려줍니다.</p>
+          <p style="font-size:.84rem;color:var(--muted);margin-bottom:.75rem">최근 <span id="accuracy-months">12</span>개월 계약·실측 기준, 목적지×항목별 <strong style="color:var(--heading)">견적 대비 실제 오차</strong>입니다(표본 2건 이상). 오차가 큰 항목이 위에 옵니다 — 우선 손볼 곳을 알려줍니다.</p>
           <div style="overflow-x:auto">
-            <table class="rate-table" style="width:100%;font-size:.82rem;min-width:520px">
+            <table class="rate-table" style="width:100%;font-size:.87rem;min-width:520px">
               <thead>
                 <tr>
                   <th style="text-align:left">목적지</th><th style="text-align:left">항목</th>
@@ -1130,13 +1130,13 @@
         <div class="card-body">
           <!-- 🔴 154자였다 (YQ). 여기서 잘라내면 안 되는 것은 **위험 경고 한 줄**이고,
                나머지(1.0의 뜻·조정 방향·언제 하는가)는 실제로 손댈 때 펴 보면 된다. -->
-          <p style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem;max-width:var(--measure)">
+          <p style="font-size:.84rem;color:var(--muted);margin-bottom:.5rem;max-width:var(--measure)">
             시즌·리드타임·피크의 <strong style="color:var(--heading)">반영 강도</strong>를 배포 없이 조정합니다.
             <strong style="color:var(--danger)">전 목적지 견적에 즉시 반영됩니다.</strong>
           </p>
           <details style="margin-bottom:.85rem">
             <summary class="fold-note">값을 어떻게 정하나</summary>
-            <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0 0;line-height:1.7;max-width:var(--measure)">
+            <p style="font-size:.84rem;color:var(--muted);margin:.4rem 0 0;line-height:1.7;max-width:var(--measure)">
               강도 <strong>1.0</strong>이면 지금 계산과 같습니다 — 낮추면 완만해지고 높이면 과격해집니다.
               호텔이 받는 피크 비중도 여기서 정합니다.<br>
               실측(견적 정확도)이 쌓인 뒤 그에 맞춰 조정하시는 것을 권합니다.
@@ -1147,7 +1147,7 @@
             <!-- ⚠ `btn-act`가 빠져 있어 「계수 저장」이 버튼 모양 없이 작은 글씨로 그려졌다 (2026-09-27) -->
             <button class="btn-act btn-primary" onclick="saveCoefficients()">계수 저장</button>
             <button class="btn-act btn-outline-p" onclick="resetCoefficientsToDefault()">기본값으로</button>
-            <span id="coef-save-msg" style="font-size:.8rem"></span>
+            <span id="coef-save-msg" style="font-size:.85rem"></span>
           </div>
         </div>
       </details>
@@ -1212,13 +1212,13 @@
                요율 화면에 늘 떠 있는데, 그중 실제로 「지금 할 일」은 첫 줄 하나뿐이고
                나머지는 배경지식(갱신 주기·환율 자동 확인)과 아주 드문 경로(data.js 직접
                수정)였다. → 할 일은 남기고 나머지는 접는다. 지운 글은 없다. -->
-          <p style="font-size:.84rem;color:var(--text);margin-bottom:.6rem;max-width:var(--measure)">
+          <p style="font-size:.88rem;color:var(--text);margin-bottom:.6rem;max-width:var(--measure)">
             위 표에서 목적지의 <strong>"편집"</strong>을 누르면 단가를 고칠 수 있습니다.
             저장하는 즉시 견적에 반영되고 변경 이력에 남습니다.
           </p>
           <details style="margin-bottom:.4rem">
             <summary class="fold-note">언제 갱신하나 · 환율은 자동인가</summary>
-            <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0 0;line-height:1.7;max-width:var(--measure)">
+            <p style="font-size:.84rem;color:var(--muted);margin:.4rem 0 0;line-height:1.7;max-width:var(--measure)">
               권장 주기는 <strong>분기별 1회</strong>이고, 환율 변동이 큰 지역은 월별로 봅니다.<br>
               💱 환율은 매일 새벽 자동으로 확인합니다 — 마지막 저장 시점 대비 5% 이상
               움직인 목적지는 <strong>"확인 권장"</strong>이 붙습니다.<br>
@@ -1228,7 +1228,7 @@
           </details>
           <details>
             <summary class="fold-note">원본 파일을 직접 고쳐야 할 때</summary>
-            <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0 0;line-height:1.7;max-width:var(--measure)">
+            <p style="font-size:.84rem;color:var(--muted);margin:.4rem 0 0;line-height:1.7;max-width:var(--measure)">
               관리자 화면이 아닌 원본을 고쳐야 하는 특수한 경우에만
               <code style="background:#f0f4f8;padding:.1rem .4rem;border-radius:0">data.js</code>를
               텍스트 편집기로 엽니다.<br>
@@ -1290,7 +1290,7 @@
            「📄 이 화면 매뉴얼」을 누른 횟수를 세어 여기 보여 준다.
            ⚠ **0도 답이다** — 안 읽힌다는 사실이 보여야 손을 쓸 수 있다. -->
       <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:.6rem;flex-wrap:wrap">
-        <div id="manualStats" class="dim" style="font-size:.82rem;line-height:1.7">지난 30일 열람 횟수를 불러오는 중…</div>
+        <div id="manualStats" class="dim" style="font-size:.87rem;line-height:1.7">지난 30일 열람 횟수를 불러오는 중…</div>
         <a href="manual.html" target="_blank" rel="noopener" class="btn-act btn-outline-p"
            style="text-decoration:none;display:inline-flex;align-items:center">새 탭으로 열기 ↗</a>
       </div>
@@ -1430,13 +1430,13 @@
       <div class="iti-bar">
         <button type="button" class="btn-act btn-primary" id="pkgNew">+ 새 상품</button>
         <span class="iti-spacer"></span>
-        <label for="pkgFilterGap" style="font-size:13px;color:#666">준비</label>
+        <label for="pkgFilterGap" style="font-size:14px;color:#666">준비</label>
         <select id="pkgFilterGap">
           <option value="">전체</option>
           <option value="ready">팔 준비된 것</option>
           <option value="gap">덜 채워진 것</option>
         </select>
-        <label for="pkgFilterStatus" style="font-size:13px;color:#666">상태</label>
+        <label for="pkgFilterStatus" style="font-size:14px;color:#666">상태</label>
         <select id="pkgFilterStatus">
           <option value="">전체</option>
           <option value="open">판매중</option>
@@ -1535,10 +1535,10 @@
           <label class="pkg-f" data-pkg-only="adhoc"><span>고객 표시 <em>(견적서엔 안 나감)</em></span>
             <input type="text" id="pkgCustomer" placeholder="김보균님 / ○○교회 20명"></label>
         </div>
-        <p id="pkgKindNote" style="margin:8px 0 0;font-size:12px;color:#777;line-height:1.7"></p>
+        <p id="pkgKindNote" style="margin:8px 0 0;font-size:13px;color:#777;line-height:1.7"></p>
         <!-- 덜 채워진 채로 열리는 것을 그 자리에서 말한다 (WH) -->
         <p id="pkgGapNote" class="hidden" style="margin:8px 0 0;padding:9px 12px;background:#FEF3C7;
-           border:1px solid #FCD34D;font-size:12px;color:#92400E;line-height:1.75"></p>
+           border:1px solid #FCD34D;font-size:13px;color:#92400E;line-height:1.75"></p>
 
         <!-- ⚠ 2026-09-27 불러오기 두 상자를 칸들 **위로** 옮겼다 — 칸을 자동으로 채우는 도구인데 칸을 다 지난
              맨 아래에 있었다. 먼저 불러와 채우고, 아래 칸에서 확인·손보는 순서다. (내용은 그대로 옮겼다) -->
@@ -1552,18 +1552,18 @@
              ⚠ 문서화된 API가 아니라 예고 없이 바뀐다 — 못 읽으면 **빈 값으로 채우지 말고
                못 읽었다고 말한다**(그래야 담당자가 손으로 채울 줄 안다). -->
         <div style="margin-top:14px;padding:12px 14px;background:#F7F7F5;border:1px solid rgba(0,0,0,.08)">
-          <div style="font-weight:800;font-size:13px;margin-bottom:6px">🔗 하나투어 상품 주소로 불러오기</div>
-          <p style="margin:0 0 9px;font-size:12px;color:#666;line-height:1.75">
+          <div style="font-weight:800;font-size:14px;margin-bottom:6px">🔗 하나투어 상품 주소로 불러오기</div>
+          <p style="margin:0 0 9px;font-size:13px;color:#666;line-height:1.75">
             상품 주소를 붙여넣으면 위 칸을 채웁니다.
             <strong>저장은 하지 않습니다.</strong> 이미 적어 두신 칸은 건드리지 않습니다.
             <br>⚠ <strong>읽어 온 글은 하나투어 상품 기준</strong>입니다 — 내보내기 전에 다듬어 주세요.
           </p>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <input type="url" id="pkgHtUrl" placeholder="https://www.hanatour.com/trp/pkg/...?pkgCd=..."
-                   style="flex:1;min-width:280px;padding:8px 10px;border:1px solid #D8D8D2;font-size:12px" aria-label="하나투어 상품 주소">
+                   style="flex:1;min-width:280px;padding:8px 10px;border:1px solid #D8D8D2;font-size:13px" aria-label="하나투어 상품 주소">
             <button type="button" class="btn-act btn-outline-p" id="pkgHtRead">읽어서 채우기</button>
           </div>
-          <p id="pkgHtMsg" style="margin:8px 0 0;font-size:12px;line-height:1.7"></p>
+          <p id="pkgHtMsg" style="margin:8px 0 0;font-size:13px;line-height:1.7"></p>
         </div>
 
         <!-- 📄 PDF에서 불러오기 (WA) — 2026-08-24 대표 방침: 하나투어가 데이터를 안 주므로
@@ -1573,8 +1573,8 @@
              ⚠ 이미 적어 둔 칸은 **덮지 않는다.** 담당자가 손본 값을 자동이 지우면
                그 수정이 조용히 사라진다(일정 심기에서 이미 겪은 자리다). -->
         <div style="margin-top:14px;padding:12px 14px;background:#F7F7F5;border:1px solid rgba(0,0,0,.08)">
-          <div style="font-weight:800;font-size:13px;margin-bottom:6px">📄 PDF에서 불러오기</div>
-          <p style="margin:0 0 9px;font-size:12px;color:#666;line-height:1.75">
+          <div style="font-weight:800;font-size:14px;margin-bottom:6px">📄 PDF에서 불러오기</div>
+          <p style="margin:0 0 9px;font-size:13px;color:#666;line-height:1.75">
             PDF를 올리시면 위 칸을 채웁니다.
             <strong>저장은 하지 않습니다</strong> — 이미 적어 두신 칸은 건드리지 않습니다.
           </p>
@@ -1584,7 +1584,7 @@
               <span class="fp-btn">📄 PDF 파일 고르기</span><span class="fp-name">아직 고른 파일이 없습니다</span>
             </label>
             <button type="button" class="btn-act btn-outline-p" id="pkgPdfRead">읽어서 채우기</button>
-            <span id="pkgPdfMsg" style="font-size:12px"></span>
+            <span id="pkgPdfMsg" style="font-size:13px"></span>
           </div>
         </div>
         <div style="padding:14px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
@@ -1637,7 +1637,7 @@
                +21~42% 틀리는데, 값이 들어가 있으면 담당자는 그대로 저장한다. -->
         <label class="pkg-f" style="margin-top:14px;display:block"><span>항목별 조립 <em>— 한 줄에 「이름 | 금액」 · 비우면 위 금액만 나갑니다 · 최대 <span data-fact="PKG_MAX_ITEMS">40</span>줄, 이름 <span data-fact="PKG_MAX_ITEM_LABEL">60</span>자</em></span>
           <textarea id="pkgItems" rows="5" placeholder="항공 | 620000&#10;호텔 3박 | 380000&#10;지상비 | 190000"></textarea></label>
-        <p id="pkgItemsSum" style="margin:6px 0 0;font-size:12px;color:#777"></p>
+        <p id="pkgItemsSum" style="margin:6px 0 0;font-size:13px;color:#777"></p>
 
         <label class="pkg-f" style="margin-top:14px;display:block"><span>일정 <em>— DAY마다 한 줄. 「제목 | 내용」</em></span>
           <textarea id="pkgIti" rows="6" placeholder="인천 출발 · 나하 도착 | 오전 인천공항 집결 / 오후 나하 도착 후 호텔 이동&#10;북부 관광 | 츄라우미 수족관 / 코우리대교"></textarea></label>
@@ -1655,9 +1655,9 @@
                ⚠ 이 칸(상품명·금액·기간)은 **목록에서 훑기 위한 요약**이고, 그 아래
                  문서의 세부는 저 버튼 너머에 있다. 둘은 같은 건을 가리킨다. -->
           <button class="btn-act btn-outline-p" id="pkgDocBtn" data-pkg-only="adhoc">견적서 상세 작성 ↗</button>
-          <span id="pkgMsg" style="font-size:13px"></span>
+          <span id="pkgMsg" style="font-size:14px"></span>
         </div>
-        <p id="pkgDocNote" data-pkg-only="adhoc" style="margin:8px 0 0;font-size:12px;color:#666;line-height:1.75;max-width:var(--measure)">
+        <p id="pkgDocNote" data-pkg-only="adhoc" style="margin:8px 0 0;font-size:13px;color:#666;line-height:1.75;max-width:var(--measure)">
           항공 편명 · 호텔 · 일자별 일정까지 적어 <strong>고객이 받는 견적서와 일정표</strong>를 만듭니다.
           <strong>먼저 위에서 저장</strong>한 뒤 눌러 주세요.
         </p>
@@ -1670,27 +1670,27 @@
                DB에서 읽는다. 위조할 값이 요청에 없으므로 검증할 것도 없다(VQ 원칙 그대로). -->
         <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(0,0,0,.08)">
           <div style="font-weight:800;font-size:14px;margin-bottom:8px">견적서 발급</div>
-          <p id="pkgIssueGate" style="margin:0 0 10px;font-size:12px;color:#B45309;line-height:1.7"></p>
+          <p id="pkgIssueGate" style="margin:0 0 10px;font-size:13px;color:#B45309;line-height:1.7"></p>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <label for="pkgIssuePax" style="font-size:13px;color:#666">인원</label>
+            <label for="pkgIssuePax" style="font-size:14px;color:#666">인원</label>
             <input type="number" id="pkgIssuePax" class="pw-input" min="1" max="500" value="2" style="width:90px">
             <!-- 고객명 (WF) — 🔴 없으면 대장 「고객」 칸에 **상품명**이 찍힌다.
                  1회용 견적은 위 「고객 표시」가 그 일을 하지만, 패키지 상품에는 그 칸이
                  없어서 「오키나와 3박4일」이 고객이 되어 있었다. -->
-            <label for="pkgIssueName" style="font-size:13px;color:#666">고객명</label>
+            <label for="pkgIssueName" style="font-size:14px;color:#666">고객명</label>
             <input type="text" id="pkgIssueName" class="pw-input" placeholder="김보균 · ○○교회" maxlength="80" style="width:170px">
             <!-- 연락처 (WC) — 🔴 견적서에 안 찍히고 링크에도 안 실린다. 대장에만 남는다. -->
-            <label for="pkgIssueTel" style="font-size:13px;color:#666">고객 연락처</label>
+            <label for="pkgIssueTel" style="font-size:14px;color:#666">고객 연락처</label>
             <input type="tel" id="pkgIssueTel" class="pw-input" placeholder="010-0000-0000" style="width:150px">
             <button class="btn-act btn-primary" id="pkgIssue">견적서 만들기</button>
-            <span id="pkgIssueMsg" style="font-size:13px"></span>
+            <span id="pkgIssueMsg" style="font-size:14px"></span>
           </div>
-          <p style="margin:8px 0 0;font-size:12px;color:#777;line-height:1.7">
+          <p style="margin:8px 0 0;font-size:13px;color:#777;line-height:1.7">
             연락처는 <strong>견적서에 표시되지 않고 링크에도 실리지 않습니다</strong> —
             대장에만 남아 다른 분이 이어받을 때 씁니다.
           </p>
           <div id="pkgIssueOut" class="hidden" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <input type="text" id="pkgIssueUrl" readonly style="flex:1;min-width:260px;font-size:12px" aria-label="발급된 견적서 주소">
+            <input type="text" id="pkgIssueUrl" readonly style="flex:1;min-width:260px;font-size:13px" aria-label="발급된 견적서 주소">
             <button class="btn-act btn-outline-p" id="pkgIssueCopy">링크 복사</button>
             <a class="btn-act btn-outline-p" id="pkgIssueOpen" target="_blank" rel="noopener" style="text-decoration:none">열어 보기 ↗</a>
           </div>
@@ -1786,7 +1786,7 @@
 
           <div class="set-block">
             <p class="set-label">계정 목록 <span class="set-desc-inline">비활성 계정은 로그인할 수 없습니다</span></p>
-            <p id="staff-pending-banner" class="hidden" style="font-size:.84rem;color:var(--warn,#8F5D0C);margin:.2rem 0 .4rem;font-weight:600"></p>
+            <p id="staff-pending-banner" class="hidden" style="font-size:.88rem;color:var(--warn,#8F5D0C);margin:.2rem 0 .4rem;font-weight:600"></p>
             <div style="overflow-x:auto">
               <table class="rate-table set-table">
                 <thead>
@@ -2027,7 +2027,7 @@
         <div class="em-cust-head">
           <!-- 2026-09-28 대표 요청 — 「🧾 고객이 받는 견적서 · 상세 n항목 · 세부견적서 n줄 · 일정표 n일」 줄을 뺐다.
                상태 칸은 **비어 있는 문서가 있을 때 · 문서가 없을 때 · 못 그렸을 때만** 말한다(비면 줄째 감춤). -->
-          <span id="em-doc-state" style="font-size:.78rem;font-weight:600;color:var(--muted)"></span>
+          <span id="em-doc-state" style="font-size:.84rem;font-weight:600;color:var(--muted)"></span>
           <!-- ⚠ 2026-09-27 문서 없는 옛 견적은 이 탭이 **빈 상자**였다 — 무엇을 하면 되는지 말한다(화면 규칙 ②).
                「⋯ 더보기」 안의 같은 버튼과 같은 함수다(고객 화면을 새 창으로 · 서버에 아무것도 안 만든다). -->
           <button type="button" id="em-nodoc-preview" class="btn-act btn-outline-p hidden" style="margin-left:.6rem" onclick="previewShareLink()">👁 고객 화면 미리보기</button>
@@ -2081,15 +2081,15 @@
       <div id="em-sec-items" style="padding:1.1rem 1.25rem;border-bottom:1px solid var(--border)">
         <div class="detail-label" style="margin-bottom:.75rem">
           견적 세부 내역
-          <span style="font-size:.72rem;font-weight:400;color:var(--warn);margin-left:.5rem;background:#fffbeb;border:1px solid #fde68a;padding:.1rem .4rem">🔒 관리자 전용 — 비공개 항목 포함</span>
+          <span style="font-size:.8rem;font-weight:400;color:var(--warn);margin-left:.5rem;background:#fffbeb;border:1px solid #fde68a;padding:.1rem .4rem">🔒 관리자 전용 — 비공개 항목 포함</span>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+        <table style="width:100%;border-collapse:collapse;font-size:.87rem">
           <thead>
             <tr style="background:var(--bg)">
-              <th style="padding:.5rem .7rem;text-align:left;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem;text-transform:uppercase">항목</th>
-              <th style="padding:.5rem .7rem;text-align:right;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem">단가</th>
-              <th style="padding:.5rem .7rem;text-align:center;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem">산출</th>
-              <th style="padding:.5rem .7rem;text-align:right;border-bottom:2px solid var(--border);color:var(--muted);font-size:.74rem">소계</th>
+              <th style="padding:.5rem .7rem;text-align:left;border-bottom:2px solid var(--border);color:var(--muted);font-size:.81rem;text-transform:uppercase">항목</th>
+              <th style="padding:.5rem .7rem;text-align:right;border-bottom:2px solid var(--border);color:var(--muted);font-size:.81rem">단가</th>
+              <th style="padding:.5rem .7rem;text-align:center;border-bottom:2px solid var(--border);color:var(--muted);font-size:.81rem">산출</th>
+              <th style="padding:.5rem .7rem;text-align:right;border-bottom:2px solid var(--border);color:var(--muted);font-size:.81rem">소계</th>
             </tr>
           </thead>
           <tbody id="em-breakdown"></tbody>
@@ -2104,31 +2104,31 @@
       <div id="em-sec-money" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--border)">
         <!-- ① 청구 금액 = 수익 포함 = 홈페이지 고객 표시와 동일 -->
         <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center">
-          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:.25rem">① 고객 청구 금액</div>
+          <div style="font-size:.77rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:.25rem">① 고객 청구 금액</div>
           <div id="em-custotal" style="font-size:1.2rem;font-weight:800;color:#1d4ed8"></div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">수익 포함 · 홈페이지 표시 동일</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:.2rem">수익 포함 · 홈페이지 표시 동일</div>
         </div>
         <!-- ② 원가 합계 = 수익 제외 운영비 -->
         <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center">
-          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem">② 원가 합계</div>
+          <div style="font-size:.77rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem">② 원가 합계</div>
           <div id="em-fulltotal" style="font-size:1.2rem;font-weight:800;color:var(--text)"></div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">수익 제외 운영비 소계</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:.2rem">수익 제외 운영비 소계</div>
         </div>
         <!-- ③ 예상 수익 = ① - ② -->
         <div style="padding:.9rem 1rem;border-right:1px solid var(--border);text-align:center;background:#f0fdf4">
-          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--success);margin-bottom:.25rem">③ 예상 수익 ①-②</div>
+          <div style="font-size:.77rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--success);margin-bottom:.25rem">③ 예상 수익 ①-②</div>
           <div id="em-profit" style="font-size:1.2rem;font-weight:800;color:var(--success)"></div>
-          <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">본사 수익 + 현지수익 + 보험</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:.2rem">본사 수익 + 현지수익 + 보험</div>
         </div>
         <!-- 1인당 -->
         <div style="padding:.9rem 1rem;text-align:center">
-          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem">1인당 금액</div>
+          <div style="font-size:.77rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.25rem">1인당 금액</div>
           <div id="em-perperson" style="font-size:1.2rem;font-weight:800;color:var(--primary)"></div>
         </div>
       </div>
 
       <!-- P5: 실측 기준 신뢰구간 (내부 전용 · 계약 실적이 쌓이면 표시) -->
-      <div id="em-confidence" class="hidden" style="padding:.85rem 1.25rem;border-bottom:1px solid var(--border);font-size:.82rem;background:#f8fafc"></div>
+      <div id="em-confidence" class="hidden" style="padding:.85rem 1.25rem;border-bottom:1px solid var(--border);font-size:.87rem;background:#f8fafc"></div>
 
       <!-- P12: 계수 기여도 (내부 전용 · 순수 표시) — 이 견적이 어떤 계수 스택으로
            산출됐는지 저장된 스냅샷으로 재구성. 실측이 쌓이기 전까지 관리자가 도메인
@@ -2190,10 +2190,10 @@
         <div style="padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
           <div class="detail-label" style="margin-bottom:.4rem">실제 계약 항공료 (1인당)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
-            <span id="em-est-airfare" style="font-size:.8rem;color:var(--muted)"></span>
+            <span id="em-est-airfare" style="font-size:.85rem;color:var(--muted)"></span>
             <input type="number" id="em-actual-airfare" class="pw-input" style="width:160px" min="0" placeholder="예: 410000" aria-label="실제 항공 단가(원)" />
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualAirfare()">저장</button>
-            <span id="em-actual-airfare-msg" style="font-size:.76rem;font-weight:700"></span>
+            <span id="em-actual-airfare-msg" style="font-size:.83rem;font-weight:700"></span>
           </div>
         </div>
 
@@ -2201,10 +2201,10 @@
         <div style="padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
           <div class="detail-label" style="margin-bottom:.4rem">실제 계약 호텔단가 (1박)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
-            <span id="em-est-hotel" style="font-size:.8rem;color:var(--muted)"></span>
+            <span id="em-est-hotel" style="font-size:.85rem;color:var(--muted)"></span>
             <input type="number" id="em-actual-hotel" class="pw-input" style="width:160px" min="0" placeholder="예: 180000" aria-label="실제 호텔 단가(원)" />
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualHotel()">저장</button>
-            <span id="em-actual-hotel-msg" style="font-size:.76rem;font-weight:700"></span>
+            <span id="em-actual-hotel-msg" style="font-size:.83rem;font-weight:700"></span>
           </div>
         </div>
 
@@ -2212,10 +2212,10 @@
         <div style="padding:.75rem .9rem;background:var(--bg);border:1px solid var(--border)">
           <div class="detail-label" style="margin-bottom:.4rem">실제 계약 식비 (1인 1일)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
-            <span id="em-est-meal" style="font-size:.8rem;color:var(--muted)"></span>
+            <span id="em-est-meal" style="font-size:.85rem;color:var(--muted)"></span>
             <input type="number" id="em-actual-meal" class="pw-input" style="width:160px" min="0" placeholder="예: 22000" aria-label="실제 식비 단가(원)" />
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualMeal()">저장</button>
-            <span id="em-actual-meal-msg" style="font-size:.76rem;font-weight:700"></span>
+            <span id="em-actual-meal-msg" style="font-size:.83rem;font-weight:700"></span>
           </div>
         </div>
 
@@ -2224,12 +2224,12 @@
         <div style="padding:.75rem .9rem;background:#f0fdf4;border:1px solid var(--border)">
           <div class="detail-label" style="margin-bottom:.4rem">실제 총 계약가 (전체 최종 금액)</div>
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
-            <span id="em-est-total" style="font-size:.8rem;color:var(--muted)"></span>
+            <span id="em-est-total" style="font-size:.85rem;color:var(--muted)"></span>
             <input type="number" id="em-actual-total" class="pw-input" style="width:180px" min="0" placeholder="예: 42000000" aria-label="실제 총 계약가(원)" />
             <button type="button" class="btn-act btn-outline-p" onclick="saveActualTotal()">저장</button>
-            <span id="em-actual-total-msg" style="font-size:.76rem;font-weight:700"></span>
+            <span id="em-actual-total-msg" style="font-size:.83rem;font-weight:700"></span>
           </div>
-          <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">이 값은 요율 관리 탭 「견적 정확도」의 <strong style="color:var(--heading)">종합 오차</strong>로 집계됩니다.</p>
+          <p style="font-size:.8rem;color:var(--muted);margin-top:.4rem">이 값은 요율 관리 탭 「견적 정확도」의 <strong style="color:var(--heading)">종합 오차</strong>로 집계됩니다.</p>
         </div>
         </div><!-- /.em-actual-grid -->
         </div><!-- /.em-actual-wrap -->
@@ -2252,7 +2252,7 @@
         <div class="em-iti-box" id="em-sec-iti">
           <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
             <div class="detail-label" style="margin:0">📅 이 견적서의 제안 일정</div>
-            <span id="em-iti-state" style="font-size:.74rem;color:var(--muted)"></span>
+            <span id="em-iti-state" style="font-size:.81rem;color:var(--muted)"></span>
             <span style="margin-left:auto"></span>
             <!-- ⚠ **이름은 그대로 둔다.** 눈에 띄게 하려고 잠깐 「일정 확인 · 수정」으로
                  띄어쓰기를 넣었다가 되돌렸다 — `manual.html` 두 곳과 `admin-quote.html`의
@@ -2264,7 +2264,7 @@
                  진짜 자리는 고객용 탭 일정표의 「수정하기」(고치기 ④일정)다. 문서 없는 옛 건에는 그대로. -->
             <button type="button" class="btn-act btn-iti-edit" id="emItiEditBtn" onclick="eqOpen(emCurrentId)">일정 확인·수정</button>
           </div>
-          <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem">
+          <p style="font-size:.8rem;color:var(--muted);margin-top:.4rem">
             여기서 고친 일정은 <strong style="color:var(--heading)">이 견적서에만</strong> 적용됩니다.
             비워 두면 목적지 공통 일정이 그대로 나갑니다.
           </p>
@@ -2320,7 +2320,7 @@
         <div class="em-parts">
           <b>고객에게 보낼 문서</b>
           <label style="margin-right:1.1rem;color:var(--muted)">
-            <input type="checkbox" checked disabled> 견적서 <em style="font-style:normal;font-size:.8rem">(항상 포함)</em></label>
+            <input type="checkbox" checked disabled> 견적서 <em style="font-style:normal;font-size:.85rem">(항상 포함)</em></label>
           <label style="margin-right:1.1rem;cursor:pointer">
             <input type="checkbox" id="emPartBd" checked> 세부견적서</label>
           <label style="cursor:pointer">
@@ -2368,7 +2368,7 @@
       <div class="detail-field" style="background:#eff6ff;border:1px solid #bfdbfe;padding:.7rem .9rem">
         <div class="detail-label" style="color:#1d4ed8">🌤️ 현지 여행 시즌 (참고용 — 웹 조사 기반)</div>
         <textarea class="note-area" id="rate-edit-season" placeholder="예: 성수기 3~4월(벚꽃) · 비수기 1~2월..." style="min-height:50px;margin-top:.4rem" aria-label="시즌 안내 문구"></textarea>
-        <p style="font-size:.72rem;color:#1d4ed8;margin-top:.3rem">단가 조정 시 참고용 정보입니다 — 견적 금액에 쓰는 성수기 계수(한국 출발 수요 기준)와는 별개입니다.</p>
+        <p style="font-size:.8rem;color:#1d4ed8;margin-top:.3rem">단가 조정 시 참고용 정보입니다 — 견적 금액에 쓰는 성수기 계수(한국 출발 수요 기준)와는 별개입니다.</p>
       </div>
       <div id="rate-edit-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:1rem"></div>
       <div class="detail-field" style="margin-top:1rem">
@@ -2380,7 +2380,7 @@
         <button class="btn-act btn-primary" onclick="saveRateEdit()">저장</button>
         <button class="btn-act" onclick="document.getElementById('rateEditModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
       </div>
-      <p style="font-size:.74rem;color:var(--muted);margin-top:.5rem">저장하면 즉시 실제 견적 계산에 반영되고 변경 이력에 기록됩니다.</p>
+      <p style="font-size:.81rem;color:var(--muted);margin-top:.5rem">저장하면 즉시 실제 견적 계산에 반영되고 변경 이력에 기록됩니다.</p>
       <div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:.85rem">
         <button type="button" class="btn-act btn-outline-p" id="rate-edit-bulk-handoff" style="width:100%" onclick="handoffToRateBulk()">📊 이 목적지가 속한 지역 전체 일괄 조정하기</button>
       </div>
@@ -2408,17 +2408,17 @@
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.7rem">
         <div class="detail-label" style="margin:0">목적지</div>
         <select id="nc-filter" class="status-select" style="min-width:170px" onchange="renderNeedCheck()" aria-label="목록 거르기"></select>
-        <label style="font-size:.76rem;display:flex;align-items:center;gap:.3rem">
+        <label style="font-size:.83rem;display:flex;align-items:center;gap:.3rem">
           <input type="checkbox" id="nc-only-risky" checked onchange="renderNeedCheck()"> 확인이 필요한 것만
         </label>
       </div>
-      <p style="font-size:.75rem;color:var(--muted);line-height:1.7;margin-bottom:.7rem">
+      <p style="font-size:.82rem;color:var(--muted);line-height:1.7;margin-bottom:.7rem">
         담당자가 확정하지 않은 칸입니다. 값을 고치거나, 맞으면 <strong>확인</strong>을 눌러 닫으세요.<br>
         ⚠ 확인하지 않아도 <strong>요율은 오염되지 않습니다</strong> — 검산 안 된 값은 애초에 기준을 만들지 못합니다.
         다만 오래 남아 있으면 그 견적서는 <strong>절반만 쓰이는 셈</strong>입니다.
       </p>
       <div style="max-height:56vh;overflow:auto;border:1px solid var(--border);border-radius:8px">
-        <table class="rate-table" style="width:100%;font-size:.8rem">
+        <table class="rate-table" style="width:100%;font-size:.85rem">
           <thead>
             <tr>
               <th style="text-align:left">목적지 · 넣은 날</th><th style="text-align:left">항목</th>
@@ -2428,7 +2428,7 @@
           <tbody id="nc-tbody"></tbody>
         </table>
       </div>
-      <p id="nc-msg" style="font-size:.78rem;font-weight:700;margin-top:.6rem"></p>
+      <p id="nc-msg" style="font-size:.84rem;font-weight:700;margin-top:.6rem"></p>
     </div>
   </div>
 </div>
@@ -2445,12 +2445,12 @@
       <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.8rem">
         <div class="detail-label" style="margin:0">목적지 필터</div>
         <select id="pr-list-filter" class="status-select" style="min-width:180px" onchange="renderPriceReportsList()" aria-label="목록 거르기"></select>
-        <span style="font-size:.76rem;color:var(--muted)">잘못 입력된 제보는 🗑 삭제하면 갱신제안·검증에서 즉시 빠집니다.<br>
+        <span style="font-size:.83rem;color:var(--muted)">잘못 입력된 제보는 🗑 삭제하면 갱신제안·검증에서 즉시 빠집니다.<br>
           값을 <strong>남겨 두되 평균에만 안 넣고</strong> 싶으면 그 숫자를 눌러 <strong>제외</strong>하세요 —
           두 도시를 도는 일정에서 다른 도시 값이 섞일 때 씁니다.</span>
       </div>
       <div style="max-height:56vh;overflow:auto;border:1px solid var(--border);border-radius:8px">
-        <table class="rate-table" style="width:100%;font-size:.8rem">
+        <table class="rate-table" style="width:100%;font-size:.85rem">
           <thead>
             <tr>
               <th style="text-align:left">일시</th><th style="text-align:left">목적지</th>
@@ -2463,7 +2463,7 @@
           <tbody id="pr-list-tbody"></tbody>
         </table>
       </div>
-      <p id="pr-list-msg" style="font-size:.78rem;font-weight:700;margin-top:.6rem"></p>
+      <p id="pr-list-msg" style="font-size:.84rem;font-weight:700;margin-top:.6rem"></p>
     </div>
   </div>
 </div>
@@ -2508,7 +2508,7 @@
         </div>
         <div>
           <div class="detail-label" style="margin-bottom:.3rem">계절</div>
-          <label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;margin-top:.4rem">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.88rem;margin-top:.4rem">
             <input type="checkbox" id="new-dest-southern" />남반구(계절이 한국과 반대)
           </label>
         </div>
@@ -2587,8 +2587,8 @@
         <button class="btn-act btn-primary" onclick="saveNewDestination()">저장</button>
         <button class="btn-act" onclick="document.getElementById('newDestModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
       </div>
-      <p id="new-dest-msg" style="font-size:.74rem;margin-top:.5rem"></p>
-      <p style="font-size:.74rem;color:var(--muted);margin-top:.5rem">저장하면 즉시 공개 견적 계산기·내부 견적 산출 도구 드롭다운에 "🆕 신규 추가 목적지"로 나타나며, 요율 편집·삭제도 그때부터 가능합니다.</p>
+      <p id="new-dest-msg" style="font-size:.81rem;margin-top:.5rem"></p>
+      <p style="font-size:.81rem;color:var(--muted);margin-top:.5rem">저장하면 즉시 공개 견적 계산기·내부 견적 산출 도구 드롭다운에 "🆕 신규 추가 목적지"로 나타나며, 요율 편집·삭제도 그때부터 가능합니다.</p>
     </div>
   </div>
 </div>
@@ -2623,13 +2623,13 @@
         <div class="detail-label">조정 비율 (%, 인상은 양수·인하는 음수)</div>
         <input type="number" id="rate-bulk-pct" class="search-box" style="width:100%" placeholder="예: 5 또는 -5" aria-label="변경 비율(%)" />
       </div>
-      <div id="rate-bulk-preview" style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem"></div>
+      <div id="rate-bulk-preview" style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem"></div>
       <div class="modal-actions">
         <span id="rate-bulk-author" class="rate-author-tag"></span>
         <button class="btn-act btn-primary" onclick="applyRateBulk(this)">일괄 적용</button>
         <button class="btn-act" onclick="document.getElementById('rateBulkModal').classList.add('hidden')" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
       </div>
-      <p style="font-size:.74rem;color:var(--muted);margin-top:.5rem">대상 지역의 모든 목적지에 한 번에 적용되며, 목적지 수만큼 변경 이력이 남습니다. 적용 직후 화면 상단 배너에서 바로 되돌릴 수 있습니다.</p>
+      <p style="font-size:.81rem;color:var(--muted);margin-top:.5rem">대상 지역의 모든 목적지에 한 번에 적용되며, 목적지 수만큼 변경 이력이 남습니다. 적용 직후 화면 상단 배너에서 바로 되돌릴 수 있습니다.</p>
     </div>
   </div>
 </div>
@@ -2665,12 +2665,12 @@
       <button type="button" class="modal-close" onclick="eqClose()">✕</button>
     </div>
     <div class="modal-body">
-      <div id="eq-head" style="font-size:.82rem;font-weight:700;color:var(--heading)"></div>
-      <p style="font-size:.74rem;color:var(--muted);margin-top:.25rem">
+      <div id="eq-head" style="font-size:.87rem;font-weight:700;color:var(--heading)"></div>
+      <p style="font-size:.81rem;color:var(--muted);margin-top:.25rem">
         여기서 고친 일정은 <strong style="color:var(--heading)">이 견적서에만</strong> 적용됩니다.
         저장하지 않으면 목적지 공통 일정이 그대로 나갑니다.
       </p>
-      <div id="eq-origin" style="font-size:.76rem;color:var(--muted);margin-top:.5rem"></div>
+      <div id="eq-origin" style="font-size:.83rem;color:var(--muted);margin-top:.5rem"></div>
 
       <!-- UO (2026-08-19 대표 요청): 「견적서 산출자가 코스를 하나만 추천해서 진행할 수
            있게」. 둘 중 하나를 고르라는 것이 늘 친절한 건 아니다 — 목적이 분명한
@@ -2678,17 +2678,17 @@
            ⚠ 기본은 「둘 다」다. 지금까지 나간 견적서가 전부 두 벌이라, 기본을 바꾸면
              아무도 손대지 않은 견적서의 모양이 조용히 달라진다. -->
       <div id="eq-count-row" class="hidden" style="display:flex;gap:.8rem;margin-top:.6rem;align-items:center;flex-wrap:wrap;padding:.5rem .7rem;background:var(--bg);border:1px solid var(--border)">
-        <span style="font-size:.76rem;font-weight:700;color:var(--heading)">고객에게 보낼 코스</span>
-        <label style="font-size:.78rem;display:flex;align-items:center;gap:.25rem;cursor:pointer">
+        <span style="font-size:.83rem;font-weight:700;color:var(--heading)">고객에게 보낼 코스</span>
+        <label style="font-size:.84rem;display:flex;align-items:center;gap:.25rem;cursor:pointer">
           <input type="radio" name="eq-count" value="both" onchange="eqSetCount('both')" /> 둘 다 (A·B)
         </label>
-        <label style="font-size:.78rem;display:flex;align-items:center;gap:.25rem;cursor:pointer">
+        <label style="font-size:.84rem;display:flex;align-items:center;gap:.25rem;cursor:pointer">
           <input type="radio" name="eq-count" value="a" onchange="eqSetCount('a')" /> 코스 A만
         </label>
-        <label style="font-size:.78rem;display:flex;align-items:center;gap:.25rem;cursor:pointer">
+        <label style="font-size:.84rem;display:flex;align-items:center;gap:.25rem;cursor:pointer">
           <input type="radio" name="eq-count" value="b" onchange="eqSetCount('b')" /> 코스 B만
         </label>
-        <span id="eq-count-note" style="font-size:.72rem;color:var(--muted)"></span>
+        <span id="eq-count-note" style="font-size:.8rem;color:var(--muted)"></span>
       </div>
 
       <!-- UI: 출발점 가져오기. 백지에서 쓰는 것과 고치는 것은 부담이 다르고,
@@ -2696,7 +2696,7 @@
            ⚠ 목록은 열 때마다 다시 만든다 — 복사해 두면 동료가 방금 저장한 일정이
              후보에 안 나타난다. -->
       <div id="eq-import-row" class="hidden" style="display:flex;gap:.4rem;margin-top:.6rem;align-items:center;flex-wrap:wrap">
-        <span style="font-size:.74rem;color:var(--muted)">출발점 가져오기</span>
+        <span style="font-size:.81rem;color:var(--muted)">출발점 가져오기</span>
         <select id="eq-import" class="search-box" style="flex:1;min-width:220px;max-width:520px" aria-label="불러올 견적"></select>
         <button type="button" class="btn-act btn-outline-p" onclick="eqImport()">이 일정으로 바꾸기</button>
       </div>
@@ -2707,7 +2707,7 @@
         <button type="button" class="btn-act btn-primary" id="eq-save-btn" onclick="eqSave()">이 견적서 일정으로 저장</button>
         <button type="button" class="btn-act btn-outline-p" onclick="eqRevert()">목적지 공통으로 되돌리기</button>
         <button type="button" class="btn-act" onclick="eqClose()" style="background:var(--bg);border:1.5px solid var(--border);color:var(--muted)">닫기</button>
-        <span id="eq-msg" style="font-size:.76rem;font-weight:700"></span>
+        <span id="eq-msg" style="font-size:.83rem;font-weight:700"></span>
       </div>
     </div>
   </div>
@@ -2899,7 +2899,7 @@
         <td>${esc(s.display_name)}</td>
         <td style="color:var(--muted)">${esc(s.username)}</td>
         <td>
-          <select class="status-select" style="font-size:.76rem;padding:.25rem .4rem" onchange="changeStaffRole('${esc(s.id)}', this.value)" ${isMe(s)?'disabled title="본인 역할은 변경할 수 없습니다"':''}>
+          <select class="status-select" style="font-size:.83rem;padding:.25rem .4rem" onchange="changeStaffRole('${esc(s.id)}', this.value)" ${isMe(s)?'disabled title="본인 역할은 변경할 수 없습니다"':''}>
             <option value="staff"${s.role==='staff'?' selected':''}>직원</option>
             <option value="manager"${s.role==='manager'?' selected':''}>매니저</option>
             <option value="owner"${s.role==='owner'?' selected':''}>관리자</option>
@@ -2914,7 +2914,7 @@
                <button class="btn-detail" onclick="rejectStaff('${esc(s.id)}', '${esc(s.display_name)}')">거절</button>`
             : isMe(s)
             /* ⚠ 2026-09-27 내 계정에는 「비번 재설정」을 안 낸다 — 위 「비밀번호 변경」과 겹치고, 그쪽은 현재 비밀번호를 확인한다 */
-            ? '<span style="font-size:.76rem;color:var(--muted)">내 계정 — 비밀번호는 위에서 변경</span>'
+            ? '<span style="font-size:.83rem;color:var(--muted)">내 계정 — 비밀번호는 위에서 변경</span>'
             : `<button class="btn-detail" onclick="resetStaffPasswordPrompt('${esc(s.id)}', '${esc(s.display_name)}')">비번 재설정</button>
                ${isMe(s) ? '' : `<button class="btn-detail" onclick="toggleStaffActive('${esc(s.id)}', ${!s.active})">${s.active ? '비활성화' : '활성화'}</button>`}`}
         </td>
@@ -3153,7 +3153,7 @@
 
   function assigneeSelectHtml(current, extraAttrs) {
     const lock = staffListStale ? ` disabled title="${esc(STAFF_LIST_LOCK_MSG)}"` : '';
-    return `<select class="status-select" style="font-size:.78rem;padding:.3rem .5rem" data-prev="${esc(current||'')}"${lock} ${extraAttrs||''}>${assigneeOptionsHtml(current)}</select>`;
+    return `<select class="status-select" style="font-size:.84rem;padding:.3rem .5rem" data-prev="${esc(current||'')}"${lock} ${extraAttrs||''}>${assigneeOptionsHtml(current)}</select>`;
   }
 
   /* 이미 화면에 있는 <select>(상세 모달의 d-assignee·em-assignee-sel)를 채운다.
@@ -3182,14 +3182,14 @@
   }
 
   function activityLogHtml(log) {
-    if (!log || !log.length) return '<p style="color:var(--muted);font-size:.78rem">아직 진행 기록이 없습니다.</p>';
+    if (!log || !log.length) return '<p style="color:var(--muted);font-size:.84rem">아직 진행 기록이 없습니다.</p>';
     return log.slice().reverse().map(e => `
       <div style="padding:.55rem .7rem;border:1px solid var(--border);background:var(--bg);margin-bottom:.4rem">
-        <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);margin-bottom:.25rem">
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);margin-bottom:.25rem">
           <strong style="color:var(--heading)">${esc(e.author||'—')}</strong>
           <span>${fmtDate(e.ts)}</span>
         </div>
-        <div style="font-size:.82rem;white-space:pre-wrap">${esc(e.text||'')}</div>
+        <div style="font-size:.87rem;white-space:pre-wrap">${esc(e.text||'')}</div>
       </div>`).join('');
   }
 
@@ -4341,7 +4341,7 @@
         <span class="recent-time">${fmtDateS(c.timestamp)}</span>
       </div>`).join('')
       /* ⚠ 2026-09-27 비어 있으면 **말한다** — 빈 카드만 남아 고장인지 없는 건지 몰랐다(화면 규칙 ②) */
-      : '<p style="font-size:.84rem;color:var(--muted);margin:0;line-height:1.7">아직 들어온 문의가 없습니다 — 홈페이지 문의·상담 신청이 들어오면 여기에 뜨고, 왼쪽 「문의 관리」에 배지가 붙습니다.</p>';
+      : '<p style="font-size:.88rem;color:var(--muted);margin:0;line-height:1.7">아직 들어온 문의가 없습니다 — 홈페이지 문의·상담 신청이 들어오면 여기에 뜨고, 왼쪽 「문의 관리」에 배지가 붙습니다.</p>';
 
     /* Visit chart (7 days) */
     renderBarChart('visit-chart', buildDailyData(visits, 7), 100);
@@ -4427,10 +4427,10 @@
       const rawMsg      = (c.message||'').replace(/\[견적 기반 상담 신청\]\n?/,'');
       const preview     = rawMsg.length>42 ? rawMsg.slice(0,42)+'…' : rawMsg;
       const estBadge    = isEstimate
-        ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;margin-left:.3rem;font-size:.7rem">견적연계</span>`
+        ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;margin-left:.3rem;font-size:.79rem">견적연계</span>`
         : '';
       const replyBadge  = c.reply
-        ? `<span class="badge" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;margin-left:.3rem;font-size:.7rem">✓ 답변완료</span>`
+        ? `<span class="badge" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;margin-left:.3rem;font-size:.79rem">✓ 답변완료</span>`
         : '';
       return `<tr class="${c.read?'':'unread'}" data-id="${safeId(c.id)}">
         <td><strong>${esc(c.name)}</strong>${estBadge}${replyBadge}</td>
@@ -4496,8 +4496,8 @@
       estBlock.classList.remove('hidden');
       estBlock.innerHTML = `
         <div style="background:#eff6ff;border:1px solid #bfdbfe;padding:.8rem 1rem;margin-bottom:.75rem">
-          <div style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:.6rem">📋 견적 연계 상담 — 고객 선택 내역</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem .8rem;font-size:.82rem">
+          <div style="font-size:.81rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1d4ed8;margin-bottom:.6rem">📋 견적 연계 상담 — 고객 선택 내역</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem .8rem;font-size:.87rem">
             <div><span style="color:#64748b;font-weight:600">목적지</span><br>${esc(est.destLabel||'—')}</div>
             <div><span style="color:#64748b;font-weight:600">참가 인원</span><br>${Number(est.participants)||0}명 / ${Number(est.days)||0}일${est.nights != null && est.nights !== '' ? ' (' + (Number(est.nights)||0) + '박)' : ''}</div>
             <div><span style="color:#64748b;font-weight:600">프로그램</span><br>${esc(est.programLabel||'—')}</div>
@@ -4505,16 +4505,16 @@
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.75rem">
             <div style="background:#1d4ed8;color:#fff;padding:.6rem .8rem;text-align:center">
-              <div style="font-size:.7rem;opacity:.8;margin-bottom:.2rem">고객 제시 총액</div>
+              <div style="font-size:.79rem;opacity:.8;margin-bottom:.2rem">고객 제시 총액</div>
               <div style="font-size:1.1rem;font-weight:800">${fmt(est.visibleTotal||est.total||0)}</div>
             </div>
             <div style="background:#1e40af;color:#fff;padding:.6rem .8rem;text-align:center">
-              <div style="font-size:.7rem;opacity:.8;margin-bottom:.2rem">1인당 금액</div>
+              <div style="font-size:.79rem;opacity:.8;margin-bottom:.2rem">1인당 금액</div>
               <div style="font-size:1.1rem;font-weight:800">${fmt(est.perPerson||0)}</div>
             </div>
           </div>
           ${(est.items||[]).length ? `
-          <div style="margin-top:.6rem;font-size:.76rem;color:#1d4ed8">
+          <div style="margin-top:.6rem;font-size:.83rem;color:#1d4ed8">
             포함 항목: ${est.items.map(it=>esc(it.name)).join(' · ')}
           </div>` : ''}
         </div>`;
@@ -4531,10 +4531,10 @@
       linkedQuoteEl.classList.remove('hidden');
       linkedQuoteEl.innerHTML = linkedQuote ? `
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:.7rem 1rem;margin-bottom:.75rem;display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
-          <span style="font-size:.82rem;color:#166534">🔗 <strong>${esc(linkedQuote.destLabel||linkedQuote.destKey||'')}</strong> 견적(₩${(linkedQuote.total||0).toLocaleString()})과 연결된 상담입니다.</span>
+          <span style="font-size:.87rem;color:#166534">🔗 <strong>${esc(linkedQuote.destLabel||linkedQuote.destKey||'')}</strong> 견적(₩${(linkedQuote.total||0).toLocaleString()})과 연결된 상담입니다.</span>
           <button type="button" class="btn-act btn-outline-p" onclick="jumpToQuote('${c.linkedQuoteId}')">견적 관리에서 보기</button>
         </div>` : `
-        <div style="background:var(--bg);border:1px solid var(--border);padding:.6rem 1rem;margin-bottom:.75rem;font-size:.8rem;color:var(--muted)">연결된 견적 기록을 찾을 수 없습니다(삭제됐을 수 있습니다).</div>`;
+        <div style="background:var(--bg);border:1px solid var(--border);padding:.6rem 1rem;margin-bottom:.75rem;font-size:.85rem;color:var(--muted)">연결된 견적 기록을 찾을 수 없습니다(삭제됐을 수 있습니다).</div>`;
     } else {
       linkedQuoteEl.classList.add('hidden');
       linkedQuoteEl.innerHTML = '';
@@ -4770,7 +4770,7 @@
           <div class="h-bar-track"><div class="h-bar-fill" style="width:${Math.max(pct,2)}%"></div></div>
           <span class="h-bar-count">${pct}% (${completed}/${selected})</span>
         </div>`).join('')
-      : '<p style="color:var(--muted);font-size:.8rem;line-height:1.7">'
+      : '<p style="color:var(--muted);font-size:.85rem;line-height:1.7">'
         + '아직 견적을 끝까지 낸 고객이 없습니다.<br>'
         + '고객이 목적지를 고르고 견적을 완료하면, 목적지마다 몇 %가 끝까지 갔는지 여기 나옵니다.</p>';
   }
@@ -4849,20 +4849,20 @@
 
     document.getElementById('mi-keywords').innerHTML = keywords.length
       ? keywords.map(k => `<span class="badge badge-pend">${esc(k.word)} <strong>${k.count||''}</strong></span>`).join('')
-      : '<p style="color:var(--muted);font-size:.8rem">추출된 키워드가 없습니다.</p>';
+      : '<p style="color:var(--muted);font-size:.85rem">추출된 키워드가 없습니다.</p>';
 
     document.getElementById('mi-topics').innerHTML = topics.length
       ? topics.map(t => `
         <div style="border:1px solid var(--border);padding:.9rem 1.1rem">
-          <p style="font-weight:700;font-size:.88rem;margin-bottom:.3rem">${esc(t.title)}</p>
-          <p style="font-size:.82rem;color:var(--text);margin-bottom:.5rem">${esc(t.description)}</p>
-          ${t.example ? `<p style="font-size:.78rem;color:var(--muted);border-left:2px solid var(--border);padding-left:.6rem">"${esc(t.example)}"</p>` : ''}
+          <p style="font-weight:700;font-size:.9rem;margin-bottom:.3rem">${esc(t.title)}</p>
+          <p style="font-size:.87rem;color:var(--text);margin-bottom:.5rem">${esc(t.description)}</p>
+          ${t.example ? `<p style="font-size:.84rem;color:var(--muted);border-left:2px solid var(--border);padding-left:.6rem">"${esc(t.example)}"</p>` : ''}
         </div>`).join('')
-      : '<p style="color:var(--muted);font-size:.8rem">추출된 주제가 없습니다.</p>';
+      : '<p style="color:var(--muted);font-size:.85rem">추출된 주제가 없습니다.</p>';
 
     document.getElementById('mi-actions').innerHTML = actions.length
-      ? actions.map(a => `<li style="font-size:.85rem;line-height:1.6">${esc(a)}</li>`).join('')
-      : '<li style="color:var(--muted);font-size:.8rem;list-style:none">제안된 액션이 없습니다.</li>';
+      ? actions.map(a => `<li style="font-size:.89rem;line-height:1.6">${esc(a)}</li>`).join('')
+      : '<li style="color:var(--muted);font-size:.85rem;list-style:none">제안된 액션이 없습니다.</li>';
   }
 
   async function renderMarketingInsights() {
@@ -4952,7 +4952,7 @@
     const el = document.getElementById(elId);
     if (!el) return;
     if (!data.length) {
-      el.innerHTML = '<p style="color:var(--muted);font-size:.8rem;line-height:1.7">'
+      el.innerHTML = '<p style="color:var(--muted);font-size:.85rem;line-height:1.7">'
         + esc(emptyMsg || '데이터가 없습니다.') + '</p>';
       return;
     }
@@ -5010,15 +5010,15 @@
   async function renderRateEditHistory(destKey) {
     const el = document.getElementById('rate-edit-history');
     if (!el) return;
-    el.innerHTML = '<p style="color:var(--muted);font-size:.8rem">불러오는 중...</p>';
+    el.innerHTML = '<p style="color:var(--muted);font-size:.85rem">불러오는 중...</p>';
     try {
       rateEditHistoryCache = await fetchRateHistory(destKey);
       el.innerHTML = rateEditHistoryCache.length
         ? rateHistoryTruncatedHtml(rateEditHistoryCache, '이 목적지 기준')
           + rateEditHistoryCache.map((r) => renderRateHistoryRow(r, false)).join('')
-        : '<p style="color:var(--muted);font-size:.8rem">아직 변경 이력이 없습니다.</p>';
+        : '<p style="color:var(--muted);font-size:.85rem">아직 변경 이력이 없습니다.</p>';
     } catch (err) {
-      el.innerHTML = '<p style="color:var(--muted);font-size:.8rem">조회에 실패했습니다.</p>';
+      el.innerHTML = '<p style="color:var(--muted);font-size:.85rem">조회에 실패했습니다.</p>';
     }
   }
 

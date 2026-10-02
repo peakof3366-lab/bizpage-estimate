@@ -557,13 +557,13 @@
     const fieldLabel = rateFieldLabel(r.field);
     const title = showDest ? `${esc(label)} · ${esc(fieldLabel)}` : esc(fieldLabel);
     return `<div style="padding:.6rem .8rem;border:1px solid var(--border);background:var(--bg)">
-      <div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted);margin-bottom:.25rem">
+      <div style="display:flex;justify-content:space-between;font-size:.83rem;color:var(--muted);margin-bottom:.25rem">
         <strong style="color:var(--heading)">${title}</strong>
         <span>${esc(r.author || '—')} · ${fmtDate(r.created_at)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem">
-        <div style="font-size:.85rem">${esc(String(r.old_value ?? '—'))} → <strong>${esc(String(r.new_value))}</strong></div>
-        <button type="button" class="btn-act btn-outline-p" style="font-size:.7rem;padding:.25rem .6rem;flex-shrink:0" onclick="revertRateChange('${safeId(String(r.id))}')">↩️ 되돌리기</button>
+        <div style="font-size:.89rem">${esc(String(r.old_value ?? '—'))} → <strong>${esc(String(r.new_value))}</strong></div>
+        <button type="button" class="btn-act btn-outline-p" style="font-size:.79rem;padding:.25rem .6rem;flex-shrink:0" onclick="revertRateChange('${safeId(String(r.id))}')">↩️ 되돌리기</button>
       </div>
     </div>`;
   }
@@ -582,7 +582,7 @@
      "변경이 없었다"로 오해하고, 되돌릴 수 있는 항목을 못 찾은 채 포기한다. */
   function rateHistoryTruncatedHtml(rows, scope) {
     if (rows.length < RATE_HISTORY_LIMIT) return '';
-    return `<p style="color:var(--warn,#8F5D0C);font-size:.78rem;margin-bottom:.5rem">`
+    return `<p style="color:var(--warn,#8F5D0C);font-size:.84rem;margin-bottom:.5rem">`
       + `⚠ ${scope} 최근 ${RATE_HISTORY_LIMIT}건까지만 표시됩니다. 더 오래된 변경은 여기 없습니다.</p>`;
   }
 
@@ -597,13 +597,13 @@
     const listEl = document.getElementById('rate-history-list');
     if (!listEl) return;
     if (rateHistoryLoaded && !force) return;
-    listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">불러오는 중...</p>';
+    listEl.innerHTML = '<p style="color:var(--muted);font-size:.87rem">불러오는 중...</p>';
     try {
       rateHistoryRowsCache = await fetchRateHistory();
       const rows = rateHistoryRowsCache;
       rateHistoryLoaded = true;
       if (!rows.length) {
-        listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">변경 이력이 없습니다.</p>';
+        listEl.innerHTML = '<p style="color:var(--muted);font-size:.87rem">변경 이력이 없습니다.</p>';
         return;
       }
       /* 버튼 onclick에는 값을 직접 넣지 않고 행 id만 넘긴다 — 비고 등 자유서술 필드에
@@ -614,7 +614,7 @@
       /* 실패하면 **다시 시도할 수 있게** 로드 표시를 되돌린다 — 안 그러면 한 번 실패한
          뒤로는 접었다 펴도 계속 빈 채로 남는다(조용한 폴백). */
       rateHistoryLoaded = false;
-      listEl.innerHTML = '<p style="color:var(--muted);font-size:.82rem">조회에 실패했습니다. 접었다 다시 펼치면 재시도합니다.</p>';
+      listEl.innerHTML = '<p style="color:var(--muted);font-size:.87rem">조회에 실패했습니다. 접었다 다시 펼치면 재시도합니다.</p>';
     }
   }
 
@@ -925,13 +925,13 @@
       const val = coefCurrentValue(s);
       const changed = Math.abs(val - s.def) > 1e-9;
       return `
-        <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.82rem">
+        <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.87rem">
           <span style="font-weight:700;color:var(--heading)">${s.label}
             ${changed ? '<span class="rate-badge check" style="margin-left:.3rem">조정됨</span>' : ''}
           </span>
           <input type="number" data-coef="${s.key}" value="${val}" min="${s.min}" max="${s.max}" step="${s.step}"
-                 style="padding:.45rem .5rem;border:1px solid var(--border);border-radius:6px;font-size:.9rem" />
-          <span style="font-size:.72rem;color:var(--muted)">${s.hint}<br>범위 ${s.min}~${s.max} · 기본 ${s.def}</span>
+                 style="padding:.45rem .5rem;border:1px solid var(--border);border-radius:6px;font-size:.92rem" />
+          <span style="font-size:.8rem;color:var(--muted)">${s.hint}<br>범위 ${s.min}~${s.max} · 기본 ${s.def}</span>
         </label>`;
     }).join('');
     const msg = document.getElementById('coef-save-msg');
@@ -1634,7 +1634,7 @@
       countEl.textContent = `호텔 ${rows.length}곳 · ${countries}개 나라 · ${cities}개 도시`;
     }
     if (!rows.length) {
-      list.innerHTML = `<div style="color:var(--muted);font-size:.82rem;padding:1rem 0">검색 조건에 맞는 호텔이 없습니다.</div>`;
+      list.innerHTML = `<div style="color:var(--muted);font-size:.87rem;padding:1rem 0">검색 조건에 맞는 호텔이 없습니다.</div>`;
       return;
     }
 
@@ -1653,23 +1653,23 @@
         const cityRows = cities.map(city => {
           const hotels = byRegion[region][country][city].sort((a, b) => b.latestAt - a.latestAt);
           return `<div style="display:grid;grid-template-columns:minmax(90px,110px) 1fr;gap:.5rem;padding:.35rem 0;border-top:1px solid var(--border)">
-            <div style="font-weight:700;font-size:.8rem">${esc(city)}</div>
+            <div style="font-weight:700;font-size:.85rem">${esc(city)}</div>
             <div style="display:grid;gap:.25rem">${hotels.map(h => `
-              <div style="display:flex;justify-content:space-between;gap:.75rem;flex-wrap:wrap;font-size:.82rem">
-                <span>${esc(h.name)}${h.count > 1 ? ` <span style="color:var(--muted);font-size:.74rem">×${h.count}회</span>` : ''}</span>
-                <span style="color:var(--muted);font-size:.74rem">${esc(h.author || '—')} · ${dateOf(h.latestAt)}</span>
+              <div style="display:flex;justify-content:space-between;gap:.75rem;flex-wrap:wrap;font-size:.87rem">
+                <span>${esc(h.name)}${h.count > 1 ? ` <span style="color:var(--muted);font-size:.81rem">×${h.count}회</span>` : ''}</span>
+                <span style="color:var(--muted);font-size:.81rem">${esc(h.author || '—')} · ${dateOf(h.latestAt)}</span>
               </div>`).join('')}</div>
           </div>`;
         }).join('');
         return `<div style="padding:.5rem .75rem;border:1px solid ${unset ? 'var(--danger,#dc2626)' : 'var(--border)'};margin-top:.4rem">
-          <div style="font-size:.78rem;font-weight:800;color:${unset ? 'var(--danger,#dc2626)' : 'var(--heading)'}">
+          <div style="font-size:.84rem;font-weight:800;color:${unset ? 'var(--danger,#dc2626)' : 'var(--heading)'}">
             ${esc(country)}${unset ? " — 목적지를 추가할 때 '나라' 칸이 비어 있던 곳입니다 (나라는 목적지를 만들 때만 정합니다)" : ''}
           </div>
           ${cityRows}
         </div>`;
       }).join('');
       return `<details open style="border:1px solid var(--border);padding:.5rem .75rem">
-        <summary style="cursor:pointer;font-weight:800;font-size:.85rem">${esc(region)} <span style="color:var(--muted);font-weight:400;font-size:.76rem">호텔 ${regionCount}곳</span></summary>
+        <summary style="cursor:pointer;font-weight:800;font-size:.89rem">${esc(region)} <span style="color:var(--muted);font-weight:400;font-size:.83rem">호텔 ${regionCount}곳</span></summary>
         ${body}
       </details>`;
     }).join('');
@@ -1799,7 +1799,7 @@
   function rateValidationBadge(destKey, field, base) {
     const info = rateActualValidationMap[`${destKey}|${field}`];
     /* ⚠ .62rem(9.9px)였다 — 11px 바닥 아래라 오류였다(2026-09-29) */
-    const style = 'font-size:.72rem;margin-top:.15rem;white-space:nowrap;font-weight:700';
+    const style = 'font-size:.8rem;margin-top:.15rem;white-space:nowrap;font-weight:700';
     /* RM: '미검증'이라고만 하면 **이 숫자가 어디서 왔는지**를 말하지 않는다. 이 값들은
        온라인 조사로 넣은 추정치이고, 실제 견적서가 들어오면 그 값으로 교체할 대상이다.
        그 사실을 배지가 직접 말하게 한다 — 수백 건을 넣는 동안 "아직 안 바뀐 곳"이
