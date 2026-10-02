@@ -1816,7 +1816,49 @@
     /* 외부 자료 상태는 기다리지 않는다 — 요율 표가 그것 때문에 늦게 뜨면 안 된다 */
     loadExternalFeeds();
     loadFuel();
+    /* ⚠ 못 받았으면 시각을 안 찍는다 — 찍으면 내일 아침까지 다시 안 해 본다 */
+    if (ok) ratesLoadedAt = Date.now();
     return ok;
+  }
+
+  /* ════ 🔄 매일 아침 화면도 스스로 새 값을 불러온다 (2026-10-02 대표 지시) ═══════════
+     서버는 매일 05:00에 환율을 받는다(vercel.json cron). 그런데 **관리자 화면을 켜 둔 채 밤을 넘기면**
+     F5 전까지 어제 환율·어제 상태가 보였다. → 05:15(KST, 자동 실행 끝난 뒤 여유)을 지났는데
+     화면의 값이 그 전에 불러온 것이면 다시 불러온다.
+     🔴 **편집 창이 열려 있으면 미룬다** — 요율 편집·일괄 조정·새 목적지는 전부 팝업(.modal-overlay)이다.
+       그때 표를 다시 그리면 입력하던 칸이 날아간다. 닫힌 뒤 다음 확인(10분 · 탭으로 돌아올 때)에 한다.
+     ⚠ 로그인 전·탭이 가려져 있을 때(document.hidden)는 아무것도 안 한다.
+     ⚠ 타이머를 거는 실행문은 admin.html에 있다(이 파일은 선언만 둔다 — 머리말 로드 규칙). */
+  let ratesLoadedAt = 0;
+  const DAILY_REFRESH_KST = { h: 5, m: 15 };
+  /* now 이전의 가장 최근 「KST 05:15」 시각(ms) */
+  function lastDailyMark(now) {
+    const KST = 9 * 3600 * 1000;
+    const k = new Date(now + KST);
+    const mark = Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate(), DAILY_REFRESH_KST.h, DAILY_REFRESH_KST.m) - KST;
+    return mark <= now ? mark : mark - 86400000;
+  }
+  function anyModalOpen() {
+    return !!document.querySelector('.modal-overlay:not(.hidden)');
+  }
+  let dailyRefreshBusy = false;
+  async function dailyRefreshTick() {
+    if (dailyRefreshBusy || document.hidden) return 'skip';
+    if (typeof currentUser === 'undefined' || !currentUser) return 'skip';
+    if (ratesLoadedAt >= lastDailyMark(Date.now())) return 'fresh';
+    if (anyModalOpen()) return 'deferred';
+    dailyRefreshBusy = true;
+    try {
+      if (typeof currentTab !== 'undefined' && currentTab === 'rates') {
+        await refreshRatesOnOpen();
+      } else {
+        /* 다른 탭에 있으면 값만 새로 받아 둔다 — 요율 탭을 열 때 어차피 다시 그린다 */
+        if (await loadRateOverrides()) ratesLoadedAt = Date.now();
+      }
+      return 'refreshed';
+    } finally {
+      dailyRefreshBusy = false;
+    }
   }
 
   /* ════ ⛽ 유류할증료 월별 표 (2026-10-02 대표 지시) ═══════════════════════════
@@ -2078,6 +2120,7 @@
     html += row('유류할증료 표 (사람이 넣음 · 기준 대한항공)', !fu.currentMissing,
       fu.active ? `적용 중 <b>${esc(fu.active)}</b>${fu.currentMissing ? ` — <b>${esc(fu.current)} 대한항공 표가 없습니다</b>` : ''}${fu.next ? ` · 다음 달 예고 ${esc(fu.next)}` : ''}` : '<b>아직 넣은 대한항공 표가 없습니다</b> — 아래 「⛽ 유류할증료 월별 표」에 이번 달 공지 본문을 붙여넣어 주세요',
       '항공사가 자동 수집을 막아 매달 공지 본문을 붙여넣습니다 — 아래 「⛽ 유류할증료 월별 표」');
+    html += `<p class="ext-feeds-note">🔄 이 화면은 매일 아침(05:15 뒤) 스스로 새 값을 불러옵니다${ratesLoadedAt ? ` — 마지막 화면 갱신 <b>${new Date(ratesLoadedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</b>` : ''}. 편집 창이 열려 있으면 닫힌 뒤에 합니다.</p>`;
     html += `<p class="ext-feeds-note">자동 실행이 바꾸는 것은 <b>환율 표뿐</b>입니다(환율 보정은 예전처럼 ±30% 안). 성수기 달력과 요율은 사람이 고칩니다.</p>`;
     body.innerHTML = html;
     /* ⚠ 머리와 줄이 같은 말을 해야 한다 — 줄에 「!」가 있는데 머리가 「정상」이면 접힌 채로는 아무도 안 연다 */

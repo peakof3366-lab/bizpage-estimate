@@ -4193,6 +4193,14 @@
     document.querySelector('.dash-main')?.scrollTo({top: 0, behavior: 'smooth'});
   }
 
+  /* 🔄 매일 아침 화면도 새 값으로 (2026-10-02 대표 지시) — 판단은 admin/rates.js `dailyRefreshTick` 하나가 한다.
+     10분마다 + 탭·노트북을 다시 열었을 때 확인한다. 05:15(KST) 전에 불러온 값이면 다시 불러오고,
+     편집 창이 열려 있으면 미룬다(입력하던 칸을 지키려고). */
+  if (typeof dailyRefreshTick === 'function') {
+    setInterval(() => { dailyRefreshTick().catch(() => {}); }, 10 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) dailyRefreshTick().catch(() => {}); });
+  }
+
 
 
   function renderTab(name) {

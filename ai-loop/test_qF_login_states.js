@@ -276,7 +276,9 @@ const attemptWriteRan = () => stmts.some(s => /^update staff_accounts set failed
     errEl.className + ' / ' + errEl.textContent.trim());
 
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
-  if (fail) process.exit(1);
+  /* ⚠ 2026-10-02 — 통과해도 **명시적으로 끝낸다.** admin.html이 매일 아침 새로 불러오는 10분 타이머를 건다
+     (dailyRefreshTick). 저절로 끝나기를 기다리면 그 타이머가 프로세스를 붙잡아 이 파일 하나가 ~580초 걸렸다. */
+  process.exit(fail ? 1 : 0);
 })().catch((err) => { realError(err); process.exit(1); });
 
 /* admin.html을 실제로 띄운다 — 로그인 폼의 submit 핸들러는 로드 시점에 붙으므로

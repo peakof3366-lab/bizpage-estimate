@@ -214,7 +214,9 @@ const LIVE_OVERRIDE = { 도쿄: { airfare: 399000, rateDate: '2026-07' } };
     !w.document.getElementById('rateEditModal').classList.contains('hidden'));
 
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
-  if (fail) process.exit(1);
+  /* ⚠ 2026-10-02 — 통과해도 **명시적으로 끝낸다.** admin.html이 매일 아침 새로 불러오는 10분 타이머를 건다
+     (dailyRefreshTick). 저절로 끝나기를 기다리면 그 타이머가 프로세스를 붙잡아 이 파일 하나가 ~580초 걸렸다. */
+  process.exit(fail ? 1 : 0);
 })().catch((err) => { console.error(err); process.exit(1); });
 
 /* admin.html을 실제로 띄운다. rateOverridesCache·rateOverridesStale은 let 전역이라

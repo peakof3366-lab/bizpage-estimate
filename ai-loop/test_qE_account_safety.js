@@ -365,7 +365,9 @@ const updateRan = () => stmts.some(s => /^update staff_accounts/.test(s.q));
   /* ⚠ 이 줄의 형식은 run_all_tests.js가 찾는 '결과: N pass / M fail'이어야 한다.
      다른 말로 적으면 러너가 요약을 못 찾아 **크래시로 집계**한다(실제로 겪었다). */
   console.log(`결과: ${pass} pass / ${fail} fail`);
-  if (fail) process.exit(1);
+  /* ⚠ 2026-10-02 — 통과해도 **명시적으로 끝낸다.** admin.html이 매일 아침 새로 불러오는 10분 타이머를 건다
+     (dailyRefreshTick). 저절로 끝나기를 기다리면 그 타이머가 프로세스를 붙잡아 이 파일 하나가 ~580초 걸렸다. */
+  process.exit(fail ? 1 : 0);
 })().catch((err) => { realError(err); process.exit(1); });
 
 /* admin.html을 실제로 띄운다. currentUser·staffListCache·signupCodeLoaded는 let 전역이라
