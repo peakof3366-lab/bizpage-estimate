@@ -1905,45 +1905,31 @@
 </div>
 
 <div id="modal" class="modal-overlay hidden">
-  <div class="modal-box">
-    <div class="modal-header">
-      <h3 id="modalTitle">문의 상세</h3>
-      <button id="modalClose" class="modal-close">✕</button>
+  <!-- 🧾 2026-10-02 대표 「깔끔하게 재구성 · 필요 없는 글자 삭제」 — 위에서 아래로 **일하는 순서**대로 놓았다:
+         ① 누구인가(이름·소속·연락처·접수) → ② 상태·담당자 → ③ 무엇을 물었나 → ④ 무엇이라 답했나 → ⑤ 내부 메모 | 진행 기록
+       지운 글자와 이유:
+         · 「이름·소속·연락처·접수 일시」 칸 이름 — 값만 봐도 무엇인지 안다. 이름은 머리로 올렸다(제목이 「문의 상세 — 이름」으로 두 번 말했다)
+         · 「작성자: admin」 두 곳 — 늘 **로그인한 나**다. 기록에는 이름이 그대로 남는다
+         · 「고르면 바로 저장됩니다」 — 고르면 옆에 「✓ 저장됨」이 뜬다(그게 더 정확한 말이다)
+         · 긴 안내 placeholder들 — 짧게
+       ⚠ 폭 860px — 아래 두 칸(메모 | 기록)을 나란히 두려고. `.modal-box` 공용 규칙은 안 건드린다(모달 11개 공용). -->
+  <div class="modal-box inq-modal" style="width:min(860px,94vw)">
+    <div class="modal-header inq-head">
+      <div class="inq-who">
+        <h3 id="modalTitle">문의 상세</h3>
+        <div class="inq-who-sub">
+          <span id="d-org"></span>
+          <a id="d-tel" class="inq-tel"></a>
+          <span class="inq-time"><span id="d-time"></span> 접수</span>
+        </div>
+      </div>
+      <button id="modalClose" class="modal-close" aria-label="문의 상세 닫기">✕</button>
     </div>
     <div class="modal-body">
-      <div id="d-estimate-block" class="hidden"></div>
-      <div id="d-linked-quote" class="hidden"></div>
-      <!-- ⚠ 2026-09-27 네 칸을 2×2로 — 한 줄에 하나씩 쌓여 창이 쓸데없이 길었다 -->
-      <div class="inq-info-grid">
-      <div class="detail-field"><div class="detail-label">이름</div><div class="detail-value" id="d-name"></div></div>
-      <div class="detail-field"><div class="detail-label">소속</div><div class="detail-value" id="d-org"></div></div>
-      <div class="detail-field"><div class="detail-label">연락처</div><div class="detail-value" id="d-tel"></div></div>
-      <div class="detail-field"><div class="detail-label">접수 일시</div><div class="detail-value" id="d-time"></div></div>
-      </div>
-      <div class="detail-field"><div class="detail-label">문의 내용</div><div class="detail-message" id="d-msg"></div></div>
+      <!-- 이름은 머리(제목)에 있다 — 이 칸은 다른 코드가 읽을 수 있어 감춘 채 남긴다 -->
+      <span id="d-name" hidden></span>
 
-      <!-- 답변 내용 (신규) — 고객에게 실제로 전달한 확정 답변. 진행 기록(내부 이력)과는 별개 -->
-      <div class="detail-field" style="background:#f0fdf4;border:1px solid #bbf7d0;padding:.9rem 1rem">
-        <div class="detail-label" style="display:flex;justify-content:space-between;align-items:center">
-          <span>답변 내용</span>
-          <span id="d-reply-meta" style="font-size:.72rem;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">아직 답변하지 않았습니다.</span>
-        </div>
-        <textarea class="note-area" id="d-reply-text" placeholder="고객에게 전달한(또는 전달할) 답변 내용을 입력하세요..." style="margin-top:.5rem" aria-label="고객에게 보낸 답변 내용"></textarea>
-        <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center">
-          <span class="rate-author-tag" id="d-reply-author-tag"></span>
-          <button type="button" class="btn-act btn-primary" onclick="confirmReply('inquiry', currentModalId, 'd-reply-text', 'd-reply-meta')" style="flex:0 0 auto">답변 확정</button>
-        </div>
-      </div>
-
-      <!-- 🔴 2026-09-27 「저장」·「닫기」를 걷었다 — 견적 상세와 **같은 방식**으로 맞췄다:
-           상태·담당자는 **고르면 바로**, 메모는 **칸을 떠날 때** 저장된다. 「닫기」는 머리의 ✕와 같았다.
-           두 상세 창의 저장 방식이 다르면 한쪽에서 「저장」을 찾다가 헤맨다. -->
-      <div class="detail-field">
-        <div class="detail-label">관리자 메모 <span id="d-autosave-state" style="font-weight:400;font-size:.74rem;margin-left:.3rem;text-transform:none;letter-spacing:0"></span></div>
-        <textarea class="note-area" id="d-note" placeholder="메모를 입력하세요... (칸을 떠나면 저장됩니다)" aria-label="내부 메모" onchange="saveDetail()"></textarea>
-      </div>
-      <div class="modal-actions">
-        <!-- 고르는 칸에 보이는 이름이 없어 「확인」 하나만 덩그러니 보였다 (2026-09-27) -->
+      <div class="inq-bar">
         <label for="d-status" class="inq-sel-lbl">상태</label>
         <select class="status-select" id="d-status" aria-label="문의 처리 상태" onchange="saveDetail()">
           <option value="unread">신규</option>
@@ -1955,19 +1941,44 @@
         <select class="status-select" id="d-assignee" onchange="if (confirmAssigneeSelect(this)) saveDetail()" aria-label="담당자">
           <option value="">담당자 미배정</option>
         </select>
-        <span class="inq-autosave-hint">고르면 바로 저장됩니다</span>
-        <button class="btn-act btn-danger-sm" id="btnDeleteInquiry" onclick="deleteFromModal()" style="margin-left:auto">이 문의 삭제</button>
+        <span id="d-autosave-state" class="inq-saved" role="status"></span>
       </div>
 
-      <!-- 진행 기록 (신규) -->
-      <div class="detail-field" style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)">
-        <div class="detail-label">진행 기록</div>
-        <div id="d-log-list" style="margin:.5rem 0"></div>
-        <div style="display:flex;gap:.4rem;margin-top:.5rem;align-items:center;flex-wrap:wrap">
-          <span class="rate-author-tag" id="d-log-author-tag"></span>
-          <input type="text" id="d-log-text" class="search-box" placeholder="진행 상황을 입력하세요..." style="flex:1;min-width:0" aria-label="진행 상황 기록" />
-          <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('inquiry', currentModalId, 'd-log-text', 'd-log-list')">추가</button>
+      <div id="d-estimate-block" class="hidden"></div>
+      <div id="d-linked-quote" class="hidden"></div>
+
+      <section class="inq-sec">
+        <h4 class="inq-sec-h">문의 내용</h4>
+        <div class="detail-message" id="d-msg"></div>
+      </section>
+
+      <!-- 답변 — 고객에게 실제로 전달한 확정 답변. 진행 기록(내부 이력)과는 별개 -->
+      <section class="inq-sec inq-reply">
+        <h4 class="inq-sec-h">답변 <span id="d-reply-meta" class="inq-reply-meta">미답변</span></h4>
+        <textarea class="note-area" id="d-reply-text" placeholder="고객에게 전달한 답변" aria-label="고객에게 보낸 답변 내용"></textarea>
+        <div class="inq-reply-act">
+          <button type="button" class="btn-act btn-primary" onclick="confirmReply('inquiry', currentModalId, 'd-reply-text', 'd-reply-meta')">답변 확정</button>
         </div>
+      </section>
+
+      <!-- 🔴 상태·담당자는 **고르면 바로**, 메모는 **칸을 떠날 때** 저장된다(2026-09-27 — 견적 상세와 같은 방식) -->
+      <div class="inq-two">
+        <section class="inq-sec">
+          <h4 class="inq-sec-h">내부 메모</h4>
+          <textarea class="note-area" id="d-note" placeholder="고객에게는 안 보입니다" aria-label="내부 메모" onchange="saveDetail()"></textarea>
+        </section>
+        <section class="inq-sec">
+          <h4 class="inq-sec-h">진행 기록</h4>
+          <div class="inq-log-add">
+            <input type="text" id="d-log-text" class="search-box" placeholder="예) 견적서 메일 발송" aria-label="진행 상황 기록" />
+            <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('inquiry', currentModalId, 'd-log-text', 'd-log-list')">추가</button>
+          </div>
+          <div id="d-log-list" class="inq-log-list"></div>
+        </section>
+      </div>
+
+      <div class="inq-foot">
+        <button class="btn-act btn-danger-sm" id="btnDeleteInquiry" onclick="deleteFromModal()">이 문의 삭제</button>
       </div>
     </div>
   </div>
@@ -3713,7 +3724,7 @@
       if (c) { c.reply = text; c.repliedAt = repliedAt; c.repliedBy = author; set(KEYS.contacts, contacts); }
     }
     const metaEl = document.getElementById(metaElId);
-    if (metaEl) metaEl.textContent = `${author} · ${fmtDate(repliedAt)} 답변`;
+    if (metaEl) { metaEl.textContent = `${author} · ${fmtDate(repliedAt)} 답변`; metaEl.classList.add('done'); }
     renderInquiries();
   }
 
@@ -4460,12 +4471,16 @@
 
     currentModalId = id;
     /* ⚠ 2026-09-27 「#줄번호」 대신 이름 — 줄 번호는 새로 고치면 바뀌어 건을 부를 수 없었다 */
-    document.getElementById('modalTitle').textContent = '문의 상세 — ' + (c.name || '(이름 없음)');
+    /* 2026-10-02 머리에는 **이름만** — 「문의 상세 —」는 창이 이미 말한다 */
+    document.getElementById('modalTitle').textContent = c.name || '(이름 없음)';
     { const st = document.getElementById('d-autosave-state'); if (st) st.textContent = ''; }
     document.getElementById('d-name').textContent = c.name;
-    document.getElementById('d-org').textContent  = c.org||'—';
-    document.getElementById('d-tel').textContent  = c.tel||'—';
-    document.getElementById('d-time').textContent = fmtDate(c.timestamp);
+    /* 소속·연락처가 비면 **칸째 감춘다** — 「—」만 덩그러니 남지 않게. 전화는 눌러서 걸 수 있게 tel: 링크 */
+    { const o = document.getElementById('d-org'); o.textContent = c.org || ''; o.hidden = !c.org; }
+    { const t = document.getElementById('d-tel'); t.textContent = c.tel || ''; t.hidden = !c.tel;
+      if (c.tel) t.href = 'tel:' + String(c.tel).replace(/[^0-9+]/g, ''); else t.removeAttribute('href'); }
+    { const tm = fmtDate(c.timestamp); document.getElementById('d-time').textContent = tm;
+      document.querySelector('#modal .inq-time').hidden = !c.timestamp || tm === '—'; }   /* 시각을 모르면 「— 접수」를 남기지 않는다 */
 
     /* 견적 연계 문의: 견적 상세 섹션 표시 */
     let msgText = c.message || '—';
@@ -4535,14 +4550,14 @@
        배정과 무관하게 아무 이름이나 자칭할 수 있어 "담당자만 작성 가능"을 UI에서
        흉내냈지만, 서버 검증이 없는 순수 힌트였음. 이제 신원 자체가 세션에서
        검증되므로 그 제약을 없애고 작성자 표시만 남긴다. */
-    document.getElementById('d-log-author-tag').textContent = `작성자: ${currentUser.displayName}`;
-    document.getElementById('d-reply-author-tag').textContent = `작성자: ${currentUser.displayName}`;
+    /* 2026-10-02 「작성자: 나」 표시를 걷었다 — 늘 로그인한 사람이고, 남는 기록에는 이름이 찍힌다 */
 
     /* 답변 내용 (신규) */
     document.getElementById('d-reply-text').value = c.reply || '';
     document.getElementById('d-reply-meta').textContent = c.repliedAt
       ? `${c.repliedBy||'—'} · ${fmtDate(c.repliedAt)} 답변`
-      : '아직 답변하지 않았습니다.';
+      : '미답변';
+    document.getElementById('d-reply-meta').classList.toggle('done', !!c.repliedAt);
 
     document.getElementById('modal').classList.remove('hidden');
 
