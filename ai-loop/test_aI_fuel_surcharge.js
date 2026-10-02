@@ -177,7 +177,8 @@ const FX = (m) => fs.readFileSync(path.join(__dirname, 'fixtures', `fuel_notice_
     const sv = await call('POST', 'fuelSave', { url, bands: [{ min: 0, max: null, oneway: 1 }], month: '2099-01' }, 'manager');
     ok('🔴 ⑦ 저장할 때 서버가 **다시 받아 읽는다**', sv.code === 200 && fetched === 1);
     const saved = DB.settings[F.TABLES_KEY] && DB.settings[F.TABLES_KEY].months;
-    ok('🔴 ⑦ 화면이 보낸 숫자·월은 무시한다', saved && saved['2026-04'] && !saved['2099-01'] && saved['2026-04'].bands[0].oneway === 43900);
+    ok('🔴 ⑦ 화면이 보낸 숫자·월은 무시한다', saved && saved['2026-04'] && saved['2026-04'].OZ && !saved['2099-01'] && saved['2026-04'].OZ.bands[0].oneway === 43900);
+    ok('⑦ 달마다 **항공사별로** 저장한다 (아시아나 링크 → OZ)', saved['2026-04'].OZ.source === 'url' && !saved['2026-04'].KE);
     global.fetch = async () => ({ ok: true, status: 200, text: async () => FX('2026-04').replace('<b>(4월) 86,400원</b>', '<b>(4월) 6,400원</b>') });
     const bad = await call('POST', 'fuelSave', { url: url.replace('8531', '8532') }, 'owner');
     ok('🔴 ⑦ 검산에 걸리면 422 · 이유를 말한다', bad.code === 422 && (bad.body.errors || []).length > 0);
@@ -186,10 +187,72 @@ const FX = (m) => fs.readFileSync(path.join(__dirname, 'fixtures', `fuel_notice_
     ok('⑦ 직원은 구간 지정도 못 한다', (await call('POST', 'fuelBand', { destKey: '가고시마', minMiles: 500 }, 'staff')).code === 403);
     ok('⑦ 없는 목적지 거절', (await call('POST', 'fuelBand', { destKey: '화성', minMiles: 500 }, 'manager')).code === 400);
     ok('⑦ 매니저는 구간 지정', (await call('POST', 'fuelBand', { destKey: '가고시마', minMiles: 500 }, 'manager')).code === 200 && DB.settings[F.OVERRIDES_KEY]['가고시마'] === 500);
+    /* 🔴 기준은 대한항공 — 아시아나 표만 있으면 「적용 중」이 없다(아시아나로 갈아타지 않는다) */
+    const g0 = await call('GET', 'fuel', null, 'staff');
+    ok('🔴 ⑦ 기준 = 대한항공 · 아시아나 표만 있으면 적용 중 없음', g0.body.pick.basis === 'KE' && g0.body.pick.active === null && !g0.body.rows[1].roundTrip, JSON.stringify(g0.body.pick));
+
+    /* 대한항공 본문 붙여넣기 — 서버가 받으러 가지 않는다 */
+    const KE = fs.readFileSync(path.join(__dirname, 'fixtures', 'fuel_paste_ke_2026-10_reconstructed.txt'), 'utf8');
+    fetched = 0;
+    global.fetch = async () => { fetched++; throw new Error('붙여넣기는 바깥에 안 나간다'); };
+    ok('🔴 ⑦ 직원은 붙여넣기도 못 한다', (await call('POST', 'fuelSave', { text: KE, airline: 'KE' }, 'staff')).code === 403);
+    const kp = await call('POST', 'fuelSave', { text: KE, airline: 'KE', bands: [{ min: 0, max: null, oneway: 1 }] }, 'manager');
+    ok('⑦ 매니저 붙여넣기 저장 · 바깥 접속 0', kp.code === 200 && kp.body.month === '2026-10' && kp.body.airline === 'KE' && fetched === 0, JSON.stringify(kp.body));
+    const keSaved = DB.settings[F.TABLES_KEY].months['2026-10'].KE;
+    ok('🔴 ⑦ 붙여넣기도 서버가 읽은 값으로 저장 (화면이 보낸 구간 무시) · 원문을 근거로 남긴다', keSaved.bands.length === 9 && keSaved.bands[0].oneway === 49000 && keSaved.source === 'paste' && /유류할증료/.test(keSaved.text));
+    const kbad = await call('POST', 'fuelPreview', { text: KE.replace('116,200원', '16,200원'), airline: 'KE' }, 'manager');
+    ok('🔴 ⑦ 붙여넣기도 검산에 걸리면 422', kbad.code === 422 && kbad.body.errors.some((e) => /더 가까운 구간/.test(e)), JSON.stringify(kbad.body.errors));
+    global.fetch = realFetch;
+
     const g = await call('GET', 'fuel', null, 'staff');
     const tokyo = g.body && g.body.rows.find((r) => r.dest === '도쿄');
-    ok('⑦ 조회 — 도쿄 공시 왕복 131,800 · 지금 칸은 운영 덮어쓰기 값(150,000)', tokyo && tokyo.roundTrip === 131800 && tokyo.current === 150000, JSON.stringify(tokyo));
-    ok('⑦ 조회 — 지정한 구간이 반영된다', g.body.rows.find((r) => r.dest === '가고시마').basis === 'override');
+    ok('⑦ 조회 — 대한항공 10월 표 적용 중 (기준 = 대한항공)', g.body.pick.active === '2026-10' && g.body.pick.basis === 'KE');
+    ok('⑦ 조회 — 도쿄 대한항공 왕복 131,600 · 지금 칸은 운영 덮어쓰기 값(150,000)', tokyo && tokyo.roundTrip === 131600 && tokyo.current === 150000, JSON.stringify(tokyo));
+    ok('⑦ 조회 — 대한항공 표는 거리로 맞춘다 (아시아나 도시 표기를 안 쓴다)', tokyo.basis === 'miles');
+    const pq = g.body.rows.find((r) => r.dest === '푸꾸옥');
+    ok('⑦ 대한항공 2,000~2,999 한 구간 — 푸꾸옥 왕복 324,800', pq.roundTrip === 324800 && pq.band.min === 2000 && pq.band.max === 2999, JSON.stringify(pq));
+    ok('⑦ 조회 — 가고시마는 지정한 500마일 구간', g.body.rows.find((r) => r.dest === '가고시마').basis === 'override');
+    const ny = g.body.rows.find((r) => r.dest === '뉴욕');
+    ok('⑦ 대한항공 6,500~9,999 — 뉴욕 왕복 725,200', ny.roundTrip === 725200, JSON.stringify(ny));
+  }
+
+  console.log('\n[8] 본문 붙여넣기 읽기 (대한항공 기준 — 원문을 받으면 그 원문으로 바꾼다)');
+  {
+    const KE = fs.readFileSync(path.join(__dirname, 'fixtures', 'fuel_paste_ke_2026-10_reconstructed.txt'), 'utf8');
+    const r = F.parseNoticeText(KE);
+    ok('⑧ 대한항공 · 2026-10 · 9구간 · 검산 통과', r.ok && r.airline === 'KE' && r.month === '2026-10' && r.bands.length === 9, r.errors.join(' | '));
+    ok('🔴 ⑧ 이번 달이 전월보다 싼 칸에서도 **이번 달 칸**을 고른다 (500~999: 66,000 → 65,800)', r.bands[1].oneway === 65800 && r.bands[1].prevOneway === 66000);
+    ok('⑧ 금액이 빈 맨 끝 「10,000 ~」(상파울루)은 빼고 경고로 남긴다', r.bands[8].max === 9999 && r.warnings.some((w) => /10,000마일/.test(w)));
+    ok('⑧ 날짜 줄(10월 1일 ~ 10월 31일)을 구간으로 읽지 않는다', r.bands[0].min === 0 && r.bands.every((b) => b.min !== 1 && b.min !== 10));
+    /* 🔴 칸 순서가 「이번 달, 전월」이면 — 「무조건 마지막 칸」으로 읽으면 여기서 틀린다 */
+    const swapped = KE.split('\n').map((l) => {
+      if (/^운항거리/.test(l)) return l.replace('2026년 9월\t2026년 10월', '2026년 10월\t2026년 9월');
+      const m = l.match(/^(.*\t)([\d,]+원)\t([\d,]+원)$/);
+      return m ? m[1] + m[3] + '\t' + m[2] : l;
+    }).join('\n');
+    const sw = F.parseNoticeText(swapped);
+    ok('🔴 ⑧ 칸 순서가 「10월, 9월」이어도 머리줄을 보고 10월을 고른다', sw.ok && sw.bands[1].oneway === 65800 && sw.bands[7].oneway === 322000, sw.bands.map((b) => b.oneway).join(','));
+    const sp = F.parseNoticeText(KE.replace(/\t/g, '   '));
+    ok('⑧ 칸이 탭이 아니라 띄어쓰기여도 읽는다', sp.ok && sp.bands[4].oneway === 162400);
+    const short = F.parseNoticeText(KE.split('\n').filter((l) => !/^6,500/.test(l)).join('\n'));
+    ok('🔴 ⑧ 먼 구간이 빠져 우리 목적지(워싱턴 6,943마일)를 못 덮으면 거절', !short.ok && short.errors.some((e) => /덮지 못합니다/.test(e)), short.errors.join(' | '));
+    const flat = F.parseNoticeText(KE.replace(/\n/g, ' '));
+    ok('⑧ 줄바꿈 없이 한 줄로 붙이면 거절하고 「줄 단위로 복사」를 말한다', !flat.ok && flat.errors.some((e) => /줄 단위|구간이 \d개뿐/.test(e)), flat.errors.join(' | '));
+    ok('⑧ 유류할증료 글이 아니면 거절', !F.parseNoticeText('안녕하세요\n500 ~ 999  10,000원').ok);
+    const noAir = F.parseNoticeText(KE.replace(/대한항공/g, '항공사'));
+    ok('⑧ 항공사를 모르면 거절 — 고르면 통과', !noAir.ok && F.parseNoticeText(KE.replace(/대한항공/g, '항공사'), { airline: 'KE' }).ok);
+    const dom = F.parseNoticeText('국내선 유류할증료 2026년 10월 1일 ~\n~ 499  20,900원');
+    ok('⑧ 국내선 공지는 거절', !dom.ok && dom.errors.some((e) => /국내선/.test(e)));
+  }
+
+  console.log('\n[9] 기준 항공사 고르기');
+  {
+    const m = { '2026-10': { KE: { bands: [] }, OZ: { bands: [] } }, '2026-11': { OZ: { bands: [] } } };
+    const p = F.pickBasis(m, '2026-11');
+    ok('🔴 ⑨ 이번 달에 아시아나 표만 있으면 대한항공 지난 표를 쓰고 「아시아나만 있다」고 말한다', p.active === '2026-10' && p.currentMissing && p.otherOnly.join() === 'OZ', JSON.stringify(p));
+    const legacy = F.normalizeMonths({ '2026-04': { airline: 'OZ', bands: [1] } });
+    ok('⑨ 첫 판 저장 모양({airline, bands})도 읽는다', legacy['2026-04'].OZ && legacy['2026-04'].OZ.bands.length === 1);
+    ok('⑨ 기준 항공사는 대한항공', F.BASIS_AIRLINE === 'KE');
   }
 
   console.log('\n────────────────────────────────────────────────────────────────');

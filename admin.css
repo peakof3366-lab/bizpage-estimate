@@ -817,6 +817,10 @@
     .fuel-band { font-size:.78rem; background:var(--bg,#f6f6f6); border:1px solid var(--border); padding:.2rem .5rem; }
     .fuel-band em { font-style:normal; color:var(--muted); margin-right:.25rem; }
     .fuel-preview { margin-top:.5rem; }
+    .fuel-text { width:100%; font-size:13px; line-height:1.5; font-family:inherit; padding:.5rem; margin-bottom:.4rem; box-sizing:border-box; }
+    .fuel-label-inline { font-size:.82rem; font-weight:700; align-self:center; }
+    #fuel-airline { min-height:44px; font-size:13px; }
+    .fuel-import .fuel-label { margin-top:.6rem; }
     .fuel-compare-sum { min-height:44px; font-size:.84rem; font-weight:700; }
     .fuel-table-wrap { overflow-x:auto; }
     .fuel-table { min-width:760px; }

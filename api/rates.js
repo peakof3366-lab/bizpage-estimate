@@ -223,10 +223,11 @@ async function runFeeds(res) {
 
 /* ── ⛽ 유류할증료 월별 표 (2026-10-02) — 읽기·검산은 `_lib/fuel_surcharge.js` 하나가 한다 ──────
    GET  ?action=fuel         (로그인)   표 목록 · 적용 중/다음 달 · 목적지별 비교
-   POST ?action=fuelPreview  (매니저↑) {url} → 서버가 읽어 보여만 준다(저장 안 함)
-   POST ?action=fuelSave     (매니저↑) {url} → 🔴 **서버가 다시 받아 다시 읽고** 검산을 통과해야 저장
+   POST ?action=fuelPreview  (매니저↑) {text, airline} 본문 붙여넣기(대한항공) 또는 {url} 아시아나 링크 → 읽어 보여만 준다
+   POST ?action=fuelSave     (매니저↑) 같은 본문 → 🔴 **서버가 다시 읽고** 검산을 통과해야 저장(화면이 보낸 구간·금액·월은 안 받는다)
+   ⚠ 기준 항공사 = **대한항공**(2026-10-02 대표 결정, _lib/fuel_surcharge.js BASIS_AIRLINE). 달마다 항공사별로 저장한다.
    POST ?action=fuelBand     (매니저↑) {destKey, minMiles|null} 목적지 구간을 사람이 정한다
-   POST ?action=fuelRemove   (매니저↑) {month} 잘못 넣은 달을 뺀다
+   POST ?action=fuelRemove   (매니저↑) {month, airline} 잘못 넣은 표를 뺀다
    ⚠ 이 단계에서는 **견적 금액이 바뀌지 않는다.** 엔진은 아직 요율표의 fuel_surcharge를 쓴다(대기열 0-ap). */
 async function currentFuelByDest() {
   const rows = await sql`select destination_key, overrides from rate_overrides`;
@@ -250,25 +251,31 @@ async function handleFuelGet(req, res) {
     const [tables, overrides, cur] = await Promise.all([
       readSetting(FUEL.TABLES_KEY), readSetting(FUEL.OVERRIDES_KEY), currentFuelByDest(),
     ]);
-    const months = (tables && tables.months) || {};
-    const pick = FUEL.pickTables(months);
-    const t = pick.active ? months[pick.active] : null;
+    const months = FUEL.normalizeMonths((tables && tables.months) || {});
+    /* 🔴 기준 = 대한항공(2026-10-02 대표 결정). 대한항공 표가 없는 달은 건너뛴다 — 아시아나로 조용히 갈아타지 않는다. */
+    const pick = FUEL.pickBasis(months);
+    const t = pick.active ? months[pick.active][pick.basis] : null;
+    /* 참고: 같은 달 아시아나 표가 있으면 옆에 보여 준다(합병 전 두 회사 차이) */
+    const ref = pick.active && months[pick.active].OZ && pick.basis !== 'OZ' ? months[pick.active].OZ : null;
     const rows = Object.entries(destinationRates.DEST_FUEL_ROUTE || {}).map(([k, route]) => {
       const c = cur[k] || {};
       if (!t) return { dest: k, miles: route.miles, apt: route.apt, current: c.fuel, rateDate: c.rateDate };
-      const r = FUEL.resolveBand(k, route, t.bands, overrides || {});
+      const r = FUEL.resolveBand(k, route, t.bands, overrides || {}, { noCity: pick.basis !== 'OZ' });
       const band = r.band >= 0 ? t.bands[r.band] : null;
+      let refRT = null;
+      if (ref) { const rr = FUEL.resolveBand(k, route, ref.bands, {}, {}); refRT = rr.band >= 0 ? ref.bands[rr.band].oneway * 2 : null; }
       return {
         dest: k, apt: route.apt, miles: route.miles, basis: r.basis,
         cityMismatch: !!r.cityMismatch, nearEdge: !!r.nearEdge,
         band: band ? { min: band.min, max: band.max } : null,
-        oneway: band ? band.oneway : null, roundTrip: band ? band.oneway * 2 : null,
+        oneway: band ? band.oneway : null, roundTrip: band ? band.oneway * 2 : null, refRoundTrip: refRT,
         current: c.fuel, rateDate: c.rateDate,
       };
     });
+    const strip = (v) => ({ airline: v.airline, source: v.source || (v.url ? 'url' : null), url: v.url || null, savedAt: v.savedAt, savedBy: v.savedBy, bands: v.bands, warnings: v.warnings || [] });
     return res.status(200).json({
-      pick,
-      months: Object.fromEntries(Object.entries(months).map(([m, v]) => [m, { airline: v.airline, url: v.url, savedAt: v.savedAt, savedBy: v.savedBy, bands: v.bands }])),
+      pick, airlines: FUEL.AIRLINES,
+      months: Object.fromEntries(Object.entries(months).map(([m, v]) => [m, Object.fromEntries(Object.entries(v).map(([a, t2]) => [a, strip(t2)]))])),
       overrides: overrides || {},
       rows,
     });
@@ -284,29 +291,43 @@ async function handleFuelPost(req, res, action) {
   const who = (req.user && (req.user.displayName || req.user.username)) || '';
   try {
     if (action === 'fuelPreview' || action === 'fuelSave') {
-      const r = await FUEL.fetchNotice(String(b.url || ''));
-      if (!r.ok) return res.status(422).json({ ok: false, errors: r.errors || ['읽지 못했습니다'], parsed: r.bands ? { month: r.month, bands: r.bands } : null });
-      if (action === 'fuelPreview') return res.status(200).json({ ok: true, month: r.month, airline: r.airline, bands: r.bands });
+      /* 두 갈래: ① 아시아나 공지 링크(서버가 받아 읽는다) ② 공지 본문 붙여넣기(대한항공 — 서버가 받으러 가지 않는다).
+         🔴 어느 쪽이든 **서버가 읽고 검산한다.** 화면이 보낸 구간·금액·월은 받지 않는다. */
+      const hasText = typeof b.text === 'string' && b.text.trim().length > 0;
+      const r = hasText
+        ? FUEL.parseNoticeText(b.text, { airline: b.airline })
+        : await FUEL.fetchNotice(String(b.url || ''));
+      if (!r.ok) return res.status(422).json({ ok: false, errors: r.errors || ['읽지 못했습니다'], warnings: r.warnings || [], parsed: r.bands ? { month: r.month, airline: r.airline, bands: r.bands } : null });
+      if (action === 'fuelPreview') return res.status(200).json({ ok: true, month: r.month, airline: r.airline, bands: r.bands, warnings: r.warnings || [] });
       const tables = (await readSetting(FUEL.TABLES_KEY)) || { months: {} };
-      tables.months = tables.months || {};
-      const replaced = !!tables.months[r.month];
-      tables.months[r.month] = { airline: r.airline, url: r.url, bands: r.bands, savedAt: new Date().toISOString(), savedBy: who };
+      const months = FUEL.normalizeMonths(tables.months || {});
+      months[r.month] = months[r.month] || {};
+      const replaced = !!months[r.month][r.airline];
+      months[r.month][r.airline] = {
+        airline: r.airline, source: hasText ? 'paste' : 'url', url: hasText ? null : r.url,
+        /* 붙여넣은 글은 근거로 남긴다(무엇을 보고 넣었는지) — 길면 자른다 */
+        text: hasText ? b.text.slice(0, 20000) : null,
+        bands: r.bands, warnings: r.warnings || [], savedAt: new Date().toISOString(), savedBy: who,
+      };
       await sql`
         insert into app_settings (key, value, updated_at, updated_by)
-        values (${FUEL.TABLES_KEY}, ${JSON.stringify(tables)}::jsonb, now(), ${who})
+        values (${FUEL.TABLES_KEY}, ${JSON.stringify({ months })}::jsonb, now(), ${who})
         on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = excluded.updated_by
       `;
-      return res.status(200).json({ ok: true, month: r.month, replaced });
+      return res.status(200).json({ ok: true, month: r.month, airline: r.airline, replaced });
     }
     if (action === 'fuelRemove') {
       const month = String(b.month || '');
-      if (!/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: 'invalid_month' });
+      const airline = String(b.airline || '');
+      if (!/^d{4}-d{2}$/.test(month) || !FUEL.AIRLINES[airline]) return res.status(400).json({ error: 'invalid_month' });
       const tables = (await readSetting(FUEL.TABLES_KEY)) || { months: {} };
-      if (!tables.months || !tables.months[month]) return res.status(404).json({ error: 'not_found' });
-      delete tables.months[month];
+      const months = FUEL.normalizeMonths(tables.months || {});
+      if (!months[month] || !months[month][airline]) return res.status(404).json({ error: 'not_found' });
+      delete months[month][airline];
+      if (!Object.keys(months[month]).length) delete months[month];
       await sql`
         insert into app_settings (key, value, updated_at, updated_by)
-        values (${FUEL.TABLES_KEY}, ${JSON.stringify(tables)}::jsonb, now(), ${who})
+        values (${FUEL.TABLES_KEY}, ${JSON.stringify({ months })}::jsonb, now(), ${who})
         on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = excluded.updated_by
       `;
       return res.status(200).json({ ok: true });
@@ -354,7 +375,7 @@ async function handleFeeds(req, res) {
       holidays: holidays ? { fetchedAt: holidays.fetchedAt, years: Object.keys(holidays.years || {}).map(Number) } : null,
       calendar,
       /* 유류할증료 표는 자동으로 못 받는다(항공사가 막는다) — 이번 달 표를 사람이 넣었는지만 말한다 */
-      fuel: FUEL.pickTables((fuelTables && fuelTables.months) || {}),
+      fuel: FUEL.pickBasis((fuelTables && fuelTables.months) || {}),
     });
   } catch (err) {
     console.error(err);

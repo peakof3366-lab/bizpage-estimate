@@ -1855,17 +1855,24 @@
       return;
     }
     const p = d.pick || {};
+    const AL = d.airlines || { KE: '대한항공', OZ: '아시아나항공' };
+    const basisName = AL[p.basis] || p.basis;
     const months = d.months || {};
-    const act = p.active ? months[p.active] : null;
-    const nxt = p.next ? months[p.next] : null;
+    /* 🔴 기준 항공사(대한항공) 표만 「적용 중」이 된다. 아시아나 표는 참고로만 보인다. */
+    const act = p.active ? (months[p.active] || {})[p.basis] : null;
+    const nxt = p.next ? (months[p.next] || {})[p.basis] : null;
     const lines = [];
     if (!act) {
-      lines.push(`<p class="fuel-line ext-bad"><b>아직 넣은 표가 없습니다.</b> 아래에 이번 달 아시아나 공지 링크를 붙여넣고 「공지 읽어 보기」를 누르세요.${canEdit ? '' : ' (매니저 이상만 넣을 수 있습니다 — 매니저에게 요청하세요)'}</p>`);
+      lines.push(`<p class="fuel-line ext-bad"><b>${esc(basisName)} 표가 아직 없습니다.</b> 아래 ①에 이번 달 ${esc(basisName)} 공지 본문을 붙여넣고 「공지 읽어 보기」를 누르세요.${canEdit ? '' : ' (매니저 이상만 넣을 수 있습니다 — 매니저에게 요청하세요)'}</p>`);
     } else {
-      lines.push(`<p class="fuel-line">적용 중 <b>${esc(p.active)}</b> 표 (아시아나 · ${esc(act.savedBy || '')} ${act.savedAt ? new Date(act.savedAt).toLocaleDateString('ko-KR') : ''} 저장)${p.currentMissing ? ` — <b class="ext-bad">${esc(p.current)} 표가 아직 없습니다.</b> 지난 달 표로 보고 있습니다. 이번 달 공지 링크를 넣어 주세요.` : ''}</p>`);
+      lines.push(`<p class="fuel-line">기준 <b>${esc(basisName)}</b> · 적용 중 <b>${esc(p.active)}</b> 표 (${act.source === 'paste' ? '본문 붙여넣기' : '공지 링크'} · ${esc(act.savedBy || '')} ${act.savedAt ? new Date(act.savedAt).toLocaleDateString('ko-KR') : ''} 저장)${p.currentMissing ? ` — <b class="ext-bad">${esc(p.current)} ${esc(basisName)} 표가 아직 없습니다.</b> 지난 표로 보고 있습니다. 이번 달 공지를 넣어 주세요.` : ''}</p>`);
+    }
+    if ((p.otherOnly || []).length) {
+      lines.push(`<p class="fuel-line ext-bad">⚠ ${esc(p.current)}에는 ${p.otherOnly.map((a) => esc(AL[a] || a)).join('·')} 표만 있습니다 — 기준이 ${esc(basisName)}라 그 표로 갈아타지 않습니다. ${esc(basisName)} 공지를 넣어 주세요.</p>`);
     }
     if (nxt && act) {
-      const a0 = act.bands[1] && nxt.bands[1] ? (nxt.bands[1].oneway / act.bands[1].oneway - 1) * 100 : null;
+      const pick2 = (t) => (t.bands.find((b) => b.min === 500) || t.bands[1] || {}).oneway;
+      const a0 = pick2(act) && pick2(nxt) ? (pick2(nxt) / pick2(act) - 1) * 100 : null;
       lines.push(`<p class="fuel-line">📣 다음 달 예고 <b>${esc(p.next)}</b> 표가 들어와 있습니다${a0 != null ? ` — 500~999마일 기준 <b>${a0 > 0 ? '+' : ''}${a0.toFixed(0)}%</b>` : ''}.</p>`);
     }
     if (act) {
@@ -1874,12 +1881,13 @@
     st.innerHTML = lines.join('');
     if (cnt) {
       const bad = !act || p.currentMissing;
-      cnt.textContent = !act ? '⚠ 표 없음' : (p.currentMissing ? `⚠ ${p.current} 표 없음` : `${p.active} 적용 중`);
+      cnt.textContent = !act ? `⚠ ${basisName} 표 없음` : (p.currentMissing ? `⚠ ${p.current} 표 없음` : `${basisName} ${p.active} 적용 중`);
       cnt.classList.toggle('ext-bad', !!bad);
     }
     /* 목적지별 비교 */
     if (cmp) {
-      if (!act) { cmp.innerHTML = '<p class="ext-feeds-note">표를 넣으면 목적지마다 공시 왕복 금액과 지금 요율표 칸을 나란히 보여 드립니다.</p>'; return; }
+      if (!act) { cmp.innerHTML = `<p class="ext-feeds-note">${esc(basisName)} 표를 넣으면 목적지마다 공시 왕복 금액과 지금 요율표 칸을 나란히 보여 드립니다.</p>`; return; }
+      const hasRef = (d.rows || []).some((r) => r.refRoundTrip != null);
       const opts = (sel) => ['<option value="">자동</option>'].concat(act.bands.map((b) => `<option value="${b.min}"${String(sel) === String(b.min) ? ' selected' : ''}>${esc(bandLabel(b))}</option>`)).join('');
       const basisTxt = { city: '공지 도시', miles: '거리 계산', override: '담당자 지정', domestic: '국내선', unknown: '—' };
       const rowsHtml = (d.rows || []).map((r) => {
@@ -1890,33 +1898,46 @@
           <td><b>${esc(r.dest)}</b><span class="em-sub">${esc(r.apt || '')} · ${Number(r.miles || 0).toLocaleString()}마일</span></td>
           <td>${r.basis === 'domestic' ? '국내선 — 대상 아님' : esc(bandLabel(r.band))}<span class="em-sub">${esc(basisTxt[r.basis] || '')}${flag}</span></td>
           <td class="em-num">${won(r.roundTrip)}</td>
+          ${hasRef ? `<td class="em-num">${won(r.refRoundTrip)}</td>` : ''}
           <td class="em-num">${won(r.current)}<span class="em-sub">요율 기준 ${esc(r.rateDate || '—')}</span></td>
           <td class="em-num">${diff == null ? '—' : `${diff > 0 ? '+' : ''}${diff.toFixed(0)}%`}</td>
           <td>${canEdit && r.basis !== 'domestic' ? `<select class="fuel-band-sel" data-dest="${esc(r.dest)}" aria-label="${esc(r.dest)} 유류할증료 구간" onchange="fuelSetBand(this)">${opts(d.overrides && d.overrides[r.dest])}</select>` : ''}</td>
         </tr>`;
       }).join('');
-      cmp.innerHTML = `<p class="ext-feeds-note">🔴 <b>아직 견적 금액에 쓰이지 않습니다.</b> 「차이」는 지금 요율표 칸이 공시 왕복보다 몇 % 높은지입니다. 견적 엔진은 이 칸에 시즌·성수기·인원 할인을 더 곱합니다.</p>
+      cmp.innerHTML = `<p class="ext-feeds-note">🔴 <b>아직 견적 금액에 쓰이지 않습니다.</b> 「차이」는 지금 요율표 칸이 ${esc(basisName)} 공시 왕복보다 몇 % 높은지입니다. 견적 엔진은 이 칸에 시즌·성수기·인원 할인을 더 곱합니다.</p>
         <div class="fuel-table-wrap"><table class="inq-table fuel-table"><thead><tr>
-          <th>목적지</th><th>구간 · 근거</th><th class="em-num">공시 왕복</th><th class="em-num">지금 요율표</th><th class="em-num">차이</th><th>구간 지정</th>
+          <th>목적지</th><th>구간 · 근거</th><th class="em-num">${esc(basisName)} 왕복</th>${hasRef ? '<th class="em-num">아시아나 왕복(참고)</th>' : ''}<th class="em-num">지금 요율표</th><th class="em-num">차이</th><th>구간 지정</th>
         </tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
     }
   }
 
+  /* 읽어 보기·저장이 보내는 본문 — **본문을 붙여넣었으면 본문, 아니면 링크.** 둘 다 서버가 읽고 검산한다. */
+  function fuelRequestBody() {
+    const text = ((document.getElementById('fuel-text') || {}).value || '').trim();
+    const url = ((document.getElementById('fuel-url') || {}).value || '').trim();
+    const airline = (document.getElementById('fuel-airline') || {}).value || 'KE';
+    return text ? { text, airline } : { url };
+  }
+
   async function fuelPreview() {
-    const url = (document.getElementById('fuel-url') || {}).value || '';
     const box = document.getElementById('fuel-preview');
     const save = document.getElementById('fuel-save-btn');
     if (save) save.classList.add('hidden');
+    const body = fuelRequestBody();
+    if (!body.text && !body.url) { box.innerHTML = '<p class="ext-feeds-note ext-bad">① 공지 본문을 붙여넣거나 ② 아시아나 공지 링크를 넣어 주세요.</p>'; return; }
     box.innerHTML = '<p class="ext-feeds-note">공지를 읽는 중…</p>';
     try {
-      const r = await fetch('/api/rates?action=fuelPreview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url.trim() }) });
+      const r = await fetch('/api/rates?action=fuelPreview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) {
         box.innerHTML = `<p class="ext-feeds-note ext-bad"><b>저장할 수 없습니다.</b> ${(d.errors || ['읽지 못했습니다 (HTTP ' + r.status + ')']).map(esc).join(' · ')}</p>`;
         return;
       }
-      const exists = fuelCache && fuelCache.months && fuelCache.months[d.month];
-      box.innerHTML = `<p class="fuel-line">✓ <b>${esc(d.month)}</b> 표를 읽었습니다 (구간 ${d.bands.length}개 · 검산 통과)${exists ? ' — <b>이미 있는 달입니다. 저장하면 덮어씁니다.</b>' : ''}</p>
+      const AL = (fuelCache && fuelCache.airlines) || { KE: '대한항공', OZ: '아시아나항공' };
+      const exists = fuelCache && fuelCache.months && fuelCache.months[d.month] && fuelCache.months[d.month][d.airline];
+      box.innerHTML = `<p class="fuel-line">✓ <b>${esc(AL[d.airline] || d.airline)} ${esc(d.month)}</b> 표를 읽었습니다 (구간 ${d.bands.length}개 · 검산 통과)${exists ? ' — <b>이미 있는 표입니다. 저장하면 덮어씁니다.</b>' : ''}</p>
+        ${(d.warnings || []).length ? `<p class="ext-feeds-note">참고: ${d.warnings.map(esc).join(' · ')}</p>` : ''}
+        <p class="ext-feeds-note">🔎 <b>공지 화면과 숫자가 같은지 눈으로 한 번 맞춰 보고</b> 저장해 주세요.</p>
         <div class="fuel-bands">${d.bands.map((b) => `<span class="fuel-band"><em>${esc(bandLabel(b))}</em> 편도 ${won(b.oneway)}${b.prevOneway ? ` <small>(전월 ${won(b.prevOneway)})</small>` : ''}</span>`).join('')}</div>`;
       if (save) save.classList.remove('hidden');
     } catch (e) {
@@ -1925,20 +1946,21 @@
   }
 
   async function fuelSave() {
-    const url = (document.getElementById('fuel-url') || {}).value || '';
     const box = document.getElementById('fuel-preview');
     const save = document.getElementById('fuel-save-btn');
     if (save) save.disabled = true;
     try {
-      const r = await fetch('/api/rates?action=fuelSave', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url.trim() }) });
+      const r = await fetch('/api/rates?action=fuelSave', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fuelRequestBody()) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) {
         box.innerHTML = `<p class="ext-feeds-note ext-bad"><b>저장하지 못했습니다.</b> ${(d.errors || ['HTTP ' + r.status]).map(esc).join(' · ')}</p>`;
         return;
       }
-      box.innerHTML = `<p class="fuel-line">✅ <b>${esc(d.month)}</b> 표를 저장했습니다${d.replaced ? ' (덮어씀)' : ''}.</p>`;
+      const AL = (fuelCache && fuelCache.airlines) || { KE: '대한항공', OZ: '아시아나항공' };
+      box.innerHTML = `<p class="fuel-line">✅ <b>${esc(AL[d.airline] || d.airline)} ${esc(d.month)}</b> 표를 저장했습니다${d.replaced ? ' (덮어씀)' : ''}.</p>`;
       if (save) save.classList.add('hidden');
       document.getElementById('fuel-url').value = '';
+      document.getElementById('fuel-text').value = '';
       await loadFuel();
       loadExternalFeeds();
     } catch (e) {
@@ -2053,9 +2075,9 @@
     /* ④ 유류할증료 — 자동으로 못 받는다. 이번 달 표를 사람이 넣었는지만 말한다(아래 ⛽ 카드) */
     const fu = d.fuel || {};
     if (fu.currentMissing) problems.push('유류할증료 표');
-    html += row('유류할증료 표 (사람이 넣음)', !fu.currentMissing,
-      fu.active ? `적용 중 <b>${esc(fu.active)}</b>${fu.currentMissing ? ` — <b>${esc(fu.current)} 표가 없습니다</b>` : ''}${fu.next ? ` · 다음 달 예고 ${esc(fu.next)}` : ''}` : '<b>아직 넣은 표가 없습니다</b> — 아래 「⛽ 유류할증료 월별 표」에 이번 달 공지 링크를 넣어 주세요',
-      '항공사가 자동 수집을 막아 매달 공지 링크를 붙여넣습니다 — 아래 「⛽ 유류할증료 월별 표」');
+    html += row('유류할증료 표 (사람이 넣음 · 기준 대한항공)', !fu.currentMissing,
+      fu.active ? `적용 중 <b>${esc(fu.active)}</b>${fu.currentMissing ? ` — <b>${esc(fu.current)} 대한항공 표가 없습니다</b>` : ''}${fu.next ? ` · 다음 달 예고 ${esc(fu.next)}` : ''}` : '<b>아직 넣은 대한항공 표가 없습니다</b> — 아래 「⛽ 유류할증료 월별 표」에 이번 달 공지 본문을 붙여넣어 주세요',
+      '항공사가 자동 수집을 막아 매달 공지 본문을 붙여넣습니다 — 아래 「⛽ 유류할증료 월별 표」');
     html += `<p class="ext-feeds-note">자동 실행이 바꾸는 것은 <b>환율 표뿐</b>입니다(환율 보정은 예전처럼 ±30% 안). 성수기 달력과 요율은 사람이 고칩니다.</p>`;
     body.innerHTML = html;
     /* ⚠ 머리와 줄이 같은 말을 해야 한다 — 줄에 「!」가 있는데 머리가 「정상」이면 접힌 채로는 아무도 안 연다 */
