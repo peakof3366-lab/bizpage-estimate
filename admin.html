@@ -1731,96 +1731,100 @@
         <h1 class="page-title">설정</h1>
         <p class="page-sub">내 비밀번호를 바꿉니다. 관리자는 팀원 계정과 가입코드도 여기서 관리합니다.</p>
       </div>
-      <div style="max-width:680px">
+      <!-- 2026-10-02 대표 지시 「깔끔하게 · 같은 줄의 박스 크기 맞추기」 — 칸마다 이름표(위) + 한 줄 격자 + 칸·버튼 44px.
+           ⚠ id·onclick은 그대로다(test_pI·qE·qK·audit_roles가 붙잡고 있다). 모양 규칙은 admin.css 「설정 화면」. -->
+      <div class="set-wrap">
         <div class="setting-section">
           <div class="setting-title">계정 정보</div>
-          <div class="setting-row">
+          <div class="set-block">
             <!-- 🔴 2026-09-27 「admin」이 **HTML에 박혀** 있었다 — 직원(lee)이 열어도 남의 아이디가 보였다. 로그인한 사람으로 채운다 -->
-            <div class="setting-info"><p>내 아이디 <span class="info-tag">고정</span></p><span id="myAccountId">—</span></div>
+            <p class="set-label">내 아이디 <span class="info-tag">고정</span></p>
+            <p class="set-value" id="myAccountId">—</p>
           </div>
-          <div class="setting-row">
-            <div class="setting-info"><p>비밀번호 변경</p><span>현재 비밀번호 입력 후 새 비밀번호를 설정합니다.</span></div>
-          </div>
-          <div class="pw-form" id="pwForm">
-            <input type="password" class="pw-input" id="pwCurrent" placeholder="현재 비밀번호" aria-label="현재 비밀번호" />
-            <!-- 화면은 "6자 이상"이라고 안내했는데 클라이언트·서버 모두 8자를 요구했다.
-                 안내를 그대로 따른 사람만 거절당한다 — 팀원이 첫 로그인 뒤 비밀번호를
-                 바꿀 때 정확히 이 자리를 지난다. 코드가 아니라 안내가 틀렸으므로
-                 안내를 실제 규칙에 맞춘다(가입 화면·계정 생성 칸은 이미 8자로 맞다). -->
-            <input type="password" class="pw-input" id="pwNew" data-fact-ph="PASSWORD_MIN_LENGTH:새 비밀번호 ({}자 이상)" placeholder="새 비밀번호 (8자 이상)" aria-label="새 비밀번호" />
-            <input type="password" class="pw-input" id="pwConfirm" placeholder="새 비밀번호 확인" aria-label="새 비밀번호 확인" />
-            <p id="pwMsg" style="font-size:.78rem;color:var(--danger)"></p>
-            <button class="btn-act btn-primary" style="width:fit-content" onclick="changePw()">비밀번호 변경</button>
+          <div class="set-block">
+            <p class="set-label">비밀번호 변경</p>
+            <div class="pw-form set-grid set-grid-3" id="pwForm">
+              <!-- ⚠ 2026-10-02 이름표를 칸 위에 단다 — 브라우저가 현재 비밀번호를 자동으로 채우면 예시 글씨가 사라져
+                   무슨 칸인지 몰랐다(대표 캡처). 「8자 이상」은 실제 규칙과 같다(예전 「6자 이상」 안내 사고). -->
+              <label class="set-field"><span>현재 비밀번호</span>
+                <input type="password" class="pw-input" id="pwCurrent" placeholder="" aria-label="현재 비밀번호" autocomplete="current-password" /></label>
+              <label class="set-field"><span>새 비밀번호</span>
+                <input type="password" class="pw-input" id="pwNew" data-fact-ph="PASSWORD_MIN_LENGTH:{}자 이상" placeholder="8자 이상" aria-label="새 비밀번호" autocomplete="new-password" /></label>
+              <label class="set-field"><span>새 비밀번호 확인</span>
+                <input type="password" class="pw-input" id="pwConfirm" placeholder="한 번 더" aria-label="새 비밀번호 확인" autocomplete="new-password" /></label>
+            </div>
+            <div class="set-actions">
+              <button class="btn-act btn-primary" onclick="changePw()">비밀번호 변경</button>
+              <p id="pwMsg" class="set-msg" style="color:var(--danger)"></p>
+            </div>
           </div>
         </div>
 
-        <!-- 직원 계정 관리 (신규, 관리자 전용) — 예전엔 STAFF_LIST 하드코딩 배열이라
-             직원이 바뀌면 코드를 고쳐야 했음. 이제 여기서 계정 생성/역할변경/
-             비활성화/비밀번호 재설정을 전부 처리한다. -->
+        <!-- 직원 계정 관리 (관리자 전용) — 계정 생성·역할 변경·비활성화·비밀번호 재설정을 여기서 다 한다. -->
         <div class="setting-section" id="staffAdminSection">
           <div class="setting-title">직원 계정 관리</div>
 
-          <!-- 가입코드 (신규) — 직원이 로그인 화면에서 직접 신청하게 하는 열쇠.
-               비워두면 가입 기능 자체가 꺼진다(서버가 403). -->
-          <div class="setting-row" style="align-items:flex-start;flex-wrap:wrap;gap:.6rem">
-            <div class="setting-info" style="flex-basis:100%">
-              <p>직원 가입코드</p>
-              <span>이 코드를 아는 사람만 로그인 화면에서 가입 신청을 할 수 있습니다. 신청은 항상 <strong>승인 대기</strong> 상태로 들어오고, 아래 목록에서 승인해야 로그인됩니다. 비워두면 가입 신청을 받지 않습니다.</span>
+          <!-- 가입코드 — 비워 두면 가입 기능 자체가 꺼진다(서버 403) -->
+          <div class="set-block">
+            <p class="set-label">직원 가입코드</p>
+            <p class="set-desc">이 코드를 아는 사람만 로그인 화면에서 가입 신청을 할 수 있습니다. 신청은 <strong>승인 대기</strong>로 들어오고 아래 목록에서 승인하면 로그인됩니다.</p>
+            <div class="set-inline">
+              <input type="text" id="signup-code-input" class="pw-input" data-fact-ph="SIGNUP_CODE_MIN,SIGNUP_CODE_MAX:영문·숫자 {}~{}자" placeholder="영문·숫자 6~40자" autocomplete="off" aria-label="팀원 가입코드" />
+              <button class="btn-act btn-primary" onclick="saveSignupCode()">코드 저장</button>
+              <button class="btn-act btn-outline-p" onclick="clearSignupCode()">가입 받지 않기</button>
             </div>
-            <input type="text" id="signup-code-input" class="pw-input" data-fact-ph="SIGNUP_CODE_MIN,SIGNUP_CODE_MAX:영문·숫자 {}~{}자" placeholder="영문·숫자 6~40자" style="width:220px" autocomplete="off" aria-label="팀원 가입코드" />
-            <button class="btn-act btn-primary" onclick="saveSignupCode()">코드 저장</button>
-            <button class="btn-act btn-outline-p" onclick="clearSignupCode()">가입 받지 않기</button>
-            <span id="signup-code-msg" style="font-size:.8rem;color:var(--muted)"></span>
+            <span id="signup-code-msg" class="set-msg"></span>
           </div>
 
-          <div class="setting-row" style="align-items:flex-start">
-            <div class="setting-info"><p>계정 목록</p><span>비활성화된 계정은 로그인할 수 없습니다.</span></div>
+          <div class="set-block">
+            <p class="set-label">계정 목록 <span class="set-desc-inline">비활성 계정은 로그인할 수 없습니다</span></p>
+            <p id="staff-pending-banner" class="hidden" style="font-size:.84rem;color:var(--warn,#8F5D0C);margin:.2rem 0 .4rem;font-weight:600"></p>
+            <div style="overflow-x:auto">
+              <table class="rate-table set-table">
+                <thead>
+                  <tr><th>이름</th><th>아이디</th><th>역할</th><th>상태</th><th style="width:220px">관리</th></tr>
+                </thead>
+                <tbody id="staff-admin-tbody"></tbody>
+              </table>
+            </div>
           </div>
-          <p id="staff-pending-banner" class="hidden" style="font-size:.84rem;color:var(--warn,#8F5D0C);margin:.2rem 0 .4rem;font-weight:600"></p>
-          <div style="overflow-x:auto">
-            <table class="rate-table" style="margin-top:.5rem">
-              <thead>
-                <tr><th>이름</th><th>아이디</th><th>역할</th><th>상태</th><th style="width:220px">관리</th></tr>
-              </thead>
-              <tbody id="staff-admin-tbody"></tbody>
-            </table>
+
+          <div class="set-block">
+            <p class="set-label">새 계정 만들기 <span class="set-desc-inline">가입코드 없이 바로 만듭니다 — 초기 비밀번호를 본인에게 전해 주세요</span></p>
+            <!-- 🔴 2026-10-02 브라우저가 이 아이디 칸에 **관리자 아이디(admin)를 자동으로 채웠다**(대표 캡처) — 그대로 누르면
+                 엉뚱한 계정을 만든다. 비밀번호 칸은 new-password로, 두 칸 모두 누르기 전까지 readonly로 두어 자동 채움을 막는다. -->
+            <div class="set-grid set-grid-new">
+              <label class="set-field"><span>아이디</span>
+                <input type="text" id="new-staff-username" class="pw-input" placeholder="영문·숫자" aria-label="새 팀원 아이디" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" /></label>
+              <label class="set-field"><span>표시 이름</span>
+                <input type="text" id="new-staff-name" class="pw-input" placeholder="예: 김신입" aria-label="새 팀원 표시 이름" autocomplete="off" /></label>
+              <label class="set-field"><span>초기 비밀번호</span>
+                <input type="password" id="new-staff-password" class="pw-input" data-fact-ph="PASSWORD_MIN_LENGTH:{}자 이상" placeholder="8자 이상" aria-label="새 팀원 초기 비밀번호" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')" /></label>
+              <label class="set-field"><span>권한</span>
+                <select id="new-staff-role" class="status-select" aria-label="새 팀원 권한">
+                  <option value="staff">직원</option>
+                  <option value="manager">매니저</option>
+                  <option value="owner">관리자</option>
+                </select></label>
+              <div class="set-field set-field-btn"><span aria-hidden="true">&nbsp;</span>
+                <button class="btn-act btn-primary" onclick="submitCreateStaff()">계정 생성</button></div>
+            </div>
+            <p id="staff-admin-msg" class="set-msg"></p>
           </div>
-          <!-- ⚠ 2026-09-27 제목을 달았다 — 입력칸 넷이 계정 목록 바로 밑에 제목 없이 붙어 무엇을 하는 칸인지 몰랐다 -->
-          <div class="setting-info" style="margin-top:1.1rem"><p>새 계정 만들기</p><span>가입코드 없이 바로 만듭니다 — 초기 비밀번호를 본인에게 전해 주세요.</span></div>
-          <div class="setting-row" style="margin-top:.5rem;align-items:flex-start;flex-wrap:wrap;gap:.6rem">
-            <input type="text" id="new-staff-username" class="pw-input" placeholder="아이디 (영문/숫자)" style="width:160px" aria-label="새 팀원 아이디" />
-            <input type="text" id="new-staff-name" class="pw-input" placeholder="표시 이름" style="width:140px" aria-label="새 팀원 표시 이름" />
-            <input type="password" id="new-staff-password" class="pw-input" data-fact-ph="PASSWORD_MIN_LENGTH:초기 비밀번호 ({}자 이상)" placeholder="초기 비밀번호 (8자 이상)" style="width:180px" aria-label="새 팀원 초기 비밀번호" />
-            <select id="new-staff-role" class="status-select" aria-label="새 팀원 권한">
-              <option value="staff">직원</option>
-              <option value="manager">매니저</option>
-              <option value="owner">관리자</option>
-            </select>
-            <button class="btn-act btn-primary" onclick="submitCreateStaff()">계정 생성</button>
-          </div>
-          <p id="staff-admin-msg" style="font-size:.78rem;margin-top:.5rem"></p>
         </div>
 
-        <!-- 되돌릴 수 없는 것(전체 삭제)은 **맨 아래**로 (2026-09-27). 예전엔 비밀번호 바로 밑에 있어서
-             왼쪽 배지(가입 승인 대기)를 보고 들어온 사람이 삭제 구역을 지나 내려가야 했다. -->
+        <!-- 되돌릴 수 없는 것(전체 삭제)은 **맨 아래**로 (2026-09-27). -->
         <div class="setting-section">
           <div class="setting-title">데이터 관리</div>
-          <!-- 🔐 매니저 이상 (2026-09-28 대표 결정 R-1) — 파일에 모든 문의의 연락처와 견적의 원가·이익이 들어 있다.
-               ⚠ 파일을 만드는 곳이 브라우저라 서버로 막을 길은 없다 — 감추는 것 + exportAll 안의 검사가 전부다. -->
-          <div class="setting-row" id="exportAllRow">
-            <div class="setting-info"><p>전체 데이터 내보내기</p><span>문의, 방문, 이벤트, 견적 데이터를 JSON으로 다운로드합니다.</span></div>
+          <!-- 🔐 매니저 이상 (2026-09-28 대표 결정 R-1) — 파일에 모든 문의의 연락처와 견적의 원가·이익이 들어 있다. -->
+          <div class="setting-row set-row" id="exportAllRow">
+            <div class="setting-info"><p>전체 데이터 내보내기</p><span>문의·방문·이벤트·견적 데이터를 JSON으로 내려받습니다.</span></div>
             <button class="btn-act btn-outline-p" onclick="exportAll()">전체 내보내기</button>
           </div>
-          <!-- 되돌릴 수 없는 대량 삭제라 관리자 전용(신규)
-               🔴 2026-09-27 「방문 기록 · 이벤트 통계 · 견적 기록 초기화」 셋을 걷었다(대표 승인 S-1).
-                 셋 다 **이 브라우저의 사본(localStorage)만** 지웠다 — 방문·이벤트·목적지 통계는
-                 로그인할 때마다 `/api/admin/insights?type=analytics`가 다시 채우므로 **새로고침하면
-                 그대로 돌아오는데** 「삭제되었습니다」라고 말했다. 견적 기록(`linkedt_estimates`)은 **이 브라우저에서
-                 직접 뽑은 견적**만 담는 옛 키다(대시보드 「견적 완료」가 더한다) — 담당자 브라우저에선 늘 비어 있다.
-                 서버 통계를 지우는 길은 원래 없었다. -->
+          <!-- 되돌릴 수 없는 대량 삭제라 관리자 전용. 2026-09-27 브라우저 사본만 지우던 「초기화」 셋은 걷었다(대표 승인 S-1). -->
           <div id="ownerDataDangerZone">
-            <div class="setting-row">
-              <div class="setting-info"><p>문의 전체 삭제</p><span>모든 문의 내역을 영구 삭제합니다.</span></div>
+            <div class="setting-row set-row">
+              <div class="setting-info"><p>문의 전체 삭제</p><span>모든 문의 내역을 영구 삭제합니다. 되돌릴 수 없습니다.</span></div>
               <button class="btn-act btn-danger-sm" onclick="clearData('linkedt_contacts','문의 내역')">전체 삭제</button>
             </div>
           </div>

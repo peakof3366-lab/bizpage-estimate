@@ -1871,3 +1871,38 @@
 #price-report-card input:not([type="file"]):not([type="checkbox"]):not([type="radio"]) {
   height: 44px; box-sizing: border-box; line-height: normal; padding-top: 0; padding-bottom: 0;
 }
+
+/* ⚙️ 설정 화면 (2026-10-02 대표 지시 「깔끔하게 · 같은 줄의 박스 크기 맞추기」)
+   칸마다 이름표를 위에 달고, 같은 줄의 칸·버튼은 **높이 44px 하나**(누를 것은 44px 이상 — CLAUDE.md 화면 규칙). */
+.set-wrap { max-width: 880px; }
+.set-block { padding: .9rem 0; border-bottom: 1px solid var(--border); }
+.set-block:last-child { border-bottom: 0; }
+.set-label { font-size: .88rem; font-weight: 700; color: var(--heading); margin: 0 0 .35rem; }
+.set-value { font-size: .9rem; margin: 0; color: var(--text); }
+.set-desc { font-size: .8rem; color: var(--muted); margin: 0 0 .55rem; max-width: var(--measure); word-break: keep-all; line-height: 1.6; }
+.set-desc-inline { font-size: .78rem; font-weight: 400; color: var(--muted); margin-left: .5rem; }
+.set-msg { display: block; font-size: .8rem; margin: .35rem 0 0; min-height: 1em; }
+.set-grid { display: grid; gap: .6rem .75rem; align-items: end; }
+.set-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.set-grid-new { grid-template-columns: 1.1fr 1fr 1.1fr .8fr auto; }
+.set-field { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.set-field > span { font-size: .76rem; font-weight: 700; color: var(--muted); }
+.set-inline { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+.set-inline .pw-input { flex: 1 1 260px; max-width: 360px; }
+.set-actions { display: flex; gap: .75rem; align-items: center; margin-top: .6rem; flex-wrap: wrap; }
+.set-actions .set-msg { margin: 0; }
+.set-row { align-items: center; }
+/* 같은 줄의 칸·선택칸·버튼 높이 통일 */
+#tab-settings .pw-input, #tab-settings .set-field .status-select,
+#tab-settings .set-block .btn-act, #tab-settings .set-row .btn-act, #tab-settings .btn-danger-sm {
+  height: 44px; box-sizing: border-box; padding-top: 0; padding-bottom: 0;
+}
+#tab-settings .set-field .pw-input, #tab-settings .set-field .status-select { width: 100%; }
+#tab-settings .set-block .btn-act, #tab-settings .set-row .btn-act, #tab-settings .btn-danger-sm { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
+#tab-settings .set-row .btn-act, #tab-settings .btn-danger-sm { min-width: 128px; }
+@media (max-width: 760px) {
+  .set-grid-3 { grid-template-columns: 1fr; }
+  .set-grid-new { grid-template-columns: 1fr 1fr; }
+  .set-field-btn > span { display: none; }
+}
+.pw-form.set-grid { max-width: none; margin-top: 0; }   /* 옛 .pw-form(세로 한 줄 · 320px)을 새 격자가 덮는다 */
