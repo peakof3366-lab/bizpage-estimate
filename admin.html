@@ -1969,11 +1969,14 @@
         </section>
         <section class="inq-sec">
           <h4 class="inq-sec-h">진행 기록</h4>
-          <div class="inq-log-add">
-            <input type="text" id="d-log-text" class="search-box" placeholder="예) 견적서 메일 발송" aria-label="진행 상황 기록" />
-            <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('inquiry', currentModalId, 'd-log-text', 'd-log-list')">추가</button>
+          <!-- 2026-10-02 대표 「박스들 안 틀어지게」 — 기록 목록과 입력줄을 **한 상자**에 넣어 왼쪽 메모 칸과 위·아래 끝을 맞춘다 -->
+          <div class="inq-log-box">
+            <div id="d-log-list" class="inq-log-list"></div>
+            <div class="inq-log-add">
+              <input type="text" id="d-log-text" class="search-box" placeholder="예) 견적서 메일 발송" aria-label="진행 상황 기록" />
+              <button type="button" class="btn-act btn-outline-p" onclick="addActivityLog('inquiry', currentModalId, 'd-log-text', 'd-log-list')">추가</button>
+            </div>
           </div>
-          <div id="d-log-list" class="inq-log-list"></div>
         </section>
       </div>
 
