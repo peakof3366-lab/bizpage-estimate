@@ -157,14 +157,20 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .absorb-msg { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--ok); }
 .absorb-msg:empty { display: none; }
 /* ③ 「견적서 내용 보충」 — 눈에 띄는 전폭 막대 (2026-09-28 대표 요청) */
-.doc-fold-sum { display: flex; align-items: center; gap: 12px; margin-top: 18px; min-height: 56px; padding: 0 18px;
-  background: var(--ink); color: #fff; cursor: pointer; list-style: none; }
+/* 2026-10-02 대표 「완전 검은색이라 눌러서 입력하는 곳인지 모르겠다」 — 검은 막대는 머리띠(제목)로 읽혔다.
+   → 밝은 보라 바탕 + 보라 테두리 + 오른쪽에 **진짜 버튼 모양**(보라 채움 「열어서 입력하기」). 누를 곳이 한눈에 보이게. */
+.doc-fold-sum { display: flex; align-items: center; gap: 12px; margin-top: 18px; min-height: 60px; padding: 0 12px 0 18px;
+  background: #F3F2FC; color: #2A2766; border: 1.5px solid #514dc2; cursor: pointer; list-style: none; }
 .doc-fold-sum::-webkit-details-marker { display: none; }
-.doc-fold-sum:hover { background: #2B2B2B; }
+.doc-fold-sum:hover { background: #E8E6FA; }
 .doc-fold-sum:focus-visible { outline: 2px solid #514dc2; outline-offset: 2px; }
-.doc-fold-sum .dfs-t { font-size: 15px; font-weight: 800; }
-.doc-fold-sum .dfs-d { font-size: 12px; color: #C9C9C4; }
-.doc-fold-sum .dfs-a { margin-left: auto; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.doc-fold-sum .dfs-t { font-size: 15px; font-weight: 800; color: #514dc2; }
+.doc-fold-sum .dfs-t::before { content: '✏️ '; }
+.doc-fold-sum .dfs-d { font-size: 12.5px; color: #55537A; }
+.doc-fold-sum .dfs-a { margin-left: auto; font-size: 13.5px; font-weight: 800; white-space: nowrap;
+  background: #514dc2; color: #fff; min-height: 40px; padding: 0 16px; display: inline-flex; align-items: center; }
+.doc-fold-sum:hover .dfs-a { background: #3F3BA6; }
+details[open] > .doc-fold-sum .dfs-a { background: #fff; color: #514dc2; border: 1.5px solid #514dc2; }
 .doc-fold-sum .dfs-a::after { content: ' ▾'; }
 details[open] > .doc-fold-sum .dfs-a::after { content: ' ▴'; }
 .doc-fold-sum .dfs-o, details[open] > .doc-fold-sum .dfs-c { display: none; }
@@ -594,7 +600,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
         <!-- 2026-09-28 대표 요청 — 거의 늘 여는 칸이라 눈에 띄는 막대로(작은 ▶ 글줄 → 전폭 버튼) -->
         <summary class="fold-note doc-fold-sum"><span class="dfs-t">견적서 내용 보충</span>
           <span class="dfs-d">거래처명 · 연락처 · 상세 내용 · 선택 옵션</span>
-          <span class="dfs-a"><span class="dfs-c">펼치기</span><span class="dfs-o">접기</span></span></summary>
+          <span class="dfs-a"><span class="dfs-c">열어서 입력하기</span><span class="dfs-o">접기</span></span></summary>
       <div class="grid">
         <label class="f"><span>거래처명</span><input type="text" id="dClient" autocomplete="off" placeholder="○○기업" /></label>
         <label class="f"><span>받는 분 <em>(고객 담당자)</em></span><input type="text" id="dClientContact" autocomplete="off" placeholder="홍길동" /></label>
