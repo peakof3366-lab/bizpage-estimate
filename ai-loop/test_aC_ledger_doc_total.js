@@ -90,6 +90,20 @@ const apply = shares.applyDocTotals;
     '[4-b] 금액이 같으면 ⚠ 표시가 안 붙는다');
 }
 
+/* ── [4-c] 🔴 반올림 잔돈은 표시하지 않는다 (2026-10-02 대표 — 운영 대장에 「산출가 79,652,523원 (0%)」) ──
+   총액 = 1인 단가 × 인원이라 산출가와 몇 원씩 갈린다. 1% 미만은 조정이 아니다. */
+{
+  const rows = [
+    { quote_no: 'R1', total: '79652523', docprice: { lines: [{ qty: 60, unit: 1327542 }] } },          /* 79,652,520 — 3원 */
+    { quote_no: 'R2', total: '10000000', docprice: { lines: [{ qty: 10, unit: 990100 }] } },            /* 9,901,000 — −0.99% */
+    { quote_no: 'R3', total: '10000000', docprice: { lines: [{ qty: 10, unit: 990000 }] } },            /* 9,900,000 — −1.00% */
+  ];
+  apply(rows);
+  ok(rows[0].total === '79652520' && rows[0].totalQuoted === undefined, '[4-c] 3원 차이 — 총액은 문서 값, ⚠ 표시는 없다', JSON.stringify(rows[0]));
+  ok(rows[1].totalQuoted === undefined, '[4-c] −0.99% — 표시 없음', JSON.stringify(rows[1]));
+  ok(rows[2].totalQuoted === '10000000' && rows[2].totalDrift === -1, '[4-c] −1.00% — 표시한다(문턱 포함)', JSON.stringify(rows[2]));
+}
+
 /* ── [5] 단가 줄이 화면으로 새지 않는다 ────────────────────────────────────
    🔴 `docprice`에는 **단가**가 들어 있다. 대장 목록은 담당자 화면이라 원가 유출은
      아니지만, 쓰지 않는 값을 목록마다 실어 보내면 응답이 무거워지고 언제 어디로

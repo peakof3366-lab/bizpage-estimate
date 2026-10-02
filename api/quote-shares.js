@@ -370,6 +370,8 @@ async function handleList(req, res) {
    위 `handleList`의 호출부 주석에 있다. 여기 함수로 뺀 것은 **검사가 부를 수 있어야**
    하기 때문이다 — 인라인으로 두면 DB를 띄우지 않고는 한 줄도 못 재고, 그러면
    「안전망이 실제로 실행된 적이 없다」(결함 생성기 ③)가 그대로 재현된다. */
+/* 대장 「⚠ 산출가」 문턱 — 이보다 작은 차이는 반올림 잔돈이다 */
+const LEDGER_DRIFT_MIN = 0.01;
 function applyDocTotals(rows) {
   for (const r of rows) {
     const raw = r.docprice;
@@ -382,8 +384,11 @@ function applyDocTotals(rows) {
       if (!(docTotal > 0)) continue;
       const ledgerTotal = Number(r.total);
       r.total = String(docTotal);  /* 고객이 받은 금액 */
-      /* 어긋날 때만 남긴다 — 늘 붙는 표시는 곧 아무도 안 본다(결함 생성기 ③). */
-      if (Number.isFinite(ledgerTotal) && ledgerTotal !== docTotal) {
+      /* 어긋날 때만 남긴다 — 늘 붙는 표시는 곧 아무도 안 본다(결함 생성기 ③).
+         🔴 2026-10-02 대표 「산출가를 보여줄 필요가 없지 않나」 — 운영 대장에 「⚠ 산출가 … (0%)」가 떠 있었는데
+           차이는 **3원·10원**이었다. 총액 = 1인 단가 × 인원(0-am)이라 생기는 **반올림 잔돈**이다.
+           → **1% 이상** 벌어졌을 때만 표시한다. 잡으려던 것은 담당자가 문서에서 금액을 조정한 경우(실측 −10.00%)다. */
+      if (Number.isFinite(ledgerTotal) && ledgerTotal > 0 && Math.abs(docTotal - ledgerTotal) / ledgerTotal >= LEDGER_DRIFT_MIN) {
         r.totalQuoted = String(ledgerTotal);
         r.totalDrift = Number((((docTotal - ledgerTotal) / ledgerTotal) * 100).toFixed(2));
       }
