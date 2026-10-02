@@ -1926,9 +1926,16 @@
 #emTable .em-tag-int { background: #fef2f2; color: var(--primary); border-color: #fecaca; }
 #emTable .em-tag-cs  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
 #emTable .em-tag-doc { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-#emTable td > .badge, #emTable td > .status-select, #emTable td > .btn-detail {
+/* ③ 목록 오른쪽 끝 세 칸 [상태 · 담당자 · 상세] — 2026-10-02 대표 「박스를 키워 달라 · 다른 목록도 비슷하게」.
+      🔴 **문의 관리·견적 관리 두 표가 같은 규칙을 쓴다**(둘 다 `.inq-table`). 한 표만 키우면 메뉴를 옮길 때 크기가 튄다.
+      ⚠ 마지막 세 칸의 **첫 상자만** 잡는다 — 이름 칸의 「견적연계」·「답변완료」 꼬리표도 `.badge`라
+        `td > .badge`로 잡으면 그것까지 44px로 부푼다. 상태 칸 뒤에 붙는 「💰 실적」 같은 작은 표시도 안 건드린다. */
+.inq-table td:nth-last-child(-n+3) > .badge:first-child,
+.inq-table td:nth-last-child(-n+3) > .status-select:first-child,
+.inq-table td:nth-last-child(-n+3) > .btn-detail:first-child {
   height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  font-size: .86rem !important;   /* 담당자 고르기는 그리는 함수가 인라인으로 .78rem을 준다 */
 }
-#emTable td > .badge { padding: 0 .7rem; min-width: 4.2em; }
-#emTable td > .status-select { padding-top: 0 !important; padding-bottom: 0 !important; min-width: 6.5em; }
-#emTable td > .btn-detail { padding: 0 .9rem; }
+.inq-table td:nth-last-child(-n+3) > .badge:first-child { padding: 0 .6rem; min-width: 6.4em; }   /* 「계약완료」(넉 자)까지 같은 폭 — 줄마다 알약 폭이 달라지지 않게 */
+.inq-table td:nth-last-child(-n+3) > .status-select:first-child { padding: 0 .7rem !important; min-width: 8.5em; }
+.inq-table td:nth-last-child(-n+3) > .btn-detail:first-child { padding: 0 1.1rem; min-width: 5em; font-weight: 700; }
