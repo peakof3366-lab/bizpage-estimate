@@ -1939,3 +1939,30 @@
 .inq-table td:nth-last-child(-n+3) > .badge:first-child { padding: 0 .6rem; min-width: 6.4em; }   /* 「계약완료」(넉 자)까지 같은 폭 — 줄마다 알약 폭이 달라지지 않게 */
 .inq-table td:nth-last-child(-n+3) > .status-select:first-child { padding: 0 .7rem !important; min-width: 8.5em; }
 .inq-table td:nth-last-child(-n+3) > .btn-detail:first-child { padding: 0 1.1rem; min-width: 5em; font-weight: 700; }
+
+/* 🧩 표 안 조작 상자 — 한 벌의 크기 (2026-10-02 대표 「다른 카테고리도 비슷하고 유연하게」)
+   ① 문의·견적 목록(위 ③)과 **같은 글자·같은 모양** — 줄 끝 버튼은 어느 메뉴에서나 같은 물건으로 보여야 한다.
+   ② 🔴 높이만 표의 촘촘함에 따라 둘로 나눈다(「유연하게」):
+      - 줄이 적은 목록(팀원 계정)          → 44px — 문의·견적 목록과 같다
+      - 줄이 많은 표(요율 60행·대장·가격 제보) → 38px — 44px이면 요율표가 60줄 × 13px ≈ 화면 한 장만큼 길어진다
+      ⚠ 38px는 「누를 것 44px」 규칙보다 작다 — 일부러 고른 값이다(24px 오류선은 넘는다). 깎은 게 아니라 정한 것이라 여기 적어 둔다.
+   ③ 마지막 칸(조작 칸)의 버튼만 잡는다 — 가격 제보 표의 금액 칩 버튼·「되돌리기」처럼 **값 자리에 있는 작은 버튼**은 그대로 둔다. */
+:root { --row-ctl-fs: .86rem; --row-ctl-h: 44px; --row-ctl-h-dense: 38px; }
+.set-table td > .status-select,
+.set-table td:last-child > .btn-detail,
+.rate-table td:last-child > .btn-detail,
+#ledList .led-acts .btn-act {
+  box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  font-size: var(--row-ctl-fs) !important;   /* 팀원 권한 고르기는 인라인으로 .76rem을 준다 */
+  padding: 0 1rem !important; min-width: 4.5em;
+  height: var(--row-ctl-h-dense);
+}
+.set-table td > .status-select, .set-table td:last-child > .btn-detail { height: var(--row-ctl-h); }
+.set-table td > .status-select { min-width: 7.5em; padding: 0 .7rem !important; }
+.rate-table td:last-child > .btn-detail, .set-table td:last-child > .btn-detail { font-weight: 700; }
+/* 대장 「상태」 칸(고르기 + 저장)도 같은 줄의 조작 상자다 — 옆 버튼들과 같은 38px · 같은 글자 */
+#ledList .tbl select.led-st, #ledList .tbl .led-st-save {
+  height: var(--row-ctl-h-dense); min-height: var(--row-ctl-h-dense); box-sizing: border-box; font-size: var(--row-ctl-fs);
+}
+#ledList .tbl select.led-st { padding-top: 0; padding-bottom: 0; min-width: 5.5em; }
+#ledList .tbl .led-st-save { padding: 0 .8rem; }
