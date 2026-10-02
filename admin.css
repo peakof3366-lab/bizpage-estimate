@@ -1906,3 +1906,4 @@
   .set-field-btn > span { display: none; }
 }
 .pw-form.set-grid { max-width: none; margin-top: 0; }   /* 옛 .pw-form(세로 한 줄 · 320px)을 새 격자가 덮는다 */
+.led-gone { color: var(--muted); font-size: .72rem; border: 1px dashed var(--border); display: inline-block; padding: 0 .35rem; margin-top: .2rem; }   /* 견적 관리에서 기록이 지워진 묶음 (2026-10-02) */

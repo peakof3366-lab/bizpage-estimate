@@ -115,7 +115,22 @@
     const gid = (gk) => 'g' + Array.from(groups.keys()).indexOf(gk);
     const canDel = typeof isManagerUpRole === 'function' && isManagerUpRole();
     const cnt = document.getElementById('ledCount');
-    if (cnt && !/견적 \d+건/.test(cnt.textContent)) cnt.textContent = '견적 ' + groups.size + '건 · 발급 문서 ' + cnt.textContent;
+    /* 🔴 2026-10-02 대표 「견적 관리에 남은 양과 숫자가 안 맞는다」 — 대장은 **발급 문서를 견적별로 묶어** 센다.
+         견적 관리에서 기록을 지워도 문서는 근거로 남으므로(삭제 기록 19건) 「견적 22건」인데 견적 관리는 4건이었다.
+         셈은 맞는데 화면이 그 차이를 말하지 않아 오류로 보였다 → **견적 관리에 남은 것이 몇 건인지 같이 적는다.**
+       ⚠ 견적 관리 목록을 아직 못 받았으면(빈 사본) 말하지 않는다 — 모르는 것을 「0건 남음」으로 바꾸지 않는다. */
+    const emIds = (typeof getEstsFull === 'function') ? new Set(getEstsFull().map((x) => x.id)) : new Set();
+    const emKnown = emIds.size > 0;
+    /* 묶음을 셋으로 가른다 — 견적 관리에 기록 있음 · 기록이 지워짐 · 처음부터 기록 없이 발급(고객 직접·소급) */
+    const gks = Array.from(groups.keys());
+    const liveGroups = gks.filter((gk) => gk.startsWith('q:') && emIds.has(gk.slice(2))).length;
+    const goneGroups = gks.filter((gk) => gk.startsWith('q:') && !emIds.has(gk.slice(2))).length;
+    const noRecGroups = gks.length - liveGroups - goneGroups;
+    if (cnt && !/견적 \d+건/.test(cnt.textContent)) {
+      cnt.textContent = '견적 ' + groups.size + '건'
+        + (emKnown ? ' (견적 관리에 기록 있음 ' + liveGroups + ' · 기록 삭제됨 ' + goneGroups + ' · 기록 없이 발급 ' + noRecGroups + ')' : '')
+        + ' · 발급 문서 ' + cnt.textContent;
+    }
     /* ══ 표 (ZV로 다시 짰다) ══════════════════════════════════════════════════
        대표: 「다른 직원이 이 내용을 기반으로 다음 작업을 이어나가야 한다.」
        그래서 한 줄이 답해야 하는 질문은 다섯이다:
@@ -169,6 +184,9 @@
                   + '이전 판 ' + older + '개 <span aria-hidden="true">' + (ledOpen.has(gk) ? '▴' : '▾') + '</span></button>'
                 : '')
           +   (main ? '' : '<div class="sub">이전 판</div>')
+          /* 견적 관리에서 기록이 지워진 묶음 — 문서는 근거로 남는다. 모르면(목록 못 받음) 표시하지 않는다 */
+          +   (main && emKnown && r.quote_id && !emIds.has(r.quote_id)
+                ? '<div class="sub led-gone" title="견적 관리에서 이 견적 기록이 지워졌습니다 — 문서는 근거로 남아 있습니다">견적 기록 삭제됨</div>' : '')
           + '</td>'
           /* ── ② 공급사 번호 (ZC) ── 우리 번호 **바로 옆**이라 짝이 눈에 보인다 */
           + '<td style="white-space:nowrap">'

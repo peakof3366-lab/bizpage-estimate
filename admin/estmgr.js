@@ -83,6 +83,15 @@
        "데이터가 없어서 못 한다"가 영원히 계속된다. */
     const emNeedsActual = (e) => e.status === 'contracted' && e.actualTotal == null;
     const needsActualCount = all.filter(emNeedsActual).length;
+    /* 🔢 2026-10-02 필터 버튼에 건수 — 좌측 배지(「신규」만 센다)와 목록(전부)이 달라 오류로 보였다.
+         「전체 4 · 신규 3」이 보이면 배지 3이 무엇인지 바로 맞춰진다. 셈은 이 목록(all) 하나에서 한다. */
+    document.querySelectorAll('#tab-estmgr [data-emfilter]').forEach((b) => {
+      const k = b.dataset.emfilter;
+      if (k === 'needs-actual') return;
+      if (!b.dataset.label) b.dataset.label = b.textContent.trim();
+      const n = k === 'all' ? all.length : all.filter((e) => e.status === k).length;
+      b.textContent = b.dataset.label + ' ' + n;
+    });
     const naBtn = document.getElementById('emNeedsActualBtn');
     if (naBtn) {
       naBtn.textContent = '💰 실적 미입력' + (needsActualCount ? ' ' + needsActualCount : '');
