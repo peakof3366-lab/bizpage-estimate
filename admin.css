@@ -821,14 +821,29 @@
     .sug-sec-far .sug-h { color:var(--warn); }
     .sug-sec-conf .sug-h { color:var(--success); }
     .sug-wrap { overflow-x:auto; }
-    .sug-table { min-width:820px; font-size:.83rem; table-layout:fixed; width:100%; }
-    /* 세 묶음이 따로 표라 칸 너비를 **똑같이 고정**한다 — 안 그러면 묶음마다 칸이 어긋난다 */
-    .sug-table th:nth-child(1) { width:22%; } .sug-table th:nth-child(2), .sug-table th:nth-child(3) { width:12%; }
-    .sug-table th:nth-child(4) { width:9%; } .sug-table th:nth-child(5) { width:30%; } .sug-table th:nth-child(6) { width:15%; }
+    .sug-table { min-width:900px; font-size:.83rem; table-layout:fixed; width:100%; }
+    /* 묶음마다 따로 표라 칸 너비를 **똑같이 고정**한다 — 안 그러면 묶음마다 칸이 어긋난다 */
+    .sug-table th:nth-child(1) { width:21%; } .sug-table th:nth-child(2), .sug-table th:nth-child(3) { width:11%; }
+    .sug-table th:nth-child(4) { width:8%; } .sug-table th:nth-child(5) { width:13%; } .sug-table th:nth-child(6) { width:23%; } .sug-table th:nth-child(7) { width:13%; }
     .sug-table .em-num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
     .sug-table th.em-num { text-align:right; }
-    .sug-table td:nth-child(5) { padding-left:1.25rem; }
-    .sug-table td { vertical-align:middle; }
+    .sug-table td:nth-child(6) { padding-left:1.25rem; }
+    .sug-imp { font-weight:700; color:var(--text); }
+    .sug-verdict { word-break:keep-all; }
+    .sug-verdict .ext-pill { margin-right:.4rem; }
+    .sug-verdict .sug-tag { margin-left:.1rem; }
+    .sug-plain { font-size:.76rem; color:var(--muted); }
+    .sug-how { font-size:.82rem; color:var(--text); background:var(--bg,#f6f6f6); border:1px solid var(--border); padding:.55rem .75rem; margin:0 0 .9rem; max-width:var(--measure); word-break:keep-all; line-height:1.6; }
+    .sug-detail > td { background:var(--bg,#f6f6f6); padding:.7rem 1rem .9rem; }
+    .sug-detail-in { display:grid; gap:.45rem; max-width:62rem; }
+    .sug-d-line { margin:0; font-size:.82rem; line-height:1.6; word-break:keep-all; }
+    .sug-d-kept { color:var(--success); }
+    .sug-ev { width:auto; min-width:28rem; font-size:.78rem; border-collapse:collapse; background:#fff; }
+    .sug-ev th, .sug-ev td { padding:.3rem .6rem; border-bottom:1px solid var(--border); text-align:left; }
+    .sug-ev .em-num { text-align:right; }
+    .sug-d-btns { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.2rem; }
+    .sug-row-kept td { color:var(--muted); }
+    .sug-kept { margin-top:.3rem; }
     .sug-what { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .sug-gap { font-weight:800; }
     .sug-up { color:var(--danger); }

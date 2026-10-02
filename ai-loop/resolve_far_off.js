@@ -213,35 +213,26 @@ function countryPeers(destKey) {
     const unitBad = checks.map((c) => unitMismatch(g.cell, c.line, c.qty, c.pax)).filter(Boolean);
     if (unitBad.length) console.log('     ⚠ 단위가 다르다: ' + unitBad[0]);
 
-    if (unitBad.length && checks.length === unitBad.length) {
-      console.log('     → ① **단위가 달라 못 쓴다** — 값은 맞지만 우리 칸이 뜻하는 것이 아니다.');
-      toExclude.push({ ...g, why: unitBad[0] });
-    } else if (failed.length && g.items.length === 1) {
-      console.log('     → ① **오독으로 본다** — 11회 검토가 이미 걸렀고 실측이 그 한 건뿐이다.');
-      toExclude.push({ ...g, why: failed[0].failWhy.join(' / ').slice(0, 120) });
-    } else if (!selfConsistent) {
-      console.log('     → ③ **판단 불가** — 실측끼리 안 맞는다. 요율을 정할 근거가 못 된다.');
-      toHuman.push(g);
-    } else if (peerMed && g.med >= peerMed / OK_HIGH && g.med <= peerMed * OK_HIGH) {
-      console.log('     → ② **요율이 낡은 것으로 본다** — 실측이 같은 나라 동료 기준가와 맞는다.');
-      toRate.push({ ...g, peerMed });
-    } else if (allSameSide) {
-      console.log('     → ② **요율이 낡은 것으로 본다** — 실측 ' + g.items.length + '건이 전부 같은 쪽으로 벌어진다.');
-      toRate.push({ ...g, peerMed });
-    } else if (!failed.length) {
-      /* ⚠ **여기가 2026-08-13에 바뀐 자리다.** 예전엔 ③(판단 불가)로 두고 그대로 뒀는데,
-         그러면 그 목적지는 **온라인 추정치를 계속 쓴다.** 대표 방침이 그 반대다:
-         「온라인에서 가져온 정보보다 견적서에서 뽑은 값이 정확할 확률이 높다.」
-         → 11회 검토를 다 통과했고 단위도 맞으면 **실측을 채택한다.**
-         ⚠ 그래도 원가 하한은 따로 검사한다 — 실측이 맞아도 그 값 때문에 원가 아래로
-           내려가면 못 쓴다(나트랑 유류에서 실제로 겪었다). */
-      console.log('     → ② **실측을 채택한다** — 11회 검토를 다 통과했고 단위도 맞다.'
-        + ' 지금 기준가는 온라인 추정치다.');
-      toRate.push({ ...g, peerMed });
-    } else {
-      console.log('     → ③ **판단 불가** — 11회 검토에서 걸린 적이 있다. 사람이 문서를 봐야 한다.');
-      toHuman.push(g);
-    }
+    /* ⚠ 2026-10-02 — 갈림길 판정을 **plausibility.js `reviewFarOff` 한 곳**으로 옮겼다(요율 관리 화면도 같은 규칙을 부른다).
+       이 도구는 화면이 모르는 근거(11회 검토 결과·단위 확인)까지 넘긴다. 규칙은 한 벌이다. */
+    const V = PLAUSIBILITY.reviewFarOff({
+      values: vals, base: g.base, peerMed,
+      failed: failed.length > 0,
+      unitBadAll: unitBad.length > 0 && checks.length === unitBad.length, unitBad: unitBad[0],
+    });
+    const MSG = {
+      unit: '① **단위가 달라 못 쓴다** — 값은 맞지만 우리 칸이 뜻하는 것이 아니다.',
+      'failed-single': '① **오독으로 본다** — 11회 검토가 이미 걸렀고 실측이 그 한 건뿐이다.',
+      'self-spread': '③ **판단 불가** — 실측끼리 안 맞는다. 요율을 정할 근거가 못 된다.',
+      peer: '② **요율이 낡은 것으로 본다** — 실측이 같은 나라 동료 기준가와 맞는다.',
+      'same-side': '② **요율이 낡은 것으로 본다** — 실측 ' + g.items.length + '건이 전부 같은 쪽으로 벌어진다.',
+      passed: '② **실측을 채택한다** — 11회 검토를 다 통과했고 단위도 맞다. 지금 기준가는 온라인 추정치다.',
+      failed: '③ **판단 불가** — 11회 검토에서 걸린 적이 있다. 사람이 문서를 봐야 한다.',
+    };
+    console.log('     → ' + MSG[V.rule]);
+    if (V.kind === 'misread') toExclude.push({ ...g, why: V.rule === 'unit' ? unitBad[0] : failed[0].failWhy.join(' / ').slice(0, 120) });
+    else if (V.kind === 'stale') toRate.push({ ...g, peerMed });
+    else toHuman.push(g);
     console.log('');
   });
 

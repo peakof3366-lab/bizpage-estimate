@@ -1247,8 +1247,11 @@
         const estItem = (e.items || []).find(match);
         if (!estItem || !estItem.unit) return;
         const key = `${e.destKey}|${field}|em`;
-        if (!byKey[key]) byKey[key] = { destKey: e.destKey, field, label: e.destLabel || e.destKey, source: 'em', ratios: [] };
+        if (!byKey[key]) byKey[key] = { destKey: e.destKey, field, label: e.destLabel || e.destKey, source: 'em', ratios: [], items: [] };
         byKey[key].ratios.push(e[actualKey] / estItem.unit);
+        /* 2026-10-02 근거 펼치기 — 어느 견적에서 온 값인지 화면이 보여 준다(집계에는 안 쓴다) */
+        byKey[key].items.push({ kind: 'em', id: e.id, value: e[actualKey], ratio: e[actualKey] / estItem.unit,
+          date: e.ts ? new Date(e.ts).toISOString().slice(0, 10) : null, what: e.quoteNo || e.orgName || '' });
       });
     });
 
@@ -1287,8 +1290,11 @@
         const currentBase = eff[field];
         if (!currentBase) return;
         const key = `${r.destinationKey}|${field}|report`;
-        if (!byKey[key]) byKey[key] = { destKey: r.destinationKey, field, label: dest.label, source: 'report', ratios: [] };
+        if (!byKey[key]) byKey[key] = { destKey: r.destinationKey, field, label: dest.label, source: 'report', ratios: [], items: [] };
         byKey[key].ratios.push(reported / currentBase);
+        byKey[key].items.push({ kind: 'report', id: r.id, value: reported, ratio: reported / currentBase,
+          date: r.quoteDate || (r.createdAt ? String(r.createdAt).slice(0, 10) : null),
+          via: (r.fieldSources || {})[REPORT_FX_KEY[field]] || null, what: r.source || '' });
       });
     });
 
@@ -1314,7 +1320,7 @@
           destKey: data.destKey, field: data.field, fieldLabel: RATE_FIELD_LABELS[data.field] || data.field,
           label: data.label, count: data.ratios.length, outlierCount: 0, diffPct: (medAll - 1) * 100,
           source: data.source, currentBase: baseF, suggestedBase: Math.round(baseF * medAll),
-          confident: false, farOff: true,
+          confident: false, farOff: true, items: data.items || [],
           excludedCount: excludedByKey[`${data.destKey}|${data.field}|report`] || 0,
           uncheckedCount: uncheckedByKey[`${data.destKey}|${data.field}|report`] || 0,
           unknownCount: unknownByKey[`${data.destKey}|${data.field}|report`] || 0,
@@ -1334,7 +1340,7 @@
         excludedCount: excludedByKey[`${data.destKey}|${data.field}|report`] || 0,
         uncheckedCount: uncheckedByKey[`${data.destKey}|${data.field}|report`] || 0,
         unknownCount: unknownByKey[`${data.destKey}|${data.field}|report`] || 0,
-        currentBase, suggestedBase: Math.round(currentBase * medRatio),
+        currentBase, suggestedBase: Math.round(currentBase * medRatio), items: data.items || [],
         /* 자동적용(지금 바로 적용)은 계수 보정된 EM 소스에만 부여. 제보 소스는 계수 미보정
            이라 기준가를 밀어올리면 견적에서 시즌·피크가 이중 반영되므로 confident 불가. */
         confident: data.source === 'em' && clean.length >= RATE_SUGGEST_CONFIDENT_COUNT,
@@ -1347,64 +1353,207 @@
     return suggestions;
   }
 
+  /* ════ 📊 월 1회 요율 점검표 (2026-10-02 대표 지시) ═════════════════════════════
+     「이 카드를 우리가 어떻게 쓸 수 있는지 모르겠다」 → 무엇을 보고 · 무엇을 정하는지가 화면에 드러나게:
+       ① 줄마다 **판정**(확인 필요 묶음: 요율 낡음 / 오독 / 판단 불가 — PLAUSIBILITY.reviewFarOff 한 곳)
+       ② **고객 금액 영향순** — %가 아니라 「20명·4박5일 1인 원가가 대략 얼마 바뀌나」
+       ③ **결정** — 기준 편집 / 이대로 둠(이유) / 제보가 틀림(평균에서 뺌). 둔 항목은 접힌다
+       ④ **근거** — 그 값을 만든 견적서(날짜·값·검산 여부)
+     ⚠ 금액은 여기서 안 바뀐다 — 「기준 편집」도 편집 창에서 사람이 저장해야 반영된다. */
+  let reviewDecisionsCache = {};
+  async function loadReviewDecisions() {
+    try {
+      const r = await fetch('/api/rates?action=review');
+      if (r.ok) reviewDecisionsCache = (await r.json()).decisions || {};
+    } catch (e) { /* 못 받으면 결정 없이 다 보인다 — 숨기는 쪽보다 안전하다 */ }
+  }
+  /* 1인 영향(대략) — 기준을 바꾸면 **20명·4박5일·2인 1실** 견적의 1인 원가(마진 전)가 얼마 움직이나.
+     엔진(script.js getBreakdownData)의 항목 공식을 그대로 따랐다: 항공·유류·관광은 1인당 ·
+     식비는 1인 × 일수 · 호텔은 객실 × 박 ÷ 인원 · 차량·가이드는 일수 × 대수 ÷ 인원.
+     ⚠ 시즌·등급·환율·인원 할인·마진은 뺀 **대략**이다 — 무엇부터 볼지 줄 세우는 데만 쓴다. */
+  const REVIEW_SCENARIO = { pax: 20, days: 5, nights: 4, rooms: 10, vehicles: 1, guides: 1 };
+  function perPersonImpact(field, delta) {
+    const S = REVIEW_SCENARIO;
+    if (!isFinite(delta)) return null;
+    switch (field) {
+      case 'airfare': case 'fuel_surcharge': case 'sightseeing_fee': case 'golf_fee': return delta;
+      case 'meal_per_person': return delta * S.days;
+      case 'hotel_per_room': return delta * S.rooms * S.nights / S.pax;
+      case 'vehicle_large': case 'vehicle_small': return delta * S.days * S.vehicles / S.pax;
+      case 'guide_fee': return delta * S.days * S.guides / S.pax;
+      default: return null;
+    }
+  }
+  /* 같은 나라 다른 목적지의 기준가 중앙값 — 「요율이 낡았나」의 예측치(resolve_far_off.js와 같은 근거) */
+  function reviewPeerMedian(destKey, field) {
+    const country = typeof destCountryOf === 'function' ? destCountryOf(destKey) : '';
+    if (!country) return null;
+    const vals = destinationRates
+      .filter((d) => d.destination_key !== destKey && destCountryOf(d.destination_key) === country)
+      .map((d) => Number(effectiveRate(d)[field]) || 0).filter((n) => n > 0);
+    return vals.length ? PLAUSIBILITY.median(vals) : null;
+  }
+  /* 판정 — 확인 필요 묶음에만. 화면이 아는 근거: 검산 표시 + 기준가 대비 3배 잣대(judge).
+     🔴 규칙은 PLAUSIBILITY.reviewFarOff 한 곳이다(개발 도구도 같은 함수를 부른다). */
+  function reviewVerdict(s) {
+    if (!s.farOff) return null;
+    const values = (s.items || []).map((it) => it.value).filter((v) => v > 0);
+    const failed = values.some((v) => {
+      const j = PLAUSIBILITY.judge(v, [], s.currentBase);
+      return j && j.level && j.level !== 'ok' && j.level !== 'none';
+    });
+    return PLAUSIBILITY.reviewFarOff({ values, base: s.currentBase, peerMed: reviewPeerMedian(s.destKey, s.field), failed });
+  }
+  const reviewSig = (s) => (s.items || []).map((it) => (it.kind === 'em' ? 'q' : 'r') + it.id).sort().join(',');
+  const reviewKey = (s) => `${s.destKey}|${s.field}|${s.source}`;
+  let reviewRowsCache = [];
+
   function renderRateSuggestions() {
     const card = document.getElementById('airfare-suggestion-card');
     const list = document.getElementById('airfare-suggestion-list');
     if (!card || !list) return;
-    const suggestions = computeRateSuggestions();
-    /* TA: 접혀 있어도 **몇 건인지는 보인다** — 숫자까지 숨기면 펼쳐 보기 전에는
-       할 일이 있는지조차 모른다(접는 것의 유일한 위험이 그것이다). */
+    const all = computeRateSuggestions();
+    /* 결정해 둔 것 — 근거(sig)가 그대로면 접는다. 새 실측이 들어와 sig가 바뀌면 다시 올린다 */
+    const kept = [], open = [];
+    all.forEach((s) => {
+      const d = reviewDecisionsCache[reviewKey(s)];
+      (d && d.sig === reviewSig(s) ? kept : open).push(Object.assign({}, s, { decision: d || null }));
+    });
+    /* TA: 접혀 있어도 **몇 건인지는 보인다** — 이제 「남은 할 일」만 센다 */
     const cntEl = document.getElementById('airfare-suggestion-count');
-    if (cntEl) cntEl.textContent = suggestions.length ? suggestions.length + '건' : '';
-    if (!suggestions.length) { card.classList.add('hidden'); return; }
+    if (cntEl) cntEl.textContent = all.length ? (open.length ? `${open.length}건` : '모두 검토함') + (kept.length ? ` · 둔 것 ${kept.length}` : '') : '';
+    if (!all.length) { card.classList.add('hidden'); return; }
     card.classList.remove('hidden');
 
-    /* ═══ 2026-10-02 대표 지시 「불필요한 글자·레이아웃 정리」 ═══════════════════
-       예전엔 30건이 **줄마다 같은 긴 문장과 같은 경고 두 줄**을 되풀이했다 — 봐야 할 숫자
-       (지금 기준 · 실측 · 차이)가 문장 속에 묻혔다. 이제:
-         · 세 묶음으로 가른다 — ① 지금 적용 가능 ② 확인 필요 · 제안 못 만듦 ③ 참고(제보값)
-         · **설명은 묶음 머리에 한 번만.** 줄에는 숫자와 짧은 꼬리표만.
-         · 줄 = 한 줄 표: 목적지·항목 | 지금 기준 | 제안(제보값) | 차이 | 근거 | 편집
-       ⚠ 말하던 내용은 하나도 안 버렸다 — 「제안 못 만듦」의 이유 · 오타일 수도/낡았을 수도 ·
-         제보값은 참고용 · 첫 실측 · 이상치/뺀 건/검산 안 된/출처 미상 건수(test_tB·sI가 지킨다). */
-    const farOff = suggestions.filter((s) => s.farOff);
-    const conf = suggestions.filter((s) => !s.farOff && s.confident);
-    const ref = suggestions.filter((s) => !s.farOff && !s.confident);
-    const byGap = (a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct);
-    const pct = (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
-    const tags = (s) => [
-      s.source === 'report' ? '<span class="sug-tag">제보</span>' : '<span class="sug-tag sug-tag-em">계약</span>',
+    const rows = open.concat(kept).map((s) => Object.assign(s, {
+      verdict: reviewVerdict(s),
+      impact: perPersonImpact(s.field, s.suggestedBase - s.currentBase),
+    }));
+    reviewRowsCache = rows;
+    const byImpact = (a, b) => Math.abs(b.impact || 0) - Math.abs(a.impact || 0);
+    const pct = (v) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`;
+    const wonS = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(Math.round(n)).toLocaleString('ko-KR')}원`;
+    const VERDICT = {
+      stale: { t: '요율 낡음', tone: 'todo', act: '기준을 고칠지 정하세요' },
+      misread: { t: '오독', tone: 'bad', act: '제보를 평균에서 빼세요' },
+      unclear: { t: '판단 불가', tone: 'wait', act: '견적서 원문을 봐 주세요' },
+    };
+    const canEdit = typeof isManagerUpRole === 'function' && isManagerUpRole();
+    const row = (s, i, kind) => {
+      const v = s.verdict && VERDICT[s.verdict.kind];
+      const fuelNote = s.field === 'fuel_surcharge' ? '<span class="sug-tag" title="유류할증료는 대한항공 월별 표로 정할 예정입니다(결정대기열 0-ap)">월별 표로 정할 예정</span>' : '';
+      return `
+      <tr class="sug-row${kind === 'kept' ? ' sug-row-kept' : ''}">
+        <td class="sug-what"><b>${esc(s.label)}</b> · ${esc(s.fieldLabel)}</td>
+        <td class="em-num">${fmtWon(s.currentBase)}</td>
+        <td class="em-num"><b>${fmtWon(s.suggestedBase)}</b></td>
+        <td class="em-num sug-gap ${s.diffPct > 0 ? 'sug-up' : 'sug-down'}">${pct(s.diffPct)}</td>
+        <td class="em-num sug-imp">${s.impact == null ? '—' : wonS(s.impact)}</td>
+        <td class="sug-verdict">${v ? `<span class="ext-pill ext-tone-${v.tone}">${v.t}</span>` : (s.confident ? '<span class="ext-pill ext-tone-ok">적용 가능</span>' : '<span class="sug-plain">참고</span>')}${fuelNote}</td>
+        <td class="sug-act"><button type="button" class="btn-act btn-outline-p sug-more" aria-expanded="false" aria-controls="sug-d-${i}" aria-label="${esc(s.label)} ${esc(s.fieldLabel)} 자세히" onclick="toggleReviewDetail(${i}, this)">자세히</button></td>
+      </tr>
+      <tr class="sug-detail hidden" id="sug-d-${i}"><td colspan="7">${reviewDetailHtml(s, i, v, canEdit)}</td></tr>`;
+    };
+    const table = (items, kind) => `<div class="sug-wrap"><table class="inq-table sug-table">
+      <thead><tr><th>목적지 · 항목</th><th class="em-num">지금 기준</th><th class="em-num">${kind === 'far' ? '제보값' : '제안'}</th><th class="em-num">차이</th>
+      <th class="em-num" title="20명·4박5일·2인 1실 기준, 1인 원가(마진 전)가 대략 얼마 움직이나">1인 영향(대략)</th><th>판정</th><th></th></tr></thead>
+      <tbody>${items.map((s) => row(s, rows.indexOf(s), kind)).join('')}</tbody></table></div>`;
+    const sec = (kind, title, note, items) => items.length ? `
+      <section class="sug-sec sug-sec-${kind}">
+        <h3 class="sug-h">${title} <span class="sug-n">${items.length}건</span></h3>
+        ${note ? `<p class="sug-note">${note}</p>` : ''}
+        ${table(items.slice().sort(byImpact), kind)}
+      </section>` : '';
+    const openRows = rows.filter((s) => !s.decision || s.decision.sig !== reviewSig(s));
+    const keptRows = rows.filter((s) => s.decision && s.decision.sig === reviewSig(s));
+    const conf = openRows.filter((s) => !s.farOff && s.confident);
+    const far = openRows.filter((s) => s.farOff);
+    const ref = openRows.filter((s) => !s.farOff && !s.confident);
+    list.innerHTML =
+      `<p class="sug-how"><b>쓰는 법</b> 매달 한 번, 위에서부터 「자세히」를 눌러 <b>기준 편집 · 이대로 둠 · 제보가 틀림</b> 중 하나로 정합니다. 정한 줄은 아래로 접히고, 새 실측이 들어오면 다시 올라옵니다.${canEdit ? '' : ' <span class="fuel-hint">(결정은 매니저 이상)</span>'}</p>`
+      + sec('conf', '✅ 지금 적용 가능', `실제 계약이 ${RATE_SUGGEST_CONFIDENT_COUNT}건 이상 쌓인 항목입니다.`, conf)
+      + sec('far', '⚠ 확인 필요 · 제안 못 만듦', '기준가와 너무 벌어져 <b>제안 금액을 만들지 않았습니다</b> — 오타일 수도, 요율이 낡은 것일 수도 있습니다. 판정을 보고 정해 주세요.', far)
+      + sec('ref', '참고', `실제 계약이 ${RATE_SUGGEST_CONFIDENT_COUNT}건이 안 되거나, 실측 제보(성수기·피크가 섞임)라 <b>참고용</b>입니다 — 자동 적용 안 함.`, ref)
+      + (keptRows.length ? `<details class="sug-kept"><summary class="fold-note">이대로 둔 항목 ${keptRows.length}건</summary>${table(keptRows, 'kept')}</details>` : '');
+  }
+
+  function reviewDetailHtml(s, i, v, canEdit) {
+    const items = (s.items || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    const viaTxt = (it) => it.kind === 'em' ? '실제 계약' : (PLAUSIBILITY.isTrusted(it.via) ? '검산됨' : (it.via ? esc(it.via) : '출처 미상'));
+    /* 집계에서 빠지거나 섞인 것 — 조용히 빼지 않고 적는다(SN·SU·TB) */
+    const tags = [
       s.count === 1 ? '<span class="sug-tag" title="이 목적지의 첫 실측">첫 실측</span>' : '',
       s.outlierCount ? `<span class="sug-tag sug-tag-bad">이상치 ${s.outlierCount}건 제외</span>` : '',
       s.excludedCount ? `<span class="sug-tag">평균에서 뺀 ${s.excludedCount}건 제외</span>` : '',
       s.uncheckedCount ? `<span class="sug-tag sug-tag-warn">검산 안 된 ${s.uncheckedCount}건 제외</span>` : '',
       s.unknownCount ? `<span class="sug-tag">출처 미상 ${s.unknownCount}건 포함</span>` : '',
     ].join('');
-    const row = (s, kind) => `
-      <tr class="sug-row">
-        <td class="sug-what"><b>${esc(s.label)}</b> · ${esc(s.fieldLabel)}</td>
-        <td class="em-num">${fmtWon(s.currentBase)}</td>
-        <td class="em-num"><b>${fmtWon(s.suggestedBase)}</b></td>
-        <td class="em-num sug-gap ${s.diffPct > 0 ? 'sug-up' : 'sug-down'}">${pct(s.diffPct)}</td>
-        <td class="sug-why">${s.count}건${s.count > 1 ? ' 중앙값' : ''} ${tags(s)}</td>
-        <td class="sug-act">
-          ${kind === 'conf' ? `<button type="button" class="btn-act btn-primary" aria-label="${esc(s.label)} ${esc(s.fieldLabel)} 제안값 바로 적용" onclick="applyRateSuggestion('${s.destKey}','${s.field}',${s.suggestedBase},${s.count})">바로 적용</button>` : ''}
-          <button type="button" class="btn-act btn-outline-p" aria-label="${esc(s.label)} 요율 편집" onclick="openRateEditModal('${s.destKey}')">편집</button>
-        </td>
-      </tr>`;
-    const section = (kind, title, note, items, valueHead) => items.length ? `
-      <section class="sug-sec sug-sec-${kind}">
-        <h3 class="sug-h">${title} <span class="sug-n">${items.length}건</span></h3>
-        ${note ? `<p class="sug-note">${note}</p>` : ''}
-        <div class="sug-wrap"><table class="inq-table sug-table">
-          <thead><tr><th>목적지 · 항목</th><th class="em-num">지금 기준</th><th class="em-num">${valueHead}</th><th class="em-num">차이</th><th>근거 (최근 ${RATE_SUGGEST_RECENT_MONTHS}개월)</th><th></th></tr></thead>
-          <tbody>${items.slice().sort(byGap).map((s) => row(s, kind)).join('')}</tbody>
-        </table></div>
-      </section>` : '';
-    list.innerHTML =
-      section('conf', '✅ 지금 적용 가능', `실제 계약이 ${RATE_SUGGEST_CONFIDENT_COUNT}건 이상 쌓인 항목입니다. 「바로 적용」은 제안값으로 기준을 바꿉니다.`, conf, '제안')
-      + section('far', '⚠ 확인 필요 · 제안 못 만듦', '기준가와 너무 벌어져 <b>제안 금액을 만들지 않았습니다</b> — 오타일 수도, 요율이 낡은 것일 수도 있습니다. 견적서를 열어 확인한 뒤 「편집」으로 직접 고쳐 주세요.', farOff, '제보값')
-      + section('ref', '참고', `실제 계약이 ${RATE_SUGGEST_CONFIDENT_COUNT}건이 안 되거나, 실측 제보(성수기·피크 프리미엄이 섞임)라 <b>참고용</b>입니다 — 자동 적용 안 함. 판단해서 「편집」으로 반영하세요.`, ref, '제안');
+    const tagLine = tags ? `<p class="sug-d-line">${tags}</p>` : '';
+    const verdictLine = s.verdict ? `<p class="sug-d-line"><b>판정 · ${esc(v.t)}</b> — ${esc(s.verdict.why)}. <b>${esc(v.act)}.</b></p>` : '';
+    const impactLine = s.impact == null ? '' : `<p class="sug-d-line">기준을 ${fmtWon(s.currentBase)} → ${fmtWon(s.suggestedBase)}로 바꾸면 20명·4박5일 견적의 1인 원가가 대략 <b>${s.impact > 0 ? '+' : '−'}${Math.abs(Math.round(s.impact)).toLocaleString('ko-KR')}원</b> 움직입니다(마진 전).</p>`;
+    const stillKept = s.decision && s.decision.sig === reviewSig(s);
+    const when = s.decision ? `<span class="fuel-hint">(${esc(s.decision.by || '')} ${s.decision.at ? new Date(s.decision.at).toLocaleDateString('ko-KR') : ''})</span>` : '';
+    const kept = !s.decision ? '' : (stillKept
+      ? `<p class="sug-d-line sug-d-kept">이대로 둠 — ${esc(s.decision.note)} ${when}</p>`
+      : `<p class="sug-d-line">지난번엔 이대로 뒀습니다(${esc(s.decision.note)}) ${when} — <b>새 실측이 들어와 다시 올라왔습니다.</b></p>`);
+    const ev = `<table class="sug-ev"><thead><tr><th>근거</th><th>날짜</th><th class="em-num">값</th><th class="em-num">기준 대비</th><th>검산</th></tr></thead><tbody>${items.map((it) => `
+      <tr><td>${it.kind === 'em' ? '견적 ' : '제보 #'}${esc(String(it.id))}${it.what ? ` <span class="fuel-hint">${esc(it.what)}</span>` : ''}</td><td>${esc(it.date || '—')}</td>
+      <td class="em-num">${fmtWon(it.value)}</td><td class="em-num">×${(it.ratio || 0).toFixed(1)}</td><td>${viaTxt(it)}</td></tr>`).join('')}</tbody></table>`;
+    const btns = canEdit ? `<div class="sug-d-btns">
+        <button type="button" class="btn-act btn-primary" onclick="openRateEditModal('${s.destKey}')" aria-label="${esc(s.label)} 기준 편집">기준 편집</button>
+        ${s.confident ? `<button type="button" class="btn-act btn-outline-p" onclick="applyRateSuggestion('${s.destKey}','${s.field}',${s.suggestedBase},${s.count})" aria-label="${esc(s.label)} ${esc(s.fieldLabel)} 제안값 바로 적용">제안값 바로 적용</button>` : ''}
+        ${stillKept
+          ? `<button type="button" class="btn-act btn-outline-p" onclick="reviewKeep(${i}, true)" aria-label="${esc(s.label)} ${esc(s.fieldLabel)} 다시 목록에">다시 목록에</button>`
+          : `<button type="button" class="btn-act btn-outline-p" onclick="reviewKeep(${i})" aria-label="${esc(s.label)} ${esc(s.fieldLabel)} 이대로 둠">이대로 둠</button>`}
+        ${s.source === 'report' ? `<button type="button" class="btn-act btn-outline-p sug-wrong" onclick="reviewWrong(${i})" aria-label="${esc(s.label)} ${esc(s.fieldLabel)} 제보가 틀림">제보가 틀림 — 평균에서 빼기</button>` : ''}
+      </div>` : '';
+    return `<div class="sug-detail-in">${verdictLine}${impactLine}${kept}${tagLine}${ev}${btns}</div>`;
+  }
+
+  function toggleReviewDetail(i, btn) {
+    const tr = document.getElementById('sug-d-' + i);
+    if (!tr) return;
+    const open = tr.classList.toggle('hidden') === false;
+    if (btn) { btn.setAttribute('aria-expanded', open ? 'true' : 'false'); btn.textContent = open ? '접기' : '자세히'; }
+  }
+
+  async function reviewKeep(i, undo) {
+    const s = reviewRowsCache[i];
+    if (!s) return;
+    let note = '';
+    if (!undo) {
+      note = (prompt(`「${s.label} · ${s.fieldLabel}」 항목을 이대로 둡니다.\n왜 그대로 두는지 한 줄 적어 주세요 (예: 성수기 견적이라 기준가와 다름).`, '') || '').trim();
+      if (note.length < 2) { if (note) alert('이유를 두 글자 이상 적어 주세요.'); return; }
+    }
+    try {
+      const r = await fetch('/api/rates?action=reviewKeep', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destKey: s.destKey, field: s.field, source: s.source, sig: reviewSig(s), note }) });
+      if (!r.ok) { alert('저장하지 못했습니다 (HTTP ' + r.status + ').'); return; }
+      await loadReviewDecisions();
+      renderRateSuggestions();
+    } catch (e) { alert('요청에 실패했습니다. 네트워크를 확인해 주세요.'); }
+  }
+
+  /* 「제보가 틀림」 — 근거 제보의 그 항목을 **평균에서 뺀다**(기존 「평균에서 빼기」와 같은 길 · 값은 남는다) */
+  async function reviewWrong(i) {
+    const s = reviewRowsCache[i];
+    if (!s) return;
+    const ids = (s.items || []).filter((it) => it.kind === 'report').map((it) => it.id);
+    if (!ids.length) return;
+    const why = (prompt(`「${s.label} · ${s.fieldLabel}」 제보 ${ids.length}건을 평균에서 뺍니다(값은 남습니다).\n왜 틀렸는지 적어 주세요 (예: 1인 1일이 아니라 만찬 한 끼 값).`, '') || '').trim();
+    if (why.length < 2) { if (why) alert('이유를 두 글자 이상 적어 주세요.'); return; }
+    const key = REPORT_FX_KEY[s.field];
+    let failedN = 0;
+    for (const id of ids) {
+      try {
+        const r = await fetch('/api/quotes?action=excludeReportField', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, field: key, reason: '갱신 제안 「제보가 틀림」 — ' + why }) });
+        if (!r.ok) failedN++;
+      } catch (e) { failedN++; }
+    }
+    if (failedN) alert(`${ids.length}건 중 ${failedN}건을 빼지 못했습니다 — 견적서 업데이트에서 확인해 주세요.`);
+    await loadPriceReports();
+    renderRates();
   }
 
   /* 실제 이용 호텔 목록 (RY) — 가격 비교가 아니라 "어느 나라 어느 도시에서 어느 호텔을
@@ -1824,6 +1973,7 @@
   async function refreshRatesOnOpen() {
     const ok = await loadRateOverrides();
     await loadPriceReports();
+    await loadReviewDecisions();
     renderRates();
     /* 외부 자료 상태는 기다리지 않는다 — 요율 표가 그것 때문에 늦게 뜨면 안 된다 */
     loadExternalFeeds();

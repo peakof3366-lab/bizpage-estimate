@@ -229,7 +229,45 @@
     return '이 문서에서 금액의 ' + pct + '를 읽었습니다.';
   }
 
+  /* ── 「확인 필요 · 제안 못 만듦」 판정 (2026-10-02 — resolve_far_off.js에서 옮겨 왔다) ──────────
+     갱신 제안이 기준가와 0.5~2배 밖이라 제안을 못 만든 항목을 **세 갈래**로 가른다:
+       misread  오독 — 그 값이 견적서를 잘못 읽은 것 → 제보를 평균에서 뺀다
+       stale    요율이 낡음 — 값은 맞고 기준가가 틀렸다 → 기준을 고친다(🔴 실거래가라 사람이 정한다)
+       unclear  판단 불가 — 근거가 서로 안 맞는다 → 사람이 문서를 본다
+     🔴 **규칙은 여기 한 벌이다.** 개발 도구(resolve_far_off.js)와 요율 관리 화면이 같이 부른다.
+       두 곳에 적으면 화면과 도구가 다른 말을 한다(결함 생성기 ①).
+     ⚠ 근거는 부르는 쪽이 아는 만큼 넘긴다. 개발 도구는 「11회 검토」 결과와 단위 확인까지 알고,
+       화면은 검산 표시와 기준가 대비 3배 잣대(judge)까지 안다 — 같은 규칙에 넣는 근거의 양만 다르다.
+     입력: { values:[실측들], base, peerMed(같은 나라 다른 목적지 기준가 중앙값|null),
+             failed(검토에서 걸린 적 있나), unitBadAll(전부 단위가 다른가), unitBad(그 이유) } */
+  var REVIEW_OK_LOW = 0.5, REVIEW_OK_HIGH = 2, REVIEW_SELF_SPREAD = 2;
+  function reviewFarOff(o) {
+    var vals = (o.values || []).filter(function (v) { return v > 0; });
+    var base = Number(o.base) || 0;
+    var med = median(vals);
+    var spread = vals.length >= 2 ? Math.max.apply(null, vals) / Math.min.apply(null, vals) : 1;
+    var ratios = base ? vals.map(function (v) { return v / base; }) : [];
+    var allSameSide = ratios.length >= 2
+      && (ratios.every(function (x) { return x > REVIEW_OK_HIGH; }) || ratios.every(function (x) { return x < REVIEW_OK_LOW; }));
+    var won = function (n) { return Math.round(n).toLocaleString('ko-KR') + '원'; };
+    if (o.unitBadAll) return { kind: 'misread', rule: 'unit', why: '단위가 다릅니다 — ' + (o.unitBad || '') };
+    if (o.failed && vals.length === 1) return { kind: 'misread', rule: 'failed-single', why: '검토에서 걸렸고 실측이 이 한 건뿐입니다' };
+    if (vals.length >= 2 && spread > REVIEW_SELF_SPREAD) {
+      return { kind: 'unclear', rule: 'self-spread', spread: spread, why: '실측끼리 ' + spread.toFixed(1) + '배 벌어집니다 — 둘 다 덜 읽었을 수 있습니다' };
+    }
+    if (o.peerMed && med >= o.peerMed / REVIEW_OK_HIGH && med <= o.peerMed * REVIEW_OK_HIGH) {
+      return { kind: 'stale', rule: 'peer', why: '같은 나라 다른 목적지 기준가(' + won(o.peerMed) + ')와 맞습니다' };
+    }
+    if (allSameSide) return { kind: 'stale', rule: 'same-side', why: '실측 ' + vals.length + '건이 모두 같은 쪽으로 벌어집니다' };
+    /* 2026-08-13 대표 방침 「온라인 정보보다 견적서에서 뽑은 값이 정확할 확률이 높다」 —
+       걸린 데가 없으면 실측 쪽으로 본다(그래도 요율 판단은 사람이 한다) */
+    if (!o.failed) return { kind: 'stale', rule: 'passed', why: '검토를 통과했습니다 — 지금 기준가가 온라인 추정치일 가능성이 큽니다' };
+    return { kind: 'unclear', rule: 'failed', why: '검토에서 걸린 적이 있습니다 — 견적서 원문을 봐야 합니다' };
+  }
+
   var API = {
+    /* 「확인 필요 · 제안 못 만듦」 세 갈래 판정 — 화면과 resolve_far_off.js가 같이 쓴다 */
+    reviewFarOff: reviewFarOff, REVIEW_OK_LOW: REVIEW_OK_LOW, REVIEW_OK_HIGH: REVIEW_OK_HIGH,
     PEER_SPREAD: PEER_SPREAD, RATE_SPREAD: RATE_SPREAD, MIN_PEERS: MIN_PEERS,
     /* YS: 이 문서를 얼마나 읽었는가 — 화면·감사기가 같은 잣대를 쓴다 */
     LOW_COVERAGE: LOW_COVERAGE, HIGH_COVERAGE: HIGH_COVERAGE,

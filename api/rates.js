@@ -353,6 +353,54 @@ async function handleFuelPost(req, res, action) {
   }
 }
 
+/* ── 📊 갱신 제안 「이대로 둠」 결정 (2026-10-02 대표 지시 — 월 1회 요율 점검표) ─────────────
+   GET  ?action=review      (로그인)   { decisions: { 'dest|field|source': {sig, note, by, at} } }
+   POST ?action=reviewKeep  (매니저↑) {destKey, field, source, sig, note} — note가 비면 결정을 지운다(다시 목록에)
+   ⚠ **이유를 반드시 받는다.** 이유 없이 넘긴 항목은 나중에 아무도 왜 그런지 몰라 다시 손대게 된다
+     (「평균에서 빼기」가 사유를 받는 것과 같은 이유 — api/quotes.js excludeReportField).
+   ⚠ `sig`(그때 근거가 된 실측 목록)가 바뀌면 **다시 목록에 올라온다** — 새 실측이 들어왔는데
+     예전 결정으로 영영 가리면 그게 조용한 폴백이다(결함 생성기 ②). 비교는 화면이 한다. */
+const REVIEW_KEY = 'rate_review_decisions';
+/* 갱신 제안이 보는 항목(admin/rates.js RATE_SUGGEST_REPORT_FIELDS)과 같다 */
+const REVIEW_FIELDS = new Set(['airfare', 'fuel_surcharge', 'hotel_per_room', 'meal_per_person', 'vehicle_large', 'vehicle_small', 'guide_fee', 'sightseeing_fee', 'golf_fee']);
+async function handleReviewGet(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  try {
+    return res.status(200).json({ decisions: (await readSetting(REVIEW_KEY)) || {} });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'query_failed' });
+  }
+}
+async function handleReviewKeep(req, res) {
+  if (!(await requireRole(req, res, ['owner', 'manager']))) return;
+  const b = req.body || {};
+  const destKey = String(b.destKey || '');
+  const field = String(b.field || '');
+  const source = b.source === 'em' ? 'em' : 'report';
+  const sig = String(b.sig || '').slice(0, 2000);
+  const note = String(b.note || '').trim().slice(0, 200);
+  if (!destinationRates.find((d) => d.destination_key === destKey)) return res.status(400).json({ error: 'invalid_dest' });
+  if (!REVIEW_FIELDS.has(field)) return res.status(400).json({ error: 'invalid_field' });
+  if (note && note.length < 2) return res.status(400).json({ error: 'note_too_short' });
+  const who = (req.user && (req.user.displayName || req.user.username)) || '';
+  try {
+    const cur = (await readSetting(REVIEW_KEY)) || {};
+    const key = `${destKey}|${field}|${source}`;
+    if (note) cur[key] = { sig, note, by: who, at: new Date().toISOString() };
+    else delete cur[key];
+    await sql`
+      insert into app_settings (key, value, updated_at, updated_by)
+      values (${REVIEW_KEY}, ${JSON.stringify(cur)}::jsonb, now(), ${who})
+      on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = excluded.updated_by
+    `;
+    return res.status(200).json({ ok: true, key, removed: !note });
+  } catch (err) {
+    console.error('[reviewKeep]', err);
+    return res.status(500).json({ error: 'save_failed' });
+  }
+}
+
 /* 관리자 화면 「외부 자료 상태」 — 마지막 실행 결과 + 공휴일 ↔ 성수기 달력 대조.
    ⚠ 대조는 **여기 한 곳**에서 한다. 달력은 data.js가 진실이고 서버도 같은 파일을 읽는다. */
 async function handleFeeds(req, res) {
@@ -419,6 +467,7 @@ module.exports = async (req, res) => {
 
     if (req.query && req.query.action === 'feeds') return handleFeeds(req, res);
     if (req.query && req.query.action === 'fuel') return handleFuelGet(req, res);
+    if (req.query && req.query.action === 'review') return handleReviewGet(req, res);
 
     if (req.query && req.query.history) {
       if (!(await requireAdmin(req, res))) return;
@@ -503,6 +552,7 @@ module.exports = async (req, res) => {
      내장 목적지(data.js)와 destination_key가 겹치면 절대 만들어지지 않도록
      BUILTIN_DEST_KEYS로 막는다(이후 script.js 클라이언트 병합에서도 같은 이유로
      한 번 더 방어함 — 서버가 뚫려도 클라이언트가 내장값을 우선하도록). */
+  if (req.method === 'POST' && req.query && req.query.action === 'reviewKeep') return handleReviewKeep(req, res);
   if (req.method === 'POST' && req.query && ['fuelPreview', 'fuelSave', 'fuelBand', 'fuelRemove'].includes(req.query.action)) {
     return handleFuelPost(req, res, req.query.action);
   }
