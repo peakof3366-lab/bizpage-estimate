@@ -85,12 +85,16 @@ async function handleInbox(req, res) {
     const [inq, quote] = await Promise.all([
       sql`select count(*) filter (where read = false)::int as pending,
                  count(*)::int as total, max(created_at) as latest from inquiries`,
+      /* `active` = 진행 중(신규 + 상담중) — 2026-10-02 대표 「견적 관리 옆에는 총 진행 중인 숫자가 보여야」.
+         `pending`(신규)은 그대로 둔다: 알림·탭 제목·「지금 할 일」은 **아직 아무도 안 잡은 건**을 말한다. */
       sql`select count(*) filter (where status = 'new')::int as pending,
+                 count(*) filter (where status = 'consulting')::int as consulting,
+                 count(*) filter (where status in ('new', 'consulting'))::int as active,
                  count(*)::int as total, max(created_at) as latest from quotes`,
     ]);
     res.status(200).json({
       inquiries: { pending: inq[0].pending, total: inq[0].total, latest: inq[0].latest },
-      quotes: { pending: quote[0].pending, total: quote[0].total, latest: quote[0].latest },
+      quotes: { pending: quote[0].pending, consulting: quote[0].consulting, active: quote[0].active, total: quote[0].total, latest: quote[0].latest },
     });
   } catch (err) {
     /* ⚠ 실패를 0건으로 내려보내지 않는다. 화면이 그걸 "새 문의 없음"으로 읽으면

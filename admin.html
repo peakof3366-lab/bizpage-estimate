@@ -530,6 +530,8 @@
         <div class="toolbar-left">
           <input type="search" id="emSearch" readonly data-noautofill class="search-box" placeholder="목적지·기관명·담당자 검색..." style="min-width:220px" autocomplete="off" aria-label="견적 검색" />
           <button class="filter-btn active" data-emfilter="all">전체</button>
+          <!-- 진행 중 = 신규 + 상담중 — 좌측 메뉴 배지와 같은 숫자 (2026-10-02) -->
+          <button class="filter-btn" data-emfilter="active">진행 중</button>
           <button class="filter-btn" data-emfilter="new">신규</button>
           <button class="filter-btn" data-emfilter="consulting">상담중</button>
           <button class="filter-btn" data-emfilter="contracted">계약완료</button>
@@ -3850,10 +3852,12 @@
     try { localStorage.setItem(INBOX_SEEN_KEY, JSON.stringify(v)); } catch { /* 저장 못 해도 배지는 돈다 */ }
   }
 
-  function setSideBadge(id, text, title) {
+  /* `todo` = 「할 일」로 셀 숫자. 보이는 글자와 다를 때만 준다(견적 관리: 보이는 건 진행 중, 할 일은 신규). */
+  function setSideBadge(id, text, title, todo) {
     const el = document.getElementById(id);
     if (!el) return;
     el.textContent = text;
+    if (todo === undefined) delete el.dataset.todo; else el.dataset.todo = todo;
     el.title = title || '';
     el.style.display = text ? '' : 'none';
     /* 배지가 바뀌면 대시보드 「지금 할 일」과 **접힌 묶음의 합계 배지**도 같이 바뀐다 —
@@ -3878,13 +3882,21 @@
     { badge: 'sb-pkg-stale',      tab: 'packages',  icon: 'package',        what: '금액 확인이 오래된 패키지' },
   ];
 
+  /* 배지가 「할 일」로 세는 값 — 따로 준 값(data-todo)이 있으면 그것, 없으면 보이는 글자. '?'는 그대로 '?'다. */
+  function badgeTodo(el) {
+    if (!el) return '';
+    const shown = String(el.textContent || '').trim();
+    if (shown === '?') return '?';
+    return el.dataset && el.dataset.todo !== undefined ? String(el.dataset.todo).trim() : shown;
+  }
+
   function renderDashTodo() {
     const list = document.getElementById('dt-list');
     if (!list) return;                       /* 대시보드가 아직 안 그려졌다 */
     const rows = [], unknown = [];
     for (const t of DASH_TODO) {
       const el = document.getElementById(t.badge);
-      const txt = el ? String(el.textContent || '').trim() : '';
+      const txt = badgeTodo(el);
       if (!txt) continue;
       if (txt === '?') { unknown.push(t.what); continue; }
       const n = Number(txt);
@@ -3986,8 +3998,18 @@
     const quo = data.quotes;
     setSideBadge('sb-unread', inq.pending > 0 ? String(inq.pending) : '',
       inq.pending ? `미확인 문의 ${inq.pending}건` : '');
-    setSideBadge('sb-new-quotes', quo.pending > 0 ? String(quo.pending) : '',
-      quo.pending ? `미처리 견적 ${quo.pending}건` : '');
+    /* 🔢 견적 관리 배지 = **진행 중(신규 + 상담중)** (2026-10-02 대표 지시). 빨강은 신규가 있을 때만 —
+         상담중만 남았으면 회색으로 「진행 중」만 말한다. 「지금 할 일」·접힌 묶음 합계는 4번째 인자(신규)를 센다.
+       ⚠ 옛 서버(active 없음)면 신규로 떨어진다 — 배포 순서가 어긋나도 배지가 비지 않게. */
+    {
+      const act = Number.isFinite(quo.active) ? quo.active : (quo.pending || 0);
+      const pend = quo.pending || 0;
+      setSideBadge('sb-new-quotes', act > 0 ? String(act) : '',
+        act > 0 ? `진행 중 견적 ${act}건 — 신규 ${pend} · 상담중 ${Number.isFinite(quo.consulting) ? quo.consulting : act - pend}` : '',
+        pend > 0 ? String(pend) : '');
+      const qb = document.getElementById('sb-new-quotes');
+      if (qb) qb.classList.toggle('si-badge-calm', act > 0 && pend === 0);
+    }
     setTabTitleCount((inq.pending || 0) + (quo.pending || 0));
 
     /* 알림 여부는 **저장해 둔 기준 시각 하나로만** 판단한다.
@@ -4103,7 +4125,7 @@
       if (!roll) return;
       let sum = 0, unknown = false;
       g.querySelectorAll('.sb-group-items .si-badge').forEach((b) => {
-        const t = String(b.textContent || '').trim();
+        const t = badgeTodo(b);
         if (!t) return;
         if (t === '?') { unknown = true; return; }
         const n = Number(t);

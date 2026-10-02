@@ -129,6 +129,8 @@
     .si-sub { display: block; }
     .si-badge { background: var(--danger); color: #fff; font-size: .72rem; font-weight: 700;
       padding: .1rem .35rem; border-radius: 0; line-height: 1.4; }
+    /* 진행 중만 있고 신규는 없을 때 — 급한 일이 아니니 빨강을 쓰지 않는다 */
+    .si-badge.si-badge-calm { background: #5b6472; }
     /* 알림 켜기 안내 (QT) — 대시보드 맨 위. 권한이 정해지면 JS가 숨긴다. */
     .notify-cta { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
       background: #FFF8E1; border: 1px solid #F5D78E; color: #6B4E00;

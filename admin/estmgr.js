@@ -63,6 +63,9 @@
     if (redraw) renderEstMgr();
   }
   const EM_SHARE_ST = { issued: '발급', won: '계약', lost: '무산', void: '취소' };
+  /* 진행 중 = 신규 + 상담중. 서버 배지(api/admin/insights.js `active`)와 같은 정의 — 바꾸면 둘 다 바꾼다(test_aM이 대조) */
+  function emIsActive(e) { const s = e.status || 'new'; return s === 'new' || s === 'consulting'; }
+
   function emShareBadge(quoteId, ownNo) {
     if (emShareLinks === null) return '';         /* 모르면 아무 말도 하지 않는다 */
     const list = emShareLinks[quoteId];
@@ -112,7 +115,7 @@
       const k = b.dataset.emfilter;
       if (k === 'needs-actual') return;
       if (!b.dataset.label) b.dataset.label = b.textContent.trim();
-      const n = k === 'all' ? searched.length : searched.filter((e) => e.status === k).length;
+      const n = k === 'all' ? searched.length : searched.filter((e) => (k === 'active' ? emIsActive(e) : e.status === k)).length;
       b.textContent = b.dataset.label + ' ' + n;
     });
     /* 검색 중이면 **눈에 보이게** 말한다 — 검색칸 글자만으로는 걸러진 줄 모른다 */
@@ -133,6 +136,7 @@
     /* 필터 */
     let list = all.slice().reverse();
     if (emFilter === 'needs-actual') list = list.filter(emNeedsActual);
+    else if (emFilter === 'active') list = list.filter(emIsActive);
     else if (emFilter !== 'all') list = list.filter(e => e.status === emFilter);
     list = list.filter(emMatches);
 

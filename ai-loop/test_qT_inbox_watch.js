@@ -157,6 +157,26 @@ const insightsSrc = fs.readFileSync(path.join(ROOT, 'api', 'admin', 'insights.js
   ok('그래도 탭 제목에는 숫자가 뜬다 (7건)', /^\(7\)/.test(d.title), d.title);
   ok('그래도 사이드바 배지는 뜬다', inqBadge.textContent === '7', inqBadge.textContent);
 
+  console.log('\n[10] 🔢 견적 배지 = 진행 중(신규 + 상담중) · 할 일은 신규만 (2026-10-02 대표 지시)');
+  ok('서버가 진행 중을 센다 (status in new, consulting)', /count\(\*\) filter \(where status in \('new', 'consulting'\)\)::int as active/.test(inboxFn));
+  const replyQ = (q) => () => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({
+    inquiries: { pending: 0, total: 0, latest: null }, quotes: Object.assign({ total: 4, latest: '2026-08-03T03:00:00.000Z' }, q) }) });
+  const todoN = () => { const el = d.querySelector('#dt-list .dt-go[data-go="estmgr"] .dt-n'); return el ? el.textContent : ''; };
+  w.fetch = replyQ({ pending: 3, consulting: 1, active: 4 });
+  await w.__pollInbox();
+  ok('🔴 배지는 진행 중 4', quoBadge.textContent === '4', quoBadge.textContent);
+  ok('툴팁이 갈래를 말한다 (신규 3 · 상담중 1)', /진행 중 견적 4건 — 신규 3 · 상담중 1/.test(quoBadge.title), quoBadge.title);
+  ok('신규가 있으면 빨강 (calm 아님)', !quoBadge.classList.contains('si-badge-calm'));
+  ok('🔴 「지금 할 일」은 신규 3만 센다', !d.getElementById('dt-list') || todoN() === '3건', todoN());
+  ok('탭 제목도 신규 기준 (3)', /^\(3\)/.test(d.title), d.title);
+  w.fetch = replyQ({ pending: 0, consulting: 2, active: 2 });
+  await w.__pollInbox();
+  ok('상담중만 남으면 배지 2 · 회색', quoBadge.textContent === '2' && quoBadge.classList.contains('si-badge-calm'), quoBadge.textContent + ' ' + quoBadge.className);
+  ok('🔴 상담중만 남으면 「지금 할 일」에 견적 줄이 없다', !d.querySelector('#dt-list .dt-go[data-go="estmgr"]'));
+  w.fetch = replyQ({ pending: 2 });   /* 옛 서버 — active가 없다 */
+  await w.__pollInbox();
+  ok('옛 서버(active 없음)면 신규 수로 떨어진다 — 배지가 비지 않는다', quoBadge.textContent === '2', quoBadge.textContent);
+
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   dom.window.close();
   if (fail) process.exit(1);

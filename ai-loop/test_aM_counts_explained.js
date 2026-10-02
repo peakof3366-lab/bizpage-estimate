@@ -64,7 +64,8 @@ const finish = async () => {
   w.renderEstMgr();
   const btn = (k) => d.querySelector(`#tab-estmgr [data-emfilter="${k}"]`).textContent.trim();
   ok('① 전체 4', btn('all') === '전체 4', btn('all'));
-  ok('🔴 ① 신규 3 — 좌측 배지(신규만)와 같은 수', btn('new') === '신규 3', btn('new'));
+  ok('🔴 ① 신규 3 — 「지금 할 일」(신규만)과 같은 수', btn('new') === '신규 3', btn('new'));
+  ok('🔴 ① 진행 중 4 (신규 3 + 상담중 1) — 좌측 메뉴 배지와 같은 정의', btn('active') === '진행 중 4', btn('active'));
   ok('① 상담중 1 · 계약완료 0 · 종료 0', btn('consulting') === '상담중 1' && btn('contracted') === '계약완료 0' && btn('closed') === '종료 0');
   w.renderEstMgr();
   ok('① 다시 그려도 숫자가 겹쳐 붙지 않는다 (「신규 3 3」 아님)', btn('new') === '신규 3', btn('new'));
