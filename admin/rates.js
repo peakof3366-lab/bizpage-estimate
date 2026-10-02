@@ -1903,29 +1903,39 @@
     /* 🔴 기준 항공사(대한항공) 표만 「적용 중」이 된다. 아시아나 표는 참고로만 보인다. */
     const act = p.active ? (months[p.active] || {})[p.basis] : null;
     const nxt = p.next ? (months[p.next] || {})[p.basis] : null;
-    const lines = [];
+    /* 2026-10-02 「깔끔하게」 — 외부 자료 카드와 같은 꼴: [상태] [한 줄]. 상태는 정상·할 일 둘만 쓴다
+       (이 표는 사람이 넣는 것이라 「대기」가 없다 — 안 넣었으면 할 일이다). */
+    const rowsS = [];
+    const addS = (tone, text) => rowsS.push(`<div class="fuel-srow"><span class="ext-pill ext-tone-${tone}"><span aria-hidden="true">${tone === 'ok' ? '✓' : '!'}</span> ${tone === 'ok' ? '정상' : '할 일'}</span><span class="ext-main">${text}</span></div>`);
+    const who = canEdit ? '' : ' <span class="fuel-hint">(매니저 이상이 넣을 수 있습니다)</span>';
     if (!act) {
-      lines.push(`<p class="fuel-line ext-bad"><b>${esc(basisName)} 표가 아직 없습니다.</b> 아래 ①에 이번 달 ${esc(basisName)} 공지 본문을 붙여넣고 「공지 읽어 보기」를 누르세요.${canEdit ? '' : ' (매니저 이상만 넣을 수 있습니다 — 매니저에게 요청하세요)'}</p>`);
+      addS('todo', `<b>${esc(basisName)} ${esc(p.current)} 표</b>가 필요합니다${who}`);
+    } else if (p.currentMissing) {
+      addS('todo', `<b>${esc(p.current)} ${esc(basisName)} 표</b>가 필요합니다 — 지금은 ${esc(p.active)} 표로 보고 있습니다${who}`);
     } else {
-      lines.push(`<p class="fuel-line">기준 <b>${esc(basisName)}</b> · 적용 중 <b>${esc(p.active)}</b> 표 (${act.source === 'paste' ? '본문 붙여넣기' : '공지 링크'} · ${esc(act.savedBy || '')} ${act.savedAt ? new Date(act.savedAt).toLocaleDateString('ko-KR') : ''} 저장)${p.currentMissing ? ` — <b class="ext-bad">${esc(p.current)} ${esc(basisName)} 표가 아직 없습니다.</b> 지난 표로 보고 있습니다. 이번 달 공지를 넣어 주세요.` : ''}</p>`);
+      addS('ok', `<b>${esc(basisName)} ${esc(p.active)}</b> 적용 중 <span class="fuel-hint">· ${act.source === 'paste' ? '본문 붙여넣기' : '공지 링크'} · ${esc(act.savedBy || '')} ${act.savedAt ? new Date(act.savedAt).toLocaleDateString('ko-KR') : ''}</span>`);
     }
     if ((p.otherOnly || []).length) {
-      lines.push(`<p class="fuel-line ext-bad">⚠ ${esc(p.current)}에는 ${p.otherOnly.map((a) => esc(AL[a] || a)).join('·')} 표만 있습니다 — 기준이 ${esc(basisName)}라 그 표로 갈아타지 않습니다. ${esc(basisName)} 공지를 넣어 주세요.</p>`);
+      addS('todo', `${esc(p.current)}에는 ${p.otherOnly.map((a) => esc(AL[a] || a)).join('·')} 표만 있습니다 — 기준이 ${esc(basisName)}라 그 표로는 안 바꿉니다`);
     }
     if (nxt && act) {
       const pick2 = (t) => (t.bands.find((b) => b.min === 500) || t.bands[1] || {}).oneway;
       const a0 = pick2(act) && pick2(nxt) ? (pick2(nxt) / pick2(act) - 1) * 100 : null;
-      lines.push(`<p class="fuel-line">📣 다음 달 예고 <b>${esc(p.next)}</b> 표가 들어와 있습니다${a0 != null ? ` — 500~999마일 기준 <b>${a0 > 0 ? '+' : ''}${a0.toFixed(0)}%</b>` : ''}.</p>`);
+      addS('ok', `다음 달 <b>${esc(p.next)}</b> 예고 도착${a0 != null ? ` <span class="fuel-hint">· 500~999마일 ${a0 > 0 ? '+' : ''}${a0.toFixed(0)}%</span>` : ''}`);
     }
+    const lines = [`<div class="fuel-srows">${rowsS.join('')}</div>`];
     if (act) {
       lines.push(`<div class="fuel-bands">${act.bands.map((b) => `<span class="fuel-band"><em>${esc(bandLabel(b))}</em> 편도 ${won(b.oneway)}</span>`).join('')}</div>`);
     }
     st.innerHTML = lines.join('');
     if (cnt) {
-      const bad = !act || p.currentMissing;
-      cnt.textContent = !act ? `⚠ ${basisName} 표 없음` : (p.currentMissing ? `⚠ ${p.current} 표 없음` : `${basisName} ${p.active} 적용 중`);
-      cnt.classList.toggle('ext-bad', !!bad);
+      const todo = !act || p.currentMissing;
+      cnt.textContent = !act ? `할 일 · ${basisName} 표 필요` : (p.currentMissing ? `할 일 · ${p.current} 표 필요` : `${basisName} ${p.active} 적용 중`);
+      cnt.className = 'fold-count ext-count ext-tone-' + (todo ? 'todo' : 'ok');
     }
+    /* 표가 없으면 비교 칸을 통째로 감춘다 — 비어 있는 접이식은 누를 이유가 없다 */
+    const cmpWrap = document.getElementById('fuel-compare-wrap');
+    if (cmpWrap) cmpWrap.classList.toggle('hidden', !act);
     /* 목적지별 비교 */
     if (cmp) {
       if (!act) { cmp.innerHTML = `<p class="ext-feeds-note">${esc(basisName)} 표를 넣으면 목적지마다 공시 왕복 금액과 지금 요율표 칸을 나란히 보여 드립니다.</p>`; return; }
@@ -1966,7 +1976,7 @@
     const save = document.getElementById('fuel-save-btn');
     if (save) save.classList.add('hidden');
     const body = fuelRequestBody();
-    if (!body.text && !body.url) { box.innerHTML = '<p class="ext-feeds-note ext-bad">① 공지 본문을 붙여넣거나 ② 아시아나 공지 링크를 넣어 주세요.</p>'; return; }
+    if (!body.text && !body.url) { box.innerHTML = '<p class="ext-feeds-note ext-bad">공지 본문을 붙여넣거나, 아래 「아시아나 공지 링크로 넣기」에 링크를 넣어 주세요.</p>'; return; }
     box.innerHTML = '<p class="ext-feeds-note">공지를 읽는 중…</p>';
     try {
       const r = await fetch('/api/rates?action=fuelPreview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

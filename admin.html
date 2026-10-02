@@ -1028,7 +1028,7 @@
         <div class="card-body" id="ext-feeds-body"><p class="ext-feeds-note">불러오는 중…</p></div>
       </details>
 
-      <!-- ⛽ 유류할증료 월별 표 (2026-10-02 대표 지시) — 항공사가 자동 수집을 막아서 **매달 공지 링크를 붙여넣는다.**
+      <!-- ⛽ 유류할증료 월별 표 (2026-10-02 대표 지시) — 항공사가 자동 수집을 막아서 **매달 공지 본문을 붙여넣는다**(합병 전까지는 아시아나 링크도).
            서버가 그 페이지를 다시 받아 읽고 검산을 통과해야 저장한다(_lib/fuel_surcharge.js).
            ⚠ 아직 견적 금액에 쓰이지 않는다 — 대기열 0-ap 결정 뒤 연결. 그리는 곳은 admin/rates.js renderFuelCard 하나. -->
       <details class="card fold-card" id="fuel-card" style="margin-bottom:1.25rem">
@@ -1040,29 +1040,30 @@
         <div class="card-body">
           <div id="fuel-status" class="fuel-status"></div>
           <!-- 2026-10-02 대표 결정: **기준 = 대한항공**(12/17 합병 뒤 남는 회사). 대한항공 사이트는 서버 요청을 막아서
-               **공지 본문을 복사해 붙여넣는다**(서버가 받으러 가지 않는다). 아시아나 링크는 합병 전까지 보조로 남긴다. -->
+               **공지 본문을 복사해 붙여넣는다**(서버가 받으러 가지 않는다). 아시아나 링크는 합병 전까지 보조로 접어 둔다.
+               2026-10-02 「깔끔하게」 — 넣는 법은 세 단계 한 줄 · 조작은 한 줄(항공사·읽어 보기·저장) · 보조 입력은 접는다. -->
           <div id="fuel-import" class="fuel-import hidden">
-            <label for="fuel-text" class="fuel-label">① 공지 본문 붙여넣기 <span class="fuel-hint">(대한항공 → 공지사항 → 「한국 출발 국제선 유류할증료」 글에서 안내 문장부터 표 끝까지 드래그해 복사)</span></label>
-            <textarea id="fuel-text" rows="6" class="fuel-text" aria-label="유류할증료 공지 본문" placeholder="예) 2026년 11월 1일 ~ 11월 30일 발권분 …&#10;~ 499    인천-칭다오, 후쿠오카 …    49,000원    51,000원&#10;500 ~ 999    …"></textarea>
+            <p class="fuel-steps"><b>넣는 법</b><span>① 대한항공 공지 열기</span><span>→ ② 「한국 출발 국제선 유류할증료」 글을 안내 문장부터 표 끝까지 복사</span><span>→ ③ 아래 칸에 붙여넣고 「읽어 보기」</span></p>
+            <a class="btn-act btn-outline-p fuel-open" href="https://www.koreanair.com/kr/ko/footer/customer-support/notice" target="_blank" rel="noopener">대한항공 공지사항 열기 ↗</a>
+            <textarea id="fuel-text" rows="5" class="fuel-text" aria-label="유류할증료 공지 본문" placeholder="여기에 공지 본문을 붙여넣으세요 (표는 줄 단위로)"></textarea>
             <div class="fuel-import-row">
-              <label class="fuel-label-inline" for="fuel-airline">항공사</label>
               <select id="fuel-airline" aria-label="공지 항공사">
                 <option value="KE" selected>대한항공 (기준)</option>
                 <option value="OZ">아시아나항공 (참고)</option>
               </select>
-            </div>
-            <label for="fuel-url" class="fuel-label">② 또는 아시아나 공지 링크 <span class="fuel-hint">(합병 전까지 — 본문을 붙여넣었으면 비워 두세요)</span></label>
-            <div class="fuel-import-row">
-              <input type="url" id="fuel-url" placeholder="https://m.flyasiana.com/C/KR/KO/customer/notice/detail?id=CM…" aria-label="아시아나 유류할증료 공지 링크" autocomplete="off">
-            </div>
-            <div class="fuel-import-row">
-              <button type="button" class="btn-act btn-outline-p" id="fuel-preview-btn" onclick="fuelPreview()">공지 읽어 보기</button>
+              <button type="button" class="btn-act btn-outline-p" id="fuel-preview-btn" onclick="fuelPreview()">읽어 보기</button>
               <button type="button" class="btn-act btn-primary hidden" id="fuel-save-btn" onclick="fuelSave()">이 표 저장</button>
             </div>
+            <details class="fuel-alt">
+              <summary class="fold-note fuel-alt-sum">아시아나 공지 링크로 넣기 (합병 전까지)</summary>
+              <input type="url" id="fuel-url" placeholder="https://m.flyasiana.com/C/KR/KO/customer/notice/detail?id=CM…" aria-label="아시아나 유류할증료 공지 링크" autocomplete="off">
+              <p class="ext-feeds-note">링크를 넣었으면 위 본문 칸은 비워 두고 「읽어 보기」를 누르세요.</p>
+            </details>
             <div id="fuel-preview" class="fuel-preview"></div>
           </div>
-          <!-- ⚠ `.fold-note`는 **summary에** 붙인다(details에 붙였더니 제목이 세로로 한 글자씩 꺾였다) -->
-          <details id="fuel-compare-wrap">
+          <!-- ⚠ `.fold-note`는 **summary에** 붙인다(details에 붙였더니 제목이 세로로 한 글자씩 꺾였다).
+               표가 없으면 이 칸 자체를 감춘다(비어 있는 접이식은 누를 이유가 없다) — renderFuelCard가 정한다. -->
+          <details id="fuel-compare-wrap" class="hidden">
             <summary class="fold-note fuel-compare-sum">목적지별 비교 — 공시 왕복 vs 지금 요율표 칸</summary>
             <div id="fuel-compare" class="fuel-compare"></div>
           </details>
