@@ -2006,3 +2006,10 @@
   #emTable .em-who-sub > .em-dest { flex: 0 0 100%; }
   #emTable .em-who-sub > .em-slot:empty { display: none; }
 }
+/* 상태 칸 뒤에 붙는 표시(「⚠ 확인 필요」·「💰 실적」)도 상태 알약과 같은 높이 (2026-10-02 대표) —
+   폭은 글자대로 둔다(고정하면 「검증 못함」이 잘린다) */
+#emTable td:nth-last-child(3) > .badge ~ .badge,
+#emTable td:nth-last-child(3) > .badge-need-actual {
+  height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  vertical-align: middle; padding: 0 .7rem; font-size: .84rem; margin-left: .3rem;
+}
