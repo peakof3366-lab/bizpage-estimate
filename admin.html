@@ -1040,7 +1040,7 @@
         <div class="card-body">
           <div id="fuel-status" class="fuel-status"></div>
           <!-- 2026-10-02 대표 결정: **기준 = 대한항공**(12/17 합병 뒤 남는 회사). 대한항공 사이트는 서버 요청을 막아서
-               **공지 본문을 복사해 붙여넣는다**(서버가 받으러 가지 않는다). 아시아나 링크는 합병 전까지 보조로 접어 둔다.
+               **공지 본문을 복사해 붙여넣는다**(서버가 받으러 가지 않는다). 아시아나 링크 칸은 뺐다(대표 지시).
                2026-10-02 「깔끔하게」 — 넣는 법은 세 단계 한 줄 · 조작은 한 줄(항공사·읽어 보기·저장) · 보조 입력은 접는다. -->
           <div id="fuel-import" class="fuel-import hidden">
             <p class="fuel-steps"><b>넣는 법</b><span>① 대한항공 공지 열기</span><span>→ ② 「한국 출발 국제선 유류할증료」 글을 안내 문장부터 표 끝까지 복사</span><span>→ ③ 아래 칸에 붙여넣고 「읽어 보기」</span></p>
@@ -1054,11 +1054,8 @@
               <button type="button" class="btn-act btn-outline-p" id="fuel-preview-btn" onclick="fuelPreview()">읽어 보기</button>
               <button type="button" class="btn-act btn-primary hidden" id="fuel-save-btn" onclick="fuelSave()">이 표 저장</button>
             </div>
-            <details class="fuel-alt">
-              <summary class="fold-note fuel-alt-sum">아시아나 공지 링크로 넣기 (합병 전까지)</summary>
-              <input type="url" id="fuel-url" placeholder="https://m.flyasiana.com/C/KR/KO/customer/notice/detail?id=CM…" aria-label="아시아나 유류할증료 공지 링크" autocomplete="off">
-              <p class="ext-feeds-note">링크를 넣었으면 위 본문 칸은 비워 두고 「읽어 보기」를 누르세요.</p>
-            </details>
+            <!-- 2026-10-02 대표 지시로 「아시아나 공지 링크로 넣기」 칸을 뺐다 — 기준이 대한항공이고 합병(12/17)으로 곧 쓸 일이 없다.
+                 서버의 링크 읽기(?action=fuelSave {url})와 그 검사(test_aI)는 남겨 두었다. -->
             <div id="fuel-preview" class="fuel-preview"></div>
           </div>
           <!-- ⚠ `.fold-note`는 **summary에** 붙인다(details에 붙였더니 제목이 세로로 한 글자씩 꺾였다).

@@ -1966,6 +1966,7 @@
   /* 읽어 보기·저장이 보내는 본문 — **본문을 붙여넣었으면 본문, 아니면 링크.** 둘 다 서버가 읽고 검산한다. */
   function fuelRequestBody() {
     const text = ((document.getElementById('fuel-text') || {}).value || '').trim();
+    /* 화면에는 본문 칸만 있다(2026-10-02 아시아나 링크 칸 삭제). 링크 칸이 다시 생기면 여기서 읽는다 */
     const url = ((document.getElementById('fuel-url') || {}).value || '').trim();
     const airline = (document.getElementById('fuel-airline') || {}).value || 'KE';
     return text ? { text, airline } : { url };
@@ -1976,7 +1977,7 @@
     const save = document.getElementById('fuel-save-btn');
     if (save) save.classList.add('hidden');
     const body = fuelRequestBody();
-    if (!body.text && !body.url) { box.innerHTML = '<p class="ext-feeds-note ext-bad">공지 본문을 붙여넣거나, 아래 「아시아나 공지 링크로 넣기」에 링크를 넣어 주세요.</p>'; return; }
+    if (!body.text && !body.url) { box.innerHTML = '<p class="ext-feeds-note ext-bad">대한항공 공지 본문을 위 칸에 붙여넣어 주세요.</p>'; return; }
     box.innerHTML = '<p class="ext-feeds-note">공지를 읽는 중…</p>';
     try {
       const r = await fetch('/api/rates?action=fuelPreview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -2011,7 +2012,7 @@
       const AL = (fuelCache && fuelCache.airlines) || { KE: '대한항공', OZ: '아시아나항공' };
       box.innerHTML = `<p class="fuel-line">✅ <b>${esc(AL[d.airline] || d.airline)} ${esc(d.month)}</b> 표를 저장했습니다${d.replaced ? ' (덮어씀)' : ''}.</p>`;
       if (save) save.classList.add('hidden');
-      document.getElementById('fuel-url').value = '';
+      const urlEl = document.getElementById('fuel-url'); if (urlEl) urlEl.value = '';
       document.getElementById('fuel-text').value = '';
       await loadFuel();
       loadExternalFeeds();

@@ -831,9 +831,6 @@
     .fuel-steps, .fuel-srow, .ext-row { word-break:keep-all; }   /* 한글이 단어 중간(「읽 / 어 보기」)에서 끊기지 않게 */
     .fuel-steps span { display:inline; }
     .fuel-open { min-height:44px; display:inline-flex; align-items:center; text-decoration:none; margin-bottom:.5rem; }
-    .fuel-alt { margin:.5rem 0 0; }
-    .fuel-alt-sum { min-height:44px; font-size:.82rem; color:var(--muted); }
-    .fuel-alt input { width:100%; min-height:44px; font-size:13px; box-sizing:border-box; margin:.3rem 0; }
     .fuel-text { width:100%; font-size:13px; line-height:1.5; font-family:inherit; padding:.5rem; margin-bottom:.4rem; box-sizing:border-box; }
     .fuel-label-inline { font-size:.82rem; font-weight:700; align-self:center; }
     #fuel-airline { min-height:44px; font-size:13px; }
