@@ -174,6 +174,15 @@
      '같은 지역'은 **연 화면이 고른 목적지**를 기준으로 해야 한다. 예전에는 무조건
      itiState.destKey를 봐서, ✨ 방식 A·B 소개에서 열면 📅 날짜별 일정 쪽 목적지가
      기준이 됐다(그쪽이 비어 있으면 아예 안 열렸다). */
+  /* 칸 이름 옆 옅은 덧말 — 이름은 짧게 두고 조건·쓰는 법은 여기로 (2026-10-02).
+     ⚠ 「목록에서 고르기」 버튼의 aria-label은 itiField가 이름만으로 이미 만들었다 — 덧말은 거기 안 섞인다. */
+  function itiHint(wrap, hint) {
+    if (!hint || !wrap) return wrap;
+    const lbl = wrap.querySelector('.iti-lbl');
+    if (lbl) { const h = document.createElement('span'); h.className = 'iti-hint'; h.textContent = hint; lbl.appendChild(h); }
+    return wrap;
+  }
+
   function itiField(labelText, value, multiline, onInput, pickKind, markDirty, getDest) {
     const dirty = markDirty || itiMarkDirty;
     const destOf = getDest || (() => itiState.destKey);
@@ -664,8 +673,9 @@
     name.textContent = ITI_REC_PLAN_LABEL[plan];
     const hint = document.createElement('span');
     hint.className = 'plan-hint';
-    hint.textContent = plan === 'a' ? '보통 “역량강화형”' : '보통 “동기부여·화합형”';
-    head.appendChild(mark); head.appendChild(name); head.appendChild(hint);
+    /* 2026-10-02 「보통 “역량강화형”」 꼬리를 뺐다 — 바로 아래 「방식 이름」 칸에 그 이름이 적혀 있다 */
+    void hint;
+    head.appendChild(mark); head.appendChild(name);
     box.appendChild(head);
 
     const D = recMarkDirty;
@@ -688,19 +698,20 @@
        노란 상자가 「아래 네 칸은 고객에게 나가지 않습니다」라고 한 번 말하고, 칸도 흐리게 보인다. */
     const onlyWhenNoCourse = '';
 
-    box.appendChild(fld(itiField('방식 이름 (예: 역량강화형)' + (live ? ' — 일정 탐색 카드의 배지' : onlyWhenNoCourse),
-      p.tag, false, (v) => { p.tag = v; }, null, D, G), live));
-    box.appendChild(fld(itiField('한 줄 테마 설명' + (live ? '' : onlyWhenNoCourse),
+    /* 2026-10-02 「가독성」 — 칸 이름은 짧게, 덧말은 옅은 꼬리(itiHint)로. 칸 이름이 문장이던 자리다. */
+    box.appendChild(fld(itiHint(itiField('방식 이름' + onlyWhenNoCourse,
+      p.tag, false, (v) => { p.tag = v; }, null, D, G), live ? '일정 탐색 카드 배지' : ''), live));
+    box.appendChild(fld(itiField('한 줄 테마 설명' + onlyWhenNoCourse,
       p.desc, true, (v) => { p.desc = v; }, null, D, G), live));
-    box.appendChild(fld(itiField('핵심 포인트 (한 줄에 하나씩)' + (live ? ' — 일정 탐색 카드에 표시' : onlyWhenNoCourse),
+    box.appendChild(fld(itiHint(itiField('핵심 포인트' + onlyWhenNoCourse,
       (p.points || []).join('\n'), true,
-      (v) => { p.points = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recPoint', D, G), live));
+      (v) => { p.points = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recPoint', D, G), '한 줄에 하나'), live));
     /* ✅ 이 칸만은 코스가 있든 없든 늘 쓰인다 — _buildDisplayDays의 pool이다. */
-    box.appendChild(fld(itiField('일별 주요 활동 (한 줄에 하나씩) — 연수 일수가 코스보다 길 때 남는 날을 이 목록으로 채웁니다',
+    box.appendChild(fld(itiHint(itiField('일별 주요 활동',
       (p.items || []).join('\n'), true,
-      (v) => { p.items = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recItem', D, G), true));
-    box.appendChild(fld(itiField('기대 효과 문구 — 고객 견적서(결재 보고용)' + (live ? '에 나갑니다' : onlyWhenNoCourse),
-      p.value, true, (v) => { p.value = v; }, null, D, G), live));
+      (v) => { p.items = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'recItem', D, G), '코스보다 긴 견적의 남는 날 · 한 줄에 하나'), true));
+    box.appendChild(fld(itiHint(itiField('기대 효과 문구' + onlyWhenNoCourse,
+      p.value, true, (v) => { p.value = v; }, null, D, G), '견적서(결재 보고용)'), live));
     return box;
   }
 
@@ -860,14 +871,14 @@
 
     const bodyBox = document.createElement('div');
     bodyBox.className = 'iti-day-body';
-    bodyBox.appendChild(itiField('그날의 제목 (예: 첨단 제조업 현장)', day.title, false, (v) => { day.title = v; }, 'dayTitle'));
+    bodyBox.appendChild(itiField('그날의 제목', day.title, false, (v) => { day.title = v; }, 'dayTitle'));
 
     const grid = document.createElement('div');
     grid.className = 'iti-day-grid';
     grid.appendChild(itiField('오전', day.am,  true, (v) => { day.am = v; }, 'dayAct'));
     grid.appendChild(itiField('오후', day.pm,  true, (v) => { day.pm = v; }, 'dayAct'));
     grid.appendChild(itiField('저녁', day.eve, true, (v) => { day.eve = v; }, 'dayEve'));
-    grid.appendChild(itiField('참고 팁 (고객 견적서에 함께 나갑니다)', day.tip, true, (v) => { day.tip = v; }, 'dayTip'));
+    grid.appendChild(itiHint(itiField('참고 팁', day.tip, true, (v) => { day.tip = v; }, 'dayTip'), '견적서에도 나갑니다'));
     bodyBox.appendChild(grid);
     box.appendChild(bodyBox);
 
@@ -1000,8 +1011,8 @@
 
     box.appendChild(itiField('코스 제목', course.title, false, (v) => { course.title = v; }));
     box.appendChild(itiField('한 줄 설명', course.subtitle, true, (v) => { course.subtitle = v; }));
-    box.appendChild(itiField('핵심 하이라이트 (한 줄에 하나씩)', (course.highlights || []).join('\n'), true,
-      (v) => { course.highlights = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'highlight'));
+    box.appendChild(itiHint(itiField('핵심 하이라이트', (course.highlights || []).join('\n'), true,
+      (v) => { course.highlights = v.split('\n').map(s => s.trim()).filter(Boolean); }, 'highlight'), '한 줄에 하나'));
 
     const daysWrap = document.createElement('div');
     (course.days || []).forEach((d, i) => daysWrap.appendChild(itiRenderDay(course, d, i, courseIdx)));
@@ -1499,21 +1510,19 @@
     b.className = 'rec-reality-b';
 
     if (!n) {
-      t.textContent = '✅ 이 목적지는 등록된 코스가 없어, 아래 다섯 칸이 모두 고객에게 나갑니다.';
-      b.textContent = '고객의 “연수 일정 탐색” 카드와 견적서 기대 효과 문구가 여기 내용으로 채워집니다.';
+      t.textContent = '✅ 코스가 없어 아래 칸이 모두 고객에게 나갑니다';
+      b.textContent = '';
     } else {
-      t.textContent = '⚠ 이 목적지는 코스가 ' + n + '개 있어, 아래 네 칸은 고객에게 나가지 않습니다.';
-      b.textContent = '코스가 있으면 고객 화면의 방식 카드는 📅 날짜별 일정에 있는 '
-        + '코스의 제목 · 한 줄 설명 · 핵심 하이라이트로 채워지고, 견적서의 기대 효과 문구도 '
-        + '코스의 한 줄 설명을 씁니다. 여기서 실제로 쓰이는 것은 「일별 주요 활동」 한 칸뿐입니다 '
-        + '(연수 일수가 코스보다 길 때 남는 날을 채웁니다).';
+      /* 2026-10-02 네 줄 설명 → 두 줄. 흐린 점선 칸이 「안 나간다」를 눈으로 말한다 */
+      t.textContent = '코스가 ' + n + '개 있어 점선 칸은 고객에게 나가지 않습니다';
+      b.textContent = '방식 카드·기대 효과는 날짜별 일정의 코스 내용으로 나갑니다. 여기서 쓰이는 칸은 「일별 주요 활동」뿐입니다.';
       const go = document.createElement('button');
       go.type = 'button';
       go.className = 'iti-btn';
       go.textContent = '📅 날짜별 일정에서 고치기';
       go.addEventListener('click', () => itiJump('sec-days'));
-      b.appendChild(document.createElement('br'));
-      b.appendChild(go);
+      box.classList.add('has-go');
+      box.appendChild(go);
     }
     box.appendChild(t); box.appendChild(b);
     return box;
@@ -1541,12 +1550,12 @@
       s.textContent = text;
       el.appendChild(s);
     };
-    add('이 목적지는 코스가 최대 ');
+    /* 2026-10-02 한 문장으로 */
+    add('코스 최대 ');
     add(maxDays + '일', true);
-    add(' · 방식 A·B의 “일별 주요 활동”은 ');
-    add(`A ${itemsA}줄 / B ${itemsB}줄`, true);
-    add('입니다. ');
-    add(`${maxDays}일보다 긴 견적이 오면 남는 날은 그 목록에서 채워집니다.`);
+    add(' · 더 긴 견적의 남는 날은 방식 A·B 「일별 주요 활동」');
+    add(` A ${itemsA}줄 · B ${itemsB}줄`, true);
+    add('로 채웁니다');
 
     if (maxDays && fewest < 3) {
       el.classList.add('warn');

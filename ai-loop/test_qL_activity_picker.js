@@ -36,7 +36,7 @@ const ok = (name, cond, extra = '') => {
      있어야 하므로 양쪽 body를 함께 본다 — 한쪽만 보면 옮겨간 칸의 버튼이 빠져도 모른다. */
   w.__itiSelect('도쿄');
   const labelsWithBtn = Array.from(d.querySelectorAll('#iti-body .iti-lbl-row, #rec-body .iti-lbl-row'))
-    .map((r) => r.querySelector('.iti-lbl').textContent.split('(')[0].split('—')[0].trim());
+    .map((r) => r.querySelector('.iti-lbl').firstChild.textContent.split('(')[0].split('—')[0].trim());
   const want = ['그날의 제목', '오전', '오후', '저녁', '참고 팁', '핵심 하이라이트', '핵심 포인트', '일별 주요 활동'];
   for (const label of want) {
     ok(`“${label}” 칸에 고르기 버튼이 있다`, labelsWithBtn.includes(label),

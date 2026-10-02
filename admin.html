@@ -1348,20 +1348,20 @@
         <header class="sec-head">
           <span class="sec-mark" aria-hidden="true">✨</span>
           <div class="sec-title">
-            <h3>방식 A·B 소개 <span class="sec-sub">날짜 없는 소개글 두 벌</span></h3>
-            <p>홈페이지 <strong>“연수 일정 탐색”의 두 카드</strong>와 <strong>견적서의 기대 효과 문구</strong>에 나갑니다.</p>
+            <!-- 2026-10-02 대표 「가독성 · 불필요한 글자 삭제」 — 「날짜 없는 소개글 두 벌」 꼬리표 · 긴 설명 ·
+                 반쪽 저장 사유 문단을 걷고, 「둘 다 채워야 저장」만 설명 줄에 남겼다(서버가 반쪽 저장을 거부하는 이유는 주석에만). -->
+            <h3>방식 A·B 소개</h3>
+            <p>홈페이지 「연수 일정 탐색」 카드 · 견적서 기대 효과 문구 · <b>A·B 둘 다 채워야 저장됩니다</b></p>
             <span id="rec-state" class="iti-state"></span>
           </div>
           <!-- 미리보기는 **저장 전에도** 열린다 (RJ). 저장해야 볼 수 있으면 확인하려고
                저장하게 되고, 그건 고객 화면에 반영된 뒤에야 본다는 뜻이다. -->
-          <button class="iti-btn" id="rec-preview">👁 고객 화면 미리보기</button>
-          <button class="iti-btn danger" id="rec-revert">이 구역만 되돌리기</button>
-          <button class="btn-act btn-primary" id="rec-save">방식 A·B 저장</button>
+          <div class="sec-actions">
+            <button class="iti-btn" id="rec-preview">👁 고객 화면 미리보기</button>
+            <button class="iti-btn danger" id="rec-revert">이 구역만 되돌리기</button>
+            <button class="btn-act btn-primary" id="rec-save">방식 A·B 저장</button>
+          </div>
         </header>
-        <div class="sec-note">
-          ⚠ <strong>A와 B를 둘 다 채워야 저장됩니다.</strong> 한쪽만 저장되면 고객 화면의 그 자리가
-          조용히 일반 문구로 떨어지기 때문에, 서버가 반쪽 저장을 받지 않습니다.
-        </div>
         <p id="rec-msg" class="iti-msg"></p>
         <div id="rec-body"></div>
       </section>
@@ -1371,19 +1371,21 @@
         <header class="sec-head">
           <span class="sec-mark" aria-hidden="true">📅</span>
           <div class="sec-title">
-            <h3>날짜별 일정 <span class="sec-sub">DAY 1, 2, 3…</span></h3>
-            <p>오전·오후·저녁에 무엇을 하는지 — <strong>고객 견적서의 일정표</strong>에 그대로 나갑니다.</p>
+            <h3>날짜별 일정</h3>
+            <p>고객 견적서 일정표에 그대로 나갑니다</p>
             <!-- 상태 줄은 설명 **아래**에 둔다 (2026-09-27) — 버튼 줄에 끼워 두면 설명이
                  한 줄에 12자로 눌려 접히고 「저장」 버튼이 혼자 다음 줄로 밀려났다. -->
             <span id="iti-state" class="iti-state"></span>
           </div>
           <!-- 미리보기는 두 구역 모두에 둔다 (RK) — 한 곳에만 있으면 다른 구역에서
                작업하던 사람은 버튼이 없는 줄 안다. 같은 창을 연다. -->
-          <button class="iti-btn" id="iti-preview">👁 고객 화면 미리보기</button>
-          <button class="iti-btn" id="iti-add-course">＋ 코스 추가</button>
-          <button class="iti-btn" id="iti-copy-course" title="다른 목적지의 코스를 이 목적지에 새 코스로 복사합니다">다른 목적지 코스 가져오기</button>
-          <button class="iti-btn danger" id="iti-revert">이 구역만 되돌리기</button>
-          <button class="btn-act btn-primary" id="iti-save">일정 저장</button>
+          <div class="sec-actions">
+            <button class="iti-btn" id="iti-preview">👁 고객 화면 미리보기</button>
+            <button class="iti-btn" id="iti-add-course">＋ 코스 추가</button>
+            <button class="iti-btn" id="iti-copy-course" title="다른 목적지의 코스를 이 목적지에 새 코스로 복사합니다">다른 목적지 코스 가져오기</button>
+            <button class="iti-btn danger" id="iti-revert">이 구역만 되돌리기</button>
+            <button class="btn-act btn-primary" id="iti-save">일정 저장</button>
+          </div>
         </header>
         <!-- 두 구역의 의존관계를 **숫자로** 보여주는 자리. 이것이 한 화면으로 합친 이유다. -->
         <div id="iti-link" class="sec-link"></div>

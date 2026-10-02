@@ -2013,3 +2013,43 @@
   height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
   vertical-align: middle; padding: 0 .7rem; font-size: .84rem; margin-left: .3rem;
 }
+
+/* 🗓 일정·방식 비교 — 다시 그림 (2026-10-02 대표 「가독성 좋게 · 불필요한 글자 삭제 · 깔끔하고 예쁘게」)
+   ① 구역 머리: [아이콘 | 제목·한 줄 설명 | 버튼 묶음] 세 칸. 버튼이 제목 옆에 낱개로 흩어져 설명을 눌러 접던 자리다.
+   ② 칸 이름은 짧게 + 옅은 덧말(.iti-hint). 한글에 자간을 벌리지 않는다(CLAUDE.md).
+   ③ 안 나가는 칸 표시는 **opacity가 아니라 색·점선**으로(CLAUDE.md — 흐림은 색으로 정한다). */
+#tab-itineraries .sec-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .5rem 1rem; padding: 1.1rem 1.3rem; }
+#tab-itineraries .sec-mark { font-size: 1.35rem; width: 2.6rem; height: 2.6rem; display: grid; place-items: center; background: #fff; border: 1px solid var(--border); }
+#tab-itineraries .sec-title h3 { font-size: 1.12rem; }
+#tab-itineraries .sec-title p { font-size: .86rem; color: var(--muted); margin-top: .2rem; }
+#tab-itineraries .sec-title p b { color: var(--heading); font-weight: 700; }
+#tab-itineraries .sec-actions { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: flex-end; align-items: center; }
+#tab-itineraries .sec-actions .iti-btn, #tab-itineraries .sec-actions .btn-act { min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; }
+#tab-itineraries .sec-actions .btn-act.btn-primary { padding: 0 1.3rem; font-size: .88rem; }
+/* 되돌리기는 조용하게 — 저장 옆에 빨간 테두리 상자가 서 있으면 저장과 같은 무게로 보인다 */
+#tab-itineraries .sec-actions .iti-btn.danger { border-color: transparent; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+#tab-itineraries .sec-actions .iti-btn.danger:hover { background: #fef2f2; }
+@media (max-width: 1400px) {   /* 1280 노트북에서 버튼 다섯이 제목을 「그대로 나/갑니다」로 꺾었다 */
+  #tab-itineraries .sec-head { grid-template-columns: auto minmax(0, 1fr); }
+  #tab-itineraries .sec-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+/* 코스 의존 한 줄 · 안내 상자 — 문단이 아니라 한두 줄 띠로 */
+#tab-itineraries .sec-link { margin: 1rem 1.3rem 0; padding: .65rem .95rem; font-size: .86rem; background: #F8FAFC; border-left-width: 3px; }
+#tab-itineraries .rec-reality { padding: .75rem 1rem; margin-bottom: 1.1rem; }
+#tab-itineraries .rec-reality.has-go { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 1rem; align-items: center; }
+#tab-itineraries .rec-reality.has-go > .iti-btn { grid-column: 2; grid-row: 1 / span 2; margin: 0; min-height: 44px; white-space: nowrap; }
+#tab-itineraries .rec-reality-t { font-size: .9rem; }
+#tab-itineraries .rec-reality-b { font-size: .85rem; margin-top: .15rem; line-height: 1.6; }
+#tab-itineraries .rec-reality-b:empty { display: none; }
+/* A·B 카드 머리 — 이름 아래 선 하나로 칸들과 가른다 */
+#tab-itineraries .rec-plan .iti-course-head { padding-bottom: .75rem; margin-bottom: .3rem; border-bottom: 1px solid var(--border); }
+#tab-itineraries .plan-name { font-size: 1rem; }
+/* 칸 이름 */
+#tab-itineraries .iti-lbl { letter-spacing: 0; font-size: .84rem; font-weight: 700; color: #3F3F46; margin: .95rem 0 .35rem; }
+#tab-itineraries .iti-lbl-row .iti-lbl { margin-bottom: 0; }
+#tab-itineraries .iti-hint { font-weight: 400; font-size: .79rem; color: var(--muted); margin-left: .5rem; }
+#tab-itineraries .iti-inp, #tab-itineraries .iti-ta { border-width: 1px; padding: .6rem .75rem; line-height: 1.6; }
+#tab-itineraries .iti-inp:focus, #tab-itineraries .iti-ta:focus { outline: none; border-color: var(--sec, var(--primary)); box-shadow: 0 0 0 3px rgba(81,77,194,.12); }
+#tab-itineraries .rec-fld-idle > .iti-lbl,
+#tab-itineraries .rec-fld-idle > .iti-lbl-row { opacity: 1; }
+#tab-itineraries .rec-fld-idle .iti-lbl { color: var(--muted); font-weight: 600; }

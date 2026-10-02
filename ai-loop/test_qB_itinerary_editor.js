@@ -457,9 +457,11 @@ const OVERRIDE_TOKYO = [{
   ok('구역 제목에 무엇이 들었는지 적혀 있다',
     /방식 A·B/.test(secRec.querySelector('.sec-head h3').textContent)
     && /날짜별 일정/.test(secDays.querySelector('.sec-head h3').textContent));
-  ok('“날짜 없음/DAY”로 구별해 준다',
-    /날짜 없는/.test(secRec.querySelector('.sec-sub').textContent)
-    && /DAY/.test(secDays.querySelector('.sec-sub').textContent));
+  /* 2026-10-02 대표 「불필요한 글자 삭제」로 「날짜 없는 소개글 두 벌」·「DAY 1, 2, 3…」 꼬리표를 뺐다 —
+     두 구역은 제목·아이콘·구역 색이 이미 가른다. 꼬리표가 다시 붙으면 여기서 걸린다. */
+  ok('구역 제목에 꼬리표를 다시 붙이지 않았다 (제목·아이콘·색으로 가른다)',
+    !secRec.querySelector('.sec-sub') && !secDays.querySelector('.sec-sub')
+    && !!secRec.querySelector('.sec-mark') && !!secDays.querySelector('.sec-mark'));
   ok('구역 바로가기가 있다',
     !!adoc.querySelector('[data-jump="sec-rec"]') && !!adoc.querySelector('[data-jump="sec-days"]'));
   /* 색까지 달라야 스크롤을 내려 편집칸만 보일 때도 어느 구역인지 안다. */
@@ -479,7 +481,7 @@ const OVERRIDE_TOKYO = [{
   const link = adoc.getElementById('iti-link');
   ok('두 구역의 관계를 숫자로 보여주는 자리가 있다', !!link);
   ok('코스 일수와 “일별 주요 활동” 줄 수를 함께 말한다',
-    /코스가 최대/.test(link.textContent) && /일별 주요 활동/.test(link.textContent),
+    /코스 최대 \d+일/.test(link.textContent) && /일별 주요 활동/.test(link.textContent),
     link.textContent.slice(0, 80));
 
   /* ── RC → RE: 입력칸 높이 ──
