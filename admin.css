@@ -1863,3 +1863,11 @@
   .sidebar-item::after, .sidebar-item .si-icon, .sidebar-item svg { transition: none; }
   .btn-act:active, .btn-sm:active, .btn-detail:active, .filter-btn:active, .pager-btn:active, .btn-login:active { transform: none; }
 }
+
+/* 📝 견적서 업데이트 「실제 계약가 업데이트」 — 칸 높이 통일 (2026-10-02 대표 지시)
+   목적지 37 · 날짜 41 · 박수·금액 39px로 제각각이라 한 줄이 들쭉날쭉했다(선택칸·날짜칸·숫자칸의 브라우저 기본 높이가 다르다).
+   → 이 카드의 글·숫자·날짜 칸과 선택칸을 **44px 하나로**(누를 것은 44px 이상 — CLAUDE.md 화면 규칙). 파일 칸은 그대로. */
+#price-report-card select,
+#price-report-card input:not([type="file"]):not([type="checkbox"]):not([type="radio"]) {
+  height: 44px; box-sizing: border-box; line-height: normal; padding-top: 0; padding-bottom: 0;
+}
