@@ -806,6 +806,24 @@
     .ext-sub { color:var(--muted); font-size:.8rem; }
     .ext-feeds-note { font-size:.8rem; color:var(--muted); margin:0; }
     .ext-feeds-note.ext-bad, #ext-feeds-count.ext-bad { color:var(--danger); font-weight:700; }
+    /* ⛽ 유류할증료 월별 표 (요율 관리, 2026-10-02) — 그리는 곳은 admin/rates.js renderFuelCard */
+    .fuel-status, .fuel-import { max-width:var(--measure); margin-bottom:.9rem; }
+    .fuel-line { font-size:.84rem; line-height:1.6; margin:0 0 .35rem; color:var(--text); }
+    .fuel-label { display:block; font-size:.82rem; font-weight:700; margin-bottom:.3rem; }
+    .fuel-hint { font-weight:400; color:var(--muted); }
+    .fuel-import-row { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .fuel-import-row input { flex:1; min-width:240px; font-size:13px; min-height:44px; }
+    .fuel-bands { display:flex; flex-wrap:wrap; gap:.35rem .5rem; margin:.4rem 0; }
+    .fuel-band { font-size:.78rem; background:var(--bg,#f6f6f6); border:1px solid var(--border); padding:.2rem .5rem; }
+    .fuel-band em { font-style:normal; color:var(--muted); margin-right:.25rem; }
+    .fuel-preview { margin-top:.5rem; }
+    .fuel-compare-sum { min-height:44px; font-size:.84rem; font-weight:700; }
+    .fuel-table-wrap { overflow-x:auto; }
+    .fuel-table { min-width:760px; }
+    .fuel-table .em-sub { display:block; font-size:.76rem; color:var(--muted); }
+    .fuel-table .em-num { text-align:right; white-space:nowrap; }
+    .fuel-flag { color:var(--warn); font-weight:700; }
+    .fuel-band-sel { font-size:12px; min-height:44px; }   /* 누를 것은 44px 이상 (CLAUDE.md 화면 규칙) */
     /* 견적서 대장 안내 — 제목 + 짧은 줄 세 칸 (2026-10-02 대표 지시 「간략하게 · 깔끔하게」) */
     .led-guide { display:grid; gap:.6rem; line-height:1.6; }
     .led-guide-h { display:block; font-weight:700; margin-bottom:.1rem; }

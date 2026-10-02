@@ -25,6 +25,7 @@ const destinationRates = require('../data');
    예전엔 세 곳에 손으로 적혀 있어, 칸을 늘리면 **검사에서만 조용히 빠질** 수 있었다. */
 const RATE_FIELDS = require('./_lib/rate_fields');
 const FEEDS = require('./_lib/external_feeds');
+const FUEL = require('./_lib/fuel_surcharge');
 const NUMERIC_FIELDS = new Set(RATE_FIELDS.RATE_NUMERIC_FIELDS);
 
 /* TJ: 고칠 수는 있지만 **없어도 되는** 요율 칸.
@@ -220,15 +221,127 @@ async function runFeeds(res) {
   return res.status(200).json(status);
 }
 
+/* ── ⛽ 유류할증료 월별 표 (2026-10-02) — 읽기·검산은 `_lib/fuel_surcharge.js` 하나가 한다 ──────
+   GET  ?action=fuel         (로그인)   표 목록 · 적용 중/다음 달 · 목적지별 비교
+   POST ?action=fuelPreview  (매니저↑) {url} → 서버가 읽어 보여만 준다(저장 안 함)
+   POST ?action=fuelSave     (매니저↑) {url} → 🔴 **서버가 다시 받아 다시 읽고** 검산을 통과해야 저장
+   POST ?action=fuelBand     (매니저↑) {destKey, minMiles|null} 목적지 구간을 사람이 정한다
+   POST ?action=fuelRemove   (매니저↑) {month} 잘못 넣은 달을 뺀다
+   ⚠ 이 단계에서는 **견적 금액이 바뀌지 않는다.** 엔진은 아직 요율표의 fuel_surcharge를 쓴다(대기열 0-ap). */
+async function currentFuelByDest() {
+  const rows = await sql`select destination_key, overrides from rate_overrides`;
+  const ov = {};
+  for (const r of rows) ov[r.destination_key] = r.overrides || {};
+  const out = {};
+  for (const base of destinationRates) {
+    const o = ov[base.destination_key] || {};
+    out[base.destination_key] = {
+      fuel: o.fuel_surcharge != null ? Number(o.fuel_surcharge) : Number(base.fuel_surcharge),
+      rateDate: o.rateDate || base.rateDate || null,
+      fromOverride: o.fuel_surcharge != null,
+    };
+  }
+  return out;
+}
+
+async function handleFuelGet(req, res) {
+  if (!(await requireAdmin(req, res))) return;
+  try {
+    const [tables, overrides, cur] = await Promise.all([
+      readSetting(FUEL.TABLES_KEY), readSetting(FUEL.OVERRIDES_KEY), currentFuelByDest(),
+    ]);
+    const months = (tables && tables.months) || {};
+    const pick = FUEL.pickTables(months);
+    const t = pick.active ? months[pick.active] : null;
+    const rows = Object.entries(destinationRates.DEST_FUEL_ROUTE || {}).map(([k, route]) => {
+      const c = cur[k] || {};
+      if (!t) return { dest: k, miles: route.miles, apt: route.apt, current: c.fuel, rateDate: c.rateDate };
+      const r = FUEL.resolveBand(k, route, t.bands, overrides || {});
+      const band = r.band >= 0 ? t.bands[r.band] : null;
+      return {
+        dest: k, apt: route.apt, miles: route.miles, basis: r.basis,
+        cityMismatch: !!r.cityMismatch, nearEdge: !!r.nearEdge,
+        band: band ? { min: band.min, max: band.max } : null,
+        oneway: band ? band.oneway : null, roundTrip: band ? band.oneway * 2 : null,
+        current: c.fuel, rateDate: c.rateDate,
+      };
+    });
+    return res.status(200).json({
+      pick,
+      months: Object.fromEntries(Object.entries(months).map(([m, v]) => [m, { airline: v.airline, url: v.url, savedAt: v.savedAt, savedBy: v.savedBy, bands: v.bands }])),
+      overrides: overrides || {},
+      rows,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'query_failed' });
+  }
+}
+
+async function handleFuelPost(req, res, action) {
+  if (!(await requireRole(req, res, ['owner', 'manager']))) return;
+  const b = req.body || {};
+  const who = (req.user && (req.user.displayName || req.user.username)) || '';
+  try {
+    if (action === 'fuelPreview' || action === 'fuelSave') {
+      const r = await FUEL.fetchNotice(String(b.url || ''));
+      if (!r.ok) return res.status(422).json({ ok: false, errors: r.errors || ['읽지 못했습니다'], parsed: r.bands ? { month: r.month, bands: r.bands } : null });
+      if (action === 'fuelPreview') return res.status(200).json({ ok: true, month: r.month, airline: r.airline, bands: r.bands });
+      const tables = (await readSetting(FUEL.TABLES_KEY)) || { months: {} };
+      tables.months = tables.months || {};
+      const replaced = !!tables.months[r.month];
+      tables.months[r.month] = { airline: r.airline, url: r.url, bands: r.bands, savedAt: new Date().toISOString(), savedBy: who };
+      await sql`
+        insert into app_settings (key, value, updated_at, updated_by)
+        values (${FUEL.TABLES_KEY}, ${JSON.stringify(tables)}::jsonb, now(), ${who})
+        on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = excluded.updated_by
+      `;
+      return res.status(200).json({ ok: true, month: r.month, replaced });
+    }
+    if (action === 'fuelRemove') {
+      const month = String(b.month || '');
+      if (!/^\d{4}-\d{2}$/.test(month)) return res.status(400).json({ error: 'invalid_month' });
+      const tables = (await readSetting(FUEL.TABLES_KEY)) || { months: {} };
+      if (!tables.months || !tables.months[month]) return res.status(404).json({ error: 'not_found' });
+      delete tables.months[month];
+      await sql`
+        insert into app_settings (key, value, updated_at, updated_by)
+        values (${FUEL.TABLES_KEY}, ${JSON.stringify(tables)}::jsonb, now(), ${who})
+        on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = excluded.updated_by
+      `;
+      return res.status(200).json({ ok: true });
+    }
+    if (action === 'fuelBand') {
+      const destKey = String(b.destKey || '');
+      if (!(destinationRates.DEST_FUEL_ROUTE || {})[destKey]) return res.status(400).json({ error: 'invalid_dest' });
+      const minMiles = b.minMiles === null || b.minMiles === '' || b.minMiles === undefined ? null : Number(b.minMiles);
+      if (minMiles !== null && !(Number.isInteger(minMiles) && minMiles >= 0 && minMiles <= 20000)) return res.status(400).json({ error: 'invalid_band' });
+      const ov = (await readSetting(FUEL.OVERRIDES_KEY)) || {};
+      if (minMiles === null) delete ov[destKey]; else ov[destKey] = minMiles;
+      await sql`
+        insert into app_settings (key, value, updated_at, updated_by)
+        values (${FUEL.OVERRIDES_KEY}, ${JSON.stringify(ov)}::jsonb, now(), ${who})
+        on conflict (key) do update set value = excluded.value, updated_at = now(), updated_by = excluded.updated_by
+      `;
+      return res.status(200).json({ ok: true });
+    }
+    return res.status(400).json({ error: 'unknown_action' });
+  } catch (err) {
+    console.error('[fuel]', err);
+    return res.status(500).json({ error: 'fuel_failed' });
+  }
+}
+
 /* 관리자 화면 「외부 자료 상태」 — 마지막 실행 결과 + 공휴일 ↔ 성수기 달력 대조.
    ⚠ 대조는 **여기 한 곳**에서 한다. 달력은 data.js가 진실이고 서버도 같은 파일을 읽는다. */
 async function handleFeeds(req, res) {
   if (!(await requireAdmin(req, res))) return;
   try {
-    const [status, holidays, fxRows] = await Promise.all([
+    const [status, holidays, fxRows, fuelTables] = await Promise.all([
       readSetting(FEEDS.STATUS_KEY),
       readSetting(FEEDS.HOLIDAYS_KEY),
       sql`select currency, fetched_at from fx_rates`,
+      readSetting(FUEL.TABLES_KEY),
     ]);
     const fxFetched = fxRows.map((r) => r.fetched_at).filter(Boolean).map((d) => new Date(d).getTime());
     const calendar = holidays && holidays.years
@@ -240,6 +353,8 @@ async function handleFeeds(req, res) {
       fxNewestAt: fxFetched.length ? new Date(Math.max(...fxFetched)).toISOString() : null,
       holidays: holidays ? { fetchedAt: holidays.fetchedAt, years: Object.keys(holidays.years || {}).map(Number) } : null,
       calendar,
+      /* 유류할증료 표는 자동으로 못 받는다(항공사가 막는다) — 이번 달 표를 사람이 넣었는지만 말한다 */
+      fuel: FUEL.pickTables((fuelTables && fuelTables.months) || {}),
     });
   } catch (err) {
     console.error(err);
@@ -282,6 +397,7 @@ module.exports = async (req, res) => {
     }
 
     if (req.query && req.query.action === 'feeds') return handleFeeds(req, res);
+    if (req.query && req.query.action === 'fuel') return handleFuelGet(req, res);
 
     if (req.query && req.query.history) {
       if (!(await requireAdmin(req, res))) return;
@@ -366,6 +482,10 @@ module.exports = async (req, res) => {
      내장 목적지(data.js)와 destination_key가 겹치면 절대 만들어지지 않도록
      BUILTIN_DEST_KEYS로 막는다(이후 script.js 클라이언트 병합에서도 같은 이유로
      한 번 더 방어함 — 서버가 뚫려도 클라이언트가 내장값을 우선하도록). */
+  if (req.method === 'POST' && req.query && ['fuelPreview', 'fuelSave', 'fuelBand', 'fuelRemove'].includes(req.query.action)) {
+    return handleFuelPost(req, res, req.query.action);
+  }
+
   if (req.method === 'POST' && req.query && req.query.action === 'createDestination') {
     /* 목적지 추가/삭제는 구조적 변경(가격 구조 자체를 바꾸는 일)이라 개별 가격
        편집(PATCH, 직원도 가능)보다 한 단계 높은 권한(매니저 이상)을 요구한다. */

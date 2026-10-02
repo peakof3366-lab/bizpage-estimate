@@ -3378,6 +3378,80 @@ const PROGRAM_PRIORITY = {
   '대만':        { language:[0,1], leadership:[1,0], industry:[0,1], academic:[0,1] },
 };
 
+/* ── ⛽ 유류할증료 거리 구간 (2026-10-02 대표 지시) ─────────────────────────────
+   한국 출발 국제선 유류할증료는 **발권 월 × 대권거리(인천→도착 공항, 마일)**로만 정해진다.
+   각 목적지의 **대표 공항**과 인천(ICN)에서의 대권거리(하버사인, 지구 반지름 3,958.8마일, 반올림).
+   `city`는 아시아나 월별 공지에 그 도시가 나올 때의 **공지 표기**다 — 공지에 나오면 공지가 정답이고,
+   거리 계산은 그것과 **어긋나는지 대조**하는 데 쓴다(2026-04 공지로 41곳 대조: 전부 같은 구간).
+   ⚠ 구간 경계(500마일 간격) **100마일 안**인 곳은 화면이 「확인 필요」를 띄운다(가고시마 460 · 보홀 1927 ·
+     라오스 1974 · 밴쿠버 5096 등). 담당자가 요율 관리에서 구간을 직접 정할 수 있다.
+   ⚠ 지역 목적지는 대표 도시 하나로 잡았다(서유럽=파리 · 동유럽=프라하 · 호주=시드니 · 북유럽=헬싱키).
+     🔴 북유럽은 **4,000~4,999마일** 구간이다(헬싱키 4,370 · 스톡홀름 4,600 · 코펜하겐 4,924) — 다른 유럽보다 한 단계 낮다.
+   ⚠ 제주도는 국내선이라 국제선 표 대상이 아니다(`domestic`). 새 목적지를 추가하면 여기 한 줄을 더한다
+     — 빠지면 `test_aI_fuel_surcharge.js`가 잡는다. */
+const DEST_FUEL_ROUTE = {
+  "제주도":     { apt:"CJU", miles: 273, domestic:true },
+  "도쿄":      { apt:"NRT", miles: 782, city:"도쿄" },
+  "오사카":     { apt:"KIX", miles: 535, city:"오사카" },
+  "후쿠오카":    { apt:"FUK", miles: 350, city:"후쿠오카" },
+  "가고시마":    { apt:"KOJ", miles: 460 },
+  "나고야":     { apt:"NGO", miles: 605, city:"나고야" },
+  "삿포로":     { apt:"CTS", miles: 884, city:"삿포로" },
+  "아오모리":    { apt:"AOJ", miles: 796 },
+  "오키나와":    { apt:"OKA", miles: 781, city:"오키나와" },
+  "미야코지마":   { apt:"MMY", miles: 879 },
+  "홍콩":      { apt:"HKG", miles:1285, city:"홍콩" },
+  "마카오":     { apt:"MFM", miles:1306 },
+  "상해":      { apt:"PVG", miles: 510, city:"상하이" },
+  "장가계":     { apt:"DYG", miles:1087 },
+  "청도":      { apt:"TAO", miles: 359, city:"칭다오" },
+  "연태":      { apt:"YNT", miles: 299, city:"옌타이" },
+  "몽골":      { apt:"UBN", miles:1216, city:"울란바타르" },
+  "대만":      { apt:"TPE", miles: 909, city:"타이베이" },
+  "가오슝":     { apt:"KHH", miles:1090 },
+  "라오스":     { apt:"VTE", miles:1974 },
+  "싱가포르":    { apt:"SIN", miles:2874, city:"싱가포르" },
+  "하노이":     { apt:"HAN", miles:1667, city:"하노이" },
+  "호치민":     { apt:"SGN", miles:2213, city:"호찌민" },
+  "다낭":      { apt:"DAD", miles:1851, city:"다낭" },
+  "나트랑":     { apt:"CXR", miles:2057, city:"나트랑" },
+  "푸꾸옥":     { apt:"PQC", miles:2346, city:"푸꾸옥" },
+  "세부":      { apt:"CEB", miles:1882, city:"세부" },
+  "마닐라":     { apt:"MNL", miles:1620, city:"마닐라" },
+  "보홀":      { apt:"TAG", miles:1927 },
+  "코타키나발루":  { apt:"BKI", miles:2274, city:"코타키나발루" },
+  "캄보디아":    { apt:"PNH", miles:2235, city:"프놈펜" },
+  "방콕":      { apt:"BKK", miles:2278, city:"방콕" },
+  "푸켓":      { apt:"HKT", miles:2684, city:"푸껫" },
+  "후아힌":     { apt:"BKK", miles:2278, city:"방콕" },
+  "치앙마이":    { apt:"CNX", miles:2101, city:"치앙마이" },
+  "발리":      { apt:"DPS", miles:3275 },
+  "괌":       { apt:"GUM", miles:2005, city:"괌" },
+  "사이판":     { apt:"SPN", miles:1943, city:"사이판" },
+  "시드니":     { apt:"SYD", miles:5183, city:"시드니" },
+  "멜버른":     { apt:"MEL", miles:5322, city:"멜버른" },
+  "오클랜드":    { apt:"AKL", miles:6000 },
+  "서유럽":     { apt:"CDG", miles:5547, city:"파리" },
+  "로마":      { apt:"FCO", miles:5571, city:"로마" },
+  "파리":      { apt:"CDG", miles:5547, city:"파리" },
+  "영국":      { apt:"LHR", miles:5506, city:"런던" },
+  "스페인":     { apt:"BCN", miles:5962, city:"바르셀로나" },
+  "독일":      { apt:"FRA", miles:5309, city:"프랑크푸르트" },
+  "네덜란드":    { apt:"AMS", miles:5314 },
+  "북유럽":     { apt:"HEL", miles:4370 },
+  "로스앤젤레스":  { apt:"LAX", miles:5982, city:"로스앤젤레스" },
+  "샌프란시스코":  { apt:"SFO", miles:5646, city:"샌프란시스코" },
+  "워싱턴":     { apt:"IAD", miles:6943 },
+  "뉴욕":      { apt:"JFK", miles:6891, city:"뉴욕" },
+  "하와이":     { apt:"HNL", miles:4570, city:"호놀룰루" },
+  "밴쿠버":     { apt:"YVR", miles:5096 },
+  "토론토":     { apt:"YYZ", miles:6598 },
+  "호주":      { apt:"SYD", miles:5183, city:"시드니" },
+  "카자흐스탄":   { apt:"ALA", miles:2592, city:"알마티" },
+  "우즈베키스탄":  { apt:"TAS", miles:3010, city:"타슈켄트" },
+  "동유럽":     { apt:"PRG", miles:5118, city:"프라하" },
+};
+
 /* 🔴 2026-10-02 script.js에서 옮겨 왔다(값 그대로). 이유: 서버가 공식 공휴일과 매일 대조한다
    (api/_lib/external_feeds.js). 쓰는 곳은 여전히 script.js의 getPeakInfo다. */
 /* ── P2 헬퍼: 목적지 피크 날짜 달력 ──────────────────────────────────
@@ -3456,4 +3530,6 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports.PEAK_CALENDAR = PEAK_CALENDAR;
   module.exports.LUNAR_PEAKS = LUNAR_PEAKS;
   module.exports.LUNAR_PEAK_DEST_CN = LUNAR_PEAK_DEST_CN;
+  /* 유류할증료 거리 구간 — 서버(_lib/fuel_surcharge.js)가 읽는다 */
+  module.exports.DEST_FUEL_ROUTE = DEST_FUEL_ROUTE;
 }

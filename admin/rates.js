@@ -1815,7 +1815,150 @@
     renderRates();
     /* 외부 자료 상태는 기다리지 않는다 — 요율 표가 그것 때문에 늦게 뜨면 안 된다 */
     loadExternalFeeds();
+    loadFuel();
     return ok;
+  }
+
+  /* ════ ⛽ 유류할증료 월별 표 (2026-10-02 대표 지시) ═══════════════════════════
+     항공사가 자동 수집을 막아서 **매달 공지 링크를 붙여넣는다.** 읽기·검산은 서버(_lib/fuel_surcharge.js)가 한다.
+     🔴 「읽어 보기」와 「저장」은 따로다 — 저장할 때 서버가 그 주소를 **다시 받아 다시 읽는다**
+       (화면이 보여 준 숫자를 그대로 믿고 저장하지 않는다).
+     ⚠ 아직 견적 금액에 안 쓰인다. 비교표는 「연결하면 얼마나 움직이나」를 보는 자리다(대기열 0-ap). */
+  let fuelCache = null;
+  const won = (n) => (n == null || !isFinite(n)) ? '—' : Math.round(n).toLocaleString('ko-KR') + '원';
+  const bandLabel = (b) => b ? (b.max == null ? `${b.min.toLocaleString()}마일~` : `${b.min.toLocaleString()}~${b.max.toLocaleString()}마일`) : '—';
+
+  async function loadFuel() {
+    if (!document.getElementById('fuel-card')) return;
+    try {
+      const r = await fetch('/api/rates?action=fuel');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      fuelCache = await r.json();
+      renderFuelCard(fuelCache);
+    } catch (e) {
+      fuelCache = null;
+      renderFuelCard(null, e && e.message);
+    }
+  }
+
+  function renderFuelCard(d, loadErr) {
+    const st = document.getElementById('fuel-status');
+    const cnt = document.getElementById('fuel-count');
+    const imp = document.getElementById('fuel-import');
+    const cmp = document.getElementById('fuel-compare');
+    if (!st) return;
+    const canEdit = typeof isManagerUpRole === 'function' && isManagerUpRole();
+    if (imp) imp.classList.toggle('hidden', !canEdit);
+    if (!d) {
+      st.innerHTML = `<p class="ext-feeds-note ext-bad">유류할증료 표를 불러오지 못했습니다 (${esc(loadErr || '')}). 새로고침해 주세요.</p>`;
+      if (cnt) { cnt.textContent = '확인 못 함'; cnt.classList.add('ext-bad'); }
+      return;
+    }
+    const p = d.pick || {};
+    const months = d.months || {};
+    const act = p.active ? months[p.active] : null;
+    const nxt = p.next ? months[p.next] : null;
+    const lines = [];
+    if (!act) {
+      lines.push(`<p class="fuel-line ext-bad"><b>아직 넣은 표가 없습니다.</b> 아래에 이번 달 아시아나 공지 링크를 붙여넣고 「공지 읽어 보기」를 누르세요.${canEdit ? '' : ' (매니저 이상만 넣을 수 있습니다 — 매니저에게 요청하세요)'}</p>`);
+    } else {
+      lines.push(`<p class="fuel-line">적용 중 <b>${esc(p.active)}</b> 표 (아시아나 · ${esc(act.savedBy || '')} ${act.savedAt ? new Date(act.savedAt).toLocaleDateString('ko-KR') : ''} 저장)${p.currentMissing ? ` — <b class="ext-bad">${esc(p.current)} 표가 아직 없습니다.</b> 지난 달 표로 보고 있습니다. 이번 달 공지 링크를 넣어 주세요.` : ''}</p>`);
+    }
+    if (nxt && act) {
+      const a0 = act.bands[1] && nxt.bands[1] ? (nxt.bands[1].oneway / act.bands[1].oneway - 1) * 100 : null;
+      lines.push(`<p class="fuel-line">📣 다음 달 예고 <b>${esc(p.next)}</b> 표가 들어와 있습니다${a0 != null ? ` — 500~999마일 기준 <b>${a0 > 0 ? '+' : ''}${a0.toFixed(0)}%</b>` : ''}.</p>`);
+    }
+    if (act) {
+      lines.push(`<div class="fuel-bands">${act.bands.map((b) => `<span class="fuel-band"><em>${esc(bandLabel(b))}</em> 편도 ${won(b.oneway)}</span>`).join('')}</div>`);
+    }
+    st.innerHTML = lines.join('');
+    if (cnt) {
+      const bad = !act || p.currentMissing;
+      cnt.textContent = !act ? '⚠ 표 없음' : (p.currentMissing ? `⚠ ${p.current} 표 없음` : `${p.active} 적용 중`);
+      cnt.classList.toggle('ext-bad', !!bad);
+    }
+    /* 목적지별 비교 */
+    if (cmp) {
+      if (!act) { cmp.innerHTML = '<p class="ext-feeds-note">표를 넣으면 목적지마다 공시 왕복 금액과 지금 요율표 칸을 나란히 보여 드립니다.</p>'; return; }
+      const opts = (sel) => ['<option value="">자동</option>'].concat(act.bands.map((b) => `<option value="${b.min}"${String(sel) === String(b.min) ? ' selected' : ''}>${esc(bandLabel(b))}</option>`)).join('');
+      const basisTxt = { city: '공지 도시', miles: '거리 계산', override: '담당자 지정', domestic: '국내선', unknown: '—' };
+      const rowsHtml = (d.rows || []).map((r) => {
+        const diff = r.roundTrip && r.current ? (r.current / r.roundTrip - 1) * 100 : null;
+        const flag = r.cityMismatch ? ' <span class="fuel-flag" title="공지의 도시 분류와 거리 계산이 다릅니다 — 공지를 따릅니다">⚠ 공지≠거리</span>'
+          : (r.nearEdge ? ' <span class="fuel-flag" title="구간 경계에서 100마일 안입니다 — 실제 노선 거리로 구간이 바뀔 수 있습니다">⚠ 경계 근처</span>' : '');
+        return `<tr>
+          <td><b>${esc(r.dest)}</b><span class="em-sub">${esc(r.apt || '')} · ${Number(r.miles || 0).toLocaleString()}마일</span></td>
+          <td>${r.basis === 'domestic' ? '국내선 — 대상 아님' : esc(bandLabel(r.band))}<span class="em-sub">${esc(basisTxt[r.basis] || '')}${flag}</span></td>
+          <td class="em-num">${won(r.roundTrip)}</td>
+          <td class="em-num">${won(r.current)}<span class="em-sub">요율 기준 ${esc(r.rateDate || '—')}</span></td>
+          <td class="em-num">${diff == null ? '—' : `${diff > 0 ? '+' : ''}${diff.toFixed(0)}%`}</td>
+          <td>${canEdit && r.basis !== 'domestic' ? `<select class="fuel-band-sel" data-dest="${esc(r.dest)}" aria-label="${esc(r.dest)} 유류할증료 구간" onchange="fuelSetBand(this)">${opts(d.overrides && d.overrides[r.dest])}</select>` : ''}</td>
+        </tr>`;
+      }).join('');
+      cmp.innerHTML = `<p class="ext-feeds-note">🔴 <b>아직 견적 금액에 쓰이지 않습니다.</b> 「차이」는 지금 요율표 칸이 공시 왕복보다 몇 % 높은지입니다. 견적 엔진은 이 칸에 시즌·성수기·인원 할인을 더 곱합니다.</p>
+        <div class="fuel-table-wrap"><table class="inq-table fuel-table"><thead><tr>
+          <th>목적지</th><th>구간 · 근거</th><th class="em-num">공시 왕복</th><th class="em-num">지금 요율표</th><th class="em-num">차이</th><th>구간 지정</th>
+        </tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+    }
+  }
+
+  async function fuelPreview() {
+    const url = (document.getElementById('fuel-url') || {}).value || '';
+    const box = document.getElementById('fuel-preview');
+    const save = document.getElementById('fuel-save-btn');
+    if (save) save.classList.add('hidden');
+    box.innerHTML = '<p class="ext-feeds-note">공지를 읽는 중…</p>';
+    try {
+      const r = await fetch('/api/rates?action=fuelPreview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url.trim() }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) {
+        box.innerHTML = `<p class="ext-feeds-note ext-bad"><b>저장할 수 없습니다.</b> ${(d.errors || ['읽지 못했습니다 (HTTP ' + r.status + ')']).map(esc).join(' · ')}</p>`;
+        return;
+      }
+      const exists = fuelCache && fuelCache.months && fuelCache.months[d.month];
+      box.innerHTML = `<p class="fuel-line">✓ <b>${esc(d.month)}</b> 표를 읽었습니다 (구간 ${d.bands.length}개 · 검산 통과)${exists ? ' — <b>이미 있는 달입니다. 저장하면 덮어씁니다.</b>' : ''}</p>
+        <div class="fuel-bands">${d.bands.map((b) => `<span class="fuel-band"><em>${esc(bandLabel(b))}</em> 편도 ${won(b.oneway)}${b.prevOneway ? ` <small>(전월 ${won(b.prevOneway)})</small>` : ''}</span>`).join('')}</div>`;
+      if (save) save.classList.remove('hidden');
+    } catch (e) {
+      box.innerHTML = '<p class="ext-feeds-note ext-bad">요청에 실패했습니다. 네트워크를 확인해 주세요.</p>';
+    }
+  }
+
+  async function fuelSave() {
+    const url = (document.getElementById('fuel-url') || {}).value || '';
+    const box = document.getElementById('fuel-preview');
+    const save = document.getElementById('fuel-save-btn');
+    if (save) save.disabled = true;
+    try {
+      const r = await fetch('/api/rates?action=fuelSave', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url.trim() }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) {
+        box.innerHTML = `<p class="ext-feeds-note ext-bad"><b>저장하지 못했습니다.</b> ${(d.errors || ['HTTP ' + r.status]).map(esc).join(' · ')}</p>`;
+        return;
+      }
+      box.innerHTML = `<p class="fuel-line">✅ <b>${esc(d.month)}</b> 표를 저장했습니다${d.replaced ? ' (덮어씀)' : ''}.</p>`;
+      if (save) save.classList.add('hidden');
+      document.getElementById('fuel-url').value = '';
+      await loadFuel();
+      loadExternalFeeds();
+    } catch (e) {
+      box.innerHTML = '<p class="ext-feeds-note ext-bad">요청에 실패했습니다. 네트워크를 확인해 주세요.</p>';
+    } finally {
+      if (save) save.disabled = false;
+    }
+  }
+
+  async function fuelSetBand(sel) {
+    const destKey = sel.getAttribute('data-dest');
+    const v = sel.value;
+    sel.disabled = true;
+    try {
+      const r = await fetch('/api/rates?action=fuelBand', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ destKey, minMiles: v === '' ? null : Number(v) }) });
+      if (!r.ok) { alert('구간을 저장하지 못했습니다 (HTTP ' + r.status + ').'); }
+      await loadFuel();
+    } finally {
+      sel.disabled = false;
+    }
   }
 
   /* ════ 🔄 외부 자료 자동 갱신 (2026-10-02 대표 지시) ═════════════════════════
@@ -1907,6 +2050,12 @@
     } else {
       html += row('성수기 달력 대조', false, '공휴일 자료가 없어 대조하지 못했습니다 — 공공데이터포털 인증키를 넣으면 다음 날 05:00부터 대조합니다', '');
     }
+    /* ④ 유류할증료 — 자동으로 못 받는다. 이번 달 표를 사람이 넣었는지만 말한다(아래 ⛽ 카드) */
+    const fu = d.fuel || {};
+    if (fu.currentMissing) problems.push('유류할증료 표');
+    html += row('유류할증료 표 (사람이 넣음)', !fu.currentMissing,
+      fu.active ? `적용 중 <b>${esc(fu.active)}</b>${fu.currentMissing ? ` — <b>${esc(fu.current)} 표가 없습니다</b>` : ''}${fu.next ? ` · 다음 달 예고 ${esc(fu.next)}` : ''}` : '<b>아직 넣은 표가 없습니다</b> — 아래 「⛽ 유류할증료 월별 표」에 이번 달 공지 링크를 넣어 주세요',
+      '항공사가 자동 수집을 막아 매달 공지 링크를 붙여넣습니다 — 아래 「⛽ 유류할증료 월별 표」');
     html += `<p class="ext-feeds-note">자동 실행이 바꾸는 것은 <b>환율 표뿐</b>입니다(환율 보정은 예전처럼 ±30% 안). 성수기 달력과 요율은 사람이 고칩니다.</p>`;
     body.innerHTML = html;
     /* ⚠ 머리와 줄이 같은 말을 해야 한다 — 줄에 「!」가 있는데 머리가 「정상」이면 접힌 채로는 아무도 안 연다 */
