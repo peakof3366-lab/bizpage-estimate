@@ -5,7 +5,7 @@
      그래서 카드는 그대로 두고, **폼이 보이는데 카드의 금액이 안 보일 때만** 아래에 한 줄을 띄운다.
    ⚠ 금액을 계산하지 않는다 — 결과 카드(#perPersonValue · #resultValue)의 글자를 **그대로 옮겨 적기만** 한다.
      계산을 한 벌 더 두면 두 숫자가 어긋나는 날이 온다(결함 생성기 ①).
-   ⚠ 막대가 뜨면 body에 `qbar-on`, 폼이 화면에 있으면 `in-qform`을 단다 — 떠 있는 버튼(카카오 · 맨 위로)이
+   ⚠ 막대가 뜨면 body에 `qbar-on`, 견적 구역이 화면에 있으면 `in-estimate`를 단다 — 떠 있는 버튼(카카오 · 맨 위로)이
      비켜서거나(넓은 화면) 숨는(폰) 규칙은 styles.css 「A안 디자인 시스템」 블록에 있다. */
 (function () {
   'use strict';
@@ -47,7 +47,6 @@
       var on = hasAmount() && formIn && !totalsIn;
       bar.classList.toggle('show', on);
       document.body.classList.toggle('qbar-on', on);
-      document.body.classList.toggle('in-qform', formIn);
     }
 
     /* 금액 칸은 막대 높이만큼 위에서 「보인다」로 친다 — 막대 뒤에 가려진 금액을 보인다고 세지 않게 */
@@ -60,6 +59,15 @@
     }, { rootMargin: '0px 0px -88px 0px' });
     io.observe(form);
     io.observe(totals);
+
+    /* 폰에서 떠 있는 버튼(카카오 · 맨 위로)이 결과 카드의 「견적서 받기」를 가렸다(2026-10-06 종단 시험).
+       폼만 보던 `in-qform`으로는 그 아래 결과 카드에서 다시 떴다 — 견적 구역 전체를 본다. */
+    var section = document.getElementById('estimate');
+    if (section) {
+      new IntersectionObserver(function (entries) {
+        document.body.classList.toggle('in-estimate', entries[0].isIntersecting);
+      }).observe(section);
+    }
 
     var mo = new MutationObserver(sync);
     mo.observe(per, { childList: true, characterData: true, subtree: true });

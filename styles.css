@@ -2748,6 +2748,9 @@ h1,h2,h3,h4,h5,h6 { font-weight:700; line-height:var(--lh-head); color:var(--c-t
 .consult-form-head { font-size:var(--fs-body); }
 .consult-form-desc { font-size:var(--fs-sm); }
 .consult-label { font-size:var(--fs-sm); font-weight:600; letter-spacing:0; text-transform:none; color:var(--c-text); }
+/* 「이름」과 「*」가 두 줄로 갈렸다 — 문의 폼(10/1)과 같은 원인 · 같은 처방: 글자와 별표는 한 줄, 입력칸만 아랫줄 */
+.consult-label { flex-direction:row; flex-wrap:wrap; align-items:baseline; column-gap:3px; row-gap:6px; }
+.consult-label > input { flex-basis:100%; width:100%; }
 .consult-close { min-width:44px; min-height:44px; }
 .btn-consult-cancel, .btn-consult-submit { min-height:48px; font-size:var(--fs-body); border-radius:var(--r-sm); }
 .req { color:var(--c-danger); }
@@ -2796,7 +2799,8 @@ h1,h2,h3,h4,h5,h6 { font-weight:700; line-height:var(--lh-head); color:var(--c-t
 body.qbar-on .kakao-float    { bottom:96px; }
 body.qbar-on .scroll-top-btn { bottom:156px; }
 @media (max-width:768px) {
-  body.in-qform .kakao-float.visible, body.in-qform .scroll-top-btn.visible { opacity:0; pointer-events:none; }
+  /* 견적 구역(폼 + 결과 카드) 전체에서 숨긴다 — 폼만 보면 결과 카드의 「견적서 받기」를 가렸다 */
+  body.in-estimate .kakao-float.visible, body.in-estimate .scroll-top-btn.visible { opacity:0; pointer-events:none; }
 }
 
 /* ── 목적지 ── */
