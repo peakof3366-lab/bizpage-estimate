@@ -421,6 +421,8 @@ function setActiveStep(step) {
   stepTrackerItems.forEach((element) => {
     const stepNumber = Number(element.dataset.stepTrack);
     element.classList.toggle('active', stepNumber === step);
+    /* 낭독기에도 「지금 단계」를 알린다 — 단계 줄이 예전엔 aria-hidden이라 못 들었다(2026-10-06) */
+    if (stepNumber === step) element.setAttribute('aria-current', 'step'); else element.removeAttribute('aria-current');
   });
 }
 

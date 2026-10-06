@@ -96,7 +96,11 @@ JS = r"""
     보이는칸_전체: counted.length,
     첫화면_칸: counted.filter(seen).length,
     첫화면_다음버튼: !!(nextBtn && seen(nextBtn)),
-    단계표시: !!step1.querySelector('.step-badge'),
+    /* 단계 표시 — 1단계 칸 안의 배지(.step-badge) **또는** 폼 머리의 단계 줄(.step-tracker)에서 지금 단계가 보이는가.
+       🔴 예전엔 배지만 셌다 — 배지가 2026-09-14 대표 지시로 빠진 뒤, 화면에 「1단계 · 여행 정보」 줄이 버젓이 있는데도
+          다섯 크기 전부 「표시 없음」으로 잡았다(2026-10-06 발견). 보이지 않는 줄은 여전히 못 센다(shown). */
+    단계표시: !!step1.querySelector('.step-badge') ||
+      Array.from(document.querySelectorAll('#estimateForm .step-tracker-item.active')).some((el) => shown(el) && /단계/.test(el.textContent)),
     단계안내: (() => { const g = step1.querySelector('.step-guide'); return g ? g.textContent.trim().slice(0, 40) : ''; })(),
     카드밖: overflow,
     소제목수: step1.querySelectorAll('.form-group-title').length,
@@ -128,17 +132,21 @@ with sync_playwright() as p:
             page.close()
             continue
         flags = []
+        notes = []
         if r["가로스크롤"] > 0:
             flags.append("🔴 가로로 %dpx 삐져나감" % r["가로스크롤"])
         if r["카드밖"]:
             flags.append("🔴 카드 밖으로 나간 칸 %d개" % r["카드밖"])
         if not r["단계표시"]:
             flags.append("🔴 몇 단계 중 어디인지 표시가 없음")
+        # ⚪ 안내 문장(「어디로, 몇 명이, 언제 …」)은 **2026-09-14 대표 지시로 뺐다**(ffab995 — 「1 / 2 단계」 배지와 함께).
+        #   결함이 아니라 결정이라 🔴로 세지 않는다 — 다만 **지우지 않고 적어 둔다**(자를 깎으면 다음에 진짜가 와도 안 걸린다).
+        #   되살리려면 대표 확인이 먼저다.
         if not r["단계안내"]:
-            flags.append("🔴 무엇을 채우면 되는지 안내가 없음")
+            notes.append("⚪ 안내 문장 없음(대표 결정 2026-09-14)")
         print("%s %-22s 1단계 높이 %5dpx · 칸 %2d묶음(첫 화면 %2d) · 단계표시 %s  %s"
               % ("✗" if flags else "✓", name, r["단계높이"], r["보이는칸_전체"],
-                 r["첫화면_칸"], "있음" if r["단계표시"] else "없음", " · ".join(flags)))
+                 r["첫화면_칸"], "있음" if r["단계표시"] else "없음", " · ".join(flags + notes)))
         if flags:
             bad += 1
         if WANT_SHOTS:
