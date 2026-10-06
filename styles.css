@@ -2547,7 +2547,7 @@ h1,h2,h3,h4,h5,h6 { font-weight:700; line-height:var(--lh-head); color:var(--c-t
 /* ── 히어로 — 옅은 보라 면 + 노선도 (2026-10-06 대표 「너무 백색백색」 → 후보 넷을 화면에 입혀 보여 드리고 2번 선택)
    흰 머리줄 · 흰 숫자 띠와 같은 흰색이라 경계가 안 보이던 것이 「백색」 인상의 원인이었다. 면을 옅게 칠해 경계를 세운다.
    ⚠ 밤하늘 그라데이션 · 잡음 무늬 · 워터마크는 걷은 채로 둔다. 노선도 색은 여기(--map-line · --map-dot)가 정한다. */
-.hero { background:var(--c-hero); min-height:0; }
+.hero { background:var(--c-hero); }  /* 높이는 원래대로 화면 가득(100vh · 폰 100dvh−56px) — 내용만큼 줄였더니 「답답하다」(대표 2026-10-06) */
 .hero-gradient, .hero-bg-text { display:none; }
 .hero::after { display:none; }
 .hero-canvas { opacity:1; --map-line:rgba(81,77,194,.16); --map-dot:81,77,194; }
