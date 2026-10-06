@@ -2477,6 +2477,7 @@ body:has(.hero) .site-header:not(.scrolled):not(.nav-mobile-open) { background:r
   --c-accent:#514DC2;   /* 🔴 유일한 강조색 — 금액 · 주 버튼 · 고른 상태 */
   --c-accent-dk:#3E3AA6;/* 누른 상태 · 옅은 보라 위 글자(7.9:1) */
   --c-accent-weak:#F1F0FB; /* 고른 상태 바탕 · 1인당 금액 상자 */
+  --c-hero:#EEEDF9;     /* 첫 화면 바탕 — 브랜드 보라를 아주 옅게(먹색 11.1 · 보조 6.3 · 보라 5.7:1) */
   --c-danger:#B42318;   /* 신호 — 필수 표시 · 오류 (강조색이 아니다) */
 
   /* ─ 모서리 · 그림자 — 두 단계씩 */
@@ -2543,13 +2544,18 @@ h1,h2,h3,h4,h5,h6 { font-weight:700; line-height:var(--lh-head); color:var(--c-t
   .header-inner .button { padding:0 12px; font-size:14px; letter-spacing:0; }
 }
 
-/* ── 히어로 — 흰 종이. 밤하늘 · 노선도 · 잡음 무늬는 걷는다(정보가 아닌 장식) ── */
-.hero { background:var(--c-paper); min-height:0; }
-.hero-canvas, .hero-gradient, .hero-bg-text { display:none; }
+/* ── 히어로 — 옅은 보라 면 + 노선도 (2026-10-06 대표 「너무 백색백색」 → 후보 넷을 화면에 입혀 보여 드리고 2번 선택)
+   흰 머리줄 · 흰 숫자 띠와 같은 흰색이라 경계가 안 보이던 것이 「백색」 인상의 원인이었다. 면을 옅게 칠해 경계를 세운다.
+   ⚠ 밤하늘 그라데이션 · 잡음 무늬 · 워터마크는 걷은 채로 둔다. 노선도 색은 여기(--map-line · --map-dot)가 정한다. */
+.hero { background:var(--c-hero); min-height:0; }
+.hero-gradient, .hero-bg-text { display:none; }
 .hero::after { display:none; }
+.hero-canvas { opacity:1; --map-line:rgba(81,77,194,.16); --map-dot:81,77,194; }
+/* 폰에선 비행 점이 설명 글자 위를 지나간다 — 옅게(10/1부터 있던 규칙을 이 블록에서 다시 세운다) */
+@media (max-width:1024px) { .hero-canvas { opacity:.4; } }
 .hero-center { padding:72px var(--pad-x) 64px; }
 .hero-badge {
-  background:var(--c-accent-weak); border:0; border-radius:var(--r-sm);  /* 알약은 폰에서 두 줄로 접히면 찌그러진다 */
+  background:var(--c-paper); border:0; border-radius:var(--r-sm);  /* 보라 면 위라 흰 바탕 · 알약은 폰에서 두 줄로 접히면 찌그러진다 */
   padding:6px 14px; color:var(--c-accent-dk);
   font-size:var(--fs-sm); font-weight:600; letter-spacing:0; text-transform:none;
 }
