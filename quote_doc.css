@@ -80,7 +80,10 @@
    ⚠ `max-width`를 준다 — 아주 가로로 긴 로고가 오면 오른쪽 회사 정보를 밀어낸다. */
 .qd-logo { height: 26px; width: auto; max-width: 260px; display: block; }
 .qd-brand-sm .qd-logo { height: 20px; max-width: 170px; }
-.qd-corp { text-align: right; font-size: 11px; color: var(--qd-muted); line-height: 1.65; }
+/* 작은 글자 바닥 11 → 12px (2026-10-06) — 「인쇄 공용이라 보류」(9/29)였던 자리. 키우기 전후를 재 보니
+   A4 한 장 맞춤 배율이 그대로 1이고(줄이지 않는다) 인쇄 장수도 같았다 — 문서 높이만 6~14px 늘었다.
+   ⚠ 긴 문서(일정 8일 등)는 원래부터 줄여 맞춘다 — 그때 배율이 아주 조금 더 내려간다. */
+.qd-corp { text-align: right; font-size: 12px; color: var(--qd-muted); line-height: 1.65; }
 .qd-corp-n { font-weight: 700; color: var(--qd-ink); font-size: 12px; }
 
 /* ── 검은 제목 바 ── 이미지에서 가장 먼저 눈에 들어오는 줄이다 */
@@ -110,7 +113,7 @@
   margin: 10px 0 5px; font-size: 13px; font-weight: 800; letter-spacing: -.01em;
 }
 .qd-h2::before { content: '■ '; }
-.qd-h2 em { font-style: normal; font-weight: 500; font-size: 11px; color: var(--qd-muted); }
+.qd-h2 em { font-style: normal; font-weight: 500; font-size: 12px; color: var(--qd-muted); }
 
 /* ── 표 공통 ── */
 .qd-t {
@@ -136,19 +139,19 @@
    🔴 합계 줄은 **눈에 띄어야 한다** — 이 표의 존재 이유가 「더하면 총액과 맞는다」다. */
 .qd-bd-sum { background: #FCF8F8; font-weight: 800; font-size: 15px; }
 .qd-bd tfoot .qd-num { color: var(--qd-red); }
-.qd-bd-note { margin: 8px 0 0; font-size: 11.5px; color: #777; line-height: 1.6; }
+.qd-bd-note { margin: 8px 0 0; font-size: 12px; color: #777; line-height: 1.6; }
 /* 🔴 이 기호는 한때 **청록 배경 전제로 흰색**이었다(선택 옵션 줄).
    배경을 바꾸자 기호가 **사라졌다** — 시안을 그려 보고 찾은 자리다. */
 .qd-w { float: left; color: var(--qd-muted); }
 .qd-bold { font-weight: 800; }
-.qd-sm { font-size: 11.5px; line-height: 1.7; }
+.qd-sm { font-size: 12px; line-height: 1.7; }
 /* ⚠ 고치기 전엔 불포함내역(굵은 빨강 두 줄)이 문서에서 가장 강했다.
    빨강은 합계에 쓴다. */
 .qd-red { color: var(--qd-ink); font-weight: 500; }
 .qd-blue { color: var(--qd-blue); }
 
 /* 유류할증료 기준 — 이미지에서 표 바로 아래 빨간 한 줄 */
-.qd-fuel { margin: 8px 0 0; font-size: 11.5px; font-weight: 600; color: var(--qd-muted); }
+.qd-fuel { margin: 8px 0 0; font-size: 12px; font-weight: 600; color: var(--qd-muted); }
 
 /* ── 선택 옵션 ── 위 머리말대로 어두운 청록이다 */
 /* ⚠ 2026-09-17: 청록 채움을 걷었다. 위아래 굵은 선으로 「다른 묶음」을 말한다.
@@ -169,10 +172,10 @@
 .qd-dl { font-weight: 800; }
 /* 여러 줄에 걸친 비고 — 「묶여 있다」를 색으로 말한다 */
 .qd-note-m { background: #FBFAF8; color: var(--qd-muted); }
-.qd-flt { font-size: 11.5px; line-height: 1.75; letter-spacing: 0; }
+.qd-flt { font-size: 12px; line-height: 1.75; letter-spacing: 0; }
 .qd-foot {
   background: #FBFCFF; color: var(--qd-blue);
-  font-size: 11px; line-height: 1.75; text-align: center;
+  font-size: 12px; line-height: 1.75; text-align: center;
 }
 
 /* ── 자유 서술 칸 (비고·취소규정) ──
@@ -191,17 +194,17 @@
   border-left: 3px solid var(--qd-red); text-align: left; padding-left: 12px;
 }
 /* ⚠ 11px 아래로 안 내린다 (CLAUDE.md YA) — 10.5px로 뒀다가 검사에서 걸렸다 */
-.qd-day-d { display: block; font-weight: 500; font-size: 11px; color: var(--qd-muted); }
+.qd-day-d { display: block; font-weight: 500; font-size: 12px; color: var(--qd-muted); }
 .qd-iti-b { text-align: left; font-size: 12px; line-height: 1.7; }
 .qd-iti-b > div + div { margin-top: 2px; }
 /* 라벨은 작고 흐리게 — 읽어야 하는 것은 내용이다 */
 .qd-iti-b b {
-  display: inline-block; min-width: 3em; font-weight: 700; font-size: 11px;
+  display: inline-block; min-width: 3em; font-weight: 700; font-size: 12px;
   color: var(--qd-muted); letter-spacing: .02em;
 }
 .qd-iti-n {
   margin-top: 5px; padding-top: 4px; border-top: 1px dotted var(--qd-line);
-  font-size: 11px; color: var(--qd-muted);
+  font-size: 12px; color: var(--qd-muted);
 }
 /* 🔴 식사·숙박 — 끼니마다 한 줄. 예전엔 「조식 기내식 · 중식 기내식 · 석식 현지식」을
    한 줄로 이어 붙여, 칸이 좁으면 **「석식」과 「현지식」이 다른 줄로 갈라졌다**(실측).
@@ -209,7 +212,7 @@
 .qd-stay { text-align: left; vertical-align: top; }
 .qd-meal { display: flex; gap: 6px; align-items: baseline; line-height: 1.55; }
 .qd-meal b {
-  flex: 0 0 auto; min-width: 2.4em; font-weight: 700; font-size: 11px;
+  flex: 0 0 auto; min-width: 2.4em; font-weight: 700; font-size: 12px;
   color: var(--qd-muted); letter-spacing: .02em;
 }
 .qd-meal span { flex: 1 1 auto; word-break: keep-all; }
@@ -230,7 +233,7 @@
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 10px; flex-wrap: wrap;
 }
-.qd-qno { font-size: 11px; color: var(--qd-muted); }
+.qd-qno { font-size: 12px; color: var(--qd-muted); }
 
 /* ── 폰 폭 ── (2026-09-29 다시 짬 — 견적서 링크는 카톡으로 가서 **폰에서 열린다**)
    🔴 예전 이 자리 주석은 「표는 가로 스크롤을 허용한다 — 감싸는 쪽에서 `overflow-x:auto`를

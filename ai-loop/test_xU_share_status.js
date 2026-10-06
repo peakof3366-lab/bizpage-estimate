@@ -171,7 +171,12 @@ const 문서 = (st) => {
            예전 픽스처는 발급일만 400일 전으로 돌리고 문서는 「30일 뒤까지」로 두었다 — 실제로는 없는 조합이다. */
       ['만료', v2('issued', (d) => { d.iso = ymd(-400); d.doc.meta.issueDate = d.iso; d.doc.meta.validUntil = ymd(-370); }), false],
       ['발행일 없음', v2('issued', (d) => { delete d.iso; d.doc.meta.validUntil = ''; }), false],
-      ['문서에 유효기간이 없음', v2('issued', (d) => { d.doc.meta.validUntil = ''; }), false],
+      /* 🔴 2026-10-06 — 「문서에 유효기간이 없으면 띠가 남는다」였다. 그런데 **고객이 홈페이지에서 직접 받는
+           견적서는 늘 이 경우**였고(서버가 만드는 문서에 validUntil을 채우는 곳이 없다 — 담당자 화면만 채운다),
+           그래서 인쇄하면 띠가 A4 문서를 밀어 **2쪽이 백지**로 나왔다(종단 시험에서 실측).
+           이제 화면이 띠에 쓰는 바로 그 만료일을 문서 꼬리에 넘긴다 → 띠는 빠지고 **유효기간은 문서에 찍힌다**.
+           지키는 것은 같다 — 「인쇄물에서 유효기간이 사라지지 않는다」. 아래 ④-d가 문서에 실제로 찍혔는지 본다. */
+      ['문서에 유효기간이 없음', v2('issued', (d) => { d.doc.meta.validUntil = ''; }), true],
       /* 🔴 문서 날짜가 이긴다 — 둘이 갈리면 띠도 문서를 따른다 */
       ['문서는 지났는데 발급 +30일은 남음', v2('issued', (d) => { d.doc.meta.validUntil = ymd(-1); }), false],
     ];
@@ -182,6 +187,19 @@ const 문서 = (st) => {
       ok('④-b ' + 이름 + ' — v2 문서로 그려졌다', /\bqdv-v2\b/.test(cls), cls);
       ok('🔴 ④-b ' + 이름 + (뺄수있나 ? ' — 배너를 인쇄에서 뺀다' : ' — 배너가 인쇄에 남는다'),
         /\bqdv-v2-validity\b/.test(cls) === 뺄수있나, cls);
+      V.win.close();
+    }
+    /* 🔴 ④-d 문서에 유효기간이 없던 정상 건 — 띠를 인쇄에서 빼는 대신 **문서 꼬리에 같은 날짜가 찍혔다** (2026-10-06)
+         이게 없으면 ④-b의 「뺀다」는 WQ(인쇄물에 유효기간이 한 줄도 없다)로 돌아간다. */
+    {
+      const fx = v2('issued', (d) => { d.doc.meta.validUntil = ''; });
+      const V = bootPage('estimate-view.html', { query: '?id=x', fixtures: { shareDoc: fx } });
+      await V.ready; await V.tick(320);
+      const bar = (V.doc.getElementById('validity-bar') || {}).textContent || '';
+      const foot = Array.from(V.doc.querySelectorAll('.qd-foot-bar .qd-qno')).map((e) => e.textContent).join(' | ');
+      const date = (bar.match(/\d{4}년 \d{1,2}월 \d{1,2}일/) || [''])[0];
+      ok('🔴 ④-d 문서 꼬리에 유효기간이 찍혔다', /유효기간/.test(foot), foot || '(없음)');
+      ok('🔴 ④-d 문서의 날짜 = 띠의 날짜(새로 계산하지 않았다)', !!date && foot.includes(date), foot + ' / 띠 ' + date);
       V.win.close();
     }
     /* 🔴 ④-c 띠가 **문서의 날짜를 말한다** (2026-10-02) — 「한 달 뒤」는 발급 +30일과 하루가 갈린다.

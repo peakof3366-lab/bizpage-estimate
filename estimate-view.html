@@ -1060,6 +1060,17 @@ function renderPage(d) {
        견적서를 인쇄했을 때 「취소되었습니다」가 사라진다.** WQ가 당한 자리이고,
        `test_xU`가 이 커밋에서 실제로 그걸 잡았다. → 정상 건만 뺀다. */
     const bannerIsPlain = !취소됨 && !validity.unknown && !validity.expired;
+    /* 🔴 **인쇄하면 2쪽이 백지였다** (2026-10-06 종단 시험 — 고객이 링크에서 인쇄·PDF로 저장할 때마다).
+       문서 꼬리가 유효기간을 찍으면 띠를 인쇄에서 빼는 규칙(qdv-v2-validity)이 있는데,
+       **`doc.meta.validUntil`을 채우는 곳이 어디에도 없어** 그 규칙이 한 번도 안 돌았다(결함 생성기 ③).
+       그래서 띠가 A4 한 장짜리 문서 위에 얹혀 종이를 넘겼고, 넘친 꼬리가 빈 장이 됐다.
+       → 정상 건이면 **이 화면이 이미 계산한 만료일**(띠에 나오는 바로 그 값)을 문서 꼬리에도 넘긴다.
+         값을 새로 계산하지 않는다 — 띠와 문서가 다른 날짜를 말하면 안 된다.
+       ⚠ 취소·만료·발행일 모름이면 넘기지 않는다 — 그때는 띠(경고)가 인쇄물에 남아야 한다(WQ · test_xU).
+       ⚠ 문서가 스스로 유효기간을 갖고 왔으면 그대로 둔다. */
+    if (bannerIsPlain && expiresStr && !(d.doc.meta && d.doc.meta.validUntil)) {
+      d.doc.meta = Object.assign({}, d.doc.meta, { validUntil: expiresStr });
+    }
     renderDocPage(d, validityBanner, bannerIsPlain);
     return;
   }
