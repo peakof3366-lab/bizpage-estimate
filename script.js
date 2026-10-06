@@ -2676,6 +2676,9 @@ function submitConsult() {
   }
 
   function frame(now) {
+    /* 🔴 캔버스를 CSS로 숨기면(2026-10-06 A안 — 히어로가 흰 종이가 되며 노선도를 걷었다) 크기가 0이다.
+       그때 drawImage가 **스크립트를 읽는 중에** 오류를 내서, 아래 코드가 통째로 안 돌 뻔했다. 그릴 자리가 없으면 안 그린다. */
+    if (!W || !H || !base.width || !base.height) { if (running) requestAnimationFrame(frame); return; }
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(base, 0, 0, W, H);
     if (!reduce) {
