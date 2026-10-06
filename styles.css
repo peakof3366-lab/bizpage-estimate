@@ -2477,7 +2477,7 @@ body:has(.hero) .site-header:not(.scrolled):not(.nav-mobile-open) { background:r
   --c-accent:#514DC2;   /* 🔴 유일한 강조색 — 금액 · 주 버튼 · 고른 상태 */
   --c-accent-dk:#3E3AA6;/* 누른 상태 · 옅은 보라 위 글자(7.9:1) */
   --c-accent-weak:#F1F0FB; /* 고른 상태 바탕 · 1인당 금액 상자 */
-  --c-hero:#EEEDF9;     /* 첫 화면 바탕 — 브랜드 보라를 아주 옅게(먹색 11.1 · 보조 6.3 · 보라 5.7:1) */
+  --c-hero:#2E2A7A;     /* 첫 화면 바탕 대표색 — 인디고→보라 그라데이션의 중간(어두운 면 · 흰 글자 · 강조는 민트) */
   --c-danger:#B42318;   /* 신호 — 필수 표시 · 오류 (강조색이 아니다) */
 
   /* ─ 모서리 · 그림자 — 두 단계씩 */
@@ -2544,32 +2544,40 @@ h1,h2,h3,h4,h5,h6 { font-weight:700; line-height:var(--lh-head); color:var(--c-t
   .header-inner .button { padding:0 12px; font-size:14px; letter-spacing:0; }
 }
 
-/* ── 히어로 — 옅은 보라 면 + 노선도 (2026-10-06 대표 「너무 백색백색」 → 후보 넷을 화면에 입혀 보여 드리고 2번 선택)
-   흰 머리줄 · 흰 숫자 띠와 같은 흰색이라 경계가 안 보이던 것이 「백색」 인상의 원인이었다. 면을 옅게 칠해 경계를 세운다.
-   ⚠ 밤하늘 그라데이션 · 잡음 무늬 · 워터마크는 걷은 채로 둔다. 노선도 색은 여기(--map-line · --map-dot)가 정한다. */
-.hero { background:var(--c-hero); }  /* 높이는 원래대로 화면 가득(100vh · 폰 100dvh−56px) — 내용만큼 줄였더니 「답답하다」(대표 2026-10-06) */
-.hero-gradient, .hero-bg-text { display:none; }
+/* ── 히어로 — 인디고→보라 그라데이션 + 민트 빛 + 노선도 (2026-10-06 대표 「덜 밋밋하게 · 색을 입히자」 → 후보 넷 중 4번)
+   같은 날 앞서 고른 옅은 보라(#EEEDF9)가 「밋밋하다」 → 진한 면으로. 사진이 가장 또렷하게 뜬다.
+   🔴 **어두운 면이다 — 브랜드 규칙대로 이 면에서만 강조색이 민트**(보라는 이 위에서 안 읽힌다).
+     글자는 흰색, 주 버튼은 흰 바탕 + 짙은 보라 글자(보라 버튼을 보라 면에 올리면 묻힌다).
+   ⚠ 글자가 놓이는 왼쪽 위가 가장 어둡다(#221F5C). 가장 밝은 오른쪽 아래(#514DC2)에서도 흰 글자 6.6:1 · 민트 3.8:1(큰 제목 기준 3:1 통과).
+   ⚠ `background-color`(--c-hero)는 check_contrast가 읽는 대표값이다 — 그라데이션 중간 색으로 둔다.
+   ⚠ 잡음 무늬 · 워터마크는 걷은 채로 둔다. 노선도 색은 여기(--map-line · --map-dot)가 정한다. */
+.hero { background:var(--c-hero) linear-gradient(135deg, #221F5C 0%, #3B379A 55%, #514DC2 100%); }  /* 높이는 원래대로 화면 가득(100vh · 폰 100dvh−56px) — 내용만큼 줄였더니 「답답하다」(대표 2026-10-06) */
+.hero-gradient { display:block; background:radial-gradient(ellipse 45% 55% at 10% 100%, rgba(99,214,212,.22) 0%, transparent 70%); }
+.hero-bg-text { display:none; }
 .hero::after { display:none; }
-.hero-canvas { opacity:1; --map-line:rgba(81,77,194,.16); --map-dot:81,77,194; }
+.hero-canvas { opacity:1; --map-line:rgba(255,255,255,.14); --map-dot:99,214,212; }
 /* 폰에선 비행 점이 설명 글자 위를 지나간다 — 옅게(10/1부터 있던 규칙을 이 블록에서 다시 세운다) */
 @media (max-width:1024px) { .hero-canvas { opacity:.4; } }
 .hero-center { padding:72px var(--pad-x) 64px; }
 .hero-badge {
-  background:var(--c-paper); border:0; border-radius:var(--r-sm);  /* 보라 면 위라 흰 바탕 · 알약은 폰에서 두 줄로 접히면 찌그러진다 */
-  padding:6px 14px; color:var(--c-accent-dk);
+  background:rgba(255,255,255,.14); border:0; border-radius:var(--r-sm);  /* 알약은 폰에서 두 줄로 접히면 찌그러진다 */
+  padding:6px 14px; color:#fff;
   font-size:var(--fs-sm); font-weight:600; letter-spacing:0; text-transform:none;
 }
 .hero-center h1 {
-  font-size:var(--fs-h1); font-weight:700; color:var(--c-text);
+  font-size:var(--fs-h1); font-weight:700; color:#fff;
   line-height:1.25; letter-spacing:-.03em;
 }
-.hero-center h1 em { color:var(--c-accent); }
-.hero-center h1 em::after { background:var(--c-accent); opacity:.22; height:.1em; bottom:.02em; }
-.hero-sub { font-size:var(--fs-lead); line-height:1.7; color:var(--c-text-2); max-width:30em; }
-.hero .button-primary { background:var(--c-accent); color:#fff; border-color:var(--c-accent); }
-.hero .button-primary:hover { background:var(--c-accent-dk); color:#fff; border-color:var(--c-accent-dk); }
-.hero-visual::before { display:none; }  /* 사진 뒤 틀 — 흰 바탕에선 빈 상자로 보였다(장식) */
-.hero-visual figure { background:var(--c-paper-2); box-shadow:none; border-radius:var(--r-md); }
+.hero-center h1 em { color:var(--brand-on-dk); }
+.hero-center h1 em::after { background:var(--brand-on-dk); opacity:.45; height:.1em; bottom:.02em; }
+.hero-sub { font-size:var(--fs-lead); line-height:1.7; color:rgba(255,255,255,.86); max-width:30em; }
+.hero .button-primary { background:#fff; color:var(--c-accent-dk); border-color:#fff; }
+.hero .button-primary:hover { background:var(--brand-on-dk); color:var(--c-text); border-color:var(--brand-on-dk); }
+.hero .button-outline { background:transparent; color:#fff; border-color:rgba(255,255,255,.6); }
+.hero .button-outline:hover { background:#fff; color:var(--c-text); border-color:#fff; }
+.hero .button:focus-visible { outline-color:var(--brand-on-dk); }
+.hero-visual::before { display:none; }  /* 사진 뒤 틀 — 장식 */
+.hero-visual figure { background:#1E1B52; box-shadow:0 12px 32px rgba(10,10,40,.35); border-radius:var(--r-md); }
 .hero-visual figcaption { font-size:var(--fs-sm); }
 @media (min-width:1025px) {
   .hero-center { row-gap:24px; }
@@ -2580,10 +2588,10 @@ h1,h2,h3,h4,h5,h6 { font-weight:700; line-height:var(--lh-head); color:var(--c-t
   .hero-center h1 { font-size:32px; }
   .hero-sub { font-size:var(--fs-body); }
 }
-/* 티커 — 어두운 띠를 걷고 회백 줄로 */
-.dest-ticker-wrap { background:var(--c-paper-2); border-top:1px solid var(--c-line); border-bottom:1px solid var(--c-line); }
-.dest-ticker span:not(.t-sep) { font-size:var(--fs-sm); font-weight:500; letter-spacing:0; color:var(--c-text-2); }
-.t-sep { background:var(--c-line-2); }
+/* 티커 — 히어로의 바닥 색으로 잇는다. 그 아래 숫자 띠부터 흰 면 */
+.dest-ticker-wrap { background:#1E1B52; border-top:1px solid rgba(255,255,255,.1); border-bottom:1px solid var(--c-line); }
+.dest-ticker span:not(.t-sep) { font-size:var(--fs-sm); font-weight:500; letter-spacing:0; color:rgba(255,255,255,.78); }
+.t-sep { background:rgba(99,214,212,.5); }
 /* 숫자 띠 */
 .stat-item { padding:28px 24px; }
 .stat-num-hero { font-size:clamp(28px, 3vw, 40px); font-weight:700; letter-spacing:-.03em; color:var(--c-text); font-variant-numeric:tabular-nums; }
