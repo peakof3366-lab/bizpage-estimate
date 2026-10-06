@@ -415,14 +415,72 @@
      기록이 되고, 그건 "검증한다"고 말만 하는 것과 같다(이 프로젝트에서 반복해서
      문제가 됐던 유형이라 목록·상세 양쪽에 붙인다).
      verified면 아무것도 안 띄운다 — 정상이 대부분이라 배지를 달면 소음이 된다. */
-  function verifyBadgeHtml(rec) {
+  /* 🔴 **「⚠ 확인 필요」만으로는 무엇이 문제인지 몰랐다** (2026-10-06 대표 지적).
+     실측: 운영 견적 5건 중 걸린 1건(농심 · 멜버른)은 **담당자가 「현장 부대비용」을 6,298,139 → 8,000,000으로
+     직접 고친 것**이었다(+1,701,861 · 잔차 4 = 합계 차이 1,701,865 정확히). 서버 검증은 **엔진이 계산한 항목만**
+     더해 총액과 맞춰 보므로, 정상적인 손질도 조작과 같은 배지를 받았다.
+     → 차이를 **담당자 손질(고친 줄 + 실무 변수)**로 설명해 본다. 전부 설명되면 경고가 아니라 「✎ 직접 수정」,
+       설명 안 되는 몫이 남으면 그 **금액**을 경고로 말한다. 다른 단계(요율 기준월 등)가 걸리면 그 단계 이름을 말한다.
+     ⚠ 판정만 바꾼다 — 서버의 `_verify` 기록은 그대로다(고친 사람이 누구든 기록은 남는다).
+     ⚠ 설명 재료는 견적 문서의 `_internal`(담당자 화면이 저장한 수정 기록)이다. 없으면(고객 직접 건) 설명하지 않는다. */
+  const VERIFY_SUM_STEPS = ['sum', 'split'];
+  function verifyExplain(rec) {
     const v = rec && rec._verify;
-    if (!v || v.verdict === 'verified') return '';
-    const label = v.verdict === 'unavailable' ? '검증 못함' : '확인 필요';
-    const title = (v.failedSteps || []).length
-      ? `검증에서 걸린 항목: ${(v.failedSteps || []).join(', ')}`
-      : '서버 검증을 수행하지 못했습니다';
-    return ` <span class="badge badge-pend" title="${esc(title)}" style="margin-left:.25rem">⚠ ${label}</span>`;
+    if (!v || v.verdict === 'verified') return null;
+    if (v.verdict === 'unavailable') return { kind: 'unavailable' };
+    const failed = (v.failedSteps || []).slice();
+    const other = failed.filter((k) => VERIFY_SUM_STEPS.indexOf(k) < 0);
+    const items = Array.isArray(rec.items) ? rec.items : [];
+    const f = Number(rec.combinedFactor) || 1;
+    const engine = Math.round(items.reduce((s, it) => s + (Number(it.amount) || 0), 0) * f);
+    const total = Number(rec.total) || 0;
+    const diff = total - engine;
+    const inn = (rec.doc && rec.doc._internal) || {};
+    const parts = [];
+    (Array.isArray(inn.overrides) ? inn.overrides : []).forEach((o) => {
+      const from = Number(o.autoAmount) || 0, to = Number(o.amount) || 0;
+      if (to !== from) parts.push({ label: String(o.label || '항목'), from, to, delta: to - from, how: '직접 고친 금액' });
+    });
+    (Array.isArray(inn.adjust) ? inn.adjust : []).forEach((a) => {
+      const amt = Number(a.amount) || 0;
+      if (amt) parts.push({ label: String(a.label || '실무 변수'), from: null, to: amt, delta: amt, how: a.kind === 'cost' ? '실무 변수(원가)' : '실무 변수(마진)' });
+    });
+    const explained = parts.reduce((s, x) => s + x.delta, 0);
+    /* 남는 몫의 허용치 — 반올림 잔차 + 인원 수(서버 검증의 합계 허용치와 같은 크기) */
+    const slack = 10 + Math.abs(Number(inn.residual) || 0) + (Number(rec.participants) || 0);
+    const unexplained = diff - explained;
+    const sumOnly = failed.length > 0 && other.length === 0;
+    const kind = sumOnly && parts.length && Math.abs(unexplained) <= slack ? 'edit'
+      : sumOnly ? 'mismatch' : 'other';
+    const labels = {};
+    (v.steps || []).forEach((x) => { labels[x.id || x.key] = x.label; });
+    return { kind, diff, engine, total, parts, unexplained, other: other.map((k) => labels[k] || k) };
+  }
+  /* 「+170만」 — 목록 칸에 들어가는 짧은 금액 */
+  function verifyMan(n) {
+    const a = Math.abs(n), sign = n < 0 ? '−' : '+';
+    return a >= 10000 ? sign + Math.round(a / 10000).toLocaleString('ko-KR') + '만' : sign + a.toLocaleString('ko-KR') + '원';
+  }
+  function verifyBadgeHtml(rec) {
+    const x = verifyExplain(rec);
+    if (!x) return '';
+    let cls = 'badge badge-pend', label, title;
+    if (x.kind === 'unavailable') {
+      label = '검증 못함'; title = '서버 검증을 수행하지 못했습니다(권위 데이터 조회 실패) — 상세에서 확인하세요';
+    } else if (x.kind === 'edit') {
+      cls = 'badge badge-edited';
+      label = '✎ 직접 수정 ' + verifyMan(x.diff);
+      title = '담당자가 고친 금액 — 자동 계산과 총액이 다른 이유가 전부 설명됩니다\n'
+        + x.parts.map((p) => `· ${p.label}: ${p.from === null ? '' : p.from.toLocaleString('ko-KR') + ' → '}${p.to.toLocaleString('ko-KR')} (${verifyMan(p.delta)})`).join('\n');
+    } else if (x.kind === 'mismatch') {
+      label = '⚠ 합계 불일치 ' + verifyMan(x.parts.length ? x.unexplained : x.diff);
+      title = `항목 합계(자동 계산) ${x.engine.toLocaleString('ko-KR')} vs 총액 ${x.total.toLocaleString('ko-KR')}`
+        + (x.parts.length ? ` — 담당자 손질로 ${verifyMan(x.diff - x.unexplained)}는 설명되고 ${verifyMan(x.unexplained)}가 남습니다` : ' — 담당자 수정 기록이 없습니다');
+    } else {
+      label = '⚠ ' + (x.other[0] || '확인 필요') + (x.other.length > 1 ? ` 외 ${x.other.length - 1}` : '');
+      title = '검증에서 걸린 항목: ' + x.other.join(', ') + ' — 상세에서 확인하세요';
+    }
+    return ` <span class="${cls}" title="${esc(title)}" style="margin-left:.25rem">${esc(label)}</span>`;
   }
 
   /* 상세 모달용 — 걸린 단계를 사람 말로 풀어 보여준다. 어느 단계에서 왜 걸렸는지
@@ -433,6 +491,24 @@
     /* 2026-09-28 대표 요청 — 통과한 건은 아무것도 안 띄운다(「✓ 서버 검증 통과 (날짜)」를 뺐다).
        🔴 **걸린 건의 경고는 그대로** — 조작인지 낡은 값인지 판단할 유일한 단서다. */
     if (v.verdict === 'verified') return '';
+    /* 담당자 손질로 전부 설명되는 건 — 경고가 아니라 **무엇을 얼마에서 얼마로 고쳤는지** 표로 (2026-10-06) */
+    const x = verifyExplain(rec);
+    if (x && x.kind === 'edit') {
+      const won = (n) => n.toLocaleString('ko-KR');
+      const trs = x.parts.map((p) => `<tr><td style="padding:.25rem .5rem">${esc(p.label)}<span style="color:#64748b"> · ${esc(p.how)}</span></td>`
+        + `<td style="padding:.25rem .5rem;text-align:right">${p.from === null ? '—' : won(p.from)}</td>`
+        + `<td style="padding:.25rem .5rem;text-align:right">${won(p.to)}</td>`
+        + `<td style="padding:.25rem .5rem;text-align:right;font-weight:700">${verifyMan(p.delta)}</td></tr>`).join('');
+      return `
+      <div style="margin:.5rem 0 .2rem;padding:.7rem .85rem;background:#F5F7FB;border-left:3px solid #64748b">
+        <div style="font-size:.88rem;font-weight:700;color:#334155;margin-bottom:.35rem">✎ 담당자가 직접 고친 금액 — 자동 계산 ${won(x.engine)} → 총액 ${won(x.total)} (${verifyMan(x.diff)})</div>
+        <table style="font-size:.84rem;color:#334155;border-collapse:collapse;width:100%">
+          <thead><tr style="color:#64748b"><th style="text-align:left;padding:.2rem .5rem">항목</th><th style="text-align:right;padding:.2rem .5rem">자동 계산</th><th style="text-align:right;padding:.2rem .5rem">고친 값</th><th style="text-align:right;padding:.2rem .5rem">차이</th></tr></thead>
+          <tbody>${trs}</tbody>
+        </table>
+        <div style="font-size:.8rem;color:#64748b;margin-top:.45rem">서버 검증은 자동 계산 항목만 더해 총액과 맞춰 봅니다 — 이 차이는 위 손질로 전부 설명됩니다. 의도한 수정이 맞는지만 확인해 주세요.</div>
+      </div>`;
+    }
     const failed = (v.steps || []).filter(x => !x.ok);
     const rows = failed.length
       ? failed.map(x => `<li><strong>${esc(x.label)}</strong> — ${esc(x.detail || '')}</li>`).join('')
@@ -441,6 +517,7 @@
       <div style="margin:.5rem 0 .2rem;padding:.7rem .85rem;background:#FFF8E6;border-left:3px solid #E0A800">
         <div style="font-size:.85rem;font-weight:700;color:#7A5A10;margin-bottom:.35rem">⚠ 서버 검증에서 걸린 항목</div>
         <ul style="font-size:.83rem;color:#7A5A10;line-height:1.75;padding-left:1.1rem;margin:0">${rows}</ul>
+        ${x && x.kind === 'mismatch' && x.parts.length ? `<div style="font-size:.83rem;color:#7A5A10;margin-top:.35rem">담당자 손질(${x.parts.map((p) => esc(p.label)).join(' · ')})로 ${verifyMan(x.diff - x.unexplained)}는 설명되고, <b>${verifyMan(x.unexplained)}가 설명되지 않습니다.</b></div>` : ''}
         <div style="font-size:.8rem;color:#8A6A20;margin-top:.45rem">
           금액 조작일 수도, 요율이 그 사이 바뀐 것일 수도 있습니다. 확인 후 필요하면 재산출해 주세요.
         </div>
