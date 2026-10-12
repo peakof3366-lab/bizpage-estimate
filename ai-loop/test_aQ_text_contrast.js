@@ -85,5 +85,25 @@ for (const f of ['admin.html', 'admin.css', ...fs.readdirSync(path.join(ROOT, 'a
 }
 ok('관리자 화면 파일에 12px 미만 글자 규칙이 없다', tiny.length === 0, tiny.join(' · '));
 
+console.log('[5] 글자 크기 표 — 관리자 화면은 8단계 토큰만 쓴다 (2026-10-12)');
+/* 예전엔 38가지 값이 흩어져 같은 모양 버튼이 13.44 · 13.76 · 14.08 · 14.24px로 제각각이었다.
+   실측: 화면에 그려진 크기 27가지 → 9가지(표 8단계 + 본문 기본 15px).
+   예외: 본문 기본(body 15px) · 별도 문서(내부용 인쇄물 템플릿 · 일정 미리보기 recommend.js — 토큰이 없는 문서). */
+{
+  const raw = [];
+  const scan = (f, src) => src.split('\n').forEach((line, i) => {
+    for (const m of line.matchAll(/font-size\s*:\s*([\d.]+)(rem|px)(?![\w-])/g)) raw.push(`${f}:${i + 1} ${m[1]}${m[2]}`);
+  });
+  scan('admin.css', ADMIN_CSS.replace(/body \{[^}]*font-size: 15px;[^}]*\}/, '').replace(/--fs-[\w-]+:\s*[\d.]+rem;/g, ''));
+  const AH = read('admin.html');
+  const a = AH.indexOf('const html = `<!DOCTYPE html>'), b = AH.indexOf('w.document.write(html);', a);
+  scan('admin.html', AH.slice(0, a) + AH.slice(b));
+  fs.readdirSync(path.join(ROOT, 'admin')).filter((f) => f.endsWith('.js') && f !== 'recommend.js')
+    .forEach((f) => scan('admin/' + f, read('admin/' + f)));
+  ok('크기 숫자를 직접 적은 곳 0곳(전부 var(--fs-*))', raw.length === 0, raw.slice(0, 8).join(' · ') + (raw.length > 8 ? ` 외 ${raw.length - 8}` : ''));
+  const T = require('./_font_tokens').tokens();
+  ok('표는 8단계 이상 · 가장 작은 단계도 12px 이상', Object.keys(T).length >= 8 && Math.min(...Object.values(T)) >= 12, JSON.stringify(T));
+}
+
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);

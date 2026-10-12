@@ -132,9 +132,9 @@ const rates = fs.existsSync(RATES_FIXTURE)
 
   console.log('\n[3] 글자 크기·누를 크기 바닥');
   /* 사이드바 구분 라벨이 10.2px이었다(담당자 화면에서 가장 작은 글자). */
-  const sepM = /\.sidebar-sep-lbl\s*\{[^}]*font-size:\s*([\d.]+)rem/.exec(admin);
-  ok('사이드바 구분 라벨이 11px 이상이다',
-    !!sepM && Number(sepM[1]) * 16 >= 11, sepM ? (Number(sepM[1]) * 16).toFixed(1) + 'px' : '못 찾음');
+  /* 2026-10-12 글자 크기가 토큰(var(--fs-*))이 되어 숫자로 못 읽던 것 → 공용 부품으로 px를 낸다 */
+  const sepPx = require('./_font_tokens').ruleFsPx(admin, '\.sidebar-sep-lbl');
+  ok('사이드바 구분 라벨이 11px 이상이다', sepPx >= 11, Number.isNaN(sepPx) ? '못 찾음' : sepPx.toFixed(1) + 'px');
   /* 견적서 대장 검색칸이 클래스 없는 맨 input이라 높이 19px이었다. */
   ok('🔴 대장 검색칸에 높이 규칙이 있다',
     /\.iti-bar input\[type="search"\][^{]*\{[^}]*height:\s*40px/.test(admin));

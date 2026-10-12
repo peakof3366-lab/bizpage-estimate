@@ -128,7 +128,8 @@ const mkCourse = (first, days) => ({
   console.log('\n[4] 잴 수 있는 것은 취향이 아니다 — 글자 크기');
   {
     /* 값이 아니라 **문턱**을 본다(2026-10-02 관리자 글자 일괄 확대로 값이 바뀌었다) — 1rem = 16px */
-    const remAtLeast11 = (src, cls) => { const m = src.match(new RegExp('\\.' + cls + ' \\{ font-size: ([\\d.]+)rem')); return !!m && parseFloat(m[1]) * 16 >= 11; };
+    /* 2026-10-12 토큰(var(--fs-*))도 읽는다 — 공용 부품 _font_tokens.js */
+    const remAtLeast11 = (src, cls) => require('./_font_tokens').ruleFsPx(src, '\\.' + cls + ' ') >= 11;
     /* .68rem = 10.88px이라 「글자는 11px 이상」에 걸렸다 */
     ok('④ 출처 배지가 11px 이상', remAtLeast11(ADMIN, 'iti-src-quote'),
       (/\.iti-src-quote \{ font-size: [^;]+/.exec(ADMIN) || [''])[0]);

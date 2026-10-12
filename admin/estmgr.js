@@ -287,7 +287,7 @@
     const hasSnap = ['seasonFactor','leadFactor','peakFactor'].some(k => typeof e[k] === 'number');
     if (!hasSnap) {
       return `<div class="detail-label" style="margin-bottom:.5rem">계수 기여도</div>
-        <div style="color:var(--muted);font-size:.87rem">2026-07 이전 견적이라 계수 기록이 없습니다.</div>`;
+        <div style="color:var(--muted);font-size:var(--fs-md)">2026-07 이전 견적이라 계수 기록이 없습니다.</div>`;
         /* ⚠ 2026-09-15 대표 지시로 줄였다. 예전: 「이 견적은 계수 스냅샷 도입(2026-07)
            이전에 생성되어 계수 기여도 정보가 없습니다. 이후 생성된 견적부터 표시됩니다.」
            🔴 **지우지 않는다** — 왜 비었는지 말하는 줄이다. 잃은 것은 「이후 견적부터
@@ -503,12 +503,12 @@
         + `<td style="padding:.25rem .5rem;text-align:right;font-weight:700">${verifyMan(p.delta)}</td></tr>`).join('');
       return `
       <div style="margin:.5rem 0 .2rem;padding:.7rem .85rem;background:#F5F7FB;border-left:3px solid #64748b">
-        <div style="font-size:.88rem;font-weight:700;color:#334155;margin-bottom:.35rem">✎ 담당자가 직접 고친 금액 — 자동 계산 ${won(x.engine)} → 총액 ${won(x.total)} (${verifyMan(x.diff)})</div>
-        <table style="font-size:.84rem;color:#334155;border-collapse:collapse;width:100%">
+        <div style="font-size:var(--fs-md);font-weight:700;color:#334155;margin-bottom:.35rem">✎ 담당자가 직접 고친 금액 — 자동 계산 ${won(x.engine)} → 총액 ${won(x.total)} (${verifyMan(x.diff)})</div>
+        <table style="font-size:var(--fs-sm);color:#334155;border-collapse:collapse;width:100%">
           <thead><tr style="color:#64748b"><th style="text-align:left;padding:.2rem .5rem">항목</th><th style="text-align:right;padding:.2rem .5rem">자동 계산</th><th style="text-align:right;padding:.2rem .5rem">고친 값</th><th style="text-align:right;padding:.2rem .5rem">차이</th></tr></thead>
           <tbody>${trs}</tbody>
         </table>
-        <div style="font-size:.8rem;color:#64748b;margin-top:.45rem">서버 검증은 자동 계산 항목만 더해 총액과 맞춰 봅니다 — 이 차이는 위 손질로 전부 설명됩니다. 의도한 수정이 맞는지만 확인해 주세요.</div>
+        <div style="font-size:var(--fs-xs);color:#64748b;margin-top:.45rem">서버 검증은 자동 계산 항목만 더해 총액과 맞춰 봅니다 — 이 차이는 위 손질로 전부 설명됩니다. 의도한 수정이 맞는지만 확인해 주세요.</div>
       </div>`;
     }
     const failed = (v.steps || []).filter(x => !x.ok);
@@ -517,10 +517,10 @@
       : '<li>서버 검증을 수행하지 못했습니다(권위 데이터 조회 실패).</li>';
     return `
       <div style="margin:.5rem 0 .2rem;padding:.7rem .85rem;background:#FFF8E6;border-left:3px solid #E0A800">
-        <div style="font-size:.85rem;font-weight:700;color:#7A5A10;margin-bottom:.35rem">⚠ 서버 검증에서 걸린 항목</div>
-        <ul style="font-size:.83rem;color:#7A5A10;line-height:1.75;padding-left:1.1rem;margin:0">${rows}</ul>
-        ${x && x.kind === 'mismatch' && x.parts.length ? `<div style="font-size:.83rem;color:#7A5A10;margin-top:.35rem">담당자 손질(${x.parts.map((p) => esc(p.label)).join(' · ')})로 ${verifyMan(x.diff - x.unexplained)}는 설명되고, <b>${verifyMan(x.unexplained)}가 설명되지 않습니다.</b></div>` : ''}
-        <div style="font-size:.8rem;color:#8A6A20;margin-top:.45rem">
+        <div style="font-size:var(--fs-sm);font-weight:700;color:#7A5A10;margin-bottom:.35rem">⚠ 서버 검증에서 걸린 항목</div>
+        <ul style="font-size:var(--fs-sm);color:#7A5A10;line-height:1.75;padding-left:1.1rem;margin:0">${rows}</ul>
+        ${x && x.kind === 'mismatch' && x.parts.length ? `<div style="font-size:var(--fs-sm);color:#7A5A10;margin-top:.35rem">담당자 손질(${x.parts.map((p) => esc(p.label)).join(' · ')})로 ${verifyMan(x.diff - x.unexplained)}는 설명되고, <b>${verifyMan(x.unexplained)}가 설명되지 않습니다.</b></div>` : ''}
+        <div style="font-size:var(--fs-xs);color:#8A6A20;margin-top:.45rem">
           금액 조작일 수도, 요율이 그 사이 바뀐 것일 수도 있습니다. 확인 후 필요하면 재산출해 주세요.
         </div>
       </div>`;
@@ -563,7 +563,7 @@
       linkedInqEl.classList.remove('hidden');
       linkedInqEl.innerHTML = `
         <div style="background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:.8rem 1.25rem;display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
-          <span style="font-size:.88rem;color:#1d4ed8">☎ <strong>${esc(linkedInq.name||'—')}</strong>님이 이 견적으로 상담을 요청했습니다 — ${esc(linkedInq.tel||'—')}</span>
+          <span style="font-size:var(--fs-md);color:#1d4ed8">☎ <strong>${esc(linkedInq.name||'—')}</strong>님이 이 견적으로 상담을 요청했습니다 — ${esc(linkedInq.tel||'—')}</span>
           <button type="button" class="btn-act btn-outline-p" onclick="jumpToInquiry('${safeId(linkedInq.id)}')">문의 관리에서 보기</button>
         </div>`;
     } else {
@@ -620,11 +620,11 @@
       const style = item.isHidden
         ? 'background:#fffbeb;color:#92400e'
         : '';
-      const badge = item.isHidden ? ' <span style="font-size:.77rem;background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:.1rem .35rem">비공개</span>' : '';
+      const badge = item.isHidden ? ' <span style="font-size:var(--fs-xs);background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:.1rem .35rem">비공개</span>' : '';
       tbodyHtml += `<tr style="${style}">
         <td style="padding:.45rem .6rem">${esc(item.adminLabel||item.name)}${badge}</td>
         <td style="padding:.45rem .6rem;text-align:right;color:var(--muted)">${fmt(item.unit||0)}</td>
-        <td style="padding:.45rem .6rem;text-align:center;color:var(--muted);font-size:.83rem">${esc(item.qty||'')}</td>
+        <td style="padding:.45rem .6rem;text-align:center;color:var(--muted);font-size:var(--fs-sm)">${esc(item.qty||'')}</td>
         <td style="padding:.45rem .6rem;text-align:right;font-weight:700">${fmt(item.amount||0)}</td>
       </tr>`;
     });
@@ -638,7 +638,7 @@
         <td style="padding:.45rem .6rem;text-align:right;font-weight:700;color:var(--primary)">${fmt(base)}</td>
       </tr>
       ${(e.combinedFactor||1)!==1?`<tr>
-        <td colspan="3" style="padding:.3rem .6rem;color:var(--muted);font-size:.84rem">× 계수 적용 (${(e.combinedFactor||1).toFixed(3)})</td>
+        <td colspan="3" style="padding:.3rem .6rem;color:var(--muted);font-size:var(--fs-sm)">× 계수 적용 (${(e.combinedFactor||1).toFixed(3)})</td>
         <td></td>
       </tr>`:''}`;
 
@@ -684,7 +684,7 @@
           `📊 <strong>실측 기준 예상 범위</strong> (계약 ${c.count}건): ` +
           `<strong style="color:#1d4ed8">${fmt(c.lo)} ~ ${fmt(c.hi)}</strong> ` +
           `<span style="color:var(--muted)">· 중앙 보정 ${fmt(c.mid)}</span>${warn}` +
-          `<div style="color:var(--muted);font-size:.8rem;margin-top:.2rem">과거 이 목적지 계약의 (실제 총액 ÷ 견적 총액) 분포 p10~p90 기준 · 내부 참고용, 고객 견적서에는 미노출</div>`;
+          `<div style="color:var(--muted);font-size:var(--fs-xs);margin-top:.2rem">과거 이 목적지 계약의 (실제 총액 ÷ 견적 총액) 분포 p10~p90 기준 · 내부 참고용, 고객 견적서에는 미노출</div>`;
       }
     }
 
@@ -1245,14 +1245,14 @@
        엉뚱한 값을 재게 된다(실제로 그렇게 짰다가 숫자가 이어 붙어 나왔다). */
     const card = (k, label, value, color) =>
       '<div data-k="' + k + '" style="padding:.55rem .7rem;background:#fff;border:1px solid var(--border)">'
-      + '<div style="font-size:.8rem;color:var(--muted)">' + label + '</div>'
-      + '<div data-v="' + k + '" style="font-size:1.05rem;font-weight:800;color:' + color + '">' + value + '</div></div>';
+      + '<div style="font-size:var(--fs-xs);color:var(--muted)">' + label + '</div>'
+      + '<div data-v="' + k + '" style="font-size:var(--fs-base);font-weight:800;color:' + color + '">' + value + '</div></div>';
 
     box.innerHTML =
       '<div class="detail-label" style="margin-bottom:.6rem">💰 수익 요약'
-      + '<span style="font-size:.8rem;font-weight:400;color:var(--warn);margin-left:.5rem;'
+      + '<span style="font-size:var(--fs-xs);font-weight:400;color:var(--warn);margin-left:.5rem;'
       + 'background:#fffbeb;border:1px solid #fde68a;padding:.1rem .4rem">🔒 고객에게 안 나갑니다</span>'
-      + '<span style="font-size:.8rem;font-weight:400;color:var(--muted);margin-left:.4rem">읽기 전용</span>'
+      + '<span style="font-size:var(--fs-xs);font-weight:400;color:var(--muted);margin-left:.4rem">읽기 전용</span>'
       + '</div>'
       + '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.5rem;margin-bottom:.7rem">'
       + card('sell', '총 판매가', won(sell), '#1d4ed8')
@@ -1265,17 +1265,17 @@
       + card('per', '1인당 이익', M.known ? won(profit / pax) : '—', profit >= 0 ? 'var(--success)' : 'var(--danger)')
       + '</div>'
       + (!M.known
-        ? '<div style="font-size:.85rem;color:var(--warn);margin-bottom:.6rem">⚠ 이 견적 기록에 원가가 없어 이익을 셀 수 없습니다.</div>'
+        ? '<div style="font-size:var(--fs-sm);color:var(--warn);margin-bottom:.6rem">⚠ 이 견적 기록에 원가가 없어 이익을 셀 수 없습니다.</div>'
         : '')
       + (low
         ? '<div style="padding:.5rem .7rem;background:#FFF4F5;border-left:3px solid var(--danger);'
-          + 'color:var(--danger);font-size:.85rem;font-weight:700;margin-bottom:.6rem">'
+          + 'color:var(--danger);font-size:var(--fs-sm);font-weight:700;margin-bottom:.6rem">'
           + '🔴 이익률이 기준(' + pct(EM_MARGIN_WARN) + ') 아래입니다 — ' + pct(rate)
           + '<span style="font-weight:400;color:var(--muted);margin-left:.4rem">기준값은 임시입니다(대표 확인 전)</span>'
           + '</div>'
         : '')
       + (rows
-        ? '<table style="width:100%;border-collapse:collapse;font-size:.85rem;background:#fff">'
+        ? '<table style="width:100%;border-collapse:collapse;font-size:var(--fs-sm);background:#fff">'
           + '<thead><tr style="background:var(--bg)">'
           + '<th style="padding:.32rem .5rem;text-align:left">항목</th>'
           + '<th style="padding:.32rem .5rem;text-align:right">원가</th>'
@@ -1283,8 +1283,8 @@
           + '<th style="padding:.32rem .5rem;text-align:right">마진</th>'
           + '<th style="padding:.32rem .5rem;text-align:right">마진율</th>'
           + '</tr></thead><tbody>' + rows + '</tbody></table>'
-        : '<div style="font-size:.85rem;color:var(--muted)">항목 내역이 없어 항목별 마진을 낼 수 없습니다.</div>')
-      + '<div style="font-size:.81rem;color:var(--muted);margin-top:.5rem">' + fxLine + '</div>';
+        : '<div style="font-size:var(--fs-sm);color:var(--muted)">항목 내역이 없어 항목별 마진을 낼 수 없습니다.</div>')
+      + '<div style="font-size:var(--fs-xs);color:var(--muted);margin-top:.5rem">' + fxLine + '</div>';
     box.classList.remove('hidden');
   }
 
