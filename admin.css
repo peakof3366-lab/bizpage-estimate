@@ -1953,6 +1953,10 @@
 }
 :is(#emTable, #ledList .tbl, #tab-rates .rate-table) thead :is(th, td):last-child:not([colspan]) { z-index: 2; background: var(--bg, #f8f8f8); }
 .inq-table tbody tr.unread > td:last-child:not([colspan]) { background: #fffbeb; }
+/* 출발일 (2026-10-12, admin/estmgr.js emDepartHtml) — 인원/기간 칸 둘째 줄. 급한 것은 색 + 굵기 + 「D-n」 글자 */
+#emTable .em-dep { display: block; white-space: normal; }   /* 칸이 nowrap이라 그대로 두면 1280에서 표가 16px 넘쳤다 — 이 줄만 접힌다 */
+#emTable .em-dep-soon { color: var(--warn); font-weight: 800; }
+#emTable .em-dep-past { color: var(--muted); }
 /* 상태 칸 — 알약 · 확인 꼬리표 · 실적을 세로로 (admin/estmgr.js `em-state-stack`) */
 #emTable .em-state-stack { display: flex; flex-direction: column; align-items: stretch; gap: .3rem; width: max-content; }
 #emTable .em-state-stack > * { margin: 0; justify-content: center; }

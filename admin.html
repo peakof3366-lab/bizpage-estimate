@@ -539,6 +539,11 @@
           <!-- RG: 계약은 됐는데 '실제 총 계약가'가 비어 있는 건. 이 숫자가 쌓여야
                신뢰구간·요율 갱신 제안이 돌아가는데, 시간이 지나면 다시 알아내기 어렵다. -->
           <button class="filter-btn filter-warn" data-emfilter="needs-actual" id="emNeedsActualBtn">💰 실적 미입력</button>
+          <!-- 2026-10-12 순서 고르기 — 기본은 최신 접수가 위, 급한 건을 고를 땐 출발 임박순 -->
+          <select id="emSortSel" class="status-select" aria-label="목록 순서" onchange="setEmSort(this.value)">
+            <option value="recent">접수 최신순</option>
+            <option value="depart">출발 임박순</option>
+          </select>
         </div>
         <!-- 검색 중이면 눈에 보이게 말한다 (2026-10-02) — 그리는 곳은 admin/estmgr.js renderEstMgr -->
         <p id="emSearchNote" class="em-search-note hidden" role="status"></p>
@@ -4365,7 +4370,7 @@
 
     /* Recent 5 */
     const rl = document.getElementById('recent-list');
-    const recent = contacts.slice().reverse().slice(0,5);
+    const recent = newestFirst(contacts, 'timestamp').slice(0,5);   /* 2026-10-12 예전엔 가장 오래된 5건이었다(common.js newestFirst) */
     rl.innerHTML = recent.length ? recent.map(c=>`
       <div class="recent-item ${c.read?'':'unread'}" onclick="switchTab('inquiries');openDetail('${safeId(c.id)}')" style="cursor:pointer">
         <span class="recent-name">${esc(c.name)}</span>
@@ -4421,7 +4426,7 @@
   document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
 
   function getFilteredContacts() {
-    let arr = get(KEYS.contacts).slice().reverse();
+    let arr = newestFirst(get(KEYS.contacts), 'timestamp');   /* 2026-10-12 최신이 위 — 두 번 뒤집혀 오래된 것이 위였다 */
     if (currentFilter === 'unread')  arr = arr.filter(c=>!c.read);
     if (currentFilter === 'read')    arr = arr.filter(c=>c.read && c.status !== 'pending' && c.status !== 'done');
     if (currentFilter === 'pending') arr = arr.filter(c=>c.status==='pending');

@@ -97,6 +97,20 @@
   const fmtDate  = (ts) => fmtBadTs(ts) ? '—' : new Date(ts).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'})+' '+new Date(ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});
   const fmtDateS = (ts) => fmtBadTs(ts) ? '—' : new Date(ts).toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'});
 
+  /* ── 최신이 위 (2026-10-12) ──────────────────────────────────────────────────────
+     🔴 문의 관리 · 견적 관리 · 대시보드 「최근 문의」가 전부 **오래된 것을 맨 위에** 그렸다.
+       처음엔 브라우저에 쌓인 순서(오래된 것부터)를 `reverse()`로 뒤집었는데, 서버에서 받아오게 바뀐 뒤로
+       서버가 이미 최신순(`order by created_at desc`)으로 주는데도 뒤집기가 남아 **두 번 뒤집혔다.**
+       「최근 문의」 카드는 가장 오래된 5건이었다.
+     → **저장 순서에 기대지 않고 시각으로 직접 정렬한다.** 시각을 못 읽는 줄은 맨 아래, 그 안에선 받은 순서 그대로. */
+  const newestFirst = (arr, key) => arr.map((x, i) => [x, i, new Date(x && x[key]).getTime()])
+    .sort((a, b) => {
+      const av = !isNaN(a[2]), bv = !isNaN(b[2]);
+      if (av && bv && a[2] !== b[2]) return b[2] - a[2];
+      if (av !== bv) return av ? -1 : 1;
+      return a[1] - b[1];
+    }).map((p) => p[0]);
+
   /* ── 권역·나라 분류 맵 (data.js의 destFieldMap에서 파생) ── */
   /* 지역 분류 맵 — PY: data.js의 DEST_CLASSIFY(region)에서 파생한다.
      예전엔 이 맵을 여기 직접 적었는데, 그래서 '동유럽'이 요율은 유럽 티어인데 그룹만

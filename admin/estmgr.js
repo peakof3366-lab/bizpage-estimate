@@ -22,6 +22,36 @@
   let   emSearch    = '';
   let   emCurrentId = null;
   let   emSelectedIds = new Set(); // 체크박스로 선택한 견적 id (신규 — 선택 삭제용, 필터/페이지 이동해도 유지)
+  let   emSort      = 'recent';    // 'recent' 접수 최신순(기본) · 'depart' 출발 임박순 (2026-10-12)
+
+  /* ── 출발일 (2026-10-12) ─────────────────────────────────────────────────────────
+     목록에 「언제 떠나는 건인가」가 없어 급한 건을 고르려면 상세를 하나씩 열어야 했다(견적 6건 모두 출발일이 있다).
+     ⚠ 열을 늘리지 않는다 — 9/27에 13열 → 9열로 줄였다(표가 화면을 넘었다). 「인원/기간」 칸 둘째 줄에 붙인다.
+     ⚠ 날짜만 있는 값은 **한국 날짜로** 센다(`new Date('YYYY-MM-DD')`는 UTC 자정이라 하루가 밀린다).
+     🔴 색만으로 말하지 않는다 — 급한 것은 「D-14」 글자와 굵기가 함께 말한다(원칙: 상태는 색+글자). */
+  const EM_URGENT_DAYS = 30;
+  const emTodayYmd = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.toISOString().slice(0, 10); };
+  function emDepartDays(e) {
+    const s = String(e.startDate || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    return Math.round((Date.parse(s + 'T00:00:00Z') - Date.parse(emTodayYmd() + 'T00:00:00Z')) / 864e5);
+  }
+  function emDepartHtml(e) {
+    const d = emDepartDays(e);
+    if (d === null) return '<span class="em-sub em-dep">출발일 미정</span>';
+    const s = String(e.startDate).slice(0, 10);
+    const md = Number(s.slice(5, 7)) + '/' + Number(s.slice(8, 10));
+    if (d < 0) return `<span class="em-sub em-dep em-dep-past" title="출발일 ${esc(s)}">출발 지남 (${md})</span>`;
+    const urgent = emIsActive(e) && d <= EM_URGENT_DAYS;
+    return `<span class="em-sub em-dep${urgent ? ' em-dep-soon' : ''}" title="출발일 ${esc(s)}${urgent ? ' — 진행 중인데 ' + EM_URGENT_DAYS + '일 안에 떠납니다' : ''}">출발 ${md} · ${d === 0 ? '오늘' : 'D-' + d}</span>`;
+  }
+  /* 출발 임박순 — 아직 안 떠난 것(가까운 순) → 지난 것(최근에 떠난 순) → 출발일 없음. 같으면 최신 접수가 위 */
+  function emByDeparture(all) {
+    const rank = (e) => { const d = emDepartDays(e); return d === null ? [2, 0] : d >= 0 ? [0, d] : [1, -d]; };
+    return newestFirst(all, 'ts').map((e, i) => [e, i, rank(e)])
+      .sort((a, b) => (a[2][0] - b[2][0]) || (a[2][1] - b[2][1]) || (a[1] - b[1])).map((p) => p[0]);
+  }
+  function setEmSort(v) { emSort = v === 'depart' ? 'depart' : 'recent'; emPage = 1; renderEstMgr(); }
 
   /* 「검색 지우기」 — 검색칸을 비우고 다시 그린다(2026-10-02) */
   function emClearSearch() {
@@ -134,7 +164,9 @@
     }
 
     /* 필터 */
-    let list = all.slice().reverse();
+    /* 2026-10-12 최신 접수가 위(기본) · 「출발 임박순」을 고르면 출발일이 가까운 것이 위.
+       예전 `all.slice().reverse()`는 서버가 이미 최신순으로 주는 것을 한 번 더 뒤집어 **오래된 것이 위**였다. */
+    let list = emSort === 'depart' ? emByDeparture(all) : newestFirst(all, 'ts');
     if (emFilter === 'needs-actual') list = list.filter(emNeedsActual);
     else if (emFilter === 'active') list = list.filter(emIsActive);
     else if (emFilter !== 'all') list = list.filter(e => e.status === emFilter);
@@ -190,7 +222,7 @@
           ? `<strong>${esc(e.quoteNo)}</strong>`
           : '<span title="번호가 없는 옛 건입니다 — 번호 붙이기는 개발 담당에게 요청하세요" style="color:var(--warn)">번호 없음</span>'}<span class="em-sub date-col">${fmtDate(e.ts)}</span></td>
         <td class="em-who"><strong>${esc(e.orgName||'(기관명 없음)')}</strong><span class="em-sub em-who-sub">${/* 2026-10-02 대표 「꼬리표가 글자 끝에 붙어 들쭉날쭉」 — 칸을 고정한다: 목적지(한 줄) / 내부산출 | 발급 | 상담. 없는 칸도 자리는 남긴다 */''}<span class="em-dest">${esc(e.destLabel||e.destKey||'-')}</span><span class="em-slot">${e.channel==='internal'?`<span class="em-tag em-tag-int" title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}">🖥 내부산출</span>`:''}</span><span class="em-slot">${emShareBadge(e.id, e.quoteNo)}</span><span class="em-slot">${linkedQuoteIds.has(e.id)?'<span class="em-tag em-tag-cs" title="상담 신청됨">☎ 상담</span>':''}</span></span></td>
-        <td style="white-space:nowrap">${e.participants ? e.participants + '명' : '—'} / ${e.days ? e.days + '일' : '—'}</td>
+        <td style="white-space:nowrap">${e.participants ? e.participants + '명' : '—'} / ${e.days ? e.days + '일' : '—'}${emDepartHtml(e)}</td>
         ${/* 금액이 0이면 「₩0만」이 아니라 **적지 않았다**고 말한다 (2026-09-27) — 직접 작성 초안이 그렇게 저장된다 */''}
         <td class="em-num">${M.sell > 0
           ? `<b style="color:var(--primary)">${man(M.sell)}</b><span class="em-sub">1인당 ${man(per)}</span>`
