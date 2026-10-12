@@ -1735,7 +1735,7 @@
     <div class="tab-panel" id="tab-settings">
       <div class="page-head">
         <h1 class="page-title">설정</h1>
-        <p class="page-sub">내 비밀번호를 바꿉니다. 관리자는 팀원 계정과 가입코드도 여기서 관리합니다.</p>
+        <p class="page-sub">내 연락처와 비밀번호를 바꿉니다. 관리자는 팀원 계정과 가입코드도 여기서 관리합니다.</p>
       </div>
       <!-- 2026-10-02 대표 지시 「깔끔하게 · 같은 줄의 박스 크기 맞추기」 — 칸마다 이름표(위) + 한 줄 격자 + 칸·버튼 44px.
            ⚠ id·onclick은 그대로다(test_pI·qE·qK·audit_roles가 붙잡고 있다). 모양 규칙은 admin.css 「설정 화면」. -->
@@ -1746,6 +1746,22 @@
             <!-- 🔴 2026-09-27 「admin」이 **HTML에 박혀** 있었다 — 직원(lee)이 열어도 남의 아이디가 보였다. 로그인한 사람으로 채운다 -->
             <p class="set-label">내 아이디 <span class="info-tag">고정</span></p>
             <p class="set-value" id="myAccountId">—</p>
+          </div>
+          <!-- 0-ao (2026-10-12) 내 연락처 — 한 번 적으면 견적 작성 화면이 담당자 연락처·E-mail 칸을 채운다.
+               비워 두면 견적서 머리에 빨간 「미입력」이 찍혀 나갔다(신입 직원 종단 시험 2026-10-02). -->
+          <div class="set-block">
+            <p class="set-label">내 연락처</p>
+            <p class="set-desc">한 번 적어 두면 새 견적서의 담당자 연락처·E-mail 칸에 자동으로 들어갑니다.</p>
+            <div class="set-grid set-grid-2">
+              <label class="set-field"><span>연락처</span>
+                <input type="tel" class="pw-input" id="myContactTel" placeholder="02-0000-0000" aria-label="내 연락처" autocomplete="off" /></label>
+              <label class="set-field"><span>E-mail</span>
+                <input type="email" class="pw-input" id="myContactEmail" placeholder="name@hanatrabiz.com" aria-label="내 E-mail" autocomplete="off" /></label>
+            </div>
+            <div class="set-actions">
+              <button class="btn-act btn-outline-p" onclick="saveMyContact()">연락처 저장</button>
+              <p id="myContactMsg" class="set-msg" style="color:var(--danger)"></p>
+            </div>
           </div>
           <div class="set-block">
             <p class="set-label">비밀번호 변경</p>
@@ -2806,6 +2822,7 @@
         if (mine) mine.textContent = (currentUser.username || '—') + (currentUser.displayName ? ' (' + currentUser.displayName + ')' : '');
         /* 비밀번호 양식의 숨은 아이디 칸 — 브라우저가 아이디를 여기에만 채우게(검색칸에 채우던 사고, 2026-10-02) */
         const pu = document.getElementById('pwUsername'); if (pu) pu.value = currentUser.username || ''; }
+      fillMyContact();
       document.getElementById('currentUserRole').textContent = ROLE_LABELS[currentUser.role] || currentUser.role;
       return true;
     } catch { return false; }
@@ -5440,6 +5457,44 @@
   });
 
   /* ════ SETTINGS ════ */
+  /* 내 연락처 (0-ao) — 칸을 채우는 곳은 loadCurrentUser 하나. contactReady가 false면
+     서버가 못 읽은 것이라 빈 칸을 「없음」으로 보이지 않게 말한다(결함 생성기 ②). */
+  function fillMyContact() {
+    const t = document.getElementById('myContactTel'), e = document.getElementById('myContactEmail');
+    if (!t || !e || !currentUser) return;
+    t.value = currentUser.contactTel || '';
+    e.value = currentUser.contactEmail || '';
+    const msg = document.getElementById('myContactMsg');
+    if (msg) msg.textContent = currentUser.contactReady === false
+      ? '저장된 연락처를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.' : '';
+  }
+  async function saveMyContact() {
+    const tel = document.getElementById('myContactTel').value.trim();
+    const email = document.getElementById('myContactEmail').value.trim();
+    const msg = document.getElementById('myContactMsg');
+    msg.style.color = 'var(--danger)';
+    try {
+      const r = await fetch('/api/admin/account?action=updateMyContact', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tel, email }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (data.error === 'invalid_tel') msg.textContent = '연락처는 숫자와 - ( ) + 만 쓸 수 있습니다.';
+        else if (data.error === 'invalid_email') msg.textContent = 'E-mail 형식이 아닙니다 (예: name@hanatrabiz.com).';
+        else if (r.status === 401) { msg.textContent = '로그인이 만료되어 저장하지 못했습니다. 다시 로그인해 주세요.'; showLoginAgain(); }
+        else msg.textContent = `저장하지 못했습니다 (오류 ${r.status}${data.error ? ' ' + data.error : ''}). 잠시 후 다시 시도해 주세요.`;
+        return;
+      }
+      currentUser.contactTel = data.contactTel || ''; currentUser.contactEmail = data.contactEmail || '';
+      currentUser.contactReady = true;
+      msg.style.color = 'var(--success)';
+      msg.textContent = '저장했습니다 — 다음에 여는 견적서부터 자동으로 들어갑니다.';
+      setTimeout(() => { msg.textContent = ''; msg.style.color = 'var(--danger)'; }, 6000);
+    } catch {
+      msg.textContent = '저장 요청에 실패했습니다. 다시 시도해 주세요.';
+    }
+  }
   async function changePw() {
     const curr    = document.getElementById('pwCurrent').value;
     const nw      = document.getElementById('pwNew').value;

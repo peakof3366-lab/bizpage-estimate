@@ -7,6 +7,7 @@
    GET  ?action=staffList          = 활성 직원 목록(담당자 배정 드롭다운용, 전 직원 열람 가능)
    POST ?action=logout             = 로그아웃
    POST ?action=change-password    = 본인 비밀번호 변경
+   POST ?action=updateMyContact    = 본인 연락처·E-mail 저장 (견적 담당자 칸 자동 채움, 0-ao)
    POST ?action=createStaff        = 직원 계정 생성 (owner 전용)
    POST ?action=updateStaff        = 역할 변경/활성-비활성 (owner 전용)
    POST ?action=resetStaffPassword = 직원 비밀번호 강제 재설정 (owner 전용)
@@ -98,6 +99,9 @@ function safeEqual(a, b) {
 /* admin.html이 이름을 onclick="...('${name}')" 형태로 문자열 보간해 렌더링하므로
    따옴표·꺾쇠괄호를 막아둔다(오늘 목적지 키 검증에도 쓴 것과 동일한 저렴한 방어). */
 const DISPLAY_NAME_RE = /^[\p{L}\p{N}_\- ·]+$/u;
+/* 연락처: 숫자·+·-·괄호·공백·내선 표기(~, 내선/ext)만. 메일: 흔한 형식, 꺾쇠·따옴표 불가. */
+const CONTACT_TEL_RE = /^[0-9+\-() ~.내선ext]{4,30}$/i;
+const CONTACT_EMAIL_RE = /^[^\s@<>"'`]{1,64}@[^\s@<>"'`]{1,190}\.[A-Za-z]{2,}$/;
 
 module.exports = async (req, res) => {
   const action = (req.query && req.query.action) || 'me';
@@ -105,10 +109,47 @@ module.exports = async (req, res) => {
   if (action === 'me') {
     if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
     if (!(await requireAdmin(req, res))) return;
+    /* 연락처는 **따로** 읽는다(0-ao). 칸이 아직 없거나(마이그레이션 전) 읽기가 실패해도
+       로그인 확인은 살아 있어야 한다 — 이 응답이 실패하면 관리자 화면 전체가 로그인으로 튕긴다.
+       대신 `contactReady: false`로 **못 읽었다는 흔적**을 남겨 화면이 「저장 못 함」이라 말하게 한다. */
+    let contactTel = '', contactEmail = '', contactReady = true;
+    try {
+      const rows = await sql`select contact_tel, contact_email from staff_accounts where id = ${req.user.id}`;
+      if (rows[0]) { contactTel = rows[0].contact_tel || ''; contactEmail = rows[0].contact_email || ''; }
+    } catch (err) {
+      console.error('[me] 연락처 조회 실패 — 로그인 확인은 그대로 통과시킨다:', err);
+      contactReady = false;
+    }
     return res.status(200).json({
       ok: true, id: req.user.id, username: req.user.username,
       displayName: req.user.displayName, role: req.user.role,
+      contactTel, contactEmail, contactReady,
     });
+  }
+
+  /* 본인 연락처·E-mail 저장 (0-ao) — 견적 작성 화면이 담당자 칸에 자동으로 채운다.
+     ⚠ **updated_at을 건드리지 않는다.** 그 컬럼을 갱신하면 그 계정의 모든 세션이 끊긴다
+     (auth.js sessionRejection) — 연락처 한 줄 고쳤다고 재로그인시키면 안 된다.
+     값은 고객 견적서 머리에 찍히므로 형식을 서버에서 막는다(공개 렌더 자리 — 결함 생성기 ④). */
+  if (action === 'updateMyContact') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!(await requireAdmin(req, res))) return;
+    const tel = String((req.body && req.body.tel) || '').trim();
+    const email = String((req.body && req.body.email) || '').trim();
+    if (tel && !CONTACT_TEL_RE.test(tel)) return res.status(400).json({ error: 'invalid_tel' });
+    if (email && !CONTACT_EMAIL_RE.test(email)) return res.status(400).json({ error: 'invalid_email' });
+    try {
+      const updated = await sql`
+        update staff_accounts set contact_tel = ${tel}, contact_email = ${email}
+        where id = ${req.user.id}
+        returning contact_tel, contact_email
+      `;
+      if (!updated.length) return res.status(404).json({ error: 'not_found' });
+      return res.status(200).json({ ok: true, contactTel: updated[0].contact_tel, contactEmail: updated[0].contact_email });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'save_failed' });
+    }
   }
 
   if (action === 'staffList') {

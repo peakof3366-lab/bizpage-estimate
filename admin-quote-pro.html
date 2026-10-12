@@ -2882,6 +2882,12 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
          역할로 막지 않는다 — 다만 담당자 이름은 로그인 계정에서 채운다. */
       window.__INTERNAL_STAFF__ = me.displayName || '';
       if (!$('dStaffName').value) $('dStaffName').value = me.displayName || '';
+      /* 0-ao (2026-10-12) 연락처·E-mail도 계정에서 — 설정 탭 「내 연락처」에 한 번 적으면 된다.
+         ⚠ **새 견적에서만** 채운다. 고치기(`?quote=`)에서 채우면, 저장된 연락처가 빈 남의 건에
+           「다른 담당자 이름 + 내 연락처」가 섞인다(loadQuoteForEdit의 setv는 빈 값을 덮지 않는다). */
+      [['dStaffTel', me.contactTel], ['dStaffEmail', me.contactEmail]].forEach(([id, v]) => {
+        if (!EDIT_ID && v && !$(id).value) { $(id).value = v; $(id).dispatchEvent(new Event('input')); }
+      });
       /* ⚠ **로그인 뒤에** 부른다 — 그 API도 인증이 필요하다 */
       loadPkg();
       loadQuoteForEdit();

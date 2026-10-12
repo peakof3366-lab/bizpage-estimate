@@ -254,6 +254,12 @@ async function main() {
      빠진다 — 이후로는 평범한 직원 계정과 구분할 이유가 없기 때문. */
   await sql`alter table staff_accounts add column if not exists self_signup boolean not null default false`;
 
+  /* 0-ao (2026-10-12) 직원 본인 연락처·E-mail — 견적 작성 화면이 담당자 칸에 자동으로 채운다.
+     예전엔 이름만 계정에서 오고 연락처·메일은 견적마다 손으로 적어, 빠뜨리면 고객 문서에
+     빨간 「미입력」이 찍혀 나갔다. 비어 있어도 되는 칸이라 기본값 ''(기존 행은 빈 채로 남는다). */
+  await sql`alter table staff_accounts add column if not exists contact_tel text not null default ''`;
+  await sql`alter table staff_accounts add column if not exists contact_email text not null default ''`;
+
   /* 문의/견적 담당자 배정 + 진행 기록 이력 (신규) — 여러 직원이 같은 리드를 보고
      누가 확인했고 어떻게 진행 중인지 공유할 수 있도록 함 */
   await sql`alter table inquiries add column if not exists assignee text not null default ''`;
