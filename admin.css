@@ -724,7 +724,7 @@
     .info-tag { display: inline-block; background: var(--primary-lt); color: var(--primary); font-size: .81rem; font-weight: 700; padding: .2rem .55rem; border-radius: 0; margin-left: .4rem; }
     .pw-form { display: grid; gap: .6rem; max-width: 320px; margin-top: .75rem; }
     .pw-input { padding: .6rem .85rem; border: 1px solid var(--border); font-size: .89rem; border-radius: var(--r); width: 100%; }
-    .pw-input:focus { outline: none; border-color: var(--primary); }
+    .pw-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(81,77,194,.15); }   /* 2026-10-12 1px 테두리 색만으론 Tab 위치가 안 보였다 — 다른 칸과 같은 띠 */
 
     /* ── PROGRESS RING ───────────── */
     .kpi-row { display: flex; gap: 1rem; flex-wrap: wrap; }
@@ -2105,3 +2105,11 @@
 /* 접기 머리줄 — ⚠ display는 그대로 둔다(바꾸면 브라우저 기본 ▶ 표시가 사라지는 자리가 있다). 높이만 채운다 */
 :where(.dash-layout, .dash-header, #modal) summary { min-height: 44px; box-sizing: border-box; }
 :where(.dash-layout, .dash-header, #modal) summary:not(.fold-card > summary) { padding-block: max(.4rem, calc((44px - 1.5em) / 2)); }
+
+/* ═══ 입력칸 포커스 띠 — **한 곳에서** (2026-10-12) ═══════════════════════════════════════════
+   Tab으로 칸을 옮길 때 「지금 어디인가」가 안 보이는 칸이 6종이었다(설정 · 로그인 · 메모 · 콘텐츠 · 일정 · 호텔 검색).
+   전부 `outline:none` + 1px 테두리 색만 바꾸는 규칙이었다. 칸마다 고치면 새 칸에서 또 빠진다.
+   ⚠ `:where()` — 우선순위 0. 이미 자기 띠를 가진 칸(검색칸 · 상태 고르기 · 일정 편집)은 그대로 이긴다. */
+:where(input:not([type=checkbox], [type=radio], [type=range], [type=file], [type=color], [type=hidden]), select, textarea):focus {
+  box-shadow: 0 0 0 3px rgba(81,77,194,.18);
+}
