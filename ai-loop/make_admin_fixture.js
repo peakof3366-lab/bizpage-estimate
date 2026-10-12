@@ -38,6 +38,7 @@ const BACKUP_DIR = path.join(ROOT, '..', '비즈페이지_백업');
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://fixture:fixture@localhost/fixture';
 const { applyDocTotals } = require(path.join(ROOT, 'api', 'quote-shares.js'));
 const QNO = require(path.join(ROOT, 'api', '_lib', 'quote_no.js'));
+const { serverResponses } = require('./_fixture_server');
 
 function latestBackup() {
   const arg = process.argv.find((a) => /bizpage_backup_.*\.json$/.test(a));
@@ -52,6 +53,8 @@ const PII_KEYS = new Set([
   'customer_label', 'customer_tel', 'issued_by', 'status_by', 'vendor_no_by', 'assignee', 'created_by',
   'org', 'cn', 'orgName', 'org_name', 'contact', 'contactTel', 'customerTel', 'createdBy', 'issuedBy',
   'client', 'clientContact', 'staffName', 'staffTel', 'staffEmail', 'title', 'author', 'by_user',
+  /* 2026-10-12 서버 응답을 함께 싣으며 — 직원 계정 목록(staffList)·가입코드 */
+  'display_name', 'username', 'code', 'updated_by', 'savedBy',
 ]);
 const FREE_TEXT_KEYS = new Set(['request', 'req', 'note', 'memo', 'text', 'remarks_private']);
 const ORG_POOL = '한빛산업진흥원미래교육재단새솔정밀공업바른도시개발공사푸른숲협동조합';
@@ -98,8 +101,14 @@ function sweep(v) {
   return s;
 }
 
-function build(backupPath) {
+async function build(backupPath) {
   const d = JSON.parse(fs.readFileSync(backupPath, 'utf8')).data;
+  /* 나머지 탭(요율·일정·콘텐츠·패키지·통계·설정)이 부르는 GET 14가지 — **진짜 핸들러**를 백업 위에서 돌린다
+     (`_fixture_server.js`). 하나라도 못 받으면 멈춘다: 끊긴 채 두면 그 탭은 오류 화면만 재진다. */
+  const srv = await serverResponses(d);
+  if (srv.failed.length || srv.unknown.length) {
+    throw new Error('서버 응답을 못 만들었습니다 —\n  ' + srv.failed.concat(srv.unknown).join('\n  '));
+  }
   const quotes = d.quotes || [];
   const shares = d.quote_shares || [];
 
@@ -148,11 +157,12 @@ function build(backupPath) {
     quotes: quotes.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).map(quoteRow),
     shares: { shares: rows, capped: false, max: 300, revisions: true },
     links: { links },
+    server: srv.responses,
   };
   const out = sweep(scrub(raw, ''));
   out._meta = {
     from: path.basename(backupPath), builtAt: new Date().toISOString(),
-    counts: { quotes: out.quotes.length, shares: rows.length },
+    counts: { quotes: out.quotes.length, shares: rows.length, server: Object.keys(out.server).length },
     note: '가상 데이터 — 고객 정보는 바꿨다. 저장소에 넣지 말 것(.gitignore).',
   };
   return out;
@@ -177,15 +187,16 @@ if (require.main === module) {
     console.error('백업 파일이 없습니다 — Desktop\\비즈페이지_백업\\ 를 확인하거나 경로를 인자로 주세요.');
     process.exit(1);
   }
-  const out = build(bp);
-  const left = leakCheck(out);
-  if (left.length) {
-    console.error(`🔴 원본 값 ${left.length}개가 결과에 남았습니다 — 파일을 쓰지 않았습니다.`);
-    process.exit(1);
-  }
-  fs.writeFileSync(OUT, JSON.stringify(out));
-  console.log(`✓ ${path.relative(ROOT, OUT)} — 견적 ${out._meta.counts.quotes}건 · 대장 ${out._meta.counts.shares}건`
-    + ` (원본: ${out._meta.from} · 바꾼 값 ${seen.size}개 · 남은 원본 0)`);
+  build(bp).then((out) => {
+    const left = leakCheck(out);
+    if (left.length) {
+      console.error(`🔴 원본 값 ${left.length}개가 결과에 남았습니다 — 파일을 쓰지 않았습니다.`);
+      process.exit(1);
+    }
+    fs.writeFileSync(OUT, JSON.stringify(out));
+    console.log(`✓ ${path.relative(ROOT, OUT)} — 견적 ${out._meta.counts.quotes}건 · 대장 ${out._meta.counts.shares}건`
+      + ` · 서버 응답 ${out._meta.counts.server}가지 (원본: ${out._meta.from} · 바꾼 값 ${seen.size}개 · 남은 원본 0)`);
+  }).catch((e) => { console.error('🔴 ' + e.message); process.exit(1); });
 }
 
 module.exports = { build, OUT };

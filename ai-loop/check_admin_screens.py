@@ -145,8 +145,21 @@ def _data_route(fx):
             return ok(fx["shares"])
         if "quote-shares?action=links" in u:
             return ok(fx["links"])
+        # 2026-10-12 나머지 탭의 GET 14가지 — `_fixture_server.js`가 **진짜 핸들러**로 만든 응답.
+        # 예전엔 여기서 전부 끊어, 요율·일정·콘텐츠·통계·설정 탭은 「불러오지 못했습니다」만 재졌다.
+        # 열쇠 = 경로 + 질의 **전체**. ⚠ 첫 질의까지만 보면 `?action=packages&all=1`(관리자 목록)에
+        #   고객용 목록이 나가 패키지 탭이 빈 목록으로 재졌다. 모르는 주소는 아래에서 끊긴다.
+        key = re.sub(r"^https?://[^/]+", "", u)
+        if key in fx.get("server", {}):
+            return ok(fx["server"][key])
+        # 🔴 끊긴 GET은 **기록한다** — 그 탭은 「불러오지 못했습니다」를 재고 있다는 뜻이다.
+        #   예전엔 조용히 끊어 14가지가 몇 주 동안 오류 화면만 재졌다(2026-10-12).
+        CUT_GETS.add(key)
         return r.abort()
     return route
+
+
+CUT_GETS = set()
 
 
 def _click_tab(page, t):
@@ -273,6 +286,10 @@ def run(login_fn=None):
                 continue
 
             swept += sweep_all(pg, findings, tabs, data=data)
+            if data and CUT_GETS:
+                findings.append(("🔴", wname, "검사가 응답을 끊었다 — 그 화면은 오류 상태로 재졌다",
+                                 " · ".join(sorted(CUT_GETS)) + "  → `_fixture_server.js` ENDPOINTS에 더한다"))
+                CUT_GETS.clear()
             if SHOOT:
                 SHOTS.mkdir(parents=True, exist_ok=True)
                 pg.screenshot(path=str(SHOTS / f"admin_{w}.png"), full_page=True)

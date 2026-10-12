@@ -90,8 +90,8 @@ html.aqp-adhoc #moneyTable th:nth-child(4), html.aqp-adhoc #moneyTable td:nth-ch
 .step:hover:not(:disabled) .step-n { background: var(--ink); color: #fff; }
 .step:focus-visible { outline: 2px solid #514dc2; outline-offset: 2px; }
 .step-n { display: inline-flex; align-items: center; justify-content: center;
-  min-width: 20px; height: 20px; background: #E5E5E1; color: var(--t-sub);
-  font-size: 11px; font-weight: 800; }
+  min-width: 22px; height: 22px; background: #E5E5E1; color: var(--t-sub);
+  font-size: 12px; font-weight: 800; }   /* 2026-10-12 11 → 12px (작은 글자 하한 · 상자도 20 → 22) */
 .step[aria-current="step"] { border-color: var(--ink); background: var(--ink); color: #fff; }
 .step[aria-current="step"] .step-n { background: #fff; color: var(--ink); }
 .step.done { color: var(--t); border-color: var(--ink); }
@@ -190,6 +190,11 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
 .btn-r { background: var(--red); border-color: var(--red); color: #fff; }
 .btn-r:hover { background: var(--red-dk); border-color: var(--red-dk); }
 .btn-sm { min-height: 32px; padding: 0 10px; font-size: 12px; font-weight: 600; }
+/* ═══ 누를 자리 44px 하한 (2026-10-12) — 관리자 화면(admin.css)과 같은 규칙. 이 화면은 별도 문서라 따로 적는다.
+   **폼 입력칸(.f)만** 40 → 44px. ⚠ `:where()`로 우선순위 0 — 감추는 규칙과 다투지 않는다.
+   🔴 **금액 표(.mt · 항목 이름 칸 34px)는 일부러 뺐다.** 넣어 보니 ② 금액 단계가 1,771 → 1,935px로 길어져
+     「판매가 합계」가 첫 화면 밖으로 밀렸다 — 이 화면에서 가장 자주 보는 숫자다. 표는 줄 수가 많아 촘촘한 쪽이 낫다. */
+:where(.f) :where(input:not([type=checkbox], [type=radio], [type=range], [type=file], [type=color], [type=hidden]), select) { min-height: 44px; box-sizing: border-box; }
 /* 줄 지우기 — 줄마다 붙어 화면에서 가장 진한 버튼이 돼 있었다 (2026-09-27). 옅게 두고 올리면 빨강. */
 .btn-rm { border-color: var(--line, #ddd); color: #666; background: #fff; }
 .btn-rm:hover, .btn-rm:focus-visible { border-color: #c0392b; color: #c0392b; }
@@ -246,20 +251,20 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
   background: #FBF7F7; border: 1.5px solid #EAD9D9; }
 .cost-f { display: flex; flex-direction: column; gap: 2px; margin: 0; flex: 1 1 260px; }
 .cost-t { font-size: 13px; font-weight: 800; color: var(--ink); }
-.cost-d { font-size: 11.5px; color: var(--t-sub); }
+.cost-d { font-size: 12px; color: var(--t-sub); }
 .cost-box input { width: 180px; height: 40px; text-align: right; border: 1.5px solid var(--ink); background: #fff;
   font-family: inherit; font-size: 14px; font-weight: 700; padding: 0 10px; font-variant-numeric: tabular-nums; }
 .cost-eq { font-size: 12.5px; color: var(--t-sub); white-space: nowrap; }
 .cost-eq b { color: var(--ink); }
 .mt .nm { font-weight: 600; }
-.mt .sub { display: block; font-size: 11px; color: var(--t-dim); font-weight: 500; }
+.mt .sub { display: block; font-size: 12px; color: var(--t-dim); font-weight: 500; }
 
-.badge { display: inline-block; padding: 1px 7px; font-size: 11px; font-weight: 800; border: 1px solid; }
+.badge { display: inline-block; padding: 1px 7px; font-size: 12px; font-weight: 800; border: 1px solid; }
 .badge-ed { color: var(--red); border-color: var(--red); background: #FFF4F5; }
 .badge-in { color: var(--warn); border-color: var(--warn-line); background: var(--warn-bg); }
 /* ⚠ `hidden` 속성으로 감추면 위 `display:inline-block`에 진다 — 클래스로 못 박는다 */
 .badge.off { display: none; }
-.delta { font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.delta { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .delta.up { color: var(--red); }
 .delta.dn { color: var(--ok); }
 
@@ -267,9 +272,9 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
 .sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
   background: var(--line); border: 1px solid var(--line); margin-top: 14px; }
 .sum > div { background: #fff; padding: 11px 12px; }
-.sum b { display: block; font-size: 11.5px; font-weight: 700; color: var(--t-sub); margin-bottom: 3px; }
+.sum b { display: block; font-size: 12px; font-weight: 700; color: var(--t-sub); margin-bottom: 3px; }
 .sum strong { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-.sum em { font-style: normal; font-size: 11.5px; color: var(--t-dim); }
+.sum em { font-style: normal; font-size: 12px; color: var(--t-dim); }   /* 2026-10-12 11.5 → 12px */
 .sum .int { background: #FBF7F7; }
 
 .note { margin: 10px 0 0; padding: 9px 12px; background: var(--warn-bg); border: 1px solid var(--warn-line);
@@ -292,7 +297,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
 .note-i .ni-h { margin-top: 8px; font-weight: 700; color: var(--ink); }
 .note-i .ni-h:first-child { margin-top: 0; }
 .note-i .ni-h + .ni-lead { margin-top: 2px; }
-.note-i .ni-tag { margin-left: 4px; font-size: 11px; font-weight: 600; color: var(--t-sub); }
+.note-i .ni-tag { margin-left: 4px; font-size: 12px; font-weight: 600; color: var(--t-sub); }   /* 2026-10-12 11 → 12px */
 .note-i .ni-foot { margin-top: 6px; }
 .note-i .ni-list { margin: 4px 0 0; padding-left: 18px; }
 /* 접는 설명은 글씨를 조금 크게 (2026-09-28 대표 요청) · 예시 상자 */
@@ -317,7 +322,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
 /* 한 항목에 줄이 둘 이상일 때 — 기준 양식의 「식사」·「기타사항」이 그렇다 */
 .day-b + .day-b { border-top: 1px dashed var(--line); }
 .day-b .rn { grid-column: 1/-1; display: flex; align-items: center; gap: 8px;
-  font-size: 11px; font-weight: 800; color: var(--t-sub); }
+  font-size: 12px; font-weight: 800; color: var(--t-sub); }
 
 /* ── 미리보기 ── */
 .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--ink); margin-bottom: 0; }

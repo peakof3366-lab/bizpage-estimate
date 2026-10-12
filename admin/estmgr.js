@@ -196,7 +196,9 @@
           ? `<b style="color:var(--primary)">${man(M.sell)}</b><span class="em-sub">1인당 ${man(per)}</span>`
           : '<b style="color:var(--muted);font-weight:600">금액 미입력</b>'}</td>
         <td class="em-num" title="${M.known ? '원가 ' + man(M.cost) + ' · 이익 = 청구 금액 − 원가' : '이 견적 기록에 원가가 없습니다'}">${rateCell}</td>
-        <td><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span>${verifyBadgeHtml(e)}${emNeedsActual(e)?' <span class="badge-need-actual" title="실제 총 계약가가 비어 있습니다 — 상세에서 넣어 주세요">💰 실적</span>':''}</td>
+        ${/* 2026-10-12 꼬리표를 **세로로 쌓는다.** 가로로 붙이면 「✎ 직접 수정 +170만」 한 건 때문에 모든 줄의
+             상태 열이 253px가 되어, 1280 노트북에서 표가 61px 넘치고 「상세」 버튼이 화면 밖으로 나갔다. */''}
+        <td class="em-state"><div class="em-state-stack"><span class="badge ${statusBadge[st]||'badge-new'}">${statusMap[st]||st}</span>${verifyBadgeHtml(e)}${emNeedsActual(e)?'<span class="badge-need-actual" title="실제 총 계약가가 비어 있습니다 — 상세에서 넣어 주세요">💰 실적</span>':''}</div></td>
         <td>${assigneeSelectHtml(e.assignee, `data-id="${safeId(e.id)}" onchange="updateAssignee(this,'quote')"`)}</td>
         <td><button class="btn-detail" onclick="openEstDetail('${safeId(e.id)}')">상세</button></td>
       </tr>`;
