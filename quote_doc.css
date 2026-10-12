@@ -103,6 +103,7 @@
 /* ── 담당자 두 줄 (우측 정렬) ── 비면 「미입력」이 보인다 */
 .qd-staff { text-align: right; font-size: 12px; margin: 0 0 7px; line-height: 1.65; }
 .qd-staff span { color: var(--qd-muted); margin-right: 6px; }
+.qd-staff span.qd-ed { color: color-mix(in srgb, var(--qd-muted) 70%, #000); }   /* 2026-10-12 편집 칸 — 위 규칙이 .qd-ed 진하게를 이긴다(노랑 위 4.44:1) */
 .qd-todo {
   color: var(--qd-red); font-weight: 700;
   border-bottom: 1px dashed var(--qd-red); padding-bottom: 1px;
@@ -139,7 +140,7 @@
    🔴 합계 줄은 **눈에 띄어야 한다** — 이 표의 존재 이유가 「더하면 총액과 맞는다」다. */
 .qd-bd-sum { background: #FCF8F8; font-weight: 800; font-size: 15px; }
 .qd-bd tfoot .qd-num { color: var(--qd-red); }
-.qd-bd-note { margin: 8px 0 0; font-size: 12px; color: #777; line-height: 1.6; }
+.qd-bd-note { margin: 8px 0 0; font-size: 12px; color: #666;   /* 2026-10-12 #777 흰 바탕 4.48:1(기준 미달) → #666 5.7:1 */ line-height: 1.6; }
 /* 🔴 이 기호는 한때 **청록 배경 전제로 흰색**이었다(선택 옵션 줄).
    배경을 바꾸자 기호가 **사라졌다** — 시안을 그려 보고 찾은 자리다. */
 .qd-w { float: left; color: var(--qd-muted); }
@@ -463,6 +464,10 @@
   display: inline-block; min-width: 2.2em; min-height: 1.3em;
   padding: 1px 3px; margin: -1px -3px; border-radius: 2px;
   background: #FFF6CC; box-shadow: inset 0 -2px 0 #E8B400; cursor: text; white-space: pre-wrap;
+  /* 2026-10-12 흐린 글자(--qd-muted #6B7280)가 이 노랑 위에서 4.44:1 — 물려받은 색을 30% 진하게 섞는다.
+     ⚠ 변수를 여기서 바꿔도 소용없다(색은 바깥 요소가 계산해 물려준다 — 처음 판이 그래서 효과가 없었다).
+     진한 글자는 그대로 진하다. 노란 칸은 편집 화면에만 있어 고객 문서는 안 바뀐다. */
+  color: color-mix(in srgb, currentColor 70%, #000);
 }
 .qd-ed:hover { background: #FFEFA8; box-shadow: inset 0 0 0 1px #E8B400; }
 .qd-ed:focus {

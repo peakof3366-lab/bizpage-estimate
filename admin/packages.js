@@ -70,7 +70,7 @@
        다시 부르지만, 한쪽만 그리면 돌아왔을 때 옛 목록이 남는다. */
     const boxes = PKG_VIEWS.map(v => document.getElementById(v.box)).filter(Boolean);
     if (!boxes.length) return;
-    boxes.forEach(b => { b.innerHTML = '<div style="padding:16px;color:#888;font-size:.89rem">불러오는 중…</div>'; });
+    boxes.forEach(b => { b.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:.89rem">불러오는 중…</div>'; });
     try {
       /* 관리자는 초안·마감까지 봐야 관리가 된다 — `all=1` */
       const r = await fetch('/api/content?action=packages&all=1');
@@ -188,7 +188,7 @@
         : wantGap === 'ready' ? '팔 준비가 된 상품이 아직 없습니다 — 일정과 포함사항을 채우면 여기 올라옵니다.'
         : wantGap === 'gap' ? '덜 채워진 상품이 없습니다. 전부 팔 준비가 됐습니다.'
         : view.none;
-      box.innerHTML = '<div style="padding:16px;color:#888;font-size:.89rem">' + why + '</div>';
+      box.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:.89rem">' + why + '</div>';
       return;
     }
 

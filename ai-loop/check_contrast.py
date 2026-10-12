@@ -139,6 +139,12 @@ def parse_rgb(s):
     """'rgb(1, 2, 3)' / 'rgba(1,2,3,.5)' → (r, g, b, a). 못 읽으면 None."""
     if not s:
         return None
+    # 🔴 2026-10-12 `color-mix()`로 칠한 색은 브라우저가 `color(srgb 0.97 0.90 0.92)` — **0~1 단위**로 준다.
+    #   0~255로 읽으면 연분홍이 거의 검정이 되어, 요율표 지역 머리줄 10곳을 「검정 위 검정 1.07:1」로 셌다.
+    m = re.match(r"color\(srgb\s+([-\d.e]+)\s+([-\d.e]+)\s+([-\d.e]+)(?:\s*/\s*([-\d.e]+))?\)", s.strip())
+    if m:
+        a = float(m.group(4)) if m.group(4) else 1.0
+        return (float(m.group(1)) * 255, float(m.group(2)) * 255, float(m.group(3)) * 255, a)
     m = re.findall(r"[-\d.]+", s)
     if len(m) < 3:
         return None
@@ -150,6 +156,17 @@ def over(fg, bg, alpha=None):
     """fg를 bg 위에 alpha로 올린 결과 색(불투명)."""
     a = fg[3] if alpha is None else alpha
     return tuple(fg[i] * a + bg[i] * (1 - a) for i in range(3)) + (1.0,)
+
+
+def stack(top, bottom):
+    """반투명 위에 반투명 — **투명도를 남긴 채** 겹친다(표준 source-over).
+    🔴 2026-10-12 예전엔 여기서 `over()`를 썼는데, 그건 결과를 늘 **불투명**으로 낸다.
+      그래서 옅은 흰 막 두 겹(사이드바 선택 메뉴 rgba(255,255,255,.08) 위 묶음 .04)이 **불투명한 흰색**이
+      되어, 검정 사이드바 위 흰 글자를 「흰 바탕 위 흰 글자 1.00:1」로 셌다 — 관리자 탭마다 2건씩 없는 오류 42건."""
+    a = top[3] + bottom[3] * (1 - top[3])
+    if a <= 0:
+        return (0.0, 0.0, 0.0, 0.0)
+    return tuple((top[i] * top[3] + bottom[i] * bottom[3] * (1 - top[3])) / a for i in range(3)) + (a,)
 
 
 def lum(c):
@@ -190,7 +207,7 @@ def resolve(item, page_bg):
         if node["img"] and img_at is None:
             img_at = i
         if c and c[3] > 0:
-            bg = c if bg is None else over(bg, c)      # 아래 층 위에 얹는다
+            bg = c if bg is None else stack(bg, c)     # 아래 층 위에 얹는다
             if bg[3] >= 0.999 or c[3] >= 0.999:
                 b_idx = i
                 break
@@ -281,6 +298,9 @@ PV_SETUP = r"""
   itiState.courses = opt.courses ? COURSES_UT : [];
   recState.rec = REC_UT;
   itiRenderBody(); recRenderBody();
+  /* ⚠ 2026-09-27부터 목적지를 고르기 전엔 미리보기 버튼이 disabled다 — 값만 넣으면 버튼이 안 눌려
+     이 검사가 「미리보기가 안 열렸다」만 찍고 **미리보기를 한 번도 못 쟀다**(2026-10-12 발견). */
+  if (typeof itiSyncDestButtons === 'function') itiSyncDestButtons();
   document.getElementById('recPvExplain').checked = !!opt.explain;
   document.getElementById('rec-preview').click();
   return !document.getElementById('recPvModal').classList.contains('hidden');
@@ -377,7 +397,9 @@ def run():
         page.route("**/api/**", lambda r: r.abort())
 
         # ── 고객 화면 ──
-        page.goto((ROOT / "index.html").as_uri())
+        # ⚠ 2026-10-12 `load`를 기다리면 바깥 서버(글꼴·CDN) 하나가 느린 날 30초에 통째로 멈췄다(실제로 두 번).
+        #   check_admin_screens와 같이 `domcontentloaded` + 대기로 띄운다.
+        page.goto((ROOT / "index.html").as_uri(), wait_until="domcontentloaded")
         page.wait_for_timeout(1400)
         sweep(page, "고객 · 랜딩", results)
 
@@ -427,27 +449,78 @@ def run():
                              ("manual.html", "운영 매뉴얼"), ("admin-quote-pro.html", "담당자 · 내부직원용 견적")):
             pg = ctx.new_page()
             pg.route("**/api/**", lambda r: r.abort())
-            pg.goto((ROOT / fname).as_uri())
-            pg.wait_for_timeout(1200)
+            pg.goto((ROOT / fname).as_uri(), wait_until="domcontentloaded")
+            pg.wait_for_timeout(1800)
             sweep(pg, label, results)
             pg.close()
 
         # ── 관리자 화면 — 탭마다 ──
-        ap = ctx.new_page()
-        ap.route("**/api/**", lambda r: r.abort())
-        ap.goto((ROOT / "admin.html").as_uri())
-        ap.wait_for_timeout(1400)
-        sweep(ap, "관리자 · 로그인", results)
-        ap.evaluate(ADMIN_LOGIN)
-        ap.wait_for_timeout(300)
-        TABS = ["dashboard", "inquiries", "estimates", "estmgr", "pricereport", "rates",
-                "content", "itineraries", "stats", "events", "marketing",
-                "manual", "settings"]
-        for t in TABS:
-            if not ap.evaluate(ADMIN_TAB, "tab-" + t):
-                continue
-            ap.wait_for_timeout(220)
-            sweep(ap, "관리자 · " + t, results)
+        # 🔴 2026-10-12 예전엔 `/api/*`를 전부 끊고 로그인을 클래스로 흉내 내서, 관리자 탭은 **줄이 하나도 없는**
+        #   빈 화면·오류 화면만 재졌다(견적 목록·요율표·대장 글자를 한 번도 안 쟀다). 탭도 13개뿐이라
+        #   견적서 대장·직접 견적 작성·패키지가 빠져 있었다.
+        #   → 가상 데이터(`make_admin_fixture.js` — 진짜 핸들러 응답)가 있으면 check_admin_screens와
+        #     **같은 부품**으로 띄운다(진짜 로그인 경로 · 진짜 탭 버튼 · 탭 목록도 그쪽 하나가 진실).
+        import check_admin_screens as CAS
+        import json as _json
+        httpd = None
+        if CAS.FIXTURE.exists():
+            fx = _json.loads(CAS.FIXTURE.read_text(encoding="utf-8"))
+            httpd, base = CAS._serve()
+            lp = ctx.new_page()
+            lp.route("**/api/**", lambda r: r.abort())
+            lp.goto((ROOT / "admin.html").as_uri(), wait_until="domcontentloaded")
+            lp.wait_for_timeout(1400)
+            sweep(lp, "관리자 · 로그인", results)
+            lp.close()
+            ap = ctx.new_page()
+            ap.route("**/api/**", CAS._data_route(fx))
+            ap.goto(base + "/admin.html", wait_until="domcontentloaded")
+            ap.wait_for_timeout(2500)
+            why = CAS.assert_logged_in(ap)
+            if why:
+                print("  ! 관리자 화면에 못 들어갔다 —", why)
+            for t in CAS.TABS:
+                if not CAS._click_tab(ap, t):
+                    print("  ! 탭이 없다:", t)
+                    continue
+                ap.wait_for_timeout(900)
+                sweep(ap, "관리자 · " + t, results)
+            # 견적 상세 창 — 대표가 가장 많이 고친 자리인데 탭만 훑으면 안 열린다
+            CAS._click_tab(ap, "estmgr"); ap.wait_for_timeout(700)
+            if ap.evaluate(CAS.DETAIL_OPEN):
+                ap.wait_for_timeout(1500)
+                sweep(ap, "관리자 · 견적 상세(창)", results)
+                ap.evaluate(CAS.DETAIL_CLOSE); ap.wait_for_timeout(300)
+            else:
+                print("  ! 견적 상세 창을 못 열었다")
+            if CAS.CUT_GETS:
+                print("  ! 🔴 가상 데이터가 응답을 끊었다 — 그 화면은 오류 상태로 재졌다:", " · ".join(sorted(CAS.CUT_GETS)))
+            # 견적 작성 ①~⑤ (별도 문서) — 가상 견적 하나를 고치기로 열어 단계마다
+            qs = [q for q in fx["quotes"] if isinstance(q.get("doc"), dict)]
+            if qs:
+                qp2 = ctx.new_page()
+                qp2.route("**/api/**", CAS._data_route(fx))
+                qp2.goto(base + "/admin-quote-pro.html?quote=" + qs[0]["id"], wait_until="domcontentloaded")
+                qp2.wait_for_timeout(2500)
+                for n, sec, name in CAS.QP_STEPS:
+                    qp2.evaluate("(n) => { const b = document.querySelector('.step[data-step=\"' + n + '\"]'); if (b) b.click(); }", n)
+                    qp2.wait_for_timeout(600)
+                    sweep(qp2, "견적 작성 " + name, results)
+                qp2.close()
+        else:
+            print("  ⚠ 가상 데이터가 없어 관리자 화면을 **빈 상태로** 잰다 — `node ai-loop/make_admin_fixture.js`를 먼저")
+            ap = ctx.new_page()
+            ap.route("**/api/**", lambda r: r.abort())
+            ap.goto((ROOT / "admin.html").as_uri(), wait_until="domcontentloaded")
+            ap.wait_for_timeout(1400)
+            sweep(ap, "관리자 · 로그인", results)
+            ap.evaluate(ADMIN_LOGIN)
+            ap.wait_for_timeout(300)
+            for t in CAS.TABS:
+                if not ap.evaluate(ADMIN_TAB, "tab-" + t):
+                    continue
+                ap.wait_for_timeout(220)
+                sweep(ap, "관리자 · " + t, results)
 
         # ── 미리보기 — 상태를 바꿔 가며 (②번 사고가 난 자리) ──
         ap.evaluate(f"() => {{ window.COURSES_UT = {COURSES_UT}; window.REC_UT = {REC_UT}; }}")
@@ -477,6 +550,8 @@ def run():
             SHOTS.mkdir(parents=True, exist_ok=True)
             ap.screenshot(path=str(SHOTS / "contrast_admin.png"), full_page=False)
         b.close()
+        if httpd:
+            httpd.shutdown()
     return results
 
 
@@ -517,7 +592,7 @@ def main():
 
     def show(rows, title):
         print("\n" + title)
-        for r in sorted(rows, key=lambda x: x["ratio"])[:200]:
+        for r in sorted(rows, key=lambda x: x["ratio"])[:(None if SHOW_ALL else 200)]:
             dim = ""
             if r["a_rel"] < 0.999:
                 dim += f" · 글자에 opacity {r['a_rel']:.2f}"

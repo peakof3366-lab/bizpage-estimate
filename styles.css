@@ -1138,7 +1138,7 @@ p { line-height:1.8; }
 /* 견적 조건 배지 */
 .cond-tags-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
 .cond-tag { padding:3px 10px; border-radius:var(--r); font-size:12px; font-weight:700; }
-.cond-discount     { background:rgba(34,197,94,.1); color:#059669; border:1px solid rgba(34,197,94,.2); }
+.cond-discount     { background:rgba(34,197,94,.1); color:#047857;   /* 2026-10-12 #059669 3.46:1 → 5.0:1 */ border:1px solid rgba(34,197,94,.2); }
 .cond-season-peak  { background:rgba(239,68,68,.1);  color:#b91c1c; border:1px solid rgba(239,68,68,.2); }
 .cond-season-offpeak { background:rgba(59,130,246,.1); color:#1d4ed8; border:1px solid rgba(59,130,246,.2); }
 
@@ -1724,7 +1724,7 @@ p { line-height:1.8; }
   font-size:9px; font-weight:800; letter-spacing:.12em;
   flex-shrink:0; padding-top:2px;
 }
-.itin-slot-time.am  { color:#B87000; }
+.itin-slot-time.am  { color:#9A5B00; }   /* 2026-10-12 #B87000 3.92:1 → 5.4:1 */
 .itin-slot-time.pm  { color:#0e6e7d; }
 .itin-slot-time.eve { color:var(--brand); }
 .itin-slot-content {

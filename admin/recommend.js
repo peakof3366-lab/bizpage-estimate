@@ -46,7 +46,7 @@
       + '.pv-block{background:#fff;border:1px solid #E5E5E5;padding:20px;margin-bottom:18px}'
       /* 좁은 화면에서는 껍데기 여백을 줄여 그만큼을 카드 폭에 넘긴다 — 폭 예산 (RJ) */
       + '@media(max-width:1000px){body{padding:8px}.pv-block{padding:10px;margin-bottom:12px}}'
-      + '.pv-where{font-size:11px;font-weight:800;letter-spacing:.08em;color:#8A8A8A;'
+      + '.pv-where{font-size:12px;font-weight:800;letter-spacing:.08em;color:#666666;'
       + 'text-transform:uppercase;margin:0 0 4px}'
       + '.pv-what{font-size:13px;font-weight:700;color:#1A1A1A;margin:0 0 16px}'
       + '.pv-hint{font-size:12px;color:#6A6A6A;line-height:1.6;margin:14px 0 0}'
@@ -56,9 +56,9 @@
       /* 정말 빈칸으로 나가는 쪽은 더 세게 — 기본 문구로 채워지는 것과 결과가 다르다 */
       + '.pv-warn-hard{color:#9B1C1C;background:#FEF2F2;border-left-color:#DC2626}'
       /* 어느 화면을 고쳐야 이 자리가 바뀌는지 (RK) */
-      + '.pv-from{font-size:11px;font-weight:700;color:#5B21B6;background:#F5F3FF;'
+      + '.pv-from{font-size:12px;font-weight:700;color:#5B21B6;background:#F5F3FF;'
       + 'border:1px solid #DDD6FE;padding:4px 8px;margin:6px 0 0;line-height:1.5}'
-      + '.pv-plan-lbl{font-size:11px;font-weight:800;color:#8A8A8A;margin:0 0 6px}'
+      + '.pv-plan-lbl{font-size:12px;font-weight:800;color:#666666;margin:0 0 6px}'
       /* 옆 칸의 '여기에 다른 방식이 놓입니다' 안내 (RU) — 카드가 아니라 빈자리 설명이다 */
       + '.pv-ghost{display:flex;flex-direction:column;align-items:center;justify-content:center;'
       + 'gap:4px;min-height:120px;padding:20px;cursor:pointer;text-align:center;font:inherit;'
@@ -66,7 +66,7 @@
       + '.pv-ghost:hover{border-color:#CC001A;background:#FFFCFC}'
       /* ⚠ #9A9A9A는 흰 바탕에서 2.81:1이라 check_contrast.py가 잡는다. 안내문은 읽으라고
          둔 글자다 — 옅게 하고 싶어도 #6A6A6A 아래로 내리지 말 것. */
-      + '.pv-ghost-t{font-size:11px;color:#6A6A6A}'
+      + '.pv-ghost-t{font-size:12px;color:#6A6A6A}'
       + '.pv-ghost-b{font-size:13px;font-weight:700;color:#6A6A6A}'
       + '.pv-ghost-go{font-size:12px;font-weight:800;color:#CC001A;margin-top:6px}'
       /* ⚠ 미리보기 껍데기는 **.pv-* 만 건드린다.** 고객 클래스(.plan-card 등)에
@@ -103,9 +103,9 @@
       + '.pv-addbtn:hover{background:#CC001A;color:#fff}'
       + '.pv-addbtn:disabled{color:#8A8A8A;border-color:#C9C9C9;background:#F7F7F5;cursor:default}'
       + '.pv-addbtn:disabled:hover{background:#F7F7F5;color:#8A8A8A}'
-      + '.pv-addtip{font-size:11px;color:#6A6A6A}'
+      + '.pv-addtip{font-size:12px;color:#6A6A6A}'
       /* 빈 칸 안내도 색만 쓴다 — 밝은 바탕·어두운 바탕 어디서나 읽히는 중간 회색 */
-      + '.pv-edit:empty::before{content:"(비어 있음 — 눌러서 입력)";color:#9A9A9A;font-weight:400}'
+      + '.pv-edit:empty::before{content:"(비어 있음 — 눌러서 입력)";color:#767676;font-weight:400}'
       /* 자동으로 만들어진 날은 고칠 것이 없다 — 눌러도 되는 곳과 눈으로 구분한다.
          ⚠ **opacity로 흐리게 하지 말 것.** 예전엔 `.pv-auto{opacity:.72}`였는데, 이 카드의
          머리줄은 검은 바탕에 빨간 "DAY N"이라 흐려지는 순간 대비가 1.75:1로 떨어졌다
@@ -113,7 +113,7 @@
          칸 전체 opacity(방식 A·B 편집 칸)와 배경 덮어쓰기(편집 손잡이).
          자리를 안 차지하는 outline으로 표시하고, 글자는 건드리지 않는다. */
       + '.pv-auto{outline:2px dashed #E0A100;outline-offset:-2px}'
-      + '.pv-auto-tag{display:inline-block;font-size:10px;font-weight:800;color:#8A5A00;'
+      + '.pv-auto-tag{display:inline-block;font-size:12px;font-weight:800;color:#8A5A00;'
       + 'background:#FFF8E8;border:1px solid #E8D9B0;padding:1px 5px;margin-left:6px}'
       /* ── 설명은 필요할 때만 (RS) ──
          기본은 고객이 보는 그대로다. 자리 이름(.pv-where)과 방식 구분(.pv-plan-lbl)은
