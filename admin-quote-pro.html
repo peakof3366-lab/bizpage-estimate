@@ -190,6 +190,10 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
 .btn-r { background: var(--red); border-color: var(--red); color: #fff; }
 .btn-r:hover { background: var(--red-dk); border-color: var(--red-dk); }
 .btn-sm { min-height: 32px; padding: 0 10px; font-size: 12px; font-weight: 600; }
+/* 2026-10-16 **표 밖 줄(.bar)에 혼자 선 작은 버튼**은 44px로 — 「+ 항목 추가」·「+ 선택 옵션 추가」·「+ 하루 추가」·「일수에 맞추기」.
+   둘레에 다른 칸이 없어 키워도 화면이 거의 안 길어진다(한 줄에 12px).
+   ⚠ 날짜·선택 머리줄 안의 「삭제」는 그대로 32px — 일정 열흘이면 열 번 길어지고, 지우기는 덜 눌러야 하는 버튼이다. */
+.bar .btn-sm { min-height: 44px; padding: 0 14px; }
 /* ═══ 누를 자리 44px 하한 (2026-10-12) — 관리자 화면(admin.css)과 같은 규칙. 이 화면은 별도 문서라 따로 적는다.
    **폼 입력칸(.f)만** 40 → 44px. ⚠ `:where()`로 우선순위 0 — 감추는 규칙과 다투지 않는다.
    🔴 **금액 표(.mt · 항목 이름 칸 34px)는 일부러 뺐다.** 넣어 보니 ② 금액 단계가 1,771 → 1,935px로 길어져

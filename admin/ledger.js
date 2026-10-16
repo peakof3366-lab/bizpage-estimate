@@ -273,7 +273,8 @@
           /* ⚠ 빈 채로 두면 **빈 줄**이 남아 칸이 3px씩 밀린다(ZX에서 겪었다) — 감춘다.
              저장하면 그때 hidden을 떼고 채운다. */
           + '<div class="sub led-st-by"' + (r.status_by ? '' : ' hidden') + '>'
-          +   (r.status_by ? esc(r.status_by) + (r.status_at ? ' · ' + esc(day(r.status_at)) : '') : '')
+          /* 2026-10-16 날짜는 한 덩어리 — 1280에서 「2026-09- / 28」로 갈렸다(이름과 날짜 사이에서만 접힌다) */
+          +   (r.status_by ? esc(r.status_by) + (r.status_at ? ' · <span class="nowrap">' + esc(day(r.status_at)) + '</span>' : '') : '')
           + '</div>'
           + '</td>'
           /* ── ⑧ 조작 ── */
@@ -479,7 +480,7 @@
            서버가 안 알려주면(옛 배포) 그 줄을 건드리지 않는다 — 짐작해서 적지 않는다. */
         const line = sel.closest('td').querySelector('.led-st-by');
         if (line && d && d.by) {
-          line.textContent = d.by + (d.at ? ' · ' + day(d.at) : '');
+          line.innerHTML = esc(d.by) + (d.at ? ' · <span class="nowrap">' + esc(day(d.at)) + '</span>' : '');   /* 그리는 쪽(위 목록)과 같은 모양 — 날짜는 한 덩어리 */
           line.hidden = false;
           row.status_by = d.by; row.status_at = d.at || null;
         }

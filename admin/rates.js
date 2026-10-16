@@ -18,7 +18,7 @@
        그 카드들은 '견적서 업데이트' 화면으로 옮겼다. 여기서 부르면 없는 DOM을 찾는다. */
     if (typeof destinationRates === 'undefined' || typeof RATE_META === 'undefined') {
       document.getElementById('rate-tbody').innerHTML =
-        '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">data.js를 찾을 수 없습니다.</td></tr>';
+        '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:2rem">data.js를 찾을 수 없습니다.</td></tr>';
       return;
     }
 
@@ -110,7 +110,7 @@
         const region = REGION_MAP[d.label] || '기타';
         html += renderRateRow(d, region, region);
       });
-      if (!sorted.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">${rateEmptyMsg(q)}</td></tr>`;
+      if (!sorted.length) html = `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:2rem">${rateEmptyMsg(q)}</td></tr>`;
     } else {
       /* 지역순 (기존 방식) */
       const grouped = {};
@@ -131,7 +131,7 @@
         html += rateRegionHeader(region, grouped[region].length);
         grouped[region].forEach(d => { html += renderRateRow(d, '', region); });
       });
-      if (!searched.length) html = `<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">${rateEmptyMsg(q)}</td></tr>`;
+      if (!searched.length) html = `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:2rem">${rateEmptyMsg(q)}</td></tr>`;
     }
     tbody.innerHTML = html;
   }
@@ -140,7 +140,7 @@
      표시됨), 우선순위순 모드에서는 regionLabel에 실제 지역명을 넣어 첫 칸에 보여준다. */
   /* 🎨 지역 제목 줄 — 지역 색 옅은 바탕 + 왼쪽 굵은 띠 + 몇 곳인지 (색은 admin/common.js REGION_COLORS 한 곳) */
   function rateRegionHeader(region, n) {
-    return `<tr class="rate-region-row" style="--rg:${regionColor(region)}"><td colspan="11"><span class="rg-dot" aria-hidden="true"></span>${esc(region)} <span class="rg-n">${n}곳</span></td></tr>`;
+    return `<tr class="rate-region-row" style="--rg:${regionColor(region)}"><td colspan="10"><span class="rg-dot" aria-hidden="true"></span>${esc(region)} <span class="rg-n">${n}곳</span></td></tr>`;
   }
 
   function renderRateRow(d, regionLabel, region) {
@@ -162,8 +162,7 @@
           <td style="text-align:right">${fmtWon(eff.hotel_per_room)}${rateValidationBadge(d.destination_key, 'hotel_per_room', eff.hotel_per_room)}</td>
           <td style="text-align:right">${fmtWon(eff.meal_per_person)}${rateValidationBadge(d.destination_key, 'meal_per_person', eff.meal_per_person)}</td>
           <td style="text-align:right">${fmtWon(eff.margin_per_traveler)}</td>
-          <td>${fmtRateDate(eff.rateDate)}</td>
-          <td style="color:var(--muted)">${rs.months <= 999 ? rs.months + '개월' : '—'}</td>
+          <td style="white-space:nowrap">${fmtRateDate(eff.rateDate)}<div class="sub">${rs.months <= 999 ? rs.months + '개월 전' : '—'}</div></td>
           <td><span class="rate-badge ${rs.fxClamped ? 'stale' : rs.status}"${rs.fxPct != null ? ` title="환율 ${rs.fxPct.toFixed(1)}% 변동${rs.fxClamped ? ' — ±30% 상한에 걸려 견적에 다 반영되지 않습니다. 요율을 다시 잡아 주세요.' : ''}"` : ''}>${rs.icon} ${rs.label}${rs.fxClamped ? ' 🚨환율상한' : (rs.fxPct != null ? ' 💱' : '')}</span></td>
           <!-- ⚠ 2026-09-27 칸에 display:flex를 걸지 않는다 — 표 칸 성질을 잃어 이 칸만 줄 구분선이 어긋났다 -->
           <td style="white-space:nowrap">

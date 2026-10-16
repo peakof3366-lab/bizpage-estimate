@@ -153,7 +153,25 @@ async function build(backupPath) {
     (links[r.quote_id] = links[r.quote_id] || []).push({ no: r.quote_no, id: r.id, status: r.status || 'issued', at: r.created_at });
   }
 
+  /* /api/inquiries — 문의 목록 (api/inquiries.js GET과 같은 칸) — 2026-10-16 추가.
+     🔴 예전엔 문의를 **안 실어** `check_admin_screens.py`가 문의 관리를 늘 **빈 목록**으로 쟀다 —
+       1280에서 연락처가 「010-1234- / 5678」 두 줄로 갈리는 것을 사람 눈으로 먼저 봤다(자에 이미 그 잣대가 있었는데).
+     ⚠ 이름·연락처·내용·답변은 여기서 **직접** 바꾼다 — `name`을 PII_KEYS에 넣으면 견적 항목 이름(「항공」)까지 바뀐다. */
+  const inqRow = (r) => {
+    const p = Object.assign({}, r.payload || {});
+    for (const k of ['name', 'tel', 'org', 'message']) delete p[k];
+    return {
+      ...p, id: r.id, name: fakeFor('inqName', r.name || '문의자'), org: r.org ? fakeFor('org', r.org) : '',
+      tel: r.tel ? fakeFor('contactTel', r.tel) : '', message: sentence([...(r.message || '')].length || 20),
+      timestamp: p.timestamp || r.created_at, type: r.type || p.type || 'contact',
+      status: r.status, note: r.note ? sentence([...r.note].length) : '', read: r.read,
+      assignee: r.assignee || '', activityLog: r.activity_log || [],
+      reply: r.reply ? sentence([...r.reply].length) : '', repliedAt: r.replied_at, repliedBy: r.replied_by || '',
+    };
+  };
+
   const raw = {
+    inquiries: (d.inquiries || []).slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).map(inqRow),
     quotes: quotes.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).map(quoteRow),
     shares: { shares: rows, capped: false, max: 300, revisions: true },
     links: { links },
@@ -162,7 +180,7 @@ async function build(backupPath) {
   const out = sweep(scrub(raw, ''));
   out._meta = {
     from: path.basename(backupPath), builtAt: new Date().toISOString(),
-    counts: { quotes: out.quotes.length, shares: rows.length, server: Object.keys(out.server).length },
+    counts: { inquiries: out.inquiries.length, quotes: out.quotes.length, shares: rows.length, server: Object.keys(out.server).length },
     note: '가상 데이터 — 고객 정보는 바꿨다. 저장소에 넣지 말 것(.gitignore).',
   };
   return out;
@@ -194,7 +212,7 @@ if (require.main === module) {
       process.exit(1);
     }
     fs.writeFileSync(OUT, JSON.stringify(out));
-    console.log(`✓ ${path.relative(ROOT, OUT)} — 견적 ${out._meta.counts.quotes}건 · 대장 ${out._meta.counts.shares}건`
+    console.log(`✓ ${path.relative(ROOT, OUT)} — 문의 ${out._meta.counts.inquiries}건 · 견적 ${out._meta.counts.quotes}건 · 대장 ${out._meta.counts.shares}건`
       + ` · 서버 응답 ${out._meta.counts.server}가지 (원본: ${out._meta.from} · 바꾼 값 ${seen.size}개 · 남은 원본 0)`);
   }).catch((e) => { console.error('🔴 ' + e.message); process.exit(1); });
 }

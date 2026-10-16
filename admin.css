@@ -374,7 +374,8 @@
     /* 숫자는 오른쪽 — **머리글도 같이** 오른쪽이어야 눈이 한 선을 따라간다 */
     .tbl .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     /* 한 칸 안의 둘째 줄(적은이·바꾼이·1인당) */
-    .tbl .sub { font-size: var(--fs-xs); color: var(--muted);   /* 2026-10-12 #888 3.54:1 → 토큰 */ margin-top: 3px; line-height: 1.5; }
+    .tbl .sub, .rate-table .sub { font-size: var(--fs-xs); color: var(--muted);   /* 2026-10-12 #888 3.54:1 → 토큰 */ margin-top: 3px; line-height: 1.5; }
+    .rate-table th .sub { font-weight: 600; }   /* 2026-10-16 요율 기준월·경과 짝 칸 — 머리글 둘째 줄 */
     .tbl .sub-strong { font-size: var(--fs-xs); color: #666; margin-top: 2px; line-height: 1.5; }
 
     /* ── 상태를 색으로 먼저 읽게 한다 (ZW, 2026-09-08 대표 지시) ──────────────
@@ -1552,7 +1553,8 @@
     /* ⚠ 문의 표는 다르다 — 「문의 내용」이 길어 **줄바꿈이 필요하다.**
        그래서 nowrap을 걸지 않고, 최소 폭만 준다. */
     #inqTable { min-width: 760px; }
-    #inqTable .inq-sub { display: block; margin-top: .15rem; font-size: var(--fs-sm); color: var(--muted); }
+    #inqTable .inq-sub { display: block; margin-top: .15rem; font-size: var(--fs-sm); color: var(--muted);
+      white-space: nowrap; }   /* 2026-10-16 1280에서 「010-1234- / 5678」로 갈렸다 — 전화번호는 한 덩어리(대장 9/29와 같은 일) */
 
 /* ═══ 견적 상세 — 고객용 / 직원용 탭 (2026-09-23 대표 지시 2-1) ═══════════════
    🔴 **고객용일 때 형제 구역을 덮는다.** 직원용 내용을 옮겨 담지 않았기 때문에
@@ -1868,7 +1870,11 @@
 /* 견적서 대장 — 조작 칸을 두 칸 격자로 (2026-10-01, ledger.js 주석) */
 #ledList .led-acts { display: grid; grid-template-columns: repeat(2, max-content); gap: .3rem; justify-content: start; }
 #ledList .led-acts .btn-act { white-space: nowrap; text-align: center; }
-
+/* 🔴 2026-10-16 1280 노트북에서 표가 1,143px · 보이는 폭 1,016px — 넘친 127px가 정확히 「상태」 열이었고,
+   오른쪽에 고정한 조작 열(199px)이 그 위를 **덮었다**(머리글이 「상E」로 잘리고 상태 고르기가 반쯤 가려졌다).
+   표 안 가로 스크롤이라 화면 검사는 「밀림」으로 안 셌다(CLAUDE.md 「재는 자가 틀린 사례」와 같은 자리).
+   → 1400px 아래에서는 조작 버튼을 **한 줄로 쌓는다**(199 → 약 125px). 1440 모니터는 두 칸 그대로(이미 딱 맞는다). */
+@media (max-width: 1400px) { #ledList .led-acts { grid-template-columns: max-content; } #ledList .led-acts .btn-act { width: 100%; } }
 @media (prefers-reduced-motion: reduce) {
   .tab-panel.active, .modal-overlay, .modal-overlay > .modal-box, .login-box { animation: none; }
   .sidebar-item::after, .sidebar-item .si-icon, .sidebar-item svg { transition: none; }
@@ -1918,7 +1924,8 @@
   .set-field-btn > span { display: none; }
 }
 .pw-form.set-grid { max-width: none; margin-top: 0; }   /* 옛 .pw-form(세로 한 줄 · 320px)을 새 격자가 덮는다 */
-.led-gone { color: var(--muted); font-size: var(--fs-xs); border: 1px dashed var(--border); display: inline-block; padding: 0 .35rem; margin-top: .2rem; }   /* 견적 관리에서 기록이 지워진 묶음 (2026-10-02) */
+.nowrap { white-space: nowrap; }   /* 한 덩어리로 읽어야 하는 짧은 값(날짜 등) — 2026-10-16 대장 「바꾼 사람 · 날짜」 */
+.led-gone { color: var(--muted); font-size: var(--fs-xs); border: 1px dashed var(--border); display: table; padding: 0 .35rem; margin-top: .2rem; }   /* 2026-10-16 inline-block → table: 「이전 판 n개」 옆에 나란히 붙어 줄바꿈 금지 칸을 216px로 넓혔다 — 아래 줄로(글자 폭만큼) */   /* 견적 관리에서 기록이 지워진 묶음 (2026-10-02) */
 /* 견적 관리 「○○ 검색 중」 안내 (2026-10-02) — 검색칸 글자만으로는 목록이 걸러진 줄 모른다 */
 .em-search-note { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: var(--fs-md); font-weight: 600; color: var(--warn); background: #fffbeb; border: 1px solid #fde68a; padding: .45rem .75rem; margin: .5rem 0 .75rem; }
 .em-search-note.hidden { display: none; }
@@ -2008,6 +2015,10 @@
 }
 #ledList .tbl select.led-st { padding-top: 0; padding-bottom: 0; min-width: 5.5em; }
 #ledList .tbl .led-st-save { padding: 0 .8rem; }
+/* 2026-10-16 요율 표도 1280에서 넘쳐(+73px) 고정 조작 열이 「상태」를 덮었다(「⚠ 확인」에서 잘림) — 기준월·경과를 짝 칸으로 묶고
+   (admin.html), 1400px 아래에서는 조작 버튼(편집 · ✓ 확인함) 옆 여백을 줄인다. 줄 높이는 그대로(버튼은 나란히).
+   ⚠ **위 규칙(padding 0 1rem !important) 뒤에** 둔다 — 앞에 두면 같은 우선순위라 뒤의 것이 이긴다(처음에 그래서 안 먹었다). */
+@media (max-width: 1400px) { .rate-table td:last-child > .btn-detail { padding: 0 .55rem !important; min-width: 0; } }
 
 /* 🧾 문의 상세 창 (2026-10-02 재구성) — 일하는 순서: 누구 → 상태·담당 → 문의 → 답변 → 메모 | 기록 */
 #modal .inq-head { align-items: flex-start; }

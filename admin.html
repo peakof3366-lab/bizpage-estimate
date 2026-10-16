@@ -1198,8 +1198,9 @@
               <th style="text-align:right">호텔/박</th>
               <th style="text-align:right">1인 1일 식비</th>
               <th style="text-align:right">마진/인</th>
-              <th style="width:100px">요율 기준월</th>
-              <th style="width:80px">경과</th>
+              <!-- 2026-10-16 「요율 기준월」·「경과」를 한 칸 두 줄로 — 1280에서 표가 73px 넘쳐 고정 조작 열이 「상태」를 덮었고,
+                   경과 칸(51px)에서 「4개월」이 「4개 / 월」로 갈렸다. 견적 관리·대장과 같은 짝 칸 방식(열을 늘리지 않는다). -->
+              <th style="width:100px">요율 기준월<div class="sub">경과</div></th>
               <th style="width:100px">상태</th>
               <th style="width:130px">관리</th>
             </tr>
@@ -4404,7 +4405,8 @@
       : '<p style="font-size:var(--fs-md);color:var(--muted);margin:0;line-height:1.7">아직 들어온 문의가 없습니다 — 홈페이지 문의·상담 신청이 들어오면 여기에 뜨고, 왼쪽 「문의 관리」에 배지가 붙습니다.</p>';
 
     /* Visit chart (7 days) */
-    renderBarChart('visit-chart', buildDailyData(visits, 7), 100);
+    renderBarChart('visit-chart', buildDailyData(visits, 7), 100,
+      '최근 7일 동안 기록된 홈페이지 방문이 없습니다 — 방문이 생기면 날짜별 막대가 올라갑니다.');
 
     /* Dest TOP 5 */
     const destTop5 = Object.entries(dests).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -4759,9 +4761,10 @@
       note.classList.toggle('hidden', lines.length === 0);
     }
 
-    renderBarChart('chart-14d', buildDailyData(visits, 14), 110);
-    renderBarChart('chart-hour', buildHourData(visits), 110);
-    renderBarChart('chart-dow', buildDowData(visits), 90);
+    /* ⚠ 「없습니다」로 끝내지 않는다 — 처음 판은 끝냈다가 audit_ux가 「막다른 안내 3」으로 잡았다(화면 규칙 ②) */
+    renderBarChart('chart-14d', buildDailyData(visits, 14), 110, '최근 14일 동안 기록된 방문이 없습니다 — 홈페이지 방문이 생기면 날짜별 막대가 올라갑니다.');
+    renderBarChart('chart-hour', buildHourData(visits), 110, '아직 방문 기록이 없습니다 — 방문이 쌓이면 어느 시간대에 많이 오는지 여기 보입니다.');
+    renderBarChart('chart-dow', buildDowData(visits), 90, '아직 방문 기록이 없습니다 — 방문이 쌓이면 어느 요일에 많이 오는지 여기 보입니다.');
   }
 
   /* ════ EVENTS ════ */
@@ -5009,9 +5012,16 @@
     return d;
   }
 
-  function renderBarChart(elId, data, maxH) {
+  function renderBarChart(elId, data, maxH, emptyMsg) {
     const el = document.getElementById(elId);
     if (!el) return;
+    /* 2026-10-16 **전부 0이면 막대를 그리지 않고 말한다.** 0인 막대도 2px 줄로 그려져, 방문 0명인 주가
+       「날마다 고르게 조금씩 왔다」로 보였다(대시보드 1280 실측). 무엇이 없는지는 부르는 쪽이 준다(renderHBar와 같은 약속). */
+    if (emptyMsg && data.length && data.every((d) => !d.value)) {
+      el.innerHTML = '<p class="bar-empty" style="color:var(--muted);font-size:var(--fs-sm);line-height:1.7;margin:0;align-self:center">'
+        + esc(emptyMsg) + '</p>';
+      return;
+    }
     const max = Math.max(...data.map(d=>d.value), 1);
     el.innerHTML = data.map(d=>{
       const h = Math.max(Math.round(d.value/max*maxH), d.value>0?6:2);

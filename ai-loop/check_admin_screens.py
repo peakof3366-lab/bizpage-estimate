@@ -106,7 +106,8 @@ FIXTURE = ROOT / "ai-loop" / ".admin_fixture.json"
 EMPTY_ONLY = "--empty" in sys.argv
 
 # 줄이 그려졌는지 — 가상 데이터가 안 먹으면 빈 화면을 재고 「깨끗하다」고 말하게 된다
-MUST_HAVE_ROWS = {"estmgr": "#tab-estmgr tbody tr", "ledger": "#tab-ledger tbody tr"}
+MUST_HAVE_ROWS = {"estmgr": "#tab-estmgr tbody tr", "ledger": "#tab-ledger tbody tr",
+                  "inquiries": "#inqBody tr"}   # 2026-10-16 — 가상 데이터에 문의가 없으면 이 줄이 🔴로 말한다
 
 
 def _serve():
@@ -135,7 +136,9 @@ def _data_route(fx):
         if "account?action=me" in u:
             return ok(me)
         if re.search(r"/api/inquiries(\?|$)", u):
-            return ok([])
+            # 🔴 2026-10-16 예전엔 `[]`를 줘서 문의 관리를 **늘 빈 목록**으로 쟀다 — 1280에서 연락처가
+            #   두 줄로 갈린 것(⑧ 잣대가 이미 있었다)을 사람 눈이 먼저 봤다. 가상 데이터의 문의를 준다.
+            return ok(fx.get("inquiries", []))
         if re.search(r"/api/quotes(\?|$)", u) and "action=" not in u:
             return ok(fx["quotes"])
         mm = re.search(r"/api/quotes/([^/?]+)", u)

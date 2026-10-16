@@ -48,6 +48,7 @@ CLIP_SLOP = 4             # 브라우저 반올림 — 이 이하 잘림은 안 
 #   45~50자가 편한 폭이고, 60자를 넘으면 눈이 다음 줄을 놓치기 시작한다.
 #   80자는 이 저장소에 실제로 있던 값이라 「확인 대상」으로 두면 아무도 안 고친다.
 LINE_FAIL = 80            # 이 위는 오류
+STICKY_FAIL_FROM = 1280   # ⑨ 이 폭부터 「고정 열이 내용을 덮는다」는 오류(노트북). 그 아래는 확인 대상
 LINE_WARN = 60            # 이 위는 확인 대상
 LINE_MIN_CHARS = 40       # 이보다 짧은 글은 애초에 줄이 안 넘어간다
 
@@ -177,7 +178,9 @@ SWEEP = r"""
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       /* 금액(83,019,990)과 **전화번호**(010-1234-5678) — 둘 다 한 덩어리로 읽어야 하는 숫자다.
          ⚠ 전화번호는 2026-09-29 대장에서 「010- / 0000- / 0000」 세 줄로 갈려 있었다. */
-      const re = /\d{1,3}(?:,\d{3})+|\b0\d{1,2}-\d{3,4}-\d{4}\b/g;
+      /* 2026-10-16 **날짜**(2026-09-28 · 2026.09.28)도 — 대장 「바꾼 사람」 줄에서 「2026-09- / 28」로 갈려 있었는데
+         이 잣대는 금액·전화만 봐서 사람 눈이 먼저 봤다. */
+      const re = /\d{1,3}(?:,\d{3})+|\b0\d{1,2}-\d{3,4}-\d{4}\b|\b20\d{2}[-.]\d{2}[-.]\d{2}\b/g;
       let m;
       while ((m = re.exec(n.textContent))) {
         try {
@@ -253,6 +256,24 @@ SWEEP = r"""
     }
   });
 
+  /* ── ⑨ 표가 넘쳐 **고정 열이 내용 열을 덮는다** (2026-10-16 신설) ──
+     조작 열을 오른쪽에 고정하면(admin.css 「조작 열 고정」) 누를 것은 늘 보이지만, 표가 넘친 만큼
+     **그 앞 열이 고정 열 밑에 깔린다.** 1280 대장에서 넘친 127px가 정확히 「상태」 열이었다 —
+     머리글이 「상E」로 잘렸는데 ①은 「표 안 가로 스크롤은 설계」라 안 셌고, ⑦은 칸 안 넘침만 본다.
+     사람 눈이 먼저 봤다. → 고정 칸이 있는 표가 자기 굴림 상자보다 넓으면 센다. 심각도는 폭으로(collect). */
+  out.stickyOver = [];
+  document.querySelectorAll('table').forEach((t) => {
+    if (!shown(t)) return;
+    let box = t.parentElement;
+    while (box && box !== document.body && !/^(auto|scroll)$/.test(getComputedStyle(box).overflowX)) box = box.parentElement;
+    if (!box || box === document.body) return;
+    const over = box.scrollWidth - box.clientWidth;
+    if (over <= 2) return;
+    const st = Array.from(t.querySelectorAll('th,td')).find((c) => getComputedStyle(c).position === 'sticky' && shown(c));
+    if (!st) return;
+    out.stickyOver.push({ sel: path(t), over: over, w: Math.round(st.getBoundingClientRect().width) });
+  });
+
   return out;
 }
 """
@@ -310,6 +331,12 @@ def collect(page, where, findings, scope=None):
         findings.append(("🔴", where, tag("화면 밖으로 나갔다"),
                          f"{o['left']}~{o['right']}px · 「{o['text']}」 [{o['sel']}]"))
 
+    # ⑨ 1280(노트북) 이상에서는 🔴 — 담당자가 실제로 쓰는 폭이다. 그 아래(1024)는 표가 미는 것을 받아들였다(10/12).
+    for s in r.get("stickyOver", []):
+        sev = "🔴" if r["doc"]["innerW"] >= STICKY_FAIL_FROM else "·"
+        findings.append((sev, where, tag("표가 넘쳐 고정 열이 내용 열을 덮는다"),
+                         f"+{s['over']}px 넘침 · 고정 열 {s['w']}px [{s['sel']}]"))
+
     for ln in r["lines"]:
         sev = "🔴" if ln["cpl"] > LINE_FAIL else "·"
         findings.append((sev, where, tag("한 줄이 길다"),
@@ -330,9 +357,14 @@ td{border:1px solid #ccc;padding:4px;word-break:keep-all}</style>
  <td id="split" style="width:52px;overflow-wrap:anywhere">83,019,990</td>
  <td id="ok" style="width:68px">30명</td></tr></table>
 <table style="width:60px"><tr><td id="tel">010-1234-5678</td></tr></table>
+<table style="width:50px"><tr><td id="dt">2026-09-28</td></tr></table>
 <div style="margin-top:40px"><button id="crowdA" style="width:14px;height:14px;padding:0">a</button><button
  id="crowdB" style="width:14px;height:14px;padding:0">b</button></div>
-<div style="margin-top:40px"><button id="alone" style="width:14px;height:14px;padding:0">c</button></div>"""
+<div style="margin-top:40px"><button id="alone" style="width:14px;height:14px;padding:0">c</button></div>
+<div id="stk" style="width:200px;overflow-x:auto;margin-top:40px"><table style="width:400px"><tr><td>내용</td><td>상태</td>
+ <td style="position:sticky;right:0;background:#fff">조작</td></tr></table></div>
+<div id="stkok" style="width:500px;overflow-x:auto;margin-top:10px"><table class="fits" style="width:400px"><tr><td>내용</td>
+ <td style="position:sticky;right:0;background:#fff">조작</td></tr></table></div>"""
 
 
 def selftest_cells(page):
@@ -346,11 +378,18 @@ def selftest_cells(page):
         bad.append("⑧ 두 줄로 갈린 금액을 못 잡았다")
     if not any(c["text"] == "010-1234-5678" for c in r["numsplit"]):
         bad.append("⑧ 여러 줄로 갈린 전화번호를 못 잡았다")
+    if not any(c["text"] == "2026-09-28" for c in r["numsplit"]):
+        bad.append("⑧ 두 줄로 갈린 날짜를 못 잡았다")
     taps = {t["text"]: t for t in r["taps"]}
     if not (taps.get("a") and not taps["a"].get("spaced")):
         bad.append("④ 붙어 있는 작은 버튼을 간격 예외로 봐줬다 — 기준보다 무르다")
     if not (taps.get("c") and taps["c"].get("spaced")):
         bad.append("④ 혼자 떨어진 작은 버튼에 간격 예외를 못 줬다")
+    so = r.get("stickyOver", [])
+    if not any(s["over"] >= 150 for s in so):
+        bad.append("⑨ 넘쳐서 고정 열이 내용을 덮는 표를 못 잡았다")
+    if any("fits" in s["sel"] for s in so):
+        bad.append("⑨ 딱 맞는 표(대조군)까지 걸었다 — 없는 결함을 만든다")
     if any("30명" in c["text"] for c in r["spill"]):
         bad.append("대조군(멀쩡한 칸)까지 걸었다 — 없는 결함을 만든다")
     return bad
