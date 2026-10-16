@@ -617,7 +617,7 @@
     const dlRow = (k, v) => `<div class="em-dl-r"><dt>${k}</dt><dd>${v}</dd></div>`;
     document.getElementById('em-orginfo').innerHTML = '<dl class="em-dl">'
       + dlRow('기관명', `<b>${esc(e.orgName||'—')}</b>`)
-      + dlRow('담당자', esc(e.contact||'—'))
+      + dlRow('고객 담당자', esc(emClientContact(e)||'—'))
       + dlRow('기관 유형', esc(e.orgTypeLabel||'—'))
       + (e.channel==='internal' ? dlRow('작성', `내부 산출 · ${esc(e.createdBy||'담당자 미지정')}`) : '')
       + (e.request ? dlRow('요청 사항', `<span class="em-dl-note">${esc(e.request)}</span>`) : '')
@@ -1209,6 +1209,18 @@
        이 선이 실제 방침이 되려면 대표가 정해야 한다 — 그래서 값을 한 곳에만 둔다. */
   const EM_MARGIN_WARN = 0.10;
 
+  /* 🔴 **고객 담당자를 읽는 곳은 여기 하나다** (2026-10-16).
+     `contact`는 고객 쪽 사람인데, 2026-10-16 전 내부 산출 견적은 여기 **만든 직원 이름**을 넣었다
+     (admin-quote-pro 저장 경로 — 고쳤다). 그 옛 건들은 「고객 담당자 = 우리 직원」으로 읽힌다.
+     → 내부 산출이고 `contact`가 만든 사람(`createdBy`)과 같으면 **고객 담당자를 모른다**로 본다.
+     ⚠ 저장값은 안 고친다(운영 DB를 건드리지 않는다) — 읽을 때 가른다. 진짜로 고객 이름이 직원 이름과 같은 경우는 「—」로 보인다. */
+  function emClientContact(e) {
+    const c = String((e && e.contact) || '').trim();
+    if (!c) return '';
+    if (e.channel === 'internal' && c === String(e.createdBy || '').trim()) return '';
+    return c;
+  }
+
   /* 🔴 **판매가·원가·이익을 세는 곳은 여기 하나다** (2026-09-27).
      목록·한 줄 요약·금액 4칸·수익 요약이 각자 `visibleTotal !== undefined ? … : total`을
      적고 있었는데, 목록과 금액 4칸은 **`null`을 못 걸렀다** — 원가 기록이 `null`인 건이
@@ -1562,7 +1574,7 @@
     /* 🎨 2026-09-28 대표 요청 「깔끔하게 · 예쁘게」 — 한 줄에 글자 크기·색이 뒤섞여 있던 것을
        왼쪽 [기관명 + 조건 칩] / 오른쪽 [견적 금액 + 이익률 배지] 두 덩이로. 값·계산은 그대로(emMoney). */
     const meta = [esc(e.destLabel || e.destKey || '-'), (Number(e.participants) || 0) + '명', (Number(e.days) || 0) + '일']
-      .concat(e.contact ? ['담당 ' + esc(e.contact)] : []);
+      .concat(emClientContact(e) ? ['고객 담당 ' + esc(emClientContact(e))] : []);
     const rateHtml = rate !== null
       ? '<span class="em-sum-rate ' + (low ? 'low' : 'ok') + '">이익률 ' + (rate * 100).toFixed(1) + '%</span>'
       : (sell > 0 ? '<span class="em-sum-rate none">이익률 —</span>' : '');

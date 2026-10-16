@@ -111,11 +111,20 @@ ok('상세 배지도 esc를 거친다', /내부 산출 · \$\{esc\(e\.createdBy\
    원문 대조만으로는 "정말 덮어쓰는지"를 확인할 수 없다. */
 const dbPath = require.resolve(path.join(ROOT, 'api', '_lib', 'db.js'));
 let inserted = null;
+let insertedAssignee;
 require.cache[dbPath] = {
   id: dbPath, filename: dbPath, loaded: true, exports: {
     sql: (strings, ...vals) => {
       const text = strings.join('?');
-      if (/insert into quotes/.test(text)) { inserted = vals; return Promise.resolve([]); }
+      if (/insert into quotes/.test(text)) {
+        inserted = vals;
+        /* 2026-10-16 담당자(assignee) — 칸 이름 목록에서 **자리를 계산해** 값을 찾는다(맨 끝이라고 가정하지 않는다) */
+        const cols = (text.match(/insert into quotes \(([^)]*)\)/) || ['', ''])[1].split(',').map((s) => s.trim());
+        const ai = cols.indexOf('assignee');
+        /* values 첫 칸들 중 'new'·''는 글자로 박혀 있다(바인딩 아님) — id 다음 두 칸을 빼고 센다 */
+        insertedAssignee = ai < 0 ? undefined : vals[ai - 2];
+        return Promise.resolve([]);
+      }
       return Promise.resolve([]);   /* loadVerifyContext의 조회들 */
     },
   },
@@ -174,6 +183,7 @@ const storedPayload = () => {
   ok('저장은 된다 (리드를 버리지 않는다)', res.code === 200 && !!p, `${res.code}`);
   ok("channel이 'public'으로 덮인다 (위조 차단)", p && p.channel === 'public', p && p.channel);
   ok('createdBy가 비워진다', p && p.createdBy === '', JSON.stringify(p && p.createdBy));
+  ok('공개 제출은 담당자 없이(빈 값 — null 아님) 시작한다', insertedAssignee === '', JSON.stringify(insertedAssignee));
 
   console.log('\n[8] 실동작 — 내부 action은 세션의 이름을 찍는가');
   inserted = null;
@@ -185,6 +195,8 @@ const storedPayload = () => {
   ok("channel이 'internal'이 된다", p && p.channel === 'internal', p && p.channel);
   ok('createdBy가 세션 표시명이다 (보낸 이름이 아니다)',
     p && p.createdBy === '진짜담당자', p && p.createdBy);
+  ok('🔴 2026-10-16 직원이 만든 견적은 만든 사람(세션 표시명)이 담당자로 시작한다 — 보낸 값이 아니다',
+    insertedAssignee === '진짜담당자', JSON.stringify(insertedAssignee));
 
   console.log('\n[9] 실동작 — 세션이 없으면 내부 action이 막히는가');
   authOk = false;

@@ -36,14 +36,15 @@ require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: {
     if (/select id, quote_no from quotes where id/.test(q)) return DB.quotes[vals[0]] ? [DB.quotes[vals[0]]] : [];
     if (/update inquiries set\s+payload/.test(q)) {
       /* 서버 SQL이 하는 일을 그대로 흉내 낸다 — case 식은 [1-e]가 원문으로 지킨다 */
-      const [payloadJson, logJson, id] = vals;
+      const [payloadJson, logJson, mine, id] = vals;
       const r = DB.inquiries[id];
       if (!r) return [];
       Object.assign(r.payload, JSON.parse(payloadJson));
       r.activity_log = r.activity_log.concat(JSON.parse(logJson));
       if (r.status === 'unread' || r.status === 'read') r.status = 'pending';
+      if (!r.assignee) r.assignee = mine;
       r.read = true;
-      return [{ status: r.status }];
+      return [{ status: r.status, assignee: r.assignee }];
     }
     return [];
   }),
@@ -64,8 +65,8 @@ const call = async (id, body, role = 'staff') => {
   await handler({ method: 'PATCH', query: { id }, body, fakeRole: role }, res);
   return out;
 };
-const seed = (id, status) => {
-  DB.inquiries[id] = { id, status, read: status !== 'unread', payload: { id, name: '김가상' }, activity_log: [] };
+const seed = (id, status, assignee = '') => {
+  DB.inquiries[id] = { id, status, assignee, read: status !== 'unread', payload: { id, name: '김가상' }, activity_log: [] };
 };
 
 (async () => {
@@ -83,9 +84,13 @@ const seed = (id, status) => {
     ok('🔴 작성자는 세션에서(보낸 이름을 믿지 않는다)', row.activity_log[0].author === '세션의 이름', row.activity_log[0].author);
     ok('신규 → 처리중 · 응답이 바뀐 상태를 말한다', row.status === 'pending' && r.body.status === 'pending' && r.body.quoteNo === 'BP-2610-0007');
 
-    seed('i2', 'done');
+    ok('미배정이면 만든 사람이 담당자(세션 표시명) · 응답도 말한다',
+      row.assignee === '세션의 이름' && r.body.assignee === '세션의 이름', row.assignee);
+
+    seed('i2', 'done', '박선임');
     await call('i2', { linkQuote: 'q1' });
     ok('🔴 완료로 닫은 문의는 되살리지 않는다', DB.inquiries.i2.status === 'done', DB.inquiries.i2.status);
+    ok('🔴 이미 맡은 사람이 있으면 담당자를 안 바꾼다', DB.inquiries.i2.assignee === '박선임', DB.inquiries.i2.assignee);
 
     const nq = await call('i1', { linkQuote: 'nope' });
     ok('없는 견적이면 404 · 잇지 않는다', nq.code === 404 && nq.body.error === 'quote_not_found');
@@ -101,6 +106,8 @@ const seed = (id, status) => {
       /status = case when status in \('unread', 'read'\) then 'pending' else status end/.test(src));
     ok('[1-e] SQL: payload를 합친다(|| jsonb) — 통째로 바꾸지 않는다',
       /payload = coalesce\(payload, '\{\}'::jsonb\) \|\| \$\{/.test(src));
+    ok("[1-e] SQL: 담당자는 비어 있을 때만(case when coalesce(assignee, '') = '')",
+      /assignee = case when coalesce\(assignee, ''\) = '' then \$\{mine\} else assignee end/.test(src));
   }
 
   const { bootPage } = require('./_page_boot.js');
@@ -167,6 +174,12 @@ const seed = (id, status) => {
   ok('고객 상담 꼬리표는 그대로 「☎ 상담」', tagOf('BP-2610-0012') === '☎ 상담', tagOf('BP-2610-0012'));
   ev(`openEstDetail('qS')`);
   ok('견적 상세 — 「직원연결님 문의를 보고 만든 견적」', /직원연결님 문의를 보고 만든 견적입니다/.test($('em-linked-inquiry').textContent));
+  console.log('\n[4-b] 🔴 고객 담당자 — 직원 이름이 고객 담당자로 읽히던 것');
+  ok('옛 내부 산출(고객 담당자 = 만든 직원)은 「모른다」',
+    ev(`emClientContact({ channel: 'internal', contact: '홍직원', createdBy: '홍직원' })`) === '');
+  ok('내부 산출이라도 고객 이름이 따로 적혀 있으면 그대로', ev(`emClientContact({ channel: 'internal', contact: '김고객', createdBy: '홍직원' })`) === '김고객');
+  ok('고객이 직접 낸 견적은 그대로', ev(`emClientContact({ channel: 'public', contact: '김고객', createdBy: '' })`) === '김고객');
+  ok('상세 칸 이름이 「고객 담당자」(그냥 「담당자」면 우리 담당자와 헷갈린다)', /<dt>고객 담당자<\/dt>/.test($('em-orginfo').innerHTML));
   ev(`document.getElementById('emModal').classList.add('hidden'); switchTab('dashboard')`);
   /* ⑤단계 「견적 관리에서 열기」가 보내는 알림. 목록을 다시 읽으므로 서버 목록(q1)에 있는 건으로 */
   B.win.dispatchEvent(new B.win.MessageEvent('message', { data: { __aqp: 'openQuote', quote: 'q1' } }));
@@ -220,6 +233,9 @@ const seed = (id, status) => {
     ok('저장 → 문의에 잇는 요청(linkQuote = 저장된 견적 id)', created >= 0 && linked > created
       && P.log.requests[linked].body.linkQuote === 'testquote1', reqs.join(' · '));
     ok('안내 줄이 「연결했습니다」로', /연결했습니다/.test(ban.textContent), ban.textContent);
+    const sent = (P.log.requests[created] || {}).body || {};
+    ok('🔴 저장 기록의 고객 담당자 = 받는 분(문의한 사람) · 직원 이름이 아니다 · 목록이 읽는 이름(contact)으로',
+      sent.contact === '김가상' && sent.contactName === '김가상', JSON.stringify({ contact: sent.contact, contactName: sent.contactName }));
     P.doc.getElementById('btnSave').click(); await P.tick(600);
     ok('「한 건 더 저장」은 같은 문의에 또 잇지 않는다',
       P.log.requests.filter((r) => /\/api\/inquiries\//.test(r.url) && r.body && r.body.linkQuote).length === 1);

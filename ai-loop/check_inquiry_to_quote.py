@@ -58,7 +58,7 @@ def route(r):
     key = re.sub(r"^https?://[^/]+", "", u)
     if m != "GET":
         body = r.request.post_data or ""
-        calls.append((m, key, body[:400]))
+        calls.append((m, key, body))
         if "/api/quotes?action=internal" in key:
             p = json.loads(body)
             NEWID["v"] = p.get("id")
@@ -170,6 +170,11 @@ def main():
         frame.wait_for_timeout(3000)
         msg = frame.evaluate("document.getElementById('saveMsg').textContent")
         check("저장 완료 · 연결 실패 안내 없음", "업로드 완료" in msg and "연결하지 못했" not in msg, msg)
+        # 2026-10-16 엔진 경로(script.js 숨은 폼)도 고객 담당자 = 받는 분 — 예전엔 직원 이름이 들어갔다
+        made = [c for c in calls if "/api/quotes?action=internal" in c[1]]
+        sent = json.loads(made[0][2]) if made else {}
+        check("저장 기록의 고객 담당자 = 문의한 사람(직원 이름 아님)", sent.get("contact") == "김가상",
+              {"contact": sent.get("contact")})
         # ⚠ 문의를 열 때 나가는 「읽음」 PATCH도 같은 주소다 — linkQuote가 든 것만 본다
         link = [c for c in calls if c[0] == "PATCH" and "/api/inquiries/inqwalk01" in c[1] and "linkQuote" in c[2]]
         check("문의에 잇는 요청을 보냈다(linkQuote = 새 견적 id)",

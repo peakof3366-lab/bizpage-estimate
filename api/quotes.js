@@ -1227,11 +1227,15 @@ async function saveQuote(req, res, origin) {
        그때 방금 딴 번호는 버려진다 — 결번은 정상이다(재사용이 훨씬 나쁘다).
        🔴 대신 **그 건의 원래 번호를 돌려준다.** 저장한 화면이 「내 번호」를 물어보는데
          멱등 재시도에서 빈 값을 주면 화면이 번호를 못 띄운다. */
+    /* 2026-10-16 직원이 만든 견적은 **만든 사람이 담당자**로 시작한다 — 예전엔 내부 산출도 「미배정」으로 쌓여
+       담당자를 한 번 더 골라야 했고, 안 고르면 누구 건인지 아무도 몰랐다. 값은 담당자 칸이 쓰는 표시 이름(createdBy, 세션값).
+       ⚠ 공개 제출은 그대로 빈 값(칸이 not null default '' — null을 넣지 않는다). 나중에 목록에서 바꾸면 그대로 바뀐다. */
+    const assignee = origin.channel === 'internal' ? String(origin.createdBy || '').slice(0, 100) : '';
     const ins = await sql`
-      insert into quotes (id, status, note, dest_label, org_name, participants, total, payload, quote_no, source_quote_no)
+      insert into quotes (id, status, note, dest_label, org_name, participants, total, payload, quote_no, source_quote_no, assignee)
       values (${id}, 'new', '', ${trimText(payload.destLabel, 100)}, ${trimText(payload.orgName, 100)},
               ${participants}, ${total}, ${JSON.stringify(stored)}::jsonb, ${quoteNo},
-              ${QNO.normalizeVendorNo(payload.sourceQuoteNo)})
+              ${QNO.normalizeVendorNo(payload.sourceQuoteNo)}, ${assignee})
       on conflict (id) do nothing
       returning quote_no
     `;

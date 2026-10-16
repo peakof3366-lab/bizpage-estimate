@@ -49,6 +49,9 @@ module.exports = async (req, res) => {
         const q = await sql`select id, quote_no from quotes where id = ${qid}`;
         if (!q.length) return res.status(404).json({ error: 'quote_not_found' });
         const who = (req.user && (req.user.displayName || req.user.username)) || '';
+        /* 2026-10-16 담당자가 비어 있으면 **견적을 만든 사람**으로 — 담당자 칸은 표시 이름을 쓴다(아이디로 채우면
+           목록에서 「비활성 계정」으로 보인다). 이미 누가 맡은 문의는 안 바꾼다. */
+        const mine = String((req.user && req.user.displayName) || '').slice(0, 100);
         const entry = {
           ts: new Date().toISOString(),
           author: String(who).slice(0, 40),
@@ -59,12 +62,14 @@ module.exports = async (req, res) => {
             payload = coalesce(payload, '{}'::jsonb) || ${JSON.stringify({ linkedQuoteId: qid, linkedVia: 'staff' })}::jsonb,
             activity_log = coalesce(activity_log, '[]'::jsonb) || ${JSON.stringify([entry])}::jsonb,
             status = case when status in ('unread', 'read') then 'pending' else status end,
+            assignee = case when coalesce(assignee, '') = '' then ${mine} else assignee end,
             read = true
           where id = ${id}
-          returning status
+          returning status, assignee
         `;
         if (!rows.length) return res.status(404).json({ error: 'inquiry_not_found' });
-        return res.status(200).json({ ok: true, entry, status: rows[0].status, quoteNo: q[0].quote_no || '' });
+        return res.status(200).json({ ok: true, entry, status: rows[0].status, assignee: rows[0].assignee || '',
+          quoteNo: q[0].quote_no || '' });
       }
 
       /* 부분 수정 (PU) — 예전에는 네 필드를 한꺼번에 덮어쓰고, 클라이언트가 빠뜨린

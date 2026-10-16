@@ -2540,7 +2540,9 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
           destination: $('pDest').value, destKey: $('pDest').value,
           destLabel: $('dRegion').value || $('pDest').value,
           orgName: $('dOrgName').value || $('dClient').value,
-          contactName: $('dStaffName').value, contactTel: $('dCustTel').value,
+          /* 고객 담당자 — 아래 hid() 주석. ⚠ 목록·상세·CSV는 엔진 경로와 같은 이름 `contact`를 읽는다
+             (이 경로만 `contactName`으로 보내 직접 견적은 고객 담당자가 늘 비어 보였다 — 둘 다 싣는다) */
+          contact: $('dClientContact').value, contactName: $('dClientContact').value, contactTel: $('dCustTel').value,
           participants: t.pax, days: num($('pDays')), nights: num($('pNights')),
           startDate: $('pStart').value, endDate: $('pEnd').value,
           total: t.total, perPerson: t.unit,
@@ -2566,7 +2568,10 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
       /* 숨은 폼의 고객 정보 칸을 채운 뒤 제출한다 — script.js가 이 값을 읽는다 */
       const hid = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
       hid('organization', $('dOrgName').value || $('dClient').value);
-      hid('contactName', $('dStaffName').value);
+      /* 🔴 2026-10-16 `contactName`은 **고객 담당자**다(견적 관리 「고객 담당자」 · CSV 「고객 담당자」 · 대장 「고객」의 대체값).
+           예전엔 여기 **직원 이름**(dStaffName)을 넣어, 직원이 만든 견적마다 고객 담당자 = 우리 직원이 됐다
+           (기관명이 비면 대장 「고객」 칸에도 직원 이름). 만든 직원은 서버가 세션에서 `createdBy`로 따로 남긴다. */
+      hid('contactName', $('dClientContact').value);
       hid('contactTel', $('dCustTel').value);
       QuoteEngineHost.set(input());
       window._lastQuoteSaved = null;
@@ -2875,7 +2880,8 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
         const out = await r.json().catch(() => ({}));
         const stName = { pending: '처리중', done: '완료', read: '확인', unread: '신규' }[out.status] || '';
         $('inqBanner').innerHTML = '🔗 <b>' + esc(c.name || '') + '</b>님 문의에 이 견적을 연결했습니다 — 진행 기록에 남겼습니다'
-          + (stName ? ' · 문의 상태 「' + stName + '」' : '') + '.';
+          + (stName ? ' · 문의 상태 「' + stName + '」' : '')
+          + (out.assignee ? ' · 담당자 「' + esc(out.assignee) + '」' : '') + '.';
         inqLinked = null;   /* 「한 건 더 저장」은 새 견적이다 — 같은 문의에 두 번 잇지 않는다 */
       } catch (e) {
         /* 🔴 조용히 넘기지 않는다 — 견적은 저장됐고 연결만 빠졌다. 무엇을 하면 되는지 말한다. */

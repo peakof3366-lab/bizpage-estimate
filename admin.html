@@ -5927,7 +5927,7 @@
     return {
       v: 1, dk: rec.destKey, dt: rec.destLabel || rec.destKey,
       n: rec.participants, d: rec.days, ng: rec.nights,
-      org: rec.orgName || '', cn: rec.contact || '',
+      org: rec.orgName || '', cn: emClientContact(rec),   /* 고객 담당자 — 옛 내부 산출 건의 직원 이름은 거른다(estmgr.js) */
       t: rec.total, pp: rec.perPerson,
       iso: new Date().toISOString().slice(0, 10),
       id: rec.id, rd: rec.rateDate || '', rv: rec.rateVersion || '',
@@ -6254,7 +6254,7 @@
     all.forEach((e) => {
       const M = (typeof emMoney === 'function') ? emMoney(e) : { sell: e.total || 0, known: false };
       rows.push([
-        e.quoteNo || '', fmtDate(e.ts), e.destLabel||e.destKey||'', e.orgName||'', e.contact||'',
+        e.quoteNo || '', fmtDate(e.ts), e.destLabel||e.destKey||'', e.orgName||'', emClientContact(e),
         e.participants, e.days,
         M.sell, M.known ? M.cost : '', M.rate != null ? (M.rate * 100).toFixed(1) : '', e.perPerson || '',
         ST[e.status || 'new'] || e.status, e.assignee || ''
