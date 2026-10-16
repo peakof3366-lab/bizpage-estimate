@@ -4326,6 +4326,28 @@
     if (frame && !frame.src) frame.src = 'admin-quote-pro.html';
   }
 
+  /* 문의 상세 「이 문의로 견적 작성」 (2026-10-16 견적 관리 2회차) — 자동 견적 산출을 **그 문의로** 연다.
+     안쪽(`?inq=`)이 고객 칸 셋을 채우고, 저장하면 문의에 잇는다. 여기서는 틀만 갈아 끼운다.
+     🔴 틀에 저장 안 한 견적이 있으면 **먼저 묻는다** — 갈아 끼우면 그 견적은 되살릴 수 없다.
+       물었으면 안쪽의 확인창(beforeunload)은 끈다 — 같은 질문을 두 번 하지 않는다.
+     ⚠ src를 **탭을 열기 전에** 준다 — 거꾸로 하면 탭이 빈 화면을 한 번 먼저 띄운다. */
+  function startQuoteFromInquiry(id) {
+    const c = get(KEYS.contacts).find((x) => x.id === id);
+    if (!c) return;
+    const frame = document.getElementById('quoteProFrame');
+    if (!frame) return;
+    let w = null;
+    try { w = frame.getAttribute('src') ? frame.contentWindow : null; } catch (e) { w = null; }
+    let busy = false;
+    try { busy = !!(w && typeof w.aqpHasUnsaved === 'function' && w.aqpHasUnsaved()); } catch (e) { busy = false; }
+    if (busy && !confirm(['자동 견적 산출에 저장하지 않은 견적이 있습니다.', '',
+      (c.name || '이 고객') + '님 문의로 새로 시작하면 그 견적은 사라집니다. 새로 시작할까요?'].join('\n'))) return;
+    try { if (w && typeof w.aqpDiscard === 'function') w.aqpDiscard(); } catch (e) { /* 다른 출처 — 안쪽이 물을 뿐이다 */ }
+    document.getElementById('modal').classList.add('hidden');
+    frame.src = 'admin-quote-pro.html?inq=' + encodeURIComponent(safeId(id));
+    switchTab('quotepro');
+  }
+
   /* 직접 견적 작성 — **같은 화면을 「직접 입력 모드」로 연다** (2026-09-17 대표 지시).
      🔴 화면을 여기 다시 만들지 않는다. `?mode=adhoc`가 엔진만 끄고 나머지는 같다 —
        두 벌로 두면 한쪽만 고쳐져 서로 다른 견적서가 나간다(결함 생성기 ①).
@@ -4575,13 +4597,24 @@
       linkedQuoteEl.classList.remove('hidden');
       linkedQuoteEl.innerHTML = linkedQuote ? `
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:.7rem 1rem;margin-bottom:.75rem;display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
-          <span style="font-size:var(--fs-md);color:#166534">🔗 <strong>${esc(linkedQuote.destLabel||linkedQuote.destKey||'')}</strong> 견적(₩${(linkedQuote.total||0).toLocaleString()})과 연결된 상담입니다.</span>
-          <button type="button" class="btn-act btn-outline-p" onclick="jumpToQuote('${c.linkedQuoteId}')">견적 관리에서 보기</button>
+          <span style="font-size:var(--fs-md);color:#166534">🔗 ${c.linkedVia === 'staff'
+            ? `이 문의로 만든 견적입니다 — <strong>${esc(linkedQuote.quoteNo || '')}</strong> ${esc(linkedQuote.destLabel||linkedQuote.destKey||'')} ₩${(Number(linkedQuote.total)||0).toLocaleString()}`
+            : `<strong>${esc(linkedQuote.destLabel||linkedQuote.destKey||'')}</strong> 견적(₩${(Number(linkedQuote.total)||0).toLocaleString()})과 연결된 상담입니다.`}</span>
+          <button type="button" class="btn-act btn-outline-p" onclick="jumpToQuote('${safeId(c.linkedQuoteId)}')">견적 관리에서 보기</button>
         </div>` : `
         <div style="background:var(--bg);border:1px solid var(--border);padding:.6rem 1rem;margin-bottom:.75rem;font-size:var(--fs-sm);color:var(--muted)">연결된 견적 기록을 찾을 수 없습니다(삭제됐을 수 있습니다).</div>`;
     } else {
-      linkedQuoteEl.classList.add('hidden');
-      linkedQuoteEl.innerHTML = '';
+      /* 🔴 2026-10-16 견적 관리 2회차 — 문의에서 **견적 작성으로 바로 간다.**
+         예전엔 창을 닫고 · 「견적 산출」 묶음을 펴고 · 자동 견적 산출을 누르고 · ③단계에서 이름·기관·연락처를
+         **다시 쳤다**(창을 닫았으니 보려면 문의를 다시 열어야 했다). 저장한 견적은 이 문의와 이어지지도 않았다.
+         → 누르면 세 칸이 채워진 채 열리고, 저장하면 이 문의에 잇는다(진행 기록 · 「처리중」은 서버가 한다). */
+      linkedQuoteEl.classList.remove('hidden');
+      linkedQuoteEl.innerHTML = `
+        <div class="inq-make-quote">
+          <span>아직 이 문의로 만든 견적이 없습니다.</span>
+          <button type="button" class="btn-act btn-outline-p" onclick="startQuoteFromInquiry('${safeId(c.id)}')"
+            aria-label="${esc((c.name || '이 고객') + ' 문의로 견적 작성')}">이 문의로 견적 작성</button>
+        </div>`;
     }
 
     document.getElementById('d-msg').textContent  = msgText;

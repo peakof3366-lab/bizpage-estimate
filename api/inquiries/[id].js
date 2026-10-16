@@ -36,6 +36,37 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true, repliedAt, repliedBy });
       }
 
+      /* 이 문의로 만든 견적을 문의에 잇는다 (2026-10-16 견적 관리 2회차).
+         예전엔 직원이 문의를 보고 견적을 만들어도 **둘이 이어지지 않았다** — 문의 창은 「연결된 견적 없음」,
+         견적 상세는 누구 문의인지 모른 채로 남았다. 고객이 견적을 내고 상담을 신청한 경로만
+         `payload.linkedQuoteId`를 갖고 있었다 → **같은 칸**에 적는다(연결 칸을 두 벌로 만들지 않는다).
+         `linkedVia:'staff'`가 「고객이 이 견적으로 상담을 요청했다」와 「직원이 이 문의로 만들었다」를 가른다.
+         ⚠ 작성자는 **세션에서** 읽는다(클라이언트가 보낸 이름을 믿지 않는다).
+         ⚠ 처리 상태는 신규·확인일 때만 「처리중」으로 올린다 — 완료로 닫은 문의를 되살리지 않는다. */
+      if (body.linkQuote) {
+        const qid = String(body.linkQuote).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80);
+        if (!qid) return res.status(400).json({ error: 'bad_quote_id' });
+        const q = await sql`select id, quote_no from quotes where id = ${qid}`;
+        if (!q.length) return res.status(404).json({ error: 'quote_not_found' });
+        const who = (req.user && (req.user.displayName || req.user.username)) || '';
+        const entry = {
+          ts: new Date().toISOString(),
+          author: String(who).slice(0, 40),
+          text: ('견적 작성 — ' + (q[0].quote_no || qid)).slice(0, 500),
+        };
+        const rows = await sql`
+          update inquiries set
+            payload = coalesce(payload, '{}'::jsonb) || ${JSON.stringify({ linkedQuoteId: qid, linkedVia: 'staff' })}::jsonb,
+            activity_log = coalesce(activity_log, '[]'::jsonb) || ${JSON.stringify([entry])}::jsonb,
+            status = case when status in ('unread', 'read') then 'pending' else status end,
+            read = true
+          where id = ${id}
+          returning status
+        `;
+        if (!rows.length) return res.status(404).json({ error: 'inquiry_not_found' });
+        return res.status(200).json({ ok: true, entry, status: rows[0].status, quoteNo: q[0].quote_no || '' });
+      }
+
       /* 부분 수정 (PU) — 예전에는 네 필드를 한꺼번에 덮어쓰고, 클라이언트가 빠뜨린
          필드를 기본값('unread'·''·false·'')으로 **초기화**했다. 그런데 화면은 나머지
          값을 서버가 아니라 **자기 브라우저 localStorage 사본**에서 읽어 함께 보낸다

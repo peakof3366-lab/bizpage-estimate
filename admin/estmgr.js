@@ -197,6 +197,8 @@
 
     /* 상담 신청으로 연결된 견적 id 집합 (신규) — 목록에서 바로 표시 */
     const linkedQuoteIds = new Set(get(KEYS.contacts).map(c => c.linkedQuoteId).filter(Boolean));
+    /* 2026-10-16 직원이 **문의를 보고 만든** 견적은 「상담 신청됨」이 아니다 — 같은 칸에 다른 꼬리표 */
+    const staffLinkedIds = new Set(get(KEYS.contacts).filter(c => c.linkedVia === 'staff').map(c => c.linkedQuoteId).filter(Boolean));
 
     /* 🔴 **13열 → 9열** (2026-09-27). 실측(1440 모니터): 표 1,431px · 보이는 폭 1,169px —
        맨 오른쪽 **담당자·「상세」 열이 화면 밖**이라 옆으로 밀어야 상세를 열 수 있었다.
@@ -221,7 +223,7 @@
         <td class="em-qno">${e.quoteNo
           ? `<strong>${esc(e.quoteNo)}</strong>`
           : '<span title="번호가 없는 옛 건입니다 — 번호 붙이기는 개발 담당에게 요청하세요" style="color:var(--warn)">번호 없음</span>'}<span class="em-sub date-col">${fmtDate(e.ts)}</span></td>
-        <td class="em-who"><strong>${esc(e.orgName||'(기관명 없음)')}</strong><span class="em-sub em-who-sub">${/* 2026-10-02 대표 「꼬리표가 글자 끝에 붙어 들쭉날쭉」 — 칸을 고정한다: 목적지(한 줄) / 내부산출 | 발급 | 상담. 없는 칸도 자리는 남긴다 */''}<span class="em-dest">${esc(e.destLabel||e.destKey||'-')}</span><span class="em-slot">${e.channel==='internal'?`<span class="em-tag em-tag-int" title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}">🖥 내부산출</span>`:''}</span><span class="em-slot">${emShareBadge(e.id, e.quoteNo)}</span><span class="em-slot">${linkedQuoteIds.has(e.id)?'<span class="em-tag em-tag-cs" title="상담 신청됨">☎ 상담</span>':''}</span></span></td>
+        <td class="em-who"><strong>${esc(e.orgName||'(기관명 없음)')}</strong><span class="em-sub em-who-sub">${/* 2026-10-02 대표 「꼬리표가 글자 끝에 붙어 들쭉날쭉」 — 칸을 고정한다: 목적지(한 줄) / 내부산출 | 발급 | 상담. 없는 칸도 자리는 남긴다 */''}<span class="em-dest">${esc(e.destLabel||e.destKey||'-')}</span><span class="em-slot">${e.channel==='internal'?`<span class="em-tag em-tag-int" title="직원이 관리자 페이지에서 직접 산출${e.createdBy?' ('+esc(e.createdBy)+')':''}">🖥 내부산출</span>`:''}</span><span class="em-slot">${emShareBadge(e.id, e.quoteNo)}</span><span class="em-slot">${staffLinkedIds.has(e.id)?'<span class="em-tag em-tag-cs" title="문의 관리의 문의를 보고 만든 견적">📨 문의</span>':linkedQuoteIds.has(e.id)?'<span class="em-tag em-tag-cs" title="상담 신청됨">☎ 상담</span>':''}</span></span></td>
         <td style="white-space:nowrap">${e.participants ? e.participants + '명' : '—'} / ${e.days ? e.days + '일' : '—'}${emDepartHtml(e)}</td>
         ${/* 금액이 0이면 「₩0만」이 아니라 **적지 않았다**고 말한다 (2026-09-27) — 직접 작성 초안이 그렇게 저장된다 */''}
         <td class="em-num">${M.sell > 0
@@ -595,7 +597,9 @@
       linkedInqEl.classList.remove('hidden');
       linkedInqEl.innerHTML = `
         <div style="background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:.8rem 1.25rem;display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
-          <span style="font-size:var(--fs-md);color:#1d4ed8">☎ <strong>${esc(linkedInq.name||'—')}</strong>님이 이 견적으로 상담을 요청했습니다 — ${esc(linkedInq.tel||'—')}</span>
+          <span style="font-size:var(--fs-md);color:#1d4ed8">${linkedInq.linkedVia === 'staff'
+            ? `📨 <strong>${esc(linkedInq.name||'—')}</strong>님 문의를 보고 만든 견적입니다 — ${esc(linkedInq.tel||'—')}`
+            : `☎ <strong>${esc(linkedInq.name||'—')}</strong>님이 이 견적으로 상담을 요청했습니다 — ${esc(linkedInq.tel||'—')}`}</span>
           <button type="button" class="btn-act btn-outline-p" onclick="jumpToInquiry('${safeId(linkedInq.id)}')">문의 관리에서 보기</button>
         </div>`;
     } else {
@@ -1434,6 +1438,25 @@
       Promise.resolve(typeof loadRemoteData === 'function' ? loadRemoteData() : null)
         .catch(() => {})
         .then(() => { if (typeof currentTab !== 'undefined' && currentTab === 'estmgr') renderEstMgr(); });
+      return;
+    }
+    /* 2026-10-16 견적 관리 2회차 — 견적 작성 ⑤단계 「견적 관리에서 열기 · 링크 발급」.
+       방금 저장한 **그 건**을 직원용 탭(발급 버튼이 있는 쪽)으로 연다. 목록에서 찾고 · 상세 · 직원용을 누르던 세 번이 한 번이 된다.
+       ⚠ 목록을 먼저 다시 읽는다 — `created`의 다시 읽기가 아직 안 끝났을 수 있다.
+       ⚠ 그래도 못 찾으면 **못 찾았다고 말한다**(조용히 목록만 띄우면 열린 줄 안다). */
+    if (d.__aqp === 'openQuote') {
+      const qid = safeId(d.quote);
+      Promise.resolve(typeof loadRemoteData === 'function' ? loadRemoteData() : null)
+        .catch(() => {})
+        .then(() => {
+          switchTab('estmgr');
+          if (!qid || !getEstsFull().some((x) => x.id === qid)) {
+            alert('방금 저장한 견적을 목록에서 찾지 못했습니다. 견적 관리 맨 위의 새 건을 열어 주세요.');
+            return;
+          }
+          openEstDetail(qid);
+          emSetTab('staff');
+        });
       return;
     }
     const st = document.getElementById('em-edit-state');

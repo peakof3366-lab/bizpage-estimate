@@ -102,7 +102,11 @@ ok('[D] 🔴 새 견적 저장 뒤 다시 누르면 묻는다 (두 경로 모두
   && (PRO.match(/savedNewOnce = true;/g) || []).length === 2);
 
 /* 저장하면 견적 관리 목록이 바로 다시 읽힌다 — 「업로드 완료」인데 목록에 없으면 다시 만든다 */
-ok('[D-b] 🔴 새 견적 저장이 바깥에 알린다 (두 경로)', (PRO.match(/emitEdit\('created'\)/g) || []).length === 2);
+/* 2026-10-16 두 경로가 `afterNewSaved` 하나를 거친다(문의 잇기 → 알림 순서를 한 곳에서 지킨다) —
+   그래서 「created가 두 번 적혀 있다」가 아니라 「두 경로가 모두 그 함수를 기다리고, 그 함수가 알린다」를 잰다. */
+ok('[D-b] 🔴 새 견적 저장이 바깥에 알린다 (두 경로)',
+  (PRO.match(/await afterNewSaved\(/g) || []).length === 2
+  && /async function afterNewSaved\([\s\S]*?emitEdit\('created'\);\s*\}/.test(PRO));
 ok('[D-c] 🔴 바깥은 알림을 받으면 목록을 다시 읽는다', /d\.__aqp === 'created'[\s\S]{0,200}loadRemoteData\(\)/.test(EST));
 
 /* ═══ 내보내기 (2026-09-27) ═══════════════════════════════════════════════════

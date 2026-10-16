@@ -389,6 +389,9 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
       원가·마진이 보이는 화면입니다 — 고객에게 나가는 견적서에는 실리지 않습니다.</p>
   </div>
 
+  <!-- 문의 관리 「이 문의로 견적 작성」으로 들어왔을 때 — 누구 문의인지, 저장하면 무슨 일이 생기는지 (2026-10-16) -->
+  <p class="note-i hidden" id="inqBanner" role="status"></p>
+
   <!-- ══ 단계 막대 ══
        🔴 **고르는 버튼이 아니라 이동이다** — `aria-pressed`가 아니라 `aria-current="step"`을
        쓴다(화면 규칙 3). 산출 전에는 2~5가 `disabled`이고, **왜 잠겼는지를 버튼 자신이
@@ -722,6 +725,12 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
         <button type="button" class="btn btn-r" id="btnSave">견적 저장하기</button>
       </div>
       <p class="note hidden" id="saveMsg"></p>
+      <!-- 2026-10-16 저장한 **그 건**을 견적 관리에서 바로 연다(직원용 탭 — 발급 버튼이 거기 있다).
+           예전엔 견적 관리로 가서 그 줄을 찾고 · 상세 · 직원용을 눌러야 했다. 관리자 화면 안에서만 보인다. -->
+      <div class="bar hidden" id="afterSave">
+        <span class="bar-sp"></span>
+        <button type="button" class="btn btn-p" id="btnGoIssue">견적 관리에서 열기 · 링크 발급 →</button>
+      </div>
       <!-- 🔴 「수정하기」로 들어왔을 때 **그 영역 아래**로 옮겨 가는 저장 줄.
            ⚠ 버튼을 여기 새로 만들지 않는다 — ⑤단계의 그 버튼을 **옮겨 담는다.** -->
       <div class="bar hidden" id="focusBar"></div>
@@ -800,6 +809,11 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
   const FOCUS_SEC = { quote: 'secDoc', breakdown: 'secMoney', iti: 'secIti' };
   const ADHOC = Q.get('mode') === 'adhoc' || !!EDIT_ID;
   const PKG_ID = Q.get('pkg') || '';
+  /* `?inq=<문의 id>` — 문의 관리 「이 문의로 견적 작성」에서 열린다 (2026-10-16). 고치기에는 해당 없음. */
+  /* ⚠ 「주소에 inq가 있었는가」를 따로 쥔다 — 거르고 나서 빈 값이 되면 「문의에서 왔다」는 사실까지 사라져
+       못 찾았다는 말도 없이 빈 화면이 된다(test_aT [5]가 잡았다). */
+  const INQ_RAW = EDIT_ID ? null : Q.get('inq');
+  const INQ_ID = (INQ_RAW || '').replace(/[^A-Za-z0-9_-]/g, '');
   if (ADHOC) document.documentElement.classList.add('aqp-adhoc');
 
   const S = {
@@ -2545,7 +2559,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
         show('✅ 견적 관리 업로드 완료', false, true);
         savedNewOnce = true;
         showSavedNo(out.quoteNo);
-        emitEdit('created');
+        await afterNewSaved(out.id || body.id);
         return;
       }
 
@@ -2583,7 +2597,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
       /* 번호는 저장 경로(script.js)가 돌려주지 않는다 — 한 번 더 물어 문서에 띄운다. 못 받아도 저장은 끝났다 */
       fetch('/api/quotes/' + encodeURIComponent(id)).then((x) => (x.ok ? x.json() : null))
         .then((q) => showSavedNo(q && q.quoteNo)).catch(() => {});
-      emitEdit('created');
+      await afterNewSaved(id);
     } catch (e) {
       show('저장에 실패했습니다: ' + e.message, true);
     } finally {
@@ -2814,6 +2828,69 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
     }
   }
 
+  /* ══ 문의에서 왔다 — `?inq=` (2026-10-16 견적 관리 2회차) ══════════════════════
+     예전엔 문의 창을 닫고 견적 산출로 와서 이름·기관·연락처를 **다시 쳤고**, 저장한 견적은 그 문의와
+     이어지지 않았다(문의 창은 계속 「연결된 견적 없음」).
+     🔴 문의는 **바깥이 방금 그린 사본**(같은 출처 localStorage `linkedt_contacts`)에서 읽는다.
+       사본에 없으면 **없다고 말한다** — 빈 칸으로 조용히 시작하면 연결도 조용히 빠진다(결함 생성기 ②).
+     ⚠ 이미 적힌 칸은 덮지 않는다(자동완성 막기·담당자 칸 채우기와 같은 규칙). */
+  let inqLinked = null;
+  function loadInquiryPrefill() {
+    if (INQ_RAW == null) return;
+    const ban = $('inqBanner');
+    let c = null;
+    if (INQ_ID) try {
+      c = (JSON.parse(localStorage.getItem('linkedt_contacts') || '[]') || [])
+        .find((x) => x && x.id === INQ_ID) || null;
+    } catch (e) { c = null; }
+    if (!c) {
+      ban.textContent = '⚠ 문의를 찾지 못했습니다 — 고객 정보를 직접 적어 주세요. 이대로 저장하면 문의와 이어지지 않습니다'
+        + ' (문의 관리에서 「이 문의로 견적 작성」을 다시 눌러 보세요).';
+      ban.classList.remove('hidden');
+      return;
+    }
+    inqLinked = c;
+    const fill = (id, v) => {
+      const el = $(id); v = String(v == null ? '' : v).trim();
+      if (el && v && !el.value) { el.value = v; el.dispatchEvent(new Event('input')); }
+    };
+    fill('dClient', c.org); fill('dOrgName', c.org); fill('dClientContact', c.name); fill('dCustTel', c.tel);
+    ban.innerHTML = '📨 <b>' + esc(c.name || '(이름 없음)') + '</b>님 문의로 작성합니다' + (c.org ? ' · ' + esc(c.org) : '')
+      + ' — 거래처명 · 받는 분 · 고객 연락처는 채워 두었습니다(③단계). 저장하면 이 견적이 그 문의에 연결됩니다.';
+    ban.classList.remove('hidden');
+  }
+
+  /* 새 견적이 저장된 뒤 — ① 문의에서 왔으면 잇는다 ② 「견적 관리에서 열기」를 띄운다 ③ 바깥에 알린다.
+     ⚠ 잇기를 **먼저** 끝낸다 — 바깥은 `created`를 받자마자 목록을 다시 읽는데, 그때 연결이 안 돼 있으면
+       문의 창이 계속 「연결된 견적 없음」을 보여 준다. */
+  async function afterNewSaved(quoteId) {
+    if (inqLinked && quoteId) {
+      const c = inqLinked;
+      try {
+        const r = await fetch('/api/inquiries/' + encodeURIComponent(c.id), {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ linkQuote: quoteId }),
+        });
+        if (!r.ok) throw new Error('오류 ' + r.status);
+        const out = await r.json().catch(() => ({}));
+        const stName = { pending: '처리중', done: '완료', read: '확인', unread: '신규' }[out.status] || '';
+        $('inqBanner').innerHTML = '🔗 <b>' + esc(c.name || '') + '</b>님 문의에 이 견적을 연결했습니다 — 진행 기록에 남겼습니다'
+          + (stName ? ' · 문의 상태 「' + stName + '」' : '') + '.';
+        inqLinked = null;   /* 「한 건 더 저장」은 새 견적이다 — 같은 문의에 두 번 잇지 않는다 */
+      } catch (e) {
+        /* 🔴 조용히 넘기지 않는다 — 견적은 저장됐고 연결만 빠졌다. 무엇을 하면 되는지 말한다. */
+        const msg = $('saveMsg');
+        msg.textContent += ' · ⚠ 문의와 연결하지 못했습니다(' + e.message + ') — 문의 관리의 진행 기록에 견적번호를 적어 주세요.';
+        msg.classList.add('note-err'); msg.classList.remove('note-ok');
+      }
+    }
+    if (window.parent !== window && quoteId) {
+      $('afterSave').classList.remove('hidden');
+      $('btnGoIssue').onclick = () => emitEdit('openQuote', { quote: quoteId });
+    }
+    emitEdit('created');
+  }
+
   /* ══ 바깥(견적 상세)과 주고받기 — 끼워 넣어 쓰기 때문이다 (대표 지시 2-4) ══
      ⚠ `postMessage`의 대상은 **부모 창**이다. 끼워 넣지 않고 그냥 열면 `parent`가
        자기 자신이라 아무 일도 안 일어난다 — 그래서 단독으로 열어도 안 깨진다. */
@@ -2857,9 +2934,15 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
   /* 칸을 건드리면 「고친 것이 있다」로 본다. 저장이 풀어 준다. */
   document.addEventListener('input', (e) => { if (EDIT_ID && e.target && e.target.id !== 'saveMsg') setDirty(true); });
   document.addEventListener('change', () => { if (EDIT_ID) setDirty(true); });
+  /* 2026-10-16 바깥이 이 틀을 **다른 문의로 갈아 끼우기 전에** 묻는다(문의 관리 「이 문의로 견적 작성」).
+     바깥이 이미 물었으면 `aqpDiscard()`로 아래 확인창을 한 번 끈다 — 같은 질문을 두 번 받지 않게. */
+  let aqpDiscarded = false;
+  window.aqpHasUnsaved = () => (!EDIT_ID && unlocked && !savedNewOnce) || (!!EDIT_ID && aqpDirty);
+  window.aqpDiscard = () => { aqpDiscarded = true; };
   window.addEventListener('beforeunload', (e) => {
     /* 🔴 2026-09-28 — **새 견적도** 산출해 놓고 저장 전이면 묻는다. 새로고침은 저장 안 한 견적을 되살리지 못한다
        (고치기는 저장본을 다시 열 수 있지만, 새 견적은 돌아갈 저장본이 없다). */
+    if (aqpDiscarded) return;
     const unsavedNew = !EDIT_ID && unlocked && !savedNewOnce;
     if (!(EDIT_ID && aqpDirty) && !unsavedNew) return;
     e.preventDefault(); e.returnValue = '';
@@ -2896,6 +2979,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
       /* ⚠ **로그인 뒤에** 부른다 — 그 API도 인증이 필요하다 */
       loadPkg();
       loadQuoteForEdit();
+      loadInquiryPrefill();
     }).catch(() => { (window.top || window).location.href = 'admin.html'; });
   })();
 })();

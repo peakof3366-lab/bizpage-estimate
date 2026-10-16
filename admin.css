@@ -2021,6 +2021,10 @@
 #modal .inq-bar .status-select { height: 44px; min-width: 8em; font-size: var(--fs-md); }
 #modal .inq-bar .inq-sel-lbl { margin-right: 0; }
 #modal .inq-saved { font-size: var(--fs-sm); font-weight: 600; margin-left: .2rem; }
+/* 2026-10-16 「이 문의로 견적 작성」 — 연결된 견적이 없을 때 그 자리에 뜬다(있으면 초록 「연결된 견적」 줄이 대신 뜬다) */
+#modal .inq-make-quote { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem .75rem;
+  padding: .6rem 1rem; margin-bottom: .75rem; background: var(--bg); border: 1px solid var(--border);
+  font-size: var(--fs-md); color: var(--text); }
 #modal .inq-sec { margin-bottom: 1.1rem; }
 #modal .inq-sec-h { display: flex; align-items: center; gap: .5rem; margin: 0 0 .45rem; font-size: var(--fs-md); font-weight: 700; color: var(--heading); }
 #modal .detail-message { margin: 0; }
