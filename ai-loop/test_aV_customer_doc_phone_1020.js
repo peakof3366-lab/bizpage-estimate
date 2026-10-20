@@ -116,7 +116,7 @@ console.log('[6] 자 — 스크롤 등장 규칙이 한 곳에 있고 두 도구
   ok('REVEAL은 _browser_fixtures에 있다', /^REVEAL = r"""/m.test(fx) && /def reveal_all\(/.test(fx));
   ok('배치 검사(collect)가 재기 전에 부른다', /reveal_all\(page\)\s*\n\s*r = page\.evaluate\(SWEEP, OPTS\)/.test(probe));
   ok('명암비 검사는 복사본이 아니라 가져다 쓴다', !/^REVEAL = r"""/m.test(con) && /import[\s\S]{0,200}REVEAL\)/.test(con));
-  ok('⑧ 잣대에 「숫자+단위」', /\\d\+\(\?:명\|박\|일\|실\|회\)/.test(probe));
+  ok('⑧ 잣대에 「숫자+단위」(명·박·일·실·회 + 시·건·개·월)', /\\d\+\(\?:명\|박\|일\|실\|회\|시\|건\|개\|월\)/.test(probe));
   ok('⑧ 자가 시험에 120명(고장)과 30명(대조군)', /"120명"/.test(probe) && /c\["text"\] == "30명"/.test(probe));
 }
 
@@ -155,6 +155,20 @@ console.log('[8] 자 — 「이름 없는 칸」은 조상의 aria-hidden 아래
   ok('🔴 아이콘만 든 버튼은 센다', n.buttons.includes('iconOnly'));
   ok('라벨 안 칸 · aria-label 칸은 안 센다', !n.inputs.includes('wrapped') && !n.inputs.includes('named'));
   ok('센 칸은 정확히 하나(bare)', n.inputs.length === 1, n.inputs.join(','));
+}
+
+console.log('[9] 자 ⑧이 표 밖까지 보게 되자 잡힌 둘 — 그래프 「22 / 시」 · 유효기간 「23 / 일까지」');
+{
+  const probe = read('ai-loop/_screen_probe.py');
+  ok('⑧은 화면의 모든 글자를 훑는다(td/th 고리 밖)', /createTreeWalker\(document\.body, NodeFilter\.SHOW_TEXT\)/.test(probe));
+  ok('⑧ 자가 시험에 표 밖 라벨(22시)', /"22시"/.test(probe));
+  const ah = read('admin.html');
+  const fn = new Function((ah.match(/function buildHourData\(visits\) \{[\s\S]*?\n  \}/) || [''])[0] + '; return buildHourData;')();
+  const labels = fn([]).map((x) => x.label);
+  ok('시간대 라벨은 숫자만(0~22)', labels.join(',') === '0,2,4,6,8,10,12,14,16,18,20,22', labels.join(','));
+  ok('「시」는 카드 제목이 말한다', /시간대별 방문 \(시 · 2시간씩 묶음/.test(ah));
+  ok('막대 라벨은 안 꺾인다', /\.bar-lbl \{[^}]*white-space: nowrap/.test(read('admin.css')));
+  ok('🔴 고객 유효기간 띠의 날짜 덩어리는 한 줄', /\.validity-banner-text strong \{[^}]*white-space: nowrap/.test(read('estimate-view.html')));
 }
 
 console.log(`\n결과: ${pass} pass / ${fail} fail`);

@@ -176,15 +176,26 @@ SWEEP = r"""
     if (v.cs.overflowX === 'visible' && el.scrollWidth - el.clientWidth > opt.clipSlop) {
       out.spill.push({ sel: path(el), text: txt, lost: el.scrollWidth - el.clientWidth });
     }
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+  });
+
+  /* ⑧ 숫자 갈림 — 🔴 2026-10-20 **표 칸만이 아니라 화면의 모든 글자.** 예전엔 위 td/th 고리 안에 있어서
+     표 밖(그래프 라벨 · 카드 · 배지)은 처음부터 범위 밖이었다 — 관리자 방문 통계 그래프의 「20 / 시」를
+     잣대에 단위를 더하고도 못 잡아서 알았다. */
+  const splitSeen = new Set();
+  const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+    const host = n.parentElement;
+    if (!host || !/\d/.test(n.textContent) || !shown(host)) continue;
+    const el = host.closest('td,th') || host;
+    {
       /* 금액(83,019,990)과 **전화번호**(010-1234-5678) — 둘 다 한 덩어리로 읽어야 하는 숫자다.
          ⚠ 전화번호는 2026-09-29 대장에서 「010- / 0000- / 0000」 세 줄로 갈려 있었다. */
       /* 2026-10-16 **날짜**(2026-09-28 · 2026.09.28)도 — 대장 「바꾼 사람」 줄에서 「2026-09- / 28」로 갈려 있었는데
          이 잣대는 금액·전화만 봐서 사람 눈이 먼저 봤다. */
       /* 2026-10-20 **숫자 + 단위**(30명 · 6박 · 7일 · 10실)도 — 고객 견적서 세부견적서의 수량 칸이 폰에서 **줄마다**
          「30 / 명」으로 꺾여 표가 두 배로 길었는데, 이 잣대는 쉼표 금액만 봐서 캡처를 눈으로 보고서야 알았다. */
-      const re = /\d{1,3}(?:,\d{3})+|\b0\d{1,2}-\d{3,4}-\d{4}\b|\b20\d{2}[-.]\d{2}[-.]\d{2}\b|\d+(?:명|박|일|실|회)/g;
+      /* 같은 날 관리자 방문 통계 그래프에서 「20 / 시」 — 시·건·개·월을 더했다 */
+      const re = /\d{1,3}(?:,\d{3})+|\b0\d{1,2}-\d{3,4}-\d{4}\b|\b20\d{2}[-.]\d{2}[-.]\d{2}\b|\d+(?:명|박|일|실|회|시|건|개|월)/g;
       let m;
       while ((m = re.exec(n.textContent))) {
         try {
@@ -192,11 +203,12 @@ SWEEP = r"""
           rg.setStart(n, m.index); rg.setEnd(n, m.index + m[0].length);
           const tops = new Set(Array.from(rg.getClientRects()).filter((x) => x.width > 0)
             .map((x) => Math.round(x.top)));
-          if (tops.size > 1) out.numsplit.push({ sel: path(el), text: m[0] });
+          const key = path(el) + '|' + m[0];
+          if (tops.size > 1 && !splitSeen.has(key)) { splitSeen.add(key); out.numsplit.push({ sel: path(el), text: m[0] }); }
         } catch (e) { /* 못 재면 안 센다 — 없는 결함을 만들지 않는다 */ }
       }
     }
-  });
+  }
 
   /* ── ④⑤ 누를 수 있는 것 ── */
   const TAPPY = 'a[href],button,input,select,textarea,[role=button],[onclick],summary';
@@ -365,6 +377,7 @@ td{border:1px solid #ccc;padding:4px;word-break:keep-all}</style>
 <table style="width:60px"><tr><td id="tel">010-1234-5678</td></tr></table>
 <table style="width:50px"><tr><td id="dt">2026-09-28</td></tr></table>
 <table style="width:24px"><tr><td id="qty" style="overflow-wrap:anywhere">120명</td></tr></table>
+<div id="barlbl" style="width:16px;overflow-wrap:anywhere;font-size:13px">22시</div>
 <div style="margin-top:40px"><button id="crowdA" style="width:14px;height:14px;padding:0">a</button><button
  id="crowdB" style="width:14px;height:14px;padding:0">b</button></div>
 <div style="margin-top:40px"><button id="alone" style="width:14px;height:14px;padding:0">c</button></div>
@@ -389,6 +402,8 @@ def selftest_cells(page):
         bad.append("⑧ 두 줄로 갈린 날짜를 못 잡았다")
     if not any(c["text"] == "120명" for c in r["numsplit"]):
         bad.append("⑧ 두 줄로 갈린 「숫자+단위」(120 / 명)를 못 잡았다")
+    if not any(c["text"] == "22시" for c in r["numsplit"]):
+        bad.append("⑧ 표 밖(그래프 라벨)의 갈린 「22 / 시」를 못 잡았다 — 표 칸만 보고 있다")
     if any(c["text"] == "30명" for c in r["numsplit"]):
         bad.append("⑧ 넓은 칸의 「30명」(대조군)을 갈렸다고 셌다 — 없는 결함")
     taps = {t["text"]: t for t in r["taps"]}
