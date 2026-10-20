@@ -314,10 +314,10 @@ if (require.main === module) (async () => {
        안을 읽을 수 없다. 탭 이름만 넣으면 **껍데기를 재고 통과**한다 — 그게 정확히
        거짓 초록이다. 폭·색을 재려면 `check_quotetool_width.py`처럼 **iframe이 받는
        폭으로 내부 화면을 따로 여는** 도구가 따로 있어야 한다(아직 없음).
-     ⚠ 이 화면의 **「낭독기 이름 없음 40」은 결함이 아니다.** 37칸 중 27칸이
-     `quote_engine_host.js`가 만드는 숨은 폼 `#__qeh` 안이다 — 사람이 쓰는 칸이 아니라
-     `script.js`의 엔진이 읽는 자리이고, `aria-hidden="true"` + 전 칸 `tabindex="-1"`이라
-     낭독기도 Tab도 닿지 않는다. 숫자를 0으로 만들려고 자를 깎지 않고 여기 적어 둔다. */
+     ⚠ 예전 이 자리: 「낭독기 이름 없음 40은 결함이 아니다 — 27칸이 숨은 폼 `#__qeh` 안」.
+     2026-10-20 하나씩 대조해 보니 **42칸 전부**가 `#__qeh`(화면 밖 1px · `aria-hidden` · 전 칸 `tabindex=-1`)였다.
+     자가 조상의 `aria-hidden`을 안 봐서 센 것이라 **자를 고쳤다**(`_journey_probe.namelessControls`) — 깎은 게 아니라
+     낭독기가 실제로 하는 대로 맞춘 것이다. 진짜 이름 없는 칸은 여전히 잡는지 `test_aV` [8]이 지킨다. */
   /* ⚠ 2026-09-17: `admin-quote.html`(자동 견적 산출 · 고객용)을 대표 지시로 지웠다. */
   const 담당자화면 = ['admin.html', 'admin-quote-pro.html', 'manual.html'];
   const 전부 = ONLY ? [ONLY] : [...고객화면, ...담당자화면];

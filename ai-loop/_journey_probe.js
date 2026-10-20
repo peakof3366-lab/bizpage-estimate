@@ -148,12 +148,16 @@ function namelessControls(doc) {
     if (el.type === 'hidden' || el.disabled) return;
     /* ⚠ 화면에서 감춘 칸(엔진이 값만 읽는 라디오 등)은 낭독기도 안 읽는다 — 세지 않는다.
        세면 **고칠 것이 없는 항목**이 목록에 남고, 그러면 목록 전체를 안 보게 된다. */
-    if (el.getAttribute('aria-hidden') === 'true') return;
+    /* 🔴 2026-10-20: 칸 **자신**만 봤다 — `aria-hidden`은 **조상**에 걸려도 그 아래 전부를 낭독기에서 뺀다.
+       견적 작성 화면의 숨은 엔진 폼(`#__qeh` — 화면 밖 1px 상자 · aria-hidden · 전 칸 tabindex=-1) **42칸 전부**가
+       그래서 「이름 없음」으로 세어졌다. 하나씩 대조해 보니 사람·낭독기·Tab 어느 것도 닿지 않는 칸뿐이었다(실제 결함 0).
+       자가 「42」라고 말하니 다음 할 일 후보로 올라갔다 — 늘 남아 있는 거짓 숫자가 일을 만든 자리다. */
+    if (el.closest('[aria-hidden="true"]')) return;
     if ((el.getAttribute('style') || '').replace(/\s/g, '').includes('display:none')) return;
     if (!labelled(el)) out.inputs.push(el.id || el.name || el.type);
   });
   Array.from(doc.querySelectorAll('button, [role="button"]')).forEach((el) => {
-    if (el.getAttribute('aria-hidden') === 'true') return;
+    if (el.closest('[aria-hidden="true"]')) return;
     if (!txt(el) && !labelled(el)) out.buttons.push(el.id || el.className || '(이름 없음)');
   });
   Array.from(doc.querySelectorAll('img')).forEach((el) => {

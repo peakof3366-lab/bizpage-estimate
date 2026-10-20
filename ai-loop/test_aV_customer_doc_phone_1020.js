@@ -13,6 +13,8 @@
    ⑤ 「회 (섭외비+통역비)」가 통째로 떨어져 「회」가 숫자 칸과 갈렸다 ⑥ 결과 배지의 「다음 검토 예정: 2026년 09월」이
    이미 지난 날짜(data.js 고정값 — 관리자 화면은 9/27에 같은 이유로 걷었다).
 
+   그리고 「낭독기 이름 없음 42」(견적 작성 화면)는 **전부 숨은 엔진 폼**이었다 — 자가 조상의 aria-hidden을 안 봤다([8]).
+
    그리고 자가 못 보던 것: 고객 홈 첫 화면 아래 구역 전부가 스크롤 등장(`.reveal`, opacity 0)이라
    배치 검사가 **한 번도 안 쟀다**(명암비 검사만 끄고 재고 있었다) → `_browser_fixtures.REVEAL` 하나로 모았다.
 
@@ -134,6 +136,25 @@ console.log('[7] 고객 견적 폼(폰) — 날짜 칸 · 단위 · 지난 「�
   const badge = (js.match(/rateBadgeEl\.innerHTML =([\s\S]*?);\r?\n/) || [])[1] || '';
   ok('요율 배지 코드를 찾았다', /요율 기준/.test(badge));
   ok('🔴 고객 배지에 고정값 「다음 검토 예정」(이미 지난 날짜)이 없다', !/nextReview|다음 검토/.test(badge));
+}
+
+console.log('[8] 자 — 「이름 없는 칸」은 조상의 aria-hidden 아래를 안 센다 · 진짜 이름 없는 칸은 센다');
+{
+  const { namelessControls } = require('./_journey_probe.js');
+  const d = dom(`
+    <div id="__qeh" aria-hidden="true" style="position:absolute;left:-9999px">
+      <input id="engHidden" tabindex="-1"><select id="engSel" tabindex="-1"></select><button tabindex="-1"></button></div>
+    <input id="bare">
+    <label>이름 <input id="wrapped"></label>
+    <input id="named" aria-label="인원">
+    <button id="iconOnly"></button>`);
+  const n = namelessControls(d);
+  ok('숨은 엔진 폼 안(조상 aria-hidden)은 안 센다', !n.inputs.includes('engHidden') && !n.inputs.includes('engSel'));
+  ok('숨은 폼 안 버튼도 안 센다(센 버튼은 바깥의 iconOnly 하나)', n.buttons.length === 1 && n.buttons[0] === 'iconOnly', n.buttons.join(','));
+  ok('🔴 진짜 이름 없는 칸(bare)은 센다 — 자가 무뎌지지 않았다', n.inputs.includes('bare'));
+  ok('🔴 아이콘만 든 버튼은 센다', n.buttons.includes('iconOnly'));
+  ok('라벨 안 칸 · aria-label 칸은 안 센다', !n.inputs.includes('wrapped') && !n.inputs.includes('named'));
+  ok('센 칸은 정확히 하나(bare)', n.inputs.length === 1, n.inputs.join(','));
 }
 
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
