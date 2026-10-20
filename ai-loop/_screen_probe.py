@@ -39,7 +39,9 @@
   · 표 칸(`td`/`th`)은 ⑥에서 뺀다 — 표는 줄글이 아니고, 폭은 열이 정한다.
 """
 
-SMALL_TEXT_FAIL = 10.0    # 이 아래 글자는 오류
+from _browser_fixtures import reveal_all  # noqa: E402  등장 애니메이션 규칙은 거기 하나
+
+SMALL_TEXT_FAIL = 10.0   # 이 아래 글자는 오류
 SMALL_TEXT_WARN = 12.0    # 이 아래는 확인 대상
 TAP_FAIL = 24             # WCAG 2.5.8 AA
 TAP_WARN = 44             # WCAG 2.5.5 AAA · Apple HIG
@@ -180,7 +182,9 @@ SWEEP = r"""
          ⚠ 전화번호는 2026-09-29 대장에서 「010- / 0000- / 0000」 세 줄로 갈려 있었다. */
       /* 2026-10-16 **날짜**(2026-09-28 · 2026.09.28)도 — 대장 「바꾼 사람」 줄에서 「2026-09- / 28」로 갈려 있었는데
          이 잣대는 금액·전화만 봐서 사람 눈이 먼저 봤다. */
-      const re = /\d{1,3}(?:,\d{3})+|\b0\d{1,2}-\d{3,4}-\d{4}\b|\b20\d{2}[-.]\d{2}[-.]\d{2}\b/g;
+      /* 2026-10-20 **숫자 + 단위**(30명 · 6박 · 7일 · 10실)도 — 고객 견적서 세부견적서의 수량 칸이 폰에서 **줄마다**
+         「30 / 명」으로 꺾여 표가 두 배로 길었는데, 이 잣대는 쉼표 금액만 봐서 캡처를 눈으로 보고서야 알았다. */
+      const re = /\d{1,3}(?:,\d{3})+|\b0\d{1,2}-\d{3,4}-\d{4}\b|\b20\d{2}[-.]\d{2}[-.]\d{2}\b|\d+(?:명|박|일|실|회)/g;
       let m;
       while ((m = re.exec(n.textContent))) {
         try {
@@ -295,8 +299,10 @@ def collect(page, where, findings, scope=None):
                  보고에서 이 값들이 한 줄 뒤에 묶여 나온다.
     · `scope`  — 나누어 보고 싶은 묶음(고객 쪽은 **화면 이름**). 없으면 안 붙인다.
     """
+    # 🔴 스크롤 등장(`.reveal`)을 끝난 상태로 — 안 그러면 opacity 0이라 아래 구역 전부가 안 재진다(2026-10-20)
+    reveal_all(page)
     r = page.evaluate(SWEEP, OPTS)
-    tag = (lambda k: f"{scope} — {k}") if scope else (lambda k: k)
+    tag =(lambda k: f"{scope} — {k}") if scope else (lambda k: k)
 
     over = r["doc"]["scrollW"] - r["doc"]["innerW"]
     if over > 1:
@@ -313,7 +319,7 @@ def collect(page, where, findings, scope=None):
                          f"{c['lost']}px · 「{c['text']}」 [{c['sel']}]"))
 
     for c in r.get("numsplit", []):
-        findings.append(("🔴", where, tag("금액·전화번호가 두 줄로 갈렸다"),
+        findings.append(("🔴", where, tag("금액·전화번호·날짜·인원이 두 줄로 갈렸다"),
                          f"「{c['text']}」 [{c['sel']}]"))
 
     for s in r["small"]:
@@ -358,6 +364,7 @@ td{border:1px solid #ccc;padding:4px;word-break:keep-all}</style>
  <td id="ok" style="width:68px">30명</td></tr></table>
 <table style="width:60px"><tr><td id="tel">010-1234-5678</td></tr></table>
 <table style="width:50px"><tr><td id="dt">2026-09-28</td></tr></table>
+<table style="width:24px"><tr><td id="qty" style="overflow-wrap:anywhere">120명</td></tr></table>
 <div style="margin-top:40px"><button id="crowdA" style="width:14px;height:14px;padding:0">a</button><button
  id="crowdB" style="width:14px;height:14px;padding:0">b</button></div>
 <div style="margin-top:40px"><button id="alone" style="width:14px;height:14px;padding:0">c</button></div>
@@ -380,6 +387,10 @@ def selftest_cells(page):
         bad.append("⑧ 여러 줄로 갈린 전화번호를 못 잡았다")
     if not any(c["text"] == "2026-09-28" for c in r["numsplit"]):
         bad.append("⑧ 두 줄로 갈린 날짜를 못 잡았다")
+    if not any(c["text"] == "120명" for c in r["numsplit"]):
+        bad.append("⑧ 두 줄로 갈린 「숫자+단위」(120 / 명)를 못 잡았다")
+    if any(c["text"] == "30명" for c in r["numsplit"]):
+        bad.append("⑧ 넓은 칸의 「30명」(대조군)을 갈렸다고 셌다 — 없는 결함")
     taps = {t["text"]: t for t in r["taps"]}
     if not (taps.get("a") and not taps["a"].get("spaced")):
         bad.append("④ 붙어 있는 작은 버튼을 간격 예외로 봐줬다 — 기준보다 무르다")

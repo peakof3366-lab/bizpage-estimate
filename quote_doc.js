@@ -482,7 +482,11 @@
           <th class="qd-th qd-k-ed">도착일</th>
           <td class="qd-mid qd-k-ed">${dateLabel(d.trip.endDate)}</td>
           <th class="qd-th qd-k-stay">숙박지</th>
-          <td class="qd-mid qd-k-stay" colspan="2">${slot(o, 'trip.stayLabel', d.trip.stayLabel, '다낭(3)')}</td>
+          ${/* 🔴 비어 있으면 「확정 후 안내」 (2026-10-20) — 고객 직접 발급은 숙박지를 **모른다**(아래 fromShare 주석).
+                 빈 칸으로 나가면 덜 만든 문서로 읽힌다. 항공의 「확정 후 안내」와 같은 말 · 편집 화면은 그대로 빈 칸. */''}
+          <td class="qd-mid qd-k-stay" colspan="2">${(d.trip.stayLabel || (o && o.edit))
+            ? slot(o, 'trip.stayLabel', d.trip.stayLabel, '다낭(3)')
+            : '<span class="qd-tbd">확정 후 안내</span>'}</td>
         </tr>
         <tr>
           <th class="qd-th" colspan="2">여행인원</th>
@@ -808,27 +812,36 @@
     const mealRows = (m) => [['조식', m.b], ['중식', m.l], ['석식', m.d]]
       .filter((x) => String(x[1] || '').trim())
       .map((x) => `<div class="qd-meal"><b>${x[0]}</b><span>${esc(x[1])}</span></div>`).join('');
+    /* 🔴 식사·숙박이 **하루도 없으면 칸을 안 그린다** (2026-10-20).
+       추천 코스에는 식사·숙박이 없어(담당자가 적는 칸) 고객 직접 발급 일정표는 이 칸이 늘 비었다 —
+       폰에서 빈 칸이 폭의 24%를 먹고 정작 일정 글이 좁은 칸에 갇혀 한 줄에 너덧 자씩 접혔다.
+       ⚠ 한 날이라도 적혀 있으면 네 칸 그대로(날마다 칸 수가 다르면 표가 깨진다). */
+    const hasSide = d.itinerary.some((it) => it.stay || ['b', 'l', 'd'].some((k) => String((it.meals || {})[k] || '').trim()));
+    const cols = hasSide ? [11, 13, 52, 24] : [11, 15, 74];
     return sheet('itinerary', `
       ${headHtml(d, opts)}
       <h2 class="qd-h2">일정표</h2>
-      <table class="qd-t qd-iti">
-        <colgroup><col style="width:11%"><col style="width:13%"><col style="width:52%"><col style="width:24%"></colgroup>
-        <thead><tr><th class="qd-th">일자</th><th class="qd-th">지역</th><th class="qd-th">일정</th><th class="qd-th">식사 · 숙박</th></tr></thead>
+      <table class="qd-t qd-iti${hasSide ? '' : ' qd-iti-3'}">
+        <colgroup>${cols.map((w) => `<col style="width:${w}%">`).join('')}</colgroup>
+        <thead><tr><th class="qd-th">일자</th><th class="qd-th qd-iti-reg">지역</th><th class="qd-th">일정</th>${hasSide ? '<th class="qd-th">식사 · 숙박</th>' : ''}</tr></thead>
         <tbody>
         ${d.itinerary.map((it) => `
           <tr>
             <th class="qd-th qd-day">DAY ${won(it.day)}${it.date ? `<span class="qd-day-d">${esc(it.date)}</span>` : ''}</th>
-            <td class="qd-mid">${escLines(it.title)}</td>
+            <td class="qd-mid qd-iti-reg">${escLines(it.title)}</td>
             <td class="qd-iti-b">
+              ${/* 폰에서는 「지역」 칸을 접고 이 줄로 올린다 — 좁은 칸에서 「오리엔/테이션」처럼 낱말 중간이 꺾였다.
+                     넓은 화면·인쇄에서는 안 보인다(지역 칸이 이미 말한다) */''}
+              ${it.title ? `<div class="qd-iti-tt">${escLines(it.title)}</div>` : ''}
               ${it.am ? `<div><b>오전</b> ${escLines(it.am)}</div>` : ''}
               ${it.pm ? `<div><b>오후</b> ${escLines(it.pm)}</div>` : ''}
               ${it.eve ? `<div><b>저녁</b> ${escLines(it.eve)}</div>` : ''}
               ${it.note ? `<div class="qd-iti-n">${escLines(it.note)}</div>` : ''}
             </td>
-            <td class="qd-sm qd-stay">
+            ${hasSide ? `<td class="qd-sm qd-stay">
               ${mealRows(it.meals)}
               ${it.stay ? `<div class="qd-meal qd-meal-s"><b>숙박</b><span>${esc(it.stay)}</span></div>` : ''}
-            </td>
+            </td>` : ''}
           </tr>`).join('')}
         </tbody>
       </table>

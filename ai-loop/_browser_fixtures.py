@@ -59,6 +59,34 @@ _STUB = """
 """
 
 
+# 등장 애니메이션을 **끝난 상태로** 만든다.
+# 🔴 2026-10-20: 이 규칙이 `check_contrast.py`에만 있었다. `_screen_probe.py`(배치 검사)는
+#   `opacity:0`을 「안 보이는 것」으로 빼는데, 고객 홈은 첫 화면 아래 구역 전부(목적지·포트폴리오·
+#   후기·FAQ·회사·문의)가 스크롤해야 나타나는 `.reveal`이라 **그 구역들은 한 번도 재지 않았다**
+#   (캡처를 눈으로 보니 아래가 통째로 빈 면이었다). 둘이 같은 화면을 다르게 보고 있었다.
+# ⚠ 클래스만 붙이고 재면 전환(transition) 중간값을 잰다 — 전환·애니메이션 자체를 꺼서
+#   **머무는 상태**를 재게 한다.
+REVEAL = r"""
+() => {
+  const st = document.createElement('style');
+  st.textContent = '*,*::before,*::after{transition:none !important;animation:none !important}';
+  document.head.appendChild(st);
+  document.querySelectorAll('.reveal').forEach(e => e.classList.add('in'));
+  return document.querySelectorAll('.reveal').length;
+}
+"""
+
+
+def reveal_all(page, settle=120):
+    """`.reveal`을 전부 나타난 상태로. 나타나게 한 요소 수를 돌려준다(실패하면 0)."""
+    try:
+        n = page.evaluate(REVEAL)
+        page.wait_for_timeout(settle)
+        return n
+    except Exception:
+        return 0
+
+
 def load_share():
     """견적서 payload를 읽는다. 없으면 None — 부르는 쪽이 그 화면을 건너뛴다."""
     if not SHARE_FIXTURE.exists():

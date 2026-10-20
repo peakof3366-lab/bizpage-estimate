@@ -46,7 +46,7 @@ except ImportError:
 
 # 화면을 띄우고 **띄웠는지 확인하는** 규칙은 `_browser_fixtures.py` 하나가 진실이다 (YA).
 from _browser_fixtures import (load_share, missing_share_help, arm,  # noqa: E402
-                               open_quote, assert_loaded)
+                               open_quote, assert_loaded, REVEAL)
 
 ROOT = Path(__file__).resolve().parent.parent
 SHOTS = ROOT / "ai-loop" / "tmp_shots"
@@ -324,15 +324,7 @@ REC_UT = """{a:{tag:'역량강화형',desc:'A 설명',points:['A1','A2'],items:[
 # ⚠ 클래스만 붙이고 재면 전환(transition) 중간값을 재게 된다 — opacity 0.27 같은 값이
 #   나와서 "안 읽힌다"고 보고하지만, 0.4초 뒤면 멀쩡하다. 그래서 전환·애니메이션 자체를
 #   꺼서 **최종 상태**를 재게 한다. 이 도구가 봐야 하는 것은 '머무는 상태'다.
-REVEAL = r"""
-() => {
-  const st = document.createElement('style');
-  st.textContent = '*,*::before,*::after{transition:none !important;animation:none !important}';
-  document.head.appendChild(st);
-  document.querySelectorAll('.reveal').forEach(e => e.classList.add('in'));
-  return document.querySelectorAll('.reveal').length;
-}
-"""
+# → 규칙 본체는 `_browser_fixtures.REVEAL`(배치 검사도 같은 것을 쓴다 · 2026-10-20).
 
 # 장식용 글자 — 읽으라고 둔 글이 아니다. 빼되 **조용히 빼지 않는다**(몇 건인지 항상 적는다).
 # ⚠ 여기 넣기 전에 화면에서 확인할 것. 읽어야 하는 글을 여기 넣으면 이 도구는 그때부터
