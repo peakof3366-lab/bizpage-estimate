@@ -445,7 +445,7 @@
                   <div class="inc-vip-row hidden" id="bizCountRow">
                     <span class="grade-label">비즈니스 인원</span>
                     <input type="number" id="bizCount" min="0" step="1" value="0" class="vip-count-inp" aria-label="비즈니스 좌석 인원(명)" />
-                    <span class="vip-count-unit">명 (나머지는 이코노미)</span>
+                    <span class="vip-count-unit">명</span><span class="vip-count-note">(나머지는 이코노미)</span>
                   </div>
                   </div>
 
@@ -486,10 +486,12 @@
                        라운딩 횟수만큼 요금이 붙는다. -->
                   <div class="inc-vip-row hidden" id="golfCountRow">
                     <span class="grade-label">골프조 인원</span>
-                    <input type="number" id="golfCount" min="0" step="1" value="0" class="vip-count-inp" aria-label="골프조 인원(명)" />
-                    <span class="vip-count-unit">명 ×</span>
-                    <input type="number" id="golfRounds" min="1" step="1" value="1" class="vip-count-inp" aria-label="골프 라운딩 횟수(회)" />
-                    <span class="vip-count-unit">회 라운딩 (나머지 인원은 관광조)</span>
+                    <!-- 칸 + 단위를 한 묶음으로 (2026-10-20) — 넓은 화면 1/3 칸에서 「회 라운딩」만 다음 줄로 떨어져
+                         [1]과 갈렸다. 줄을 넘길 때는 묶음째 넘긴다. -->
+                    <span class="vip-pair"><input type="number" id="golfCount" min="0" step="1" value="0" class="vip-count-inp" aria-label="골프조 인원(명)" />
+                    <span class="vip-count-unit">명 ×</span></span>
+                    <span class="vip-pair"><input type="number" id="golfRounds" min="1" step="1" value="1" class="vip-count-inp" aria-label="골프 라운딩 횟수(회)" />
+                    <span class="vip-count-unit">회 라운딩</span></span><span class="vip-count-note">(나머지 인원은 관광조)</span>
                   </div>
                   <div class="inc-note hidden" id="golfNoRateNote">
                     이 목적지는 골프 요금이 아직 없어 골프 견적을 낼 수 없습니다 — 담당자에게 문의해 주세요.
@@ -504,7 +506,9 @@
                   <div class="inc-vip-row" id="agencyVisitRow">
                     <span class="grade-label">기관 방문·섭외</span>
                     <input type="number" id="agencyVisits" min="0" step="1" value="0" class="vip-count-inp" aria-label="기관 방문·섭외 횟수(회)" />
-                    <span class="vip-count-unit">회 (섭외비+통역비)</span>
+                    <!-- 단위와 괄호 설명을 **다른 조각**으로 (2026-10-20) — 한 조각이면 폰에서 통째로 다음 줄로 떨어져
+                         「회」가 숫자 칸과 갈렸다. 지금은 단위는 칸 옆에 남고, 모자라면 설명만 넘어간다. -->
+                    <span class="vip-count-unit">회</span><span class="vip-count-note">(섭외비+통역비)</span>
                   </div>
                   <div class="inc-chips">
                     <label class="inc-chip">
@@ -544,7 +548,7 @@
                   <div class="inc-vip-row hidden" id="vipCountRow">
                     <span class="grade-label">1인 1실 인원</span>
                     <input type="number" id="vipCount" min="0" value="0" class="vip-count-inp" aria-label="1인 1실 인원(명)" />
-                    <span class="vip-count-unit">명 (임원 · 단독)</span>
+                    <span class="vip-count-unit">명</span><span class="vip-count-note">(임원 · 단독)</span>
                   </div>
                   </div>
 

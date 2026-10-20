@@ -9,6 +9,10 @@
       → 식사·숙박이 하루도 없으면 칸을 안 그린다 · 폰에서는 지역을 일정 칸 첫 줄로 올린다.
    ③ 개요 「숙박지」가 빈 칸 — 고객 직접 발급은 숙박지를 모른다 → 「확정 후 안내」(항공과 같은 말).
 
+   같은 날 견적 폼(폰): ④ 🔴 출발일·귀국일 칸이 오른쪽 절반에 몰렸다(세로 줄에 flex-end가 남음)
+   ⑤ 「회 (섭외비+통역비)」가 통째로 떨어져 「회」가 숫자 칸과 갈렸다 ⑥ 결과 배지의 「다음 검토 예정: 2026년 09월」이
+   이미 지난 날짜(data.js 고정값 — 관리자 화면은 9/27에 같은 이유로 걷었다).
+
    그리고 자가 못 보던 것: 고객 홈 첫 화면 아래 구역 전부가 스크롤 등장(`.reveal`, opacity 0)이라
    배치 검사가 **한 번도 안 쟀다**(명암비 검사만 끄고 재고 있었다) → `_browser_fixtures.REVEAL` 하나로 모았다.
 
@@ -112,6 +116,24 @@ console.log('[6] 자 — 스크롤 등장 규칙이 한 곳에 있고 두 도구
   ok('명암비 검사는 복사본이 아니라 가져다 쓴다', !/^REVEAL = r"""/m.test(con) && /import[\s\S]{0,200}REVEAL\)/.test(con));
   ok('⑧ 잣대에 「숫자+단위」', /\\d\+\(\?:명\|박\|일\|실\|회\)/.test(probe));
   ok('⑧ 자가 시험에 120명(고장)과 30명(대조군)', /"120명"/.test(probe) && /c\["text"\] == "30명"/.test(probe));
+}
+
+console.log('[7] 고객 견적 폼(폰) — 날짜 칸 · 단위 · 지난 「검토 예정」');
+{
+  const css = read('styles.css');
+  ok('🔴 세로로 접은 날짜 줄은 칸을 꽉 채운다(flex-end가 남으면 오른쪽 절반에 몰린다)',
+    /\.date-inputs-row \{ flex-direction:column; align-items:stretch;/.test(css));
+  const html = read('index.html');
+  const units = [...html.matchAll(/<span class="vip-count-unit">([^<]*)<\/span>/g)].map((m) => m[1]);
+  ok('단위 조각에 괄호 설명이 섞이지 않는다(섞이면 폰에서 통째로 떨어져 단위가 숫자 칸과 갈린다)',
+    units.length >= 5 && units.every((u) => !/\(/.test(u)), units.join(' | '));
+  ok('괄호 설명 넷은 따로 선 조각', (html.match(/<span class="vip-count-note">\(/g) || []).length === 4);
+  ok('🔴 단위에 flex-grow를 주지 않는다(「명 ×」가 늘어나 두 칸 사이가 벌어진다)',
+    !/\.vip-count-unit \{[^}]*flex:/.test(css));
+  const js = read('script.js');
+  const badge = (js.match(/rateBadgeEl\.innerHTML =([\s\S]*?);\r?\n/) || [])[1] || '';
+  ok('요율 배지 코드를 찾았다', /요율 기준/.test(badge));
+  ok('🔴 고객 배지에 고정값 「다음 검토 예정」(이미 지난 날짜)이 없다', !/nextReview|다음 검토/.test(badge));
 }
 
 console.log(`\n결과: ${pass} pass / ${fail} fail`);

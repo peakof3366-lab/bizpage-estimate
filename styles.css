@@ -621,6 +621,13 @@ p { line-height:1.8; }
 }
 .vip-count-inp:focus { border-color:var(--brand); outline:none; box-shadow:0 0 0 3px rgba(81,77,194,.12); }
 .vip-count-unit { font-size:12.5px; color:var(--t-mute); }
+/* 단위 뒤 괄호 설명은 **따로 선 조각** (2026-10-20) — 「회 (섭외비+통역비)」를 한 조각으로 두니 폰에서 통째로
+   다음 줄로 떨어져 「회」가 숫자 칸과 갈렸다. 단위는 칸 옆에 남고, 자리가 모자라면 설명만 넘어간다.
+   ⚠ 단위에 flex-grow를 주는 길은 안 썼다 — 「명 × [칸] 회 라운딩」 줄에서 「명 ×」가 늘어나 두 칸 사이가 벌어진다.
+   앞 간격(10px)을 조금 당겨 단위와 한 말로 읽히게 한다. */
+.vip-count-note { font-size:12.5px; color:var(--t-mute); margin-left:-4px; }
+/* 칸 + 단위 한 묶음 — 줄을 넘길 때 묶음째(골프 「[1] 회 라운딩」) */
+.vip-pair { display:inline-flex; align-items:center; gap:10px; white-space:nowrap; }
 /* TJ: 옵션을 왜 못 쓰는지 그 자리에서 말하는 줄(골프 요금이 없는 목적지).
    ⚠ 색은 --t-sub까지만 쓴다. --t-mute는 이 배경(--bg-off)에서 대비가 모자란다 —
      check_contrast.py가 잡는 자리다(「보이는데 안 읽히는 글자」). */
@@ -1473,7 +1480,9 @@ p { line-height:1.8; }
   .estimate-result { position:static; }
   .estimate-form { padding:24px 20px; }
   .result-card { padding:22px; }
-  .date-inputs-row { flex-direction:column; gap:8px; }
+  /* 🔴 align-items도 함께 바꾼다 (2026-10-20) — 넓은 화면의 flex-end(화살표와 바닥 맞춤)가 세로 줄에서는
+     「오른쪽 끝 · 내용 폭」이 되어 출발일·귀국일이 오른쪽 절반에 몰리고 왼쪽이 비었다(390px 캡처). */
+  .date-inputs-row { flex-direction:column; align-items:stretch; gap:8px; }
   .date-arrow-icon { display:none; }
 
   /* 모바일-L: 2열, 모든 카드 16/9 균등 → 바닥 라인 정렬 */
@@ -2690,7 +2699,7 @@ h1,h2,h3,h4,h5,h6 { font-weight:700; line-height:var(--lh-head); color:var(--c-t
 .inc-fixed-text { font-size:15px; }
 .inc-fixed-badge { font-size:var(--fs-cap); border-radius:var(--r-pill); background:var(--c-accent-weak); color:var(--c-accent-dk); }
 .inc-note, .inc-leisure-note { font-size:var(--fs-sm); color:var(--c-text-2); }
-.vip-count-unit { font-size:var(--fs-sm); }
+.vip-count-unit, .vip-count-note { font-size:var(--fs-sm); }
 /* 고르는 버튼 — 한 모양 · 한 「고른 상태」 */
 .inc-chip, .grade-pill {
   min-height:44px; font-size:15px; font-weight:500; color:var(--c-text);

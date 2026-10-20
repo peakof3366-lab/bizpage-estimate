@@ -1375,9 +1375,11 @@ function renderLiveBreakdown() {
     if (data && destData && destData.rateDate && typeof RATE_META !== 'undefined') {
       const rs = getRateStatus(destData.rateDate);
       const statusIcon = rs ? (rs.status === 'ok' ? '●' : rs.status === 'check' ? '△' : '▲') : '';
+      /* ⚠ 「다음 검토 예정」을 걷었다 (2026-10-20) — `RATE_META.nextReview`는 data.js에 박힌 **고정값**(2026-09)이라
+         고객 견적 결과에 **이미 지난 날짜**가 「예정」으로 나가고 있었다. 관리자 화면은 같은 이유로 9/27에 걷었고
+         (admin/rates.js 배너 주석) 고객 쪽만 남아 있었다. 요율 기준월은 그대로 둔다. */
       rateBadgeEl.innerHTML =
         `${statusIcon} 요율 기준: <strong>${formatRateDate(destData.rateDate)}</strong>` +
-        ` · 다음 검토 예정: ${formatRateDate(RATE_META.nextReview)}` +
         (destData.notes ? ` <span class="rate-badge-note">※ ${destData.notes}</span>` : '');
       rateBadgeEl.className = `rate-note-badge rate-${rs ? rs.status : 'ok'}`;
     } else {
