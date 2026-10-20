@@ -171,5 +171,15 @@ console.log('[9] 자 ⑧이 표 밖까지 보게 되자 잡힌 둘 — 그래프
   ok('🔴 고객 유효기간 띠의 날짜 덩어리는 한 줄', /\.validity-banner-text strong \{[^}]*white-space: nowrap/.test(read('estimate-view.html')));
 }
 
+console.log('[10] 관리자 가로 막대 — 0은 비운다(최소 2%를 칠해 「0% (0/9)」에 막대가 보였다)');
+{
+  const ah = read('admin.html');
+  const fills = [...ah.matchAll(/class="h-bar-fill" style="width:\$\{([^}]*)\}%"/g)].map((m) => m[1]);
+  ok('가로 막대 그리는 곳 둘을 찾았다', fills.length === 2, String(fills.length));
+  ok('🔴 둘 다 0이면 0으로(조건 없이 Math.max(…, 2)가 아니다)', fills.every((f) => /> 0 \?/.test(f) && /: 0$/.test(f.trim())), fills.join(' | '));
+  ok('🔴 CSS가 최소 폭으로 0을 덮지 않는다(min-width 4px가 있었다 — 그리는 쪽만 고쳤다가 화면에 그대로 남았다)',
+    !/\.h-bar-fill\s*\{[^}]*min-width/.test(read('admin.css')));
+}
+
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);
