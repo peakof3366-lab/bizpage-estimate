@@ -1545,15 +1545,18 @@ p { line-height:1.8; }
   .hero-stats { grid-template-columns:repeat(2,1fr); }
   .stat-num-hero { font-size:22px; }
 
-  /* 모바일: 1열, 전체 16/9 → 바닥 라인 문제 없음 */
-  .gallery-grid { grid-template-columns:1fr; }
-  .gallery-card { aspect-ratio:16/9; }
+  /* 모바일: **2열** (2026-10-20) — 1열이었을 때 390px에서 목적지 2,247px · 연수 사례 3,742px로
+     두 구역만 홈의 약 7화면이었다(홈 전체 17,822px). 견적 폼·문의로 내려가는 길이 그만큼 길었다.
+     2열이면 반쪽 폭이라 16/9는 너무 납작하다(약 95px) → 4/3. 바닥 라인은 전부 같은 비율이라 맞는다. */
+  .gallery-grid { grid-template-columns:repeat(2,1fr); }
+  .gallery-card { aspect-ratio:4/3; }
   .gallery-card:nth-child(1),
   .gallery-card:nth-child(5),
   .gallery-card:nth-child(7),
-  .gallery-card:nth-child(8) { grid-column:auto; aspect-ratio:16/9; }
+  .gallery-card:nth-child(8) { grid-column:auto; aspect-ratio:4/3; }
 
-  .pf-grid { grid-template-columns:1fr; }
+  .pf-grid { grid-template-columns:repeat(2,1fr); gap:10px; }
+  /* 카드 안 글자·여백은 파일 끝 블록에 — 뒤쪽 `.pf-body{padding:20px}`·`.pf-title{17px}`가 여기를 덮는다 */
   .trust-strip { grid-template-columns:1fr 1fr; }
 
   .section-title-center { font-size:26px; }
@@ -2945,6 +2948,11 @@ body.qbar-on .scroll-top-btn { bottom:156px; }
 }
 @media (max-width:480px) {
   .step-tracker { font-size:var(--fs-cap); }
+  /* 2열 카드(목적지 · 연수 사례 · 2026-10-20) — 반쪽 폭에 맞춘 글자·여백. ⚠ 이 블록은 `.pf-body`·`.pf-title` 기본값(위 2850번대)보다
+     **뒤**여야 한다 — 앞쪽 480px 블록에 뒀더니 덮였다. */
+  .pf-body { padding:12px; }
+  .pf-title { font-size:14px; line-height:1.45; }
+  .gallery-overlay h3 { font-size:15px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .qbar, .qbar.show { transition:none; }

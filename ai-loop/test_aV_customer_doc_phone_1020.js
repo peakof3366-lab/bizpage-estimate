@@ -206,5 +206,20 @@ console.log('[12] 문의 상세 — 기록만 하는 버튼이 「확정」(발�
     /<span class="btn-demo">전달한 답변 기록<\/span>/.test(read('manual.html')) && /고객에게 보내지는 것이 아니라/.test(read('manual.html')));
 }
 
+console.log('[13] 고객 홈(폰) — 목적지·연수 사례 카드 2열(1열이면 두 구역만 약 7화면)');
+{
+  const css = read('styles.css');
+  const blocks = [...css.matchAll(/@media \(max-width:480px\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]);
+  const first = blocks.find((b) => /\.gallery-grid/.test(b)) || '';
+  ok('480px 블록에서 목적지 2열', /\.gallery-grid \{ grid-template-columns:repeat\(2,1fr\); \}/.test(first));
+  ok('반쪽 폭이라 4/3(16/9면 약 95px로 납작)', /\.gallery-card \{ aspect-ratio:4\/3; \}/.test(first));
+  ok('연수 사례 2열', /\.pf-grid \{ grid-template-columns:repeat\(2,1fr\); gap:10px; \}/.test(first));
+  /* 카드 안 글자 규칙은 기본값(.pf-body{padding:20px})보다 **뒤**에 있어야 이긴다 */
+  const basePos = css.lastIndexOf('.pf-body { padding:20px; }');
+  const phonePos = css.lastIndexOf('.pf-body { padding:12px; }');
+  ok('🔴 2열 카드 글자·여백 규칙이 기본값보다 뒤(앞이면 덮인다 — 실제로 덮였다)', basePos > 0 && phonePos > basePos, basePos + ' / ' + phonePos);
+  ok('카드 제목 14px(11px 바닥 위)', /\.pf-title \{ font-size:14px;/.test(css.slice(phonePos)));
+}
+
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);
