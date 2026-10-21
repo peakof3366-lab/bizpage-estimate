@@ -712,6 +712,10 @@
     }
     .detail-field { margin-bottom: 1rem; }
     .detail-label { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: .3rem; }
+    /* 단가 편집 — 칸 이름 옆 단위 · 칸 아래 금액 읽기 (2026-10-20, admin/rates.js rateFieldsHtml)
+       「1200000」만 있으면 0 하나를 못 잡는다. 단위는 굵기를 빼 이름과 구별하고, 한글이라 자간을 벌리지 않는다. */
+    .rf-unit { font-weight: 500; letter-spacing: 0; color: var(--muted); }
+    .rf-read { min-height: 1.2em; margin-top: .25rem; font-size: var(--fs-sm); font-weight: 600; color: var(--heading); font-variant-numeric: tabular-nums; }
     .detail-value { font-size: var(--fs-md); color: var(--text); }
     .detail-message { background: var(--bg); border: 1px solid var(--border); padding: .9rem 1rem; font-size: var(--fs-md); line-height: 1.7; white-space: pre-wrap; color: var(--text); min-height: 80px; }
     .note-area { width: 100%; padding: .7rem .9rem; border: 1px solid var(--border); font-size: var(--fs-md); min-height: 70px; resize: vertical; border-radius: var(--r); font-family: inherit; margin-top: .4rem; }

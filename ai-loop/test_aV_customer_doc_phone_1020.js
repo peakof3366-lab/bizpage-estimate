@@ -241,5 +241,27 @@ console.log('[15] 견적 작성 합계 막대 — 설명은 금액 아래 한 �
   ok('.nt는 한 줄을 차지한다', /\.sum \.nt \{ display: block;/.test(qp));
 }
 
+console.log('[16] 단가 편집 — 칸마다 단위 · 입력한 숫자를 쉼표 금액으로 읽어 준다(0 하나를 눈으로 잡게)');
+{
+  const rj = read('admin/rates.js');
+  const sj = read('script.js');
+  ok('단가 편집 · 새 목적지 두 창이 같은 rateFieldsHtml을 쓴다(목록 두 벌 금지)',
+    /rate-edit-fields'\)\.innerHTML = rateFieldsHtml\(/.test(rj) && /new-dest-fields'\)\.innerHTML = rateFieldsHtml\(/.test(rj)
+    && !/RATE_FIELD_ORDER\.map\(f => `\s*<div>\s*<div class="detail-label"[^`]*\$\{RATE_FIELD_LABELS\[f\]\}<\/div>/.test(rj));
+  const units = new Function(rj.match(/const RATE_FIELD_UNITS = (\{[\s\S]*?\});/)[0] + '; return RATE_FIELD_UNITS;')();
+  const order = Object.keys(new Function(rj.match(/const RATE_FIELD_LABELS = (\{[\s\S]*?\});/)[0] + '; return RATE_FIELD_LABELS;')());
+  ok('모든 단가 칸에 단위가 있다', order.every((f) => units[f]), order.filter((f) => !units[f]).join(','));
+  /* 🔴 단위가 엔진이 곱하는 방식과 같은가 — 엔진을 바꾸면 여기가 빨개진다 */
+  ok('차량 = 1대 1일(엔진: 단가 × 일수 × 대수)', /vehicleUnitAdj \* days \* vehicleCount/.test(sj) && units.vehicle_large === '1대 1일' && units.vehicle_small === '1대 1일');
+  ok('가이드 = 1명 1일(엔진: × 일수 × 명수)', /guideUnit \* days \* guideCount/.test(sj) && units.guide_fee === '1명 1일');
+  ok('호텔 = 객실 1박(엔진: × 객실 × 박)', /hotelUnit \* rooms \* nights/.test(sj) && units.hotel_per_room === '객실 1박');
+  ok('식비 = 1인 1일 · 관광비 = 1인 전체 일정', units.meal_per_person === '1인 1일' && /전체 일정/.test(units.sightseeing_fee));
+  const read1 = new Function(rj.match(/function rateRead\(v\) \{[\s\S]*?\n  \}/)[0] + '; return rateRead;')();
+  ok('「1200000」 → 「= 1,200,000원」', read1('1200000') === '= 1,200,000원', read1('1200000'));
+  ok('빈 칸이면 아무것도 안 읽는다', read1('') === '');
+  ok('칸을 고칠 때마다 다시 읽는다(input 위임)', /container\.addEventListener\('input'/.test(rj) && /bindRateRead\(document\.getElementById\('rate-edit-fields'\)\)/.test(rj));
+  ok('단위가 이름에 이미 든 칸은 짧은 이름(「1인 1일 식비 1인 1일」 중복 방지)', /meal_per_person: '식비'/.test(rj) && /margin_per_traveler: '마진'/.test(rj));
+}
+
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);

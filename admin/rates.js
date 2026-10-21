@@ -191,11 +191,8 @@
     if (!(await ensureFreshRates('단가 편집창 열기'))) return;
     const eff = effectiveRate(dest);
     document.getElementById('rateEditTitle').textContent = `단가 편집 — ${dest.label}`;
-    document.getElementById('rate-edit-fields').innerHTML = RATE_FIELD_ORDER.map(f => `
-      <div>
-        <div class="detail-label" style="margin-bottom:.3rem">${RATE_FIELD_LABELS[f]}</div>
-        <input type="number" class="pw-input" data-field="${f}" value="${eff[f] ?? 0}" min="0" />
-      </div>`).join('');
+    document.getElementById('rate-edit-fields').innerHTML = rateFieldsHtml((f) => eff[f] ?? 0);
+    bindRateRead(document.getElementById('rate-edit-fields'));
     document.getElementById('rate-edit-notes').value = eff.notes || '';
     document.getElementById('rate-edit-season').value = eff.season_note || '';
     const authorTag = document.getElementById('rate-edit-author');
@@ -296,11 +293,8 @@
     }
     spSel.value = '';
     document.getElementById('new-dest-msg').textContent = '';
-    document.getElementById('new-dest-fields').innerHTML = RATE_FIELD_ORDER.map(f => `
-      <div>
-        <div class="detail-label" style="margin-bottom:.3rem">${RATE_FIELD_LABELS[f]}</div>
-        <input type="number" class="pw-input" data-field="${f}" value="0" min="0" />
-      </div>`).join('');
+    document.getElementById('new-dest-fields').innerHTML = rateFieldsHtml(() => 0);
+    bindRateRead(document.getElementById('new-dest-fields'));
     const authorTag = document.getElementById('new-dest-author');
     authorTag.textContent = `작성자: ${currentUser.displayName}`;
     document.getElementById('newDestModal').classList.remove('hidden');
@@ -836,6 +830,48 @@
     golf_fee: '골프(1인 1회)',
   };
   const RATE_FIELD_ORDER = Object.keys(RATE_FIELD_LABELS);
+  /* 🔴 칸마다 **무엇의 단가인가** (2026-10-20) — 편집 창에 「대형 차량 1200000」만 있었다. 쉼표도 단위도 없어
+     0을 하나 빼거나 더해도 눈으로 못 잡고, 「차량이 하루치인가 전체인가」를 담당자가 기억으로 판단했다.
+     팀원이 이 창에서 고친 값이 그대로 고객 견적에 나간다.
+     ⚠ 단위는 **엔진(script.js)이 곱하는 방식 그대로**다 — 차량 = 단가 × 일수 × 대수, 가이드 = × 일수 × 명수,
+       호텔 = × 객실 × 박, 식비 = 1인 1일. 관광비는 1인 전체 일정 묶음(4~5일 기준, CLAUDE.md)이다. 엔진을 바꾸면 여기도. */
+  const RATE_FIELD_UNITS = {
+    airfare: '1인', fuel_surcharge: '1인', hotel_per_room: '객실 1박',
+    meal_per_person: '1인 1일', vehicle_large: '1대 1일', vehicle_small: '1대 1일',
+    guide_fee: '1명 1일', sightseeing_fee: '1인 · 전체 일정(4~5일 기준)', margin_per_traveler: '1인',
+    golf_fee: '1인 1회 · 0이면 골프 안 팜',
+  };
+  /* 편집 창에서만 쓰는 짧은 이름 — 단위를 옆에 따로 적으니 이름에 든 단위(「1인 1일 식비」·「1인당 마진」·「호텔(1박)」)는 뺀다.
+     ⚠ RATE_FIELD_LABELS는 그대로(변경 이력·일괄 조정·대장이 그 이름을 쓴다) */
+  const RATE_FIELD_SHORT = { hotel_per_room: '호텔', meal_per_person: '식비', margin_per_traveler: '마진', golf_fee: '골프' };
+  /* 단가 칸 묶음 — 단가 편집·새 목적지 두 창이 **같은 것**을 쓴다(목록을 두 번 적지 않는다 · 결함 생성기 ①) */
+  function rateFieldsHtml(valueOf) {
+    return RATE_FIELD_ORDER.map(f => {
+      const v = valueOf(f);
+      return `
+      <div>
+        <div class="detail-label" style="margin-bottom:.3rem">${RATE_FIELD_SHORT[f] || RATE_FIELD_LABELS[f]} <span class="rf-unit">${RATE_FIELD_UNITS[f] || ''}</span></div>
+        <input type="number" class="pw-input" data-field="${f}" value="${v}" min="0" aria-label="${RATE_FIELD_LABELS[f]} (${RATE_FIELD_UNITS[f] || ''})" />
+        <div class="rf-read" data-read="${f}">${rateRead(v)}</div>
+      </div>`;
+    }).join('');
+  }
+  /* 입력한 숫자를 금액으로 읽어 준다 — 「1200000」 → 「= 1,200,000원」 */
+  function rateRead(v) {
+    const n = Number(v);
+    return (v === '' || v == null || !isFinite(n)) ? '' : '= ' + Math.round(n).toLocaleString('ko-KR') + '원';
+  }
+  /* 칸을 고칠 때마다 아래 줄을 다시 쓴다 — 칸을 다시 그리지 않으니 커서가 안 튄다 */
+  function bindRateRead(container) {
+    if (!container || container.dataset.rfBound) return;
+    container.dataset.rfBound = '1';
+    container.addEventListener('input', (e) => {
+      const f = e.target && e.target.dataset && e.target.dataset.field;
+      if (!f) return;
+      const out = container.querySelector(`[data-read="${f}"]`);
+      if (out) out.textContent = rateRead(e.target.value);
+    });
+  }
 
   /* 서버에서 현재 기준가(rate_overrides)를 읽지 못한 상태를 기억한다.
      ⚠ 예전엔 실패를 console.warn으로만 남기고 캐시를 그대로 뒀다. 그러면 화면이
