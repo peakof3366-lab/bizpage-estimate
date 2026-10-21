@@ -1365,11 +1365,15 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
       g.innerHTML = '<td colspan="5"><b>' + text + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</td>';
       tb.appendChild(g);
     };
-    const order = S.adhoc ? S.rows.filter((r) => !r.internal).concat(S.rows.filter((r) => r.internal)) : S.rows;
+    /* 2026-10-20 자동 산출에도 같은 묶음 머리줄 — 예전엔 직접 입력만 갈랐고, 자동 산출은 본사 수익·현지 수익금·보험이
+       일반 줄 바로 밑에 **연분홍 바탕만** 다르게 이어져 「견적서에 안 나간다」가 안 읽혔다(1060 캡처).
+       ⚠ 9/28 대표 요청으로 뺀 것은 **줄마다 붙던 「내부」 배지**다 — 그건 되살리지 않는다. 머리줄은 묶음에 하나. */
+    const order = S.rows.filter((r) => !r.internal).concat(S.rows.filter((r) => r.internal));
+    const hasInternal = order.some((r) => r.internal);
     let shownInternalHead = false;
-    if (S.adhoc && order.length) grp('고객 견적서 항목');
+    if ((S.adhoc || hasInternal) && order.length) grp('고객 견적서 항목');
     order.forEach((r) => {
-      if (S.adhoc && r.internal && !shownInternalHead) {
+      if (r.internal && !shownInternalHead) {
         shownInternalHead = true;
         grp('내부 항목', '견적서 비노출');
       }

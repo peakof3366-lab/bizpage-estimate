@@ -221,5 +221,15 @@ console.log('[13] 고객 홈(폰) — 목적지·연수 사례 카드 2열(1열�
   ok('카드 제목 14px(11px 바닥 위)', /\.pf-title \{ font-size:14px;/.test(css.slice(phonePos)));
 }
 
+console.log('[14] 자동 산출 ② — 내부 항목(본사 수익·현지 수익금·보험)이 「견적서 비노출」 묶음 아래에');
+{
+  const qp = read('admin-quote-pro.html');
+  ok('표시 순서는 두 모드 모두 고객 줄 먼저 · 내부 줄 나중',
+    /const order = S\.rows\.filter\(\(r\) => !r\.internal\)\.concat\(S\.rows\.filter\(\(r\) => r\.internal\)\);/.test(qp));
+  ok('🔴 자동 산출도 내부 줄이 있으면 머리줄을 단다(예전엔 직접 입력만)', /if \(\(S\.adhoc \|\| hasInternal\) && order\.length\) grp\('고객 견적서 항목'\)/.test(qp));
+  ok('내부 묶음 머리줄은 모드 조건 없이', /if \(r\.internal && !shownInternalHead\) \{/.test(qp));
+  ok('9/28 대표 요청 — 줄마다 「내부」 배지는 되살리지 않는다', !/badge[^"]*">내부</.test(qp));
+}
+
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);
