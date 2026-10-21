@@ -346,7 +346,8 @@ const RATES_PAYLOAD = { overrides: {}, fxRates: {}, fxBaseline: {}, customDestin
   route = () => ({ status: 500, body: { error: 'update_failed' } });
   await w.__confirmReply('inquiry', 'lead1', 'pv-reply-text', 'pv-reply-meta');
   await new Promise((r2) => setTimeout(r2, 60));
-  ok('답변 확정 실패를 알린다', alerts.some(a => /답변 확정/.test(a)), JSON.stringify(alerts));
+  /* 2026-10-20 버튼 이름이 「전달한 답변 기록」으로 바뀌며 안내 문구도 「답변 기록」으로 */
+  ok('답변 기록 실패를 알린다', alerts.some(a => /답변 기록/.test(a)), JSON.stringify(alerts));
   ok('"○○ · 날짜 답변" 표시를 띄우지 않는다', meta.textContent === '', meta.textContent);
   const afterReply = JSON.parse(w.localStorage.getItem(w.__KEYS.contacts) || '[]');
   ok('캐시에 답변이 남지 않는다', !(afterReply[0] && afterReply[0].reply), JSON.stringify(afterReply[0] && afterReply[0].reply));

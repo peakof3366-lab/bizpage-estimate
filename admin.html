@@ -1983,7 +1983,9 @@
         <h4 class="inq-sec-h">답변 <span id="d-reply-meta" class="inq-reply-meta">미답변</span></h4>
         <textarea class="note-area" id="d-reply-text" placeholder="고객에게 전달한 답변" aria-label="고객에게 보낸 답변 내용"></textarea>
         <div class="inq-reply-act">
-          <button type="button" class="btn-act btn-primary" onclick="confirmReply('inquiry', currentModalId, 'd-reply-text', 'd-reply-meta')">답변 확정</button>
+          <!-- 2026-10-20 「답변 확정」 → 「전달한 답변 기록」 — 이 버튼은 **고객에게 아무것도 보내지 않는다**(기록만 한다).
+               보라색 강조 버튼에 「확정」이라 적혀 있으면 누르면 발송되는 줄 안다(CLAUDE.md 화면 규칙 3). -->
+          <button type="button" class="btn-act btn-primary" onclick="confirmReply('inquiry', currentModalId, 'd-reply-text', 'd-reply-meta')">전달한 답변 기록</button>
         </div>
       </section>
 
@@ -3740,7 +3742,7 @@
 
     const patchFn = kind === 'inquiry' ? patchInquiry : patchQuote;
     /* setReply는 덮어쓰기라 멱등하다 → 5xx·네트워크 재시도를 그대로 쓴다. */
-    const r = await patchFn(id, { setReply: { text, author } }, { desc: '답변 확정' });
+    const r = await patchFn(id, { setReply: { text, author } }, { desc: '답변 기록' });
     /* 실패하면 "○○ · 7/30 답변" 표시를 띄우지 않는다 (PV) — 예전엔 서버에 답변이
        없어도 화면에 확정된 것처럼 찍혔다. 다른 담당자는 답변이 나간 줄 알고 넘어가고,
        고객은 답을 못 받는다. 답변 내용은 입력창에 남으므로 다시 확정하면 된다. */

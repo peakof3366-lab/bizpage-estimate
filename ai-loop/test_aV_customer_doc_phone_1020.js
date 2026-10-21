@@ -196,5 +196,15 @@ console.log('[11] 견적 작성 — 저장된 견적을 불러오면 목적지�
     /\.day-b\.iti-b \{ grid-template-columns: minmax\(0, 1\.5fr\) minmax\(0, 1\.5fr\) minmax\(0, 1fr\) minmax\(0, 1fr\) minmax\(0, 1fr\); \}/.test(qp));
 }
 
+console.log('[12] 문의 상세 — 기록만 하는 버튼이 「확정」(발송처럼 읽힘)이라 부르지 않는다');
+{
+  const ah = read('admin.html');
+  const btn = (ah.match(/onclick="confirmReply\('inquiry'[^>]*>([^<]*)<\/button>/) || [])[1];
+  ok('답변 버튼을 찾았다', !!btn, String(btn));
+  ok('🔴 이름이 「기록」을 말한다(고객에게 안 보낸다)', /기록/.test(btn || '') && !/확정|보내기|발송|전송/.test(btn || ''), btn);
+  ok('매뉴얼도 같은 이름 · 「보내지는 것이 아니다」를 말한다',
+    /<span class="btn-demo">전달한 답변 기록<\/span>/.test(read('manual.html')) && /고객에게 보내지는 것이 아니라/.test(read('manual.html')));
+}
+
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);
