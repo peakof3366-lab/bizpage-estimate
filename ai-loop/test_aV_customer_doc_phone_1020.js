@@ -181,5 +181,20 @@ console.log('[10] 관리자 가로 막대 — 0은 비운다(최소 2%를 칠해
     !/\.h-bar-fill\s*\{[^}]*min-width/.test(read('admin.css')));
 }
 
+console.log('[11] 견적 작성 — 저장된 견적을 불러오면 목적지에 딸린 것(추천 코스·골프 잠금)도 따라온다 · 일정 카드 다섯 칸 한 줄');
+{
+  const qp = read('admin-quote-pro.html');
+  ok('afterDestSetByCode가 추천 코스·골프 잠금을 다시 맞춘다',
+    /function afterDestSetByCode\(\) \{ fillCourseSelect\(\); syncGolfLock\(\); \}/.test(qp));
+  const sets = [...qp.matchAll(/\b(sel|e)\.value = (want|hit\.destKey);([^\n]*)/g)];
+  ok('목적지를 코드로 넣는 두 곳(저장 견적 · 직접견적)을 찾았다', sets.length === 2, String(sets.length));
+  ok('🔴 두 곳 모두 넣은 직후 afterDestSetByCode를 부른다(대입은 change를 안 낸다)', sets.every((m) => /afterDestSetByCode\(\)/.test(m[3])));
+  ok('change를 흉내 내지 않는다(sec1의 markCalcStale이 불러온 견적을 「다시 계산 필요」로 만든다)',
+    !/pDest'\)\.dispatchEvent|sel\.dispatchEvent\(new Event\('change'/.test(qp));
+  ok('하루 카드는 다섯 칸 한 줄 격자(iti-b)', /'<div class="day-b iti-b">'/.test(qp));
+  ok('🔴 칸이 줄어들 수 있다(minmax(0, …) — 그냥 fr이면 카드 밖으로 넘쳤다)',
+    /\.day-b\.iti-b \{ grid-template-columns: minmax\(0, 1\.5fr\) minmax\(0, 1\.5fr\) minmax\(0, 1fr\) minmax\(0, 1fr\) minmax\(0, 1fr\); \}/.test(qp));
+}
+
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);

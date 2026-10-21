@@ -323,6 +323,12 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
 .day-h { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #F4F4F0;
   font-size: 13px; font-weight: 800; }
 .day-b { padding: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+/* ④ 일정 하루 카드 — 짧은 칸 다섯(지역·숙박·조식·중식·석식)을 **한 줄로** (2026-10-20)
+   위 공용 규칙(칸마다 최소 190px)으로는 1280 노트북의 화면 폭(약 960px)에 네 칸만 들어가 「석식」이 혼자 다음 줄로 떨어졌다
+   — 하루 열흘이면 열 번. 식사 칸은 「호텔식」·「현지식」처럼 짧아 지역·숙박보다 좁게 준다. 좁은 화면은 공용 규칙으로 돌아간다. */
+/* ⚠ minmax(0, …)여야 한다 — 그냥 fr로 줬더니 입력칸의 기본 최소 폭 때문에 칸이 안 줄어 카드 오른쪽 밖으로 삐져나갔다 */
+.day-b.iti-b { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 760px) { .day-b.iti-b { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
 /* 한 항목에 줄이 둘 이상일 때 — 기준 양식의 「식사」·「기타사항」이 그렇다 */
 .day-b + .day-b { border-top: 1px dashed var(--line); }
 .day-b .rn { grid-column: 1/-1; display: flex; align-items: center; gap: 8px;
@@ -1905,7 +1911,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
       row.className = 'day';
       row.innerHTML = '<div class="day-h">DAY ' + it.day + ' <span style="font-weight:500;color:var(--t-dim)">' + esc(it.date) + '</span>'
         + '<span style="flex:1"></span><button type="button" class="btn btn-sm btn-rm" data-irm="' + i + '" aria-label="DAY ' + it.day + ' 삭제">이 날 삭제</button></div>'
-        + '<div class="day-b">'
+        + '<div class="day-b iti-b">'
         + '<label class="f"><span>지역</span><input type="text" data-it="' + i + '" data-k="title" value="' + esc(it.title) + '" placeholder="인천 → 다낭" /></label>'
         + '<label class="f"><span>숙박</span><input type="text" data-it="' + i + '" data-k="stay" value="' + esc(it.stay) + '" /></label>'
         /* ⚠ 2026-09-27 짧은 칸 다섯(지역·숙박·조식·중식·석식)을 **먼저** 둔다 — 넓은 화면에서 한 줄에
@@ -2122,6 +2128,11 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
   }
   $('pDest').addEventListener('change', syncGolfLock);
   syncGolfLock();
+  /* 🔴 **코드가 목적지를 넣었을 때 부른다** (2026-10-20). `sel.value = …` 대입은 change를 안 낸다 —
+     저장된 견적·직접견적을 불러오면 목적지는 「괌」인데 ④단계 추천 코스는 「목적지를 먼저 고르세요」로 꺼져 있었고,
+     골프 잠금도 빈 목적지 기준 그대로였다(1280 캡처로 발견).
+     ⚠ change를 흉내 내지 않는다 — sec1의 change가 markCalcStale을 불러, 방금 불러온 견적이 「다시 계산 필요」가 된다. */
+  function afterDestSetByCode() { fillCourseSelect(); syncGolfLock(); }
   if (typeof rateOverridesReady !== 'undefined') Promise.resolve(rateOverridesReady).then(syncGolfLock).catch(() => {});
 
   if (typeof itineraryOverridesReady !== 'undefined') {
@@ -2651,7 +2662,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
     if (rec.destKey || rec.destination) {
       const sel = $('pDest');
       const want = String(rec.destKey || rec.destination);
-      if (sel && Array.from(sel.options).some((o) => o.value === want)) sel.value = want;
+      if (sel && Array.from(sel.options).some((o) => o.value === want)) { sel.value = want; afterDestSetByCode(); }
     }
     setv('pPax', (doc.trip && doc.trip.pax) || rec.participants);
     setv('pDays', (doc.trip && doc.trip.days) || rec.days);
@@ -2813,7 +2824,7 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
       if (!hit) throw new Error('이 번호의 직접견적을 찾지 못했습니다');
       S.pkg = hit;
       /* 여행 정보 */
-      if (hit.destKey) { const e = $('pDest'); if (e && Array.from(e.options).some((o) => o.value === hit.destKey)) e.value = hit.destKey; }
+      if (hit.destKey) { const e = $('pDest'); if (e && Array.from(e.options).some((o) => o.value === hit.destKey)) { e.value = hit.destKey; afterDestSetByCode(); } }
       if (hit.days) $('pDays').value = String(hit.days);
       if (hit.nights !== undefined && hit.nights !== null) { $('pNights').value = String(hit.nights); $('pNights').dataset.touched = '1'; }
       if (hit.departDate) $('pStart').value = String(hit.departDate).slice(0, 10);
