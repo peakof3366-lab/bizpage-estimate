@@ -272,6 +272,29 @@ SWEEP = r"""
     }
   });
 
+  /* ── ⑩ 조작이 **자기 카드 밖으로** 나간다 (2026-10-20 신설) ──
+     ⑤는 **화면** 끝만 본다. 견적 작성 ④ 일정 카드에서 다섯 칸 격자를 fr로 줬더니 입력칸 최소 폭 때문에
+     칸이 카드 오른쪽 테두리 밖으로 삐져나갔는데(화면 안이라) 아무 잣대도 안 셌다 — 캡처를 눈으로 보고 알았다.
+     → 입력칸·고르기·버튼이 **가장 가까운 테두리 상자**(오른쪽 테두리가 있는 조상)의 안쪽 끝을 넘으면 센다.
+     ⚠ 빼는 것: 스스로 굴리는 칸 안(표 가로 스크롤은 설계) · 떠 있는 것(absolute/fixed — 닫기 ✕·떠 있는 막대). */
+  out.boxSpill = [];
+  document.querySelectorAll('input:not([type=hidden]),select,textarea,button').forEach((el) => {
+    const v = shown(el); if (!v || inScroller(el)) return;
+    if (/^(absolute|fixed)$/.test(v.cs.position)) return;
+    let box = el.parentElement, floating = false;
+    while (box && box !== document.body) {
+      const bc = getComputedStyle(box);
+      if (/^(absolute|fixed)$/.test(bc.position)) { floating = true; break; }
+      if (parseFloat(bc.borderRightWidth) > 0 && bc.display !== 'inline') break;
+      box = box.parentElement;
+    }
+    if (floating || !box || box === document.body) return;
+    const br = box.getBoundingClientRect(), bc = getComputedStyle(box);
+    const inner = br.right - parseFloat(bc.borderRightWidth);
+    const over = Math.round(v.r.right - inner);
+    if (over > 2) out.boxSpill.push({ sel: path(el), box: path(box), over: over, text: label(el) || el.getAttribute('aria-label') || el.name || '' });
+  });
+
   /* ── ⑨ 표가 넘쳐 **고정 열이 내용 열을 덮는다** (2026-10-16 신설) ──
      조작 열을 오른쪽에 고정하면(admin.css 「조작 열 고정」) 누를 것은 늘 보이지만, 표가 넘친 만큼
      **그 앞 열이 고정 열 밑에 깔린다.** 1280 대장에서 넘친 127px가 정확히 「상태」 열이었다 —
@@ -355,6 +378,10 @@ def collect(page, where, findings, scope=None):
         findings.append((sev, where, tag("표가 넘쳐 고정 열이 내용 열을 덮는다"),
                          f"+{s['over']}px 넘침 · 고정 열 {s['w']}px [{s['sel']}]"))
 
+    for s in r.get("boxSpill", []):
+        findings.append(("🔴", where, tag("입력칸·버튼이 자기 카드 밖으로 나간다"),
+                         f"+{s['over']}px · 「{s['text'][:30]}」 [{s['sel']}] ⊄ [{s['box']}]"))
+
     for ln in r["lines"]:
         sev = "🔴" if ln["cpl"] > LINE_FAIL else "·"
         findings.append((sev, where, tag("한 줄이 길다"),
@@ -378,6 +405,8 @@ td{border:1px solid #ccc;padding:4px;word-break:keep-all}</style>
 <table style="width:50px"><tr><td id="dt">2026-09-28</td></tr></table>
 <table style="width:24px"><tr><td id="qty" style="overflow-wrap:anywhere">120명</td></tr></table>
 <div id="barlbl" style="width:16px;overflow-wrap:anywhere;font-size:13px">22시</div>
+<div style="width:300px;border:1px solid #ccc;margin-top:20px"><div style="display:grid;grid-template-columns:1fr 1fr 1fr"><input id="spillA"><input id="spillB"><input id="spillC"></div></div>
+<div style="width:300px;border:1px solid #ccc;margin-top:20px"><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr))"><input id="fitA" style="width:100%;box-sizing:border-box"><input style="width:100%;box-sizing:border-box"><input style="width:100%;box-sizing:border-box"></div></div>
 <div style="margin-top:40px"><button id="crowdA" style="width:14px;height:14px;padding:0">a</button><button
  id="crowdB" style="width:14px;height:14px;padding:0">b</button></div>
 <div style="margin-top:40px"><button id="alone" style="width:14px;height:14px;padding:0">c</button></div>
@@ -404,6 +433,10 @@ def selftest_cells(page):
         bad.append("⑧ 두 줄로 갈린 「숫자+단위」(120 / 명)를 못 잡았다")
     if not any(c["text"] == "22시" for c in r["numsplit"]):
         bad.append("⑧ 표 밖(그래프 라벨)의 갈린 「22 / 시」를 못 잡았다 — 표 칸만 보고 있다")
+    if not any("spillC" in s["sel"] for s in r.get("boxSpill", [])):
+        bad.append("⑩ 카드 밖으로 넘친 입력칸(fr 격자)을 못 잡았다")
+    if any("fitA" in s["sel"] for s in r.get("boxSpill", [])):
+        bad.append("⑩ 카드 안에 맞는 입력칸(minmax(0) 격자 · 대조군)을 넘쳤다고 셌다 — 없는 결함")
     if any(c["text"] == "30명" for c in r["numsplit"]):
         bad.append("⑧ 넓은 칸의 「30명」(대조군)을 갈렸다고 셌다 — 없는 결함")
     taps = {t["text"]: t for t in r["taps"]}
