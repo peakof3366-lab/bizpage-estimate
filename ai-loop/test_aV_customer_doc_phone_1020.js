@@ -231,5 +231,15 @@ console.log('[14] 자동 산출 ② — 내부 항목(본사 수익·현지 수�
   ok('9/28 대표 요청 — 줄마다 「내부」 배지는 되살리지 않는다', !/badge[^"]*">내부</.test(qp));
 }
 
+console.log('[15] 견적 작성 합계 막대 — 설명은 금액 아래 한 줄(옆에 붙이면 「고객이 받는 / 금액」으로 갈렸다)');
+{
+  const qp = read('admin-quote-pro.html');
+  const sum = (qp.match(/\$\('sumBox'\)\.innerHTML =([\s\S]*?);\r?\n/) || [])[1] || '';
+  ok('합계 막대 코드를 찾았다', /자동 산출 총액/.test(sum));
+  ok('🔴 「원 · 설명」 이어 붙이기가 없다', !/<em>원 ·|<em>원 '/.test(sum), sum.slice(0, 120));
+  ok('설명 넷이 .nt로', ['고객이 받는 금액', "'조정 없음'", '실무 변수', '마진율'].every((s) => sum.includes(s)) && (sum.match(/nt\(/g) || []).length >= 4);
+  ok('.nt는 한 줄을 차지한다', /\.sum \.nt \{ display: block;/.test(qp));
+}
+
 console.log(`\n결과: ${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);

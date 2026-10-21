@@ -280,6 +280,8 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
 .sum strong { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .sum em { font-style: normal; font-size: 12px; color: var(--t-dim); }   /* 2026-10-12 11.5 → 12px */
 .sum .int { background: #FBF7F7; }
+/* 금액 아래 설명 한 줄 (2026-10-20) — 금액 옆에 이어 붙였더니 칸 폭에서 중간에 갈렸다 */
+.sum .nt { display: block; margin-top: 2px; font-size: 12px; color: var(--t-dim); }
 
 .note { margin: 10px 0 0; padding: 9px 12px; background: var(--warn-bg); border: 1px solid var(--warn-line);
   font-size: 12px; color: var(--warn); line-height: 1.75; max-width: var(--measure); }
@@ -1533,16 +1535,19 @@ details[open] > .doc-fold-sum { margin-bottom: 14px; }
       const eq = $('costToMargin');
       if (eq) eq.innerHTML = num(c) > 0 ? '→ 마진 <b>' + won(t.margin) + '원</b> · ' + t.rate.toFixed(1) + '%' : '';
     }
+    /* 설명은 금액 **아래 한 줄**(.nt) — 2026-10-20 「40,326,850원 · 고객이 받는 / 금액」·「원 · 마진율 / 26.1%」처럼
+       금액 옆에 이어 붙인 설명이 칸 폭(5칸 ≈ 190px)에서 중간에 갈렸다(1060 캡처). 「원」은 숫자 옆에 남는다. */
+    const nt = (s) => (s ? '<span class="nt">' + s + '</span>' : '');
     $('sumBox').innerHTML =
-      (S.adhoc ? '' : '<div><b>자동 산출 총액</b><strong>' + won(t.autoTotal) + '</strong><em>원 · 고객이 받는 금액</em></div>')
-      + '<div><b>' + (S.adhoc ? '견적 총액' : '최종 총액') + '</b><strong>' + won(t.total) + '</strong><em>원 '
-        + (S.adhoc ? '' : (t.total !== t.autoTotal ? '· 자동 대비 ' + (t.total > t.autoTotal ? '+' : '') + won(t.total - t.autoTotal) : '· 조정 없음')) + '</em></div>'
+      (S.adhoc ? '' : '<div><b>자동 산출 총액</b><strong>' + won(t.autoTotal) + '</strong><em>원</em>' + nt('고객이 받는 금액') + '</div>')
+      + '<div><b>' + (S.adhoc ? '견적 총액' : '최종 총액') + '</b><strong>' + won(t.total) + '</strong><em>원</em>'
+        + nt(S.adhoc ? '' : (t.total !== t.autoTotal ? '자동 대비 ' + (t.total > t.autoTotal ? '+' : '') + won(t.total - t.autoTotal) : '조정 없음')) + '</div>'
       /* 2026-09-28 대표 요청 — 「· 담당자가 적은 값」·「· 총액 ÷ n명」·「· 🔴 내부」(원가·마진)를 뺐다.
            원가·마진이 내부 값이라는 것은 연분홍 칸(.int)이 말한다. 마진율과 실무 변수 포함액은 남긴다(판단에 쓰는 숫자다). */
       + '<div><b>표기 단가</b><strong>' + won(t.unit) + '</strong><em>원</em></div>'
-      + '<div class="int"><b>원가 (공급가)</b><strong>' + won(t.cost) + '</strong><em>원'
-        + (t.adjCost ? ' · 실무 변수 ' + (t.adjCost > 0 ? '+' : '') + won(t.adjCost) + ' 포함' : '') + '</em></div>'
-      + '<div class="int"><b>마진</b><strong>' + won(t.margin) + '</strong><em>원 · 마진율 ' + t.rate.toFixed(1) + '%</em></div>';
+      + '<div class="int"><b>원가 (공급가)</b><strong>' + won(t.cost) + '</strong><em>원</em>'
+        + nt(t.adjCost ? '실무 변수 ' + (t.adjCost > 0 ? '+' : '') + won(t.adjCost) + ' 포함' : '') + '</div>'
+      + '<div class="int"><b>마진</b><strong>' + won(t.margin) + '</strong><em>원</em>' + nt('마진율 ' + t.rate.toFixed(1) + '%') + '</div>';
 
     const w = $('moneyWarn');
     if (t.margin < 0) {
