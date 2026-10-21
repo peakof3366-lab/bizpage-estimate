@@ -480,6 +480,32 @@ const line = (cells) => {
   ok('리드타임을 화면에 보여준다', /리드타임/.test(adminSrc));
   ok('제출할 때 날짜를 함께 보낸다', /departDate: \(document\.getElementById\('pr-depart'\)/.test(adminSrc));
 
+  /* ── [S] 인솔진 숙박 줄은 호텔 대표가 아니다 (2026-10-20) ──────────────────
+     실측 모양: 「인솔자 3,600,000 · 204,545 · 1 · 3 · 인솔자 숙박」이 호텔 대표가 되어 운영 DB에
+     호텔명 「인솔자」 · 단가 204,545로 제보됐다(이태리 건은 「인솔자경비 호텔비」 189,600). */
+  console.log('\n[S] 인솔진 숙박 줄을 호텔 단가로 쓰지 않는가');
+  ln = 0;
+  const staffOnly = [
+    line(['인 원', '36']),
+    line(['구분', '단가', '수량/인원', '횟수/박수', '총금액', '비고']),
+    line(['인솔자', '204,545', '1', '3', '613,636', '인솔자 숙박']),
+    line(['1일 석식', '30,000', '36', '1', '1,080,000']),
+  ];
+  const so2 = X.readOneBlock(staffOnly, {});
+  ok('🔴 인솔자 숙박 줄만 있으면 호텔 단가를 비운다(틀린 값보다 빈칸)', so2.values.hotel == null, String(so2.values.hotel));
+  ok('🔴 호텔명에 「인솔자」가 안 들어간다', !so2.values.hotelName, String(so2.values.hotelName));
+  ln = 0;
+  const mixed = [
+    line(['인 원', '36']),
+    line(['구분', '단가', '수량/인원', '횟수/박수', '총금액', '비고']),
+    line(['인솔자경비 호텔비', '189,600', '3', '4', '2,275,200', '인솔자 숙박']),
+    line(['소나시 호텔', '95,000', '18', '3', '5,130,000', '트윈 18객실']),
+  ];
+  const mx = X.readOneBlock(mixed, {});
+  ok('여행자 객실 줄이 있으면 그 줄이 대표(인솔진 줄 총액이 커도)', mx.values.hotel === 95000, String(mx.values.hotel));
+  ok('호텔명도 여행자 객실 줄에서', /소나시/.test(mx.values.hotelName || ''), String(mx.values.hotelName));
+  ok('규칙은 식비와 같은 정규식 하나(두 벌 금지)', /pickBy\(rows, 'hotel', byMaxTotal, \(r\) => !MEAL_STAFF_RE\.test/.test(libSrcRZ));
+
   console.log(`\n결과: ${pass} pass / ${fail} fail`);
   dom.window.close();
   if (fail) process.exit(1);
